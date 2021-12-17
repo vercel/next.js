@@ -3,7 +3,7 @@ import type { Params, Route } from './router'
 import type { CacheFs } from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
-import type { FetchEventResult } from './web/types'
+import type { FetchEventResult, RequestData } from './web/types'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { PrerenderManifest } from '../build'
 import type { Rewrite } from '../lib/load-custom-routes'
@@ -57,6 +57,7 @@ import BaseServer, {
   FindComponentsResult,
   prepareServerlessUrl,
   stringifyQuery,
+  isApiRoute,
 } from './base-server'
 import { getMiddlewareInfo, getPagePath, requireFontManifest } from './require'
 import { normalizePagePath } from './normalize-page-path'
@@ -68,8 +69,7 @@ import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { getMiddlewareRegex, getRouteMatcher } from '../shared/lib/router/utils'
-import { MIDDLEWARE_ROUTE } from '../lib/constants'
+import { getMiddlewareRegex, getRouteMatcher, RoutingItem } from '../shared/lib/router/utils'
 import { loadEnvConfig } from '@next/env'
 import { getCustomRoute } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
@@ -1030,7 +1030,7 @@ export default class NextNodeServer extends BaseServer {
       type: 'route',
       name: 'middleware catchall',
       fn: async (req, res, _params, parsed) => {
-        if (!this.middleware?.length) {
+        if (!this.allRoutes?.some((r) => r.isMiddleware)) {
           return { finished: false }
         }
 
@@ -1046,7 +1046,24 @@ export default class NextNodeServer extends BaseServer {
         })
 
         const normalizedPathname = removePathTrailingSlash(parsedUrl.pathname)
-        if (!this.middleware?.some((m) => m.match(normalizedPathname))) {
+        const middleware: RoutingItem[] = []
+        for (const item of this.allRoutes || []) {
+          if (item.match(normalizedPathname)) {
+            if (!item.isMiddleware) break
+
+            // prevent matching with API requests except `/` and `/api/.*`
+            if (
+              item.page !== '/' &&
+              !isApiRoute(item.page) &&
+              isApiRoute(normalizedPathname)
+            )
+              continue
+
+            middleware.push(item)
+          }
+        }
+
+        if (!middleware.length) {
           return { finished: false }
         }
 
@@ -1058,6 +1075,7 @@ export default class NextNodeServer extends BaseServer {
             response: res,
             parsedUrl: parsedUrl,
             parsed: parsed,
+            middleware,
           })
         } catch (err) {
           if (isError(err) && err.code === 'ENOENT') {
@@ -1198,18 +1216,6 @@ export default class NextNodeServer extends BaseServer {
     }
   }
 
-  protected getMiddleware() {
-    const middleware = this.middlewareManifest?.middleware || {}
-    return (
-      this.middlewareManifest?.sortedMiddleware.map((page) => ({
-        match: getRouteMatcher(
-          getMiddlewareRegex(page, MIDDLEWARE_ROUTE.test(middleware[page].name))
-        ),
-        page,
-      })) || []
-    )
-  }
-
   private middlewareBetaWarning = execOnce(() => {
     Log.warn(
       `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
@@ -1221,6 +1227,7 @@ export default class NextNodeServer extends BaseServer {
     response: BaseNextResponse
     parsedUrl: ParsedNextUrl
     parsed: UrlWithParsedQuery
+    middleware: RoutingItem[]
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     this.middlewareBetaWarning()
@@ -1236,11 +1243,15 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
-    const page: { name?: string; params?: { [key: string]: string } } = {}
+    const page: RequestData['page'] = {}
     if (await this.hasPage(normalizedPathname)) {
       page.name = params.parsedUrl.pathname
     } else if (this.dynamicRoutes) {
+      const isApi = isApiRoute(normalizedPathname)
       for (const dynamicRoute of this.dynamicRoutes) {
+        // The api route should not match with others
+        if (isApi && !isApiRoute(dynamicRoute.page)) continue
+
         const matchParams = dynamicRoute.match(normalizedPathname)
         if (matchParams) {
           page.name = dynamicRoute.page
@@ -1258,7 +1269,7 @@ export default class NextNodeServer extends BaseServer {
         ? clonableBodyForRequest(params.request.body)
         : undefined
 
-    for (const middleware of this.middleware || []) {
+    for (const middleware of params.middleware) {
       if (middleware.match(normalizedPathname)) {
         if (!(await this.hasMiddleware(middleware.page, middleware.ssr))) {
           console.warn(`The Edge Function for ${middleware.page} was not found`)

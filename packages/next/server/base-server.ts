@@ -29,10 +29,9 @@ import {
   TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
 import {
-  getRouteMatcher,
-  getRouteRegex,
-  getSortedRoutes,
+  getRoutingItems,
   isDynamicRoute,
+  RoutingItem,
 } from '../shared/lib/router/utils'
 import {
   setLazyProp,
@@ -68,12 +67,6 @@ import { ImageConfigComplete } from '../shared/lib/image-config'
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
   query: NextParsedUrlQuery
-}
-
-interface RoutingItem {
-  page: string
-  match: ReturnType<typeof getRouteMatcher>
-  ssr?: boolean
 }
 
 export interface Options {
@@ -176,8 +169,8 @@ export default abstract class Server {
   protected dynamicRoutes?: DynamicRoutes
   protected customRoutes: CustomRoutes
   protected middlewareManifest?: MiddlewareManifest
-  protected middleware?: RoutingItem[]
   protected serverComponentManifest?: any
+  protected allRoutes?: RoutingItem[]
   public readonly hostname?: string
   public readonly port?: number
 
@@ -200,14 +193,6 @@ export default abstract class Server {
     fallback: Route[]
   }
   protected abstract getFilesystemPaths(): Set<string>
-  protected abstract getMiddleware(): {
-    match: (pathname: string | null | undefined) =>
-      | false
-      | {
-          [paramName: string]: string | string[]
-        }
-    page: string
-  }[]
   protected abstract findPageComponents(
     pathname: string,
     query?: NextParsedUrlQuery,
@@ -812,7 +797,7 @@ export default abstract class Server {
           }
         }
 
-        if (pathname === '/api' || pathname.startsWith('/api/')) {
+        if (isApiRoute(pathname)) {
           delete query._nextBubbleNoFallback
 
           const handled = await this.handleApiRequest(req, res, pathname, query)
@@ -841,10 +826,8 @@ export default abstract class Server {
     const { useFileSystemPublicRoutes } = this.nextConfig
 
     if (useFileSystemPublicRoutes) {
+      this.allRoutes = this.getAllRoutes()
       this.dynamicRoutes = this.getDynamicRoutes()
-      if (!this.minimalMode) {
-        this.middleware = this.getMiddleware()
-      }
     }
 
     return {
@@ -930,24 +913,34 @@ export default abstract class Server {
     return this.runApi(req, res, query, params, page, builtPagePath)
   }
 
+  protected getAllRoutes(): RoutingItem[] {
+    const pages = Object.keys(this.pagesManifest!).map(
+      (page) =>
+        normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
+    )
+    const middlewareMap = this.minimalMode
+      ? {}
+      : this.middlewareManifest?.middleware || {}
+    const middleware = Object.keys(middlewareMap).map((page) => ({
+      page,
+      ssr: !MIDDLEWARE_ROUTE.test(middlewareMap[page].name),
+    }))
+    return [...getRoutingItems(pages, middleware)]
+  }
+
   protected getDynamicRoutes(): Array<RoutingItem> {
     const addedPages = new Set<string>()
 
-    return getSortedRoutes(
-      Object.keys(this.pagesManifest!).map(
-        (page) =>
-          normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
+    return this.allRoutes!.filter((item) => {
+      if (
+        item.isMiddleware ||
+        addedPages.has(item.page) ||
+        !isDynamicRoute(item.page)
       )
-    )
-      .map((page) => {
-        if (addedPages.has(page) || !isDynamicRoute(page)) return null
-        addedPages.add(page)
-        return {
-          page,
-          match: getRouteMatcher(getRouteRegex(page)),
-        }
-      })
-      .filter((item): item is RoutingItem => Boolean(item))
+        return false
+      addedPages.add(item.page)
+      return true
+    })
   }
 
   protected async run(
@@ -1920,6 +1913,10 @@ export function prepareServerlessUrl(
 }
 
 export { stringifyQuery } from './server-route-utils'
+
+export function isApiRoute(pathname: string) {
+  return pathname === '/api' || pathname.startsWith('/api/')
+}
 
 class NoFallbackError extends Error {}
 

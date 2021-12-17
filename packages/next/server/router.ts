@@ -225,10 +225,10 @@ export default class Router {
       ...this.headers,
       ...this.redirects,
       ...this.rewrites.beforeFiles,
+      ...this.fsRoutes,
       ...(this.useFileSystemPublicRoutes && this.catchAllMiddleware
         ? [this.catchAllMiddleware]
         : []),
-      ...this.fsRoutes,
       // We only check the catch-all route if public page routes hasn't been
       // disabled
       ...(this.useFileSystemPublicRoutes

@@ -34,10 +34,9 @@ import {
   DEV_MIDDLEWARE_MANIFEST,
 } from '../../shared/lib/constants'
 import {
-  getRouteMatcher,
-  getRouteRegex,
-  getSortedRoutes,
+  getRoutingItems,
   isDynamicRoute,
+  RoutingItem,
 } from '../../shared/lib/router/utils'
 import Server, { WrappedBuildError } from '../next-server'
 import { normalizePagePath } from '../normalize-page-path'
@@ -58,7 +57,6 @@ import {
 } from 'next/dist/compiled/@next/react-dev-overlay/middleware'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
-import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware-regex'
 import { isCustomErrorPage, isReservedPage } from '../../build/utils'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { getPageRuntime, invalidatePageRuntimeCache } from '../../build/entries'
@@ -92,6 +90,7 @@ export default class DevServer extends Server {
   private isCustomServer: boolean
   protected sortedRoutes?: string[]
   private addedUpgradeListener = false
+  private middleware?: RoutingItem[]
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -260,7 +259,6 @@ export default class DevServer extends Server {
         const routedMiddleware = []
         const routedPages = []
         const knownFiles = wp.getTimeInfoEntries()
-        const ssrMiddleware = new Set<string>()
 
         for (const [fileName, { accuracy, safeTime }] of knownFiles) {
           if (accuracy === undefined || !regexPageExtension.test(fileName)) {
@@ -268,11 +266,13 @@ export default class DevServer extends Server {
           }
 
           if (regexMiddleware.test(fileName)) {
-            routedMiddleware.push(
-              `/${relative(pagesDir!, fileName).replace(/\\+/g, '/')}`
-                .replace(/^\/+/g, '/')
-                .replace(regexMiddleware, '/')
-            )
+            routedMiddleware.push({
+              page:
+                `/${relative(pagesDir!, fileName).replace(/\\+/g, '/')}`
+                  .replace(/^\/+/g, '/')
+                  .replace(regexMiddleware, '') || '/',
+              ssr: false,
+            })
             continue
           }
 
@@ -292,26 +292,22 @@ export default class DevServer extends Server {
             isEdgeRuntime &&
             !(isReservedPage(pageName) || isCustomErrorPage(pageName))
           ) {
-            routedMiddleware.push(pageName)
-            ssrMiddleware.add(pageName)
+            routedMiddleware.push({ page: pageName, ssr: true })
           }
 
           routedPages.push(pageName)
         }
 
-        this.middleware = getSortedRoutes(routedMiddleware).map((page) => ({
-          match: getRouteMatcher(
-            getMiddlewareRegex(page, !ssrMiddleware.has(page))
-          ),
-          page,
-          ssr: ssrMiddleware.has(page),
-        }))
+        this.allRoutes = [...getRoutingItems(routedPages, routedMiddleware)]
+        this.middleware = this.allRoutes.filter((r) => r.isMiddleware)
 
         try {
           // we serve a separate manifest with all pages for the client in
           // dev mode so that we can match a page after a rewrite on the client
           // before it has been built and is populated in the _buildManifest
-          const sortedRoutes = getSortedRoutes(routedPages)
+          const sortedRoutes = this.allRoutes
+            .filter((r) => !r.isMiddleware)
+            .map((r) => r.page)
 
           if (
             !this.sortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
@@ -321,12 +317,9 @@ export default class DevServer extends Server {
           }
           this.sortedRoutes = sortedRoutes
 
-          this.dynamicRoutes = this.sortedRoutes
-            .filter(isDynamicRoute)
-            .map((page) => ({
-              page,
-              match: getRouteMatcher(getRouteRegex(page)),
-            }))
+          this.dynamicRoutes = this.allRoutes.filter(
+            (r) => !r.isMiddleware && isDynamicRoute(r.page)
+          )
 
           this.router.setDynamicRoutes(this.dynamicRoutes)
 
@@ -534,6 +527,7 @@ export default class DevServer extends Server {
     response: BaseNextResponse
     parsedUrl: ParsedNextUrl
     parsed: UrlWithParsedQuery
+    middleware: RoutingItem[]
   }): Promise<FetchEventResult | null> {
     try {
       const result = await super.runMiddleware({
@@ -841,6 +835,10 @@ export default class DevServer extends Server {
 
   // In development public files are not added to the router but handled as a fallback instead
   protected generatePublicRoutes(): never[] {
+    return []
+  }
+
+  protected getAllRoutes(): RoutingItem[] {
     return []
   }
 
