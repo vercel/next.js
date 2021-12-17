@@ -17,7 +17,7 @@
     "genstats": "cross-env LOCAL_STATS=true node .github/actions/next-stats-action/src/index.js",
     "git-reset": "git reset --hard HEAD",
     "git-clean": "git clean -d -x -e node_modules -e packages -f",
-    "lint-typescript": "lerna run typescript",
+    "lint-typescript": "turbo run typescript",
     "lint-eslint": "eslint . --ext js,jsx,ts,tsx --max-warnings=0 --config .eslintrc.json --no-eslintrc",
     "lint-no-typescript": "run-p prettier-check lint-eslint",
     "lint": "run-p test-types lint-typescript prettier-check lint-eslint lint-language",
@@ -26,7 +26,6 @@
     "prettier-check": "prettier --check .",
     "prettier-fix": "prettier --write .",
     "types": "lerna run types --stream",
-    "typescript": "turbo run typescript",
     "prepublish": "lerna run prepublish",
     "publish-canary": "git checkout canary && git pull && lerna version prerelease --preid canary --force-publish && release --pre --skip-questions",
     "publish-stable": "lerna version --force-publish",
@@ -172,7 +171,8 @@
       "typescript": {
         "dependsOn": [
           "^typescript"
-        ]
+        ],
+        "outputs": []
       },
       "build-native": {
         "dependsOn": [
