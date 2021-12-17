@@ -77,22 +77,33 @@ The `NextResponse` class extends the native [`Response`](https://developer.mozil
 Public methods are available on an instance of the `NextResponse` class. Depending on your use case, you can create an instance and assign to a variable, then access the following public methods:
 
 - `cookies` - An object with the cookies in the `Response`
-- `cookie` - Set a cookie in the `Response`
+- `cookie()` - Set a cookie in the `Response`
+- `clearCookie()` - Accepts a `cookie` and clears it
 
 ```ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export function middleware(req: NextRequest) {
+export function middleware(request: NextRequest) {
   // create an instance of the class to access the public methods. This uses `next()`,
   // you could use `redirect()` or `rewrite()` as well
-  const res = NextResponse.next()
-  // access the `cookies`
-  console.log(res.cookies['cookie-name'])
+  let response = NextResponse.next()
+  // get the cookies from the request
+  let cookieFromRequest = request.cookies['my-cookie']
   // set the `cookie`
-  res.cookie('hello', 'world')
+  const cookie = response.cookie('hello', 'world')
+  // set the `cookie` with options
+  const cookieWithOptions = response.cookie('hello', 'world', {
+    path: '/',
+    maxAge: 1000 * 60 * 60 * 24 * 7,
+    httpOnly: true,
+    sameSite: 'strict',
+    domain: 'example.com',
+  })
+  // clear the `cookie`
+  response.clearCookie('hello')
 
-  return res
+  return response
 }
 ```
 
@@ -103,15 +114,13 @@ The following static methods are available on the `NextResponse` class directly:
 - `redirect()` - Returns a `NextResponse` with a redirect set
 - `rewrite()` - Returns a `NextResponse` with a rewrite set
 - `next()` - Returns a `NextResponse` that will continue the middleware chain
-- `json()` - Returns a JSON.Stringified serializable object or value
+- `json()` - A convenience method to create a response that encodes the provided JSON data
 
 ```ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(req: NextRequest) {
-  const res = NextResponse.next()
-
   // if the request is coming from New York, redirect to the home page
   if (req.geo.city === 'New York') {
     return NextResponse.redirect('/home')
@@ -120,7 +129,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.rewrite('/not-home')
   }
 
-  return res.json({ message: 'Hello World!' })
+  return NextResponse.json({ message: 'Hello World!' })
 }
 ```
 
