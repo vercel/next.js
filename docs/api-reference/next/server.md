@@ -111,7 +111,7 @@ export function middleware(request: NextRequest) {
 
 The following static methods are available on the `NextResponse` class directly:
 
-- `redirect()` - Returns a `NextResponse` with a redirect set
+- `redirect()` - Returns a `NextResponse` with a redirect set, where the redirect comes from a location header
 - `rewrite()` - Returns a `NextResponse` with a rewrite set
 - `next()` - Returns a `NextResponse` that will continue the middleware chain
 - `json()` - A convenience method to create a response that encodes the provided JSON data
