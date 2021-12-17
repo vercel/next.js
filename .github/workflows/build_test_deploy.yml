@@ -947,10 +947,6 @@ jobs:
       - name: Build
         shell: bash
         run: turbo run build-native --cache-dir=".turbo" -- --release --target i686-pc-windows-msvc
-        env:
-          TURBO_TOKEN: ${{secrets.TURBO_TOKEN}}
-          TURBO_TEAM: nextjs
-          TURBO_PROJECT: nextjs
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -998,10 +994,6 @@ jobs:
       - name: Build
         shell: bash
         run: turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-pc-windows-msvc
-        env:
-          TURBO_TOKEN: ${{secrets.TURBO_TOKEN}}
-          TURBO_TEAM: nextjs
-          TURBO_PROJECT: nextjs
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -1114,10 +1106,6 @@ jobs:
       - name: Cross build aarch64
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
         run: turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu
-        env:
-          TURBO_TOKEN: ${{secrets.TURBO_TOKEN}}
-          TURBO_TEAM: nextjs
-          TURBO_PROJECT: nextjs
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -1176,10 +1164,6 @@ jobs:
 
       - name: Cross build aarch64
         run: turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-musl
-        env:
-          TURBO_TOKEN: ${{secrets.TURBO_TOKEN}}
-          TURBO_TEAM: nextjs
-          TURBO_PROJECT: nextjs
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -1241,10 +1225,6 @@ jobs:
 
       - name: Cross build aarch64
         run: turbo run build-native --cache-dir=".turbo" -- --release --target armv7-unknown-linux-gnueabihf
-        env:
-          TURBO_TOKEN: ${{secrets.TURBO_TOKEN}}
-          TURBO_TEAM: nextjs
-          TURBO_PROJECT: nextjs
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -1295,10 +1275,6 @@ jobs:
         run: |
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android24-clang"
           turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-linux-android
-        env:
-          TURBO_TOKEN: ${{secrets.TURBO_TOKEN}}
-          TURBO_TEAM: nextjs
-          TURBO_PROJECT: nextjs
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
