@@ -4,9 +4,9 @@ use pathdiff::diff_paths;
 use swc_atoms::js_word;
 use swc_common::{FileName, DUMMY_SP};
 use swc_ecmascript::ast::{
-    ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, CallExpr, Expr, ExprOrSpread,
-    ExprOrSuper, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr, ObjectLit,
-    Prop, PropName, PropOrSpread, Str, StrKind,
+    ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, Bool, CallExpr, Expr, ExprOrSpread,
+    ExprOrSuper, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr, Null,
+    ObjectLit, Prop, PropName, PropOrSpread, Str, StrKind,
 };
 use swc_ecmascript::utils::{
     ident::{Id, IdentLike},
@@ -236,13 +236,45 @@ impl Fold for NextDynamicPatcher {
                             value: generated,
                         })))];
 
+                    let mut has_ssr_false = false;
+
                     if expr.args.len() == 2 {
                         if let Expr::Object(ObjectLit {
                             props: options_props,
                             ..
                         }) = &*expr.args[1].expr
                         {
+                            for prop in options_props.iter() {
+                                if let Some(KeyValueProp { key, value }) =
+                                    prop.clone().prop().and_then(|p| p.key_value())
+                                {
+                                    if key.ident().and_then(|i| (Some(i.sym.eq("ssr".into()))))
+                                        == Some(true)
+                                    {
+                                        if let Some(Bool { value, span: _ }) =
+                                            value.lit().and_then(|l| {
+                                                if let Lit::Bool(value) = l {
+                                                    Some(value)
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                        {
+                                            if value == false {
+                                                has_ssr_false = true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             props.extend(options_props.iter().cloned());
+                        }
+                    }
+
+                    if has_ssr_false && self.is_server {
+                        expr.args[0] = ExprOrSpread {
+                            spread: None,
+                            expr: Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))),
                         }
                     }
 
