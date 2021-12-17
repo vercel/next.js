@@ -9,7 +9,3 @@
 .mainContainer img {
   border-radius: 139px;
 }
-
-.hueRotate {
-  filter: hue-rotate(90deg);
-}
