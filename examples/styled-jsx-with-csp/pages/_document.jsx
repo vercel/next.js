@@ -1,16 +1,9 @@
 import Document, { Html, Head, Main, NextScript } from 'next/document'
 import { nanoid } from 'nanoid'
-import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 class CustomDocument extends Document {
   static async getInitialProps(ctx) {
     const nonce = nanoid()
-    const jsxStyleRegistry = createStyleRegistry()
-
-    // https://github.com/vercel/next.js/blob/canary/packages/next/pages/_document.tsx#L89
-    const { html, head } = await ctx.renderPage()
-
-    // Adds `nonce` to style tags on Server Side Rendering
-    const styles = jsxStyleRegistry.styles({ nonce })
+    const docProps = await ctx.defaultGetInitialProps(ctx, { nonce })
 
     let contentSecurityPolicy = ''
     if (process.env.NODE_ENV === 'production') {
@@ -23,26 +16,23 @@ class CustomDocument extends Document {
     }
 
     ctx.res.setHeader('Content-Security-Policy', contentSecurityPolicy)
-
-    return { html, head, styles, nonce }
+    return { ...docProps, nonce }
   }
 
   render() {
     return (
-      <StyleRegistry registry={this.props.registry}>
-        <Html>
-          <Head>
-            {/* Styled-JSX will add this `nonce` to style tags on Client Side Rendering */}
-            {/* https://github.com/vercel/styled-jsx/blob/master/src/lib/stylesheet.js#L31 */}
-            {/* https://github.com/vercel/styled-jsx/blob/master/src/lib/stylesheet.js#L240 */}
-            <meta property="csp-nonce" content={this.props.nonce} />
-          </Head>
-          <body>
-            <Main />
-            <NextScript />
-          </body>
-        </Html>
-      </StyleRegistry>
+      <Html>
+        <Head>
+          {/* Styled-JSX will add this `nonce` to style tags on Client Side Rendering */}
+          {/* https://github.com/vercel/styled-jsx/blob/master/src/lib/stylesheet.js#L31 */}
+          {/* https://github.com/vercel/styled-jsx/blob/master/src/lib/stylesheet.js#L240 */}
+          <meta property="csp-nonce" content={this.props.nonce} />
+        </Head>
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </Html>
     )
   }
 }
