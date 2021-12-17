@@ -82,6 +82,53 @@ With these validation checks in place, when a user tries to submit an empty fiel
 
 ![form validation](/docs/guides/images/form-validation.jpg)
 
+### JavaScript-based Form Validation
+
+Form Validation is important to ensure that a user has submitted appropriate data. JavaScript offers an additional level of validation along with HTML native form attributes on the client side. Developers generally prefer validating form data through JavaScript because its data processing is faster when compared to server-side validation.
+
+Let's look at a simple example:
+
+```html
+<html>
+<body>
+<script>  
+function validateFormWithJS(){  
+var name=document.thisform.name.value;  
+var rollnumber=document.thisform.rollnumber.value;  
+  
+if (name==""){  
+  alert("Please fill out the name.");  
+  return false;  
+}else if(rollnumber.length<3){  
+  alert("Roll Number should be at least 3 digits long.");  
+  return false;  
+  }  
+}  
+</script>  
+<body>  
+<form name="thisform" method="post" action="/send-data-here" onsubmit="return validateFormWithJS()" >  
+<label for="name">Name:</label>
+<input type="text" name="name"><br/> 
+<label for="rollnumber">Roll Number:</label>
+<input type="text" name="rollnumber"><br/>
+
+<button type="submit">Submit</button>
+</form>  
+</body>
+</html>
+```
+
+The HTML [<script>](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script) tag is a perfect use case of form validation. This tag is used to embed any client-side JavaScript. It can either contain inline scripting statements (as shown in the example above) or point to an external script file via the src attribute.
+This example validates the name and roll number of a user. The validateFormWithJS() function does not allow an empty name field, and the roll number must be at least three digits long. The validation is performed when you hit the Submit button. You are not redirected to the next page until the given values are correct.
+  
+![js-validation](https://user-images.githubusercontent.com/12712988/146588507-0a9f8f4d-10ac-4038-85d8-f7a9a43d7304.jpg)
+  
+#### Form Validation Using Regex
+	
+JavaScript validation with Regular Expressions uses the `pattern` attribute. A regular expression (commonly known as regex) is an object that describes a pattern of characters. The class `RegExp` represents regular expressions. Both the `String` and `RegExp` formulate methods that perform robust pattern-matching and search-and-replace functions on text.
+
+Regex is a challenging concept, and at this point, you need not to learn it extensively.
+
 This was a quick recap of setting up web forms in HTML.
 
 > To learn more about HTML forms, check out the [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Learn/Forms).
