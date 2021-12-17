@@ -304,6 +304,7 @@ function createRSCHook() {
       function process() {
         forwardReader.read().then(({ done, value }) => {
           if (bootstrap && !bootstrapped) {
+            bootstrapped = true
             writer.write(
               `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
                 0,
