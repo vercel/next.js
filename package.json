@@ -10,7 +10,6 @@
     "build": "yarn prepublish",
     "lerna": "lerna",
     "dev": "lerna run dev --stream --parallel",
-    "dev2": "while true; do yarn --check-files && yarn dev; done",
     "test-types": "yarn tsc",
     "test-unit": "yarn jest test/unit/",
     "testonly": "yarn jest --runInBand",
@@ -27,7 +26,7 @@
     "prettier-check": "prettier --check .",
     "prettier-fix": "prettier --write .",
     "types": "lerna run types --stream",
-    "typescript": "lerna run typescript",
+    "typescript": "turbo run typescript",
     "prepublish": "lerna run prepublish",
     "publish-canary": "git checkout canary && git pull && lerna version prerelease --preid canary --force-publish && release --pre --skip-questions",
     "publish-stable": "lerna version --force-publish",
@@ -170,6 +169,11 @@
   },
   "turbo": {
     "pipeline": {
+      "typescript": {
+        "dependsOn": [
+          "^typescript"
+        ]
+      },
       "build-native": {
         "dependsOn": [
           "^build-native"
