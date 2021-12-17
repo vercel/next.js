@@ -1,10 +1,4 @@
-import { StyleRegistry } from 'styled-jsx'
-
-const CustomApp = ({ Component, pageProps }) => (
-  <StyleRegistry>
-    <Component {...pageProps} />
-  </StyleRegistry>
-)
+const CustomApp = ({ Component, pageProps }) => <Component {...pageProps} />
 
 //  Disable static optimization to always server render, making nonce unique on every request
 CustomApp.getInitialProps = () => ({})

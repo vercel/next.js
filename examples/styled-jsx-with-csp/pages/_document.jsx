@@ -1,7 +1,6 @@
 import Document, { Html, Head, Main, NextScript } from 'next/document'
 import { nanoid } from 'nanoid'
-import { createStyleRegistry } from 'styled-jsx'
-
+import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 class CustomDocument extends Document {
   static async getInitialProps(ctx) {
     const nonce = nanoid()
@@ -30,18 +29,20 @@ class CustomDocument extends Document {
 
   render() {
     return (
-      <Html>
-        <Head>
-          {/* Styled-JSX will add this `nonce` to style tags on Client Side Rendering */}
-          {/* https://github.com/vercel/styled-jsx/blob/master/src/lib/stylesheet.js#L31 */}
-          {/* https://github.com/vercel/styled-jsx/blob/master/src/lib/stylesheet.js#L240 */}
-          <meta property="csp-nonce" content={this.props.nonce} />
-        </Head>
-        <body>
-          <Main />
-          <NextScript />
-        </body>
-      </Html>
+      <StyleRegistry registry={this.props.registry}>
+        <Html>
+          <Head>
+            {/* Styled-JSX will add this `nonce` to style tags on Client Side Rendering */}
+            {/* https://github.com/vercel/styled-jsx/blob/master/src/lib/stylesheet.js#L31 */}
+            {/* https://github.com/vercel/styled-jsx/blob/master/src/lib/stylesheet.js#L240 */}
+            <meta property="csp-nonce" content={this.props.nonce} />
+          </Head>
+          <body>
+            <Main />
+            <NextScript />
+          </body>
+        </Html>
+      </StyleRegistry>
     )
   }
 }
