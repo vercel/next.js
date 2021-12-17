@@ -693,6 +693,7 @@ jobs:
 
       - name: Build
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        working-directory: packages/next-swc
         run: yarn build-native
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
@@ -779,7 +780,7 @@ jobs:
   # Build binaries for publishing
   build-native:
     needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    # if: ${{ needs.build.outputs.isRelease == 'true' }}
     strategy:
       matrix:
         os: [ubuntu-18.04, macos-latest, windows-latest]
@@ -878,6 +879,7 @@ jobs:
             next-swc-cargo-cache-${{ matrix.os }}
 
       - name: 'Build'
+        working-directory: packages/next-swc
         run: yarn build-native --release --target ${{ matrix.target }}
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
@@ -898,7 +900,7 @@ jobs:
 
   build-windows-i686:
     needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    # if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - windows-i686 - node@14
     runs-on: windows-latest
     env:
@@ -946,6 +948,7 @@ jobs:
 
       - name: Build
         shell: bash
+        working-directory: packages/next-swc
         run: yarn build-native --release --target i686-pc-windows-msvc
 
       - name: Upload artifact
@@ -956,7 +959,7 @@ jobs:
 
   build-windows-aarch64:
     needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    # if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - windows-aarch64 - node@14
     runs-on: windows-latest
     steps:
@@ -993,6 +996,7 @@ jobs:
 
       - name: Build
         shell: bash
+        working-directory: packages/next-swc
         run: yarn build-native --release --target aarch64-pc-windows-msvc
 
       - name: Upload artifact
@@ -1003,7 +1007,7 @@ jobs:
 
   build-linux-musl:
     needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    # if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - linux-musl - node@lts
     runs-on: ubuntu-latest
     steps:
@@ -1053,7 +1057,7 @@ jobs:
 
   build-linux-aarch64:
     needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    # if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - aarch64-unknown-linux-gnu - node@14
     runs-on: ubuntu-18.04
     steps:
@@ -1104,6 +1108,7 @@ jobs:
             turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: Cross build aarch64
+        working-directory: packages/next-swc
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
         run: yarn build-native --release --target aarch64-unknown-linux-gnu
 
@@ -1115,7 +1120,7 @@ jobs:
 
   build-linux-aarch64-musl:
     needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    # if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - aarch64-unknown-linux-musl - node@14
     runs-on: ubuntu-18.04
     steps:
@@ -1163,6 +1168,7 @@ jobs:
             turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: Cross build aarch64
+        working-directory: packages/next-swc
         run: yarn build-native --release --target aarch64-unknown-linux-musl
 
       - name: Upload artifact
@@ -1173,7 +1179,7 @@ jobs:
 
   build-linux-arm7:
     needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    # if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - arm7-unknown-linux-gnu - node@14
     runs-on: ubuntu-18.04
     steps:
@@ -1224,6 +1230,7 @@ jobs:
             turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: Cross build aarch64
+        working-directory: packages/next-swc
         run: yarn build-native --release --target armv7-unknown-linux-gnueabihf
 
       - name: Upload artifact
@@ -1234,7 +1241,7 @@ jobs:
 
   build-android-aarch64:
     needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    # if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - Android - aarch64
     runs-on: macos-latest
     steps:
@@ -1272,6 +1279,7 @@ jobs:
 
       - name: Build
         shell: bash
+        working-directory: packages/next-swc
         run: |
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android24-clang"
           yarn build-native --release --target aarch64-linux-android
@@ -1284,7 +1292,7 @@ jobs:
 
   build-wasm:
     needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    # if: ${{ needs.build.outputs.isRelease == 'true' }}
     strategy:
       matrix:
         target: [web, nodejs]
