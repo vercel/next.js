@@ -346,12 +346,14 @@ export default async function getBaseWebpackConfig(
     Boolean(reactDomVersion) &&
     (semver.gte(reactDomVersion!, '18.0.0') ||
       semver.coerce(reactDomVersion)?.version === '18.0.0')
-  const hasReactPrerelease =
-    (Boolean(reactDomVersion) && semver.prerelease(reactDomVersion!) != null) ||
-    isReactExperimental
 
   const hasReactRoot: boolean =
     config.experimental.reactRoot || hasReact18 || isReactExperimental
+
+  // Make sure reactRoot is enabled when react 18 is detected
+  if (hasReactRoot) {
+    config.experimental.reactRoot = true
+  }
 
   // Only inform during one of the builds
   if (
@@ -380,19 +382,6 @@ export default async function getBaseWebpackConfig(
   const hasServerComponents =
     hasConcurrentFeatures && !!config.experimental.serverComponents
   const targetWeb = webServerRuntime || !isServer
-
-  // Only inform during one of the builds
-  if (!isServer) {
-    if (hasReactRoot) {
-      Log.info('Using the createRoot API for React')
-    }
-    if (hasReactPrerelease) {
-      Log.warn(
-        `You are using an unsupported prerelease of 'react-dom' which may cause ` +
-          `unexpected or broken application behavior. Continue at your own risk.`
-      )
-    }
-  }
 
   if (webServerRuntime) {
     Log.warn(
