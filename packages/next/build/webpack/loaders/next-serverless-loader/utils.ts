@@ -25,6 +25,7 @@ import cookie from 'next/dist/compiled/cookie'
 import { TEMPORARY_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 import { NextConfig } from '../../../../server/config'
 import { addRequestMeta } from '../../../../server/request-meta'
+import { BaseNextRequest } from '../../../../server/base-http'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -85,7 +86,7 @@ export function getUtils({
     defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
   }
 
-  function handleRewrites(req: IncomingMessage, parsedUrl: UrlWithParsedQuery) {
+  function handleRewrites(req: BaseNextRequest, parsedUrl: UrlWithParsedQuery) {
     for (const rewrite of rewrites) {
       const matcher = getCustomRouteMatcher(rewrite.source)
       let params = matcher(parsedUrl.pathname)
@@ -158,7 +159,7 @@ export function getUtils({
   }
 
   function getParamsFromRouteMatches(
-    req: IncomingMessage,
+    req: BaseNextRequest,
     renderOpts?: any,
     detectedLocale?: string
   ) {
@@ -269,7 +270,7 @@ export function getUtils({
     return pathname
   }
 
-  function normalizeVercelUrl(req: IncomingMessage, trustQuery: boolean) {
+  function normalizeVercelUrl(req: BaseNextRequest, trustQuery: boolean) {
     // make sure to normalize req.url on Vercel to strip dynamic params
     // from the query which are added during routing
     if (pageIsDynamic && trustQuery && defaultRouteRegex) {

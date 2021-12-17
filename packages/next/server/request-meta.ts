@@ -1,11 +1,11 @@
 /* eslint-disable no-redeclare */
 import type { ParsedUrlQuery } from 'querystring'
-import type { IncomingMessage } from 'http'
 import type { UrlWithParsedQuery } from 'url'
+import type { BaseNextRequest } from './base-http'
 
 const NEXT_REQUEST_META = Symbol('NextRequestMeta')
 
-interface NextIncomingMessage extends IncomingMessage {
+interface NextIncomingMessage extends BaseNextRequest {
   [NEXT_REQUEST_META]?: RequestMeta
 }
 

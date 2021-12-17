@@ -1,16 +1,39 @@
 import fs from 'fs'
 import { join, relative } from 'path'
 
+import type { IncomingMessage, ServerResponse } from 'http'
 import { PAGES_MANIFEST, BUILD_ID_FILE } from '../shared/lib/constants'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { Route } from './router'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { route } from './router'
+import type { UrlWithParsedQuery } from 'url'
+import compression from 'next/dist/compiled/compression'
 
 import BaseServer from './base-server'
+import {
+  BaseNextRequest,
+  BaseNextResponse,
+  NodeNextRequest,
+  NodeNextResponse,
+} from './base-http'
+import renderResult from './render-result'
+import { PayloadOptions, sendRenderResult } from './send-payload'
+import { serveStatic } from './serve-static'
 export * from './base-server'
 
+type ExpressMiddleware = (
+  req: IncomingMessage,
+  res: ServerResponse,
+  next: (err?: Error) => void
+) => void
+
 export default class NextNodeServer extends BaseServer {
+  private compression =
+    this.nextConfig.compress && this.nextConfig.target === 'server'
+      ? (compression() as ExpressMiddleware)
+      : undefined
+
   protected getHasStaticDir(): boolean {
     return fs.existsSync(join(this.dir, 'static'))
   }
@@ -132,5 +155,43 @@ export default class NextNodeServer extends BaseServer {
       ...userFilesPublic,
       ...userFilesStatic,
     ]))
+  }
+
+  protected sendRenderResult(
+    req: NodeNextRequest,
+    res: NodeNextResponse,
+    options: {
+      result: renderResult
+      type: 'html' | 'json'
+      generateEtags: boolean
+      poweredByHeader: boolean
+      options?: PayloadOptions | undefined
+    }
+  ): Promise<void> {
+    return sendRenderResult({
+      req: req.req,
+      res: res.res,
+      ...options,
+    })
+  }
+
+  protected sendStatic(
+    req: NodeNextRequest,
+    res: NodeNextResponse,
+    path: string
+  ): Promise<void> {
+    return serveStatic(req.req, res.res, path)
+  }
+
+  protected async run(
+    req: NodeNextRequest,
+    res: NodeNextResponse,
+    parsedUrl: UrlWithParsedQuery
+  ): Promise<void> {
+    if (this.compression) {
+      this.compression(req.req, res.res, () => {})
+    }
+
+    super.run(req, res, parsedUrl)
   }
 }

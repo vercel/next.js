@@ -4,7 +4,6 @@ import type { DomainLocale } from './config'
 import type { DynamicRoutes, PageChecker, Params, Route } from './router'
 import type { FetchEventResult } from './web/types'
 import type { FontManifest } from './font-utils'
-import type { IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type { NextApiRequest, NextApiResponse } from '../shared/lib/utils'
@@ -19,7 +18,6 @@ import type { RenderOpts, RenderOptsPartial } from './render'
 import type { ResponseCacheEntry, ResponseCacheValue } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 
-import compression from 'next/dist/compiled/compression'
 import Proxy from 'next/dist/compiled/http-proxy'
 import { join, relative, resolve, sep } from 'path'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
@@ -68,8 +66,7 @@ import {
   compileNonPath,
   prepareDestination,
 } from '../shared/lib/router/utils/prepare-destination'
-import { sendRenderResult, setRevalidateHeaders } from './send-payload'
-import { serveStatic } from './serve-static'
+import { PayloadOptions, setRevalidateHeaders } from './send-payload'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage, isBot } from './utils'
@@ -95,14 +92,9 @@ import { NextResponse } from './web/spec-extension/response'
 import { run } from './web/sandbox'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { toNodeHeaders } from './web/utils'
+import { BaseNextRequest, BaseNextResponse } from './base-http'
 
 const getCustomRouteMatcher = pathMatch(true)
-
-type ExpressMiddleware = (
-  req: IncomingMessage,
-  res: ServerResponse,
-  next: (err?: Error) => void
-) => void
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -152,15 +144,15 @@ export interface Options {
 
 export interface RequestHandler {
   (
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
     parsedUrl?: NextUrlWithParsedQuery | undefined
   ): Promise<void>
 }
 
 type RequestContext = {
-  req: IncomingMessage
-  res: ServerResponse
+  req: BaseNextRequest
+  res: BaseNextResponse
   pathname: string
   query: NextParsedUrlQuery
   renderOpts: RenderOptsPartial
@@ -204,7 +196,6 @@ export default abstract class Server {
     concurrentFeatures?: boolean
     crossOrigin?: string
   }
-  private compression?: ExpressMiddleware
   private incrementalCache: IncrementalCache
   private responseCache: ResponseCache
   protected router: Router
@@ -220,6 +211,24 @@ export default abstract class Server {
   protected abstract getBuildId(): string
   protected abstract generatePublicRoutes(): Route[]
   protected abstract getFilesystemPaths(): Set<string>
+
+  protected abstract sendRenderResult(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    options: {
+      result: RenderResult
+      type: 'html' | 'json'
+      generateEtags: boolean
+      poweredByHeader: boolean
+      options?: PayloadOptions
+    }
+  ): Promise<void>
+
+  protected abstract sendStatic(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    path: string
+  ): Promise<void>
 
   public constructor({
     dir = '.',
@@ -252,7 +261,6 @@ export default abstract class Server {
       publicRuntimeConfig,
       assetPrefix,
       generateEtags,
-      compress,
     } = this.nextConfig
 
     this.buildId = this.getBuildId()
@@ -289,10 +297,6 @@ export default abstract class Server {
     // It'll be rendered as part of __NEXT_DATA__ on the client side
     if (Object.keys(publicRuntimeConfig).length > 0) {
       this.renderOpts.runtimeConfig = publicRuntimeConfig
-    }
-
-    if (compress && this.nextConfig.target === 'server') {
-      this.compression = compression() as ExpressMiddleware
     }
 
     // Initialize next/config with the environment configuration
@@ -350,8 +354,8 @@ export default abstract class Server {
   }
 
   private async handleRequest(
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     try {
@@ -360,10 +364,7 @@ export default abstract class Server {
 
       if (urlNoQuery?.match(/(\\|\/\/)/)) {
         const cleanUrl = normalizeRepeatedSlashes(req.url!)
-        res.setHeader('Location', cleanUrl)
-        res.setHeader('Refresh', `0;url=${cleanUrl}`)
-        res.statusCode = 308
-        res.end(cleanUrl)
+        res.redirect(cleanUrl, 308).body(cleanUrl).send()
         return
       }
 
@@ -539,9 +540,10 @@ export default abstract class Server {
       }
 
       if (url.locale?.redirect) {
-        res.setHeader('Location', url.locale.redirect)
-        res.statusCode = TEMPORARY_REDIRECT_STATUS
-        res.end()
+        res
+          .redirect(url.locale.redirect, TEMPORARY_REDIRECT_STATUS)
+          .body('')
+          .send()
         return
       }
 
@@ -561,7 +563,7 @@ export default abstract class Server {
       }
       this.logError(isError(err) ? err : new Error(err + ''))
       res.statusCode = 500
-      res.end('Internal Server Error')
+      res.body('Internal Server Error').send()
     }
   }
 
@@ -579,7 +581,7 @@ export default abstract class Server {
   // Backwards compatibility
   protected async close(): Promise<void> {}
 
-  protected setImmutableAssetCacheControl(res: ServerResponse): void {
+  protected setImmutableAssetCacheControl(res: BaseNextResponse): void {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
@@ -665,8 +667,8 @@ export default abstract class Server {
   })
 
   protected async runMiddleware(params: {
-    request: IncomingMessage
-    response: ServerResponse
+    request: BaseNextRequest
+    response: BaseNextResponse
     parsedUrl: ParsedNextUrl
     parsed: UrlWithParsedQuery
     onWarning?: (warning: Error) => void
@@ -926,7 +928,7 @@ export default abstract class Server {
         fn: (req, res, _params, parsedUrl) => {
           if (this.minimalMode) {
             res.statusCode = 400
-            res.end('Bad Request')
+            res.body('Bad Request').send()
             return {
               finished: true,
             }
@@ -936,8 +938,8 @@ export default abstract class Server {
 
           return imageOptimizer(
             server,
-            req,
-            res,
+            req as any,
+            res as any,
             parsedUrl,
             server.nextConfig,
             server.distDir,
@@ -1018,7 +1020,7 @@ export default abstract class Server {
     // since initial query values are decoded by querystring.parse
     // we need to re-encode them here but still allow passing through
     // values from rewrites/redirects
-    const stringifyQuery = (req: IncomingMessage, query: ParsedUrlQuery) => {
+    const stringifyQuery = (req: BaseNextRequest, query: ParsedUrlQuery) => {
       const initialQueryValues = Object.values(
         getRequestMeta(req, '__NEXT_INIT_QUERY') || {}
       )
@@ -1034,8 +1036,8 @@ export default abstract class Server {
     }
 
     const proxyRequest = async (
-      req: IncomingMessage,
-      res: ServerResponse,
+      req: BaseNextRequest,
+      res: BaseNextResponse,
       parsedUrl: ParsedUrl
     ) => {
       const { query } = parsedUrl
@@ -1107,16 +1109,14 @@ export default abstract class Server {
                   normalizeRepeatedSlashes(updatedDestination)
               }
 
-              res.setHeader('Location', updatedDestination)
-              res.statusCode = getRedirectStatus(redirectRoute as Redirect)
+              res
+                .redirect(
+                  updatedDestination,
+                  getRedirectStatus(redirectRoute as Redirect)
+                )
+                .body(updatedDestination)
+                .send()
 
-              // Since IE11 doesn't support the 308 header add backwards
-              // compatibility using refresh header
-              if (res.statusCode === 308) {
-                res.setHeader('Refresh', `0;url=${updatedDestination}`)
-              }
-
-              res.end(updatedDestination)
               return {
                 finished: true,
               }
@@ -1248,8 +1248,8 @@ export default abstract class Server {
             req.method === 'HEAD' && req.headers['x-middleware-preflight']
 
           if (preflight) {
-            res.writeHead(200)
-            res.end()
+            res.statusCode = 200
+            res.send()
             return {
               finished: true,
             }
@@ -1265,7 +1265,7 @@ export default abstract class Server {
               res.setHeader('Refresh', `0;url=${location}`)
             }
 
-            res.end()
+            res.send()
             return {
               finished: true,
             }
@@ -1310,7 +1310,7 @@ export default abstract class Server {
           }
 
           if (result.response.headers.has('x-middleware-refresh')) {
-            res.writeHead(result.response.status)
+            res.statusCode = result.response.status
             for await (const chunk of result.response.body || []) {
               res.write(chunk)
             }
@@ -1363,12 +1363,7 @@ export default abstract class Server {
         if (pathname === '/api' || pathname.startsWith('/api/')) {
           delete query._nextBubbleNoFallback
 
-          const handled = await this.handleApiRequest(
-            req as NextApiRequest,
-            res as NextApiResponse,
-            pathname,
-            query
-          )
+          const handled = await this.handleApiRequest(req, res, pathname, query)
           if (handled) {
             return { finished: true }
           }
@@ -1445,8 +1440,8 @@ export default abstract class Server {
   }
 
   protected async _beforeCatchAllRender(
-    _req: IncomingMessage,
-    _res: ServerResponse,
+    _req: BaseNextRequest,
+    _res: BaseNextResponse,
     _params: Params,
     _parsedUrl: UrlWithParsedQuery
   ): Promise<boolean> {
@@ -1463,8 +1458,8 @@ export default abstract class Server {
    * @param pathname path of request
    */
   private async handleApiRequest(
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
     pathname: string,
     query: ParsedUrlQuery
   ): Promise<boolean> {
@@ -1547,19 +1542,11 @@ export default abstract class Server {
       .filter((item): item is RoutingItem => Boolean(item))
   }
 
-  private handleCompression(req: IncomingMessage, res: ServerResponse): void {
-    if (this.compression) {
-      this.compression(req, res, () => {})
-    }
-  }
-
   protected async run(
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
-    this.handleCompression(req, res)
-
     try {
       const matched = await this.router.execute(req, res, parsedUrl)
       if (matched) {
@@ -1579,8 +1566,8 @@ export default abstract class Server {
   private async pipe(
     fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
     partialContext: {
-      req: IncomingMessage
-      res: ServerResponse
+      req: BaseNextRequest
+      res: BaseNextResponse
       pathname: string
       query: NextParsedUrlQuery
     }
@@ -1599,15 +1586,13 @@ export default abstract class Server {
     }
     const { req, res } = ctx
     const { body, type, revalidateOptions } = payload
-    if (!isResSent(res)) {
+    if (!res.sent) {
       const { generateEtags, poweredByHeader, dev } = this.renderOpts
       if (dev) {
         // In dev, we should not cache pages for any reason.
         res.setHeader('Cache-Control', 'no-store, must-revalidate')
       }
-      return sendRenderResult({
-        req,
-        res,
+      return this.sendRenderResult(req, res, {
         result: body,
         type,
         generateEtags,
@@ -1620,8 +1605,8 @@ export default abstract class Server {
   private async getStaticHTML(
     fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
     partialContext: {
-      req: IncomingMessage
-      res: ServerResponse
+      req: BaseNextRequest
+      res: BaseNextResponse
       pathname: string
       query: ParsedUrlQuery
     }
@@ -1640,8 +1625,8 @@ export default abstract class Server {
   }
 
   public async render(
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
     pathname: string,
     query: NextParsedUrlQuery = {},
     parsedUrl?: NextUrlWithParsedQuery
@@ -2300,8 +2285,8 @@ export default abstract class Server {
   }
 
   public async renderToHTML(
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
@@ -2315,8 +2300,8 @@ export default abstract class Server {
 
   public async renderError(
     err: Error | null,
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
     pathname: string,
     query: NextParsedUrlQuery = {},
     setHeaders = true
@@ -2449,8 +2434,8 @@ export default abstract class Server {
 
   public async renderErrorToHTML(
     err: Error | null,
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
@@ -2468,8 +2453,8 @@ export default abstract class Server {
   }
 
   public async render404(
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
     parsedUrl?: NextUrlWithParsedQuery,
     setHeaders = true
   ): Promise<void> {
@@ -2489,8 +2474,8 @@ export default abstract class Server {
   }
 
   public async serveStatic(
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
     path: string,
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
@@ -2505,7 +2490,7 @@ export default abstract class Server {
     }
 
     try {
-      await serveStatic(req, res, path)
+      await this.sendStatic(req, res, path)
     } catch (error) {
       if (!isError(error)) throw error
       const err = error as Error & { code?: string; statusCode?: number }
@@ -2566,7 +2551,7 @@ export default abstract class Server {
 }
 
 function prepareServerlessUrl(
-  req: IncomingMessage,
+  req: BaseNextRequest,
   query: ParsedUrlQuery
 ): void {
   const curUrl = parseUrl(req.url!, true)

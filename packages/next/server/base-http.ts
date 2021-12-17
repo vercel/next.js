@@ -1,9 +1,8 @@
-import type { ServerResponse, IncomingMessage } from 'http'
+import type { ServerResponse, IncomingMessage, IncomingHttpHeaders } from 'http'
 import type { Writable, Readable } from 'stream'
-import { parseNextUrl } from '../dist/shared/lib/router/utils/parse-next-url'
 import { PERMANENT_REDIRECT_STATUS } from '../shared/lib/constants'
-import { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
-import { parseBody } from './api-utils'
+// import { ParsedNextUrl, parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
+import { getCookieParser, NextApiRequestCookies, parseBody } from './api-utils'
 import { I18NConfig } from './config-shared'
 
 export interface BaseNextRequestConfig {
@@ -12,92 +11,62 @@ export interface BaseNextRequestConfig {
   trailingSlash?: boolean | undefined
 }
 
-interface RequestMeta {
-  // interface from `server/request-meta.ts`
-}
+export abstract class BaseNextRequest<Body = any> {
+  protected _cookies: NextApiRequestCookies | undefined
+  public abstract headers: IncomingHttpHeaders
 
-export abstract class BaseNextRequest<Body> {
-  constructor(
-    public url: string,
-    public method: string,
-    public body: Body,
-    public config: BaseNextRequestConfig
-  ) {}
+  constructor(public method: string, public url: string, public body: Body) {}
 
   abstract parseBody(limit: string | number): Promise<any>
 
-  abstract getHeader(name: string): string | string[] | undefined
-
-  abstract getAllHeaders(): Record<string, string | string[]>
-
   // Utils implemented using the abstract methods above
 
-  public nextUrl: ParsedNextUrl = parseNextUrl({
-    headers: this.getAllHeaders(),
-    nextConfig: this.config,
-    url: this.url,
-  })
+  public get cookies() {
+    if (this._cookies) return this._cookies
 
-  public meta: RequestMeta = {}
+    return (this._cookies = getCookieParser(this.headers)())
+  }
 }
 
-class NodeNextRequest extends BaseNextRequest<Readable> {
-  constructor(public req: IncomingMessage, config: BaseNextRequestConfig) {
-    super(req.url!, req.method!.toUpperCase(), req, config)
+export class NodeNextRequest extends BaseNextRequest<Readable> {
+  public headers = this.req.headers
+
+  constructor(public req: IncomingMessage) {
+    super(req.method!.toUpperCase(), req.url!, req)
   }
 
   async parseBody(limit: string | number): Promise<any> {
     return parseBody(this.req, limit)
   }
-
-  getHeader(name: string): string | string[] | undefined {
-    return this.req.headers[name]
-  }
-
-  getAllHeaders(): Record<string, string | string[]> {
-    const result: Record<string, string | string[]> = {}
-
-    for (const [name, value] of Object.entries(this.req.headers)) {
-      if (value !== undefined) {
-        result[name] = value
-      }
-    }
-
-    return result
-  }
 }
 
-class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
-  constructor(public request: Request, config: BaseNextRequestConfig) {
+export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
+  public request: Request
+  public headers: IncomingHttpHeaders
+
+  constructor(request: Request) {
+    const url = new URL(request.url)
+
     super(
-      request.url,
-      request.method.toUpperCase(),
-      request.clone().body,
-      config
+      request.method,
+      url.href.slice(url.origin.length),
+      request.clone().body
     )
+    this.request = request
+
+    this.headers = {}
+    for (const [name, value] of request.headers.entries()) {
+      this.headers[name] = value
+    }
   }
 
   async parseBody(_limit: string | number): Promise<any> {
     // TODO: implement parseBody for web
     return
   }
-
-  getHeader(name: string): string | undefined {
-    return this.request.headers.get(name) ?? undefined
-  }
-
-  getAllHeaders(): Record<string, string | string[]> {
-    const result: Record<string, string | string[]> = {}
-
-    for (const [name, value] of this.request.headers.entries()) {
-      result[name] = value
-    }
-
-    return result
-  }
 }
 
-export abstract class BaseNextResponse<Destination> {
+export abstract class BaseNextResponse<Destination = any> {
   abstract statusCode: number | undefined
   abstract statusMessage: string | undefined
   abstract get sent(): boolean
@@ -107,7 +76,7 @@ export abstract class BaseNextResponse<Destination> {
   /**
    * Sets a value for the header overwriting existing values
    */
-  abstract setHeader(name: string, value: string): this
+  abstract setHeader(name: string, value: string | string[]): this
 
   /**
    * Appends value for the given header name
@@ -118,6 +87,8 @@ export abstract class BaseNextResponse<Destination> {
    * Get all vaues for a header as an array or undefined if no value is present
    */
   abstract getHeaderValues(name: string): string[] | undefined
+
+  abstract hasHeader(name: string): boolean
 
   /**
    * Get vaues for a header concatenated using `,` or undefined if no value is present
@@ -141,7 +112,7 @@ export abstract class BaseNextResponse<Destination> {
   }
 }
 
-class NodeNextResponse extends BaseNextResponse<Writable> {
+export class NodeNextResponse extends BaseNextResponse<Writable> {
   private textBody: string | undefined = undefined
 
   constructor(public res: ServerResponse) {
@@ -168,7 +139,7 @@ class NodeNextResponse extends BaseNextResponse<Writable> {
     this.res.statusMessage = value
   }
 
-  setHeader(name: string, value: string): this {
+  setHeader(name: string, value: string | string[]): this {
     this.res.setHeader(name, value)
     return this
   }
@@ -181,6 +152,10 @@ class NodeNextResponse extends BaseNextResponse<Writable> {
     return (Array.isArray(values) ? values : [values]).map((value) =>
       value.toString()
     )
+  }
+
+  hasHeader(name: string): boolean {
+    return this.res.hasHeader(name)
   }
 
   getHeader(name: string): string | undefined {
@@ -208,7 +183,7 @@ class NodeNextResponse extends BaseNextResponse<Writable> {
   }
 }
 
-class WebNextResponse extends BaseNextResponse<WritableStream> {
+export class WebNextResponse extends BaseNextResponse<WritableStream> {
   private headers = new Headers()
   private textBody: string | undefined = undefined
   private _sent = false
@@ -236,8 +211,11 @@ class WebNextResponse extends BaseNextResponse<WritableStream> {
     super(transformStream.writable)
   }
 
-  setHeader(name: string, value: string): this {
-    this.headers.set(name, value)
+  setHeader(name: string, value: string | string[]): this {
+    this.headers.delete(name)
+    for (const val of Array.isArray(value) ? value : [value]) {
+      this.headers.append(name, val)
+    }
     return this
   }
 
@@ -250,6 +228,10 @@ class WebNextResponse extends BaseNextResponse<WritableStream> {
 
   getHeader(name: string): string | undefined {
     return this.headers.get(name) ?? undefined
+  }
+
+  hasHeader(name: string): boolean {
+    return this.headers.has(name)
   }
 
   appendHeader(name: string, value: string): this {
