@@ -1214,6 +1214,8 @@ export default async function build(
             ).createHash('sha256')
 
             cacheHash.update(require('next/package').version)
+            cacheHash.update(hasSsrAmpPages + '')
+            cacheHash.update(ciEnvironment.hasNextSupport + '')
 
             await Promise.all(
               lockFiles.map(async (lockFile) => {
@@ -1242,7 +1244,6 @@ export default async function build(
               processCwd: dir,
               ignore: [
                 '**/next/dist/pages/**/*',
-                '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
                 '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
                 '**/node_modules/webpack5/**/*',
                 '**/next/dist/server/lib/squoosh/**/*.wasm',
@@ -1253,6 +1254,9 @@ export default async function build(
                       '**/next/dist/server/image-optimizer.js',
                       '**/node_modules/sharp/**/*',
                     ]
+                  : []),
+                ...(!hasSsrAmpPages
+                  ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
                   : []),
               ],
             }
