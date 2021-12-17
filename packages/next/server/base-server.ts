@@ -18,6 +18,7 @@ import type { Redirect, Rewrite, RouteType } from '../lib/load-custom-routes'
 import type { RenderOpts, RenderOptsPartial } from './render'
 import type { ResponseCacheEntry, ResponseCacheValue } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
+import type { CacheFs } from '../shared/lib/utils'
 
 import compression from 'next/dist/compiled/compression'
 import Proxy from 'next/dist/compiled/http-proxy'
@@ -314,6 +315,7 @@ export default abstract class Server {
     this.setAssetPrefix(assetPrefix)
 
     this.incrementalCache = new IncrementalCache({
+      fs: this.getCacheFilesystem(),
       dev,
       distDir: this.distDir,
       pagesDir: join(
@@ -1331,7 +1333,7 @@ export default abstract class Server {
 
           if (result.response.headers.has('x-middleware-refresh')) {
             res.writeHead(result.response.status)
-            for await (const chunk of result.response.body || []) {
+            for await (const chunk of result.response.body || ([] as any)) {
               res.write(chunk)
             }
             res.end()
@@ -2480,6 +2482,16 @@ export default abstract class Server {
       pathname,
       query,
     })
+  }
+
+  protected getCacheFilesystem(): CacheFs {
+    return {
+      readFile: () => Promise.resolve(''),
+      readFileSync: () => '',
+      writeFile: () => Promise.resolve(),
+      mkdir: () => Promise.resolve(),
+      stat: () => Promise.resolve({ mtime: new Date() }),
+    }
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
