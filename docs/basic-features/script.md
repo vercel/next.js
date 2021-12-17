@@ -174,6 +174,26 @@ export default function Home() {
 }
 ```
 
+Sometimes it is helpful to catch when a script fails to load. These errors can be handled with the `onError` property:
+
+```jsx
+import Script from 'next/script'
+
+export default function Home() {
+  return (
+    <>
+      <Script
+        id="will-fail"
+        src="https://example.com/non-existant-script.js"
+        onError={(e) => {
+          console.error('Script failed to load', e)
+        }}
+      />
+    </>
+  )
+}
+```
+
 ### Additional Attributes
 
 There are many DOM attributes that can be assigned to a `<script>` element that are not used by the Script component, like [`nonce`](https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/nonce) or [custom data attributes](https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/data-*). Including any additional attributes will automatically forward it to the final, optimized `<script>` element that is outputted to the page.
