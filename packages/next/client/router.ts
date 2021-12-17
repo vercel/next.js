@@ -1,7 +1,7 @@
 /* global window */
 import React from 'react'
 import Router from '../shared/lib/router/router'
-import type { NextRouter } from '../shared/lib/router/router'
+import type { NextRouter, ParsedUrlQuery } from '../shared/lib/router/router'
 import { RouterContext } from '../shared/lib/router-context'
 import isError from '../lib/is-error'
 
@@ -133,8 +133,10 @@ export default singletonRouter as SingletonRouter
 // Reexport the withRoute HOC
 export { default as withRouter } from './with-router'
 
-export function useRouter(): NextRouter {
-  return React.useContext(RouterContext)
+export function useRouter<
+  TQueryParams extends ParsedUrlQuery = ParsedUrlQuery
+>(): NextRouter<TQueryParams> {
+  return React.useContext(RouterContext) as NextRouter<TQueryParams>
 }
 
 // INTERNAL APIS

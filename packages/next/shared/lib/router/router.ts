@@ -39,6 +39,8 @@ import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 import { getMiddlewareRegex } from './utils/get-middleware-regex'
 
+export { ParsedUrlQuery }
+
 declare global {
   interface Window {
     /* prod */
@@ -435,10 +437,10 @@ function resolveDynamicRoute(pathname: string, pages: string[]) {
   return removePathTrailingSlash(pathname)
 }
 
-export type BaseRouter = {
+export type BaseRouter<TQueryParams extends ParsedUrlQuery = ParsedUrlQuery> = {
   route: string
   pathname: string
-  query: ParsedUrlQuery
+  query: TQueryParams
   asPath: string
   basePath: string
   locale?: string
@@ -448,20 +450,21 @@ export type BaseRouter = {
   isLocaleDomain: boolean
 }
 
-export type NextRouter = BaseRouter &
-  Pick<
-    Router,
-    | 'push'
-    | 'replace'
-    | 'reload'
-    | 'back'
-    | 'prefetch'
-    | 'beforePopState'
-    | 'events'
-    | 'isFallback'
-    | 'isReady'
-    | 'isPreview'
-  >
+export type NextRouter<TQueryParams extends ParsedUrlQuery = ParsedUrlQuery> =
+  BaseRouter<TQueryParams> &
+    Pick<
+      Router,
+      | 'push'
+      | 'replace'
+      | 'reload'
+      | 'back'
+      | 'prefetch'
+      | 'beforePopState'
+      | 'events'
+      | 'isFallback'
+      | 'isReady'
+      | 'isPreview'
+    >
 
 export type PrefetchOptions = {
   priority?: boolean
