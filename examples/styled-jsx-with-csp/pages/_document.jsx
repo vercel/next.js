@@ -1,17 +1,17 @@
 import Document, { Html, Head, Main, NextScript } from 'next/document'
-import flush from 'styled-jsx/server'
-
 import { nanoid } from 'nanoid'
+import { createStyleRegistry } from 'styled-jsx'
 
 class CustomDocument extends Document {
   static async getInitialProps(ctx) {
     const nonce = nanoid()
+    const jsxStyleRegistry = createStyleRegistry()
 
     // https://github.com/vercel/next.js/blob/canary/packages/next/pages/_document.tsx#L89
     const { html, head } = await ctx.renderPage()
 
     // Adds `nonce` to style tags on Server Side Rendering
-    const styles = [...flush({ nonce })]
+    const styles = jsxStyleRegistry.styles({ nonce })
 
     let contentSecurityPolicy = ''
     if (process.env.NODE_ENV === 'production') {
@@ -25,7 +25,7 @@ class CustomDocument extends Document {
 
     ctx.res.setHeader('Content-Security-Policy', contentSecurityPolicy)
 
-    return { styles, html, head, nonce }
+    return { html, head, styles, nonce }
   }
 
   render() {
