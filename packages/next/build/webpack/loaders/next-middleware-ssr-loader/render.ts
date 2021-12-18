@@ -147,7 +147,7 @@ export function getRender({
       return sendError(req, new Error('No result returned from render.'))
     }
 
-    const pipeResult = result.pipe({
+    result.pipe({
       write: (str: string) => writer.write(encoder.encode(str)),
       end: () => writer.close(),
       // Not implemented: cork/uncork/on/removeListener
