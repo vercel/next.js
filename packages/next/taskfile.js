@@ -57,6 +57,20 @@ export async function ncc_acorn(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+export async function copy_cssnano_simple(task, opts) {
+  await fs.promises.mkdir(join(__dirname, 'compiled/cssnano-simple'), {
+    recursive: true,
+  })
+  await fs.promises.writeFile(
+    join(__dirname, 'compiled/cssnano-simple/package.json'),
+    JSON.stringify({ name: 'cssnano-simple', main: './index.js' })
+  )
+  await task
+    .source(require.resolve('cssnano-simple'))
+    .target('compiled/cssnano-simple')
+}
+
+// eslint-disable-next-line camelcase
 externals['amphtml-validator'] = 'next/dist/compiled/amphtml-validator'
 export async function ncc_amphtml_validator(task, opts) {
   await task
@@ -1300,6 +1314,7 @@ export async function ncc(task, opts) {
   await task.parallel(['ncc_webpack_bundle_packages'], opts)
   await task.parallel(['ncc_babel_bundle_packages'], opts)
   await task.parallel(['copy_constants_browserify'])
+  await task.parallel(['copy_cssnano_simple'])
   await task.parallel(['copy_react_server_dom_webpack'])
 }
 
