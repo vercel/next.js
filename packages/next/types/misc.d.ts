@@ -10,6 +10,10 @@ declare module 'cssnano-simple' {
   export = cssnanoSimple
 }
 
+declare module 'next/dist/compiled/acorn' {
+  import m from 'acorn'
+  export = m
+}
 declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'
   export = m
