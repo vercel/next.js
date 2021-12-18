@@ -32,9 +32,6 @@ const externals = {
   'postcss-safe-parser': 'next/dist/compiled/postcss-safe-parser',
   'cssnano-simple': 'next/dist/build/cssnano-simple',
 
-  // webpack
-  'node-libs-browser': 'next/dist/compiled/node-libs-browser',
-
   // sass-loader
   // (also responsible for these dependencies in package.json)
   'node-sass': 'node-sass',
@@ -733,16 +730,7 @@ export async function ncc_neo_async(task, opts) {
     .ncc({ packageName: 'neo-async', externals })
     .target('compiled/neo-async')
 }
-// eslint-disable-next-line camelcase
-externals['node-libs-browser'] = 'next/dist/compiled/node-libs-browser'
-export async function ncc_node_libs_browser(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('node-libs-browser'))
-    )
-    .ncc({ packageName: 'node-libs-browser', externals })
-    .target('compiled/node-libs-browser')
-}
+
 // eslint-disable-next-line camelcase
 externals['ora'] = 'next/dist/compiled/ora'
 export async function ncc_ora(task, opts) {
@@ -1327,7 +1315,6 @@ export async function ncc(task, opts) {
         'ncc_nanoid',
         'ncc_native_url',
         'ncc_neo_async',
-        'ncc_node_libs_browser',
         'ncc_ora',
         'ncc_postcss_safe_parser',
         'ncc_postcss_flexbugs_fixes',

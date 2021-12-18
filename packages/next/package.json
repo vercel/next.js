@@ -225,7 +225,6 @@
     "nanoid": "3.1.20",
     "native-url": "0.3.4",
     "neo-async": "2.6.1",
-    "node-libs-browser": "2.2.1",
     "ora": "4.0.4",
     "os-browserify": "0.3.0",
     "p-limit": "3.1.0",
