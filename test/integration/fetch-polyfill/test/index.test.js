@@ -42,12 +42,7 @@ const startApiServer = async (optEnv = {}, opts) => {
 const startServerlessServer = async (optEnv = {}, opts) => {
   const scriptPath = join(appDir, 'serverless-server.js')
   appPort = await findPort()
-  const env = Object.assign(
-    {},
-    clone(process.env),
-    { PORT: `${appPort}` },
-    optEnv
-  )
+  const env = Object.assign({ ...process.env }, { PORT: `${appPort}` }, optEnv)
 
   return await initNextServerScript(
     scriptPath,
