@@ -9,3 +9,7 @@
 .mainContainer img {
   border-radius: 139px;
 }
+
+.opacity50 {
+  filter: opacity(0.5);
+}
