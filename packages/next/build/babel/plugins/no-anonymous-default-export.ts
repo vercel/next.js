@@ -1,6 +1,11 @@
 import { PluginObj, types as BabelTypes } from 'next/dist/compiled/babel/core'
 import chalk from 'chalk'
-
+const blockStatementBodyTypeReturnsJSX = (node: BabelTypes.BlockStatement) => {
+  const returnStatment = node.body.find((statement) =>
+    statement.type.match('ReturnStatement')
+  ) as BabelTypes.ReturnStatement
+  return returnStatment?.argument?.type === 'JSXElement'
+}
 export default function NoAnonymousDefaultExport({
   types: t,
   ...babel
@@ -23,15 +28,24 @@ export default function NoAnonymousDefaultExport({
     visitor: {
       ExportDefaultDeclaration(path) {
         const def = path.node.declaration
-        // @ts-ignore
-        const bodyType = path.node.body?.type
-
+        if (def.type === 'ArrowFunctionExpression') {
+          // Check that arrow function body type returns JSX element implicity or block statement body returns JSX
+          if (
+            def.body.type === 'BlockStatement' &&
+            !blockStatementBodyTypeReturnsJSX(def.body)
+          ) {
+            return
+          }
+          // Already checked block statement so this should be the last bad option
+          if (def.body.type !== 'JSXElement') {
+            return
+          }
+        }
+        // Return statement must be explicit so just check if block statement returns JSX
         if (
-          bodyType !== 'JSXElement' ||
-          !(
-            def.type === 'ArrowFunctionExpression' ||
-            def.type === 'FunctionDeclaration'
-          )
+          def.type === 'FunctionDeclaration' &&
+          def.body?.type === 'BlockStatement' &&
+          !blockStatementBodyTypeReturnsJSX(def.body)
         ) {
           return
         }
