@@ -36,8 +36,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::{path::PathBuf, sync::Arc};
 use swc::config::ModuleConfig;
-use swc_common::SourceFile;
 use swc_common::{self, chain, pass::Optional};
+use swc_common::{SourceFile, SourceMap};
 use swc_ecmascript::ast::EsVersion;
 use swc_ecmascript::transforms::pass::noop;
 use swc_ecmascript::{
@@ -95,10 +95,14 @@ pub struct TransformOptions {
     pub shake_exports: Option<shake_exports::Config>,
 }
 
-pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> impl Fold {
+pub fn custom_before_pass(
+    cm: Arc<SourceMap>,
+    file: Arc<SourceFile>,
+    opts: &TransformOptions,
+) -> impl Fold {
     chain!(
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
-        styled_jsx::styled_jsx(),
+        styled_jsx::styled_jsx(cm.clone()),
         hook_optimizer::hook_optimizer(),
         match &opts.styled_components {
             Some(config) => {
