@@ -285,6 +285,7 @@ function checkRedirectValues(
 function createRSCHook() {
   const rscCache = new Map()
   const decoder = new TextDecoder()
+  const encoder = new TextEncoder()
 
   return (
     writable: WritableStream,
@@ -306,21 +307,22 @@ function createRSCHook() {
           if (bootstrap && !bootstrapped) {
             bootstrapped = true
             writer.write(
-              `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-                0,
-                id,
-              ])})</script>`
+              encoder.encode(
+                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
+                  [0, id]
+                )})</script>`
+              )
             )
           }
           if (done) {
             writer.close()
           } else {
             writer.write(
-              `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-                1,
-                id,
-                decoder.decode(value),
-              ])})</script>`
+              encoder.encode(
+                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
+                  [1, id, decoder.decode(value)]
+                )})</script>`
+              )
             )
             process()
           }
