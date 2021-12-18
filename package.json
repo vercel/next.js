@@ -153,7 +153,7 @@
     "tailwindcss": "1.1.3",
     "taskr": "1.1.0",
     "tree-kill": "1.2.2",
-    "turbo": "1.0.18",
+    "turbo": "1.0.19",
     "typescript": "4.4.3",
     "wait-port": "0.2.2",
     "web-streams-polyfill": "2.1.1",
@@ -170,94 +170,6 @@
   },
   "turbo": {
     "pipeline": {
-      "aarch64-apple-darwin": {
-        "dependsOn": [
-          "^build-native"
-        ],
-        "outputs": [
-          "native/*.node"
-        ]
-      },
-      "x86_64-apple-darwin": {
-        "dependsOn": [
-          "^build-native"
-        ],
-        "outputs": [
-          "native/*.node"
-        ]
-      },
-      "x86_64-pc-windows-msvc": {
-        "dependsOn": [
-          "^build-native"
-        ],
-        "outputs": [
-          "native/*.node"
-        ]
-      },
-      "x86_64-unknown-linux-gnu": {
-        "dependsOn": [
-          "^build-native"
-        ],
-        "outputs": [
-          "native/*.node"
-        ]
-      },
-      "armv7-unknown-linux-gnueabihf": {
-        "dependsOn": [
-          "^build-native"
-        ],
-        "outputs": [
-          "native/*.node"
-        ]
-      },
-      "aarch64-linux-android": {
-        "dependsOn": [
-          "^build-native"
-        ],
-        "outputs": [
-          "native/*.node"
-        ]
-      },
-      "aarch64-unknown-linux-musl": {
-        "dependsOn": [
-          "^build-native"
-        ],
-        "outputs": [
-          "native/*.node"
-        ]
-      },
-      "x86_64-unknown-linux-musl": {
-        "dependsOn": [
-          "^build-native"
-        ],
-        "outputs": [
-          "native/*.node"
-        ]
-      },
-      "aarch64-unknown-linux-gnu": {
-        "dependsOn": [
-          "^build-native"
-        ],
-        "outputs": [
-          "native/*.node"
-        ]
-      },
-      "aarch64-pc-windows-msvc": {
-        "dependsOn": [
-          "^build-native"
-        ],
-        "outputs": [
-          "native/*.node"
-        ]
-      },
-      "i686-pc-windows-msvc": {
-        "dependsOn": [
-          "^build-native"
-        ],
-        "outputs": [
-          "native/*.node"
-        ]
-      },
       "build-native": {
         "dependsOn": [
           "^build-native"
