@@ -41,6 +41,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
 
     return (
       <div style={styles.error}>
+        {/* TODO: remove this once RSC supports next/head */}
         {!process.env.__NEXT_RSC && (
           <Head>
             <title>
@@ -67,6 +68,11 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
             </h2>
           </div>
         </div>
+        {process.env.__NEXT_RSC && (
+          <script>
+            {`(self.__next_s=self.__next_s||[]).push(new Error(${statusCode}))`}
+          </script>
+        )}
       </div>
     )
   }

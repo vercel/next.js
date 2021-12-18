@@ -348,18 +348,20 @@ function createServerComponentRenderer(
   const ServerComponentWrapper = (props: any) => {
     let error
     const id = (React as any).useId()
+    const reqStream = renderToReadableStream(
+      <OriginalComponent {...props} />,
+      serverComponentManifest,
+      {
+        onError(err: Error) {
+          error = err
+        },
+      }
+    )
+
     const response = useRSCResponse(
       writable,
       cachePrefix + ',' + id,
-      renderToReadableStream(
-        <OriginalComponent {...props} />,
-        serverComponentManifest,
-        {
-          onError(err: Error) {
-            error = err
-          },
-        }
-      ),
+      reqStream,
       true
     )
 

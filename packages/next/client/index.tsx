@@ -756,16 +756,7 @@ if (process.env.__NEXT_RSC) {
     serialized?: string
     _fresh?: boolean
   }) => {
-    const errCacheKey = 'err:' + cacheKey
-    let response
-    if (rscCache.has(errCacheKey)) {
-      return null
-    }
-    try {
-      response = useServerResponse(cacheKey, serialized)
-    } catch (err: any) {
-      rscCache.set(errCacheKey, true)
-    }
+    const response = useServerResponse(cacheKey, serialized)
     return response.readRoot()
   }
 
