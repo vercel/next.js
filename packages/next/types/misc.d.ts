@@ -10,6 +10,36 @@ declare module 'next/dist/compiled/cssnano-simple' {
   export = cssnanoSimple
 }
 
+declare module 'next/dist/compiled/etag' {
+  import m from 'etag'
+  export = m
+}
+
+declare module 'next/dist/compiled/p-limit' {
+  import m from 'p-limit'
+  export = m
+}
+
+declare module 'next/dist/compiled/raw-body' {
+  import m from 'raw-body'
+  export = m
+}
+
+declare module 'next/dist/compiled/image-size' {
+  import m from 'image-size'
+  export = m
+}
+
+declare module 'next/dist/compiled/@hapi/accept' {
+  import m from '@hapi/accept'
+  export = m
+}
+
+declare module 'next/dist/compiled/get-orientation' {
+  import m from 'get-orientation'
+  export = m
+}
+
 declare module 'next/dist/compiled/acorn' {
   import m from 'acorn'
   export = m

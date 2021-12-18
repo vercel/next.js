@@ -57,17 +57,66 @@ export async function ncc_acorn(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function copy_cssnano_simple(task, opts) {
-  await fs.promises.mkdir(join(__dirname, 'compiled/cssnano-simple'), {
-    recursive: true,
-  })
-  await fs.promises.writeFile(
-    join(__dirname, 'compiled/cssnano-simple/package.json'),
-    JSON.stringify({ name: 'cssnano-simple', main: './index.js' })
-  )
+externals['cssnano-simple'] = 'next/dist/compiled/cssnano-simple'
+export async function ncc_cssnano_simple(task, opts) {
   await task
-    .source(require.resolve('cssnano-simple'))
+    .source(opts.src || relative(__dirname, require.resolve('cssnano-simple')))
+    .ncc({ packageName: 'cssnano-simple', externals })
     .target('compiled/cssnano-simple')
+}
+
+// eslint-disable-next-line camelcase
+externals['etag'] = 'next/dist/compiled/etag'
+export async function ncc_etag(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('etag')))
+    .ncc({ packageName: 'etag', externals })
+    .target('compiled/etag')
+}
+
+// eslint-disable-next-line camelcase
+externals['p-limit'] = 'next/dist/compiled/p-limit'
+export async function ncc_p_limit(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('p-limit')))
+    .ncc({ packageName: 'p-limit', externals })
+    .target('compiled/p-limit')
+}
+
+// eslint-disable-next-line camelcase
+externals['raw-body'] = 'next/dist/compiled/raw-body'
+export async function ncc_raw_body(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('raw-body')))
+    .ncc({ packageName: 'raw-body', externals })
+    .target('compiled/raw-body')
+}
+
+// eslint-disable-next-line camelcase
+externals['image-size'] = 'next/dist/compiled/image-size'
+export async function ncc_image_size(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('image-size')))
+    .ncc({ packageName: 'image-size', externals })
+    .target('compiled/image-size')
+}
+
+// eslint-disable-next-line camelcase
+externals['get-orientation'] = 'next/dist/compiled/get-orientation'
+export async function ncc_get_orientation(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('get-orientation')))
+    .ncc({ packageName: 'get-orientation', externals })
+    .target('compiled/get-orientation')
+}
+
+// eslint-disable-next-line camelcase
+externals['@hapi/accept'] = 'next/dist/compiled/@hapi/accept'
+export async function ncc_hapi_accept(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('@hapi/accept')))
+    .ncc({ packageName: '@hapi/accept', externals })
+    .target('compiled/@hapi/accept')
 }
 
 // eslint-disable-next-line camelcase
@@ -1217,6 +1266,13 @@ export async function ncc(task, opts) {
     .clear('compiled')
     .parallel(
       [
+        'ncc_etag',
+        'ncc_p_limit',
+        'ncc_raw_body',
+        'ncc_cssnano_simple',
+        'ncc_image_size',
+        'ncc_get_orientation',
+        'ncc_hapi_accept',
         'ncc_acorn',
         'ncc_amphtml_validator',
         'ncc_arg',
@@ -1314,7 +1370,6 @@ export async function ncc(task, opts) {
   await task.parallel(['ncc_webpack_bundle_packages'], opts)
   await task.parallel(['ncc_babel_bundle_packages'], opts)
   await task.parallel(['copy_constants_browserify'])
-  await task.parallel(['copy_cssnano_simple'])
   await task.parallel(['copy_react_server_dom_webpack'])
 }
 
