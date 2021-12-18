@@ -101,6 +101,10 @@ export function getRender({
         renderOpts
       )
     } catch (err: any) {
+      console.error(
+        'An error occurred while rendering the initial result:',
+        err
+      )
       const errorRes = { statusCode: 500, err }
       try {
         result = await renderToHTML(
