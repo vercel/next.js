@@ -663,16 +663,16 @@ jobs:
       - id: get-week
         run: echo ::set-output name=WEEK::$(date +%U)
 
-      - name: Turbo Cache
-        id: turbo-cache
-        uses: actions/cache@v2
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-
-            turbo-${{ github.job }}-canary-${{ steps.get-week.outputs.WEEK }}-
+      # - name: Turbo Cache
+      #   id: turbo-cache
+      #   uses: actions/cache@v2
+      #   if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+      #   with:
+      #     path: .turbo
+      #     key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-${{ github.sha }}
+      #     restore-keys: |
+      #       turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-
+      #       turbo-${{ github.job }}-canary-${{ steps.get-week.outputs.WEEK }}-
 
       # We use restore-key to pick latest cache.
       # We will not get exact match, but doc says
@@ -780,7 +780,7 @@ jobs:
   # Build binaries for publishing
   build-native:
     needs: build
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     strategy:
       matrix:
         os: [ubuntu-18.04, macos-latest, windows-latest]
@@ -848,15 +848,15 @@ jobs:
           path: ~/.cargo/git
           key: stable-${{ matrix.os }}-node@14-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Turbo cache
-        id: turbo-cache
-        uses: actions/cache@v2
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ matrix.name }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-${{ matrix.name }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-${{ matrix.name }}-canary-${{ needs.build.outputs.weekNum }}-
+      # - name: Turbo cache
+      #   id: turbo-cache
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: .turbo
+      #     key: turbo-${{ github.job }}-${{ matrix.name }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+      #     restore-keys: |
+      #       turbo-${{ github.job }}-${{ matrix.name }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
+      #       turbo-${{ github.job }}-${{ matrix.name }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: Cross build aarch64 setup
         if: ${{ matrix.target == 'aarch64-apple-darwin' }}
@@ -900,7 +900,7 @@ jobs:
 
   build-windows-i686:
     needs: build
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - windows-i686 - node@14
     runs-on: windows-latest
     env:
@@ -936,15 +936,15 @@ jobs:
           override: true
           target: i686-pc-windows-msvc
 
-      - name: Turbo Cache
-        id: turbo-cache
-        uses: actions/cache@v2
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
+      # - name: Turbo Cache
+      #   id: turbo-cache
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: .turbo
+      #     key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+      #     restore-keys: |
+      #       turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
+      #       turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: Build
         shell: bash
@@ -959,7 +959,7 @@ jobs:
 
   build-windows-aarch64:
     needs: build
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - windows-aarch64 - node@14
     runs-on: windows-latest
     steps:
@@ -984,15 +984,15 @@ jobs:
           override: true
           target: aarch64-pc-windows-msvc
 
-      - name: Turbo Cache
-        id: turbo-cache
-        uses: actions/cache@v2
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
+      # - name: Turbo Cache
+      #   id: turbo-cache
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: .turbo
+      #     key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+      #     restore-keys: |
+      #       turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
+      #       turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: Build
         shell: bash
@@ -1007,7 +1007,7 @@ jobs:
 
   build-linux-musl:
     needs: build
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - linux-musl - node@lts
     runs-on: ubuntu-latest
     steps:
@@ -1035,15 +1035,15 @@ jobs:
           docker pull ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
           docker tag ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine builder
 
-      - name: Turbo Cache
-        id: turbo-cache
-        uses: actions/cache@v2
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
+      # - name: Turbo Cache
+      #   id: turbo-cache
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: .turbo
+      #     key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+      #     restore-keys: |
+      #       turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
+      #       turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: 'Build'
         run: |
@@ -1057,7 +1057,7 @@ jobs:
 
   build-linux-aarch64:
     needs: build
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - aarch64-unknown-linux-gnu - node@14
     runs-on: ubuntu-18.04
     steps:
@@ -1097,15 +1097,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
 
-      - name: Turbo Cache
-        id: turbo-cache
-        uses: actions/cache@v2
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
+      # - name: Turbo Cache
+      #   id: turbo-cache
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: .turbo
+      #     key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+      #     restore-keys: |
+      #       turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
+      #       turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: Cross build aarch64
         working-directory: packages/next-swc
@@ -1120,7 +1120,7 @@ jobs:
 
   build-linux-aarch64-musl:
     needs: build
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - aarch64-unknown-linux-musl - node@14
     runs-on: ubuntu-18.04
     steps:
@@ -1157,15 +1157,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install gcc-aarch64-linux-gnu -y
 
-      - name: Turbo Cache
-        id: turbo-cache
-        uses: actions/cache@v2
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
+      # - name: Turbo Cache
+      #   id: turbo-cache
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: .turbo
+      #     key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+      #     restore-keys: |
+      #       turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
+      #       turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: Cross build aarch64
         working-directory: packages/next-swc
@@ -1179,7 +1179,7 @@ jobs:
 
   build-linux-arm7:
     needs: build
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - arm7-unknown-linux-gnu - node@14
     runs-on: ubuntu-18.04
     steps:
@@ -1219,15 +1219,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install gcc-arm-linux-gnueabihf -y
 
-      - name: Turbo Cache
-        id: turbo-cache
-        uses: actions/cache@v2
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
+      # - name: Turbo Cache
+      #   id: turbo-cache
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: .turbo
+      #     key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+      #     restore-keys: |
+      #       turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
+      #       turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: Cross build aarch64
         working-directory: packages/next-swc
@@ -1241,7 +1241,7 @@ jobs:
 
   build-android-aarch64:
     needs: build
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - Android - aarch64
     runs-on: macos-latest
     steps:
@@ -1267,15 +1267,15 @@ jobs:
           override: true
           target: aarch64-linux-android
 
-      - name: Turbo Cache
-        id: turbo-cache
-        uses: actions/cache@v2
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
+      # - name: Turbo Cache
+      #   id: turbo-cache
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: .turbo
+      #     key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+      #     restore-keys: |
+      #       turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
+      #       turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: Build
         shell: bash
@@ -1292,7 +1292,7 @@ jobs:
 
   build-wasm:
     needs: build
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     strategy:
       matrix:
         target: [web, nodejs]
