@@ -828,6 +828,19 @@ function runTests(mode) {
     }
   })
 
+  it('should apply filter style after image loads', async () => {
+    const browser = await webdriver(appPort, '/style-filter')
+    await check(() => getSrc(browser, 'img-plain'), /^\/_next\/image/)
+    await check(() => getSrc(browser, 'img-blur'), /^\/_next\/image/)
+    await waitFor(1000)
+
+    const plain = await getComputedStyle(browser, 'img-plain', 'filter')
+    expect(plain).toBe('opacity(0.5)')
+
+    const blur = await getComputedStyle(browser, 'img-blur', 'filter')
+    expect(blur).toBe('opacity(0.5)')
+  })
+
   // Tests that use the `unsized` attribute:
   if (mode !== 'dev') {
     it('should correctly rotate image', async () => {
