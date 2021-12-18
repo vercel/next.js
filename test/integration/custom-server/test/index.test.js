@@ -29,7 +29,7 @@ const startServer = async (optEnv = {}, opts) => {
   const env = Object.assign(
     {},
     clone(process.env),
-    { PORT: `${appPort}` },
+    { PORT: `${appPort}`, __NEXT_TEST_MODE: 'true' },
     optEnv
   )
 
