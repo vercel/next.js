@@ -23,8 +23,11 @@ export default function NoAnonymousDefaultExport({
     visitor: {
       ExportDefaultDeclaration(path) {
         const def = path.node.declaration
+        // @ts-ignore
+        const bodyType = path.node.body?.type
 
         if (
+          bodyType !== 'JSXElement' ||
           !(
             def.type === 'ArrowFunctionExpression' ||
             def.type === 'FunctionDeclaration'
