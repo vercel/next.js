@@ -67,8 +67,6 @@ export async function ncc_amphtml_validator(task, opts) {
     .target('compiled/amphtml-validator')
 }
 
-const browserPolyfillExternals = {}
-
 // eslint-disable-next-line camelcase
 export async function ncc_assert(task, opts) {
   await task
