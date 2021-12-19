@@ -145,6 +145,7 @@ describe('GS(S)P Page Errors', () => {
            return <div/>
          }
           export function getStaticProps() {
+            // Make it pass on the build phase
             if(process.env.NEXT_PHASE === "${PHASE_PRODUCTION_BUILD}") {
               return { props: { foo: 'bar' }, revalidate: 1 }
             }
