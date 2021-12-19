@@ -27,7 +27,7 @@ export default async (page) => {
         payload.event === 'pong' &&
         payload.invalid &&
         !self.__NEXT_DATA__.err &&
-        !(self.__next_s[0] instanceof Error) // has rsc render error
+        !((self.__next_s || [])[0] instanceof Error) // has rsc render error
       ) {
         // Payload can be invalid even if the page does exist.
         // So, we check if it can be created.
