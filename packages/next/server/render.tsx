@@ -285,6 +285,7 @@ function checkRedirectValues(
 function createRSCHook() {
   const rscCache = new Map()
   const decoder = new TextDecoder()
+  const encoder = new TextEncoder()
 
   return (
     writable: WritableStream,
@@ -298,28 +299,36 @@ function createRSCHook() {
       entry = createFromReadableStream(renderStream)
       rscCache.set(id, entry)
 
-      const transfomer = new TransformStream({
-        start(controller) {
-          if (bootstrap) {
-            controller.enqueue(
-              `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-                0,
-                id,
-              ])})</script>`
+      let bootstrapped = false
+      const forwardReader = forwardStream.getReader()
+      const writer = writable.getWriter()
+      function process() {
+        forwardReader.read().then(({ done, value }) => {
+          if (bootstrap && !bootstrapped) {
+            bootstrapped = true
+            writer.write(
+              encoder.encode(
+                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
+                  [0, id]
+                )})</script>`
+              )
             )
           }
-        },
-        transform(chunk, controller) {
-          controller.enqueue(
-            `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-              1,
-              id,
-              decoder.decode(chunk),
-            ])})</script>`
-          )
-        },
-      })
-      forwardStream.pipeThrough(transfomer).pipeTo(writable)
+          if (done) {
+            writer.close()
+          } else {
+            writer.write(
+              encoder.encode(
+                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
+                  [1, id, decoder.decode(value)]
+                )})</script>`
+              )
+            )
+            process()
+          }
+        })
+      }
+      process()
     }
     return entry
   }
@@ -630,14 +639,15 @@ export async function renderToHTML(
       )
     },
     defaultGetInitialProps: async (
-      docCtx: DocumentContext
+      docCtx: DocumentContext,
+      options: { nonce?: string } = {}
     ): Promise<DocumentInitialProps> => {
       const enhanceApp = (AppComp: any) => {
         return (props: any) => <AppComp {...props} />
       }
 
       const { html, head } = await docCtx.renderPage({ enhanceApp })
-      const styles = jsxStyleRegistry.styles()
+      const styles = jsxStyleRegistry.styles({ nonce: options.nonce })
       return { html, head, styles }
     },
   }
