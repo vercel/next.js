@@ -300,7 +300,10 @@ async function runBasicTests(context, env) {
 
     await browser.waitForElementByCss('#next_id').click()
     await check(() => browser.elementByCss('#query').text(), 'query:2')
-    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    if (!isDev) {
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+    }
   })
 
   it('should suspense next/image on server side', async () => {
