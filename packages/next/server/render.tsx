@@ -766,6 +766,7 @@ export async function renderToHTML(
       if (staticPropsError && staticPropsError.code === 'ENOENT') {
         delete staticPropsError.code
       }
+      console.error(staticPropsError)
       throw staticPropsError
     }
 
