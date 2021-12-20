@@ -142,6 +142,17 @@ This was a quick recap of setting up web forms in HTML.
 	<button type="submit">Submit</button>
 </form>	
 ```
+The above example defines how to use the `pattern` attribute. In this case, the password form field must only contain digits (0 to 9) and lowercase alphabets (a to z). No other special characters (#,$,&, etc.) The rule in RegEx is written as `[a-z]{1,15}`.
+
+Add [a-z]{1,15} as the value of the pattern attribute in our username input:
+
+1
+2
+3
+<form action="somefile.php">
+    <input type="text" name="username" placeholder="Username" pattern="[a-z]{1,15}">
+</form>
+Now, since it only accepts lowercase letters, submitting any other value will throw an error message:
 
 > To learn more about HTML forms, check out the [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Learn/Forms).
 
