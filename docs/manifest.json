@@ -27,7 +27,7 @@
                 },
                 {
                   "title": "getStaticPaths",
-                  "path": "/docs/basic-features/data-fetching/getStaticPaths.md"
+                  "path": "/docs/basic-features/data-fetching/get-static-paths.md"
                 },
                 {
                   "title": "getStaticProps",
@@ -355,7 +355,7 @@
             },
             {
               "title": "getStaticPaths",
-              "path": "/docs/api-reference/data-fetching/getStaticPaths.md"
+              "path": "/docs/api-reference/data-fetching/get-static-paths.md"
             },
             {
               "title": "getStaticProps",

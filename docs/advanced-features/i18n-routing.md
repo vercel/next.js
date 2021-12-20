@@ -293,7 +293,7 @@ Next.js doesn't know about variants of a page so it's up to you to add the `href
 
 ### Dynamic Routes and `getStaticProps` Pages
 
-For pages using `getStaticProps` with [Dynamic Routes](/docs/routing/dynamic-routes.md), all locale variants of the page desired to be prerendered need to be returned from [`getStaticPaths`](/docs/basic-features/data-fetching/getStaticPaths.md). Along with the `params` object returned for `paths`, you can also return a `locale` field specifying which locale you want to render. For example:
+For pages using `getStaticProps` with [Dynamic Routes](/docs/routing/dynamic-routes.md), all locale variants of the page desired to be prerendered need to be returned from [`getStaticPaths`](/docs/basic-features/data-fetching/get-static-paths.md). Along with the `params` object returned for `paths`, you can also return a `locale` field specifying which locale you want to render. For example:
 
 ```js
 // pages/blog/[slug].js

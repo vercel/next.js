@@ -102,7 +102,7 @@ export async function getStaticProps(context) {
 }
 ```
 
-> **Note**: `notFound` is not needed for [`fallback: false`](/docs/api-reference/data-fetching/getStaticPaths#fallback-false) mode as only paths returned from `getStaticPaths` will be pre-rendered.
+> **Note**: `notFound` is not needed for [`fallback: false`](/docs/api-reference/data-fetching/get-static-paths#fallback-false) mode as only paths returned from `getStaticPaths` will be pre-rendered.
 
 ### `redirect`
 

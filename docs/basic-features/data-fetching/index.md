@@ -50,7 +50,7 @@ Data fetching in Next.js allows you to render your content in different ways, de
 </div>
 
 <div class="card">
-  <a href="/docs/basic-features/data-fetching/getStaticPaths.md">
+  <a href="/docs/basic-features/data-fetching/get-static-paths.md">
     <b>Dynamic routing</b>
     <small>Learn more about dynamic routing in Next.js with getStaticPaths.</small>
   </a>
