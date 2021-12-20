@@ -37,3 +37,4 @@ yarn-error.log*
 __generated__
 *.graphql.d.ts
 *.graphqls.d.ts
+.cache

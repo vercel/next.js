@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "@graphql-codegen/cli": "^1.17.8",
-    "@graphql-codegen/import-types-preset": "1.18.2",
+    "@graphql-codegen/import-types-preset": "^2.1.8",
     "@graphql-codegen/plugin-helpers": "^1.17.8",
     "@graphql-codegen/typescript": "^1.17.8",
     "@graphql-codegen/typescript-operations": "^1.17.8",
@@ -30,11 +30,11 @@
     "@types/react-dom": "^16.9.8",
     "@types/react-test-renderer": "^17.0.1",
     "babel-jest": "26.3.0",
-    "graphql-let": "0.x",
+    "graphql-let": "^0.18.6",
     "graphql-tag": "2.11.0",
     "jest": "26.4.0",
     "react-test-renderer": "^17.0.1",
-    "typescript": "^3.9.7",
+    "typescript": "^4.5.4",
     "yaml-loader": "0.6.0"
   }
 }
