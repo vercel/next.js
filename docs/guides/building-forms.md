@@ -127,8 +127,6 @@ This example validates the name and roll number of a user. The `validateFormWith
 	
 JavaScript validation with Regular Expressions uses the `pattern` attribute. A regular expression (commonly known as regex) is an object that describes a pattern of characters. The class `RegExp` represents regular expressions. Both the `String` and `RegExp` formulate methods that perform robust pattern-matching and search-and-replace functions on text.
 
-Regex is a challenging concept, and at this point, you need not to learn it extensively.
-
 This was a quick recap of setting up web forms in HTML.
 
 > To learn more about HTML forms, check out the [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Learn/Forms).
