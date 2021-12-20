@@ -35,7 +35,7 @@ import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import isError from '../lib/is-error'
 import { trackWebVitalMetric } from './vitals'
-import { RefreshContext } from './rsc'
+import { RefreshContext } from './rsc/refresh'
 
 /// <reference types="react-dom/experimental" />
 
@@ -721,16 +721,17 @@ if (process.env.__NEXT_RSC) {
   }
 
   function useServerResponse(cacheKey: string, serialized?: string) {
-    const id = (React as any).useId() + cacheKey
+    const id = (React as any).useId()
 
     let response = rscCache.get(cacheKey)
     if (response) return response
 
-    if (serverDataBuffer.has(cacheKey + ',' + id)) {
+    const bufferCacheKey = cacheKey + ',' + id
+    if (serverDataBuffer.has(bufferCacheKey)) {
       const t = new TransformStream()
       const writer = t.writable.getWriter()
       response = createFromFetch(Promise.resolve({ body: t.readable }))
-      nextServerDataRegisterWriter(cacheKey + ',' + id, writer)
+      nextServerDataRegisterWriter(bufferCacheKey, writer)
     } else {
       response = createFromFetch(
         serialized

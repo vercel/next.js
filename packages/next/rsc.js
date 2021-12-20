@@ -1,6 +1,1 @@
-var mod = require('./dist/client/rsc')
-
-module.exports = {
-  unstable_useRefreshRoot: mod.useRefreshRoot,
-  PageNotFound: mod.PageNotFound,
-}
+module.exports = require('./dist/client/rsc')

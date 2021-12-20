@@ -296,7 +296,6 @@ function createRSCHook() {
     let entry = rscCache.get(id)
     if (!entry) {
       const [renderStream, forwardStream] = readableStreamTee(req)
-
       entry = createFromReadableStream(renderStream)
       rscCache.set(id, entry)
 
@@ -358,7 +357,6 @@ function createServerComponentRenderer(
       reqStream,
       true
     )
-
     return response.readRoot()
   }
   const Component = (props: any) => {
