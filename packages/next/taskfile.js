@@ -13,8 +13,19 @@ export async function next__polyfill_nomodule(task, opts) {
     .target('dist/build/polyfills')
 }
 
+export async function next__polyfill_module(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('@next/polyfill-module'))
+    )
+    .target('dist/build/polyfills')
+}
+
 export async function browser_polyfills(task, opts) {
-  await task.parallel(['next__polyfill_nomodule'], opts)
+  await task.parallel(
+    ['next__polyfill_nomodule', 'next__polyfill_module'],
+    opts
+  )
 }
 
 const externals = {

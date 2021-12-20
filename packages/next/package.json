@@ -73,7 +73,6 @@
   "dependencies": {
     "@babel/runtime": "7.15.4",
     "@next/env": "12.0.8-canary.11",
-    "@next/polyfill-module": "12.0.8-canary.11",
     "@next/react-dev-overlay": "12.0.8-canary.11",
     "@next/react-refresh-utils": "12.0.8-canary.11",
     "caniuse-lite": "^1.0.30001283",
@@ -128,6 +127,7 @@
     "@hapi/accept": "5.0.2",
     "@napi-rs/cli": "1.2.1",
     "@napi-rs/triples": "1.0.3",
+    "@next/polyfill-module": "12.0.8-canary.11",
     "@next/polyfill-nomodule": "12.0.8-canary.11",
     "@next/swc": "12.0.8-canary.11",
     "@peculiar/webcrypto": "1.1.7",

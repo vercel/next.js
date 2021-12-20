@@ -1,5 +1,5 @@
 /* global location */
-import '@next/polyfill-module'
+import '../build/polyfills/polyfill-module'
 import React, { useState } from 'react'
 import ReactDOM from 'react-dom'
 import { StyleRegistry } from 'styled-jsx'
