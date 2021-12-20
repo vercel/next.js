@@ -54,6 +54,17 @@ export async function ncc_acorn(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+externals['@napi-rs/triples'] = 'next/dist/compiled/@napi-rs/triples'
+export async function ncc_napirs_triples(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('@napi-rs/triples'))
+    )
+    .ncc({ packageName: '@napi-rs/triples', externals })
+    .target('compiled/@napi-rs/triples')
+}
+
+// eslint-disable-next-line camelcase
 externals['cssnano-simple'] = 'next/dist/compiled/cssnano-simple'
 export async function ncc_cssnano_simple(task, opts) {
   await task
@@ -1254,6 +1265,7 @@ export async function ncc(task, opts) {
     .clear('compiled')
     .parallel(
       [
+        'ncc_napirs_triples',
         'ncc_etag',
         'ncc_p_limit',
         'ncc_raw_body',
