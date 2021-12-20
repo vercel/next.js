@@ -1,8 +1,8 @@
-import { mediaType } from '@hapi/accept'
+import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import { createHash } from 'crypto'
 import { createReadStream, promises } from 'fs'
-import { getOrientation, Orientation } from 'get-orientation'
-import imageSizeOf from 'image-size'
+import { getOrientation, Orientation } from 'next/dist/compiled/get-orientation'
+import imageSizeOf from 'next/dist/compiled/image-size'
 import { IncomingMessage, ServerResponse } from 'http'
 // @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'

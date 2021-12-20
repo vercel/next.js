@@ -32,9 +32,6 @@ const externals = {
   'postcss-safe-parser': 'next/dist/compiled/postcss-safe-parser',
   'cssnano-simple': 'next/dist/build/cssnano-simple',
 
-  // webpack
-  'node-libs-browser': 'next/dist/compiled/node-libs-browser',
-
   // sass-loader
   // (also responsible for these dependencies in package.json)
   'node-sass': 'node-sass',
@@ -48,6 +45,78 @@ const externals = {
     'next/dist/build/webpack/plugins/terser-webpack-plugin',
 }
 // eslint-disable-next-line camelcase
+externals['acorn'] = 'next/dist/compiled/acorn'
+export async function ncc_acorn(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('acorn')))
+    .ncc({ packageName: 'acorn', externals })
+    .target('compiled/acorn')
+}
+
+// eslint-disable-next-line camelcase
+externals['cssnano-simple'] = 'next/dist/compiled/cssnano-simple'
+export async function ncc_cssnano_simple(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('cssnano-simple')))
+    .ncc({ packageName: 'cssnano-simple', externals })
+    .target('compiled/cssnano-simple')
+}
+
+// eslint-disable-next-line camelcase
+externals['etag'] = 'next/dist/compiled/etag'
+export async function ncc_etag(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('etag')))
+    .ncc({ packageName: 'etag', externals })
+    .target('compiled/etag')
+}
+
+// eslint-disable-next-line camelcase
+externals['p-limit'] = 'next/dist/compiled/p-limit'
+export async function ncc_p_limit(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('p-limit')))
+    .ncc({ packageName: 'p-limit', externals })
+    .target('compiled/p-limit')
+}
+
+// eslint-disable-next-line camelcase
+externals['raw-body'] = 'next/dist/compiled/raw-body'
+export async function ncc_raw_body(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('raw-body')))
+    .ncc({ packageName: 'raw-body', externals })
+    .target('compiled/raw-body')
+}
+
+// eslint-disable-next-line camelcase
+externals['image-size'] = 'next/dist/compiled/image-size'
+export async function ncc_image_size(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('image-size')))
+    .ncc({ packageName: 'image-size', externals })
+    .target('compiled/image-size')
+}
+
+// eslint-disable-next-line camelcase
+externals['get-orientation'] = 'next/dist/compiled/get-orientation'
+export async function ncc_get_orientation(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('get-orientation')))
+    .ncc({ packageName: 'get-orientation', externals })
+    .target('compiled/get-orientation')
+}
+
+// eslint-disable-next-line camelcase
+externals['@hapi/accept'] = 'next/dist/compiled/@hapi/accept'
+export async function ncc_hapi_accept(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('@hapi/accept')))
+    .ncc({ packageName: '@hapi/accept', externals })
+    .target('compiled/@hapi/accept')
+}
+
+// eslint-disable-next-line camelcase
 externals['amphtml-validator'] = 'next/dist/compiled/amphtml-validator'
 export async function ncc_amphtml_validator(task, opts) {
   await task
@@ -57,6 +126,256 @@ export async function ncc_amphtml_validator(task, opts) {
     .ncc({ packageName: 'amphtml-validator', externals })
     .target('compiled/amphtml-validator')
 }
+
+// eslint-disable-next-line camelcase
+export async function ncc_assert(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('assert/')))
+    .ncc({
+      packageName: 'assert',
+      externals,
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/assert')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_browser_zlib(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('browserify-zlib/'))
+    )
+    .ncc({
+      packageName: 'browserify-zlib',
+      externals,
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/browserify-zlib')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_buffer(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('buffer/')))
+    .ncc({
+      packageName: 'buffer',
+      externals,
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/buffer')
+}
+
+// eslint-disable-next-line camelcase
+export async function copy_constants_browserify(task, opts) {
+  await fs.promises.mkdir(join(__dirname, 'compiled/constants-browserify'), {
+    recursive: true,
+  })
+  await fs.promises.writeFile(
+    join(__dirname, 'compiled/constants-browserify/package.json'),
+    JSON.stringify({ name: 'constants-browserify', main: './constants.json' })
+  )
+  await task
+    .source(require.resolve('constants-browserify'))
+    .target('compiled/constants-browserify')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_crypto_browserify(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('crypto-browserify/'))
+    )
+    .ncc({
+      packageName: 'crypto-browserify',
+      externals,
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/crypto-browserify')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_domain_browser(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('domain-browser/')))
+    .ncc({
+      packageName: 'domain-browser',
+      externals,
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/domain-browser')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_events(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('events/')))
+    .ncc({
+      packageName: 'events',
+      externals,
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/events')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_stream_http(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('stream-http/')))
+    .ncc({
+      packageName: 'stream-http',
+      externals,
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/stream-http')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_https_browserify(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('https-browserify/'))
+    )
+    .ncc({
+      packageName: 'https-browserify',
+      externals,
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/https-browserify')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_os_browserify(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('os-browserify/browser'))
+    )
+    .ncc({
+      packageName: 'os-browserify',
+      externals,
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/os-browserify')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_path_browserify(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('path-browserify/'))
+    )
+    .ncc({
+      packageName: 'path-browserify',
+      externals,
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/path-browserify')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_process(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('process/browser')))
+    .ncc({
+      packageName: 'process',
+      externals,
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/process')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_querystring_es3(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('querystring-es3/'))
+    )
+    .ncc({
+      packageName: 'querystring-es3',
+      externals,
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/querystring-es3')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_string_decoder(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('string_decoder/')))
+    .ncc({
+      packageName: 'string_decoder',
+      externals,
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/string_decoder')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_util(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('util/')))
+    .ncc({
+      packageName: 'util',
+      externals,
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/util')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_timers_browserify(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('timers-browserify/'))
+    )
+    .ncc({
+      packageName: 'timers-browserify',
+      externals,
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/timers-browserify')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_tty_browserify(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('tty-browserify/')))
+    .ncc({
+      packageName: 'tty-browserify',
+      externals,
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/tty-browserify')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_vm_browserify(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('vm-browserify/')))
+    .ncc({
+      packageName: 'vm-browserify',
+      externals,
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/vm-browserify')
+}
+
 // eslint-disable-next-line camelcase
 externals['@ampproject/toolbox-optimizer'] =
   'next/dist/compiled/@ampproject/toolbox-optimizer'
@@ -411,16 +730,7 @@ export async function ncc_neo_async(task, opts) {
     .ncc({ packageName: 'neo-async', externals })
     .target('compiled/neo-async')
 }
-// eslint-disable-next-line camelcase
-externals['node-libs-browser'] = 'next/dist/compiled/node-libs-browser'
-export async function ncc_node_libs_browser(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('node-libs-browser'))
-    )
-    .ncc({ packageName: 'node-libs-browser', externals })
-    .target('compiled/node-libs-browser')
-}
+
 // eslint-disable-next-line camelcase
 externals['ora'] = 'next/dist/compiled/ora'
 export async function ncc_ora(task, opts) {
@@ -944,10 +1254,35 @@ export async function ncc(task, opts) {
     .clear('compiled')
     .parallel(
       [
+        'ncc_etag',
+        'ncc_p_limit',
+        'ncc_raw_body',
+        'ncc_cssnano_simple',
+        'ncc_image_size',
+        'ncc_get_orientation',
+        'ncc_hapi_accept',
+        'ncc_acorn',
         'ncc_amphtml_validator',
         'ncc_arg',
         'ncc_async_retry',
         'ncc_async_sema',
+        'ncc_assert',
+        'ncc_browser_zlib',
+        'ncc_buffer',
+        'ncc_crypto_browserify',
+        'ncc_domain_browser',
+        'ncc_events',
+        'ncc_stream_http',
+        'ncc_https_browserify',
+        'ncc_os_browserify',
+        'ncc_path_browserify',
+        'ncc_process',
+        'ncc_querystring_es3',
+        'ncc_string_decoder',
+        'ncc_util',
+        'ncc_timers_browserify',
+        'ncc_tty_browserify',
+        'ncc_vm_browserify',
         'ncc_babel_bundle',
         'ncc_ci_info',
         'ncc_cli_select',
@@ -980,7 +1315,6 @@ export async function ncc(task, opts) {
         'ncc_nanoid',
         'ncc_native_url',
         'ncc_neo_async',
-        'ncc_node_libs_browser',
         'ncc_ora',
         'ncc_postcss_safe_parser',
         'ncc_postcss_flexbugs_fixes',
@@ -1022,6 +1356,7 @@ export async function ncc(task, opts) {
     )
   await task.parallel(['ncc_webpack_bundle_packages'], opts)
   await task.parallel(['ncc_babel_bundle_packages'], opts)
+  await task.parallel(['copy_constants_browserify'])
   await task.parallel(['copy_react_server_dom_webpack'])
 }
 

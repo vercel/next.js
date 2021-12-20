@@ -346,12 +346,14 @@ export default async function getBaseWebpackConfig(
     Boolean(reactDomVersion) &&
     (semver.gte(reactDomVersion!, '18.0.0') ||
       semver.coerce(reactDomVersion)?.version === '18.0.0')
-  const hasReactPrerelease =
-    (Boolean(reactDomVersion) && semver.prerelease(reactDomVersion!) != null) ||
-    isReactExperimental
 
   const hasReactRoot: boolean =
     config.experimental.reactRoot || hasReact18 || isReactExperimental
+
+  // Make sure reactRoot is enabled when react 18 is detected
+  if (hasReactRoot) {
+    config.experimental.reactRoot = true
+  }
 
   // Only inform during one of the builds
   if (
@@ -380,19 +382,6 @@ export default async function getBaseWebpackConfig(
   const hasServerComponents =
     hasConcurrentFeatures && !!config.experimental.serverComponents
   const targetWeb = webServerRuntime || !isServer
-
-  // Only inform during one of the builds
-  if (!isServer) {
-    if (hasReactRoot) {
-      Log.info('Using the createRoot API for React')
-    }
-    if (hasReactPrerelease) {
-      Log.warn(
-        `You are using an unsupported prerelease of 'react-dom' which may cause ` +
-          `unexpected or broken application behavior. Continue at your own risk.`
-      )
-    }
-  }
 
   if (webServerRuntime) {
     Log.warn(
@@ -632,30 +621,35 @@ export default async function getBaseWebpackConfig(
           // Full list of old polyfills is accessible here:
           // https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42
           fallback: {
-            assert: require.resolve('assert/'),
-            buffer: require.resolve('buffer/'),
-            constants: require.resolve('constants-browserify'),
-            crypto: require.resolve('crypto-browserify'),
-            domain: require.resolve('domain-browser'),
-            http: require.resolve('stream-http'),
-            https: require.resolve('https-browserify'),
-            os: require.resolve('os-browserify/browser'),
-            path: require.resolve('path-browserify'),
+            assert: require.resolve('next/dist/compiled/assert'),
+            buffer: require.resolve('next/dist/compiled/buffer/'),
+            constants: require.resolve(
+              'next/dist/compiled/constants-browserify'
+            ),
+            crypto: require.resolve('next/dist/compiled/crypto-browserify'),
+            domain: require.resolve('next/dist/compiled/domain-browser'),
+            http: require.resolve('next/dist/compiled/stream-http'),
+            https: require.resolve('next/dist/compiled/https-browserify'),
+            os: require.resolve('next/dist/compiled/os-browserify'),
+            path: require.resolve('next/dist/compiled/path-browserify'),
             punycode: require.resolve('punycode'),
-            process: require.resolve('process/browser'),
+            process: require.resolve('next/dist/compiled/process'),
             // Handled in separate alias
-            querystring: require.resolve('querystring-es3'),
+            querystring: require.resolve('next/dist/compiled/querystring-es3'),
+            // TODO: investigate ncc'ing stream-browserify
             stream: require.resolve('stream-browserify'),
-            string_decoder: require.resolve('string_decoder'),
-            sys: require.resolve('util/'),
-            timers: require.resolve('timers-browserify'),
-            tty: require.resolve('tty-browserify'),
+            string_decoder: require.resolve(
+              'next/dist/compiled/string_decoder'
+            ),
+            sys: require.resolve('next/dist/compiled/util/'),
+            timers: require.resolve('next/dist/compiled/timers-browserify'),
+            tty: require.resolve('next/dist/compiled/tty-browserify'),
             // Handled in separate alias
             // url: require.resolve('url/'),
-            util: require.resolve('util/'),
-            vm: require.resolve('vm-browserify'),
-            zlib: require.resolve('browserify-zlib'),
-            events: require.resolve('events'),
+            util: require.resolve('next/dist/compiled/util/'),
+            vm: require.resolve('next/dist/compiled/vm-browserify'),
+            zlib: require.resolve('next/dist/compiled/browserify-zlib'),
+            events: require.resolve('next/dist/compiled/events/'),
           },
         }
       : undefined),

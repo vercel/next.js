@@ -5,6 +5,7 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import {
+  check,
   fetchViaHTTP,
   findPort,
   killApp,
@@ -108,6 +109,29 @@ describe('Middleware base tests', () => {
 })
 
 function rewriteTests(locale = '') {
+  it('should rewrite to fallback: true page successfully', async () => {
+    const randomSlug = `another-${Date.now()}`
+    const res2 = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/to-blog/${randomSlug}`
+    )
+    expect(res2.status).toBe(200)
+    expect(await res2.text()).toContain('Loading...')
+
+    const randomSlug2 = `another-${Date.now()}`
+    const browser = await webdriver(
+      context.appPort,
+      `${locale}/rewrites/to-blog/${randomSlug2}`
+    )
+
+    await check(async () => {
+      const props = JSON.parse(await browser.elementByCss('#props').text())
+      return props.params.slug === randomSlug2
+        ? 'success'
+        : JSON.stringify(props)
+    }, 'success')
+  })
+
   it(`${locale} should add a cookie and rewrite to a/b test`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
