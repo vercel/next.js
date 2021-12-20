@@ -8,7 +8,7 @@ import {
   FontManifest,
 } from '../../../server/font-utils'
 import postcss from 'postcss'
-import minifier from 'cssnano-simple'
+import minifier from 'next/dist/compiled/cssnano-simple'
 import {
   FONT_MANIFEST,
   OPTIMIZED_FONT_PROVIDERS,
