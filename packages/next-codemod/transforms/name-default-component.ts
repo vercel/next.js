@@ -30,19 +30,27 @@ export default function transformer(
   let hasModifications: boolean
 
   const returnsJSX = (node): boolean => {
-    if (!node) {
+    try {
+      if (!node) {
+        return false
+      } else {
+        return (
+          node?.type === 'JSXElement' ||
+          (node?.type === 'BlockStatement' &&
+            j(node)
+              .find(j.ReturnStatement)
+              .some((path) => {
+                return (
+                  path?.value?.argument?.type === 'JSXElement' ||
+                  // @ts-ignore
+                  path?.argument?.type === 'JSXElement'
+                )
+              }))
+        )
+      }
+    } catch (e) {
+      console.error('Error in returnsJSX:', e)
       return false
-    } else {
-      return (
-        node?.type === 'JSXElement' ||
-        (node?.type === 'BlockStatement' &&
-          j(node)
-            .find(j.ReturnStatement)
-            .some((path) => {
-              console.log('path in returnsJSX', path)
-              return path?.value?.argument?.type === 'JSXElement'
-            }))
-      )
     }
   }
   const hasRootAsParent = (path): boolean => {
@@ -55,18 +63,18 @@ export default function transformer(
   ): void => {
     const node = path.value
     if (!node.declaration) {
-      console.log('node without declaration', node)
       return
     }
-
-    const isArrowFunction =
+    console.log('inNameFuncitonComponentt')
+    const isJSXReturningArrowFunction =
       node.declaration.type === 'ArrowFunctionExpression' &&
       returnsJSX(node.declaration.body)
 
-    const isAnonymousFunction =
-      node.declaration.type === 'FunctionDeclaration' && !node.declaration.id
+    const isJSXReturningAnonymousFunction =
+      node.declaration.type === 'FunctionDeclaration' &&
+      returnsJSX(node.declaration.body)
 
-    if (!(isArrowFunction || isAnonymousFunction)) {
+    if (!(isJSXReturningArrowFunction || isJSXReturningAnonymousFunction)) {
       return
     }
 
@@ -90,7 +98,7 @@ export default function transformer(
 
     hasModifications = true
 
-    if (isArrowFunction) {
+    if (isJSXReturningArrowFunction) {
       path.insertBefore(
         j.variableDeclaration('const', [
           j.variableDeclarator(

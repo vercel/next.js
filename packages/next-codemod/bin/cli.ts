@@ -88,14 +88,19 @@ export function runTransform({ files, flags, transformer }) {
   args = args.concat(files)
 
   console.log(`Executing command: jscodeshift ${args.join(' ')}`)
-
-  const result = execa.sync(jscodeshiftExecutable, args, {
-    stdio: 'inherit',
-    stripFinalNewline: false,
-  })
-
-  if (result.failed) {
-    throw new Error(`jscodeshift exited with code ${result.exitCode}`)
+  let result
+  try {
+    result = execa.sync(jscodeshiftExecutable, args, {
+      stdio: 'inherit',
+      stripFinalNewline: false,
+    })
+    if (result.failed) {
+      throw new Error(`jscodeshift exited with code ${result.exitCode}`)
+    }
+    return result
+  } catch (e) {
+    console.error(`Execa errored with error ${e.message}`)
+    throw new Error(e)
   }
 }
 
