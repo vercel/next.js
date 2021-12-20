@@ -18,8 +18,6 @@ export async function browser_polyfills(task, opts) {
 }
 
 const externals = {
-  // Browserslist (post-css plugins)
-  browserslist: 'browserslist',
   // don't bundle caniuse-lite data so users can
   // update it manually
   'caniuse-lite': 'caniuse-lite',
@@ -51,6 +49,15 @@ export async function ncc_acorn(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('acorn')))
     .ncc({ packageName: 'acorn', externals })
     .target('compiled/acorn')
+}
+
+// eslint-disable-next-line camelcase
+externals['browserslist'] = 'next/dist/compiled/browserslist'
+export async function ncc_browserslist(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('browserslist')))
+    .ncc({ packageName: 'browserslist', externals })
+    .target('compiled/browserslist')
 }
 
 // eslint-disable-next-line camelcase
@@ -1265,6 +1272,7 @@ export async function ncc(task, opts) {
     .clear('compiled')
     .parallel(
       [
+        'ncc_browserslist',
         'ncc_napirs_triples',
         'ncc_etag',
         'ncc_p_limit',
