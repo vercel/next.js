@@ -51,6 +51,15 @@ export async function ncc_acorn(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+externals['watchpack'] = 'next/dist/compiled/watchpack'
+export async function ncc_watchpack(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('watchpack')))
+    .ncc({ packageName: 'watchpack', externals })
+    .target('compiled/watchpack')
+}
+
+// eslint-disable-next-line camelcase
 externals['chalk'] = 'next/dist/compiled/chalk'
 export async function ncc_chalk(task, opts) {
   await task
@@ -1280,6 +1289,7 @@ export async function ncc(task, opts) {
     .clear('compiled')
     .parallel(
       [
+        'ncc_watchpack',
         'ncc_chalk',
         'ncc_browserslist',
         'ncc_napirs_triples',

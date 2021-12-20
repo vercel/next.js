@@ -86,8 +86,7 @@
     "regenerator-runtime": "0.13.4",
     "stream-browserify": "3.0.0",
     "styled-jsx": "5.0.0-beta.5",
-    "use-subscription": "1.5.1",
-    "watchpack": "2.3.1"
+    "use-subscription": "1.5.1"
   },
   "peerDependencies": {
     "fibers": ">= 3.1.0",
@@ -264,6 +263,7 @@
     "util": "0.12.4",
     "uuid": "8.3.2",
     "vm-browserify": "1.1.2",
+    "watchpack": "2.3.1",
     "web-streams-polyfill": "3.0.3",
     "web-vitals": "2.1.0",
     "webpack-sources1": "npm:webpack-sources@1.4.3",
