@@ -23,7 +23,7 @@
                 },
                 {
                   "title": "getServerSideProps",
-                  "path": "/docs/basic-features/data-fetching/getServerSideProps.md"
+                  "path": "/docs/basic-features/data-fetching/get-server-side-props.md"
                 },
                 {
                   "title": "getStaticPaths",
@@ -347,11 +347,11 @@
           "routes": [
             {
               "title": "getInitialProps",
-              "path": "/docs/api-reference/data-fetching/getInitialProps.md"
+              "path": "/docs/api-reference/data-fetching/get-initial-props.md"
             },
             {
               "title": "getServerSideProps",
-              "path": "/docs/api-reference/data-fetching/getServerSideProps.md"
+              "path": "/docs/api-reference/data-fetching/get-server-side-props.md"
             },
             {
               "title": "getStaticPaths",

@@ -19,7 +19,7 @@ export async function getStaticPaths() {
 }
 ```
 
-Note that`getStaticProps` **must** be used with `getStaticPaths`, and that you **cannot** use it with [`getServerSideProps`](/docs/basic-features/data-fetching/getServerSideProps.md).
+Note that`getStaticProps` **must** be used with `getStaticPaths`, and that you **cannot** use it with [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md).
 
 The [`getStaticPaths` API reference](/docs/api-reference/data-fetching/getStaticPaths.md) covers all parameters and props that can be used with `getStaticPaths`.
 

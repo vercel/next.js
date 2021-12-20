@@ -29,7 +29,7 @@ You can use the [next-code-elimination tool](https://next-code-elimination.verce
 
 Note that you must export `getServerSideProps` as a standalone function — it will **not** work if you add `getServerSideProps` as a property of the page component.
 
-The [`getServerSideProps` API reference](/docs/api-reference/data-fetching/getServerSideProps.md) covers all parameters and props that can be used with `getServerSideProps`.
+The [`getServerSideProps` API reference](/docs/api-reference/data-fetching/get-server-side-props.md) covers all parameters and props that can be used with `getServerSideProps`.
 
 ## When should I use `getServerSideProps`?
 

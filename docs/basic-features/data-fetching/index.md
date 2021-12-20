@@ -36,7 +36,7 @@ Data fetching in Next.js allows you to render your content in different ways, de
 </div>
 
 <div class="card">
-  <a href="/docs/basic-features/data-fetching/getServerSideProps.md">
+  <a href="/docs/basic-features/data-fetching/get-server-side-props.md">
     <b>SSR: Server-side rendering</b>
     <small>Learn more about server-side rendering in Next.js with getServerSideProps.</small>
   </a>
