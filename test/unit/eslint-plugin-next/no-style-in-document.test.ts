@@ -51,7 +51,7 @@ ruleTester.run('no-style-in-document', rule, {
                 return (
                   <Html>
                     <Head />
-                    <style>{"\
+                    <style jsx>{"\
                     body{\
                       color:red;\
                     }\
