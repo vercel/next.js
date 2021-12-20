@@ -65,7 +65,6 @@ export default function transformer(
     if (!node.declaration) {
       return
     }
-    console.log('inNameFuncitonComponentt')
     const isJSXReturningArrowFunction =
       node.declaration.type === 'ArrowFunctionExpression' &&
       returnsJSX(node.declaration.body)
