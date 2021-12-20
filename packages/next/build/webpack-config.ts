@@ -1,5 +1,5 @@
 import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { stringify } from 'querystring'
 import semver from 'next/dist/compiled/semver'

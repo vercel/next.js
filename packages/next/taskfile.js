@@ -23,7 +23,6 @@ const externals = {
   'caniuse-lite': 'caniuse-lite',
   '/caniuse-lite(/.*)/': 'caniuse-lite$1',
 
-  chalk: 'chalk',
   'node-fetch': 'node-fetch',
   postcss: 'postcss',
   // Ensure latest version is used
@@ -49,6 +48,15 @@ export async function ncc_acorn(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('acorn')))
     .ncc({ packageName: 'acorn', externals })
     .target('compiled/acorn')
+}
+
+// eslint-disable-next-line camelcase
+externals['chalk'] = 'next/dist/compiled/chalk'
+export async function ncc_chalk(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('chalk')))
+    .ncc({ packageName: 'chalk', externals })
+    .target('compiled/chalk')
 }
 
 // eslint-disable-next-line camelcase
@@ -1272,6 +1280,7 @@ export async function ncc(task, opts) {
     .clear('compiled')
     .parallel(
       [
+        'ncc_chalk',
         'ncc_browserslist',
         'ncc_napirs_triples',
         'ncc_etag',

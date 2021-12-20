@@ -13,7 +13,7 @@ import type { UrlWithParsedQuery } from 'url'
 
 import crypto from 'crypto'
 import fs from 'fs'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import { Worker } from 'jest-worker'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import findUp from 'next/dist/compiled/find-up'

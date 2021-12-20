@@ -5,6 +5,11 @@ declare module 'next/dist/compiled/react-server-dom-webpack'
 declare module 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 declare module 'next/dist/compiled/browserslist'
 
+declare module 'next/dist/compiled/chalk' {
+  import m from 'chalk'
+  export = m
+}
+
 declare module 'next/dist/compiled/cssnano-simple' {
   const cssnanoSimple: any
   export = cssnanoSimple
