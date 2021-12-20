@@ -114,7 +114,7 @@ export default function Home() {
 
 ## Environment Variables
 
-Next.js has support for `.env` [Environment Variables](/docs/basic-features/environment-variables.md) similar to Create React App. The main different is the prefix used to expose environment variables on the client-side.
+Next.js has support for `.env` [Environment Variables](/docs/basic-features/environment-variables.md) similar to Create React App. The main difference is the prefix used to expose environment variables on the client-side.
 
 - Change all environment variables with the `REACT_APP_` prefix to `NEXT_PUBLIC_`.
 - Server-side environment variables will be available at build-time and in [API Routes](/docs/api-routes/introduction.md).
