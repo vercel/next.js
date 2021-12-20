@@ -48,6 +48,17 @@ describe('AMP Usage', () => {
     })
     afterAll(() => stopApp(server))
 
+    it('should have amp optimizer in trace', async () => {
+      const trace = JSON.parse(
+        readFileSync(join(appDir, '.next/next-server.js.nft.json'), 'utf8')
+      )
+      expect(
+        trace.files.some((file) =>
+          file.replace(/\\/g, '/').includes('@ampproject/toolbox-optimizer')
+        )
+      ).toBe(true)
+    })
+
     it('should not contain missing files warning', async () => {
       expect(output).toContain('Compiled successfully')
       expect(output).not.toContain('Could not find files for')

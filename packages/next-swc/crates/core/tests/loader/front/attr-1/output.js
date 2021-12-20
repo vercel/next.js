@@ -9,5 +9,5 @@ export default function Foo() {
         className: "jsx-eb368961fd3b0a99"
     }, React.createElement(_JSXStyle, {
         id: "eb368961fd3b0a99"
-    }, "span.jsx-eb368961fd3b0a99 {color:red}")));
+    }, "span.jsx-eb368961fd3b0a99{color:red}")));
 };
