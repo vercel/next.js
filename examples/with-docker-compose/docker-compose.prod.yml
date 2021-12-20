@@ -1,11 +1,11 @@
 version: '3'
 
 services:
-  # Next.js app #1
-  next-1:
-    container_name: next-1
+  # Next.js JavaScript app
+  next-js-app:
+    container_name: next-js-app
     build:
-      context: ./next-1
+      context: ./next-js-app
       dockerfile: prod.Dockerfile
       args:
         ENV_VARIABLE: ${ENV_VARIABLE}
@@ -16,11 +16,11 @@ services:
     networks:
       - my_network
 
-  # Next.js app #2
-  next-2:
-    container_name: next-2
+  # Next.js TypeScript app
+  next-ts-app:
+    container_name: next-ts-app
     build:
-      context: ./next-2
+      context: ./next-ts-app
       dockerfile: prod.Dockerfile
       args:
         ENV_VARIABLE: ${ENV_VARIABLE}

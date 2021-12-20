@@ -6,14 +6,14 @@ export default function Home({ serverOnlyVariable, message }) {
   return (
     <div className={styles.container}>
       <Head>
-        <title>Create Next App #2</title>
+        <title>Create Next JavaScript app</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
       <main className={styles.main}>
         <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js</a> app #2 on Docker
-          Compose!
+          Welcome to the <a href="https://nextjs.org">Next.js</a> JavaScript app
+          on Docker Compose!
         </h1>
 
         <div className={styles.grid}>
@@ -28,14 +28,14 @@ export default function Home({ serverOnlyVariable, message }) {
           </div>
 
           <div className={styles.card}>
-            <h3>Docker connection to Next.js app #1</h3>
+            <h3>Docker connection to Next.js TypeScript app</h3>
             <p>{message ? `✅` : `❌`}</p>
           </div>
         </div>
 
         <p className={styles.description}>
           Get started by editing{' '}
-          <code className={styles.code}>next-2/src/pages/index.js</code>
+          <code className={styles.code}>next-js-app/src/pages/index.js</code>
         </p>
 
         <div className={styles.grid}>
@@ -87,7 +87,7 @@ export default function Home({ serverOnlyVariable, message }) {
 
 export async function getServerSideProps() {
   const serverOnlyVariable = process.env.ENV_VARIABLE
-  const { message } = await fetch(`http://next-1:3000/api/hello`)
+  const { message } = await fetch(`http://next-ts-app:3000/api/hello`)
     .then((res) => res.json())
     .catch((e) => {
       return { message: false }

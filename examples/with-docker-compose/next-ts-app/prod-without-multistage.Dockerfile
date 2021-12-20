@@ -4,11 +4,13 @@ WORKDIR /app
 
 COPY package.json yarn.lock* .
 
-RUN yarn install --production
+# Omit --production flag for TypeScript devDependencies
+RUN yarn install
 
 COPY src ./src
 COPY public ./public
 COPY next.config.js .
+COPY tsconfig.json .
 
 # Environment variables must be present at build time
 # https://github.com/vercel/next.js/discussions/14030

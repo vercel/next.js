@@ -11,7 +11,7 @@ docker network create my_network
 # Build dev using new BuildKit engine
 COMPOSE_DOCKER_CLI_BUILD=1 \
 DOCKER_BUILDKIT=1 \
-docker-compose -f docker-compose.dev.yml build
+docker-compose -f docker-compose.dev.yml build --parallel
 
 # Up dev
 docker-compose -f docker-compose.dev.yml up

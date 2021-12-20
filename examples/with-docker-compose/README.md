@@ -1,10 +1,10 @@
 # With Docker Compose
 
-This example contains everything needed to get a multi-Next.js app development and production environment up and running with Docker Compose.
+This example contains everything needed to get a multi-Next.js app development and production environment up and running with Docker Compose. Includes example JavaScript and TypeScript apps.
 
 ## Benfits of Docker Compose
 
-- Develop locally without Node.js installed ✨
+- Develop locally without Node.js or TypeScript installed ✨
 - Easy to run, consistent development environment across Windows, MacOS, and Linux teams
 - Run multiple Next.js apps, databases, and other microservices in a single deployment
 - Multistage builds combined with [Output Standalone](https://nextjs.org/docs/advanced-features/output-file-tracing#automatically-copying-traced-files-experimental) for up to [85% smaller apps](#production) (Approximately 110 MB compared to 1 GB with create-next-app)
@@ -39,8 +39,8 @@ wget -O - https://gist.githubusercontent.com/wdullaer/f1af16bd7e970389bad3/raw/i
 ./dev.sh
 ```
 
-2. Open [http://localhost:3000](http://localhost:3000) to visit Next.js app #1.
-3. Open [http://localhost:3002](http://localhost:3002) to visit Next.js app #2.
+2. Open [http://localhost:3000](http://localhost:3000) to visit Next.js JavaScript app.
+3. Open [http://localhost:3002](http://localhost:3002) to visit Next.js TypeScript app.
 
 You can start editing the page by modifying `pages/index.js`. The page auto-updates as you edit the file.
 
@@ -58,5 +58,15 @@ Multistage builds are highly recommended in production. Combined with the experi
 ./prod-without-multistage.sh
 ```
 
-2. Open [http://localhost:3000](http://localhost:3000) to visit Next.js app #1.
-3. Open [http://localhost:3002](http://localhost:3002) to visit Next.js app #2.
+2. Open [http://localhost:3000](http://localhost:3000) to visit Next.js JavaScript app.
+3. Open [http://localhost:3002](http://localhost:3002) to visit Next.js TypeScript app.
+
+## Useful commands
+
+```
+# Stop any running containers
+docker kill $(docker ps -q) && docker rm $(docker ps -a -q)
+
+# Free space
+docker system prune -af --volumes
+```
