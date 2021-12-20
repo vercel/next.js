@@ -89,33 +89,33 @@ Form Validation is important to ensure that a user has submitted appropriate dat
 Let's look at a simple example:
 
 ```html
-<html>
-<body>
-<script>  
-function validateFormWithJS(){  
-var name=document.thisform.name.value;  
-var rollnumber=document.thisform.rollnumber.value;  
-  
-if (name==""){  
-  alert("Please fill out the name.");  
-  return false;  
-}else if(rollnumber.length<3){  
-  alert("Roll Number should be at least 3 digits long.");  
-  return false;  
-  }  
-}  
-</script>  
-<body>  
-<form name="thisform" method="post" action="/send-data-here" onsubmit="return validateFormWithJS()" >  
-<label for="name">Name:</label>
-<input type="text" name="name"><br/> 
-<label for="rollnumber">Roll Number:</label>
-<input type="text" name="rollnumber"><br/>
+<form onsubmit="return validateFormWithJS()">
+	<label for="name">Name:</label>
+	<input type="text" name="name" id="name" />
 
-<button type="submit">Submit</button>
-</form>  
-</body>
-</html>
+	<label for="rollNumber">Roll Number:</label>
+	<input type="text" name="rollNumber" id="rollNumber" />
+
+	<button type="submit">Submit</button>
+</form>
+
+<script>
+	function validateFormWithJS() {
+		const name = document.querySelector('#name').value;
+		const rollNumber = document.querySelector('#rollNumber').value;
+
+		if (!name) {
+			alert('Please enter your name.');
+			return false;
+		}
+
+		if (rollNumber.length < 3) {
+			alert('Roll Number should be at least 3 digits long.');
+			return false;
+		}
+	}
+</script>
+
 ```
 
 The HTML [<script>](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script) is used to embed any client-side JavaScript. It can either contain inline scripting statements (as shown in the example above) or point to an external script file via the src attribute.
