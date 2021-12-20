@@ -59,7 +59,7 @@ describe('next/server/config', () => {
       const [phase, options] = config.mock.calls[0]
 
       expect(phase).toBe('mock-phase')
-      expect(options).toStrictEqual({ defaultConfig: getDefaultConfig() })
+      expect(options).toEqual({ defaultConfig: getDefaultConfig() })
     })
 
     it('should throw an error if config returns a promise', () => {

@@ -1,6 +1,7 @@
 import chalk from '../lib/chalk'
 import findUp from 'next/dist/compiled/find-up'
 import { basename, extname, relative, isAbsolute, resolve } from 'path'
+import { isDeepStrictEqual } from 'util'
 import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
@@ -72,8 +73,8 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
       if (
         key === 'experimental' &&
-        value !== undefined &&
-        value !== defaultConfig[key]
+        typeof value === 'object' &&
+        !isDeepStrictEqual(value, defaultConfig[key])
       ) {
         experimentalWarning()
       }
