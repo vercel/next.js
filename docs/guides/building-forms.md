@@ -298,7 +298,7 @@ With JavaScript disabled, when you hit the Submit button, an event is triggered,
 
 The form data will be submitted on the server as a request `req` to the form handler function written above. It will process the data and return a JSON string as a response `res` with your submitted name included.
 
-**ADD VIDEO**
+https://user-images.githubusercontent.com/12712988/146770309-82754666-73da-482f-9baa-fc76ec656f93.mp4
 
 > To improve the experience here, as a response you can redirect the user to a page and thank them for submitting the form.
 
@@ -374,7 +374,7 @@ The `handleSubmit()` function processes your form data through a series of steps
 - We then use `fetch()` to send the data to our `/api/form` endpoint using JSON and HTTP `POST` method.
 - Server sends back a response with the name submitted. Woohoo! 🥳
 
-**ADD VIDEO**
+https://user-images.githubusercontent.com/12712988/146770467-d87512ef-167e-4449-a656-5fec63f8726d.mp4
 
 ## Conclusion
 
