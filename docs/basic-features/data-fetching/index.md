@@ -29,13 +29,6 @@ description: 'Data fetching in Next.js allows you to render your content in diff
 Data fetching in Next.js allows you to render your content in different ways, depending on your application's use case. These include pre-rendering with **Server-side Rendering** or **Static Generation**, and updating or creating content at runtime with **Incremental Static Regeneration**.
 
 <div class="card">
-  <a href="/docs/basic-features/data-fetching/client-side.md">
-    <b>CSR: Client-side rendering</b>
-    <small>Learn more about client side rendering in Next.js with SWR.</small>
-  </a>
-</div>
-
-<div class="card">
   <a href="/docs/basic-features/data-fetching/get-server-side-props.md">
     <b>SSR: Server-side rendering</b>
     <small>Learn more about server-side rendering in Next.js with getServerSideProps.</small>
@@ -46,6 +39,13 @@ Data fetching in Next.js allows you to render your content in different ways, de
   <a href="/docs/basic-features/data-fetching/get-static-props.md">
     <b>SSG: Static-site generation</b>
     <small>Learn more about static site generation in Next.js with getStaticProps.</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/basic-features/data-fetching/client-side.md">
+    <b>CSR: Client-side rendering</b>
+    <small>Learn more about client side rendering in Next.js with SWR.</small>
   </a>
 </div>
 
