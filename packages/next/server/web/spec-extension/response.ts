@@ -79,9 +79,9 @@ export class NextResponse extends Response {
         'Failed to execute "redirect" on "response": Invalid status code'
       )
     }
-
-    return new NextResponse(null, {
-      headers: { Location: typeof url === 'string' ? url : url.toString() },
+    const destination = typeof url === 'string' ? url : url.toString()
+    return new NextResponse(destination, {
+      headers: { Location: destination },
       status,
     })
   }

@@ -68,6 +68,8 @@ describe('misc basic dev tests', () => {
       expect(res.status).toBe(308)
       expect(pathname).toBe('/docs/%2fexample.com')
       expect(hostname).not.toBe('example.com')
+      const text = await res.text()
+      expect(text).toEqual('/docs/%2fexample.com')
     })
   })
 
