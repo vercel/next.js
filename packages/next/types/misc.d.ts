@@ -5,6 +5,10 @@ declare module 'next/dist/compiled/react-server-dom-webpack'
 declare module 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 declare module 'next/dist/compiled/browserslist'
 
+declare module 'next/dist/compiled/node-html-parser' {
+  export * from 'node-html-parser'
+}
+
 declare module 'next/dist/compiled/chalk' {
   import m from 'chalk'
   export = m

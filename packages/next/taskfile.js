@@ -42,6 +42,32 @@ const externals = {
     'next/dist/build/webpack/plugins/terser-webpack-plugin',
 }
 // eslint-disable-next-line camelcase
+externals['node-html-parser'] = 'next/dist/compiled/node-html-parser'
+export async function ncc_node_html_parser(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('node-html-parser'))
+    )
+    .ncc({ packageName: 'node-html-parser', externals, target: 'es5' })
+    .target('compiled/node-html-parser')
+
+  const content = fs.readFileSync(
+    join(__dirname, 'compiled/node-html-parser/index.js'),
+    'utf8'
+  )
+  // remove AMD define branch as this forces the module to not
+  // be treated as commonjs in serverless mode
+  // TODO: this can be removed after serverless target is removed
+  fs.writeFileSync(
+    join(__dirname, 'compiled/node-html-parser/index.js'),
+    content.replace(
+      'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){define((function(){return E}))}else ',
+      ''
+    )
+  )
+}
+
+// eslint-disable-next-line camelcase
 externals['acorn'] = 'next/dist/compiled/acorn'
 export async function ncc_acorn(task, opts) {
   await task
@@ -1289,6 +1315,7 @@ export async function ncc(task, opts) {
     .clear('compiled')
     .parallel(
       [
+        'ncc_node_html_parser',
         'ncc_watchpack',
         'ncc_chalk',
         'ncc_browserslist',
