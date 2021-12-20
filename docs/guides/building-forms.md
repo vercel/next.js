@@ -123,11 +123,25 @@ This example validates the name and roll number of a user. The `validateFormWith
   
 ![js-validation](https://user-images.githubusercontent.com/12712988/146588507-0a9f8f4d-10ac-4038-85d8-f7a9a43d7304.jpg)
   
-#### Form Validation Using Regex
+#### Form Validation Using Regular Expressions
 	
-JavaScript validation with Regular Expressions uses the `pattern` attribute. A regular expression (commonly known as regex) is an object that describes a pattern of characters. The class `RegExp` represents regular expressions. Both the `String` and `RegExp` formulate methods that perform robust pattern-matching and search-and-replace functions on text.
-
+JavaScript validation with Regular Expressions uses the `pattern` HTML attribute. A regular expression (commonly known as regex) is an object that describes a pattern of characters. You can only apply the `pattern` attribute to the `<input>` element. This way, you can validate the input value using Regular Expressions (RegEx) by defining your own rules. Once again, if the value does not match the defined pattern, the input will give an error.
 This was a quick recap of setting up web forms in HTML.
+
+```html
+<form action="/action_page.php">
+	<label for="pswrd">Password:</label>
+	<input
+		type="password"
+		id="pswrd"
+		name="pswrd"
+		pattern="[a-z]{0,9}"
+		title="Password should be digits (0 to 9) or alphabets (a to z)."
+	/>
+
+	<button type="submit">Submit</button>
+</form>	
+```
 
 > To learn more about HTML forms, check out the [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Learn/Forms).
 
