@@ -43,9 +43,9 @@ The `Component` prop is the active `page`, so whenever you navigate between rout
 ### Caveats
 
 - If your app is running and you added a custom `App`, you'll need to restart the development server. Only required if `pages/_app.js` didn't exist before.
-- Adding a custom [`getInitialProps`](/docs/api-reference/data-fetching/get-initial-props.md) in your `App` will disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) in pages without [Static Generation](/docs/basic-features/data-fetching/getStaticProps.md).
+- Adding a custom [`getInitialProps`](/docs/api-reference/data-fetching/get-initial-props.md) in your `App` will disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) in pages without [Static Generation](/docs/basic-features/data-fetching/get-static-props.md).
 - When you add `getInitialProps` in your custom app, you must `import App from "next/app"`, call `App.getInitialProps(appContext)` inside `getInitialProps` and merge the returned object into the return value.
-- `App` currently does not support Next.js [Data Fetching methods](/docs/basic-features/data-fetching/index.md) like [`getStaticProps`](/docs/basic-features/data-fetching/getStaticProps.md) or [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md).
+- `App` currently does not support Next.js [Data Fetching methods](/docs/basic-features/data-fetching/index.md) like [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) or [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md).
 
 ### TypeScript
 

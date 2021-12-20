@@ -62,7 +62,7 @@ export async function getStaticProps() {
 export default Blog
 ```
 
-The [`getStaticProps` API reference](/docs/api-reference/data-fetching/getStaticProps.md) covers all parameters and props that can be used with `getStaticProps`.
+The [`getStaticProps` API reference](/docs/api-reference/data-fetching/get-static-props.md) covers all parameters and props that can be used with `getStaticProps`.
 
 ## Write server-side code directly
 

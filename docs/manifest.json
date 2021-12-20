@@ -31,7 +31,7 @@
                 },
                 {
                   "title": "getStaticProps",
-                  "path": "/docs/basic-features/data-fetching/getStaticProps.md"
+                  "path": "/docs/basic-features/data-fetching/get-static-props.md"
                 },
                 {
                   "title": "Incremental Static Regeneration",
@@ -359,7 +359,7 @@
             },
             {
               "title": "getStaticProps",
-              "path": "/docs/api-reference/data-fetching/getStaticProps.md"
+              "path": "/docs/api-reference/data-fetching/get-static-props.md"
             }
           ]
         },

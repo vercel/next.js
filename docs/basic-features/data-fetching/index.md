@@ -43,7 +43,7 @@ Data fetching in Next.js allows you to render your content in different ways, de
 </div>
 
 <div class="card">
-  <a href="/docs/basic-features/data-fetching/getStaticProps.md">
+  <a href="/docs/basic-features/data-fetching/get-static-props.md">
     <b>SSG: Static-site generation</b>
     <small>Learn more about static site generation in Next.js with getStaticProps.</small>
   </a>

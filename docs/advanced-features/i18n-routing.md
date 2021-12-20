@@ -207,7 +207,7 @@ You can access the locale information via the Next.js router. For example, using
 - `locales` contains all configured locales.
 - `defaultLocale` contains the configured default locale.
 
-When [pre-rendering](/docs/basic-features/pages.md#static-generation-recommended) pages with `getStaticProps` or `getServerSideProps`, the locale information is provided in [the context](/docs/basic-features/data-fetching/getStaticProps.md) provided to the function.
+When [pre-rendering](/docs/basic-features/pages.md#static-generation-recommended) pages with `getStaticProps` or `getServerSideProps`, the locale information is provided in [the context](/docs/basic-features/data-fetching/get-static-props.md) provided to the function.
 
 When leveraging `getStaticPaths`, the configured locales are provided in the context parameter of the function under `locales` and the configured defaultLocale under `defaultLocale`.
 

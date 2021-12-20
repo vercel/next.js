@@ -117,7 +117,7 @@ export async function getStaticProps() {
 export default Blog
 ```
 
-To learn more about how `getStaticProps` works, check out the [Data Fetching documentation](/docs/basic-features/data-fetching/getStaticProps.md).
+To learn more about how `getStaticProps` works, check out the [Data Fetching documentation](/docs/basic-features/data-fetching/get-static-props.md).
 
 #### Scenario 2: Your page paths depend on external data
 
