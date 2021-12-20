@@ -119,7 +119,7 @@ if (name==""){
 ```
 
 The HTML [<script>](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script) is used to embed any client-side JavaScript. It can either contain inline scripting statements (as shown in the example above) or point to an external script file via the src attribute.
-This example validates the name and roll number of a user. The validateFormWithJS() function does not allow an empty name field, and the roll number must be at least three digits long. The validation is performed when you hit the Submit button. You are not redirected to the next page until the given values are correct.
+This example validates the name and roll number of a user. The `validateFormWithJS()` function does not allow an empty name field, and the roll number must be at least three digits long. The validation is performed when you hit the Submit button. You are not redirected to the next page until the given values are correct.
   
 ![js-validation](https://user-images.githubusercontent.com/12712988/146588507-0a9f8f4d-10ac-4038-85d8-f7a9a43d7304.jpg)
   
