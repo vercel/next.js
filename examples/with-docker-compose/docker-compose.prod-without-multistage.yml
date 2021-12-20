@@ -1,0 +1,40 @@
+version: '3'
+
+services:
+  # Next.js app #1
+  next-1:
+    container_name: next-1
+    build:
+      context: ./next-1
+      dockerfile: prod-without-multistage.Dockerfile
+      args:
+        ENV_VARIABLE: ${ENV_VARIABLE}
+        NEXT_PUBLIC_ENV_VARIABLE: ${NEXT_PUBLIC_ENV_VARIABLE}
+    restart: always
+    ports:
+      - 3000:3000 # host:container
+    networks:
+      - my_network
+
+  # Next.js app #2
+  next-2:
+    container_name: next-2
+    build:
+      context: ./next-2
+      dockerfile: prod-without-multistage.Dockerfile
+      args:
+        ENV_VARIABLE: ${ENV_VARIABLE}
+        NEXT_PUBLIC_ENV_VARIABLE: ${NEXT_PUBLIC_ENV_VARIABLE}
+    restart: always
+    ports:
+      - 3002:3000
+    networks:
+      - my_network
+
+  # Add more containers below (nginx, postgres, etc.)
+
+# Define a bridge network, which allows containers to communicate with each other, 
+# by using their container name as a hostname
+networks:
+  my_network:
+    external: true
