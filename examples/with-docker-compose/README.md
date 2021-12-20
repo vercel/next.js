@@ -3,8 +3,9 @@
 This example contains everything needed to get a multi-Next.js app development and production environment up and running with Docker Compose.
 
 ## Benfits of Docker Compose
+
 - Develop locally without Node.js installed ✨
-- Easy to run, consistent development environment across Windows, MacOS, and Linux
+- Easy to run, consistent development environment across Windows, MacOS, and Linux teams
 - Run multiple Next.js apps, databases, and other microservices in a single deployment
 - Multistage builds combined with [Output Standalone](https://nextjs.org/docs/advanced-features/output-file-tracing#automatically-copying-traced-files-experimental) for up to [85% smaller apps](#production) (Approximately 110 MB compared to 1 GB with create-next-app)
 - BuildKit engine builds multiple Docker images in parallel
@@ -15,12 +16,12 @@ This example contains everything needed to get a multi-Next.js app development a
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-docker-compose next-with-docker-compose
+npx create-next-app --example with-docker-compose with-docker-compose-app
 # or
-yarn create next-app --example with-docker-compose next-with-docker-compose
+yarn create next-app --example with-docker-compose with-docker-compose-app
 ```
 
-## Prerequisites 
+## Prerequisites
 
 - On Windows and MacOS, install [Docker Desktop](https://docs.docker.com/get-docker). Docker Desktop includes Docker Compose as part of the installation.
 - On Linux, run:

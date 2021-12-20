@@ -1,4 +1,5 @@
 import Head from 'next/head'
+import Image from 'next/image'
 import styles from '../styles/Home.module.css'
 
 export default function Home({ serverOnlyVariable, message }) {
@@ -11,7 +12,8 @@ export default function Home({ serverOnlyVariable, message }) {
 
       <main className={styles.main}>
         <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js</a> app #1 on Docker Compose!
+          Welcome to <a href="https://nextjs.org">Next.js</a> app #1 on Docker
+          Compose!
         </h1>
 
         <div className={styles.grid}>
@@ -74,7 +76,9 @@ export default function Home({ serverOnlyVariable, message }) {
           rel="noopener noreferrer"
         >
           Powered by{' '}
-          <img src="/vercel.svg" alt="Vercel Logo" className={styles.logo} />
+          <span className={styles.logo}>
+            <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
+          </span>
         </a>
       </footer>
     </div>
@@ -85,12 +89,14 @@ export async function getServerSideProps() {
   const serverOnlyVariable = process.env.ENV_VARIABLE
   const { message } = await fetch(`http://next-2:3000/api/hello`)
     .then((res) => res.json())
-    .catch((e) => { return { message: false } })
+    .catch((e) => {
+      return { message: false }
+    })
 
   return {
     props: {
       serverOnlyVariable,
       message,
-    }
+    },
   }
 }
