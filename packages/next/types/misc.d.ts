@@ -5,6 +5,14 @@ declare module 'next/dist/compiled/react-server-dom-webpack'
 declare module 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 declare module 'next/dist/compiled/browserslist'
 
+declare module 'next/dist/compiled/@next/react-dev-overlay/client' {
+  export * from '@next/react-dev-overlay/lib/client'
+}
+
+declare module 'next/dist/compiled/@next/react-dev-overlay/middleware' {
+  export * from '@next/react-dev-overlay/lib/middleware'
+}
+
 declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
 }

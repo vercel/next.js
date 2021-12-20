@@ -62,15 +62,13 @@ export async function ncc_node_html_parser(task, opts) {
     .ncc({ packageName: 'node-html-parser', externals, target: 'es5' })
     .target('compiled/node-html-parser')
 
-  const content = fs.readFileSync(
-    join(__dirname, 'compiled/node-html-parser/index.js'),
-    'utf8'
-  )
+  const filePath = join(__dirname, 'compiled/node-html-parser/index.js')
+  const content = fs.readFileSync(filePath, 'utf8')
   // remove AMD define branch as this forces the module to not
   // be treated as commonjs in serverless mode
   // TODO: this can be removed after serverless target is removed
   fs.writeFileSync(
-    join(__dirname, 'compiled/node-html-parser/index.js'),
+    filePath,
     content.replace(
       'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){define((function(){return E}))}else ',
       ''
@@ -85,6 +83,62 @@ export async function ncc_acorn(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('acorn')))
     .ncc({ packageName: 'acorn', externals })
     .target('compiled/acorn')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_next__react_dev_overlay(task, opts) {
+  const overlayExternals = {
+    ...externals,
+    react: 'react',
+    'react-dom': 'react-dom',
+  }
+  // dev-overlay needs a newer source-map version
+  delete overlayExternals['source-map']
+
+  await task
+    .source(
+      opts.src ||
+        relative(
+          __dirname,
+          require.resolve('@next/react-dev-overlay/lib/middleware')
+        )
+    )
+    .ncc({
+      packageName: '@next/react-dev-overlay',
+      externals: overlayExternals,
+      target: 'es5',
+    })
+    .target('compiled/@next/react-dev-overlay')
+
+  await task
+    .source(
+      opts.src ||
+        relative(
+          __dirname,
+          require.resolve('@next/react-dev-overlay/lib/client')
+        )
+    )
+    .ncc({
+      packageName: '@next/react-dev-overlay',
+      externals: overlayExternals,
+      target: 'es5',
+    })
+    .target('compiled/@next/react-dev-overlay')
+
+  const clientFile = join(
+    __dirname,
+    'compiled/@next/react-dev-overlay/client.js'
+  )
+  const content = fs.readFileSync(clientFile, 'utf8')
+  // remove AMD define branch as this forces the module to not
+  // be treated as commonjs in serverless mode
+  fs.writeFileSync(
+    clientFile,
+    content.replace(
+      'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){r.platform=v;define((function(){return v}))}else ',
+      ''
+    )
+  )
 }
 
 // eslint-disable-next-line camelcase
@@ -1444,8 +1498,9 @@ export async function ncc(task, opts) {
     )
   await task.parallel(['ncc_webpack_bundle_packages'], opts)
   await task.parallel(['ncc_babel_bundle_packages'], opts)
-  await task.parallel(['copy_constants_browserify'])
-  await task.parallel(['copy_react_server_dom_webpack'])
+  await task.parallel(['copy_constants_browserify'], opts)
+  await task.parallel(['copy_react_server_dom_webpack'], opts)
+  await task.serial(['ncc_next__react_dev_overlay'], opts)
 }
 
 export async function compile(task, opts) {
