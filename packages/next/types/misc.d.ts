@@ -3,7 +3,24 @@ declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
 declare module 'next/dist/compiled/react-server-dom-webpack'
 declare module 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
-declare module 'browserslist'
+declare module 'next/dist/compiled/browserslist'
+
+declare module 'next/dist/compiled/@next/react-dev-overlay/client' {
+  export * from '@next/react-dev-overlay/lib/client'
+}
+
+declare module 'next/dist/compiled/@next/react-dev-overlay/middleware' {
+  export * from '@next/react-dev-overlay/lib/middleware'
+}
+
+declare module 'next/dist/compiled/node-html-parser' {
+  export * from 'node-html-parser'
+}
+
+declare module 'next/dist/compiled/chalk' {
+  import m from 'chalk'
+  export = m
+}
 
 declare module 'next/dist/compiled/cssnano-simple' {
   const cssnanoSimple: any
@@ -310,7 +327,7 @@ declare module NodeJS {
   }
 }
 
-declare module 'watchpack' {
+declare module 'next/dist/compiled/watchpack' {
   import { EventEmitter } from 'events'
 
   class Watchpack extends EventEmitter {
