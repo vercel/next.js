@@ -328,6 +328,7 @@ function createRSCHook() {
           }
         })
       }
+      rscCache.delete(id)
       process()
     }
     return entry
