@@ -2,6 +2,8 @@
 const notifier = require('node-notifier')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const { relative, basename, resolve, join, dirname } = require('path')
+// eslint-disable-next-line import/no-extraneous-dependencies
+const glob = require('glob')
 const fs = require('fs')
 
 export async function next__polyfill_nomodule(task, opts) {
@@ -13,19 +15,34 @@ export async function next__polyfill_nomodule(task, opts) {
     .target('dist/build/polyfills')
 }
 
+export async function next__polyfill_module(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('@next/polyfill-module'))
+    )
+    .target('dist/build/polyfills')
+}
+
 export async function browser_polyfills(task, opts) {
-  await task.parallel(['next__polyfill_nomodule'], opts)
+  await task.parallel(
+    ['next__polyfill_nomodule', 'next__polyfill_module'],
+    opts
+  )
+}
+
+// eslint-disable-next-line camelcase
+export async function copy_regenerator_runtime(task, opts) {
+  await task
+    .source(join(dirname(require.resolve('regenerator-runtime')), '**/*'))
+    .target('compiled/regenerator-runtime')
 }
 
 const externals = {
-  // Browserslist (post-css plugins)
-  browserslist: 'browserslist',
   // don't bundle caniuse-lite data so users can
   // update it manually
   'caniuse-lite': 'caniuse-lite',
   '/caniuse-lite(/.*)/': 'caniuse-lite$1',
 
-  chalk: 'chalk',
   'node-fetch': 'node-fetch',
   postcss: 'postcss',
   // Ensure latest version is used
@@ -45,12 +62,181 @@ const externals = {
     'next/dist/build/webpack/plugins/terser-webpack-plugin',
 }
 // eslint-disable-next-line camelcase
+externals['node-html-parser'] = 'next/dist/compiled/node-html-parser'
+export async function ncc_node_html_parser(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('node-html-parser'))
+    )
+    .ncc({ packageName: 'node-html-parser', externals, target: 'es5' })
+    .target('compiled/node-html-parser')
+
+  const filePath = join(__dirname, 'compiled/node-html-parser/index.js')
+  const content = fs.readFileSync(filePath, 'utf8')
+  // remove AMD define branch as this forces the module to not
+  // be treated as commonjs in serverless mode
+  // TODO: this can be removed after serverless target is removed
+  fs.writeFileSync(
+    filePath,
+    content.replace(
+      'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){define((function(){return E}))}else ',
+      ''
+    )
+  )
+}
+
+// eslint-disable-next-line camelcase
+externals['@babel/runtime'] = 'next/dist/compiled/@babel/runtime'
+export async function copy_babel_runtime(task, opts) {
+  const runtimeDir = dirname(require.resolve('@babel/runtime/package.json'))
+  const outputDir = join(__dirname, 'compiled/@babel/runtime')
+  const runtimeFiles = glob.sync('**/*', {
+    cwd: runtimeDir,
+    ignore: ['node_modules/**/*'],
+  })
+
+  for (const file of runtimeFiles) {
+    const inputPath = join(runtimeDir, file)
+    const outputPath = join(outputDir, file)
+
+    if (!fs.statSync(inputPath).isFile()) {
+      continue
+    }
+    let contents = fs.readFileSync(inputPath, 'utf8')
+
+    if (inputPath.endsWith('.js')) {
+      contents = contents
+        .replace(
+          'regenerator-runtime',
+          'next/dist/compiled/regenerator-runtime'
+        )
+        .replace('@babel/runtime', 'next/dist/compiled/@babel/runtime')
+    }
+
+    if (inputPath.endsWith('package.json')) {
+      contents = JSON.stringify({
+        ...JSON.parse(contents),
+        dependencies: {},
+      })
+    }
+
+    fs.mkdirSync(dirname(outputPath), { recursive: true })
+    fs.writeFileSync(outputPath, contents)
+  }
+}
+
+// eslint-disable-next-line camelcase
 externals['acorn'] = 'next/dist/compiled/acorn'
 export async function ncc_acorn(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('acorn')))
     .ncc({ packageName: 'acorn', externals })
     .target('compiled/acorn')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_next__react_dev_overlay(task, opts) {
+  const overlayExternals = {
+    ...externals,
+    react: 'react',
+    'react-dom': 'react-dom',
+  }
+  // dev-overlay needs a newer source-map version
+  delete overlayExternals['source-map']
+
+  await task
+    .source(
+      opts.src ||
+        relative(
+          __dirname,
+          require.resolve('@next/react-dev-overlay/lib/middleware')
+        )
+    )
+    .ncc({
+      packageName: '@next/react-dev-overlay',
+      externals: overlayExternals,
+      target: 'es5',
+    })
+    .target('compiled/@next/react-dev-overlay')
+
+  await task
+    .source(
+      opts.src ||
+        relative(
+          __dirname,
+          require.resolve('@next/react-dev-overlay/lib/client')
+        )
+    )
+    .ncc({
+      packageName: '@next/react-dev-overlay',
+      externals: overlayExternals,
+      target: 'es5',
+    })
+    .target('compiled/@next/react-dev-overlay')
+
+  const clientFile = join(
+    __dirname,
+    'compiled/@next/react-dev-overlay/client.js'
+  )
+  const content = fs.readFileSync(clientFile, 'utf8')
+  // remove AMD define branch as this forces the module to not
+  // be treated as commonjs in serverless mode
+  fs.writeFileSync(
+    clientFile,
+    content.replace(
+      'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){r.platform=v;define((function(){return v}))}else ',
+      ''
+    )
+  )
+}
+
+// eslint-disable-next-line camelcase
+externals['watchpack'] = 'next/dist/compiled/watchpack'
+export async function ncc_watchpack(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('watchpack')))
+    .ncc({ packageName: 'watchpack', externals })
+    .target('compiled/watchpack')
+}
+
+// eslint-disable-next-line camelcase
+externals['chalk'] = 'next/dist/compiled/chalk'
+export async function ncc_chalk(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('chalk')))
+    .ncc({ packageName: 'chalk', externals })
+    .target('compiled/chalk')
+
+  const content = fs.readFileSync(
+    join(__dirname, 'compiled/chalk/index.js'),
+    'utf8'
+  )
+  // ensure undefined process.argv is handled for web runtime
+  // TODO: should chalk be being included in web runtime?
+  fs.writeFileSync(
+    join(__dirname, 'compiled/chalk/index.js'),
+    content.replace('process.argv', 'process.argv||[]')
+  )
+}
+
+// eslint-disable-next-line camelcase
+externals['browserslist'] = 'next/dist/compiled/browserslist'
+export async function ncc_browserslist(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('browserslist')))
+    .ncc({ packageName: 'browserslist', externals })
+    .target('compiled/browserslist')
+}
+
+// eslint-disable-next-line camelcase
+externals['@napi-rs/triples'] = 'next/dist/compiled/@napi-rs/triples'
+export async function ncc_napirs_triples(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('@napi-rs/triples'))
+    )
+    .ncc({ packageName: '@napi-rs/triples', externals })
+    .target('compiled/@napi-rs/triples')
 }
 
 // eslint-disable-next-line camelcase
@@ -1254,6 +1440,11 @@ export async function ncc(task, opts) {
     .clear('compiled')
     .parallel(
       [
+        'ncc_node_html_parser',
+        'ncc_watchpack',
+        'ncc_chalk',
+        'ncc_browserslist',
+        'ncc_napirs_triples',
         'ncc_etag',
         'ncc_p_limit',
         'ncc_raw_body',
@@ -1356,8 +1547,16 @@ export async function ncc(task, opts) {
     )
   await task.parallel(['ncc_webpack_bundle_packages'], opts)
   await task.parallel(['ncc_babel_bundle_packages'], opts)
-  await task.parallel(['copy_constants_browserify'])
-  await task.parallel(['copy_react_server_dom_webpack'])
+  await task.serial(
+    [
+      'ncc_next__react_dev_overlay',
+      'copy_regenerator_runtime',
+      'copy_babel_runtime',
+      'copy_constants_browserify',
+      'copy_react_server_dom_webpack',
+    ],
+    opts
+  )
 }
 
 export async function compile(task, opts) {
