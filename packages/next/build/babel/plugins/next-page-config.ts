@@ -144,10 +144,13 @@ export default function nextPageConfig({
                     continue
                   }
 
-                  if (!BabelTypes.isObjectExpression(declaration.init)) {
-                    const got = declaration.init
-                      ? declaration.init.type
-                      : 'undefined'
+                  let { init } = declaration
+                  if (BabelTypes.isTSAsExpression(init)) {
+                    init = init.expression
+                  }
+
+                  if (!BabelTypes.isObjectExpression(init)) {
+                    const got = init ? init.type : 'undefined'
                     throw new Error(
                       errorMessage(
                         exportState,
@@ -156,7 +159,7 @@ export default function nextPageConfig({
                     )
                   }
 
-                  for (const prop of declaration.init.properties) {
+                  for (const prop of init.properties) {
                     if (BabelTypes.isSpreadElement(prop)) {
                       throw new Error(
                         errorMessage(
