@@ -1,5 +1,5 @@
 /* global location */
-import '@next/polyfill-module'
+import '../build/polyfills/polyfill-module'
 import React, { useState } from 'react'
 import ReactDOM from 'react-dom'
 import { StyleRegistry } from 'styled-jsx'
@@ -258,7 +258,9 @@ class Container extends React.Component<{
     if (process.env.NODE_ENV === 'production') {
       return this.props.children
     } else {
-      const { ReactDevOverlay } = require('@next/react-dev-overlay/lib/client')
+      const {
+        ReactDevOverlay,
+      } = require('next/dist/compiled/@next/react-dev-overlay/client')
       return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
     }
   }
@@ -342,7 +344,9 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    const { getNodeError } = require('@next/react-dev-overlay/lib/client')
+    const {
+      getNodeError,
+    } = require('next/dist/compiled/@next/react-dev-overlay/client')
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
     if (initialErr) {
