@@ -1809,15 +1809,9 @@ export default class Router implements BaseRouter {
   }
 
   _getFlightData(dataHref: string): Promise<object> {
-    const { href: cacheKey } = new URL(dataHref, window.location.href)
-
-    if (!this.isPreview && this.sdc[cacheKey]) {
-      return Promise.resolve({ fresh: false, data: this.sdc[cacheKey] })
-    }
-
+    // Do not cache RSC flight response since it's not a static resource
     return fetchNextData(dataHref, true, true, this.sdc, false).then(
       (serialized) => {
-        this.sdc[cacheKey] = serialized
         return { fresh: true, data: serialized }
       }
     )

@@ -762,7 +762,9 @@ if (process.env.__NEXT_RSC) {
     _fresh?: boolean
   }) => {
     const response = useServerResponse(cacheKey, serialized)
-    return response.readRoot()
+    const root = response.readRoot()
+    rscCache.delete(cacheKey)
+    return root
   }
 
   RSCComponent = (props: any) => {
