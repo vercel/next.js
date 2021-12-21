@@ -19122,10 +19122,10 @@ tunnel-agent@^0.6.0:
   dependencies:
     safe-buffer "^5.0.1"
 
-turbo@1.0.19:
-  version "1.0.19"
-  resolved "https://registry.yarnpkg.com/turbo/-/turbo-1.0.19.tgz#5c666b7b497e443269da2c553d00fe23dbcc6914"
-  integrity sha512-/gdEdpdludyHX+344JQ84bglK33dI4IWTtGkBkfJnSQW+lC3/JFAu9jy+4zNK2gdzxjwcB2/qQK+Pv53SZd1Kw==
+turbo@1.0.20-canary.1:
+  version "1.0.20-canary.1"
+  resolved "https://registry.yarnpkg.com/turbo/-/turbo-1.0.20-canary.1.tgz#a578ca971d6db4f45307d7716826f0fff307aacb"
+  integrity sha512-kCldV/UR+idE2YFjvWax/ImoV0kpumdKjLc/6Y2ruIh3zqqXWK8xpkJASZpufxjMhq6z1sPjw80CIHO5wc2XGA==
 
 tweetnacl@^0.14.3, tweetnacl@~0.14.0:
   version "0.14.5"
