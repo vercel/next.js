@@ -266,8 +266,9 @@ function handleLoading(
       p.catch(() => {}).then(() => {
         if (placeholder === 'blur') {
           img.style.filter = ''
-          img.style.backgroundSize = 'none'
-          img.style.backgroundImage = 'none'
+          img.style.backgroundSize = ''
+          img.style.backgroundImage = ''
+          img.style.backgroundPosition = ''
         }
         loadedImageURLs.add(src)
         if (onLoadingComplete) {
