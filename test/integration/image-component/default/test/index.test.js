@@ -834,11 +834,31 @@ function runTests(mode) {
     await check(() => getSrc(browser, 'img-blur'), /^\/_next\/image/)
     await waitFor(1000)
 
-    const plain = await getComputedStyle(browser, 'img-plain', 'filter')
-    expect(plain).toBe('opacity(0.5)')
+    expect(await getComputedStyle(browser, 'img-plain', 'filter')).toBe(
+      'opacity(0.5)'
+    )
+    expect(
+      await getComputedStyle(browser, 'img-plain', 'background-size')
+    ).toBe('30%')
+    expect(
+      await getComputedStyle(browser, 'img-plain', 'background-image')
+    ).toMatch('iVBORw0KGgo=')
+    expect(
+      await getComputedStyle(browser, 'img-plain', 'background-position')
+    ).toBe('1px 2px')
 
-    const blur = await getComputedStyle(browser, 'img-blur', 'filter')
-    expect(blur).toBe('opacity(0.5)')
+    expect(await getComputedStyle(browser, 'img-blur', 'filter')).toBe(
+      'opacity(0.5)'
+    )
+    expect(await getComputedStyle(browser, 'img-blur', 'background-size')).toBe(
+      '30%'
+    )
+    expect(
+      await getComputedStyle(browser, 'img-blur', 'background-image')
+    ).toMatch('iVBORw0KGgo=')
+    expect(
+      await getComputedStyle(browser, 'img-blur', 'background-position')
+    ).toBe('1px 2px')
   })
 
   // Tests that use the `unsized` attribute:
