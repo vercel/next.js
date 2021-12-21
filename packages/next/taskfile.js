@@ -2,6 +2,8 @@
 const notifier = require('node-notifier')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const { relative, basename, resolve, join, dirname } = require('path')
+// eslint-disable-next-line import/no-extraneous-dependencies
+const glob = require('glob')
 const fs = require('fs')
 
 export async function next__polyfill_nomodule(task, opts) {
@@ -26,6 +28,13 @@ export async function browser_polyfills(task, opts) {
     ['next__polyfill_nomodule', 'next__polyfill_module'],
     opts
   )
+}
+
+// eslint-disable-next-line camelcase
+export async function copy_regenerator_runtime(task, opts) {
+  await task
+    .source(join(dirname(require.resolve('regenerator-runtime')), '**/*'))
+    .target('compiled/regenerator-runtime')
 }
 
 const externals = {
@@ -74,6 +83,46 @@ export async function ncc_node_html_parser(task, opts) {
       ''
     )
   )
+}
+
+// eslint-disable-next-line camelcase
+externals['@babel/runtime'] = 'next/dist/compiled/@babel/runtime'
+export async function copy_babel_runtime(task, opts) {
+  const runtimeDir = dirname(require.resolve('@babel/runtime/package.json'))
+  const outputDir = join(__dirname, 'compiled/@babel/runtime')
+  const runtimeFiles = glob.sync('**/*', {
+    cwd: runtimeDir,
+    ignore: ['node_modules/**/*'],
+  })
+
+  for (const file of runtimeFiles) {
+    const inputPath = join(runtimeDir, file)
+    const outputPath = join(outputDir, file)
+
+    if (!fs.statSync(inputPath).isFile()) {
+      continue
+    }
+    let contents = fs.readFileSync(inputPath, 'utf8')
+
+    if (inputPath.endsWith('.js')) {
+      contents = contents
+        .replace(
+          'regenerator-runtime',
+          'next/dist/compiled/regenerator-runtime'
+        )
+        .replace('@babel/runtime', 'next/dist/compiled/@babel/runtime')
+    }
+
+    if (inputPath.endsWith('package.json')) {
+      contents = JSON.stringify({
+        ...JSON.parse(contents),
+        dependencies: {},
+      })
+    }
+
+    fs.mkdirSync(dirname(outputPath), { recursive: true })
+    fs.writeFileSync(outputPath, contents)
+  }
 }
 
 // eslint-disable-next-line camelcase
@@ -1498,9 +1547,16 @@ export async function ncc(task, opts) {
     )
   await task.parallel(['ncc_webpack_bundle_packages'], opts)
   await task.parallel(['ncc_babel_bundle_packages'], opts)
-  await task.parallel(['copy_constants_browserify'], opts)
-  await task.parallel(['copy_react_server_dom_webpack'], opts)
-  await task.serial(['ncc_next__react_dev_overlay'], opts)
+  await task.serial(
+    [
+      'ncc_next__react_dev_overlay',
+      'copy_regenerator_runtime',
+      'copy_babel_runtime',
+      'copy_constants_browserify',
+      'copy_react_server_dom_webpack',
+    ],
+    opts
+  )
 }
 
 export async function compile(task, opts) {

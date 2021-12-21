@@ -71,7 +71,6 @@
     ]
   },
   "dependencies": {
-    "@babel/runtime": "7.15.4",
     "@next/env": "12.0.8-canary.11",
     "@next/react-refresh-utils": "12.0.8-canary.11",
     "caniuse-lite": "^1.0.30001283",
@@ -80,7 +79,6 @@
     "postcss": "8.2.15",
     "react-is": "17.0.2",
     "react-refresh": "0.8.3",
-    "regenerator-runtime": "0.13.4",
     "stream-browserify": "3.0.0",
     "styled-jsx": "5.0.0-beta.5",
     "use-subscription": "1.5.1"
@@ -121,6 +119,7 @@
     "@babel/preset-env": "7.15.0",
     "@babel/preset-react": "7.14.5",
     "@babel/preset-typescript": "7.15.0",
+    "@babel/runtime": "7.15.4",
     "@babel/traverse": "7.15.0",
     "@babel/types": "7.15.0",
     "@hapi/accept": "5.0.2",
@@ -242,6 +241,7 @@
     "querystring-es3": "0.2.1",
     "raw-body": "2.4.1",
     "react-server-dom-webpack": "0.0.0-experimental-13455d26d-20211104",
+    "regenerator-runtime": "0.13.4",
     "resolve-url-loader": "3.1.2",
     "sass-loader": "10.2.0",
     "schema-utils2": "npm:schema-utils@2.7.1",
