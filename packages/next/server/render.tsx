@@ -282,8 +282,9 @@ function checkRedirectValues(
   }
 }
 
+const rscCache = new Map()
+
 function createRSCHook() {
-  const rscCache = new Map()
   const decoder = new TextDecoder()
   const encoder = new TextEncoder()
 
@@ -328,7 +329,6 @@ function createRSCHook() {
           }
         })
       }
-      rscCache.delete(id)
       process()
     }
     return entry
@@ -355,7 +355,9 @@ function createServerComponentRenderer(
       ),
       true
     )
-    return response.readRoot()
+    const root = response.readRoot()
+    rscCache.delete(id)
+    return root
   }
   const Component = (props: any) => {
     return (
