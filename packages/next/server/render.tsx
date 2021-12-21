@@ -1,5 +1,5 @@
 import { IncomingMessage, ServerResponse } from 'http'
-import { ParsedUrlQuery } from 'querystring'
+import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import type { Writable as WritableType } from 'stream'
 import React from 'react'
 import ReactDOMServer from 'react-dom/server'
@@ -338,6 +338,7 @@ const useRSCResponse = createRSCHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
+  cachePrefix: string,
   transformStream: TransformStream,
   OriginalComponent: React.ComponentType,
   serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
@@ -345,13 +346,15 @@ function createServerComponentRenderer(
   const writable = transformStream.writable
   const ServerComponentWrapper = (props: any) => {
     const id = (React as any).useId()
+    const reqStream = renderToReadableStream(
+      <OriginalComponent {...props} />,
+      serverComponentManifest
+    )
+
     const response = useRSCResponse(
       writable,
-      id,
-      renderToReadableStream(
-        <OriginalComponent {...props} />,
-        serverComponentManifest
-      ),
+      cachePrefix + ',' + id,
+      reqStream,
       true
     )
     return response.readRoot()
@@ -428,8 +431,11 @@ export async function renderToHTML(
   const OriginalComponent = renderOpts.Component
   const serverComponentsInlinedTransformStream =
     process.browser && isServerComponent ? new TransformStream() : null
+  const search = stringifyQuery(query)
+  const cachePrefix = pathname + '?' + search
   const Component = isServerComponent
     ? createServerComponentRenderer(
+        cachePrefix,
         serverComponentsInlinedTransformStream!,
         OriginalComponent,
         serverComponentManifest
@@ -1129,11 +1135,6 @@ export async function renderToHTML(
    */
   const generateStaticHTML = supportsDynamicHTML !== true
   const renderDocument = async () => {
-    if (process.browser && Document.getInitialProps) {
-      throw new Error(
-        '`getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
-      )
-    }
     if (!process.browser && Document.getInitialProps) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
