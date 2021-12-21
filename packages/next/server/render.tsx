@@ -316,6 +316,7 @@ function createRSCHook() {
             )
           }
           if (done) {
+            rscCache.delete(id)
             writer.close()
           } else {
             writer.write(
