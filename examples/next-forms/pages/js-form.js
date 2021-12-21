@@ -13,7 +13,6 @@ export default function PageWithJSbasedForm() {
       last: event.target.last.value,
     }
 
-    // Send the data to the server in JSON format.
     const JSONdata = JSON.stringify(data)
 
     // Send the form data to our forms API on Vercel and get a response.
