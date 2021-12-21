@@ -265,7 +265,7 @@ function handleLoading(
       const p = 'decode' in img ? img.decode() : Promise.resolve()
       p.catch(() => {}).then(() => {
         if (placeholder === 'blur') {
-          img.style.filter = 'none'
+          img.style.filter = ''
           img.style.backgroundSize = 'none'
           img.style.backgroundImage = 'none'
         }
