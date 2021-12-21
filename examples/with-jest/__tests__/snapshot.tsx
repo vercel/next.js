@@ -1,7 +1,7 @@
-import renderer from 'react-test-renderer'
-import Home from '../pages/index'
+import { render } from '@testing-library/react'
+import Home from '@/pages/index'
 
 it('renders homepage unchanged', () => {
-  const tree = renderer.create(<Home />).toJSON()
-  expect(tree).toMatchSnapshot()
+  const { container } = render(<Home />)
+  expect(container).toMatchSnapshot()
 })

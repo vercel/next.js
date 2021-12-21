@@ -34,4 +34,5 @@ module.exports = {
     '/node_modules/',
     '^.+\\.module\\.(css|sass|scss)$',
   ],
+  testEnvironment: 'jest-environment-jsdom',
 }
