@@ -25,13 +25,13 @@ module.exports = {
             child.openingElement.name.name === 'style'
         )
 
-        const jsxAttr =
+        const styleTagWithJSXAttr =
           styleTag &&
           styleTag.openingElement.attributes.find(
             (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'jsx'
           )
 
-        if (styleTag && jsxAttr) {
+        if (styleTagWithJSXAttr) {
           context.report({
             node,
             message: `Do not use <style> inside pages/_document.js.`,
