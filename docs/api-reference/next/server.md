@@ -91,7 +91,7 @@ export function middleware(request: NextRequest) {
   // get the cookies from the request
   let cookieFromRequest = request.cookies['my-cookie']
   // set the `cookie`
-  const cookie = response.cookie('hello', 'world')
+  response.cookie('hello', 'world')
   // set the `cookie` with options
   const cookieWithOptions = response.cookie('hello', 'world', {
     path: '/',
@@ -111,7 +111,7 @@ export function middleware(request: NextRequest) {
 
 The following static methods are available on the `NextResponse` class directly:
 
-- `redirect()` - Returns a `NextResponse` with a redirect set, where the redirect comes from a location header
+- `redirect()` - Returns a `NextResponse` with a redirect set
 - `rewrite()` - Returns a `NextResponse` with a rewrite set
 - `next()` - Returns a `NextResponse` that will continue the middleware chain
 - `json()` - A convenience method to create a response that encodes the provided JSON data
