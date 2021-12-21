@@ -13,13 +13,13 @@ import type { UrlWithParsedQuery } from 'url'
 
 import crypto from 'crypto'
 import fs from 'fs'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import { Worker } from 'jest-worker'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import findUp from 'next/dist/compiled/find-up'
 import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
 import React from 'react'
-import Watchpack from 'watchpack'
+import Watchpack from 'next/dist/compiled/watchpack'
 import { ampValidation } from '../../build/output'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { fileExists } from '../../lib/file-exists'
@@ -50,11 +50,11 @@ import { getNodeOptionsWithoutInspect } from '../lib/utils'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import { loadDefaultErrorComponents } from '../load-components'
 import { DecodeError } from '../../shared/lib/utils'
-import { parseStack } from '@next/react-dev-overlay/lib/internal/helpers/parseStack'
 import {
   createOriginalStackFrame,
   getSourceById,
-} from '@next/react-dev-overlay/lib/middleware'
+  parseStack,
+} from 'next/dist/compiled/@next/react-dev-overlay/middleware'
 import * as Log from '../../build/output/log'
 import isError from '../../lib/is-error'
 import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware-regex'
@@ -65,7 +65,7 @@ let ReactDevOverlayImpl: React.FunctionComponent
 const ReactDevOverlay = (props: any) => {
   if (ReactDevOverlayImpl === undefined) {
     ReactDevOverlayImpl =
-      require('@next/react-dev-overlay/lib/client').ReactDevOverlay
+      require('next/dist/compiled/@next/react-dev-overlay/client').ReactDevOverlay
   }
   return ReactDevOverlayImpl(props)
 }
