@@ -132,6 +132,7 @@ export function getRender({
           query,
           {
             ...renderOpts,
+            err,
             Component: errorMod.default,
             getStaticProps: errorMod.getStaticProps,
             getServerSideProps: errorMod.getServerSideProps,
