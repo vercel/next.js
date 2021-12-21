@@ -35,7 +35,7 @@ import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import isError from '../lib/is-error'
 import { trackWebVitalMetric } from './vitals'
-import { RefreshContext } from './rsc'
+import { RefreshContext } from './rsc/refresh'
 
 /// <reference types="react-dom/experimental" />
 
@@ -730,11 +730,12 @@ if (process.env.__NEXT_RSC) {
     let response = rscCache.get(cacheKey)
     if (response) return response
 
-    if (serverDataBuffer.has(cacheKey + ',' + id)) {
+    const bufferCacheKey = cacheKey + ',' + id
+    if (serverDataBuffer.has(bufferCacheKey)) {
       const t = new TransformStream()
       const writer = t.writable.getWriter()
       response = createFromFetch(Promise.resolve({ body: t.readable }))
-      nextServerDataRegisterWriter(cacheKey + ',' + id, writer)
+      nextServerDataRegisterWriter(bufferCacheKey, writer)
     } else {
       response = createFromFetch(
         serialized
@@ -768,8 +769,7 @@ if (process.env.__NEXT_RSC) {
     const cacheKey = getCacheKey()
     const { __flight_serialized__, __flight_fresh__ } = props
     const [, dispatch] = useState({})
-    // @ts-ignore TODO: remove when react 18 types are supported
-    const startTransition = React.startTransition
+    const startTransition = (React as any).startTransition
     const renrender = () => dispatch({})
     // If there is no cache, or there is serialized data already
     function refreshCache(nextProps: any) {
@@ -778,7 +778,7 @@ if (process.env.__NEXT_RSC) {
         const response = createFromFetch(
           fetchFlight(currentCacheKey, nextProps)
         )
-        // FIXME: router.asPath can be different from current location due to navigation
+
         rscCache.set(currentCacheKey, response)
         renrender()
       })
