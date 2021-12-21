@@ -15,7 +15,7 @@ export default function PageWithJSbasedForm() {
 
     const JSONdata = JSON.stringify(data)
 
-    // Send the form data to our forms API on Vercel and get a response.
+    // Send the form data to our API and get a response.
     const response = await fetch('/api/form', {
       // Body of the request is the JSON data we created above.
       body: JSONdata,
