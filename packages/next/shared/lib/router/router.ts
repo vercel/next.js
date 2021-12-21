@@ -824,7 +824,11 @@ export default class Router implements BaseRouter {
 
     // Make sure we don't re-render on initial load,
     // can be caused by navigating back from an external site
-    if (this.isSsr && as === this.asPath && pathname === this.pathname) {
+    if (
+      this.isSsr &&
+      as === addBasePath(this.asPath) &&
+      pathname === addBasePath(this.pathname)
+    ) {
       return
     }
 
