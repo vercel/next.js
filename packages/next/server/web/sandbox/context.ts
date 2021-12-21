@@ -5,6 +5,10 @@ import { requireDependencies } from './require'
 import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
 import cookie from 'next/dist/compiled/cookie'
 import * as polyfills from './polyfills'
+import {
+  AbortController,
+  AbortSignal,
+} from 'next/dist/compiled/abort-controller'
 import vm from 'vm'
 
 const WEBPACK_HASH_REGEX =
@@ -185,6 +189,8 @@ function createContext() {
       timeLog: console.timeLog.bind(console),
       warn: console.warn.bind(console),
     },
+    AbortController: AbortController,
+    AbortSignal: AbortSignal,
     CryptoKey: polyfills.CryptoKey,
     Crypto: polyfills.Crypto,
     crypto: new polyfills.Crypto(),
