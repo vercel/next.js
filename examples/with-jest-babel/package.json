@@ -17,12 +17,15 @@
     "@testing-library/jest-dom": "5.14.1",
     "@testing-library/react": "12.0.0",
     "@testing-library/user-event": "13.2.1",
+    "@types/react": "17.0.37",
+    "@types/react-test-renderer": "17.0.1",
     "babel-jest": "27.0.6",
     "eslint": "7.32.0",
     "eslint-config-next": "latest",
     "eslint-plugin-testing-library": "4.11.0",
     "identity-obj-proxy": "3.0.0",
     "jest": "27.0.6",
-    "react-test-renderer": "17.0.2"
+    "react-test-renderer": "17.0.2",
+    "typescript": "4.5.4"
   }
 }

@@ -17,6 +17,7 @@
     "@testing-library/jest-dom": "5.14.1",
     "@testing-library/react": "12.0.0",
     "@testing-library/user-event": "13.2.1",
+    "@types/react-test-renderer": "17.0.1",
     "babel-jest": "27.0.6",
     "eslint": "7.32.0",
     "eslint-config-next": "latest",
