@@ -1,8 +1,8 @@
-import { mediaType } from '@hapi/accept'
+import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import { createHash } from 'crypto'
 import { createReadStream, promises } from 'fs'
-import { getOrientation, Orientation } from 'get-orientation'
-import imageSizeOf from 'image-size'
+import { getOrientation, Orientation } from 'next/dist/compiled/get-orientation'
+import imageSizeOf from 'next/dist/compiled/image-size'
 import { IncomingMessage, ServerResponse } from 'http'
 // @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
@@ -387,6 +387,19 @@ export async function imageOptimizer(
         optimizedBuffer = await transformer.toBuffer()
         // End sharp transformation logic
       } else {
+        if (
+          showSharpMissingWarning &&
+          nextConfig.experimental?.outputStandalone
+        ) {
+          // TODO: should we ensure squoosh also works even though we don't
+          // recommend it be used in production and this is a production feature
+          console.error(
+            `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly`
+          )
+          req.statusCode = 500
+          res.end('internal server error')
+          return { finished: true }
+        }
         // Show sharp warning in production once
         if (showSharpMissingWarning) {
           console.warn(
