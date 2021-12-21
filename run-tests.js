@@ -277,7 +277,7 @@ async function main() {
 
       child.on('exit', async (code, signal) => {
         children.delete(child)
-        if (code || signal !== null) {
+        if (code !== 0 || signal !== null) {
           if (isFinalRun && hideOutput) {
             // limit out to last 64kb so that we don't
             // run out of log room in CI
