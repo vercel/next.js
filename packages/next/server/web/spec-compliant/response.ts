@@ -46,7 +46,7 @@ class BaseResponse extends Body implements Response {
     }
 
     return new Response(url, {
-      headers: { Location: url },
+      headers: { Location: new URL(url).toString() },
       status,
     })
   }
