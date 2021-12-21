@@ -95,6 +95,7 @@ struct Analyzer<'a> {
     state: &'a mut State,
     in_lhs_of_var: bool,
     in_data_fn: bool,
+    in_render_fn: bool,
 }
 
 impl Analyzer<'_> {
@@ -102,6 +103,8 @@ impl Analyzer<'_> {
         tracing::trace!("add_ref({}{:?}, data = {})", id.0, id.1, self.in_data_fn);
         if self.in_data_fn {
             self.state.refs_from_data_fn.insert(id);
+        } else if self.in_render_fn {
+            self.state.refs_from_other.insert(id);
         } else {
             if self.state.cur_declaring.contains(&id) {
                 return;
@@ -141,6 +144,24 @@ impl Fold for Analyzer<'_> {
         }
 
         e
+    }
+
+    fn fold_jsx_element(&mut self, jsx: JSXElement) -> JSXElement {
+        match &jsx.opening.name {
+            JSXElementName::Ident(i) => {
+                self.add_ref(i.to_id());
+            }
+            _ => {}
+        }
+        let jsx = jsx.fold_children_with(self);
+        jsx
+    }
+
+    fn fold_export_default_decl(&mut self, export: ExportDefaultDecl) -> ExportDefaultDecl {
+        self.in_render_fn = true;
+        let export = export.fold_children_with(self);
+        self.in_render_fn = false;
+        export
     }
 
     fn fold_fn_decl(&mut self, f: FnDecl) -> FnDecl {
@@ -312,6 +333,7 @@ impl NextSsg {
             state: &mut self.state,
             in_lhs_of_var: false,
             in_data_fn: true,
+            in_render_fn: false,
         };
 
         let n = n.fold_with(&mut v);
@@ -376,6 +398,7 @@ impl Fold for NextSsg {
                 state: &mut self.state,
                 in_lhs_of_var: false,
                 in_data_fn: false,
+                in_render_fn: false,
             };
             m = m.fold_with(&mut v);
         }
