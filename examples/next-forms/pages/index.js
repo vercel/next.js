@@ -19,8 +19,8 @@ export default function Home() {
 
         <p className={styles.description}>
           Get started by looking at{' '}
-          <code className={styles.code}>pages/js-from.js</code> and{' '}
-          <code className={styles.code}>pages/no-js-from.js</code>
+          <code className={styles.code}>pages/js-form.js</code> and{' '}
+          <code className={styles.code}>pages/no-js-form.js</code>
         </p>
 
         <div className={styles.grid}>
