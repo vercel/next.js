@@ -1,5 +1,5 @@
 import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { stringify } from 'querystring'
 import semver from 'next/dist/compiled/semver'
@@ -50,7 +50,7 @@ import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import type { Span } from '../trace'
 import { getRawPageExtensions } from './utils'
-import browserslist from 'browserslist'
+import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 
 const watchOptions = Object.freeze({

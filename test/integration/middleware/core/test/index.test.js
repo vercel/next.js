@@ -405,6 +405,18 @@ function interfaceTests(locale = '') {
     expect(response.error.name).not.toBe('TypeError')
   })
 
+  it(`${locale} abort a fetch request`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      '/interface/abort-controller'
+    )
+    const response = await res.json()
+
+    expect('error' in response).toBe(true)
+    expect(response.error.name).toBe('AbortError')
+    expect(response.error.message).toBe('The user aborted a request.')
+  })
+
   it(`${locale} should validate request url parameters from a static route`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,

@@ -378,6 +378,13 @@ export async function killApp(instance) {
 }
 
 export async function startApp(app) {
+  // force require usage instead of dynamic import in jest
+  // x-ref: https://github.com/nodejs/node/issues/35889
+  process.env.__NEXT_TEST_MODE = 'jest'
+
+  // TODO: tests that use this should be migrated to use
+  // the nextStart test function instead as it tests outside
+  // of jest's context
   await app.prepare()
   const handler = app.getRequestHandler()
   const server = http.createServer(handler)

@@ -17,7 +17,7 @@ import { processBuffer, decodeBuffer, Operation } from './lib/squoosh/main'
 import type Server from './base-server'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 
 const AVIF = 'image/avif'
 const WEBP = 'image/webp'
