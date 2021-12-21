@@ -3,7 +3,7 @@ const path = require('path')
 module.exports = {
   meta: {
     docs: {
-      description: 'Disallow using custom styles inside pages/_document.js',
+      description: 'Disallow using custom styled-jsx inside pages/_document.js',
       recommended: true,
     },
     fixable: 'code',
@@ -34,7 +34,7 @@ module.exports = {
         if (styleTagWithJSXAttr) {
           context.report({
             node,
-            message: `Do not use <style> inside pages/_document.js.`,
+            message: `Do not use styled-jsx inside pages/_document.js.`,
           })
         }
       },

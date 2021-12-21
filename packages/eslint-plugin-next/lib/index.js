@@ -13,7 +13,7 @@ module.exports = {
     'no-document-import-in-page': require('./rules/no-document-import-in-page'),
     'no-head-import-in-document': require('./rules/no-head-import-in-document'),
     'no-script-in-document': require('./rules/no-script-in-document'),
-    'no-style-in-document': require('./rules/no-style-in-document'),
+    'no-styled-jsx-in-document': require('./rules/no-styled-jsx-in-document'),
     'no-script-in-head': require('./rules/no-script-in-head'),
     'no-server-import-in-page': require('./rules/no-server-import-in-page'),
     'no-typos': require('./rules/no-typos'),

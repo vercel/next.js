@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-style-in-document'
+import rule from '@next/eslint-plugin-next/lib/rules/no-styled-jsx-in-document'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {
@@ -12,7 +12,7 @@ import { RuleTester } from 'eslint'
 })
 const ruleTester = new RuleTester()
 
-ruleTester.run('no-style-in-document', rule, {
+ruleTester.run('no-styled-jsx-in-document', rule, {
   valid: [
     `import Document, { Html, Head, Main, NextScript } from 'next/document'
 
@@ -66,7 +66,7 @@ ruleTester.run('no-style-in-document', rule, {
             }`,
       errors: [
         {
-          message: 'Do not use <style> inside pages/_document.js.',
+          message: 'Do not use styled-jsx inside pages/_document.js.',
         },
       ],
     },
