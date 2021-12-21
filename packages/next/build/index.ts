@@ -1,5 +1,5 @@
 import { loadEnvConfig } from '@next/env'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { isMatch } from 'next/dist/compiled/micromatch'
 import { promises, writeFileSync } from 'fs'
