@@ -1,6 +1,6 @@
 # Sentry
 
-_Note: Currently, the minimum Next.js supported of `@sentry/nextjs` version is 10.0.8.
+_Note: Currently, the minimum Next.js supported version of `@sentry/nextjs` is 10.0.8.
 
 This is an example showing how to use [Sentry](https://sentry.io) to catch and report errors and monitor the performance of both the front and back ends, using the [official Sentry SDK for Next.js](https://docs.sentry.io/platforms/javascript/guides/nextjs/). This example contains the following:
 
