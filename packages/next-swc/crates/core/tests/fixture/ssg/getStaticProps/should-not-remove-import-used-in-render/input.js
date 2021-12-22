@@ -19,7 +19,7 @@ export default function Test() {
 export async function getStaticProps() {
   return {
     props: {
-      // simulate Component usage inside getStaticProps
+      // simulate import usage inside getStaticProps
       used: [
         // these import references should not be removed
         Root.value,
