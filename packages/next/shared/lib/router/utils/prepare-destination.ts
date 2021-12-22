@@ -4,13 +4,8 @@ import type { NextParsedUrlQuery } from '../../../../server/request-meta'
 import type { Params } from '../../../../server/router'
 import type { RouteHas } from '../../../../lib/load-custom-routes'
 import { compile, pathToRegexp } from 'next/dist/compiled/path-to-regexp'
+import { escapeStringRegexp } from '../../escape-regexp'
 import { parseUrl } from './parse-url'
-
-// this isn't importing the escape-string-regex module
-// to prevent incompatibility with ie11
-function escapeStringRegexp(str: string) {
-  return str.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
-}
 
 export function matchHas(
   req: IncomingMessage,
