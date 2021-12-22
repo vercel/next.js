@@ -1,6 +1,5 @@
 import { PluginObj, types as BabelTypes } from 'next/dist/compiled/babel/core'
-
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 
 const returnsJSX = (node: BabelTypes.BlockStatement) => {
   const returnStatment = node.body.find((statement) =>
