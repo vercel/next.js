@@ -17,21 +17,18 @@ module.exports = {
         }
       },
       JSXElement(node) {
-        const styleTag = node.children.find(
+        const styledJsx = node.children.find(
           (child) =>
             child.openingElement &&
             child.openingElement.name &&
             child.openingElement.name.type === 'JSXIdentifier' &&
-            child.openingElement.name.name === 'style'
+            child.openingElement.name.name === 'style' &&
+            child.openingElement.attributes.find(
+              (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'jsx'
+            )
         )
 
-        const styleTagWithJSXAttr =
-          styleTag &&
-          styleTag.openingElement.attributes.find(
-            (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'jsx'
-          )
-
-        if (styleTagWithJSXAttr) {
+        if (styledJsx) {
           context.report({
             node,
             message: `Do not use styled-jsx inside pages/_document.js.`,
