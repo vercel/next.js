@@ -1,13 +1,13 @@
 # With Docker Compose
 
-This example contains everything needed to get a multi-Next.js app development and production environment up and running with Docker Compose. Includes example JavaScript and TypeScript apps.
+This example contains everything needed to get a Next.js development and production environment up and running with Docker Compose.
 
 ## Benfits of Docker Compose
 
 - Develop locally without Node.js or TypeScript installed ✨
 - Easy to run, consistent development environment across Windows, MacOS, and Linux teams
 - Run multiple Next.js apps, databases, and other microservices in a single deployment
-- Multistage builds combined with [Output Standalone](https://nextjs.org/docs/advanced-features/output-file-tracing#automatically-copying-traced-files-experimental) for up to [85% smaller apps](#production) (Approximately 110 MB compared to 1 GB with create-next-app)
+- Multistage builds combined with [Output Standalone](https://nextjs.org/docs/advanced-features/output-file-tracing#automatically-copying-traced-files-experimental) outputs up to [85% smaller apps](#production) (Approximately 110 MB compared to 1 GB with create-next-app)
 - BuildKit engine builds multiple Docker images in parallel
 - Easy configuration with YAML files
 
@@ -39,10 +39,9 @@ wget -O - https://gist.githubusercontent.com/wdullaer/f1af16bd7e970389bad3/raw/i
 ./dev.sh
 ```
 
-2. Open [http://localhost:3000](http://localhost:3000) to visit Next.js JavaScript app.
-3. Open [http://localhost:3002](http://localhost:3002) to visit Next.js TypeScript app.
+2. Open [http://localhost:3000](http://localhost:3000) to visit Next.js app.
 
-You can start editing the page by modifying `pages/index.js`. The page auto-updates as you edit the file.
+You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
 
 ## Production
 
@@ -54,12 +53,11 @@ Multistage builds are highly recommended in production. Combined with the experi
 # Final image approximately 110 MB
 ./prod.sh
 
-# Final image approximately 1 GB :-(
+# Final image approximately 1 GB
 ./prod-without-multistage.sh
 ```
 
-2. Open [http://localhost:3000](http://localhost:3000) to visit Next.js JavaScript app.
-3. Open [http://localhost:3002](http://localhost:3002) to visit Next.js TypeScript app.
+2. Open [http://localhost:3000](http://localhost:3000) to visit Next.js app.
 
 ## Useful commands
 

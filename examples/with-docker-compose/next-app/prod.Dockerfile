@@ -6,11 +6,13 @@ WORKDIR /app
 # Optionally copy `yarn.lock` if file exists
 COPY package.json yarn.lock* .
 
-RUN yarn install --production
+# Omit --production flag for TypeScript devDependencies
+RUN yarn install
 
 COPY src ./src
 COPY public ./public
 COPY next.config.js .
+COPY tsconfig.json .
 
 # Environment variables must be present at build time
 # https://github.com/vercel/next.js/discussions/14030
@@ -26,20 +28,19 @@ FROM node:16-alpine AS runner
 
 WORKDIR /app
 
+# Don't run production as root
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nextjs -u 1001
+USER nextjs
 
-COPY --from=builder /app/next.config.js .
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/next.config.js .
 COPY --from=builder /app/package.json .
 
 # Automatically leverage output traces to reduce image size 
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# Don't run production as root
-USER nextjs
 
 # Environment variables must be present at run time
 ARG ENV_VARIABLE

@@ -1,26 +1,29 @@
 import Head from 'next/head'
 import Image from 'next/image'
 import { GetServerSideProps } from 'next'
-
 import styles from '../styles/Home.module.css'
 
 type Props = {
   serverOnlyVariable: string
-  message: string | boolean
 }
 
-export default function Home({ serverOnlyVariable, message }: Props) {
+export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  return {
+    props: { serverOnlyVariable: process.env.ENV_VARIABLE },
+  }
+}
+
+export default function Home({ serverOnlyVariable }: Props) {
   return (
     <div className={styles.container}>
       <Head>
-        <title>Create Next TypeScript app</title>
+        <title>Create Next app</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
       <main className={styles.main}>
         <h1 className={styles.title}>
-          Welcome to the <a href="https://nextjs.org">Next.js</a> TypeScript app
-          on Docker Compose!
+          Welcome to <a href="https://nextjs.org">Next.js</a> on Docker Compose!
         </h1>
 
         <div className={styles.grid}>
@@ -33,16 +36,11 @@ export default function Home({ serverOnlyVariable, message }: Props) {
             <h3>Server-Only Environment Variables</h3>
             <p>{serverOnlyVariable ? `✅` : `❌`}</p>
           </div>
-
-          <div className={styles.card}>
-            <h3>Docker connection to Next.js JavaScript app</h3>
-            <p>{message ? `✅` : `❌`}</p>
-          </div>
         </div>
 
         <p className={styles.description}>
           Get started by editing{' '}
-          <code className={styles.code}>next-ts-app/src/pages/index.js</code>
+          <code className={styles.code}>pages/index.tsx</code>
         </p>
 
         <div className={styles.grid}>
@@ -90,20 +88,4 @@ export default function Home({ serverOnlyVariable, message }: Props) {
       </footer>
     </div>
   )
-}
-
-export const getServerSideProps: GetServerSideProps = async () => {
-  const serverOnlyVariable = process.env.ENV_VARIABLE
-  const { message } = await fetch(`http://next-js-app:3000/api/hello`)
-    .then((res) => res.json())
-    .catch((e) => {
-      return { message: false }
-    })
-
-  return {
-    props: {
-      serverOnlyVariable,
-      message,
-    },
-  }
 }

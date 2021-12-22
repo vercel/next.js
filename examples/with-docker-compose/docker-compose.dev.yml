@@ -1,41 +1,20 @@
 version: '3'
 
 services:
-  # Next.js JavaScript app
-  next-js-app:
-    container_name: next-js-app
+  next-app:
+    container_name: next-app
     build:
-      context: ./next-js-app
+      context: ./next-app
       dockerfile: dev.Dockerfile
     environment:
       ENV_VARIABLE: ${ENV_VARIABLE}
       NEXT_PUBLIC_ENV_VARIABLE: ${NEXT_PUBLIC_ENV_VARIABLE}
-    # Sync local changes with container for Hot Reloading with Next.js
-    # It's not necessary to sync the `.next` and `node_modules` directories
     volumes:
-      - ./next-js-app/src:/app/src
-      - ./next-js-app/public:/app/public
+      - ./next-app/src:/app/src
+      - ./next-app/public:/app/public
     restart: always
     ports:
       - 3000:3000
-    networks:
-      - my_network
-
-  # Next.js TypeScript app
-  next-ts-app:
-    container_name: next-ts-app
-    build:
-      context: ./next-ts-app
-      dockerfile: dev.Dockerfile
-    environment:
-      ENV_VARIABLE: ${ENV_VARIABLE}
-      NEXT_PUBLIC_ENV_VARIABLE: ${NEXT_PUBLIC_ENV_VARIABLE}
-    volumes:
-      - ./next-ts-app/src:/app/src
-      - ./next-ts-app/public:/app/public
-    restart: always
-    ports:
-      - 3002:3000
     networks:
       - my_network
 

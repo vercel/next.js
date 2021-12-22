@@ -1,33 +1,17 @@
 version: '3'
 
 services:
-  # Next.js JavaScript app
-  next-js-app:
-    container_name: next-js-app
+  next-app:
+    container_name: next-app
     build:
-      context: ./next-js-app
+      context: ./next-app
       dockerfile: prod-without-multistage.Dockerfile
       args:
         ENV_VARIABLE: ${ENV_VARIABLE}
         NEXT_PUBLIC_ENV_VARIABLE: ${NEXT_PUBLIC_ENV_VARIABLE}
     restart: always
     ports:
-      - 3000:3000 # host:container
-    networks:
-      - my_network
-
-  # Next.js TypeScript app
-  next-ts-app:
-    container_name: next-ts-app
-    build:
-      context: ./next-ts-app
-      dockerfile: prod-without-multistage.Dockerfile
-      args:
-        ENV_VARIABLE: ${ENV_VARIABLE}
-        NEXT_PUBLIC_ENV_VARIABLE: ${NEXT_PUBLIC_ENV_VARIABLE}
-    restart: always
-    ports:
-      - 3002:3000
+      - 3000:3000
     networks:
       - my_network
 
