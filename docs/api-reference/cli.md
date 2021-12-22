@@ -87,6 +87,10 @@ You can also set the hostname to be different from the default of `0.0.0.0`, thi
 ```bash
 npx next dev -H 192.168.1.2
 ```
+If you would like to view your app on your phone. We suggest setting your local ip as your host.
+```bash
+next dev -H $(ipconfig getifaddr en0)
+```
 
 ## Production
 
