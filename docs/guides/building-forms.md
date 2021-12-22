@@ -90,64 +90,64 @@ Let's look at a simple example:
 
 ```html
 <form onsubmit="return validateFormWithJS()">
-	<label for="name">Name:</label>
-	<input type="text" name="name" id="name" />
+  <label for="name">Name:</label>
+  <input type="text" name="name" id="name" />
 
-	<label for="rollNumber">Roll Number:</label>
-	<input type="text" name="rollNumber" id="rollNumber" />
+  <label for="rollNumber">Roll Number:</label>
+  <input type="text" name="rollNumber" id="rollNumber" />
 
-	<button type="submit">Submit</button>
+  <button type="submit">Submit</button>
 </form>
 
 <script>
-	function validateFormWithJS() {
-		const name = document.querySelector('#name').value;
-		const rollNumber = document.querySelector('#rollNumber').value;
+  function validateFormWithJS() {
+    const name = document.querySelector('#name').value
+    const rollNumber = document.querySelector('#rollNumber').value
 
-		if (!name) {
-			alert('Please enter your name.');
-			return false;
-		}
+    if (!name) {
+      alert('Please enter your name.')
+      return false
+    }
 
-		if (rollNumber.length < 3) {
-			alert('Roll Number should be at least 3 digits long.');
-			return false;
-		}
-	}
+    if (rollNumber.length < 3) {
+      alert('Roll Number should be at least 3 digits long.')
+      return false
+    }
+  }
 </script>
-
 ```
 
-The HTML [<script>](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script) is used to embed any client-side JavaScript. It can either contain inline scripting statements (as shown in the example above) or point to an external script file via the src attribute.
+The HTML [script](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script) tag is used to embed any client-side JavaScript. It can either contain inline scripting statements (as shown in the example above) or point to an external script file via the src attribute.
 This example validates the name and roll number of a user. The `validateFormWithJS()` function does not allow an empty name field, and the roll number must be at least three digits long. The validation is performed when you hit the Submit button. You are not redirected to the next page until the given values are correct.
-  
+
 ![js-validation](https://user-images.githubusercontent.com/12712988/146588507-0a9f8f4d-10ac-4038-85d8-f7a9a43d7304.jpg)
-  
+
 #### Form Validation Using Regular Expressions
-	
+
 JavaScript validation with Regular Expressions uses the `pattern` HTML attribute. A regular expression (commonly known as regex) is an object that describes a pattern of characters. You can only apply the `pattern` attribute to the `<input>` element. This way, you can validate the input value using Regular Expressions (RegEx) by defining your own rules. Once again, if the value does not match the defined pattern, the input will give an error.
 This was a quick recap of setting up web forms in HTML.
 
 ```html
 <form action="/action_page.php">
-	<label for="pswrd">Password:</label>
-	<input
-		type="password"
-		id="pswrd"
-		name="pswrd"
-		pattern="[a-z]{0,9}"
-		title="Password should be digits (0 to 9) or alphabets (a to z)."
-	/>
+  <label for="pswrd">Password:</label>
+  <input
+    type="password"
+    id="pswrd"
+    name="pswrd"
+    pattern="[a-z]{0,9}"
+    title="Password should be digits (0 to 9) or alphabets (a to z)."
+  />
 
-	<button type="submit">Submit</button>
-</form>	
+  <button type="submit">Submit</button>
+</form>
 ```
+
 The above example defines how to use the `pattern` attribute. In this case, the password form field must only contain digits (0 to 9) and lowercase alphabets (a to z). No other special characters (#,$,&, etc.) The rule in RegEx is written as `[a-z]{1,15}`.
 
 ![form-validate-regex](https://user-images.githubusercontent.com/12712988/146768293-921d98ec-3eab-4543-ad78-ed8dfe11389b.jpg)
-	
+
 This was a quick recap of setting up web forms in HTML.
-	
+
 > To learn more about HTML forms, check out the [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Learn/Forms).
 
 ## Part 2: [SERVER] Serverless Forms with Vercel and Next.js
