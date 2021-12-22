@@ -229,7 +229,7 @@ const documentSuite = {
 
       expect(res.status).toBe(500)
       expect(html).toContain(
-        'Error: `getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
+        '`getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
       )
     })
   },
@@ -300,7 +300,10 @@ async function runBasicTests(context, env) {
 
     await browser.waitForElementByCss('#next_id').click()
     await check(() => browser.elementByCss('#query').text(), 'query:2')
-    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    if (!isDev) {
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+    }
   })
 
   it('should suspense next/image on server side', async () => {
