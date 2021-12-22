@@ -262,10 +262,10 @@ npx create-next-app@latest --example with-jest with-jest-app
 
 Since the release of [Next.js 12](https://nextjs.org/blog/next-12), Next.js now has built-in configuration for Jest.
 
-To set up Jest, install `jest` , `@testing-library/react`, `@testing-library/jest-dom` and `react-test-renderer`:
+To set up Jest, install `jest` , `@testing-library/react`, `@testing-library/jest-dom`:
 
 ```bash
-npm install --save-dev jest @testing-library/react @testing-library/jest-dom react-test-renderer
+npm install --save-dev jest @testing-library/react @testing-library/jest-dom
 ```
 
 Create a `jest.config.js` file in your project's root directory and add the following:
@@ -284,6 +284,7 @@ const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   // if using TypeScript with a baseUrl set to the root directory then you need the below for alias' to work
   moduleDirectories: ['node_modules', '<rootDir>/'],
+  testEnvironment: 'jest-environment-jsdom',
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
@@ -340,6 +341,7 @@ module.exports = {
     '/node_modules/',
     '^.+\\.module\\.(css|sass|scss)$',
   ],
+  testEnvironment: 'jest-environment-jsdom',
 }
 ```
 
@@ -430,16 +432,11 @@ Add the Jest executable in watch mode to the `package.json` scripts:
 
 Your project is now ready to run tests. Follow Jests convention by adding tests to the `__tests__` folder in your project's root directory.
 
-For example, we can add a test to check if the `<Index />` component successfully renders a heading:
+For example, we can add a test to check if the `<Home />` component successfully renders a heading:
 
 ```jsx
 // __tests__/index.test.jsx
 
-/**
- * @jest-environment jsdom
- */
-
-import React from 'react'
 import { render, screen } from '@testing-library/react'
 import Home from '../pages/index'
 
@@ -456,19 +453,17 @@ describe('Home', () => {
 })
 ```
 
-> **Note**: The `@jest-environment jsdom` comment above configures the testing environment as `jsdom` inside the test file because React Testing Library uses DOM elements like `document.body` which will not work in Jest's default `node` testing environment. Alternatively, you can also set the `jsdom` environment globally by adding the Jest configuration option: `"testEnvironment": "jsdom"` in `jest.config.js`.
-
-Optionally, add a [snapshot test](https://jestjs.io/docs/snapshot-testing) to keep track of any unexpected changes to your `<Index />` component:
+Optionally, add a [snapshot test](https://jestjs.io/docs/snapshot-testing) to keep track of any unexpected changes to your `<Home />` component:
 
 ```jsx
 // __tests__/snapshot.js
-import React from 'react'
-import renderer from 'react-test-renderer'
-import Index from '../pages/index'
+
+import { render } from '@testing-library/react'
+import Home from '../pages/index'
 
 it('renders homepage unchanged', () => {
-  const tree = renderer.create(<Index />).toJSON()
-  expect(tree).toMatchSnapshot()
+  const { container } = render(<Home />)
+  expect(container).toMatchSnapshot()
 })
 ```
 

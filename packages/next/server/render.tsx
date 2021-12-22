@@ -282,8 +282,9 @@ function checkRedirectValues(
   }
 }
 
+const rscCache = new Map()
+
 function createRSCHook() {
-  const rscCache = new Map()
   const decoder = new TextDecoder()
   const encoder = new TextEncoder()
 
@@ -315,6 +316,7 @@ function createRSCHook() {
             )
           }
           if (done) {
+            rscCache.delete(id)
             writer.close()
           } else {
             writer.write(
@@ -357,7 +359,9 @@ function createServerComponentRenderer(
       reqStream,
       true
     )
-    return response.readRoot()
+    const root = response.readRoot()
+    rscCache.delete(id)
+    return root
   }
   const Component = (props: any) => {
     return (
