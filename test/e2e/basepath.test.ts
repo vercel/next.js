@@ -97,6 +97,29 @@ describe('basePath', () => {
   afterAll(() => next.destroy())
 
   const runTests = (dev = false) => {
+    it('should navigate to external site and back', async () => {
+      const browser = await webdriver(next.url, `${basePath}/external-and-back`)
+      const initialText = await browser.elementByCss('p').text()
+      expect(initialText).toBe('server')
+
+      await browser
+        .elementByCss('a')
+        .click()
+        .waitForElementByCss('input')
+        .back()
+        .waitForElementByCss('p')
+
+      await waitFor(1000)
+      const newText = await browser.elementByCss('p').text()
+      expect(newText).toBe('server')
+    })
+
+    if (process.env.BROWSER_NAME === 'safari') {
+      // currently only testing the above test in safari
+      // we can investigate testing more cases below if desired
+      return
+    }
+
     it('should navigate back correctly to a dynamic route', async () => {
       const browser = await webdriver(next.url, `${basePath}`)
 
