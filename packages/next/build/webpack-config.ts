@@ -968,7 +968,13 @@ export default async function getBaseWebpackConfig(
         [
           'next',
           ...(webServerRuntime
-            ? [{ etag: '{}', chalk: '{}', 'react-dom': '{}' }]
+            ? [
+                {
+                  'next/dist/compiled/etag': '{}',
+                  'next/dist/compiled/chalk': '{}',
+                  'react-dom': '{}',
+                },
+              ]
             : []),
         ]
       : !isServerless
