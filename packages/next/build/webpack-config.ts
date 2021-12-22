@@ -617,6 +617,8 @@ export default async function getBaseWebpackConfig(
         : {}),
 
       'styled-jsx': 'next/dist/compiled/styled-jsx',
+      'styled-jsx/css': 'next/dist/compiled/styled-jsx/css',
+      'styled-jsx/style': 'next/dist/compiled/styled-jsx/style',
     },
     ...(targetWeb
       ? {
@@ -816,6 +818,11 @@ export default async function getBaseWebpackConfig(
       resolveRequest: string
     ) => Promise<[string | null, boolean]>
   ) {
+    // styled-jsx must be external to share context
+    if (request === 'styled-jsx' || request.startsWith('styled-jsx/')) {
+      return `commonjs ${path.posix.join('next/dist/compiled', request)}`
+    }
+
     // We need to externalize internal requests for files intended to
     // not be bundled.
     const isLocal: boolean =
@@ -910,7 +917,8 @@ export default async function getBaseWebpackConfig(
     const externalType = isEsm ? 'module' : 'commonjs'
 
     if (
-      res.match(/next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/)
+      res.match(/next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/) ||
+      res.match(/next[/\\]dist[/\\]compiled[/\\].*\.[mc]?js$/)
     ) {
       return `${externalType} ${request}`
     }
