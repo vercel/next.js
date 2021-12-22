@@ -206,17 +206,6 @@ export async function ncc_chalk(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('chalk')))
     .ncc({ packageName: 'chalk', externals })
     .target('compiled/chalk')
-
-  const content = fs.readFileSync(
-    join(__dirname, 'compiled/chalk/index.js'),
-    'utf8'
-  )
-  // ensure undefined process.argv is handled for web runtime
-  // TODO: should chalk be being included in web runtime?
-  fs.writeFileSync(
-    join(__dirname, 'compiled/chalk/index.js'),
-    content.replace('process.argv', 'process.argv||[]')
-  )
 }
 
 // eslint-disable-next-line camelcase
