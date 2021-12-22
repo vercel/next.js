@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import os from 'os'
 import path from 'path'
 import * as CommentJson from 'next/dist/compiled/comment-json'

@@ -522,6 +522,10 @@
         {
           "title": "invalid-dynamic-options-type",
           "path": "/errors/invalid-dynamic-options-type.md"
+        },
+        {
+          "title": "invalid-styled-jsx-children",
+          "path": "/errors/invalid-styled-jsx-children.md"
         }
       ]
     }

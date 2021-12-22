@@ -1,5 +1,5 @@
 import { platform, arch } from 'os'
-import { platformArchTriples } from '@napi-rs/triples'
+import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
 import * as Log from '../output/log'
 
 const ArchName = arch()
