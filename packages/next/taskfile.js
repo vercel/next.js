@@ -344,6 +344,13 @@ export async function ncc_buffer(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+export async function copy_react_is(task, opts) {
+  await task
+    .source(join(dirname(require.resolve('react-is/package.json')), '**/*'))
+    .target('compiled/react-is')
+}
+
+// eslint-disable-next-line camelcase
 export async function copy_constants_browserify(task, opts) {
   await fs.promises.mkdir(join(__dirname, 'compiled/constants-browserify'), {
     recursive: true,
@@ -396,6 +403,33 @@ export async function ncc_events(task, opts) {
       target: 'es5',
     })
     .target('compiled/events')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_stream_browserify(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('stream-browserify/'))
+    )
+    .ncc({
+      packageName: 'stream-browserify',
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/stream-browserify')
+
+  // while ncc'ing readable-stream the browser mapping does not replace the
+  // require('stream') with require('events').EventEmitter correctly so we
+  // patch this manually as leaving require('stream') causes a circular
+  // reference breaking the browser polyfill
+  const outputFile = join(__dirname, 'compiled/stream-browserify/index.js')
+
+  fs.writeFileSync(
+    outputFile,
+    fs
+      .readFileSync(outputFile, 'utf8')
+      .replace(`require("stream")`, `require("events").EventEmitter`)
+  )
 }
 
 // eslint-disable-next-line camelcase
@@ -1462,6 +1496,7 @@ export async function ncc(task, opts) {
         'ncc_crypto_browserify',
         'ncc_domain_browser',
         'ncc_events',
+        'ncc_stream_browserify',
         'ncc_stream_http',
         'ncc_https_browserify',
         'ncc_os_browserify',
@@ -1554,6 +1589,7 @@ export async function ncc(task, opts) {
       'copy_babel_runtime',
       'copy_constants_browserify',
       'copy_react_server_dom_webpack',
+      'copy_react_is',
     ],
     opts
   )

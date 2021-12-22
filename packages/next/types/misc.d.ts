@@ -17,6 +17,10 @@ declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
 }
 
+declare module 'next/dist/compiled/react-is' {
+  export * from 'react-is'
+}
+
 declare module 'next/dist/compiled/chalk' {
   import m from 'chalk'
   export = m

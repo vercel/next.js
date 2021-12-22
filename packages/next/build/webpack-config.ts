@@ -636,8 +636,7 @@ export default async function getBaseWebpackConfig(
             process: require.resolve('next/dist/compiled/process'),
             // Handled in separate alias
             querystring: require.resolve('next/dist/compiled/querystring-es3'),
-            // TODO: investigate ncc'ing stream-browserify
-            stream: require.resolve('stream-browserify'),
+            stream: require.resolve('next/dist/compiled/stream-browserify'),
             string_decoder: require.resolve(
               'next/dist/compiled/string_decoder'
             ),
