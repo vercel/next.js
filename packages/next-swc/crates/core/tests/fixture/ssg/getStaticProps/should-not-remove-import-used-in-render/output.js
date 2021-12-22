@@ -1,5 +1,15 @@
-import Component from '../'
-export var __N_SSG = true
+import { useState, useEffect } from "react";
+import { Root, Children, AttributeValue, AttributeJSX, ValueInRender, ValueInEffect } from "../";
+export var __N_SSG = true;
 export default function Test() {
-  return __jsx(Component, null)
+    const [x, setX] = useState(ValueInRender.value);
+    useEffect(() => {
+        setX(ValueInEffect.value);
+    }, [])
+    return __jsx(Root, {
+      x: x
+    }, __jsx('div', null, __jsx(Children, {
+      attr: AttributeValue,
+      jsx: __jsx(AttributeJSX, null)
+    })));
 }

@@ -1,9 +1,36 @@
-import Component from '../'
+import { useState, useEffect } from 'react'
+import { Root, Children, AttributeValue, AttributeJSX, ValueInRender, ValueInEffect, UnusedInRender } from '../'
 
 export default function Test() {
-  return <Component />
+  const [x, setX] = useState(ValueInRender.value)
+  useEffect(() => {
+    setX(ValueInEffect.value)
+  }, [])
+
+  return (
+    <Root x={x}>
+      <div>
+        <Children attr={AttributeValue} jsx={<AttributeJSX />} />
+      </div>
+    </Root>
+  )
 }
 
 export async function getStaticProps() {
-  return { props: { name: Component.displayName } }
+  return {
+    props: {
+      // simulate Component usage inside getStaticProps
+      used: [
+        // these import references should not be removed
+        Root.value,
+        Children.value,
+        AttributeValue.value,
+        AttributeJSX.value,
+        ValueInRender.value,
+        ValueInEffect.value,
+        // this import reference should be removed
+        UnusedInRender.value,
+      ],
+    }
+  }
 }
