@@ -2,7 +2,6 @@
 import '../build/polyfills/polyfill-module'
 import React, { useState } from 'react'
 import ReactDOM from 'react-dom'
-import { StyleRegistry } from 'styled-jsx'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
@@ -623,7 +622,7 @@ function AppContainer({
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
         <HeadManagerContext.Provider value={headManager}>
-          <StyleRegistry>{children}</StyleRegistry>
+          {children}
         </HeadManagerContext.Provider>
       </RouterContext.Provider>
     </Container>
@@ -762,7 +761,9 @@ if (process.env.__NEXT_RSC) {
     _fresh?: boolean
   }) => {
     const response = useServerResponse(cacheKey, serialized)
-    return response.readRoot()
+    const root = response.readRoot()
+    rscCache.delete(cacheKey)
+    return root
   }
 
   RSCComponent = (props: any) => {

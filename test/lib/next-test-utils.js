@@ -85,6 +85,10 @@ export function getFullUrl(appPortOrUrl, url, hostname) {
 
     parsedUrl.search = parsedPathQuery.search
     parsedUrl.pathname = parsedPathQuery.pathname
+
+    if (hostname && parsedUrl.hostname === 'localhost') {
+      parsedUrl.hostname = hostname
+    }
     fullUrl = parsedUrl.toString()
   }
   return fullUrl
