@@ -26,6 +26,15 @@ declare module '*.module.scss' {
   export default classes
 }
 
+declare module 'styled-jsx/css' {
+  import m from 'next/dist/compiled/styled-jsx/css'
+  export = m
+}
+
+declare module 'styled-jsx' {
+  export * from 'next/dist/compiled/styled-jsx'
+}
+
 interface Window {
   MSInputMethodContext?: unknown
 }

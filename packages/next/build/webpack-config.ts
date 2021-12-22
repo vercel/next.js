@@ -615,6 +615,8 @@ export default async function getBaseWebpackConfig(
               : 'react-dom/cjs/react-dom-server.browser.production.min',
           }
         : {}),
+
+      'styled-jsx': 'next/dist/compiled/styled-jsx',
     },
     ...(targetWeb
       ? {
