@@ -120,7 +120,7 @@ Let's look at a simple example:
 The HTML [script](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script) tag is used to embed any client-side JavaScript. It can either contain inline scripting statements (as shown in the example above) or point to an external script file via the src attribute.
 This example validates the name and roll number of a user. The `validateFormWithJS()` function does not allow an empty name field, and the roll number must be at least three digits long. The validation is performed when you hit the Submit button. You are not redirected to the next page until the given values are correct.
 
-![js-validation](https://user-images.githubusercontent.com/12712988/146588507-0a9f8f4d-10ac-4038-85d8-f7a9a43d7304.jpg)
+![js-validation](/docs/guides/images/js-validation.jpg)
 
 #### Form Validation Using Regular Expressions
 
@@ -144,7 +144,7 @@ This was a quick recap of setting up web forms in HTML.
 
 The above example defines how to use the `pattern` attribute. In this case, the password form field must only contain digits (0 to 9) and lowercase alphabets (a to z). No other special characters (#,$,&, etc.) The rule in RegEx is written as `[a-z]{1,15}`.
 
-![form-validate-regex](https://user-images.githubusercontent.com/12712988/146768293-921d98ec-3eab-4543-ad78-ed8dfe11389b.jpg)
+![form-validate-regex](/docs/guides/images/form-validate-regex.jpg)
 
 This was a quick recap of setting up web forms in HTML.
 
