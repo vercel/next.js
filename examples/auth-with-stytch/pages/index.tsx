@@ -17,7 +17,7 @@ let REDIRECT_URL_BASE = ''
 if (process.env.NEXT_PUBLIC_VERCEL_URL?.includes('localhost')) {
   REDIRECT_URL_BASE = 'http://localhost:3000'
 } else if (process.env.NEXT_PUBLIC_VERCEL_URL !== undefined) {
-  REDIRECT_URL_BASE = `https://${process.env.VERCEL_URL}`
+  REDIRECT_URL_BASE = `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
 } else {
   REDIRECT_URL_BASE = 'http://localhost:3000'
 }
