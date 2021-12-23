@@ -90,6 +90,14 @@ module.exports = {
           return
         }
 
+        const target = node.attributes.find(
+          (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'target'
+        )
+
+        if (target && target.value.value === '_blank') {
+          return
+        }
+
         const href = node.attributes.find(
           (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'href'
         )
