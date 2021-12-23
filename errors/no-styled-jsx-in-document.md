@@ -2,7 +2,7 @@
 
 ### Why This Error Occurred
 
-Custom css like `styled-jsx` is not allowed in `pages/_document.{js,tsx}`.
+Custom CSS like `styled-jsx` is not allowed in a [Custom Document](https://nextjs.org/docs/advanced-features/custom-document).
 
 ### Possible Ways to Fix It
 
