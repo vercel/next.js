@@ -38,3 +38,4 @@ These styles (`styles.css`) will apply to all pages and components in your appli
 - [Custom Document Caveats](https://nextjs.org/docs/advanced-features/custom-document#caveats)
 - [Layouts](https://nextjs.org/docs/basic-features/layouts)
 - [Built in CSS Support](https://nextjs.org/docs/basic-features/built-in-css-support)
+- [Custom `App`](https://nextjs.org/docs/advanced-features/custom-app)
