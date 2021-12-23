@@ -1,0 +1,40 @@
+# No styled-jsx in Document
+
+### Why This Error Occurred
+
+Custom css like `styled-jsx` is not allowed in `pages/_document.{js,tsx}`.
+
+### Possible Ways to Fix It
+
+If you need share css for all your pages, take a look at the `pages/_app.{js,tsx}` or define a custom layout.
+
+For example, consider the following stylesheet named `styles.css`:
+
+```css
+body {
+  font-family: 'SF Pro Text', 'SF Pro Icons', 'Helvetica Neue', 'Helvetica',
+    'Arial', sans-serif;
+  padding: 20px 20px 60px;
+  max-width: 680px;
+  margin: 0 auto;
+}
+```
+
+Create a `pages/_app.{js,tsx}` file if not already present. Then, import the `styles.css` file.
+
+```jsx
+import '../styles.css'
+
+// This default export is required in a new `pages/_app.js` file.
+export default function MyApp({ Component, pageProps }) {
+  return <Component {...pageProps} />
+}
+```
+
+These styles (`styles.css`) will apply to all pages and components in your application.
+
+### Useful links
+
+- [Custom Document Caveats](https://nextjs.org/docs/advanced-features/custom-document#caveats)
+- [Layouts](https://nextjs.org/docs/basic-features/layouts)
+- [Built in CSS Support](https://nextjs.org/docs/basic-features/built-in-css-support)

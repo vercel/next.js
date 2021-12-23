@@ -5,6 +5,7 @@ module.exports = {
     docs: {
       description: 'Disallow using custom styled-jsx inside pages/_document.js',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/no-styled-jsx-in-document',
     },
     fixable: 'code',
   },
@@ -31,7 +32,7 @@ module.exports = {
         if (styledJsx) {
           context.report({
             node,
-            message: `Do not use styled-jsx inside pages/_document.js.`,
+            message: `Do not use styled-jsx inside pages/_document.js. See https://nextjs.org/docs/messages/no-styled-jsx-in-document.`,
           })
         }
       },
