@@ -615,6 +615,8 @@ export default async function getBaseWebpackConfig(
               : 'react-dom/cjs/react-dom-server.browser.production.min',
           }
         : {}),
+
+      setimmediate: 'next/dist/compiled/setimmediate',
     },
     ...(targetWeb
       ? {
@@ -632,7 +634,7 @@ export default async function getBaseWebpackConfig(
             https: require.resolve('next/dist/compiled/https-browserify'),
             os: require.resolve('next/dist/compiled/os-browserify'),
             path: require.resolve('next/dist/compiled/path-browserify'),
-            punycode: require.resolve('punycode'),
+            punycode: require.resolve('next/dist/compiled/punycode'),
             process: require.resolve('next/dist/compiled/process'),
             // Handled in separate alias
             querystring: require.resolve('next/dist/compiled/querystring-es3'),
@@ -650,6 +652,7 @@ export default async function getBaseWebpackConfig(
             vm: require.resolve('next/dist/compiled/vm-browserify'),
             zlib: require.resolve('next/dist/compiled/browserify-zlib'),
             events: require.resolve('next/dist/compiled/events/'),
+            setImmediate: require.resolve('next/dist/compiled/setimmediate'),
           },
         }
       : undefined),

@@ -19,6 +19,7 @@ import timers from 'timers'
 import tty from 'tty'
 import util from 'util'
 import zlib from 'zlib'
+import 'setimmediate'
 
 export default function NodeBrowserPolyfillPage() {
   const [state, setState] = useState({})
@@ -50,26 +51,28 @@ export default function NodeBrowserPolyfillPage() {
     assert.ok(!!util.inspect)
     assert.ok(!!zlib.Gzip)
 
-    setState({
-      assert: true,
-      buffer: Buffer.from('hello world').toString('utf8'),
-      constants: constants.E2BIG,
-      hash: crypto.createHash('sha256').update('hello world').digest('hex'),
-      domain: true,
-      os: os.EOL,
-      path: path.join('/hello/world', 'test.txt'),
-      process: process.title,
-      querystring: querystring.stringify({ a: 'b' }),
-      stream: closedStream,
-      stringDecoder: true,
-      sys: true,
-      timers: true,
-      tty: true,
-      util: true,
-      http: true,
-      https: true,
-      vm: vm.runInNewContext('a + 5', { a: 100 }),
-      zlib: true,
+    setImmediate(() => {
+      setState({
+        assert: true,
+        buffer: Buffer.from('hello world').toString('utf8'),
+        constants: constants.E2BIG,
+        hash: crypto.createHash('sha256').update('hello world').digest('hex'),
+        domain: true,
+        os: os.EOL,
+        path: path.join('/hello/world', 'test.txt'),
+        process: process.title,
+        querystring: querystring.stringify({ a: 'b' }),
+        stream: closedStream,
+        stringDecoder: true,
+        sys: true,
+        timers: true,
+        tty: true,
+        util: true,
+        http: true,
+        https: true,
+        vm: vm.runInNewContext('a + 5', { a: 100 }),
+        zlib: true,
+      })
     })
   }, [])
 
