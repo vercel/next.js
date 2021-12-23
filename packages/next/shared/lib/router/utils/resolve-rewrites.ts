@@ -1,6 +1,6 @@
 import { ParsedUrlQuery } from 'querystring'
 import pathMatch from './path-match'
-import prepareDestination, { matchHas } from './prepare-destination'
+import { matchHas, prepareDestination } from './prepare-destination'
 import { Rewrite } from '../../../../lib/load-custom-routes'
 import { removePathTrailingSlash } from '../../../../client/normalize-trailing-slash'
 import { normalizeLocalePath } from '../../i18n/normalize-locale-path'
@@ -67,12 +67,12 @@ export default function resolveRewrites(
         // this is a proxied rewrite which isn't handled on the client
         return true
       }
-      const destRes = prepareDestination(
-        rewrite.destination,
-        params,
-        query,
-        true
-      )
+      const destRes = prepareDestination({
+        appendParamsToQuery: true,
+        destination: rewrite.destination,
+        params: params,
+        query: query,
+      })
       parsedAs = destRes.parsedDestination
       asPath = destRes.newUrl
       Object.assign(query, destRes.parsedDestination.query)

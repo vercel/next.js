@@ -29,7 +29,7 @@ const startServer = async (optEnv = {}, opts) => {
   const env = Object.assign(
     {},
     clone(process.env),
-    { PORT: `${appPort}` },
+    { PORT: `${appPort}`, __NEXT_TEST_MODE: 'true' },
     optEnv
   )
 
@@ -194,5 +194,15 @@ describe('Custom Server', () => {
         expect(response.headers.get('Content-Encoding')).toBe('gzip')
       }
     )
+  })
+
+  describe('with a custom fetch polyfill', () => {
+    beforeAll(() => startServer({ POLYFILL_FETCH: 'true' }))
+    afterAll(() => killApp(server))
+
+    it('should serve internal file from render', async () => {
+      const data = await renderViaHTTP(appPort, '/static/hello.txt')
+      expect(data).toMatch(/hello world/)
+    })
   })
 })

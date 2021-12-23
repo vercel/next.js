@@ -1,5 +1,5 @@
 import { PluginObj, types as BabelTypes } from 'next/dist/compiled/babel/core'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 
 export default function NoAnonymousDefaultExport({
   types: t,
@@ -40,6 +40,7 @@ export default function NoAnonymousDefaultExport({
                 chalk.yellow.bold(
                   'Anonymous arrow functions cause Fast Refresh to not preserve local component state.'
                 ),
+                chalk.cyan(this.file.opts.filename),
                 'Please add a name to your function, for example:',
                 '',
                 chalk.bold('Before'),
@@ -64,6 +65,7 @@ export default function NoAnonymousDefaultExport({
                   chalk.yellow.bold(
                     'Anonymous function declarations cause Fast Refresh to not preserve local component state.'
                   ),
+                  chalk.cyan(this.file.opts.filename),
                   'Please add a name to your function, for example:',
                   '',
                   chalk.bold('Before'),

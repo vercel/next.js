@@ -119,9 +119,11 @@ const MyImage = (props) => {
 
 A string that provides information about how wide the image will be at different breakpoints. Defaults to `100vw` (the full width of the screen) when using `layout="responsive"` or `layout="fill"`.
 
-`sizes` is important for performance when using `layout="responsive"` or `layout="fill"` with images that take up less than the full viewport width.
+If you are using `layout="fill"` or `layout="responsive"`, it's important to assign `sizes` for any image that takes up less than the full viewport width.
 
-If you are using `layout="fill"` or `layout="responsive"` and the image will always be less than half the viewport width, include `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
+For example, when the parent element will constrain the image to always be less than half the viewport width, use `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
+
+If you are using `layout="intrinsic"` or `layout="fixed"`, then `sizes` is not needed because the upper bound width is constrained already.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes).
 
@@ -142,7 +144,7 @@ Should only be used when the image is visible above the fold. Defaults to `false
 
 A placeholder to use while the image is loading. Possible values are `blur` or `empty`. Defaults to `empty`.
 
-When `blur`, the [`blurDataURL`](#blurdataurl) property will be used as the placeholder. If `src` is an object from a [static import](#local-images) and the imported image is `.jpg`, `.png`, `.webp`, or `.avif`, then `blurDataURL` will be automatically populated.
+When `blur`, the [`blurDataURL`](#blurdataurl) property will be used as the placeholder. If `src` is an object from a [static import](/docs/basic-features/image-optimization.md#local-images) and the imported image is `.jpg`, `.png`, `.webp`, or `.avif`, then `blurDataURL` will be automatically populated.
 
 For dynamic images, you must provide the [`blurDataURL`](#blurdataurl) property. Solutions such as [Plaiceholder](https://github.com/joe-bell/plaiceholder) can help with `base64` generation.
 

@@ -3,6 +3,8 @@ import Head from 'next/head'
 import styles from '../styles/Home.module.css'
 import ThirdPartyEmailPassword from 'supertokens-auth-react/recipe/thirdpartyemailpassword'
 import dynamic from 'next/dynamic'
+import supertokensNode from 'supertokens-node'
+import { backendConfig } from '../config/backendConfig'
 import Session from 'supertokens-node/recipe/session'
 
 const ThirdPartyEmailPasswordAuthNoSSR = dynamic(
@@ -13,6 +15,8 @@ const ThirdPartyEmailPasswordAuthNoSSR = dynamic(
 )
 
 export async function getServerSideProps(context) {
+  // this runs on the backend, so we must call init on supertokens-node SDK
+  supertokensNode.init(backendConfig())
   let session
   try {
     session = await Session.getSession(context.req, context.res)

@@ -5,6 +5,7 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import {
+  check,
   fetchViaHTTP,
   findPort,
   killApp,
@@ -108,6 +109,29 @@ describe('Middleware base tests', () => {
 })
 
 function rewriteTests(locale = '') {
+  it('should rewrite to fallback: true page successfully', async () => {
+    const randomSlug = `another-${Date.now()}`
+    const res2 = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/to-blog/${randomSlug}`
+    )
+    expect(res2.status).toBe(200)
+    expect(await res2.text()).toContain('Loading...')
+
+    const randomSlug2 = `another-${Date.now()}`
+    const browser = await webdriver(
+      context.appPort,
+      `${locale}/rewrites/to-blog/${randomSlug2}`
+    )
+
+    await check(async () => {
+      const props = JSON.parse(await browser.elementByCss('#props').text())
+      return props.params.slug === randomSlug2
+        ? 'success'
+        : JSON.stringify(props)
+    }, 'success')
+  })
+
   it(`${locale} should add a cookie and rewrite to a/b test`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
@@ -153,6 +177,16 @@ function rewriteTests(locale = '') {
     } finally {
       await browser.close()
     }
+    expect($('.title').text()).toBe('About Page')
+  })
+
+  it(`${locale} should rewrite when not using localhost`, async () => {
+    const res = await fetchViaHTTP(
+      `http://localtest.me:${context.appPort}`,
+      `${locale}/rewrites/rewrite-me-without-hard-navigation`
+    )
+    const html = await res.text()
+    const $ = cheerio.load(html)
     expect($('.title').text()).toBe('About Page')
   })
 
@@ -341,6 +375,14 @@ function responseTests(locale = '') {
       'foo=oatmeal',
     ])
   })
+
+  it(`${locale} should be intercepted by deep middleware`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/responses/deep?deep-intercept=true`
+    )
+    expect(await res.text()).toBe('intercepted!')
+  })
 }
 
 function interfaceTests(locale = '') {
@@ -348,6 +390,31 @@ function interfaceTests(locale = '') {
     const res = await fetchViaHTTP(context.appPort, '/interface/globalthis')
     const globals = await res.json()
     expect(globals.length > 0).toBe(true)
+  })
+
+  it(`${locale} collection constructors are shared`, async () => {
+    const res = await fetchViaHTTP(context.appPort, '/interface/webcrypto')
+    const response = await res.json()
+    expect('error' in response).toBe(false)
+  })
+
+  it(`${locale} fetch accepts a URL instance`, async () => {
+    const res = await fetchViaHTTP(context.appPort, '/interface/fetchURL')
+    const response = await res.json()
+    expect('error' in response).toBe(true)
+    expect(response.error.name).not.toBe('TypeError')
+  })
+
+  it(`${locale} abort a fetch request`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      '/interface/abort-controller'
+    )
+    const response = await res.json()
+
+    expect('error' in response).toBe(true)
+    expect(response.error.name).toBe('AbortError')
+    expect(response.error.message).toBe('The user aborted a request.')
   })
 
   it(`${locale} should validate request url parameters from a static route`, async () => {
@@ -406,6 +473,34 @@ function interfaceTests(locale = '') {
     if (locale !== '') {
       expect(res.headers.get('req-url-locale')).toBe(locale.slice(1))
     }
+  })
+
+  it(`${locale} renders correctly rewriting with a root subrequest`, async () => {
+    const browser = await webdriver(
+      context.appPort,
+      '/interface/root-subrequest'
+    )
+    const element = await browser.elementByCss('.title')
+    expect(await element.text()).toEqual('Dynamic route')
+  })
+
+  it(`${locale} allows subrequests without infinite loops`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `/interface/root-subrequest`
+    )
+    expect(res.headers.get('x-dynamic-path')).toBe('true')
+  })
+
+  it(`${locale} renders correctly rewriting to a different dynamic path`, async () => {
+    const browser = await webdriver(
+      context.appPort,
+      '/interface/dynamic-replace'
+    )
+    const element = await browser.elementByCss('.title')
+    expect(await element.text()).toEqual('Parts page')
+    const logs = await browser.log()
+    expect(logs.every((log) => log.source === 'log')).toEqual(true)
   })
 }
 
