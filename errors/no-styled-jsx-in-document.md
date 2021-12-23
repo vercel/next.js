@@ -6,7 +6,7 @@ Custom CSS like `styled-jsx` is not allowed in a [Custom Document](https://nextj
 
 ### Possible Ways to Fix It
 
-If you need share css for all your pages, take a look at the `pages/_app.{js,tsx}` or define a custom layout.
+If you need shared CSS for all of your pages, take a look at the [Custom `App`](https://nextjs.org/docs/advanced-features/custom-app) file or define a custom layout.
 
 For example, consider the following stylesheet named `styles.css`:
 
