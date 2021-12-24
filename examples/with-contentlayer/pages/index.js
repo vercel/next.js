@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import Head from 'next/head'
 import { allPosts } from '.contentlayer/data'
-import { pick } from '../lib/pick'
+import { pick } from '@contentlayer/client'
 import utilStyles from '../styles/utils.module.css'
 
 export default function Home({ posts }) {
