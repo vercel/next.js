@@ -1,4 +1,4 @@
-import * as acorn from 'acorn'
+import * as acorn from 'next/dist/compiled/acorn'
 import { getRawPageExtensions } from '../../utils'
 
 function isClientComponent(importSource: string, pageExtensions: string[]) {
