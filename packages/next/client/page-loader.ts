@@ -147,7 +147,9 @@ export default class PageLoader {
     const route = normalizeRoute(hrefPathname)
 
     const getHrefForSlug = (path: string) => {
-      if (rsc) return path + '?__flight__'
+      if (rsc) {
+        return path + search + (search ? `&` : '?') + '__flight__'
+      }
 
       const dataRoute = getAssetPathFromRoute(
         removePathTrailingSlash(addLocale(path, locale)),

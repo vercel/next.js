@@ -221,7 +221,11 @@ export type HtmlProps = {
   styles?: React.ReactElement[] | React.ReactFragment
   head?: Array<JSX.Element | null>
   useMaybeDeferContent: MaybeDeferContentHook
-  useMainContent: (fn?: (content: JSX.Element) => JSX.Element) => JSX.Element
+  crossOrigin?: string
+  optimizeCss?: boolean
+  optimizeFonts?: boolean
+  optimizeImages?: boolean
+  concurrentFeatures?: boolean
 }
 
 /**
@@ -446,4 +450,12 @@ export class DecodeError extends Error {}
 export const HtmlContext = createContext<HtmlProps>(null as any)
 if (process.env.NODE_ENV !== 'production') {
   HtmlContext.displayName = 'HtmlContext'
+}
+
+export interface CacheFs {
+  readFile(f: string): Promise<string>
+  readFileSync(f: string): string
+  writeFile(f: string, d: any): Promise<void>
+  mkdir(dir: string): Promise<void>
+  stat(f: string): Promise<{ mtime: Date }>
 }

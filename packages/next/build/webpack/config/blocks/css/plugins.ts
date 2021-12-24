@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import { findConfig } from '../../../../../lib/find-config'
 
 type CssPluginCollection_Array = (string | [string, boolean | object])[]
@@ -117,12 +117,12 @@ function getDefaultPlugins(
 export async function getPostCssPlugins(
   dir: string,
   supportedBrowsers: string[] | undefined,
-  defaults: boolean = false,
   disablePostcssPresetEnv: boolean = false
 ): Promise<import('postcss').AcceptedPlugin[]> {
-  let config = defaults
-    ? null
-    : await findConfig<{ plugins: CssPluginCollection }>(dir, 'postcss')
+  let config = await findConfig<{ plugins: CssPluginCollection }>(
+    dir,
+    'postcss'
+  )
 
   if (config == null) {
     config = {

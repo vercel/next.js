@@ -1,7 +1,9 @@
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
-const regeneratorRuntimePath = require.resolve('regenerator-runtime')
+const regeneratorRuntimePath = require.resolve(
+  'next/dist/compiled/regenerator-runtime'
+)
 
 function getBaseSWCOptions({
   filename,
@@ -141,6 +143,7 @@ export function getLoaderSWCOptions({
       disableNextSsg: true,
       disablePageConfig: true,
       isDevelopment: development,
+      isServer,
       pagesDir,
       isPageFile,
       env: {
@@ -165,6 +168,7 @@ export function getLoaderSWCOptions({
         : {}),
       disableNextSsg: !isPageFile,
       isDevelopment: development,
+      isServer,
       pagesDir,
       isPageFile,
     }

@@ -1,4 +1,4 @@
-import { getOverlayMiddleware } from '@next/react-dev-overlay/lib/middleware'
+import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/middleware'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute } from 'path'
@@ -318,8 +318,11 @@ export default class HotReloader {
           createPagesMapping(
             pagePaths.filter((i) => i !== null) as string[],
             this.config.pageExtensions,
-            true,
-            this.hasServerComponents
+            {
+              isDev: true,
+              hasConcurrentFeatures: this.webServerRuntime,
+              hasServerComponents: this.hasServerComponents,
+            }
           )
         )
 
