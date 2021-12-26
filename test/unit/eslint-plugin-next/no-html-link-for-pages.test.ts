@@ -96,6 +96,20 @@ export class Blah extends Head {
   }
 }
 `
+const validTargetBlankLinkCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a target="_blank" href='/new-tab'>New Tab</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
 
 const validPublicFile = `
 import Link from 'next/link';
@@ -206,6 +220,13 @@ describe('no-html-link-for-pages', function () {
 
   it('valid download link element', function () {
     const report = linter.verify(validDownloadLinkCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
+  it('valid target="_blank" link element', function () {
+    const report = linter.verify(validTargetBlankLinkCode, linterConfig, {
       filename: 'foo.js',
     })
     assert.deepEqual(report, [])
