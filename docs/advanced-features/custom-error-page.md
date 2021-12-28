@@ -45,6 +45,14 @@ export default function Custom500() {
 500 errors are handled both client-side and server-side by the `Error` component. If you wish to override it, define the file `pages/_error.js` and add the following code:
 
 ```jsx
+export async function getServerSideProps({ res }) {
+  const { statusCode } = res
+
+  return {
+    props: { statusCode },
+  }
+}
+
 function Error({ statusCode }) {
   return (
     <p>
@@ -53,11 +61,6 @@ function Error({ statusCode }) {
         : 'An error occurred on client'}
     </p>
   )
-}
-
-Error.getInitialProps = ({ res, err }) => {
-  const statusCode = res ? res.statusCode : err ? err.statusCode : 404
-  return { statusCode }
 }
 
 export default Error
