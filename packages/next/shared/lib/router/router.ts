@@ -824,7 +824,11 @@ export default class Router implements BaseRouter {
 
     // Make sure we don't re-render on initial load,
     // can be caused by navigating back from an external site
-    if (this.isSsr && as === this.asPath && pathname === this.pathname) {
+    if (
+      this.isSsr &&
+      as === addBasePath(this.asPath) &&
+      pathname === addBasePath(this.pathname)
+    ) {
       return
     }
 
@@ -1805,15 +1809,9 @@ export default class Router implements BaseRouter {
   }
 
   _getFlightData(dataHref: string): Promise<object> {
-    const { href: cacheKey } = new URL(dataHref, window.location.href)
-
-    if (!this.isPreview && this.sdc[cacheKey]) {
-      return Promise.resolve({ fresh: false, data: this.sdc[cacheKey] })
-    }
-
+    // Do not cache RSC flight response since it's not a static resource
     return fetchNextData(dataHref, true, true, this.sdc, false).then(
       (serialized) => {
-        this.sdc[cacheKey] = serialized
         return { fresh: true, data: serialized }
       }
     )
