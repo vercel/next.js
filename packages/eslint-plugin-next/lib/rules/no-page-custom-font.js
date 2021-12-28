@@ -138,7 +138,7 @@ module.exports = {
 
         if (isGoogleFont) {
           const end =
-            'This is discouraged. See https://nextjs.org/docs/messages/no-page-custom-font.'
+            'This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font'
 
           const message = is_Document
             ? `Rendering this <link /> not inline within <Head> of Document disables font optimization. ${end}`
