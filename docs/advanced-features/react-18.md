@@ -12,7 +12,7 @@ Ensure you have the `rc` npm tag of React installed:
 npm install next@latest react@rc react-dom@rc
 ```
 
-That's all! You can now start using React 18's new APIs like `startTransition` and Suspense in Next.js.
+That's all! You can now start using React 18's new APIs like `startTransition` and `Suspense` in Next.js.
 
 ### Enable SSR Streaming (Alpha)
 
