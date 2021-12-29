@@ -15,9 +15,6 @@
   "scripts": {
     "install": "node install.js"
   },
-  "dependencies": {
-    "detect-libc": "1.0.3"
-  },
   "license": "MIT",
   "engines": {
     "node": ">= 10"

@@ -1,7 +1,7 @@
-const { family } = require('detect-libc');
+const { glibcVersionRuntime } = process.report.getReport().header;
 const { name } = require('./package.json');
 
-if (family === 'musl' && name.endsWith('-musl') || family !== 'musl' && !name.endsWith('-musl')) {
+if (glibcVersionRuntime && name.endsWith('-gnu') || !glibcVersionRuntime && !name.endsWith('-gnu')) {
   process.exit(0);
 } else {
   process.exit(1);
