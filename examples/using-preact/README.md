@@ -4,7 +4,7 @@ This example uses [Preact](https://github.com/preactjs/preact) instead of React.
 
 ## Preview
 
-Preview the example live on [StackBlitz](http://stackblitz.com/):
+Preview the example live on [StackBlitz](https://stackblitz.com/):
 
 [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/using-preact)
 

@@ -14,10 +14,10 @@ An example:
 
 ```jsx
 function MyComponent() {
-    // This condition depends on `window`. During the first render of the browser the `color` variable will be different
-    const color = typeof window !== 'undefined' ? 'red' : 'blue
-    // As color is passed as a prop there is a mismatch between what was rendered server-side vs what was rendered in the first render
-    return <h1 className={`title ${color}`}>Hello World!</h1>
+  // This condition depends on `window`. During the first render of the browser the `color` variable will be different
+  const color = typeof window !== 'undefined' ? 'red' : 'blue'
+  // As color is passed as a prop there is a mismatch between what was rendered server-side vs what was rendered in the first render
+  return <h1 className={`title ${color}`}>Hello World!</h1>
 }
 ```
 

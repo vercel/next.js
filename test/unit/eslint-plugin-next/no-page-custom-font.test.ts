@@ -105,8 +105,23 @@ ruleTester.run('no-page-custom-font', rule, {
           );
         }
       }
-      
+
       export default MyDocument;`,
+      filename,
+    },
+    {
+      code: `export default function() {
+      return (
+        <Html>
+          <Head>
+            <link
+              href="https://fonts.googleapis.com/css2?family=Krona+One&display=swap"
+              rel="stylesheet"
+            />
+          </Head>
+        </Html>
+      )
+    }`,
       filename,
     },
   ],
@@ -133,7 +148,7 @@ ruleTester.run('no-page-custom-font', rule, {
       errors: [
         {
           message:
-            'Custom fonts not added at the document level will only load for a single page. This is discouraged. See https://nextjs.org/docs/messages/no-page-custom-font.',
+            'Custom fonts not added at the document level will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font',
           type: 'JSXOpeningElement',
         },
       ],
@@ -153,7 +168,7 @@ ruleTester.run('no-page-custom-font', rule, {
             <link
               href="https://fonts.googleapis.com/css2?family=Open+Sans"
               rel="stylesheet"
-              />  
+              />
           </>
         )
       }
@@ -173,11 +188,11 @@ ruleTester.run('no-page-custom-font', rule, {
       errors: [
         {
           message:
-            'Rendering this <link /> not inline within <Head> of Document disables font optimization. This is discouraged. See https://nextjs.org/docs/messages/no-page-custom-font.',
+            'Rendering this <link /> not inline within <Head> of Document disables font optimization. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font',
         },
         {
           message:
-            'Rendering this <link /> not inline within <Head> of Document disables font optimization. This is discouraged. See https://nextjs.org/docs/messages/no-page-custom-font.',
+            'Rendering this <link /> not inline within <Head> of Document disables font optimization. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font',
         },
       ],
     },

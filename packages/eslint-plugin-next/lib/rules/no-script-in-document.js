@@ -22,7 +22,7 @@ module.exports = {
 
         context.report({
           node,
-          message: `next/script should not be used in pages/_document.js. See: https://nextjs.org/docs/messages/no-script-in-document-page `,
+          message: `next/script should not be used in pages/_document.js. See: https://nextjs.org/docs/messages/no-script-in-document-page`,
         })
       },
     }

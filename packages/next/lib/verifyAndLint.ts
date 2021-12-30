@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import { Worker } from 'jest-worker'
 import { existsSync } from 'fs'
 import { join } from 'path'

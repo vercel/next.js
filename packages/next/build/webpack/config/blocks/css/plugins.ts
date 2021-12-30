@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import { findConfig } from '../../../../../lib/find-config'
 
 type CssPluginCollection_Array = (string | [string, boolean | object])[]
