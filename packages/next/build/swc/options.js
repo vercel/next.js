@@ -20,6 +20,9 @@ function getBaseSWCOptions({
   const enableDecorators = Boolean(
     jsConfig?.compilerOptions?.experimentalDecorators
   )
+  const emitDecoratorMetadata = Boolean(
+    jsConfig?.compilerOptions?.emitDecoratorMetadata
+  )
   return {
     jsc: {
       ...(resolvedBaseUrl && paths
@@ -38,6 +41,7 @@ function getBaseSWCOptions({
 
       transform: {
         legacyDecorator: enableDecorators,
+        decoratorMetadata: emitDecoratorMetadata,
         react: {
           importSource: jsConfig?.compilerOptions?.jsxImportSource || 'react',
           runtime: 'automatic',
