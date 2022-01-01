@@ -174,7 +174,7 @@ function createJoinForPredicate(predicate, name) {
  * @return {string} Formatted message
  */
 function createJoinMsg(file, uri, bases, isFound) {
-  return ['resolve-url-loader' + ': ' + pathToString(file) + ': ' + uri]
+  return ['resolve-url-loader: ' + pathToString(file) + ': ' + uri]
     .concat(bases.map(pathToString).filter(Boolean))
     .concat(isFound ? 'FOUND' : 'NOT FOUND')
     .join('\n  ')
