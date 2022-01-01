@@ -51,7 +51,7 @@ yarn build
 yarn prepublish
 ```
 
-By default the latest canary of the next-swc binaries will be installed and used. If you are actively working on Rust code or you need to test out the most recent Rust code that hasn't been published as a canary yet you can [install Rust](https://www.rust-lang.org/tools/install) and run `yarn --cwd packages/next build-native`.
+By default the latest canary of the next-swc binaries will be installed and used. If you are actively working on Rust code or you need to test out the most recent Rust code that hasn't been published as a canary yet you can [install Rust](https://www.rust-lang.org/tools/install) and run `yarn --cwd packages/next-swc build-native`.
 
 If you need to clean the project for any reason, use `yarn clean`.
 
@@ -223,21 +223,18 @@ When you add an example to the [examples](examples) directory, don’t forget to
 
 - Replace `DIRECTORY_NAME` with the directory name you’re adding.
 - Fill in `Example Name` and `Description`.
+- Examples should be TypeScript first, if possible.
+- You don’t need to add `name` or `version` in your `package.json`.
+- Ensure all your dependencies are up to date.
+- Ensure you’re using [`next/image`](https://nextjs.org/docs/api-reference/next/image).
 - To add additional installation instructions, please add it where appropriate.
 - To add additional notes, add `## Notes` section at the end.
 - Remove the `Deploy your own` section if your example can’t be immediately deployed to Vercel.
-- Remove the `Preview` section if the example doesn't work on [StackBlitz](http://stackblitz.com/) and file an issue [here](https://github.com/stackblitz/webcontainer-core).
 
 ````markdown
 # Example Name
 
 Description
-
-## Preview
-
-Preview the example live on [StackBlitz](http://stackblitz.com/):
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/DIRECTORY_NAME)
 
 ## Deploy your own
 

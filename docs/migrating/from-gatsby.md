@@ -98,7 +98,7 @@ Gatsby uses the `graphql` tag to query data in the pages of your site. This may 
 // src/pages/[slug].js
 
 // Install remark and remark-html
-import remark from 'remark'
+import { remark } from 'remark'
 import html from 'remark-html'
 import { getPostBySlug, getAllPosts } from '../lib/blog'
 

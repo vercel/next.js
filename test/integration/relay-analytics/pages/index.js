@@ -1,5 +1,5 @@
 /* global localStorage */
-import { useExperimentalWebVitalsReport } from 'next/vitals'
+import { unstable_useWebVitalsReport } from 'next/vitals'
 
 if (typeof navigator !== 'undefined') {
   window.__BEACONS = window.__BEACONS || []
@@ -21,8 +21,8 @@ if (typeof navigator !== 'undefined') {
 
 export default () => {
   // Below comment will be used for replacing exported report method with hook based one.
-  ///* useExperimentalWebVitalsReport
-  useExperimentalWebVitalsReport((data) => {
+  ///* unstable_useWebVitalsReport
+  unstable_useWebVitalsReport((data) => {
     const name = data.name || data.entryType
     localStorage.setItem(
       name,
@@ -31,7 +31,7 @@ export default () => {
     const countMap = window.__BEACONS_COUNT
     countMap.set(name, (countMap.get(name) || 0) + 1)
   })
-  // useExperimentalWebVitalsReport */
+  // unstable_useWebVitalsReport */
 
   return (
     <div>

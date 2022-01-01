@@ -12,6 +12,7 @@ examples/with-jest/**
 examples/with-mobx-state-tree/**
 examples/with-mobx/**
 packages/next/bundles/webpack/packages/*.runtime.js
+packages/next/bundles/webpack/packages/lazy-compilation-*.js
 packages/next/compiled/**/*
 packages/react-refresh-utils/**/*.js
 packages/react-dev-overlay/lib/**
@@ -26,6 +27,6 @@ packages/create-next-app/templates/**
 test/integration/eslint/**
 test/development/basic/legacy-decorators/**/*
 test-timings.json
-packages/next/build/swc/tests/**
+packages/next-swc/crates/**
 bench/nested-deps/pages/**
 bench/nested-deps/components/**

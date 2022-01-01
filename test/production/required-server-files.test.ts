@@ -70,8 +70,6 @@ describe('should set-up next', () => {
       dot: true,
     })
 
-    console.error({ files })
-
     for (const file of files) {
       if (file.endsWith('.json') || file.endsWith('.html')) {
         await fs.remove(join(next.testDir, '.next/server', file))

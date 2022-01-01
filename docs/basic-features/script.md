@@ -7,6 +7,7 @@ description: Next.js helps you optimize loading third-party scripts with the bui
 <details>
   <summary><b>Examples</b></summary>
   <ul>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/script-component">Script Component</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-google-tag-manager">Google Tag Manager</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-google-analytics">Google Analytics</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-facebook-pixel">Facebook Pixel</a></li>
@@ -166,6 +167,26 @@ export default function Home() {
         src="https://js.stripe.com/v3/"
         onLoad={() => {
           setStripe({ stripe: window.Stripe('pk_test_12345') })
+        }}
+      />
+    </>
+  )
+}
+```
+
+Sometimes it is helpful to catch when a script fails to load. These errors can be handled with the `onError` property:
+
+```jsx
+import Script from 'next/script'
+
+export default function Home() {
+  return (
+    <>
+      <Script
+        id="will-fail"
+        src="https://example.com/non-existant-script.js"
+        onError={(e) => {
+          console.error('Script failed to load', e)
         }}
       />
     </>
