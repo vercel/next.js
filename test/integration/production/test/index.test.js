@@ -170,7 +170,6 @@ describe('Production Usage', () => {
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
           /node_modules\/nanoid\/index\.js/,
           /node_modules\/nanoid\/url-alphabet\/index\.js/,
-          /node_modules\/es5-ext\/array\/#\/clear\.js/,
         ],
         notTests: [
           /next\/dist\/pages\/_error\.js/,
