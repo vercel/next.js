@@ -60,7 +60,7 @@ ruleTester.run('no-title-in-document-head', rule, {
       errors: [
         {
           message:
-            'Titles should be defined at the page-level using next/head. See https://nextjs.org/docs/messages/no-title-in-document-head.',
+            'Titles should be defined at the page-level using next/head. See: https://nextjs.org/docs/messages/no-title-in-document-head',
           type: 'JSXElement',
         },
       ],

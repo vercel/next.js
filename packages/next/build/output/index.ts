@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import textTable from 'next/dist/compiled/text-table'
 import createStore from 'next/dist/compiled/unistore'
@@ -181,8 +181,7 @@ buildStore.subscribe((state) => {
       ...(client.warnings || []),
       ...(server.warnings || []),
       ...((serverWeb && serverWeb.warnings) || []),
-      ...((Object.keys(amp).length > 0 && formatAmpMessages(amp)) || []),
-    ]
+    ].concat(formatAmpMessages(amp) || [])
 
     consoleStore.setState(
       {
