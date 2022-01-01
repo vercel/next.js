@@ -110,7 +110,6 @@ var REACT_SUSPENSE_LIST_TYPE = 0xead8;
 var REACT_MEMO_TYPE = 0xead3;
 var REACT_LAZY_TYPE = 0xead4;
 var REACT_SCOPE_TYPE = 0xead7;
-var REACT_OPAQUE_ID_TYPE = 0xeae0;
 var REACT_DEBUG_TRACING_MODE_TYPE = 0xeae1;
 var REACT_OFFSCREEN_TYPE = 0xeae2;
 var REACT_LEGACY_HIDDEN_TYPE = 0xeae3;
@@ -131,7 +130,6 @@ if (typeof Symbol === 'function' && Symbol.for) {
   REACT_MEMO_TYPE = symbolFor('react.memo');
   REACT_LAZY_TYPE = symbolFor('react.lazy');
   REACT_SCOPE_TYPE = symbolFor('react.scope');
-  REACT_OPAQUE_ID_TYPE = symbolFor('react.opaque.id');
   REACT_DEBUG_TRACING_MODE_TYPE = symbolFor('react.debug_trace_mode');
   REACT_OFFSCREEN_TYPE = symbolFor('react.offscreen');
   REACT_LEGACY_HIDDEN_TYPE = symbolFor('react.legacy_hidden');
@@ -447,7 +445,7 @@ function close(response) {
   // be resolved now. So we need to issue an error to those.
   // Ideally we should be able to early bail out if we kept a
   // ref count of pending chunks.
-  reportGlobalError(response, Error( 'Connection closed.' ));
+  reportGlobalError(response, new Error('Connection closed.'));
 }
 
 function processFullRow(response, row) {
@@ -492,7 +490,7 @@ function processFullRow(response, row) {
 
     default:
       {
-        throw Error( "Error parsing the data. It's probably an error code or network corruption." );
+        throw new Error("Error parsing the data. It's probably an error code or network corruption.");
       }
   }
 }

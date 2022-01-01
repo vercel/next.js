@@ -11,69 +11,6 @@ import {
   getLocalModuleImportError,
 } from './messages'
 import { getPostCssPlugins } from './plugins'
-import postcss from 'postcss'
-
-// @ts-ignore backwards compat
-postcss.plugin = function postcssPlugin(name, initializer) {
-  function creator(...args: any) {
-    let transformer = initializer(...args)
-    transformer.postcssPlugin = name
-    // transformer.postcssVersion = new Processor().version
-    return transformer
-  }
-
-  let cache: any
-  Object.defineProperty(creator, 'postcss', {
-    get() {
-      if (!cache) cache = creator()
-      return cache
-    },
-  })
-
-  creator.process = function (css: any, processOpts: any, pluginOpts: any) {
-    return postcss([creator(pluginOpts)]).process(css, processOpts)
-  }
-
-  return creator
-}
-
-// @ts-ignore backwards compat
-postcss.vendor = {
-  /**
-   * Returns the vendor prefix extracted from an input string.
-   *
-   * @param {string} prop String with or without vendor prefix.
-   *
-   * @return {string} vendor prefix or empty string
-   *
-   * @example
-   * postcss.vendor.prefix('-moz-tab-size') //=> '-moz-'
-   * postcss.vendor.prefix('tab-size')      //=> ''
-   */
-  prefix: function prefix(prop: any) {
-    const match = prop.match(/^(-\w+-)/)
-
-    if (match) {
-      return match[0]
-    }
-
-    return ''
-  },
-
-  /**
-   * Returns the input string stripped of its vendor prefix.
-   *
-   * @param {string} prop String with or without vendor prefix.
-   *
-   * @return {string} String name without vendor prefixes.
-   *
-   * @example
-   * postcss.vendor.unprefixed('-moz-tab-size') //=> 'tab-size'
-   */
-  unprefixed: function unprefixed(prop: any) {
-    return prop.replace(/^-\w+-/, '')
-  },
-}
 
 // RegExps for all Style Sheet variants
 export const regexLikeCss = /\.(css|scss|sass)$/
@@ -86,6 +23,112 @@ const regexCssModules = /\.module\.css$/
 const regexSassGlobal = /(?<!\.module)\.(scss|sass)$/
 const regexSassModules = /\.module\.(scss|sass)$/
 
+/**
+ * Mark a rule as removable if built-in CSS support is disabled
+ *
+ * @param {webpack.RuleSetRule} r the rule to mark
+ *
+ * @returns {webpack.RuleSetRule} the marked rule
+ */
+function markRemovable(r: webpack.RuleSetRule): webpack.RuleSetRule {
+  Object.defineProperty(r, Symbol.for('__next_css_remove'), {
+    enumerable: false,
+    value: true,
+  })
+  return r
+}
+
+let postcssInstancePromise: Promise<any>
+export async function lazyPostCSS(
+  rootDirectory: string,
+  supportedBrowsers: string[] | undefined,
+  disablePostcssPresetEnv: boolean | undefined
+) {
+  if (!postcssInstancePromise) {
+    postcssInstancePromise = (async () => {
+      const postcss = require('postcss')
+      // @ts-ignore backwards compat
+      postcss.plugin = function postcssPlugin(name, initializer) {
+        function creator(...args: any) {
+          let transformer = initializer(...args)
+          transformer.postcssPlugin = name
+          // transformer.postcssVersion = new Processor().version
+          return transformer
+        }
+
+        let cache: any
+        Object.defineProperty(creator, 'postcss', {
+          get() {
+            if (!cache) cache = creator()
+            return cache
+          },
+        })
+
+        creator.process = function (
+          css: any,
+          processOpts: any,
+          pluginOpts: any
+        ) {
+          return postcss([creator(pluginOpts)]).process(css, processOpts)
+        }
+
+        return creator
+      }
+
+      // @ts-ignore backwards compat
+      postcss.vendor = {
+        /**
+         * Returns the vendor prefix extracted from an input string.
+         *
+         * @param {string} prop String with or without vendor prefix.
+         *
+         * @return {string} vendor prefix or empty string
+         *
+         * @example
+         * postcss.vendor.prefix('-moz-tab-size') //=> '-moz-'
+         * postcss.vendor.prefix('tab-size')      //=> ''
+         */
+        prefix: function prefix(prop: any) {
+          const match = prop.match(/^(-\w+-)/)
+
+          if (match) {
+            return match[0]
+          }
+
+          return ''
+        },
+
+        /**
+         * Returns the input string stripped of its vendor prefix.
+         *
+         * @param {string} prop String with or without vendor prefix.
+         *
+         * @return {string} String name without vendor prefixes.
+         *
+         * @example
+         * postcss.vendor.unprefixed('-moz-tab-size') //=> 'tab-size'
+         */
+        unprefixed: function unprefixed(prop: any) {
+          return prop.replace(/^-\w+-/, '')
+        },
+      }
+
+      const postCssPlugins = await getPostCssPlugins(
+        rootDirectory,
+        supportedBrowsers,
+        disablePostcssPresetEnv
+      )
+
+      return {
+        postcss,
+        postcssWithPlugins: postcss(postCssPlugins),
+      }
+    })()
+  }
+
+  return postcssInstancePromise
+}
+
 export const css = curry(async function css(
   ctx: ConfigurationContext,
   config: webpack.Configuration
@@ -95,6 +138,13 @@ export const css = curry(async function css(
     additionalData: sassAdditionalData,
     ...sassOptions
   } = ctx.sassOptions
+
+  const lazyPostCSSInitalizer = () =>
+    lazyPostCSS(
+      ctx.rootDirectory,
+      ctx.supportedBrowsers,
+      ctx.experimental.disablePostcssPresetEnv
+    )
 
   const sassPreprocessors: webpack.RuleSetUseItem[] = [
     // First, process files with `sass-loader`: this inlines content, and
@@ -124,31 +174,14 @@ export const css = curry(async function css(
     },
   ]
 
-  const fns: ConfigurationFn[] = [
-    loader({
-      oneOf: [
-        {
-          // Impossible regex expression
-          test: /a^/,
-          loader: 'noop-loader',
-          options: { __next_css_remove: true },
-        },
-      ],
-    }),
-  ]
-
-  const postCssPlugins = await getPostCssPlugins(
-    ctx.rootDirectory,
-    ctx.isProduction,
-    !ctx.future.strictPostcssConfiguration
-  )
+  const fns: ConfigurationFn[] = []
 
   // CSS cannot be imported in _document. This comes before everything because
   // global CSS nor CSS modules work in said file.
   fns.push(
     loader({
       oneOf: [
-        {
+        markRemovable({
           test: regexLikeCss,
           // Use a loose regex so we don't have to crawl the file system to
           // find the real file name (if present).
@@ -159,7 +192,7 @@ export const css = curry(async function css(
               reason: getCustomDocumentError(),
             },
           },
-        },
+        }),
       ],
     })
   )
@@ -169,7 +202,7 @@ export const css = curry(async function css(
   fns.push(
     loader({
       oneOf: [
-        {
+        markRemovable({
           // CSS Modules should never have side effects. This setting will
           // allow unused CSS to be removed from the production build.
           // We ensure this by disallowing `:global()` CSS at the top-level
@@ -183,8 +216,8 @@ export const css = curry(async function css(
             and: [ctx.rootDirectory],
             not: [/node_modules/],
           },
-          use: getCssModuleLoader(ctx, postCssPlugins),
-        },
+          use: getCssModuleLoader(ctx, lazyPostCSSInitalizer),
+        }),
       ],
     })
   )
@@ -192,7 +225,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         // Opt-in support for Sass (using .scss or .sass extensions).
-        {
+        markRemovable({
           // Sass Modules should never have side effects. This setting will
           // allow unused Sass to be removed from the production build.
           // We ensure this by disallowing `:global()` Sass at the top-level
@@ -206,8 +239,12 @@ export const css = curry(async function css(
             and: [ctx.rootDirectory],
             not: [/node_modules/],
           },
-          use: getCssModuleLoader(ctx, postCssPlugins, sassPreprocessors),
-        },
+          use: getCssModuleLoader(
+            ctx,
+            lazyPostCSSInitalizer,
+            sassPreprocessors
+          ),
+        }),
       ],
     })
   )
@@ -216,7 +253,7 @@ export const css = curry(async function css(
   fns.push(
     loader({
       oneOf: [
-        {
+        markRemovable({
           test: [regexCssModules, regexSassModules],
           use: {
             loader: 'error-loader',
@@ -224,7 +261,7 @@ export const css = curry(async function css(
               reason: getLocalModuleImportError(),
             },
           },
-        },
+        }),
       ],
     })
   )
@@ -233,10 +270,10 @@ export const css = curry(async function css(
     fns.push(
       loader({
         oneOf: [
-          {
+          markRemovable({
             test: [regexCssGlobal, regexSassGlobal],
             use: require.resolve('next/dist/compiled/ignore-loader'),
-          },
+          }),
         ],
       })
     )
@@ -244,7 +281,7 @@ export const css = curry(async function css(
     fns.push(
       loader({
         oneOf: [
-          {
+          markRemovable({
             // A global CSS import always has side effects. Webpack will tree
             // shake the CSS without this option if the issuer claims to have
             // no side-effects.
@@ -266,8 +303,8 @@ export const css = curry(async function css(
                   and: [ctx.rootDirectory],
                   not: [/node_modules/],
                 },
-            use: getGlobalCssLoader(ctx, postCssPlugins),
-          },
+            use: getGlobalCssLoader(ctx, lazyPostCSSInitalizer),
+          }),
         ],
       })
     )
@@ -276,7 +313,7 @@ export const css = curry(async function css(
       fns.push(
         loader({
           oneOf: [
-            {
+            markRemovable({
               // A global CSS import always has side effects. Webpack will tree
               // shake the CSS without this option if the issuer claims to have
               // no side-effects.
@@ -284,15 +321,15 @@ export const css = curry(async function css(
               sideEffects: true,
               test: regexCssGlobal,
               issuer: { and: [ctx.customAppFile] },
-              use: getGlobalCssLoader(ctx, postCssPlugins),
-            },
+              use: getGlobalCssLoader(ctx, lazyPostCSSInitalizer),
+            }),
           ],
         })
       )
       fns.push(
         loader({
           oneOf: [
-            {
+            markRemovable({
               // A global Sass import always has side effects. Webpack will tree
               // shake the Sass without this option if the issuer claims to have
               // no side-effects.
@@ -300,8 +337,12 @@ export const css = curry(async function css(
               sideEffects: true,
               test: regexSassGlobal,
               issuer: { and: [ctx.customAppFile] },
-              use: getGlobalCssLoader(ctx, postCssPlugins, sassPreprocessors),
-            },
+              use: getGlobalCssLoader(
+                ctx,
+                lazyPostCSSInitalizer,
+                sassPreprocessors
+              ),
+            }),
           ],
         })
       )
@@ -313,7 +354,7 @@ export const css = curry(async function css(
     fns.push(
       loader({
         oneOf: [
-          {
+          markRemovable({
             test: [regexCssGlobal, regexSassGlobal],
             issuer: { and: [/node_modules/] },
             use: {
@@ -322,7 +363,7 @@ export const css = curry(async function css(
                 reason: getGlobalModuleImportError(),
               },
             },
-          },
+          }),
         ],
       })
     )
@@ -332,7 +373,7 @@ export const css = curry(async function css(
   fns.push(
     loader({
       oneOf: [
-        {
+        markRemovable({
           test: [regexCssGlobal, regexSassGlobal],
           use: {
             loader: 'error-loader',
@@ -340,7 +381,7 @@ export const css = curry(async function css(
               reason: getGlobalImportError(),
             },
           },
-        },
+        }),
       ],
     })
   )
@@ -351,7 +392,7 @@ export const css = curry(async function css(
     fns.push(
       loader({
         oneOf: [
-          {
+          markRemovable({
             // This should only be applied to CSS files
             issuer: regexLikeCss,
             // Exclude extensions that webpack handles by default
@@ -364,7 +405,7 @@ export const css = curry(async function css(
             // `asset/resource` always emits a URL reference, where `asset`
             // might inline the asset as a data URI
             type: 'asset/resource',
-          },
+          }),
         ],
       })
     )
@@ -376,7 +417,6 @@ export const css = curry(async function css(
       plugin(
         // @ts-ignore webpack 5 compat
         new MiniCssExtractPlugin({
-          experimentalUseImportModule: true,
           filename: 'static/css/[contenthash].css',
           chunkFilename: 'static/css/[contenthash].css',
           // Next.js guarantees that CSS order "doesn't matter", due to imposed

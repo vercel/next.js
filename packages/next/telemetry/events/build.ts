@@ -131,8 +131,10 @@ export type EventBuildFeatureUsage = {
     | 'next/script'
     | 'next/dynamic'
     | 'experimental/optimizeCss'
+    | 'optimizeFonts'
     | 'swcLoader'
     | 'swcMinify'
+    | 'build-lint'
   invocationCount: number
 }
 export function eventBuildFeatureUsage(

@@ -19,6 +19,19 @@ const babel = async (code: string, queryOpts = {} as any) => {
       }
     }
 
+    const options = {
+      // loader opts
+      cwd: dir,
+      isServer,
+      distDir: path.resolve(dir, '.next'),
+      pagesDir:
+        'pagesDir' in queryOpts
+          ? queryOpts.pagesDir
+          : path.resolve(dir, 'pages'),
+      cache: false,
+      hasReactRefresh: false,
+    }
+
     const res = loader.bind({
       resourcePath,
       async() {
@@ -27,17 +40,10 @@ const babel = async (code: string, queryOpts = {} as any) => {
       },
       callback,
       emitWarning() {},
-      query: {
-        // loader opts
-        cwd: dir,
-        isServer,
-        distDir: path.resolve(dir, '.next'),
-        pagesDir:
-          'pagesDir' in queryOpts
-            ? queryOpts.pagesDir
-            : path.resolve(dir, 'pages'),
-        cache: false,
-        hasReactRefresh: false,
+      query: options,
+      // @ts-ignore exists
+      getOptions: function () {
+        return options
       },
       currentTraceSpan: new Span({ name: 'test' }),
     })(code, null)
@@ -187,7 +193,7 @@ describe('next-babel-loader', () => {
       expect(
         code.replace(/modules: \[".*?"/, 'modules:["/path/to/page"')
       ).toMatchInlineSnapshot(
-        `"var _jsxFileName = \\"index.js\\";import React from \\"react\\";var __jsx = React.createElement;import dynamic from 'next/dynamic';const Comp = dynamic(() => import('comp'), {  loadableGenerated: {    webpack: () => [require.resolveWeak('comp')],    modules:[\\"/path/to/page\\" + 'comp']  }});export default function Page(props) {  return __jsx(Comp, {    __self: this,    __source: {      fileName: _jsxFileName,      lineNumber: 7,      columnNumber: 18    }  });}"`
+        `"var _jsxFileName = \\"index.js\\";import React from \\"react\\";var __jsx = React.createElement;import dynamic from 'next/dynamic';const Comp = dynamic(() => import('comp'), {  loadableGenerated: {    webpack: () => [require.resolveWeak('comp')]  }});export default function Page(props) {  return __jsx(Comp, {    __self: this,    __source: {      fileName: _jsxFileName,      lineNumber: 7,      columnNumber: 18    }  });}"`
       )
     })
 
