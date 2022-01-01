@@ -21,7 +21,7 @@ describe('Image rendering', () => {
     expect(img.attr('srcset')).toContain('test.png')
   })
 
-  it('should be no noscript tag', async () => {
+  it('should only render noscript element when lazy loading', async () => {
     const element = React.createElement(Image, {
       src: '/test.png',
       width: 100,
