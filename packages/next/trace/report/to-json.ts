@@ -12,9 +12,9 @@ const localEndpoint = {
 
 type Event = {
   traceId: string
-  parentId?: string
+  parentId?: number
   name: string
-  id: string
+  id: number
   timestamp: number
   duration: number
   localEndpoint?: typeof localEndpoint
@@ -119,8 +119,8 @@ const reportToLocalHost = (
   name: string,
   duration: number,
   timestamp: number,
-  id: string,
-  parentId?: string,
+  id: number,
+  parentId?: number,
   attrs?: Object
 ) => {
   const distDir = traceGlobals.get('distDir')
