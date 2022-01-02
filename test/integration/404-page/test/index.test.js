@@ -38,6 +38,11 @@ const runTests = (mode = 'server') => {
     expect(res.status).toBe(404)
   })
 
+  it('should use pages/404 for .d.ts file', async () => {
+    const html = await renderViaHTTP(appPort, '/invalidExtension')
+    expect(html).toContain('custom 404 page')
+  })
+
   it('should not error when visited directly', async () => {
     const res = await fetchViaHTTP(appPort, '/404')
     expect(res.status).toBe(404)

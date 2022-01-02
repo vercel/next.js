@@ -9,7 +9,7 @@ const SUPPORTED_HTML_CONTENT_URLS = [
   'www.googletagmanager.com/gtm.js',
 ]
 const ERROR_MSG =
-  'Use the `next/script` component for loading third party scripts. See: https://nextjs.org/docs/messages/next-script-for-ga.'
+  'Use the `next/script` component for loading third party scripts. See: https://nextjs.org/docs/messages/next-script-for-ga'
 
 // Check if one of the items in the list is a substring of the passed string
 const containsStr = (str, strList) => {

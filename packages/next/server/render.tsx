@@ -1,5 +1,5 @@
 import { IncomingMessage, ServerResponse } from 'http'
-import { ParsedUrlQuery } from 'querystring'
+import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import type { Writable as WritableType } from 'stream'
 import React from 'react'
 import ReactDOMServer from 'react-dom/server'
@@ -282,9 +282,11 @@ function checkRedirectValues(
   }
 }
 
+const rscCache = new Map()
+
 function createRSCHook() {
-  const rscCache = new Map()
   const decoder = new TextDecoder()
+  const encoder = new TextEncoder()
 
   return (
     writable: WritableStream,
@@ -306,21 +308,23 @@ function createRSCHook() {
           if (bootstrap && !bootstrapped) {
             bootstrapped = true
             writer.write(
-              `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-                0,
-                id,
-              ])})</script>`
+              encoder.encode(
+                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
+                  [0, id]
+                )})</script>`
+              )
             )
           }
           if (done) {
+            rscCache.delete(id)
             writer.close()
           } else {
             writer.write(
-              `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-                1,
-                id,
-                decoder.decode(value),
-              ])})</script>`
+              encoder.encode(
+                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
+                  [1, id, decoder.decode(value)]
+                )})</script>`
+              )
             )
             process()
           }
@@ -336,6 +340,7 @@ const useRSCResponse = createRSCHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
+  cachePrefix: string,
   transformStream: TransformStream,
   OriginalComponent: React.ComponentType,
   serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
@@ -343,16 +348,20 @@ function createServerComponentRenderer(
   const writable = transformStream.writable
   const ServerComponentWrapper = (props: any) => {
     const id = (React as any).useId()
+    const reqStream = renderToReadableStream(
+      <OriginalComponent {...props} />,
+      serverComponentManifest
+    )
+
     const response = useRSCResponse(
       writable,
-      id,
-      renderToReadableStream(
-        <OriginalComponent {...props} />,
-        serverComponentManifest
-      ),
+      cachePrefix + ',' + id,
+      reqStream,
       true
     )
-    return response.readRoot()
+    const root = response.readRoot()
+    rscCache.delete(id)
+    return root
   }
   const Component = (props: any) => {
     return (
@@ -426,8 +435,11 @@ export async function renderToHTML(
   const OriginalComponent = renderOpts.Component
   const serverComponentsInlinedTransformStream =
     process.browser && isServerComponent ? new TransformStream() : null
+  const search = stringifyQuery(query)
+  const cachePrefix = pathname + '?' + search
   const Component = isServerComponent
     ? createServerComponentRenderer(
+        cachePrefix,
         serverComponentsInlinedTransformStream!,
         OriginalComponent,
         serverComponentManifest
@@ -637,14 +649,15 @@ export async function renderToHTML(
       )
     },
     defaultGetInitialProps: async (
-      docCtx: DocumentContext
+      docCtx: DocumentContext,
+      options: { nonce?: string } = {}
     ): Promise<DocumentInitialProps> => {
       const enhanceApp = (AppComp: any) => {
         return (props: any) => <AppComp {...props} />
       }
 
       const { html, head } = await docCtx.renderPage({ enhanceApp })
-      const styles = jsxStyleRegistry.styles()
+      const styles = jsxStyleRegistry.styles({ nonce: options.nonce })
       return { html, head, styles }
     },
   }
@@ -1126,11 +1139,6 @@ export async function renderToHTML(
    */
   const generateStaticHTML = supportsDynamicHTML !== true
   const renderDocument = async () => {
-    if (process.browser && Document.getInitialProps) {
-      throw new Error(
-        '`getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
-      )
-    }
     if (!process.browser && Document.getInitialProps) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
