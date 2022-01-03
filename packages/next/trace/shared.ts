@@ -1,6 +1,4 @@
-// eslint typescript has a bug with TS enums
-
-export type SpanId = string
+export type SpanId = number
 
 export const traceGlobals: Map<any, any> = new Map()
 export const setGlobal = (key: any, val: any) => {
