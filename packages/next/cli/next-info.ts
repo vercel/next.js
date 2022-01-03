@@ -48,9 +48,10 @@ const nextInfo: cliCommand = async (argv) => {
   console.log(`
     Operating System:
       Platform: ${os.platform()}
+      Arch: ${os.arch()}
       Version: ${os.version()}
     Binaries:
-      Node: ${getBinaryVersion('node')}
+      Node: ${process.version}
       npm: ${getBinaryVersion('npm')}
       Yarn: ${getBinaryVersion('yarn')}
       pnpm: ${getBinaryVersion('pnpm')}
@@ -66,18 +67,7 @@ export { nextInfo }
 const nodeModulesPath = path.join(process.cwd(), 'node_modules')
 
 function getPackageVersion(packageName: string) {
-  try {
-    const packageJsonPath = path.join(
-      nodeModulesPath,
-      packageName,
-      'package.json'
-    )
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
-
-    return packageJson.version
-  } catch {
-    return 'N/A'
-  }
+  return require(`${packageName}/package.json`).version
 }
 
 function getBinaryVersion(binaryName: string) {
