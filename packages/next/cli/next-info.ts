@@ -76,7 +76,7 @@ function getBinaryVersion(binaryName: string) {
       .execSync(`${binaryName} --version`)
       .toString()
       .trim()
-      .replace(/$v/, '') // unoformly prints version without "v"
+      .replace(/$v/, '') // uniformly prints version without "v"
   } catch {
     return 'N/A'
   }
