@@ -1400,6 +1400,13 @@ export default async function build(
       'utf8'
     )
 
+    const middlewareManifest: MiddlewareManifest = JSON.parse(
+      await promises.readFile(
+        path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+        'utf8'
+      )
+    )
+
     const outputFileTracingRoot =
       config.experimental.outputFileTracingRoot || dir
 
@@ -1412,7 +1419,8 @@ export default async function build(
             distDir,
             pageKeys,
             outputFileTracingRoot,
-            requiredServerFiles.config
+            requiredServerFiles.config,
+            middlewareManifest
           )
         })
     }
@@ -1961,13 +1969,6 @@ export default async function build(
       )
     }
 
-    const middlewareManifest: MiddlewareManifest = JSON.parse(
-      await promises.readFile(
-        path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
-        'utf8'
-      )
-    )
-
     await promises.writeFile(
       path.join(
         distDir,
@@ -2032,7 +2033,8 @@ export default async function build(
           path.relative(outputFileTracingRoot, distDir),
           SERVER_DIRECTORY,
           'pages'
-        )
+        ),
+        { overwrite: true }
       )
     }
 
