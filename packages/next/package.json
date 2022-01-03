@@ -147,7 +147,6 @@
     "@types/cross-spawn": "6.0.0",
     "@types/debug": "4.1.5",
     "@types/etag": "1.8.0",
-    "@types/envinfo": "7.8.1",
     "@types/fresh": "0.5.0",
     "@types/jsonwebtoken": "8.3.7",
     "@types/lodash.curry": "4.1.6",
