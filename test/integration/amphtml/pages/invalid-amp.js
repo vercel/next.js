@@ -4,7 +4,7 @@ export default function Page() {
   return (
     <div>
       <p id="invalid-amp">Invalid AMP Page</p>
-      <img src="/images/test.png"></img>
+      <amp-video src="/cats.mp4" layout="responsive" />
     </div>
   )
 }
