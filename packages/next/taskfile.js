@@ -511,6 +511,32 @@ export async function ncc_util(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+export async function ncc_punycode(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('punycode/')))
+    .ncc({
+      packageName: 'punycode',
+      externals,
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/punycode')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_set_immediate(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('setimmediate/')))
+    .ncc({
+      packageName: 'setimmediate',
+      externals,
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/setimmediate')
+}
+
+// eslint-disable-next-line camelcase
 export async function ncc_timers_browserify(task, opts) {
   await task
     .source(
@@ -518,7 +544,10 @@ export async function ncc_timers_browserify(task, opts) {
     )
     .ncc({
       packageName: 'timers-browserify',
-      externals,
+      externals: {
+        ...externals,
+        setimmediate: 'next/dist/compiled/setimmediate',
+      },
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
@@ -1444,6 +1473,8 @@ export async function ncc(task, opts) {
         'ncc_querystring_es3',
         'ncc_string_decoder',
         'ncc_util',
+        'ncc_punycode',
+        'ncc_set_immediate',
         'ncc_timers_browserify',
         'ncc_tty_browserify',
         'ncc_vm_browserify',

@@ -1,22 +1,22 @@
-/* eslint-env jest */
-
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { findPort, launchApp, killApp } from 'next-test-utils'
+import { createNext, FileRef } from 'e2e-utils'
+import { NextInstance } from 'test/lib/next-modes/base'
 
-const appDir = join(__dirname, '../')
-let appPort
-let app
+describe('theme-ui SWC option', () => {
+  let next: NextInstance
 
-describe('Basic Features', () => {
   beforeAll(async () => {
-    appPort = await findPort()
-    app = await launchApp(appDir, appPort)
+    next = await createNext({
+      files: {
+        pages: new FileRef(join(__dirname, 'node-browser-polyfills/pages')),
+      },
+    })
   })
-  afterAll(() => killApp(app))
+  afterAll(() => next.destroy())
 
-  it('should polyfill Node.js modules', async () => {
-    const browser = await webdriver(appPort, '/node-browser-polyfills')
+  it('should have polyfilled correctly', async () => {
+    const browser = await webdriver(next.url, '/')
 
     await browser.waitForCondition('window.didRender')
 
