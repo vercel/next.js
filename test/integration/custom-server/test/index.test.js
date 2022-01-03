@@ -4,7 +4,6 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 import getPort from 'get-port'
 import cheerio from 'cheerio'
-import clone from 'clone'
 import {
   initNextServerScript,
   killApp,
@@ -27,8 +26,7 @@ const startServer = async (optEnv = {}, opts) => {
   const scriptPath = join(appDir, 'server.js')
   context.appPort = appPort = await getPort()
   const env = Object.assign(
-    {},
-    clone(process.env),
+    { ...process.env },
     { PORT: `${appPort}`, __NEXT_TEST_MODE: 'true' },
     optEnv
   )
