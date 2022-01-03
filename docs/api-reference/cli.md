@@ -145,7 +145,7 @@ will give you information like this example:
       Platform: linux
       Version: #22-Ubuntu SMP Fri Nov 5 13:21:36 UTC 2021
     Binaries:
-      Node: v16.13.0
+      Node: 16.13.0
       npm: 8.1.0
       Yarn: 1.22.17
       pnpm: 6.24.2
