@@ -74,7 +74,6 @@
     "@next/env": "12.0.8-canary.14",
     "@next/react-refresh-utils": "12.0.8-canary.14",
     "caniuse-lite": "^1.0.30001283",
-    "envinfo": "7.8.1",
     "jest-worker": "27.0.0-next.5",
     "node-fetch": "2.6.1",
     "postcss": "8.2.15",
