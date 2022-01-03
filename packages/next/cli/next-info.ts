@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 import os from 'os'
-import path from 'path'
 import childProcess from 'child_process'
-import fs from 'fs'
 
 import chalk from 'next/dist/compiled/chalk'
 import arg from 'next/dist/compiled/arg/index.js'
@@ -38,7 +36,7 @@ const nextInfo: cliCommand = async (argv) => {
         $ next info
 
       Learn more: ${chalk.cyan(
-        'https://nextjs.org/docs/api-reference/cli#telemetry'
+        'https://nextjs.org/docs/api-reference/cli#info'
       )}
     `
     )
@@ -64,19 +62,13 @@ const nextInfo: cliCommand = async (argv) => {
 
 export { nextInfo }
 
-const nodeModulesPath = path.join(process.cwd(), 'node_modules')
-
 function getPackageVersion(packageName: string) {
   return require(`${packageName}/package.json`).version
 }
 
 function getBinaryVersion(binaryName: string) {
   try {
-    return childProcess
-      .execSync(`${binaryName} --version`)
-      .toString()
-      .trim()
-      .replace(/$v/, '') // uniformly prints version without "v"
+    return childProcess.execSync(`${binaryName} --version`).toString().trim()
   } catch {
     return 'N/A'
   }
