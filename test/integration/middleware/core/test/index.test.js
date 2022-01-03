@@ -213,6 +213,18 @@ function rewriteTests(locale = '') {
     const element = await browser.elementByCss('.middleware')
     expect(await element.text()).toEqual('foo')
   })
+
+  it('should allow to opt-out preflight caching', async () => {
+    const browser = await webdriver(context.appPort, '/rewrites/')
+    await browser.addCookie({ name: 'about-bypass', value: '1' })
+    await browser.eval('window.__SAME_PAGE = true')
+    await browser.elementByCss('#link-with-rewritten-url').click()
+    await browser.waitForElementByCss('.refreshed')
+    await browser.deleteCookies()
+    expect(await browser.eval('window.__SAME_PAGE')).toBe(true)
+    const element = await browser.elementByCss('.title')
+    expect(await element.text()).toEqual('About Bypassed Page')
+  })
 }
 
 function redirectTests(locale = '') {
