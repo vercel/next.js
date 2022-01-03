@@ -770,16 +770,6 @@ export async function ncc_devalue(task, opts) {
     .ncc({ packageName: 'devalue', externals })
     .target('compiled/devalue')
 }
-externals['escape-string-regexp'] = 'next/dist/compiled/escape-string-regexp'
-// eslint-disable-next-line camelcase
-export async function ncc_escape_string_regexp(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('escape-string-regexp'))
-    )
-    .ncc({ packageName: 'escape-string-regexp', externals, target: 'es5' })
-    .target('compiled/escape-string-regexp')
-}
 
 // eslint-disable-next-line camelcase
 externals['find-cache-dir'] = 'next/dist/compiled/find-cache-dir'
@@ -1128,22 +1118,6 @@ export async function copy_react_server_dom_webpack(task, opts) {
     .target('compiled/react-server-dom-webpack')
 }
 
-// eslint-disable-next-line camelcase
-externals['resolve-url-loader'] = 'next/dist/compiled/resolve-url-loader'
-export async function ncc_resolve_url_loader(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('resolve-url-loader'))
-    )
-    .ncc({
-      packageName: 'resolve-url-loader',
-      externals: {
-        ...externals,
-        'loader-utils': externals['loader-utils2'], // actually loader-utils@1 but that is compatible
-      },
-    })
-    .target('compiled/resolve-url-loader')
-}
 // eslint-disable-next-line camelcase
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'
 export async function ncc_sass_loader(task, opts) {
@@ -1516,7 +1490,6 @@ export async function ncc(task, opts) {
         'ncc_cross_spawn',
         'ncc_debug',
         'ncc_devalue',
-        'ncc_escape_string_regexp',
         'ncc_find_cache_dir',
         'ncc_find_up',
         'ncc_fresh',
@@ -1547,7 +1520,6 @@ export async function ncc(task, opts) {
         'ncc_postcss_modules_values',
         'ncc_postcss_value_parser',
         'ncc_icss_utils',
-        'ncc_resolve_url_loader',
         'ncc_sass_loader',
         'ncc_schema_utils2',
         'ncc_schema_utils3',
