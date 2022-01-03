@@ -194,7 +194,6 @@
     "debug": "4.1.1",
     "devalue": "2.0.1",
     "domain-browser": "4.19.0",
-    "escape-string-regexp": "2.0.0",
     "etag": "1.8.1",
     "events": "3.3.0",
     "find-cache-dir": "3.3.1",
