@@ -15,7 +15,7 @@ let appPort
 const appDir = join(__dirname, '../')
 
 function runTests() {
-  it('scrolls to top when href="/" when url already contains a hash', async () => {
+  it('scrolls to top when href="/" and url already contains a hash', async () => {
     const browser = await webdriver(appPort, '/#section')
     expect(await browser.eval(() => window.scrollY)).not.toBe(0)
     await browser.elementByCss('#top-link').click()
