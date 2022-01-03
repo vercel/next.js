@@ -49,7 +49,7 @@ const nextInfo: cliCommand = async (argv) => {
       Arch: ${os.arch()}
       Version: ${os.version()}
     Binaries:
-      Node: ${process.version}
+      Node: ${process.versions.node}
       npm: ${getBinaryVersion('npm')}
       Yarn: ${getBinaryVersion('yarn')}
       pnpm: ${getBinaryVersion('pnpm')}
