@@ -14,28 +14,16 @@ body:
   - type: markdown
     attributes:
       value: 'next@canary is the beta version of Next.js. It includes all features and fixes that are pending to land on the stable release line.'
-  - type: input
+  - type: textarea
     attributes:
-      label: What version of Next.js are you using?
-      description: 'For example: 10.0.1'
-    validations:
-      required: true
-  - type: input
-    attributes:
-      label: What version of Node.js are you using?
-      description: 'For example: 12.0.0'
+      label: Running `next info`
+      description: Please run `next info` in the root directory of your project and paste the results.
     validations:
       required: true
   - type: input
     attributes:
       label: What browser are you using?
       description: 'For example: Chrome, Safari'
-    validations:
-      required: true
-  - type: input
-    attributes:
-      label: What operating system are you using?
-      description: 'For example: macOS, Windows'
     validations:
       required: true
   - type: input
