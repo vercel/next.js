@@ -37,7 +37,9 @@ const nextInfo: cliCommand = async (argv) => {
       Usage
         $ next info
 
-      Learn more: ${chalk.cyan('https://nextjs.org/info')}
+      Learn more: ${chalk.cyan(
+        'https://nextjs.org/docs/api-reference/cli#telemetry'
+      )}
     `
     )
     return

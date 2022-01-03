@@ -21,7 +21,7 @@ Usage
   $ next <command>
 
 Available commands
-  build, start, export, dev, lint, telemetry
+  build, start, export, dev, lint, telemetry, info
 
 Options
   --version, -v   Version number
@@ -125,3 +125,35 @@ Next.js collects **completely anonymous** telemetry data about general usage.
 Participation in this anonymous program is optional, and you may opt-out if you'd not like to share any information.
 
 To learn more about Telemetry, [please read this document](https://nextjs.org/telemetry/).
+
+## Info
+
+Reporting accurate details about the environment in which Next.js runs when reporting a bug makes resolving the issue easier.
+Useful information is then printed to the terminal, such as Operating System platform/version, Binaries (Node.js, npm, Yarn, pnpm) and npm package versions (`next`, `react`, `react-dom`). This eliminates the user having to call individual commands to gather the same information before opening a report.
+
+Running the following in your project's root directory:
+
+```bash
+next info
+```
+
+will give you information like this example:
+
+```bash
+
+    Operating System:
+      Platform: linux
+      Version: #22-Ubuntu SMP Fri Nov 5 13:21:36 UTC 2021
+    Binaries:
+      Node: v16.13.0
+      npm: 8.1.0
+      Yarn: 1.22.17
+      pnpm: 6.24.2
+    npm packages:
+      next: 12.0.8-canary.14
+      react: 17.0.2
+      react-dom: 17.0.2
+
+```
+
+This information should then be pasted into the bug report.
