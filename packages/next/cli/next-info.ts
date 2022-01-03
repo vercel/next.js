@@ -1,10 +1,14 @@
 #!/usr/bin/env node
+import os from 'os'
+import path from 'path'
+import childProcess from 'child_process'
+import fs from 'fs'
+
 import chalk from 'next/dist/compiled/chalk'
 import arg from 'next/dist/compiled/arg/index.js'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 import isError from '../lib/is-error'
-import envinfo from 'envinfo'
 
 const nextInfo: cliCommand = async (argv) => {
   const validArgs: arg.Spec = {
@@ -27,7 +31,8 @@ const nextInfo: cliCommand = async (argv) => {
     console.log(
       `
       Description
-        Provides useful debug information about Next.js. When opening a bug report, please include the result in the issue.
+        Provides debug information about Next.js.
+        When opening a bug report, please include the result in the issue.
 
       Usage
         $ next info
@@ -38,28 +43,49 @@ const nextInfo: cliCommand = async (argv) => {
     return
   }
 
-  const result = await envinfo.run({
-    System: ['OS'],
-    Binaries: ['Node', 'Yarn', 'npm'],
-    Browsers: [
-      'Brave Browser',
-      'Chrome',
-      'Chrome Canary',
-      'Chromium',
-      'Edge',
-      'Firefox',
-      'Firefox Developer Edition',
-      'Firefox Nightly',
-      'Internet Explorer',
-      'Safari',
-      'Safari Technology Preview',
-    ],
-    npmPackages: ['next', 'react', 'react-dom'],
-  })
-
-  console.log(result)
-
-  console.log()
+  console.log(`
+    Operating System:
+      Platform: ${os.platform()}
+      Version: ${os.version()}
+    Binaries:
+      Node: ${getBinaryVersion('node')}
+      npm: ${getBinaryVersion('npm')}
+      Yarn: ${getBinaryVersion('yarn')}
+      pnpm: ${getBinaryVersion('pnpm')}
+    npm packages:
+      next: ${getPackageVersion('next')}
+      react: ${getPackageVersion('react')}
+      react-dom: ${getPackageVersion('react-dom')}
+`)
 }
 
 export { nextInfo }
+
+const nodeModulesPath = path.join(process.cwd(), 'node_modules')
+
+function getPackageVersion(packageName: string) {
+  try {
+    const packageJsonPath = path.join(
+      nodeModulesPath,
+      packageName,
+      'package.json'
+    )
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+
+    return packageJson.version
+  } catch {
+    return 'N/A'
+  }
+}
+
+function getBinaryVersion(binaryName: string) {
+  try {
+    return childProcess
+      .execSync(`${binaryName} --version`)
+      .toString()
+      .trim()
+      .replace(/$v/, '') // unoformly prints version without "v"
+  } catch {
+    return 'N/A'
+  }
+}
