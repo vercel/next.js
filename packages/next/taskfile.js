@@ -741,16 +741,6 @@ export async function ncc_devalue(task, opts) {
     .ncc({ packageName: 'devalue', externals })
     .target('compiled/devalue')
 }
-externals['escape-string-regexp'] = 'next/dist/compiled/escape-string-regexp'
-// eslint-disable-next-line camelcase
-export async function ncc_escape_string_regexp(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('escape-string-regexp'))
-    )
-    .ncc({ packageName: 'escape-string-regexp', externals, target: 'es5' })
-    .target('compiled/escape-string-regexp')
-}
 
 // eslint-disable-next-line camelcase
 externals['find-cache-dir'] = 'next/dist/compiled/find-cache-dir'
@@ -1469,7 +1459,6 @@ export async function ncc(task, opts) {
         'ncc_cross_spawn',
         'ncc_debug',
         'ncc_devalue',
-        'ncc_escape_string_regexp',
         'ncc_find_cache_dir',
         'ncc_find_up',
         'ncc_fresh',
