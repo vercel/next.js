@@ -6,7 +6,7 @@ import semver from 'next/dist/compiled/semver'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import path, { join as pathJoin, relative as relativePath } from 'path'
-import escapeRegExp from 'next/dist/compiled/escape-string-regexp'
+import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -1694,7 +1694,7 @@ export default async function getBaseWebpackConfig(
   webpackConfig = await buildConfiguration(webpackConfig, {
     supportedBrowsers,
     rootDirectory: dir,
-    customAppFile: new RegExp(escapeRegExp(path.join(pagesDir, `_app`))),
+    customAppFile: new RegExp(escapeStringRegexp(path.join(pagesDir, `_app`))),
     isDevelopment: dev,
     isServer,
     webServerRuntime,
