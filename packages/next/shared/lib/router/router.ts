@@ -63,6 +63,7 @@ interface NextHistoryState {
 }
 
 interface PreflightData {
+  cache?: string | null
   redirect?: string | null
   refresh?: boolean
   rewrite?: string | null
@@ -1615,7 +1616,7 @@ export default class Router implements BaseRouter {
   }
 
   scrollToHash(as: string): void {
-    const [, hash] = as.split('#')
+    const [, hash = ''] = as.split('#')
     // Scroll to top if the hash is just `#` with no value or `#top`
     // To mirror browsers
     if (hash === '' || hash === 'top') {
@@ -1950,6 +1951,7 @@ export default class Router implements BaseRouter {
         }
 
         return {
+          cache: res.headers.get('x-middleware-cache'),
           redirect: res.headers.get('Location'),
           refresh: res.headers.has('x-middleware-refresh'),
           rewrite: res.headers.get('x-middleware-rewrite'),
@@ -1957,7 +1959,7 @@ export default class Router implements BaseRouter {
         }
       })
       .then((data) => {
-        if (shouldCache) {
+        if (shouldCache && data.cache !== 'no-cache') {
           this.sde[cacheKey] = data
         }
 
