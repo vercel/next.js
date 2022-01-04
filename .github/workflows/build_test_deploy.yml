@@ -1334,14 +1334,6 @@ jobs:
             turbo-${{ github.job }}-${{ matrix.target }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
             turbo-${{ github.job }}-${{ matrix.target }}-canary-${{ needs.build.outputs.weekNum }}-
 
-      - name: Cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/
-            **/target/
-          key: ${{ runner.os }}-publish-integration
-
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
@@ -1385,15 +1377,6 @@ jobs:
           override: true
           target: wasm32-unknown-unknown
 
-      - name: Cache
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/
-            **/target/
-          key: ${{ runner.os }}-publish-integration
-
       - name: Turbo Cache
         id: turbo-cache
         uses: actions/cache@v2
@@ -1416,7 +1399,7 @@ jobs:
 
       - name: Add target to folder name
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-        run: mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs
+        run: '[[ -f "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs || ls packages/next-swc/crates/wasm'
 
       - name: Upload artifact
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
