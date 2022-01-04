@@ -6,6 +6,8 @@
     "packages/*"
   ],
   "scripts": {
+    "new-error": "plop error",
+    "new-test": "plop test",
     "clean": "yarn lerna clean -y && yarn lerna bootstrap && yarn lerna exec 'rm -rf ./dist'",
     "build": "yarn prepublish",
     "lerna": "lerna",
@@ -128,6 +130,7 @@
     "nprogress": "0.2.0",
     "pixrem": "5.0.0",
     "playwright-chromium": "1.14.1",
+    "plop": "3.0.5",
     "postcss-nested": "4.2.1",
     "postcss-pseudoelements": "5.0.0",
     "postcss-short-size": "4.0.0",

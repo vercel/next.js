@@ -1,7 +1,7 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
-describe('should set-up next', () => {
+describe('{{name}}', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -13,6 +13,7 @@ describe('should set-up next', () => {
           } 
         `
       },
+      dependencies: {}
     })
   })
   afterAll(() => next.destroy())
