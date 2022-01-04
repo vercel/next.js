@@ -29,16 +29,14 @@ const nextInfo: cliCommand = async (argv) => {
     console.log(
       `
       Description
-        Provides debug information about Next.js.
-        When opening a bug report, please include the result in the issue.
-
+        Prints relevant details about the current system which can be used to report Next.js bugs
+        
       Usage
         $ next info
 
       Learn more: ${chalk.cyan(
         'https://nextjs.org/docs/api-reference/cli#info'
-      )}
-    `
+      )}`
     )
     return
   }
@@ -56,8 +54,7 @@ const nextInfo: cliCommand = async (argv) => {
     Relevant packages:
       next: ${getPackageVersion('next')}
       react: ${getPackageVersion('react')}
-      react-dom: ${getPackageVersion('react-dom')}
-`)
+      react-dom: ${getPackageVersion('react-dom')}`)
 }
 
 export { nextInfo }
