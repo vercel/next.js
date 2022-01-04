@@ -1321,6 +1321,8 @@ jobs:
           override: true
           target: wasm32-unknown-unknown
 
+      - run: npm i -g turbo@1.0.24
+
       - name: Turbo cache
         id: turbo-cache
         uses: actions/cache@v2
@@ -1371,6 +1373,8 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: 14
+
+      - run: npm i -g turbo@1.0.24
 
       - name: Install Rust
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
