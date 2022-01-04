@@ -671,6 +671,7 @@ jobs:
           path: .turbo
           key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-${{ github.sha }}
           restore-keys: |
+            turbo-${{ github.job }}-
             turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-
             turbo-${{ github.job }}-canary-${{ steps.get-week.outputs.WEEK }}-
 
@@ -682,9 +683,9 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ./packages/next-swc/target
-          key: next-swc-cargo-cache-ubuntu-18.04--${{ hashFiles('**/Cargo.lock') }}
+          key: next-swc-cargo-cache-dev-ubuntu-18.04-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            next-swc-cargo-cache-ubuntu-18.04
+            next-swc-cargo-cache-dev-ubuntu-18.04
 
       # since the repo's dependencies aren't installed we need
       # to install napi globally
@@ -855,6 +856,7 @@ jobs:
           path: .turbo
           key: turbo-${{ github.job }}-${{ matrix.name }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
           restore-keys: |
+            turbo-${{ github.job }}-${{ matrix.name }}-
             turbo-${{ github.job }}-${{ matrix.name }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
             turbo-${{ github.job }}-${{ matrix.name }}-canary-${{ needs.build.outputs.weekNum }}-
 
