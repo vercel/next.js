@@ -63,7 +63,11 @@ const nextInfo: cliCommand = async (argv) => {
 export { nextInfo }
 
 function getPackageVersion(packageName: string) {
-  return require(`${packageName}/package.json`).version
+  try {
+    return require(`${packageName}/package.json`).version
+  } catch {
+    return 'N/A'
+  }
 }
 
 function getBinaryVersion(binaryName: string) {
