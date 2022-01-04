@@ -23,9 +23,9 @@ module.exports = function (plop) {
       return [
         {
           type: 'add',
-          templateFile: `test/{{${
+          templateFile: `test/${
             data.type === 'unit' ? 'unit' : 'e2e'
-          }}}/example.hbs`,
+          }/example.txt`,
           path: `test/{{type}}/${
             data.type === 'unit'
               ? `${fileName}.test.ts`
@@ -51,7 +51,7 @@ module.exports = function (plop) {
         {
           type: 'add',
           path: `errors/${fileName}.md`,
-          templateFile: `errors/template.hbs`,
+          templateFile: `errors/template.txt`,
         },
         {
           type: 'modify',
