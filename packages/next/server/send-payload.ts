@@ -3,6 +3,7 @@ import { isResSent } from '../shared/lib/utils'
 import generateETag from 'next/dist/compiled/etag'
 import fresh from 'next/dist/compiled/fresh'
 import RenderResult from './render-result'
+import { BaseNextResponse } from './base-http'
 
 export type PayloadOptions =
   | { private: true }
@@ -10,7 +11,7 @@ export type PayloadOptions =
   | { private: boolean; stateful: false; revalidate: number | false }
 
 export function setRevalidateHeaders(
-  res: ServerResponse,
+  res: ServerResponse | BaseNextResponse,
   options: PayloadOptions
 ) {
   if (options.private || options.stateful) {

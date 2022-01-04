@@ -1,4 +1,3 @@
-import type { IncomingMessage, ServerResponse } from 'http'
 import type { Options as DevServerOptions } from './dev/next-dev-server'
 import type { RequestHandler } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
@@ -11,6 +10,7 @@ import { resolve } from 'path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
+import { BaseNextRequest, BaseNextResponse } from './base-http'
 
 let ServerImpl: typeof Server
 
@@ -43,8 +43,8 @@ export class NextServer {
 
   getRequestHandler(): RequestHandler {
     return async (
-      req: IncomingMessage,
-      res: ServerResponse,
+      req: BaseNextRequest,
+      res: BaseNextResponse,
       parsedUrl?: UrlWithParsedQuery
     ) => {
       const requestHandler = await this.getServerRequestHandler()

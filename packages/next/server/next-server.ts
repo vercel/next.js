@@ -1,4 +1,4 @@
-import type { Route } from './router'
+import type { Params, Route } from './router'
 import type { CacheFs } from '../shared/lib/utils'
 
 import fs from 'fs'
@@ -9,17 +9,22 @@ import { PAGES_MANIFEST, BUILD_ID_FILE } from '../shared/lib/constants'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { route } from './router'
-import type { UrlWithParsedQuery } from 'url'
+import { format as formatUrl } from 'url'
 import compression from 'next/dist/compiled/compression'
+import Proxy from 'next/dist/compiled/http-proxy'
+import { UrlWithParsedQuery } from 'url'
 
-import BaseServer from './base-server'
-import {
-  NodeNextRequest,
-  NodeNextResponse,
-} from './base-http'
+import BaseServer, { prepareServerlessUrl, stringifyQuery } from './base-server'
+import { NodeNextRequest, NodeNextResponse } from './base-http'
 import renderResult from './render-result'
 import { PayloadOptions, sendRenderResult } from './send-payload'
 import { serveStatic } from './serve-static'
+import { ParsedUrlQuery } from 'querystring'
+import { apiResolver } from './api-utils'
+import { RenderOpts, renderToHTML } from './render'
+import { NextParsedUrlQuery } from './request-meta'
+import RenderResult from './render-result'
+import { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 
 export * from './base-server'
 
@@ -184,16 +189,130 @@ export default class NextNodeServer extends BaseServer {
     return serveStatic(req.req, res.res, path)
   }
 
-  protected async run(
+  protected handleCompression(
     req: NodeNextRequest,
-    res: NodeNextResponse,
-    parsedUrl: UrlWithParsedQuery
-  ): Promise<void> {
+    res: NodeNextResponse
+  ): void {
     if (this.compression) {
       this.compression(req.req, res.res, () => {})
     }
+  }
 
-    super.run(req, res, parsedUrl)
+  protected async proxyRequest(
+    req: NodeNextRequest,
+    res: NodeNextResponse,
+    parsedUrl: ParsedUrl
+  ) {
+    const { query } = parsedUrl
+    delete (parsedUrl as any).query
+    parsedUrl.search = stringifyQuery(req, query)
+
+    const target = formatUrl(parsedUrl)
+    const proxy = new Proxy({
+      target,
+      changeOrigin: true,
+      ignorePath: true,
+      xfwd: true,
+      proxyTimeout: 30_000, // limit proxying to 30 seconds
+    })
+
+    await new Promise((proxyResolve, proxyReject) => {
+      let finished = false
+
+      proxy.on('proxyReq', (proxyReq) => {
+        proxyReq.on('close', () => {
+          if (!finished) {
+            finished = true
+            proxyResolve(true)
+          }
+        })
+      })
+      proxy.on('error', (err) => {
+        if (!finished) {
+          finished = true
+          proxyReject(err)
+        }
+      })
+      proxy.web(req.req, res.res)
+    })
+
+    return {
+      finished: true,
+    }
+  }
+
+  protected async runApi(
+    req: NodeNextRequest,
+    res: NodeNextResponse,
+    query: ParsedUrlQuery,
+    params: Params | false,
+    page: string,
+    builtPagePath: string
+  ): Promise<boolean> {
+    const pageModule = await require(builtPagePath)
+    query = { ...query, ...params }
+
+    delete query.__nextLocale
+    delete query.__nextDefaultLocale
+
+    if (!this.renderOpts.dev && this._isLikeServerless) {
+      if (typeof pageModule.default === 'function') {
+        prepareServerlessUrl(req, query)
+        await pageModule.default(req, res)
+        return true
+      }
+    }
+
+    await apiResolver(
+      req.req,
+      res.res,
+      query,
+      pageModule,
+      this.renderOpts.previewProps,
+      this.minimalMode,
+      this.renderOpts.dev,
+      page
+    )
+    return true
+  }
+
+  protected async renderHTML(
+    req: NodeNextRequest,
+    res: NodeNextResponse,
+    pathname: string,
+    query: NextParsedUrlQuery,
+    renderOpts: RenderOpts
+  ): Promise<RenderResult | null> {
+    return renderToHTML(req.req, res.res, pathname, query, renderOpts)
+  }
+
+  protected streamResponseChunk(res: NodeNextResponse, chunk: any) {
+    res.res.write(chunk)
+  }
+
+  protected async imageOptimizer(
+    req: NodeNextRequest,
+    res: NodeNextResponse,
+    parsedUrl: UrlWithParsedQuery
+  ): Promise<{ finished: boolean }> {
+    const { imageOptimizer } =
+      require('./image-optimizer') as typeof import('./image-optimizer')
+
+    return imageOptimizer(
+      req.req,
+      res.res,
+      parsedUrl,
+      this.nextConfig,
+      this.distDir,
+      () => this.render404(req, res, parsedUrl),
+      (newReq, newRes, newParsedUrl) =>
+        this.getRequestHandler()(
+          new NodeNextRequest(newReq),
+          new NodeNextResponse(newRes),
+          newParsedUrl
+        ),
+      this.renderOpts.dev
+    )
   }
 
   protected getCacheFilesystem(): CacheFs {

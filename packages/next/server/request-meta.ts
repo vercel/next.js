@@ -3,13 +3,13 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest } from './base-http'
 
-const NEXT_REQUEST_META = Symbol('NextRequestMeta')
+export const NEXT_REQUEST_META = Symbol('NextRequestMeta')
 
-interface NextIncomingMessage extends BaseNextRequest {
+export interface NextIncomingMessage extends BaseNextRequest {
   [NEXT_REQUEST_META]?: RequestMeta
 }
 
-interface RequestMeta {
+export interface RequestMeta {
   __NEXT_INIT_QUERY?: ParsedUrlQuery
   __NEXT_INIT_URL?: string
   __nextHadTrailingSlash?: boolean

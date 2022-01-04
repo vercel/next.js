@@ -4,6 +4,7 @@ import { PERMANENT_REDIRECT_STATUS } from '../shared/lib/constants'
 // import { ParsedNextUrl, parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import { getCookieParser, NextApiRequestCookies, parseBody } from './api-utils'
 import { I18NConfig } from './config-shared'
+import { NEXT_REQUEST_META, RequestMeta } from './request-meta'
 
 export interface BaseNextRequestConfig {
   basePath: string | undefined
@@ -31,7 +32,15 @@ export abstract class BaseNextRequest<Body = any> {
 export class NodeNextRequest extends BaseNextRequest<Readable> {
   public headers = this.req.headers
 
-  constructor(public req: IncomingMessage) {
+  set [NEXT_REQUEST_META](value: RequestMeta) {
+    // Mirror meta object to Node request for when `getRequestMeta` gets called on it
+    // This still happens in render.tsx
+    this.req[NEXT_REQUEST_META] = value
+  }
+
+  constructor(
+    public req: IncomingMessage & { [NEXT_REQUEST_META]?: RequestMeta }
+  ) {
     super(req.method!.toUpperCase(), req.url!, req)
   }
 

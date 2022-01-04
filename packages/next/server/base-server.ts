@@ -6,7 +6,6 @@ import type { FetchEventResult } from './web/types'
 import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
-import type { NextApiRequest, NextApiResponse } from '../shared/lib/utils'
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
@@ -19,7 +18,6 @@ import type { ResponseCacheEntry, ResponseCacheValue } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 import type { CacheFs } from '../shared/lib/utils'
 
-import Proxy from 'next/dist/compiled/http-proxy'
 import { join, relative, resolve, sep } from 'path'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
@@ -28,7 +26,6 @@ import {
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
-  PERMANENT_REDIRECT_STATUS,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
@@ -45,22 +42,12 @@ import {
   getMiddlewareRegex,
 } from '../shared/lib/router/utils'
 import * as envConfig from '../shared/lib/runtime-config'
-import {
-  DecodeError,
-  isResSent,
-  normalizeRepeatedSlashes,
-} from '../shared/lib/utils'
-import {
-  apiResolver,
-  setLazyProp,
-  getCookieParser,
-  tryGetPreviewData,
-} from './api-utils'
+import { DecodeError, normalizeRepeatedSlashes } from '../shared/lib/utils'
+import { setLazyProp, getCookieParser, tryGetPreviewData } from './api-utils'
 import { isTargetLikeServerless } from './config'
 import pathMatch from '../shared/lib/router/utils/path-match'
 import { loadComponents } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
-import { renderToHTML } from './render'
 import { getPagePath, requireFontManifest } from './require'
 import Router, { replaceBasePath, route } from './router'
 import {
@@ -230,6 +217,45 @@ export default abstract class Server {
     res: BaseNextResponse,
     path: string
   ): Promise<void>
+
+  protected abstract runApi(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    query: ParsedUrlQuery,
+    params: Params | boolean,
+    page: string,
+    builtPagePath: string
+  ): Promise<boolean>
+
+  protected abstract renderHTML(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    pathname: string,
+    query: NextParsedUrlQuery,
+    renderOpts: RenderOpts
+  ): Promise<RenderResult | null>
+
+  protected abstract streamResponseChunk(
+    res: BaseNextResponse,
+    chunk: any
+  ): void
+
+  protected abstract handleCompression(
+    req: BaseNextRequest,
+    res: BaseNextResponse
+  ): void
+
+  protected abstract proxyRequest(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    parsedUrl: ParsedUrl
+  ): Promise<{ finished: boolean }>
+
+  protected abstract imageOptimizer(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    parsedUrl: UrlWithParsedQuery
+  ): Promise<{ finished: boolean }>
 
   public constructor({
     dir = '.',
@@ -793,7 +819,6 @@ export default abstract class Server {
     dynamicRoutes: DynamicRoutes | undefined
     locales: string[]
   } {
-    const server: Server = this
     const publicRoutes = this.generatePublicRoutes()
 
     const staticFilesRoute = this.hasStaticDir
@@ -939,18 +964,8 @@ export default abstract class Server {
               finished: true,
             }
           }
-          const { imageOptimizer } =
-            require('./image-optimizer') as typeof import('./image-optimizer')
 
-          return imageOptimizer(
-            server,
-            req as any,
-            res as any,
-            parsedUrl,
-            server.nextConfig,
-            server.distDir,
-            this.renderOpts.dev
-          )
+          return this.imageOptimizer(req, res, parsedUrl)
         },
       },
       {
@@ -1023,67 +1038,6 @@ export default abstract class Server {
           } as Route
         })
 
-    // since initial query values are decoded by querystring.parse
-    // we need to re-encode them here but still allow passing through
-    // values from rewrites/redirects
-    const stringifyQuery = (req: BaseNextRequest, query: ParsedUrlQuery) => {
-      const initialQueryValues = Object.values(
-        getRequestMeta(req, '__NEXT_INIT_QUERY') || {}
-      )
-
-      return stringifyQs(query, undefined, undefined, {
-        encodeURIComponent(value) {
-          if (initialQueryValues.some((val) => val === value)) {
-            return encodeURIComponent(value)
-          }
-          return value
-        },
-      })
-    }
-
-    const proxyRequest = async (
-      req: BaseNextRequest,
-      res: BaseNextResponse,
-      parsedUrl: ParsedUrl
-    ) => {
-      const { query } = parsedUrl
-      delete (parsedUrl as any).query
-      parsedUrl.search = stringifyQuery(req, query)
-
-      const target = formatUrl(parsedUrl)
-      const proxy = new Proxy({
-        target,
-        changeOrigin: true,
-        ignorePath: true,
-        xfwd: true,
-        proxyTimeout: 30_000, // limit proxying to 30 seconds
-      })
-
-      await new Promise((proxyResolve, proxyReject) => {
-        let finished = false
-
-        proxy.on('proxyReq', (proxyReq) => {
-          proxyReq.on('close', () => {
-            if (!finished) {
-              finished = true
-              proxyResolve(true)
-            }
-          })
-        })
-        proxy.on('error', (err) => {
-          if (!finished) {
-            finished = true
-            proxyReject(err)
-          }
-        })
-        proxy.web(req, res)
-      })
-
-      return {
-        finished: true,
-      }
-    }
-
     const redirects = this.minimalMode
       ? []
       : this.customRoutes.redirects.map((redirect) => {
@@ -1148,7 +1102,7 @@ export default abstract class Server {
 
           // external rewrite, proxy it
           if (parsedDestination.protocol) {
-            return proxyRequest(req, res, parsedDestination)
+            return this.proxyRequest(req, res, parsedDestination)
           }
 
           addRequestMeta(req, '_nextRewroteUrl', newUrl)
@@ -1307,7 +1261,7 @@ export default abstract class Server {
                 ? `${parsedDestination.hostname}:${parsedDestination.port}`
                 : parsedDestination.hostname) !== req.headers.host
             ) {
-              return proxyRequest(req, res, parsedDestination)
+              return this.proxyRequest(req, res, parsedDestination)
             }
 
             if (this.nextConfig.i18n) {
@@ -1334,9 +1288,9 @@ export default abstract class Server {
           if (result.response.headers.has('x-middleware-refresh')) {
             res.statusCode = result.response.status
             for await (const chunk of result.response.body || ([] as any)) {
-              res.write(chunk)
+              this.streamResponseChunk(res, chunk)
             }
-            res.end()
+            res.send()
             return {
               finished: true,
             }
@@ -1486,7 +1440,7 @@ export default abstract class Server {
     query: ParsedUrlQuery
   ): Promise<boolean> {
     let page = pathname
-    let params: Params | boolean = false
+    let params: Params | false = false
     let pageFound = await this.hasPage(page)
 
     if (!pageFound && this.dynamicRoutes) {
@@ -1517,31 +1471,7 @@ export default abstract class Server {
       throw err
     }
 
-    const pageModule = await require(builtPagePath)
-    query = { ...query, ...params }
-
-    delete query.__nextLocale
-    delete query.__nextDefaultLocale
-
-    if (!this.renderOpts.dev && this._isLikeServerless) {
-      if (typeof pageModule.default === 'function') {
-        prepareServerlessUrl(req, query)
-        await pageModule.default(req, res)
-        return true
-      }
-    }
-
-    await apiResolver(
-      req,
-      res,
-      query,
-      pageModule,
-      this.renderOpts.previewProps,
-      this.minimalMode,
-      this.renderOpts.dev,
-      page
-    )
-    return true
+    return this.runApi(req, res, query, params, page, builtPagePath)
   }
 
   protected getDynamicRoutes(): Array<RoutingItem> {
@@ -1569,6 +1499,8 @@ export default abstract class Server {
     res: BaseNextResponse,
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
+    this.handleCompression(req, res)
+
     try {
       const matched = await this.router.execute(req, res, parsedUrl)
       if (matched) {
@@ -1900,13 +1832,10 @@ export default abstract class Server {
         redirect.destination = normalizeRepeatedSlashes(redirect.destination)
       }
 
-      if (statusCode === PERMANENT_REDIRECT_STATUS) {
-        res.setHeader('Refresh', `0;url=${redirect.destination}`)
-      }
-
-      res.statusCode = statusCode
-      res.setHeader('Location', redirect.destination)
-      res.end(redirect.destination)
+      res
+        .redirect(redirect.destination, statusCode)
+        .body(redirect.destination)
+        .send()
     }
 
     // remove /_next/data prefix from urlPathname so it matches
@@ -2012,7 +1941,7 @@ export default abstract class Server {
               : resolvedUrl,
         }
 
-        const renderResult = await renderToHTML(
+        const renderResult = await this.renderHTML(
           req,
           res,
           pathname,
@@ -2047,7 +1976,7 @@ export default abstract class Server {
       async (hasResolved) => {
         const isProduction = !this.renderOpts.dev
         const isDynamicPathname = isDynamicRoute(pathname)
-        const didRespond = hasResolved || isResSent(res)
+        const didRespond = hasResolved || res.sent
 
         let { staticPaths, fallbackMode } = hasStaticPaths
           ? await this.getStaticPaths(pathname)
@@ -2179,7 +2108,7 @@ export default abstract class Server {
       }
       if (isDataReq) {
         res.statusCode = 404
-        res.end('{"notFound":true}')
+        res.body('{"notFound":true}').send()
         return null
       } else {
         await this.render404(
@@ -2582,7 +2511,7 @@ export default abstract class Server {
   }
 }
 
-function prepareServerlessUrl(
+export function prepareServerlessUrl(
   req: BaseNextRequest,
   query: ParsedUrlQuery
 ): void {
@@ -2593,6 +2522,24 @@ function prepareServerlessUrl(
     query: {
       ...curUrl.query,
       ...query,
+    },
+  })
+}
+
+// since initial query values are decoded by querystring.parse
+// we need to re-encode them here but still allow passing through
+// values from rewrites/redirects
+export const stringifyQuery = (req: BaseNextRequest, query: ParsedUrlQuery) => {
+  const initialQueryValues = Object.values(
+    getRequestMeta(req, '__NEXT_INIT_QUERY') || {}
+  )
+
+  return stringifyQs(query, undefined, undefined, {
+    encodeURIComponent(value) {
+      if (initialQueryValues.some((val) => val === value)) {
+        return encodeURIComponent(value)
+      }
+      return value
     },
   })
 }
