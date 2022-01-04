@@ -551,7 +551,7 @@ jobs:
       - build-windows-aarch64
       - build-linux-musl
       - build-linux-arm7
-      - build-linux-aarch64
+      - build-linux-aarch64-gnu
       - build-android-aarch64
       - build-linux-aarch64-musl
     env:
@@ -1058,7 +1058,7 @@ jobs:
           name: next-swc-binaries
           path: packages/next-swc/native/next-swc.linux-x64-musl.node
 
-  build-linux-aarch64:
+  build-linux-aarch64-gnu:
     needs: build
     # if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - aarch64-unknown-linux-gnu - node@14
@@ -1320,6 +1320,17 @@ jobs:
           override: true
           target: wasm32-unknown-unknown
 
+      - name: Turbo cache
+        id: turbo-cache
+        uses: actions/cache@v2
+        with:
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ matrix.target }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-${{ matrix.target }}-
+            turbo-${{ github.job }}-${{ matrix.target }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
+            turbo-${{ github.job }}-${{ matrix.target }}-canary-${{ needs.build.outputs.weekNum }}-
+
       - name: Cache
         uses: actions/cache@v2
         with:
@@ -1332,10 +1343,10 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build
-        run: (wasm-pack build packages/next-swc/crates/wasm --release --scope=next --target ${{ matrix.target }})
+        run: turbo run build-wasm --cache-dir=".turbo" -- --target ${{ matrix.target }}
 
       - name: Add target to folder name
-        run: mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }}
+        run: '[[ -f "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -1378,24 +1389,28 @@ jobs:
             **/target/
           key: ${{ runner.os }}-publish-integration
 
-      - name: Cache wasm binary
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-        id: binary-cache
+      - name: Turbo Cache
+        id: turbo-cache
         uses: actions/cache@v2
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
-          path: packages/next-swc/crates/wasm/pkg-nodejs
-          key: dev-wasm-next-swc-nightly-2021-11-15-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-
+            turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-
+            turbo-${{ github.job }}-canary-${{ steps.get-week.outputs.WEEK }}-
 
       - name: Install wasm-pack
-        if: ${{needs.build.outputs.docsChange != 'docs only change' && steps.binary-cache.outputs.cache-hit != 'true'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build
-        if: ${{needs.build.outputs.docsChange != 'docs only change' && steps.binary-cache.outputs.cache-hit != 'true'}}
-        run: (wasm-pack build packages/next-swc/crates/wasm --dev --scope=next --target nodejs)
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        run: turbo run build-wasm --cache-dir=".turbo" -- --target nodejs --dev
 
       - name: Add target to folder name
-        if: ${{needs.build.outputs.docsChange != 'docs only change' && steps.binary-cache.outputs.cache-hit != 'true'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         run: mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs
 
       - name: Upload artifact
