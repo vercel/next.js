@@ -92,7 +92,8 @@ export function getRequiredConfiguration(
 export async function writeConfigurationDefaults(
   ts: typeof import('typescript'),
   tsConfigPath: string,
-  isFirstTimeSetup: boolean
+  isFirstTimeSetup: boolean,
+  ignoreConfigSuggestions = false
 ): Promise<void> {
   if (isFirstTimeSetup) {
     await fs.writeFile(tsConfigPath, '{}' + os.EOL)
@@ -116,7 +117,7 @@ export async function writeConfigurationDefaults(
   for (const optionKey of Object.keys(desiredCompilerOptions)) {
     const check = desiredCompilerOptions[optionKey]
     if ('suggested' in check) {
-      if (!(optionKey in tsOptions)) {
+      if (!(optionKey in tsOptions) && !ignoreConfigSuggestions) {
         if (!userTsConfig.compilerOptions) {
           userTsConfig.compilerOptions = {}
         }
@@ -151,7 +152,7 @@ export async function writeConfigurationDefaults(
     }
   }
 
-  if (!('include' in rawConfig)) {
+  if (!('include' in rawConfig) && !ignoreConfigSuggestions) {
     userTsConfig.include = ['next-env.d.ts', '**/*.ts', '**/*.tsx']
     suggestedActions.push(
       chalk.cyan('include') +
@@ -160,7 +161,7 @@ export async function writeConfigurationDefaults(
     )
   }
 
-  if (!('exclude' in rawConfig)) {
+  if (!('exclude' in rawConfig) && !ignoreConfigSuggestions) {
     userTsConfig.exclude = ['node_modules']
     suggestedActions.push(
       chalk.cyan('exclude') + ' was set to ' + chalk.bold(`['node_modules']`)

@@ -41,6 +41,8 @@ export interface TypeScriptConfig {
   ignoreBuildErrors?: boolean
   /** Relative path to a custom tsconfig file */
   tsconfigPath?: string
+  /** Do not modify tsconfig.json with suggested values */
+  ignoreConfigSuggestions?: boolean
 }
 
 export type NextConfig = { [key: string]: any } & {
