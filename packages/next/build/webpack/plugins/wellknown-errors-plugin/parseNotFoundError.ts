@@ -1,6 +1,6 @@
-import Chalk from 'chalk'
+import Chalk from 'next/dist/compiled/chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
-import { createOriginalStackFrame } from '@next/react-dev-overlay/lib/middleware'
+import { createOriginalStackFrame } from 'next/dist/compiled/@next/react-dev-overlay/middleware'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 const chalk = new Chalk.constructor({ enabled: true })

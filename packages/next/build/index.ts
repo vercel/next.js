@@ -1,11 +1,11 @@
 import { loadEnvConfig } from '@next/env'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { isMatch } from 'next/dist/compiled/micromatch'
 import { promises, writeFileSync } from 'fs'
 import { Worker } from '../lib/worker'
 import devalue from 'next/dist/compiled/devalue'
-import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
+import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
@@ -243,7 +243,8 @@ export default async function build(
 
     const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
     const eslintCacheDir = path.join(cacheDir, 'eslint/')
-    if (!ignoreESLint && runLint) {
+    const shouldLint = !ignoreESLint && runLint
+    if (shouldLint) {
       await nextBuildSpan
         .traceChild('verify-and-lint')
         .traceAsyncFn(async () => {
@@ -257,6 +258,14 @@ export default async function build(
           )
         })
     }
+    const buildLintEvent: EventBuildFeatureUsage = {
+      featureName: 'build-lint',
+      invocationCount: shouldLint ? 1 : 0,
+    }
+    telemetry.record({
+      eventName: EVENT_BUILD_FEATURE_USAGE,
+      payload: buildLintEvent,
+    })
 
     const buildSpinner = createSpinner({
       prefixText: `${Log.prefixes.info} Creating an optimized production build`,
@@ -774,6 +783,9 @@ export default async function build(
       ? require.resolve('./worker')
       : require.resolve('./utils')
     let infoPrinted = false
+
+    process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
+
     const staticWorkers = new Worker(staticWorker, {
       timeout: timeout * 1000,
       onRestart: (method, [arg], attempts) => {
@@ -825,7 +837,6 @@ export default async function build(
       >
 
     const analysisBegin = process.hrtime()
-
     const staticCheckSpan = nextBuildSpan.traceChild('static-check')
     const {
       customAppGetInitialProps,
@@ -834,8 +845,6 @@ export default async function build(
       hasSsrAmpPages,
       hasNonStaticErrorPage,
     } = await staticCheckSpan.traceAsyncFn(async () => {
-      process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
-
       const { configFileName, publicRuntimeConfig, serverRuntimeConfig } =
         config
       const runtimeEnvConfig = { publicRuntimeConfig, serverRuntimeConfig }
@@ -1205,6 +1214,8 @@ export default async function build(
             ).createHash('sha256')
 
             cacheHash.update(require('next/package').version)
+            cacheHash.update(hasSsrAmpPages + '')
+            cacheHash.update(ciEnvironment.hasNextSupport + '')
 
             await Promise.all(
               lockFiles.map(async (lockFile) => {
@@ -1233,12 +1244,20 @@ export default async function build(
               processCwd: dir,
               ignore: [
                 '**/next/dist/pages/**/*',
-                '**/next/dist/server/image-optimizer.js',
-                '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
-                '**/next/dist/server/lib/squoosh/**/*.wasm',
                 '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
-                '**/node_modules/sharp/**/*',
                 '**/node_modules/webpack5/**/*',
+                '**/next/dist/server/lib/squoosh/**/*.wasm',
+                ...(ciEnvironment.hasNextSupport
+                  ? [
+                      // only ignore image-optimizer code when
+                      // this is being handled outside of next-server
+                      '**/next/dist/server/image-optimizer.js',
+                      '**/node_modules/sharp/**/*',
+                    ]
+                  : []),
+                ...(!hasSsrAmpPages
+                  ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
+                  : []),
               ],
             }
           )
@@ -1381,6 +1400,13 @@ export default async function build(
       'utf8'
     )
 
+    const middlewareManifest: MiddlewareManifest = JSON.parse(
+      await promises.readFile(
+        path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+        'utf8'
+      )
+    )
+
     const outputFileTracingRoot =
       config.experimental.outputFileTracingRoot || dir
 
@@ -1393,7 +1419,8 @@ export default async function build(
             distDir,
             pageKeys,
             outputFileTracingRoot,
-            requiredServerFiles.config
+            requiredServerFiles.config,
+            middlewareManifest
           )
         })
     }
@@ -1942,13 +1969,6 @@ export default async function build(
       )
     }
 
-    const middlewareManifest: MiddlewareManifest = JSON.parse(
-      await promises.readFile(
-        path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
-        'utf8'
-      )
-    )
-
     await promises.writeFile(
       path.join(
         distDir,
@@ -2013,7 +2033,8 @@ export default async function build(
           path.relative(outputFileTracingRoot, distDir),
           SERVER_DIRECTORY,
           'pages'
-        )
+        ),
+        { overwrite: true }
       )
     }
 

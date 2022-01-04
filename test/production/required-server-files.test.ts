@@ -70,8 +70,6 @@ describe('should set-up next', () => {
       dot: true,
     })
 
-    console.error({ files })
-
     for (const file of files) {
       if (file.endsWith('.json') || file.endsWith('.html')) {
         await fs.remove(join(next.testDir, '.next/server', file))
@@ -107,6 +105,22 @@ describe('should set-up next', () => {
   afterAll(async () => {
     await next.destroy()
     if (server) await killApp(server)
+  })
+
+  it('should output middleware correctly', async () => {
+    // the middleware-runtime is located in .next/static/chunks so ensure
+    // the folder is present
+    expect(
+      await fs.pathExists(join(next.testDir, 'standalone/.next/static/chunks'))
+    ).toBe(true)
+    expect(
+      await fs.pathExists(
+        join(
+          next.testDir,
+          'standalone/.next/server/pages/middleware/_middleware.js'
+        )
+      )
+    ).toBe(true)
   })
 
   it('should output required-server-files manifest correctly', async () => {

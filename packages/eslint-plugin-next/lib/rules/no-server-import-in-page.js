@@ -29,7 +29,7 @@ module.exports = {
 
         context.report({
           node,
-          message: `next/server should not be imported outside of pages/_middleware.js. See https://nextjs.org/docs/messages/no-server-import-in-page.`,
+          message: `next/server should not be imported outside of pages/_middleware.js. See: https://nextjs.org/docs/messages/no-server-import-in-page`,
         })
       },
     }
