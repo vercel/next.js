@@ -1476,6 +1476,19 @@ const runTests = (isDev = false) => {
             destination: '/users/:name',
             statusCode: 307,
           },
+          {
+            source: '/has-redirect-9',
+            regex: normalizeRegEx('^(?!\\/_next)\\/has-redirect-9(?:\\/)?$'),
+            has: [
+              {
+                type: 'query',
+                key: 'name',
+                value: '(?<name>.*)',
+              },
+            ],
+            destination: 'https://:name.example.com/',
+            statusCode: 307,
+          },
         ],
         headers: [
           {
