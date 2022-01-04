@@ -1341,7 +1341,7 @@ jobs:
         run: turbo run build-wasm --cache-dir=".turbo" -- --target ${{ matrix.target }}
 
       - name: Add target to folder name
-        run: '[[ -f "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
+        run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -1399,7 +1399,7 @@ jobs:
 
       - name: Add target to folder name
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-        run: '[[ -f "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs || ls packages/next-swc/crates/wasm'
+        run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs || ls packages/next-swc/crates/wasm'
 
       - name: Upload artifact
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
