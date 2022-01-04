@@ -9,12 +9,8 @@
   ],
   "main": "next-swc.linux-arm64-musl.node",
   "files": [
-    "next-swc.linux-arm64-musl.node",
-    "install.js"
+    "next-swc.linux-arm64-musl.node"
   ],
-  "scripts": {
-    "install": "node install.js"
-  },
   "license": "MIT",
   "engines": {
     "node": ">= 10"

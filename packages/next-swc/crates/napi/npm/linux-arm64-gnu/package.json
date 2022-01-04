@@ -9,12 +9,8 @@
   ],
   "main": "next-swc.linux-arm64-gnu.node",
   "files": [
-    "next-swc.linux-arm64-gnu.node",
-    "install.js"
+    "next-swc.linux-arm64-gnu.node"
   ],
-  "scripts": {
-    "install": "node install.js"
-  },
   "license": "MIT",
   "engines": {
     "node": ">= 10"
