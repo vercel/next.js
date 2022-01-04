@@ -3,6 +3,12 @@ import { NextResponse } from 'next/server'
 export async function middleware(request) {
   const url = request.nextUrl
 
+  if (url.pathname.startsWith('/rewrites/to-blog')) {
+    const slug = url.pathname.split('/').pop()
+    console.log('rewriting to slug', slug)
+    return NextResponse.rewrite(`/rewrites/fallback-true-blog/${slug}`)
+  }
+
   if (url.pathname === '/rewrites/rewrite-to-ab-test') {
     let bucket = request.cookies.bucket
     if (!bucket) {
@@ -24,8 +30,14 @@ export async function middleware(request) {
   }
 
   if (url.pathname === '/rewrites/rewrite-me-without-hard-navigation') {
-    url.pathname = '/rewrites/about'
     url.searchParams.set('middleware', 'foo')
-    return NextResponse.rewrite(url)
+    url.pathname =
+      request.cookies['about-bypass'] === '1'
+        ? '/rewrites/about-bypass'
+        : '/rewrites/about'
+
+    const response = NextResponse.rewrite(url)
+    response.headers.set('x-middleware-cache', 'no-cache')
+    return response
   }
 }
