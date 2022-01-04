@@ -128,8 +128,8 @@ To learn more about Telemetry, [please read this document](https://nextjs.org/te
 
 ## Info
 
-Reporting accurate details about the environment in which Next.js runs when reporting a bug makes resolving the issue easier.
-Useful information is then printed to the terminal, such as Operating System platform/version, Binaries (Node.js, npm, Yarn, pnpm) and npm package versions (`next`, `react`, `react-dom`). This eliminates the user having to call individual commands to gather the same information before opening a report.
+`next info` prints relevant details about the current system which can be used to report Next.js bugs.
+This information includes Operating System platform/arch/version, Binaries (Node.js, npm, Yarn, pnpm) and npm package versions (`next`, `react`, `react-dom`).
 
 Running the following in your project's root directory:
 
@@ -143,6 +143,7 @@ will give you information like this example:
 
     Operating System:
       Platform: linux
+      Arch: x64
       Version: #22-Ubuntu SMP Fri Nov 5 13:21:36 UTC 2021
     Binaries:
       Node: 16.13.0
@@ -150,10 +151,10 @@ will give you information like this example:
       Yarn: 1.22.17
       pnpm: 6.24.2
     npm packages:
-      next: 12.0.8-canary.14
+      next: 12.0.8
       react: 17.0.2
       react-dom: 17.0.2
 
 ```
 
-This information should then be pasted into the bug report.
+This information should then be pasted into GitHub Issues.
