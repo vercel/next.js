@@ -53,7 +53,7 @@ const nextInfo: cliCommand = async (argv) => {
       npm: ${getBinaryVersion('npm')}
       Yarn: ${getBinaryVersion('yarn')}
       pnpm: ${getBinaryVersion('pnpm')}
-    npm packages:
+    Relevant packages:
       next: ${getPackageVersion('next')}
       react: ${getPackageVersion('react')}
       react-dom: ${getPackageVersion('react-dom')}

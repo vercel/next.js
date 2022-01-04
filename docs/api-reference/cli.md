@@ -150,7 +150,7 @@ will give you information like this example:
       npm: 8.1.0
       Yarn: 1.22.17
       pnpm: 6.24.2
-    npm packages:
+    Relevant packages:
       next: 12.0.8
       react: 17.0.2
       react-dom: 17.0.2
