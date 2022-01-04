@@ -32,10 +32,14 @@ export abstract class BaseNextRequest<Body = any> {
 export class NodeNextRequest extends BaseNextRequest<Readable> {
   public headers = this.req.headers
 
-  set [NEXT_REQUEST_META](value: RequestMeta) {
+  set [NEXT_REQUEST_META](value: RequestMeta | undefined) {
     // Mirror meta object to Node request for when `getRequestMeta` gets called on it
     // This still happens in render.tsx
     this.req[NEXT_REQUEST_META] = value
+  }
+
+  get [NEXT_REQUEST_META](): RequestMeta | undefined {
+    return this.req[NEXT_REQUEST_META]
   }
 
   constructor(
