@@ -265,9 +265,10 @@ function handleLoading(
       const p = 'decode' in img ? img.decode() : Promise.resolve()
       p.catch(() => {}).then(() => {
         if (placeholder === 'blur') {
-          img.style.filter = 'none'
-          img.style.backgroundSize = 'none'
-          img.style.backgroundImage = 'none'
+          img.style.filter = ''
+          img.style.backgroundSize = ''
+          img.style.backgroundImage = ''
+          img.style.backgroundPosition = ''
         }
         loadedImageURLs.add(src)
         if (onLoadingComplete) {
@@ -692,26 +693,28 @@ export default function Image({
         }}
         style={{ ...imgStyle, ...blurStyle }}
       />
-      <noscript>
-        <img
-          {...rest}
-          {...generateImgAttrs({
-            src,
-            unoptimized,
-            layout,
-            width: widthInt,
-            quality: qualityInt,
-            sizes,
-            loader,
-          })}
-          decoding="async"
-          data-nimg={layout}
-          style={imgStyle}
-          className={className}
-          // @ts-ignore - TODO: upgrade to `@types/react@17`
-          loading={loading || 'lazy'}
-        />
-      </noscript>
+      {isLazy && (
+        <noscript>
+          <img
+            {...rest}
+            {...generateImgAttrs({
+              src,
+              unoptimized,
+              layout,
+              width: widthInt,
+              quality: qualityInt,
+              sizes,
+              loader,
+            })}
+            decoding="async"
+            data-nimg={layout}
+            style={imgStyle}
+            className={className}
+            // @ts-ignore - TODO: upgrade to `@types/react@17`
+            loading={loading || 'lazy'}
+          />
+        </noscript>
+      )}
 
       {priority ? (
         // Note how we omit the `href` attribute, as it would only be relevant

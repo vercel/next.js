@@ -1,10 +1,12 @@
+import type { Route } from './router'
+import type { CacheFs } from '../shared/lib/utils'
+
 import fs from 'fs'
 import { join, relative } from 'path'
 
 import type { IncomingMessage, ServerResponse } from 'http'
 import { PAGES_MANIFEST, BUILD_ID_FILE } from '../shared/lib/constants'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import type { Route } from './router'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { route } from './router'
 import type { UrlWithParsedQuery } from 'url'
@@ -12,14 +14,13 @@ import compression from 'next/dist/compiled/compression'
 
 import BaseServer from './base-server'
 import {
-  BaseNextRequest,
-  BaseNextResponse,
   NodeNextRequest,
   NodeNextResponse,
 } from './base-http'
 import renderResult from './render-result'
 import { PayloadOptions, sendRenderResult } from './send-payload'
 import { serveStatic } from './serve-static'
+
 export * from './base-server'
 
 type ExpressMiddleware = (
@@ -193,5 +194,15 @@ export default class NextNodeServer extends BaseServer {
     }
 
     super.run(req, res, parsedUrl)
+  }
+
+  protected getCacheFilesystem(): CacheFs {
+    return {
+      readFile: (f) => fs.promises.readFile(f, 'utf8'),
+      readFileSync: (f) => fs.readFileSync(f, 'utf8'),
+      writeFile: (f, d) => fs.promises.writeFile(f, d, 'utf8'),
+      mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
+      stat: (f) => fs.promises.stat(f),
+    }
   }
 }
