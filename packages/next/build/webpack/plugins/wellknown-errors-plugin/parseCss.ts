@@ -1,4 +1,4 @@
-import Chalk from 'chalk'
+import Chalk from 'next/dist/compiled/chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
 
 const chalk = new Chalk.constructor({ enabled: true })

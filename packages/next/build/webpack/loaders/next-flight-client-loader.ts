@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import * as acorn from 'acorn'
+import * as acorn from 'next/dist/compiled/acorn'
 
 type ResolveContext = {
   conditions: Array<string>

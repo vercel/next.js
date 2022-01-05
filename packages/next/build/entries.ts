@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
@@ -36,6 +36,12 @@ export function createPagesMapping(
   }
 ): PagesMapping {
   const previousPages: PagesMapping = {}
+
+  // Do not process .d.ts files inside the `pages` folder
+  pagePaths = extensions.includes('ts')
+    ? pagePaths.filter((pagePath) => !pagePath.endsWith('.d.ts'))
+    : pagePaths
+
   const pages: PagesMapping = pagePaths.reduce(
     (result: PagesMapping, pagePath): PagesMapping => {
       let page = pagePath.replace(
