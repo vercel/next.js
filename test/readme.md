@@ -16,7 +16,7 @@ For the e2e, production, and development tests the `createNext` utility should b
 
 All new test suites should be written in TypeScript either `.ts` (or `.tsx` for unit tests). This will help ensure we catch smaller issues in tests that could cause flakey or incorrect tests.
 
-If an existing test suite already exists that relates closely to the item being tested (e.g. hash navigation relates to existing navigation test suites) the new checks can be added in the existing test suite.
+If a test suite already exists that relates closely to the item being tested (e.g. hash navigation relates to existing navigation test suites) the new checks can be added in the existing test suite.
 
 ## Best Practices
 
