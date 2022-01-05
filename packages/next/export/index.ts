@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import findUp from 'next/dist/compiled/find-up'
 import {
   promises,
@@ -20,7 +20,6 @@ import {
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
-  CONFIG_FILE,
   EXPORT_DETAIL,
   EXPORT_MARKER,
   PAGES_MANIFEST,
@@ -169,7 +168,7 @@ export default async function exportApp(
 
     if (telemetry) {
       telemetry.record(
-        eventCliSession(PHASE_EXPORT, distDir, {
+        eventCliSession(distDir, nextConfig, {
           webpackVersion: null,
           cliCommand: 'export',
           isSrcDir: null,
@@ -317,7 +316,7 @@ export default async function exportApp(
     if (typeof nextConfig.exportPathMap !== 'function') {
       if (!options.silent) {
         Log.info(
-          `No "exportPathMap" found in "${CONFIG_FILE}". Generating map from "./pages"`
+          `No "exportPathMap" found in "${nextConfig.configFile}". Generating map from "./pages"`
         )
       }
       nextConfig.exportPathMap = async (defaultMap: ExportPathMap) => {
@@ -382,6 +381,10 @@ export default async function exportApp(
       // Exported pages do not currently support dynamic HTML.
       supportsDynamicHTML: false,
       concurrentFeatures: nextConfig.experimental.concurrentFeatures,
+      crossOrigin: nextConfig.crossOrigin,
+      optimizeCss: nextConfig.experimental.optimizeCss,
+      optimizeFonts: nextConfig.optimizeFonts,
+      optimizeImages: nextConfig.experimental.optimizeImages,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -521,7 +524,7 @@ export default async function exportApp(
         )
     }
 
-    const timeout = configuration?.experimental.staticPageGenerationTimeout || 0
+    const timeout = configuration?.staticPageGenerationTimeout || 0
     let infoPrinted = false
     let exportPage: typeof import('./worker').default
     let endWorker: () => Promise<void>
@@ -538,7 +541,7 @@ export default async function exportApp(
             )
           }
           Log.warn(
-            `Restarted static page genertion for ${path} because it took more than ${timeout} seconds`
+            `Restarted static page generation for ${path} because it took more than ${timeout} seconds`
           )
           if (!infoPrinted) {
             Log.warn(
@@ -597,7 +600,10 @@ export default async function exportApp(
                 ampValidationResult.errors.length > 0)
           }
           renderError = renderError || !!result.error
-          if (!!result.error) errorPaths.push(path)
+          if (!!result.error) {
+            const { page } = pathMap
+            errorPaths.push(page !== path ? `${page}: ${path}` : path)
+          }
 
           if (options.buildExport && configuration) {
             if (typeof result.fromBuildExportRevalidate !== 'undefined') {

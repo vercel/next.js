@@ -34,7 +34,7 @@ pr:
 variables:
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
   NEXT_TELEMETRY_DISABLED: '1'
-  node_version: ^12.0.0
+  node_version: ^12.22.0
 
 stages:
   - stage: Build

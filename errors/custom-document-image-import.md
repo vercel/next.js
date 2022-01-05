@@ -28,8 +28,19 @@ function MyApp({ Component, pageProps }) {
 export default MyApp
 ```
 
+If your application is not using image imports with `next/image`, you can disable the built-in loader with the following next.config.js:
+
+```js
+module.exports = {
+  images: {
+    disableStaticImages: true,
+  },
+}
+```
+
 ### Useful Links
 
 - [Custom `Document`](https://nextjs.org/docs/advanced-features/custom-document)
 - [Custom `App`](https://nextjs.org/docs/advanced-features/custom-app)
 - [Static File Serving](https://nextjs.org/docs/basic-features/static-file-serving)
+- [Disable Static Image Imports](https://nextjs.org/docs/api-reference/next/image#disable-static-imports)

@@ -1,12 +1,12 @@
 /* global location */
-import '@next/polyfill-module'
-import React from 'react'
+import '../build/polyfills/polyfill-module'
+import React, { useState } from 'react'
 import ReactDOM from 'react-dom'
-import { StyleRegistry } from 'styled-jsx'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
-import Router, {
+import type Router from '../shared/lib/router/router'
+import {
   AppComponent,
   AppProps,
   delBasePath,
@@ -33,7 +33,8 @@ import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import isError from '../lib/is-error'
-import { trackWebVitalMetric } from '../vitals/vitals'
+import { trackWebVitalMetric } from './vitals'
+import { RefreshContext } from './rsc/refresh'
 
 /// <reference types="react-dom/experimental" />
 
@@ -81,6 +82,7 @@ const {
   locales,
   domainLocales,
   isPreview,
+  rsc,
 } = data
 
 let { defaultLocale } = data
@@ -255,7 +257,9 @@ class Container extends React.Component<{
     if (process.env.NODE_ENV === 'production') {
       return this.props.children
     } else {
-      const { ReactDevOverlay } = require('@next/react-dev-overlay/lib/client')
+      const {
+        ReactDevOverlay,
+      } = require('next/dist/compiled/@next/react-dev-overlay/client')
       return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
     }
   }
@@ -339,7 +343,9 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    const { getNodeError } = require('@next/react-dev-overlay/lib/client')
+    const {
+      getNodeError,
+    } = require('next/dist/compiled/@next/react-dev-overlay/client')
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
     if (initialErr) {
@@ -357,6 +363,12 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
 
           error.name = initialErr!.name
           error.stack = initialErr!.stack
+
+          // Errors from the middleware are reported as client-side errors
+          // since the middleware is compiled using the client compiler
+          if ('middleware' in hydrateErr) {
+            throw error
+          }
 
           const node = getNodeError(error)
           throw node
@@ -610,7 +622,7 @@ function AppContainer({
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
         <HeadManagerContext.Provider value={headManager}>
-          <StyleRegistry>{children}</StyleRegistry>
+          {children}
         </HeadManagerContext.Provider>
       </RouterContext.Provider>
     </Container>
@@ -633,17 +645,173 @@ const wrapApp =
     )
   }
 
+let RSCComponent: (props: any) => JSX.Element
+if (process.env.__NEXT_RSC) {
+  const getCacheKey = () => {
+    const { pathname, search } = location
+    return pathname + search
+  }
+
+  const {
+    createFromFetch,
+  } = require('next/dist/compiled/react-server-dom-webpack')
+
+  const encoder = new TextEncoder()
+  const serverDataBuffer = new Map<string, string[]>()
+  const serverDataWriter = new Map<string, WritableStreamDefaultWriter>()
+  const serverDataCacheKey = getCacheKey()
+  function nextServerDataCallback(seg: [number, string, string]) {
+    const key = serverDataCacheKey + ',' + seg[1]
+    if (seg[0] === 0) {
+      serverDataBuffer.set(key, [])
+    } else {
+      const buffer = serverDataBuffer.get(key)
+      if (!buffer)
+        throw new Error('Unexpected server data: missing bootstrap script.')
+
+      const writer = serverDataWriter.get(key)
+      if (writer) {
+        writer.write(encoder.encode(seg[2]))
+      } else {
+        buffer.push(seg[2])
+      }
+    }
+  }
+  function nextServerDataRegisterWriter(
+    key: string,
+    writer: WritableStreamDefaultWriter
+  ) {
+    const buffer = serverDataBuffer.get(key)
+    if (buffer) {
+      buffer.forEach((val) => {
+        writer.write(encoder.encode(val))
+      })
+      buffer.length = 0
+    }
+    serverDataWriter.set(key, writer)
+  }
+  // When `DOMContentLoaded`, we can close all pending writers to finish hydration.
+  document.addEventListener(
+    'DOMContentLoaded',
+    function () {
+      serverDataWriter.forEach((writer) => {
+        if (!writer.closed) {
+          writer.close()
+        }
+      })
+    },
+    false
+  )
+
+  const nextServerDataLoadingGlobal = ((self as any).__next_s =
+    (self as any).__next_s || [])
+  nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
+  nextServerDataLoadingGlobal.push = nextServerDataCallback
+
+  function createResponseCache() {
+    return new Map<string, any>()
+  }
+  const rscCache = createResponseCache()
+
+  function fetchFlight(href: string, props?: any) {
+    const url = new URL(href, location.origin)
+    const searchParams = url.searchParams
+    searchParams.append('__flight__', '1')
+    if (props) {
+      searchParams.append('__props__', JSON.stringify(props))
+    }
+    return fetch(url.toString())
+  }
+
+  function useServerResponse(cacheKey: string, serialized?: string) {
+    const id = (React as any).useId()
+
+    let response = rscCache.get(cacheKey)
+    if (response) return response
+
+    const bufferCacheKey = cacheKey + ',' + id
+    if (serverDataBuffer.has(bufferCacheKey)) {
+      const t = new TransformStream()
+      const writer = t.writable.getWriter()
+      response = createFromFetch(Promise.resolve({ body: t.readable }))
+      nextServerDataRegisterWriter(bufferCacheKey, writer)
+    } else {
+      response = createFromFetch(
+        serialized
+          ? (() => {
+              const t = new TransformStream()
+              t.writable.getWriter().write(new TextEncoder().encode(serialized))
+              return Promise.resolve({ body: t.readable })
+            })()
+          : fetchFlight(getCacheKey())
+      )
+    }
+
+    rscCache.set(cacheKey, response)
+    return response
+  }
+
+  const ServerRoot = ({
+    cacheKey,
+    serialized,
+    _fresh,
+  }: {
+    cacheKey: string
+    serialized?: string
+    _fresh?: boolean
+  }) => {
+    const response = useServerResponse(cacheKey, serialized)
+    const root = response.readRoot()
+    rscCache.delete(cacheKey)
+    return root
+  }
+
+  RSCComponent = (props: any) => {
+    const cacheKey = getCacheKey()
+    const { __flight_serialized__, __flight_fresh__ } = props
+    const [, dispatch] = useState({})
+    const startTransition = (React as any).startTransition
+    const renrender = () => dispatch({})
+    // If there is no cache, or there is serialized data already
+    function refreshCache(nextProps: any) {
+      startTransition(() => {
+        const currentCacheKey = getCacheKey()
+        const response = createFromFetch(
+          fetchFlight(currentCacheKey, nextProps)
+        )
+
+        rscCache.set(currentCacheKey, response)
+        renrender()
+      })
+    }
+
+    return (
+      <RefreshContext.Provider value={refreshCache}>
+        <React.Suspense fallback={null}>
+          <ServerRoot
+            cacheKey={cacheKey}
+            serialized={__flight_serialized__}
+            _fresh={__flight_fresh__}
+          />
+        </React.Suspense>
+      </RefreshContext.Provider>
+    )
+  }
+}
+
 let lastAppProps: AppProps
 function doRender(input: RenderRouteInfo): Promise<any> {
-  let { App, Component, props, err }: RenderRouteInfo = input
+  let { App, Component, props, err, __N_RSC }: RenderRouteInfo = input
   let styleSheets: StyleSheetTuple[] | undefined =
     'initial' in input ? undefined : input.styleSheets
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
+  const isRSC = process.env.__NEXT_RSC && 'initial' in input ? !!rsc : !!__N_RSC
+
   const appProps: AppProps = {
     ...props,
-    Component,
+    Component: isRSC ? RSCComponent : Component,
     err,
     router,
   }

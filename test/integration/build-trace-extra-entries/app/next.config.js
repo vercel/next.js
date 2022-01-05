@@ -1,9 +1,6 @@
 const path = require('path')
 
 module.exports = {
-  experimental: {
-    outputFileTracing: true,
-  },
   webpack(cfg, { isServer }) {
     console.log(cfg.entry)
     const origEntry = cfg.entry

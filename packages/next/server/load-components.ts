@@ -6,16 +6,13 @@ import { join } from 'path'
 import { requirePage } from './require'
 import { BuildManifest } from './get-page-files'
 import { AppType, DocumentType } from '../shared/lib/utils'
+import { interopDefault } from '../lib/interop-default'
 import {
   PageConfig,
   GetStaticPaths,
   GetServerSideProps,
   GetStaticProps,
 } from 'next/types'
-
-export function interopDefault(mod: any) {
-  return mod.default || mod
-}
 
 export type ManifestItem = {
   id: number | string

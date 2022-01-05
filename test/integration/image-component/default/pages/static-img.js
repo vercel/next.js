@@ -5,6 +5,7 @@ import Image from 'next/image'
 import testJPG from '../public/test.jpg'
 import testPNG from '../public/test.png'
 import testWEBP from '../public/test.webp'
+import testAVIF from '../public/test.avif'
 import testSVG from '../public/test.svg'
 import testGIF from '../public/test.gif'
 import testBMP from '../public/test.bmp'
@@ -41,6 +42,7 @@ const Page = () => {
       <Image id="blur-png" src={testPNG} placeholder="blur" />
       <Image id="blur-jpg" src={testJPG} placeholder="blur" />
       <Image id="blur-webp" src={testWEBP} placeholder="blur" />
+      <Image id="blur-avif" src={testAVIF} placeholder="blur" />
       <Image id="static-svg" src={testSVG} />
       <Image id="static-gif" src={testGIF} />
       <Image id="static-bmp" src={testBMP} />

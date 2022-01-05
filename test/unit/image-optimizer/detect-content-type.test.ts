@@ -22,4 +22,8 @@ describe('detectContentType', () => {
     const buffer = await getImage('./images/test.svg')
     expect(detectContentType(buffer)).toBe('image/svg+xml')
   })
+  it('should return avif', async () => {
+    const buffer = await getImage('./images/test.avif')
+    expect(detectContentType(buffer)).toBe('image/avif')
+  })
 })

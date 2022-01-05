@@ -1,1 +1,4 @@
-module.exports = require('./dist/vitals/index')
+module.exports = {
+  unstable_useWebVitalsReport: require('./dist/client/vitals')
+    .useWebVitalsReport,
+}
