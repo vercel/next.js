@@ -1,5 +1,5 @@
 {
- "private": true,
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -15,8 +15,8 @@
     "react-dom": "^17.0.2"
   },
   "devDependencies": {
-    "autoprefixer": "10.2.6",
-    "postcss": "8.3.5",
-    "tailwindcss": "^2.2.4"
+    "autoprefixer": "^10.4.1",
+    "postcss": "^8.4.5",
+    "tailwindcss": "^3.0.11"
   }
 }

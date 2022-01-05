@@ -1,6 +1,5 @@
 module.exports = {
-  mode: 'JIT',
-  purge: ['./components/**/*.js', './pages/**/*.js'],
+  content: ['./components/**/*.js', './pages/**/*.js'],
   theme: {
     extend: {
       fontFamily: {
