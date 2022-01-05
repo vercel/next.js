@@ -154,7 +154,10 @@ export function getUtils({
     return parsedUrl
   }
 
-  function handleBasePath(req: IncomingMessage, parsedUrl: UrlWithParsedQuery) {
+  function handleBasePath(
+    req: BaseNextRequest | IncomingMessage,
+    parsedUrl: UrlWithParsedQuery
+  ) {
     // always strip the basePath if configured since it is required
     req.url = req.url!.replace(new RegExp(`^${basePath}`), '') || '/'
     parsedUrl.pathname =
