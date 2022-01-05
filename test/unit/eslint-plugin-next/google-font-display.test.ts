@@ -76,7 +76,7 @@ ruleTester.run('google-font-display', rule, {
       errors: [
         {
           message:
-            'Display parameter is missing. See https://nextjs.org/docs/messages/google-font-display.',
+            'Display parameter is missing. See: https://nextjs.org/docs/messages/google-font-display',
           type: 'JSXOpeningElement',
         },
       ],
@@ -98,7 +98,7 @@ ruleTester.run('google-font-display', rule, {
       errors: [
         {
           message:
-            'Block behavior is not recommended. See https://nextjs.org/docs/messages/google-font-display.',
+            'Block behavior is not recommended. See: https://nextjs.org/docs/messages/google-font-display',
           type: 'JSXOpeningElement',
         },
       ],
@@ -120,7 +120,7 @@ ruleTester.run('google-font-display', rule, {
       errors: [
         {
           message:
-            'Auto behavior is not recommended. See https://nextjs.org/docs/messages/google-font-display.',
+            'Auto behavior is not recommended. See: https://nextjs.org/docs/messages/google-font-display',
           type: 'JSXOpeningElement',
         },
       ],
@@ -142,7 +142,7 @@ ruleTester.run('google-font-display', rule, {
       errors: [
         {
           message:
-            'Fallback behavior is not recommended. See https://nextjs.org/docs/messages/google-font-display.',
+            'Fallback behavior is not recommended. See: https://nextjs.org/docs/messages/google-font-display',
           type: 'JSXOpeningElement',
         },
       ],
