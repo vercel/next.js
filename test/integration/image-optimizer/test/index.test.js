@@ -48,6 +48,40 @@ async function expectWidth(res, w) {
   expect(d.width).toBe(w)
 }
 
+async function expectAvifSmallerThanWebp(w, q) {
+  const query = { url: '/mountains.jpg', w, q }
+  const res1 = await fetchViaHTTP(appPort, '/_next/image', query, {
+    headers: {
+      accept: 'image/avif',
+    },
+  })
+  expect(res1.status).toBe(200)
+  expect(res1.headers.get('Content-Type')).toBe('image/avif')
+
+  const res2 = await fetchViaHTTP(appPort, '/_next/image', query, {
+    headers: {
+      accept: 'image/webp',
+    },
+  })
+  expect(res2.status).toBe(200)
+  expect(res2.headers.get('Content-Type')).toBe('image/webp')
+
+  const res3 = await fetchViaHTTP(appPort, '/_next/image', query, {
+    headers: {
+      accept: 'image/jpeg',
+    },
+  })
+  expect(res3.status).toBe(200)
+  expect(res3.headers.get('Content-Type')).toBe('image/jpeg')
+
+  const avif = (await res1.buffer()).byteLength
+  const webp = (await res2.buffer()).byteLength
+  const jpeg = (await res3.buffer()).byteLength
+
+  expect(webp).toBeLessThan(jpeg)
+  expect(avif).toBeLessThanOrEqual(webp)
+}
+
 function runTests({
   w,
   isDev,
@@ -63,7 +97,7 @@ function runTests({
   })
 
   it('should handle non-ascii characters in image url', async () => {
-    const query = { w, q: 90, url: '/äöü.png' }
+    const query = { w, q: 90, url: '/äöüščří.png' }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
   })
@@ -410,6 +444,18 @@ function runTests({
       // See https://github.com/image-size/image-size/issues/348
       //await expectWidth(res, w)
     })
+
+    it('should compress avif smaller than webp at q=100', async () => {
+      await expectAvifSmallerThanWebp(w, 100)
+    })
+
+    it('should compress avif smaller than webp at q=75', async () => {
+      await expectAvifSmallerThanWebp(w, 75)
+    })
+
+    it('should compress avif smaller than webp at q=50', async () => {
+      await expectAvifSmallerThanWebp(w, 50)
+    })
   }
 
   if (domains.includes('localhost')) {
@@ -694,7 +740,7 @@ function runTests({
     if (!isDev) {
       const filename = 'test'
       const query = {
-        url: `/_next/static/media/${filename}.480a01e5.jpg`,
+        url: `/_next/static/media/${filename}.fab2915d.jpg`,
         w,
         q: 100,
       }
@@ -1205,7 +1251,7 @@ describe('Image Optimizer', () => {
     })
 
     describe('dev support with next.config.js', () => {
-      const size = 64
+      const size = 400
       beforeAll(async () => {
         const json = JSON.stringify({
           images: {
@@ -1273,7 +1319,7 @@ describe('Image Optimizer', () => {
     })
 
     describe('Server support with next.config.js', () => {
-      const size = 128
+      const size = 399
       beforeAll(async () => {
         const json = JSON.stringify({
           images: {

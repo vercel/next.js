@@ -8,6 +8,8 @@ SWC requires a binary be downloaded that is compatible specific to your system. 
 
 #### Possible Ways to Fix It
 
+You might need to allow optional packages to be installed by your package manager (remove `--no-optional` flag) for the package to download correctly.
+
 If SWC continues to fail to load you can opt-out by disabling `swcMinify` in your `next.config.js` or by adding a `.babelrc` to your project with the following content:
 
 ```json

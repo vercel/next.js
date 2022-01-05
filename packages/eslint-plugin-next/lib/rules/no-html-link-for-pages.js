@@ -90,11 +90,28 @@ module.exports = {
           return
         }
 
+        const target = node.attributes.find(
+          (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'target'
+        )
+
+        if (target && target.value.value === '_blank') {
+          return
+        }
+
         const href = node.attributes.find(
           (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'href'
         )
 
-        if (!href || href.value.type !== 'Literal') {
+        if (!href || (href.value && href.value.type !== 'Literal')) {
+          return
+        }
+
+        const hasDownloadAttr = node.attributes.find(
+          (attr) =>
+            attr.type === 'JSXAttribute' && attr.name.name === 'download'
+        )
+
+        if (hasDownloadAttr) {
           return
         }
 
@@ -108,7 +125,7 @@ module.exports = {
           if (url.test(normalizeURL(hrefPath))) {
             context.report({
               node,
-              message: `Do not use the HTML <a> tag to navigate to ${hrefPath}. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages.`,
+              message: `Do not use the HTML <a> tag to navigate to ${hrefPath}. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages`,
             })
           }
         })

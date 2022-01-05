@@ -71,9 +71,15 @@ describe('TypeScript Features', () => {
       const helloTrace = await fs.readJSON(
         join(appDir, '.next/server/pages/hello.js.nft.json')
       )
+      const appTrace = await fs.readJSON(
+        join(appDir, '.next/server/pages/_app.js.nft.json')
+      )
+      expect(
+        appTrace.files.some((file) => file.includes('node_modules/next'))
+      ).toBe(true)
       expect(
         helloTrace.files.some((file) => file.includes('components/world.js'))
-      ).toBe(true)
+      ).toBe(false)
       expect(
         helloTrace.files.some((file) => file.includes('react/index.js'))
       ).toBe(true)

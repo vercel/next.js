@@ -2,15 +2,17 @@
 
 [React 18](https://reactjs.org/blog/2021/06/08/the-plan-for-react-18.html) adds new features including, Suspense, automatic batching of updates, APIs like `startTransition`, and a new streaming API for server rendering with support for `React.lazy`.
 
-React 18 is still in alpha. Read more about React 18's [release plan](https://github.com/reactwg/react-18/discussions) and discussions from the [working group](https://github.com/reactwg/react-18/discussions).
+React 18 is in RC now. Read more about React 18's [release plan](https://github.com/reactwg/react-18/discussions) and discussions from the [working group](https://github.com/reactwg/react-18/discussions).
 
 ### React 18 Usage in Next.js
 
-Ensure you have the `alpha` version of React installed:
+Ensure you have the `rc` npm tag of React installed:
 
 ```jsx
-npm install next@latest react@alpha react-dom@alpha
+npm install next@latest react@rc react-dom@rc
 ```
+
+That's all! You can now start using React 18's new APIs like `startTransition` and `Suspense` in Next.js.
 
 ### Enable SSR Streaming (Alpha)
 
@@ -33,7 +35,7 @@ Once enabled, you can use Suspense and SSR streaming for all pages. This also me
 
 ```jsx
 import dynamic from 'next/dynamic'
-import { lazy } from 'react'
+import { lazy, Suspense } from 'react'
 
 import Content from '../components/content'
 
@@ -47,7 +49,7 @@ export default function Home() {
       <Suspense fallback={<Spinner />}>
         {/* A component that uses Suspense-based */}
         <Content />
-      <Suspense>
+      </Suspense>
       <Suspense fallback={<Spinner />}>
         <Profile />
       </Suspense>
@@ -77,7 +79,7 @@ module.exports = {
 }
 ```
 
-Next, you need to customize your `pages/_document` component to be a functional component by removing any static methods like `getInitialProps` or exports like `getServerSideProps`
+Next, if you already have customized `pages/_document` component, you need to remove the `getInitialProps` static method and the `getServerSideProps` export if there’s any, otherwise it won't work with server components. If no custom Document component is provided, Next.js will fallback to a default one like below.
 
 ```jsx
 // pages/_document.js
@@ -109,7 +111,7 @@ You can then import other server or client components from any server component.
 ```jsx
 // pages/home.server.js
 
-import React, { Suspense } from 'react'
+import { Suspense } from 'react'
 
 import Profile from '../components/profile.server'
 import Content from '../components/content.client'
@@ -142,6 +144,7 @@ To see a full example, check out [link to the demo and repository](https://githu
 While RSC and SSR streaming is still in the alpha stage, not all Next.js APIs are supported. The following Next.js APIs have limited functionality inside Server Components:
 
 - React internals: Most of React hooks such as `useContext`, `useState`, `useReducer`, `useEffect` and `useLayoutEffect` are not supported as of today since Server Components are executed per requests and aren't stateful.
+- `next/head`
 - Partial: Note that Inside `.client.js` components `useRouter` is supported
 - Styled JSX
 - CSS Modules

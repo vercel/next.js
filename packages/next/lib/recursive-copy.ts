@@ -47,7 +47,7 @@ export async function recursiveCopy(
 
     if (isDirectory) {
       try {
-        await promises.mkdir(target)
+        await promises.mkdir(target, { recursive: true })
       } catch (err) {
         // do not throw `folder already exists` errors
         if (isError(err) && err.code !== 'EEXIST') {

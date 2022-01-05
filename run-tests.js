@@ -250,11 +250,9 @@ async function main() {
             ...process.env,
             // run tests in headless mode by default
             HEADLESS: 'true',
+            TRACE_PLAYWRIGHT: 'true',
             ...(isFinalRun
               ? {
-                  // only trace on final run as previous traces
-                  // are removed anyways
-                  TRACE_PLAYWRIGHT: 'true',
                   // Events can be finicky in CI. This switches to a more
                   // reliable polling method.
                   // CHOKIDAR_USEPOLLING: 'true',
@@ -277,9 +275,9 @@ async function main() {
 
       children.add(child)
 
-      child.on('exit', async (code) => {
+      child.on('exit', async (code, signal) => {
         children.delete(child)
-        if (code) {
+        if (code !== 0 || signal !== null) {
           if (isFinalRun && hideOutput) {
             // limit out to last 64kb so that we don't
             // run out of log room in CI
@@ -300,7 +298,13 @@ async function main() {
             }
             trimmedOutput.forEach((chunk) => process.stdout.write(chunk))
           }
-          return reject(new Error(`failed with code: ${code}`))
+          return reject(
+            new Error(
+              code
+                ? `failed with code: ${code}`
+                : `failed with signal: ${signal}`
+            )
+          )
         }
         await fs
           .remove(
@@ -350,6 +354,8 @@ async function main() {
               await exec(`git clean -fdx "${testDir}"`)
               await exec(`git checkout "${testDir}"`)
             } catch (err) {}
+          } else {
+            console.error(`${test} failed due to ${err}`)
           }
         }
       }
