@@ -8,7 +8,7 @@ import {
   nextBuild,
   renderViaHTTP,
   nextStart,
-  waitFor,
+  check,
 } from 'next-test-utils'
 import { join } from 'path'
 import {
@@ -139,37 +139,43 @@ describe('GS(S)P Page Errors', () => {
 
   describe('start mode', () => {
     it('Error stack printed to stderr', async () => {
-      await fs.writeFile(
-        indexPage,
-        `export default function Page() {
-           return <div/>
-         }
-          export function getStaticProps() {
-            // Make it pass on the build phase
-            if(process.env.NEXT_PHASE === "${PHASE_PRODUCTION_BUILD}") {
-              return { props: { foo: 'bar' }, revalidate: 1 }
-            }
-  
-            throw new Error("Oops")
+      try {
+        await fs.writeFile(
+          indexPage,
+          `export default function Page() {
+            return <div/>
           }
-          `
-      )
+            export function getStaticProps() {
+              // Make it pass on the build phase
+              if(process.env.NEXT_PHASE === "${PHASE_PRODUCTION_BUILD}") {
+                return { props: { foo: 'bar' }, revalidate: 1 }
+              }
+    
+              throw new Error("Oops")
+            }
+            `
+        )
 
-      await nextBuild(appDir)
+        await nextBuild(appDir)
 
-      appPort = await findPort()
+        appPort = await findPort()
 
-      let stderr = ''
-      app = await nextStart(appDir, appPort, {
-        onStderr: (msg) => {
-          stderr += msg || ''
-        },
-      })
-      await waitFor(500)
-      await renderViaHTTP(appPort, '/')
-      await killApp(app)
-      expect(stderr).toMatch('Error: Oops')
-      expect(stderr).toMatch(`\n    at getStaticProps`)
+        let stderr = ''
+        app = await nextStart(appDir, appPort, {
+          onStderr: (msg) => {
+            stderr += msg || ''
+          },
+        })
+        await check(async () => {
+          await renderViaHTTP(appPort, '/')
+          return stderr
+        }, /error: oops/i)
+
+        expect(stderr).toContain('Error: Oops')
+        expect(stderr).toContain(`\n    at getStaticProps`)
+      } finally {
+        await killApp(app)
+      }
     })
   })
 })
