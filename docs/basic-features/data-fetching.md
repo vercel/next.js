@@ -45,6 +45,7 @@ In addition, we’ll talk briefly about how to fetch data on the client side.
 
 | Version   | Changes                                                                                                           |
 | --------- | ----------------------------------------------------------------------------------------------------------------- |
+| `v12.0.0` | `staticPageGenerationTimeout` added.                                                                              |
 | `v10.0.0` | `locale`, `locales`, `defaultLocale`, and `notFound` options added.                                               |
 | `v9.5.0`  | Stable [Incremental Static Regeneration](https://nextjs.org/blog/next-9-5#stable-incremental-static-regeneration) |
 | `v9.3.0`  | `getStaticProps` introduced.                                                                                      |
@@ -66,9 +67,9 @@ The `context` parameter is an object containing the following keys:
 - `params` contains the route parameters for pages using dynamic routes. For example, if the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md). You should use this together with `getStaticPaths`, which we’ll explain later.
 - `preview` is `true` if the page is in the preview mode and `undefined` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `previewData` contains the preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
-- `locale` contains the active locale (if enabled).
-- `locales` contains all supported locales (if enabled).
-- `defaultLocale` contains the configured default locale (if enabled).
+- `locale` contains the active locale (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
+- `locales` contains all supported locales (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
+- `defaultLocale` contains the configured default locale (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
 
 `getStaticProps` should return an object with:
 
@@ -97,7 +98,7 @@ The `context` parameter is an object containing the following keys:
 
   > **Note**: With `notFound: true` the page will return a 404 even if there was a successfully generated page before. This is meant to support use-cases like user generated content getting removed by its author.
 
-- `redirect` - An **optional** redirect value to allow redirecting to internal and external resources. It should match the shape of `{ destination: string, permanent: boolean }`. In some rare cases, you might need to assign a custom status code for older HTTP Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both. Below is an example of how it works:
+- `redirect` - An **optional** redirect value to allow redirecting to internal and external resources. It should match the shape of `{ destination: string, permanent: boolean }`. In some rare cases, you might need to assign a custom status code for older HTTP Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both. You can also set `basePath: false` similar to redirects in `next.config.js`. Below is an example of how it works:
 
   ```js
   export async function getStaticProps(context) {
@@ -218,6 +219,17 @@ function Blog({ posts }: InferGetStaticPropsType<typeof getStaticProps>) {
 }
 
 export default Blog
+```
+
+Note: Next.js has a default static generation timeout of 60 seconds. If no new pages complete generating within the timeout, it will attempt generation three more times. If the fourth attempt fails, the build will fail. This timeout can be modified using the following configuration:
+
+```js
+// next.config.js
+module.exports = {
+  // time in seconds of no pages generating during static
+  // generation before timing out
+  staticPageGenerationTimeout: 90,
+}
 ```
 
 ### Incremental Static Regeneration
@@ -660,15 +672,15 @@ export async function getServerSideProps(context) {
 The `context` parameter is an object containing the following keys:
 
 - `params`: If this page uses a dynamic route, `params` contains the route parameters. If the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md).
-- `req`: [The HTTP IncomingMessage object](https://nodejs.org/api/http.html#http_class_http_incomingmessage).
+- `req`: [The HTTP IncomingMessage object](https://nodejs.org/api/http.html#http_class_http_incomingmessage), plus additional [built-in parsing helpers](#provided-req-middleware-in-getserversideprops).
 - `res`: [The HTTP response object](https://nodejs.org/api/http.html#http_class_http_serverresponse).
 - `query`: An object representing the query string.
 - `preview`: `preview` is `true` if the page is in the preview mode and `false` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `previewData`: The preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `resolvedUrl`: A normalized version of the request URL that strips the `_next/data` prefix for client transitions and includes original query values.
-- `locale` contains the active locale (if enabled).
-- `locales` contains all supported locales (if enabled).
-- `defaultLocale` contains the configured default locale (if enabled).
+- `locale` contains the active locale (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
+- `locales` contains all supported locales (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
+- `defaultLocale` contains the configured default locale (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
 
 `getServerSideProps` should return an object with:
 
@@ -692,7 +704,7 @@ The `context` parameter is an object containing the following keys:
   }
   ```
 
-- `redirect` - An **optional** redirect value to allow redirecting to internal and external resources. It should match the shape of `{ destination: string, permanent: boolean }`. In some rare cases, you might need to assign a custom status code for older HTTP Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both. Below is an example of how it works:
+- `redirect` - An **optional** redirect value to allow redirecting to internal and external resources. It should match the shape of `{ destination: string, permanent: boolean }`. In some rare cases, you might need to assign a custom status code for older HTTP Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both. You can also set `basePath: false` similar to redirects in `next.config.js`. Below is an example of how it works:
 
   ```js
   export async function getServerSideProps(context) {
@@ -726,6 +738,12 @@ The `context` parameter is an object containing the following keys:
 > You may need to slightly refactor your code for this approach.
 >
 > Fetching from an external API is fine!
+
+### Provided `req` middleware in `getServerSideProps`
+
+The `req` in the context passed to `getServerSideProps` provides built in middleware that parses the incoming request (req). That middleware is:
+
+- `req.cookies` - An object containing the cookies sent by the request. Defaults to `{}`
 
 ### Example
 

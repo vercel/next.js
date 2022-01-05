@@ -3,6 +3,7 @@ module.exports = {
     docs: {
       description: 'Enforce no duplicate usage of <Head> in pages/document.js',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/no-duplicate-head',
     },
   },
   create: function (context) {

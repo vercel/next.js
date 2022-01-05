@@ -4,6 +4,7 @@ import { parseUrl } from './parse-url'
 import type { NextConfig, DomainLocale } from '../../../../server/config-shared'
 import type { ParsedUrl } from './parse-url'
 import type { PathLocale } from '../../i18n/normalize-locale-path'
+import { hasBasePath, replaceBasePath } from '../../../../server/router'
 
 interface Params {
   headers?: { [key: string]: string | string[] | undefined }
@@ -15,8 +16,8 @@ export function parseNextUrl({ headers, nextConfig, url = '/' }: Params) {
   const urlParsed: ParsedNextUrl = parseUrl(url)
   const { basePath } = nextConfig
 
-  if (basePath && urlParsed.pathname.startsWith(basePath)) {
-    urlParsed.pathname = urlParsed.pathname.replace(basePath, '') || '/'
+  if (basePath && hasBasePath(urlParsed.pathname, basePath)) {
+    urlParsed.pathname = replaceBasePath(urlParsed.pathname, basePath)
     urlParsed.basePath = basePath
   }
 

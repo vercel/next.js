@@ -8,6 +8,8 @@ import { NextStartInstance } from './next-modes/next-start'
 const testFile = module.parent.filename
 const testsFolder = path.join(__dirname, '..')
 
+process.env.TEST_FILE_PATH = testFile
+
 let testMode = process.env.NEXT_TEST_MODE
 
 if (!testFile.match(/\.test\.(js|tsx?)/)) {

@@ -11,16 +11,7 @@ const fixturesDir = join(__dirname, '..', 'fixtures')
 const nextConfig = new File(join(fixturesDir, 'basic-app/next.config.js'))
 
 describe('Build Output', () => {
-  const configs = [{}]
-  for (const gzipSize of [true, false]) {
-    configs.push(...configs.map((c) => ({ ...c, gzipSize })))
-  }
-  for (const sharedPool of [true]) {
-    configs.push(...configs.map((c) => ({ ...c, sharedPool })))
-  }
-  for (const workerThreads of [true]) {
-    configs.push(...configs.map((c) => ({ ...c, workerThreads })))
-  }
+  const configs = [{}, { gzipSize: false }]
 
   for (const experimental of configs) {
     describe(`Basic Application Output (experimental: ${JSON.stringify(
@@ -55,9 +46,9 @@ describe('Build Output', () => {
 
         expect(stdout).toMatch(/\/ (.* )?\d{1,} B/)
         expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
-        expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
+        expect(stdout).toMatch(/ chunks\/main-[0-9a-z]{16}\.js [ 0-9.]* kB/)
         expect(stdout).toMatch(
-          / chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/
+          / chunks\/framework-[0-9a-z]{16}\.js [ 0-9. ]* kB/
         )
 
         expect(stdout).not.toContain(' /_document')
@@ -106,10 +97,10 @@ describe('Build Output', () => {
         const err404FirstLoad = parsePageFirstLoad('/404')
 
         const sharedByAll = parseSharedSize('shared by all')
-        const _appSize = parseSharedSize('_app\\..*?\\.js')
-        const webpackSize = parseSharedSize('webpack\\..*?\\.js')
-        const mainSize = parseSharedSize('main\\..*?\\.js')
-        const frameworkSize = parseSharedSize('framework\\..*?\\.js')
+        const _appSize = parseSharedSize('_app-.*?\\.js')
+        const webpackSize = parseSharedSize('webpack-.*?\\.js')
+        const mainSize = parseSharedSize('main-.*?\\.js')
+        const frameworkSize = parseSharedSize('framework-.*?\\.js')
 
         for (const size of [
           indexSize,
@@ -215,9 +206,9 @@ describe('Build Output', () => {
       expect(stdout).toMatch(/\/ (.* )?\d{1,} B/)
       expect(stdout).toMatch(/\/_app (.* )?\d{1,} B/)
       expect(stdout).toMatch(/\+ First Load JS shared by all \s*[0-9.]+ kB/)
-      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js \s*[0-9.]+ kB/)
+      expect(stdout).toMatch(/ chunks\/main-[0-9a-z]{16}\.js \s*[0-9.]+ kB/)
       expect(stdout).toMatch(
-        / chunks\/framework\.[0-9a-z]{6}\.js \s*[0-9.]+ kB/
+        / chunks\/framework-[0-9a-z]{16}\.js \s*[0-9.]+ kB/
       )
 
       expect(stdout).not.toContain(' /_document')
@@ -245,9 +236,9 @@ describe('Build Output', () => {
       expect(stdout).toMatch(/\/amp (.* )?AMP/)
       expect(stdout).toMatch(/\/hybrid (.* )?[0-9.]+ B/)
       expect(stdout).toMatch(/\+ First Load JS shared by all \s*[0-9.]+ kB/)
-      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js \s*[0-9.]+ kB/)
+      expect(stdout).toMatch(/ chunks\/main-[0-9a-z]{16}\.js \s*[0-9.]+ kB/)
       expect(stdout).toMatch(
-        / chunks\/framework\.[0-9a-z]{6}\.js \s*[0-9.]+ kB/
+        / chunks\/framework-[0-9a-z]{16}\.js \s*[0-9.]+ kB/
       )
 
       expect(stdout).not.toContain(' /_document')
@@ -273,8 +264,8 @@ describe('Build Output', () => {
       expect(stdout).toMatch(/\/ (.* )?\d{1,} B/)
       expect(stdout).toMatch(/λ \/404 (.* )?\d{1,} B/)
       expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/)
+      expect(stdout).toMatch(/ chunks\/main-[0-9a-z]{16}\.js [ 0-9.]* kB/)
+      expect(stdout).toMatch(/ chunks\/framework-[0-9a-z]{16}\.js [ 0-9. ]* kB/)
 
       expect(stdout).not.toContain(' /_document')
       expect(stdout).not.toContain(' /_app')
