@@ -17,7 +17,7 @@ Congratulations, you are ready to deploy your Next.js application to production.
 
 This output is generated inside the `.next` folder:
 
-- `.next/chunks/pages` – Each JavaScript file inside this folder relates to the route with the same name. For example, `.next/chunks/pages/about.js` would be the JavaScript chunk loaded when viewing the `/about` route in your application
+- `.next/static/chunks/pages` – Each JavaScript file inside this folder relates to the route with the same name. For example, `.next/static/chunks/pages/about.js` would be the JavaScript file loaded when viewing the `/about` route in your application
 - `.next/static/media` – Statically imported images from `next/image` are hashed and copied here
 - `.next/static/css` – Global CSS files for all pages in your application
 - `.next/server/pages` – The HTML and JavaScript entry points prerendered from the server. The `.nft.json` files are created when [Output File Tracing](/docs/advanced-features/output-file-tracing.md) is enabled and contain all the file paths that depend on a given page.
