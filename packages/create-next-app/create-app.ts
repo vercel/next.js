@@ -203,6 +203,7 @@ export async function createApp({
      */
     const packageJson = {
       name: appName,
+      version: '0.1.0',
       private: true,
       scripts: {
         dev: 'next dev',
