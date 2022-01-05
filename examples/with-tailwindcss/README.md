@@ -1,3 +1,11 @@
+<p  align="center">
+
+<img  src="https://res.cloudinary.com/ddcg0rzlo/image/upload/v1640340715/nextjs-tailwind-typescript-banner_vslgq4.png"  alt="Next.js TypeScript Starter">
+
+</p>
+
+<br />
+
 # Next.js + Tailwind CSS Example
 
 This example shows how to use [Tailwind CSS](https://tailwindcss.com/) [(v3.0)](https://tailwindcss.com/blog/tailwindcss-v3) with Next.js. It follows the steps outlined in the official [Tailwind docs](https://tailwindcss.com/docs/guides/nextjs).
