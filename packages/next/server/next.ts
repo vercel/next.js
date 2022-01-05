@@ -10,7 +10,6 @@ import { resolve } from 'path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
-import { NodeNextRequest, NodeNextResponse } from './base-http'
 import { IncomingMessage, ServerResponse } from 'http'
 import { NextUrlWithParsedQuery } from './request-meta'
 

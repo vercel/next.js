@@ -18,7 +18,7 @@ import type { ResponseCacheEntry, ResponseCacheValue } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 import type { CacheFs } from '../shared/lib/utils'
 
-import path, { join, relative, resolve, sep } from 'path'
+import { join, relative, resolve, sep } from 'path'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus, modifyRouteRegex } from '../lib/load-custom-routes'
@@ -81,7 +81,6 @@ import { addRequestMeta, getRequestMeta } from './request-meta'
 import { toNodeHeaders } from './web/utils'
 import { BaseNextRequest, BaseNextResponse } from './base-http'
 import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
-import { IncomingMessage } from 'http'
 
 const getCustomRouteMatcher = pathMatch(true)
 
