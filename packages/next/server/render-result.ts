@@ -1,5 +1,5 @@
-import { ServerResponse } from 'http'
-import { Writable } from 'stream'
+import type { ServerResponse } from 'http'
+import type { Writable } from 'stream'
 
 export type NodeWritablePiper = (
   res: Writable,

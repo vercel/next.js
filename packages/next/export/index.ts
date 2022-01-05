@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import findUp from 'next/dist/compiled/find-up'
 import {
   promises,
@@ -381,6 +381,10 @@ export default async function exportApp(
       // Exported pages do not currently support dynamic HTML.
       supportsDynamicHTML: false,
       concurrentFeatures: nextConfig.experimental.concurrentFeatures,
+      crossOrigin: nextConfig.crossOrigin,
+      optimizeCss: nextConfig.experimental.optimizeCss,
+      optimizeFonts: nextConfig.optimizeFonts,
+      optimizeImages: nextConfig.experimental.optimizeImages,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -596,7 +600,10 @@ export default async function exportApp(
                 ampValidationResult.errors.length > 0)
           }
           renderError = renderError || !!result.error
-          if (!!result.error) errorPaths.push(path)
+          if (!!result.error) {
+            const { page } = pathMap
+            errorPaths.push(page !== path ? `${page}: ${path}` : path)
+          }
 
           if (options.buildExport && configuration) {
             if (typeof result.fromBuildExportRevalidate !== 'undefined') {

@@ -57,9 +57,11 @@ describe('basic HMR', () => {
 
           expect(next.cliOutput.slice(start)).toContain('compiling...')
           expect(next.cliOutput.slice(start)).toContain(
-            'compiling /hmr/contact...'
+            'compiling /hmr/contact (client and server)...'
           )
-          expect(next.cliOutput).toContain('compiling /_error...')
+          expect(next.cliOutput).toContain(
+            'compiling /_error (client and server)...'
+          )
         } finally {
           if (browser) {
             await browser.close()
@@ -268,8 +270,8 @@ describe('basic HMR', () => {
           )
 
           expect(editedFontSize).toBe('200px')
-          expect(browserHtml.includes('font-size:200px;')).toBe(true)
-          expect(browserHtml.includes('font-size:100px;')).toBe(false)
+          expect(browserHtml.includes('font-size:200px')).toBe(true)
+          expect(browserHtml.includes('font-size:100px')).toBe(false)
 
           const editedHtml = await renderViaHTTP(
             next.appPort,
@@ -327,9 +329,11 @@ describe('basic HMR', () => {
         )
 
         expect(next.cliOutput.slice(start)).toContain(
-          'compiling /hmr/new-page...'
+          'compiling /hmr/new-page (client and server)...'
         )
-        expect(next.cliOutput).toContain('compiling /_error...')
+        expect(next.cliOutput).toContain(
+          'compiling /_error (client and server)...'
+        )
       } catch (err) {
         await next.deleteFile(newPage)
         throw err
@@ -352,17 +356,17 @@ describe('basic HMR', () => {
         await next.patchFile(aboutPage, aboutContent.replace('</div>', 'div'))
 
         expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxSource(browser)).toMatch(
-          /Unterminated JSX contents/
-        )
+        expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
 
         await next.patchFile(aboutPage, aboutContent)
 
         await check(() => getBrowserBodyText(browser), /This is the about page/)
         expect(next.cliOutput.slice(start)).toContain(
-          'compiling /hmr/about2...'
+          'compiling /hmr/about2 (client and server)...'
         )
-        expect(next.cliOutput).toContain('compiling /_error...')
+        expect(next.cliOutput).toContain(
+          'compiling /_error (client and server)...'
+        )
       } catch (err) {
         await next.patchFile(aboutPage, aboutContent)
         if (browser) {
@@ -395,9 +399,7 @@ describe('basic HMR', () => {
         browser = await webdriver(next.appPort, '/hmr/contact')
 
         expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxSource(browser)).toMatch(
-          /Unterminated JSX contents/
-        )
+        expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
 
         await next.patchFile(aboutPage, aboutContent)
 

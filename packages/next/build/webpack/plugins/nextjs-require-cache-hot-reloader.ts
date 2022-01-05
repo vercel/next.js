@@ -1,8 +1,11 @@
-import type { Compiler, WebpackPluginInstance } from 'webpack5'
-import { clearSandboxCache } from '../../../server/web/sandbox'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import { clearModuleContext } from '../../../server/web/sandbox'
 import { realpathSync } from 'fs'
 import path from 'path'
 import isError from '../../../lib/is-error'
+
+type Compiler = webpack5.Compiler
+type WebpackPluginInstance = webpack5.WebpackPluginInstance
 
 const originModules = [
   require.resolve('../../../server/require'),
@@ -49,7 +52,7 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
       (_file, { targetPath, content }) => {
         this.currentOutputPathsWebpack5.add(targetPath)
         deleteCache(targetPath)
-        clearSandboxCache(targetPath, content.toString('utf-8'))
+        clearModuleContext(targetPath, content.toString('utf-8'))
       }
     )
 
