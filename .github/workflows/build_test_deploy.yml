@@ -698,9 +698,6 @@ jobs:
         run: turbo run build-native --cache-dir=".turbo"
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: nextjs
-          TURBO_PROJECT: nextjs
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2.2.4
@@ -886,9 +883,6 @@ jobs:
         run: turbo run build-native --cache-dir=".turbo" -- --release --target ${{ matrix.target }}
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
-          TURBO_TOKEN: ${{secrets.TURBO_TOKEN}}
-          TURBO_TEAM: nextjs
-          TURBO_PROJECT: nextjs
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2.2.4
