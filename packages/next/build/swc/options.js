@@ -57,9 +57,13 @@ function getBaseSWCOptions({
                 typeofs: {
                   window: globalWindow ? 'object' : 'undefined',
                 },
-                envs: {
-                  NODE_ENV: development ? '"development"' : '"production"',
-                },
+                // By default, Jest will set `NODE_ENV` to `"test"`.
+                // You can override the behavior via explicitly setting the `NODE_ENV` environment variable
+                envs: jest
+                  ? {}
+                  : {
+                      NODE_ENV: development ? '"development"' : '"production"',
+                    },
                 // TODO: handle process.browser to match babel replacing as well
               },
         },
@@ -90,7 +94,7 @@ export function getJestSWCOptions({
   let baseOptions = getBaseSWCOptions({
     filename,
     jest: true,
-    development: false,
+    development: true,
     hasReactRefresh: false,
     globalWindow: !isServer,
     nextConfig,
