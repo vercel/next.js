@@ -1,5 +1,5 @@
 import type { Options as DevServerOptions } from './dev/next-dev-server'
-import type { RequestHandler } from './next-server'
+import type { NodeRequestHandler } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
 
 import './node-polyfill-fetch'
@@ -10,7 +10,9 @@ import { resolve } from 'path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
-import { BaseNextRequest, BaseNextResponse } from './base-http'
+import { NodeNextRequest, NodeNextResponse } from './base-http'
+import { IncomingMessage, ServerResponse } from 'http'
+import { NextUrlWithParsedQuery } from './request-meta'
 
 let ServerImpl: typeof Server
 
@@ -22,10 +24,18 @@ const getServerImpl = async () => {
 
 export type NextServerOptions = Partial<DevServerOptions>
 
+export interface RequestHandler {
+  (
+    req: IncomingMessage,
+    res: ServerResponse,
+    parsedUrl?: NextUrlWithParsedQuery | undefined
+  ): Promise<void>
+}
+
 export class NextServer {
   private serverPromise?: Promise<Server>
   private server?: Server
-  private reqHandlerPromise?: Promise<RequestHandler>
+  private reqHandlerPromise?: Promise<NodeRequestHandler>
   private preparedAssetPrefix?: string
   public options: NextServerOptions
 
@@ -43,8 +53,8 @@ export class NextServer {
 
   getRequestHandler(): RequestHandler {
     return async (
-      req: BaseNextRequest,
-      res: BaseNextResponse,
+      req: IncomingMessage,
+      res: ServerResponse,
       parsedUrl?: UrlWithParsedQuery
     ) => {
       const requestHandler = await this.getServerRequestHandler()
@@ -183,4 +193,3 @@ exports = module.exports
 
 // Support `import next from 'next'`
 export default createServer
-export type { RequestHandler }

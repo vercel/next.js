@@ -2,7 +2,6 @@ import type { NextServerOptions, NextServer, RequestHandler } from '../next'
 import { warn } from '../../build/output/log'
 import http from 'http'
 import next from '../next'
-import { NodeNextRequest, NodeNextResponse } from '../base-http'
 
 interface StartServerOptions extends NextServerOptions {
   allowRetry?: boolean
@@ -12,7 +11,7 @@ export function startServer(opts: StartServerOptions) {
   let requestHandler: RequestHandler
 
   const server = http.createServer((req, res) => {
-    return requestHandler(new NodeNextRequest(req), new NodeNextResponse(res))
+    return requestHandler(req, res)
   })
 
   return new Promise<NextServer>((resolve, reject) => {

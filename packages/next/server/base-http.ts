@@ -30,22 +30,22 @@ export abstract class BaseNextRequest<Body = any> {
 }
 
 export class NodeNextRequest extends BaseNextRequest<Readable> {
-  public headers = this.req.headers
+  public headers = this.req.headers;
 
-  set [NEXT_REQUEST_META](value: RequestMeta | undefined) {
-    // Mirror meta object to Node request for when `getRequestMeta` gets called on it
-    // This still happens in render.tsx
-    this.req[NEXT_REQUEST_META] = value
-  }
+  [NEXT_REQUEST_META]: RequestMeta
 
-  get [NEXT_REQUEST_META](): RequestMeta | undefined {
-    return this.req[NEXT_REQUEST_META]
+  get req() {
+    // Need to mimic these changes to the original req object for places where we use it:
+    // render.tsx, api/ssg requests
+    this._req[NEXT_REQUEST_META] = this[NEXT_REQUEST_META]
+    this._req.url = this.url
+    return this._req
   }
 
   constructor(
-    public req: IncomingMessage & { [NEXT_REQUEST_META]?: RequestMeta }
+    private _req: IncomingMessage & { [NEXT_REQUEST_META]?: RequestMeta }
   ) {
-    super(req.method!.toUpperCase(), req.url!, req)
+    super(_req.method!.toUpperCase(), _req.url!, _req)
   }
 
   async parseBody(limit: string | number): Promise<any> {

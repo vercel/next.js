@@ -4,7 +4,7 @@ import type { CacheFs } from '../shared/lib/utils'
 import fs from 'fs'
 import { join, relative } from 'path'
 
-import type { IncomingMessage, ServerResponse } from 'http'
+import { IncomingMessage, ServerResponse } from 'http'
 import { PAGES_MANIFEST, BUILD_ID_FILE } from '../shared/lib/constants'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -15,14 +15,19 @@ import Proxy from 'next/dist/compiled/http-proxy'
 import { UrlWithParsedQuery } from 'url'
 
 import BaseServer, { prepareServerlessUrl, stringifyQuery } from './base-server'
-import { NodeNextRequest, NodeNextResponse } from './base-http'
+import {
+  BaseNextRequest,
+  BaseNextResponse,
+  NodeNextRequest,
+  NodeNextResponse,
+} from './base-http'
 import renderResult from './render-result'
 import { PayloadOptions, sendRenderResult } from './send-payload'
 import { serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils'
 import { RenderOpts, renderToHTML } from './render'
-import { NextParsedUrlQuery } from './request-meta'
+import { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import RenderResult from './render-result'
 import { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 
@@ -33,6 +38,14 @@ type ExpressMiddleware = (
   res: ServerResponse,
   next: (err?: Error) => void
 ) => void
+
+export interface NodeRequestHandler {
+  (
+    req: IncomingMessage | BaseNextRequest,
+    res: ServerResponse | BaseNextResponse,
+    parsedUrl?: NextUrlWithParsedQuery | undefined
+  ): Promise<void>
+}
 
 export default class NextNodeServer extends BaseServer {
   private compression =
@@ -323,5 +336,116 @@ export default class NextNodeServer extends BaseServer {
       mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
       stat: (f) => fs.promises.stat(f),
     }
+  }
+
+  private normalizeReq(
+    req: BaseNextRequest | IncomingMessage
+  ): BaseNextRequest {
+    return req instanceof IncomingMessage ? new NodeNextRequest(req) : req
+  }
+
+  private normalizeRes(
+    res: BaseNextResponse | ServerResponse
+  ): BaseNextResponse {
+    return res instanceof ServerResponse ? new NodeNextResponse(res) : res
+  }
+
+  public getRequestHandler(): NodeRequestHandler {
+    const handler = super.getRequestHandler()
+    return async (req, res, parsedUrl) => {
+      return handler(this.normalizeReq(req), this.normalizeRes(res), parsedUrl)
+    }
+  }
+
+  public async render(
+    req: BaseNextRequest | IncomingMessage,
+    res: BaseNextResponse | ServerResponse,
+    pathname: string,
+    query?: NextParsedUrlQuery,
+    parsedUrl?: NextUrlWithParsedQuery
+  ): Promise<void> {
+    return super.render(
+      this.normalizeReq(req),
+      this.normalizeRes(res),
+      pathname,
+      query,
+      parsedUrl
+    )
+  }
+
+  public async renderToHTML(
+    req: BaseNextRequest | IncomingMessage,
+    res: BaseNextResponse | ServerResponse,
+    pathname: string,
+    query?: ParsedUrlQuery
+  ): Promise<string | null> {
+    return super.renderToHTML(
+      this.normalizeReq(req),
+      this.normalizeRes(res),
+      pathname,
+      query
+    )
+  }
+
+  public async renderError(
+    err: Error | null,
+    req: BaseNextRequest | IncomingMessage,
+    res: BaseNextResponse | ServerResponse,
+    pathname: string,
+    query?: NextParsedUrlQuery,
+    setHeaders?: boolean
+  ): Promise<void> {
+    return super.renderError(
+      err,
+      this.normalizeReq(req),
+      this.normalizeRes(res),
+      pathname,
+      query,
+      setHeaders
+    )
+  }
+
+  public async renderErrorToHTML(
+    err: Error | null,
+    req: BaseNextRequest | IncomingMessage,
+    res: BaseNextResponse | ServerResponse,
+    pathname: string,
+    query?: ParsedUrlQuery
+  ): Promise<string | null> {
+    return super.renderErrorToHTML(
+      err,
+      this.normalizeReq(req),
+      this.normalizeRes(res),
+      pathname,
+      query
+    )
+  }
+
+  public async render404(
+    req: BaseNextRequest | IncomingMessage,
+    res: BaseNextResponse | ServerResponse,
+    parsedUrl?: NextUrlWithParsedQuery,
+    setHeaders?: boolean
+  ): Promise<void> {
+    return super.render404(
+      this.normalizeReq(req),
+      this.normalizeRes(res),
+      parsedUrl,
+      setHeaders
+    )
+  }
+
+  public async serveStatic(
+    req: BaseNextRequest | IncomingMessage,
+    res: BaseNextResponse | ServerResponse,
+    path: string,
+    parsedUrl?: UrlWithParsedQuery
+  ): Promise<void> {
+    return super.serveStatic(
+      this.normalizeReq(req),
+      this.normalizeRes(res),
+      path,
+      parsedUrl
+    )
   }
 }
