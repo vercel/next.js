@@ -1,8 +1,12 @@
 import type { ServerResponse, IncomingMessage, IncomingHttpHeaders } from 'http'
 import type { Writable, Readable } from 'stream'
 import { PERMANENT_REDIRECT_STATUS } from '../shared/lib/constants'
-// import { ParsedNextUrl, parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
-import { getCookieParser, NextApiRequestCookies, parseBody } from './api-utils'
+import {
+  getCookieParser,
+  NextApiRequestCookies,
+  parseBody,
+  SYMBOL_CLEARED_COOKIES,
+} from './api-utils'
 import { I18NConfig } from './config-shared'
 import { NEXT_REQUEST_META, RequestMeta } from './request-meta'
 
@@ -128,8 +132,20 @@ export abstract class BaseNextResponse<Destination = any> {
 export class NodeNextResponse extends BaseNextResponse<Writable> {
   private textBody: string | undefined = undefined
 
-  constructor(public res: ServerResponse) {
-    super(res)
+  public [SYMBOL_CLEARED_COOKIES]?: boolean
+
+  get res() {
+    if (SYMBOL_CLEARED_COOKIES in this) {
+      this._res[SYMBOL_CLEARED_COOKIES] = this[SYMBOL_CLEARED_COOKIES]
+    }
+
+    return this._res
+  }
+
+  constructor(
+    private _res: ServerResponse & { [SYMBOL_CLEARED_COOKIES]?: boolean }
+  ) {
+    super(_res)
   }
 
   get sent() {

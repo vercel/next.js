@@ -336,7 +336,7 @@ const COOKIE_NAME_PRERENDER_BYPASS = `__prerender_bypass`
 const COOKIE_NAME_PRERENDER_DATA = `__next_preview_data`
 
 export const SYMBOL_PREVIEW_DATA = Symbol(COOKIE_NAME_PRERENDER_DATA)
-const SYMBOL_CLEARED_COOKIES = Symbol(COOKIE_NAME_PRERENDER_BYPASS)
+export const SYMBOL_CLEARED_COOKIES = Symbol(COOKIE_NAME_PRERENDER_BYPASS)
 
 export function tryGetPreviewData(
   req: IncomingMessage | BaseNextRequest,
