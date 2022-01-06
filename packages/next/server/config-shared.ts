@@ -26,7 +26,7 @@ export interface NextConfigComplete
   > {
   images: ImageConfigComplete
   typescript: Required<TypeScriptConfig>
-  configOrigin?: 'server' | 'default'
+  configOrigin?: string
   configFile?: string
   configFileName: string
   webpackDevMiddleware?: null | ((...args: any) => any)
