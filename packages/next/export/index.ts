@@ -193,9 +193,9 @@ export default async function exportApp(
       )
     }
 
-    const customRoutesDetected = ['rewrites', 'redirects', 'headers'].filter(
-      (config) => typeof nextConfig[config] === 'function'
-    )
+    const customRoutesDetected = (
+      ['rewrites', 'redirects', 'headers'] as const
+    ).filter((config) => typeof nextConfig[config] === 'function')
 
     if (
       !hasNextSupport &&

@@ -7,12 +7,33 @@ import {
   imageConfigDefault,
 } from './image-config'
 
-export type NextConfigComplete = Required<NextConfig> & {
+type RequiredExcept<T, U extends keyof T> = Required<
+  Pick<T, Exclude<keyof T, U>>
+> &
+  Pick<T, U>
+
+export interface NextConfigComplete
+  extends RequiredExcept<
+    NextConfig,
+    | 'headers'
+    | 'rewrites'
+    | 'redirects'
+    | 'webpack5'
+    | 'future'
+    | 'crossOrigin'
+    | 'exportTrailingSlash'
+    | 'exportPathMap'
+  > {
   images: ImageConfigComplete
   typescript: Required<TypeScriptConfig>
-  configOrigin?: string
+  configOrigin?: 'server' | 'default'
   configFile?: string
   configFileName: string
+  webpackDevMiddleware?: null | ((...args: any) => any)
+  analyticsId?: string
+  initialPageRevalidationMap: Record<string, any>
+  ssgNotFoundPaths: string[]
+  pageDurationMap: Record<string, any>
 }
 
 export interface I18NConfig {
@@ -43,7 +64,8 @@ export interface TypeScriptConfig {
   tsconfigPath?: string
 }
 
-export type NextConfig = { [key: string]: any } & {
+export interface NextConfig {
+  configFileName?: string
   i18n?: I18NConfig | null
 
   eslint?: ESLintConfig
@@ -79,6 +101,8 @@ export type NextConfig = { [key: string]: any } & {
       ) => any)
     | null
 
+  /** @deprecated Use `trailingSlash` instead */
+  exportTrailingSlash?: boolean
   trailingSlash?: boolean
   env?: { [key: string]: string }
   distDir?: string
@@ -170,9 +194,16 @@ export type NextConfig = { [key: string]: any } & {
     outputFileTracingRoot?: string
     outputStandalone?: boolean
   }
+  /** @deprecated See https://nextjs.org/blog/next-12#output-file-tracing */
+  target?: 'server' | 'serverless' | 'experimental-serverless-trace'
+  exportPathMap?: any
 }
 
-export const defaultConfig: NextConfig = {
+export const defaultConfig: NextConfigComplete = {
+  initialPageRevalidationMap: {},
+  pageDurationMap: {},
+  ssgNotFoundPaths: [],
+  configFileName: 'next.config.js',
   env: {},
   webpack: null,
   webpackDevMiddleware: null,
@@ -213,7 +244,6 @@ export const defaultConfig: NextConfig = {
   i18n: null,
   productionBrowserSourceMaps: false,
   optimizeFonts: true,
-  webpack5: undefined,
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},

@@ -1481,7 +1481,7 @@ export default async function build(
               }
             : undefined,
         }
-        const exportConfig: any = {
+        const exportConfig: NextConfigComplete = {
           ...config,
           initialPageRevalidationMap: {},
           pageDurationMap: {},

@@ -7,17 +7,15 @@ import { Agent as HttpsAgent } from 'https'
 import * as Log from '../build/output/log'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
-import {
-  defaultConfig,
-  NextConfigComplete,
-  normalizeConfig,
-} from './config-shared'
+import { defaultConfig, normalizeConfig } from './config-shared'
 import { loadWebpackHook } from './config-utils'
-import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
+import { imageConfigDefault, VALID_LOADERS } from './image-config'
 import { loadEnvConfig } from '@next/env'
 import { hasNextSupport } from '../telemetry/ci-info'
 
-export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
+import type { NextConfig, NextConfigComplete } from './config-shared'
+
+export type { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 
@@ -30,7 +28,9 @@ const experimentalWarning = execOnce(() => {
   console.warn()
 })
 
-function assignDefaults(userConfig: { [key: string]: any }) {
+function assignDefaults(
+  userConfig: NextConfig & { configOrigin: NextConfigComplete['configOrigin'] }
+): NextConfigComplete {
   const configFileName = userConfig.configFileName
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {
     console.warn(
@@ -56,87 +56,85 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     delete userConfig.experimental.reactMode
   }
 
-  const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
-    (currentConfig, key) => {
-      const value = userConfig[key]
+  const config = (
+    Object.keys(userConfig) as Array<keyof NextConfig>
+  ).reduce<NextConfig>((currentConfig, key) => {
+    const value = userConfig[key]
 
-      if (value === undefined || value === null) {
-        return currentConfig
-      }
-
-      if (
-        key === 'experimental' &&
-        value !== undefined &&
-        value !== defaultConfig[key]
-      ) {
-        experimentalWarning()
-      }
-
-      if (key === 'distDir') {
-        if (typeof value !== 'string') {
-          throw new Error(
-            `Specified distDir is not a string, found type "${typeof value}"`
-          )
-        }
-        const userDistDir = value.trim()
-
-        // don't allow public as the distDir as this is a reserved folder for
-        // public files
-        if (userDistDir === 'public') {
-          throw new Error(
-            `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://nextjs.org/docs/messages/can-not-output-to-public`
-          )
-        }
-        // make sure distDir isn't an empty string as it can result in the provided
-        // directory being deleted in development mode
-        if (userDistDir.length === 0) {
-          throw new Error(
-            `Invalid distDir provided, distDir can not be an empty string. Please remove this config or set it to undefined`
-          )
-        }
-      }
-
-      if (key === 'pageExtensions') {
-        if (!Array.isArray(value)) {
-          throw new Error(
-            `Specified pageExtensions is not an array of strings, found "${value}". Please update this config or remove it.`
-          )
-        }
-
-        if (!value.length) {
-          throw new Error(
-            `Specified pageExtensions is an empty array. Please update it with the relevant extensions or remove it.`
-          )
-        }
-
-        value.forEach((ext) => {
-          if (typeof ext !== 'string') {
-            throw new Error(
-              `Specified pageExtensions is not an array of strings, found "${ext}" of type "${typeof ext}". Please update this config or remove it.`
-            )
-          }
-        })
-      }
-
-      if (!!value && value.constructor === Object) {
-        currentConfig[key] = {
-          ...defaultConfig[key],
-          ...Object.keys(value).reduce<any>((c, k) => {
-            const v = value[k]
-            if (v !== undefined && v !== null) {
-              c[k] = v
-            }
-            return c
-          }, {}),
-        }
-      } else {
-        currentConfig[key] = value
-      }
-
+    if (value === undefined || value === null) {
       return currentConfig
-    },
-    {}
-  )
+    }
+
+    if (
+      key === 'experimental' &&
+      value !== undefined &&
+      value !== defaultConfig[key]
+    ) {
+      experimentalWarning()
+    }
+
+    if (key === 'distDir') {
+      if (typeof value !== 'string') {
+        throw new Error(
+          `Specified distDir is not a string, found type "${typeof value}"`
+        )
+      }
+      const userDistDir = value.trim()
+
+      // don't allow public as the distDir as this is a reserved folder for
+      // public files
+      if (userDistDir === 'public') {
+        throw new Error(
+          `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://nextjs.org/docs/messages/can-not-output-to-public`
+        )
+      }
+      // make sure distDir isn't an empty string as it can result in the provided
+      // directory being deleted in development mode
+      if (userDistDir.length === 0) {
+        throw new Error(
+          `Invalid distDir provided, distDir can not be an empty string. Please remove this config or set it to undefined`
+        )
+      }
+    }
+
+    if (key === 'pageExtensions') {
+      if (!Array.isArray(value)) {
+        throw new Error(
+          `Specified pageExtensions is not an array of strings, found "${value}". Please update this config or remove it.`
+        )
+      }
+
+      if (!value.length) {
+        throw new Error(
+          `Specified pageExtensions is an empty array. Please update it with the relevant extensions or remove it.`
+        )
+      }
+
+      value.forEach((ext) => {
+        if (typeof ext !== 'string') {
+          throw new Error(
+            `Specified pageExtensions is not an array of strings, found "${ext}" of type "${typeof ext}". Please update this config or remove it.`
+          )
+        }
+      })
+    }
+
+    if (!!value && value.constructor === Object) {
+      currentConfig[key] = {
+        ...defaultConfig[key],
+        ...Object.entries(value).reduce<any>((c, [k, v]) => {
+          if (v !== undefined && v !== null) {
+            c[k] = v
+          }
+          return c
+        }, {}),
+      }
+    } else {
+      currentConfig[key] = value
+    }
+
+    return currentConfig
+  }, {})
 
   const result = { ...defaultConfig, ...config }
 
@@ -183,7 +181,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   }
 
   if (result?.images) {
-    const images: ImageConfig = result.images
+    const images = result.images
 
     if (typeof images !== 'object') {
       throw new Error(
@@ -390,11 +388,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     result.experimental.outputStandalone = false
   }
 
-  // TODO: Change defaultConfig type to NextConfigComplete
-  // so we don't need "!" here.
-  setHttpAgentOptions(
-    result.httpAgentOptions || defaultConfig.httpAgentOptions!
-  )
+  setHttpAgentOptions(result.httpAgentOptions || defaultConfig.httpAgentOptions)
 
   if (result.i18n) {
     const { i18n } = result
@@ -539,7 +533,11 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     result.pageExtensions = pageExtensions
   }
 
-  return result
+  return {
+    ...result,
+    images: result.images as NextConfigComplete['images'], // runtime checks doesn't seem to narrow down the type
+    typescript: result.typescript as NextConfigComplete['typescript'], // defaultConfig already has default values
+  }
 }
 
 export default async function loadConfig(
@@ -557,7 +555,7 @@ export default async function loadConfig(
       configOrigin: 'server',
       configFileName,
       ...customConfig,
-    }) as NextConfigComplete
+    })
   }
 
   const path = await findUp(CONFIG_FILES, { cwd: dir })
@@ -629,7 +627,7 @@ export default async function loadConfig(
       configFile: path,
       configFileName,
       ...userConfig,
-    }) as NextConfigComplete
+    })
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
     const nonJsPath = findUp.sync(
@@ -650,10 +648,8 @@ export default async function loadConfig(
     }
   }
 
-  const completeConfig = defaultConfig as NextConfigComplete
-  completeConfig.configFileName = configFileName
-  setHttpAgentOptions(completeConfig.httpAgentOptions)
-  return completeConfig
+  setHttpAgentOptions(defaultConfig.httpAgentOptions)
+  return defaultConfig
 }
 
 export function isTargetLikeServerless(target: string) {
