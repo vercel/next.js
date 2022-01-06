@@ -28,13 +28,12 @@ export abstract class BaseNextRequest<Body = any> {
 
   public get cookies() {
     if (this._cookies) return this._cookies
-
     return (this._cookies = getCookieParser(this.headers)())
   }
 }
 
 export class NodeNextRequest extends BaseNextRequest<Readable> {
-  public headers = this.req.headers;
+  public headers = this._req.headers;
 
   [NEXT_REQUEST_META]: RequestMeta
 
@@ -43,17 +42,21 @@ export class NodeNextRequest extends BaseNextRequest<Readable> {
     // render.tsx, api/ssg requests
     this._req[NEXT_REQUEST_META] = this[NEXT_REQUEST_META]
     this._req.url = this.url
+    this._req.cookies = this.cookies
     return this._req
   }
 
   constructor(
-    private _req: IncomingMessage & { [NEXT_REQUEST_META]?: RequestMeta }
+    private _req: IncomingMessage & {
+      [NEXT_REQUEST_META]?: RequestMeta
+      cookies?: NextApiRequestCookies
+    }
   ) {
     super(_req.method!.toUpperCase(), _req.url!, _req)
   }
 
   async parseBody(limit: string | number): Promise<any> {
-    return parseBody(this.req, limit)
+    return parseBody(this._req, limit)
   }
 }
 
@@ -149,32 +152,32 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
   }
 
   get sent() {
-    return this.res.finished || this.res.headersSent
+    return this._res.finished || this._res.headersSent
   }
 
   get statusCode() {
-    return this.res.statusCode
+    return this._res.statusCode
   }
 
   set statusCode(value: number) {
-    this.res.statusCode = value
+    this._res.statusCode = value
   }
 
   get statusMessage() {
-    return this.res.statusMessage
+    return this._res.statusMessage
   }
 
   set statusMessage(value: string) {
-    this.res.statusMessage = value
+    this._res.statusMessage = value
   }
 
   setHeader(name: string, value: string | string[]): this {
-    this.res.setHeader(name, value)
+    this._res.setHeader(name, value)
     return this
   }
 
   getHeaderValues(name: string): string[] | undefined {
-    const values = this.res.getHeader(name)
+    const values = this._res.getHeader(name)
 
     if (values === undefined) return undefined
 
@@ -184,7 +187,7 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
   }
 
   hasHeader(name: string): boolean {
-    return this.res.hasHeader(name)
+    return this._res.hasHeader(name)
   }
 
   getHeader(name: string): string | undefined {
@@ -196,7 +199,7 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
     const currentValues = this.getHeaderValues(name) ?? []
 
     if (!currentValues.includes(value)) {
-      this.res.setHeader(name, [...currentValues, value])
+      this._res.setHeader(name, [...currentValues, value])
     }
 
     return this
@@ -208,7 +211,7 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
   }
 
   send() {
-    this.res.end(this.textBody)
+    this._res.end(this.textBody)
   }
 }
 

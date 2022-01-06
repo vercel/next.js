@@ -72,7 +72,6 @@ export async function imageOptimizer(
 
   if (loader !== 'default') {
     await render404()
-    // await server.render404(req, res, parsedUrl)
     return { finished: true }
   }
 
