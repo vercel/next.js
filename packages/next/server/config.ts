@@ -29,7 +29,8 @@ const experimentalWarning = execOnce(() => {
 })
 
 function assignDefaults(
-  userConfig: NextConfig & { configOrigin: NextConfigComplete['configOrigin'] }
+  userConfig: NextConfig &
+    Pick<NextConfigComplete, 'configOrigin' | 'configFileName'>
 ): NextConfigComplete {
   const configFileName = userConfig.configFileName
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {

@@ -65,7 +65,6 @@ export interface TypeScriptConfig {
 }
 
 export interface NextConfig {
-  configFileName?: string
   i18n?: I18NConfig | null
 
   eslint?: ESLintConfig
