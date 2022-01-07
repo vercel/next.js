@@ -11,7 +11,7 @@ use swc_ecmascript::{
     visit::{noop_fold_type, Fold},
 };
 
-/// Note: This paths requires runnning `resolver` **before** running this.
+/// Note: This paths requires running `resolver` **before** running this.
 pub fn next_ssg() -> impl Fold {
     Repeat::new(NextSsg {
         state: Default::default(),
@@ -19,7 +19,7 @@ pub fn next_ssg() -> impl Fold {
     })
 }
 
-/// State of the transforms. Shared by the anayzer and the tranform.
+/// State of the transforms. Shared by the analyzer and the transform.
 #[derive(Debug, Default)]
 struct State {
     /// Identifiers referenced by non-data function codes.
@@ -187,7 +187,7 @@ impl Fold for Analyzer<'_> {
         e
     }
 
-    /// Drops [ExportDecl] if all speicifers are removed.
+    /// Drops [ExportDecl] if all specifiers are removed.
     fn fold_module_item(&mut self, s: ModuleItem) -> ModuleItem {
         match s {
             ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(e)) if !e.specifiers.is_empty() => {
