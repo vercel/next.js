@@ -45,11 +45,7 @@ struct State {
 
 impl State {
     fn is_data_identifier(&mut self, i: &Ident) -> Result<bool, Error> {
-        let ssg_exports = &[
-            "getStaticProps",
-            "getStaticPaths",
-            "getServerSideProps",
-        ];
+        let ssg_exports = &["getStaticProps", "getStaticPaths", "getServerSideProps"];
 
         if ssg_exports.contains(&&*i.sym) {
             if &*i.sym == "getServerSideProps" {
@@ -125,7 +121,9 @@ impl Fold for Analyzer<'_> {
     }
 
     fn fold_export_named_specifier(&mut self, s: ExportNamedSpecifier) -> ExportNamedSpecifier {
-        self.add_ref(s.orig.to_id());
+        if let ModuleExportName::Ident(id) = &s.orig {
+            self.add_ref(id.to_id());
+        }
 
         s
     }
@@ -211,8 +209,7 @@ impl Fold for Analyzer<'_> {
             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(e)) => match &e.decl {
                 Decl::Fn(f) => {
                     // Drop getStaticProps.
-                    if let Ok(is_data_identifier) = self.state.is_data_identifier(&f.ident)
-                    {
+                    if let Ok(is_data_identifier) = self.state.is_data_identifier(&f.ident) {
                         if is_data_identifier {
                             return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
                         }
@@ -493,29 +490,38 @@ impl Fold for NextSsg {
 
         n.specifiers.retain(|s| {
             let preserve = match s {
-                ExportSpecifier::Namespace(ExportNamespaceSpecifier { name: exported, .. })
+                ExportSpecifier::Namespace(ExportNamespaceSpecifier {
+                    name: ModuleExportName::Ident(exported),
+                    ..
+                })
                 | ExportSpecifier::Default(ExportDefaultSpecifier { exported, .. })
                 | ExportSpecifier::Named(ExportNamedSpecifier {
-                    exported: Some(exported),
+                    exported: Some(ModuleExportName::Ident(exported)),
                     ..
                 }) => self
                     .state
                     .is_data_identifier(&exported)
                     .map(|is_data_identifier| !is_data_identifier),
-                ExportSpecifier::Named(s) => self
+                ExportSpecifier::Named(ExportNamedSpecifier {
+                    orig: ModuleExportName::Ident(orig),
+                    ..
+                }) => self
                     .state
-                    .is_data_identifier(&s.orig)
+                    .is_data_identifier(&orig)
                     .map(|is_data_identifier| !is_data_identifier),
+
+                _ => Ok(true),
             };
 
             match preserve {
                 Ok(false) => {
-                    tracing::trace!(
-                        "Dropping a export specifier because it's a data identifier"
-                    );
+                    tracing::trace!("Dropping a export specifier because it's a data identifier");
 
                     match s {
-                        ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) => {
+                        ExportSpecifier::Named(ExportNamedSpecifier {
+                            orig: ModuleExportName::Ident(orig),
+                            ..
+                        }) => {
                             self.state.should_run_again = true;
                             self.state.refs_from_data_fn.insert(orig.to_id());
                         }
