@@ -121,6 +121,11 @@ describe('should set-up next', () => {
         )
       )
     ).toBe(true)
+    expect(
+      await fs.pathExists(
+        join(next.testDir, 'standalone/.next/server/pages/_middleware.js')
+      )
+    ).toBe(true)
   })
 
   it('should output required-server-files manifest correctly', async () => {
