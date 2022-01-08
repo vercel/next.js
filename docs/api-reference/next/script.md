@@ -46,6 +46,8 @@ The loading strategy of the script.
 
 A method that returns additional JavaScript that should be executed after the script has finished loading.
 
+> **Note: onLoad will not fire if the `strategy` prop is set to `beforeInteractive`.**
+
 The following is an example of how to use the `onLoad` property:
 
 ```jsx
