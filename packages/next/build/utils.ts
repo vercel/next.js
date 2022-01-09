@@ -1207,7 +1207,7 @@ export async function copyTracedFiles(
   for (const page of pageKeys) {
     if (MIDDLEWARE_ROUTE.test(page)) {
       const { files } =
-        middlewareManifest.middleware[page.replace(/\/_middleware$/, '')]
+        middlewareManifest.middleware[page.replace(/\/_middleware$/, '') || '/']
 
       for (const file of files) {
         const originalPath = path.join(distDir, file)
