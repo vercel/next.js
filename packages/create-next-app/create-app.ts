@@ -189,11 +189,12 @@ export async function createApp({
       )
     }
 
-    console.log('Installing packages. This might take a couple of minutes.')
-    console.log()
-
-    if (!skipInstall) console.log('Skipping dependency installation step.')
-    else await install(root, null, { useYarn, isOnline })
+    if (skipInstall) console.log('Skipping dependency installation step.')
+    else {
+      console.log('Installing packages. This might take a couple of minutes.')
+      console.log()
+      await install(root, null, { useYarn, isOnline })
+    }
 
     console.log()
   } else {
