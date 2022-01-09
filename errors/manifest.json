@@ -447,6 +447,7 @@
           "path": "/errors/link-multiple-children.md"
         },
         { "title": "no-img-element", "path": "/errors/no-img-element.md" },
+        { "title": "no-head-element", "path": "/errors/no-head-element.md" },
         {
           "title": "non-dynamic-getstaticpaths-usage",
           "path": "/errors/non-dynamic-getstaticpaths-usage.md"

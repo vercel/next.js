@@ -4,7 +4,7 @@ import type { NextParsedUrlQuery } from '../../../../server/request-meta'
 import type { Params } from '../../../../server/router'
 import type { RouteHas } from '../../../../lib/load-custom-routes'
 import { compile, pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
+import { escapeStringRegexp } from '../../escape-regexp'
 import { parseUrl } from './parse-url'
 
 export function matchHas(
