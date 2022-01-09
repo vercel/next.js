@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Root, Children, AttributeValue, AttributeJSX, ValueInRender, ValueInEffect, UnusedInRender } from '../'
+import { Root, Children, JSXMemberExpression, AttributeValue, AttributeJSX, ValueInRender, ValueInEffect, UnusedInRender } from '../'
 
 export default function Test() {
   const [x, setX] = useState(ValueInRender.value)
@@ -11,6 +11,7 @@ export default function Test() {
     <Root x={x}>
       <div>
         <Children attr={AttributeValue} jsx={<AttributeJSX />} />
+        <JSXMemberExpression.Deep.Property />
       </div>
     </Root>
   )
@@ -28,6 +29,7 @@ export async function getStaticProps() {
         AttributeJSX.value,
         ValueInRender.value,
         ValueInEffect.value,
+        JSXMemberExpression.value,
         // this import reference should be removed
         UnusedInRender.value,
       ],
