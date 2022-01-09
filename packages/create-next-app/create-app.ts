@@ -252,9 +252,9 @@ export async function createApp({
           devDependencies.map((devDependency) => [devDependency, 'latest'])
         )
       }
-
       /**
-       * Write packageJson it to disk.
+       * Write package.json with "latest" versions of dependencies and devDependencies
+       * Need this since we don't know the exact versions of dependencies and devDependencies required as the package manager isn't handling it.
        */
       writePackageJsonToDisk(root, {
         ...packageJson,
@@ -263,7 +263,8 @@ export async function createApp({
       })
     } else {
       /**
-       * Write packageJson it to disk.
+       * Write package.json to disk without dependencies and devDependencies
+       * Correct versions of dependencies and devDependencies will be installed using the package manager
        */
       writePackageJsonToDisk(root, packageJson)
 

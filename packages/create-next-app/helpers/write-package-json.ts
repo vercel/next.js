@@ -3,7 +3,7 @@ import path from 'path'
 import os from 'os'
 
 /**
- * Write packageJson it to disk.
+ * Writes package.json object to disk
  */
 export function writePackageJsonToDisk(root: string, value: any) {
   return fs.writeFileSync(
