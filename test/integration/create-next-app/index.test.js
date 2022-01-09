@@ -394,4 +394,53 @@ describe('create next app', () => {
       )
     })
   })
+
+  it('should skip installation on supplying --skip-install', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'test-skip-install'
+      const res = await run([projectName, '--skip-install'], { cwd })
+      expect(res.exitCode).toBe(0)
+
+      const files = [
+        'package.json',
+        'pages/index.js',
+        '.gitignore',
+        '.eslintrc.json',
+      ]
+      files.forEach((file) =>
+        expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
+      )
+
+      // Shouldn't have node_modules if install was skipped
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'node_modules'))
+      ).toBeFalsy()
+    })
+  })
+
+  it('should skip installation on supplying --skip-install with example', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'test-skip-install'
+      const res = await run(
+        [
+          projectName,
+          '--skip-install',
+          '--example',
+          `${exampleRepo}/${examplePath}`,
+        ],
+        { cwd }
+      )
+      expect(res.exitCode).toBe(0)
+
+      const files = ['package.json', 'pages/index.js', '.gitignore']
+      files.forEach((file) =>
+        expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
+      )
+
+      // Shouldn't have node_modules if install was skipped
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'node_modules'))
+      ).toBeFalsy()
+    })
+  })
 })
