@@ -1,8 +1,7 @@
 /* global location */
-import '@next/polyfill-module'
+import '../build/polyfills/polyfill-module'
 import React, { useState } from 'react'
 import ReactDOM from 'react-dom'
-import { StyleRegistry } from 'styled-jsx'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
@@ -35,7 +34,7 @@ import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import isError from '../lib/is-error'
 import { trackWebVitalMetric } from './vitals'
-import { RefreshContext } from './rsc'
+import { RefreshContext } from './rsc/refresh'
 
 /// <reference types="react-dom/experimental" />
 
@@ -258,7 +257,9 @@ class Container extends React.Component<{
     if (process.env.NODE_ENV === 'production') {
       return this.props.children
     } else {
-      const { ReactDevOverlay } = require('@next/react-dev-overlay/lib/client')
+      const {
+        ReactDevOverlay,
+      } = require('next/dist/compiled/@next/react-dev-overlay/client')
       return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
     }
   }
@@ -342,7 +343,9 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    const { getNodeError } = require('@next/react-dev-overlay/lib/client')
+    const {
+      getNodeError,
+    } = require('next/dist/compiled/@next/react-dev-overlay/client')
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
     if (initialErr) {
@@ -619,7 +622,7 @@ function AppContainer({
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
         <HeadManagerContext.Provider value={headManager}>
-          <StyleRegistry>{children}</StyleRegistry>
+          {children}
         </HeadManagerContext.Provider>
       </RouterContext.Provider>
     </Container>
@@ -726,11 +729,12 @@ if (process.env.__NEXT_RSC) {
     let response = rscCache.get(cacheKey)
     if (response) return response
 
-    if (serverDataBuffer.has(cacheKey + ',' + id)) {
+    const bufferCacheKey = cacheKey + ',' + id
+    if (serverDataBuffer.has(bufferCacheKey)) {
       const t = new TransformStream()
       const writer = t.writable.getWriter()
       response = createFromFetch(Promise.resolve({ body: t.readable }))
-      nextServerDataRegisterWriter(cacheKey + ',' + id, writer)
+      nextServerDataRegisterWriter(bufferCacheKey, writer)
     } else {
       response = createFromFetch(
         serialized
@@ -757,15 +761,16 @@ if (process.env.__NEXT_RSC) {
     _fresh?: boolean
   }) => {
     const response = useServerResponse(cacheKey, serialized)
-    return response.readRoot()
+    const root = response.readRoot()
+    rscCache.delete(cacheKey)
+    return root
   }
 
   RSCComponent = (props: any) => {
     const cacheKey = getCacheKey()
     const { __flight_serialized__, __flight_fresh__ } = props
     const [, dispatch] = useState({})
-    // @ts-ignore TODO: remove when react 18 types are supported
-    const startTransition = React.startTransition
+    const startTransition = (React as any).startTransition
     const renrender = () => dispatch({})
     // If there is no cache, or there is serialized data already
     function refreshCache(nextProps: any) {
@@ -774,7 +779,7 @@ if (process.env.__NEXT_RSC) {
         const response = createFromFetch(
           fetchFlight(currentCacheKey, nextProps)
         )
-        // FIXME: router.asPath can be different from current location due to navigation
+
         rscCache.set(currentCacheKey, response)
         renrender()
       })
