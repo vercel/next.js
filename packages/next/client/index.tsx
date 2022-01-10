@@ -657,12 +657,7 @@ const wrapApp =
       err: hydrateErr,
       router,
     }
-    return (
-      <AppContainer>
-        {renderApp(App, appProps)}
-        {/* <App {...appProps} /> */}
-      </AppContainer>
-    )
+    return <AppContainer>{renderApp(App, appProps)}</AppContainer>
   }
 
 let RSCComponent: (props: any) => JSX.Element
@@ -977,7 +972,6 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     <>
       <Head callback={onHeadCommit} />
       <AppContainer>
-        {/* <App {...appProps} /> */}
         {renderApp(App, appProps)}
         <Portal type="next-route-announcer">
           <RouteAnnouncer />

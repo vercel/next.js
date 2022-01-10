@@ -79,7 +79,7 @@ export function createPagesMapping(
   // allow falling back to the correct source file so
   // that HMR can work properly when a file is added/removed
   const documentPage = `_document${hasConcurrentFeatures ? '-web' : ''}`
-  const appPage = `_app${hasServerComponents ? '.server' : ''}`
+  const appPage = `_app${hasServerComponents ? '-server' : ''}`
   if (isDev) {
     pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
     pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`

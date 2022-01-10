@@ -47,6 +47,13 @@ Document.getInitialProps = (ctx) => {
 }
 `
 
+const rscAppPage = `
+import Container from '../components/container.client'
+export default function App({children}) {
+  return <Container>{children}</Container>
+}
+`
+
 const appWithGlobalCss = `
 import '../styles.css'
 
@@ -174,6 +181,20 @@ describe('concurrentFeatures - prod', () => {
 
   runBasicTests(context, 'prod')
 })
+
+const customAppPageSuite = {
+  runTests: (context) => {
+    it('should render app page', async () => {
+      const html = await renderViaHTTP(context.appPort, '/')
+      expect(html).toContain('_app.server')
+    })
+  },
+  before: () => appPage.write(rscAppPage),
+  after: () => appPage.delete(),
+}
+
+runSuite('Custom App', 'dev', customAppPageSuite)
+runSuite('Custom App', 'prod', customAppPageSuite)
 
 describe('concurrentFeatures - dev', () => {
   const context = { appDir }

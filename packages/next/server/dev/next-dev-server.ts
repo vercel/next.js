@@ -405,15 +405,11 @@ export default class DevServer extends Server {
 
     process.on('unhandledRejection', (reason) => {
       this.logErrorWithOriginalStack(reason, 'unhandledRejection').catch(
-        (err) => {
-          console.error(err)
-        }
+        () => {}
       )
     })
     process.on('uncaughtException', (err) => {
-      this.logErrorWithOriginalStack(err, 'uncaughtException').catch((e) => {
-        console.error(e)
-      })
+      this.logErrorWithOriginalStack(err, 'uncaughtException').catch(() => {})
     })
   }
 
@@ -671,7 +667,6 @@ export default class DevServer extends Server {
       }
     }
 
-    console.error(err)
     if (!usedOriginalStack) {
       if (type === 'warning') {
         Log.warn(err + '')

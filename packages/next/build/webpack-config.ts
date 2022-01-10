@@ -546,7 +546,7 @@ export default async function getBaseWebpackConfig(
         prev.push(path.join(pagesDir, `_app.${ext}`))
         return prev
       }, [] as string[]),
-      `next/dist/pages/_app${hasServerComponents ? '.server' : ''}.js`,
+      `next/dist/pages/_app${hasServerComponents ? '-server' : ''}.js`,
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
       ...config.pageExtensions.reduce((prev, ext) => {

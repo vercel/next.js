@@ -1653,7 +1653,7 @@ export async function pages_app(task, opts) {
 
 export async function pages_app_server(task, opts) {
   await task
-    .source('pages/_app.server.tsx')
+    .source('pages/_app-server.tsx')
     .swc('client', { dev: opts.dev })
     .target('dist/pages')
 }
