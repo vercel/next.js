@@ -76,6 +76,7 @@ impl Task for BundleTask {
                     disable_inliner: false,
                     external_modules: builtins,
                     module: swc_bundler::ModuleType::Es,
+                    ..Default::default()
                 },
                 Box::new(CustomHook),
             );
