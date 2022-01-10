@@ -1,15 +1,10 @@
 import type { ServerResponse } from 'http'
-import type { Writable } from 'stream'
-
-export type NodeWritablePiper = (
-  res: Writable,
-  next: (err?: Error) => void
-) => void
+import { pipeToNodeWritable, pipeToReadableStream, Stream } from './stream'
 
 export default class RenderResult {
-  _result: string | NodeWritablePiper
+  _result: string | Stream
 
-  constructor(response: string | NodeWritablePiper) {
+  constructor(response: string | Stream) {
     this._result = response
   }
 
@@ -28,10 +23,16 @@ export default class RenderResult {
         'invariant: static responses cannot be piped. This is a bug in Next.js'
       )
     }
-    const response = this._result
-    return new Promise((resolve, reject) => {
-      response(res, (err) => (err ? reject(err) : resolve()))
-    })
+    return pipeToNodeWritable(this._result, res)
+  }
+
+  pipeToWritableStreamDefaultWriter(writer: WritableStreamDefaultWriter): void {
+    if (typeof this._result === 'string') {
+      throw new Error(
+        'invariant: static responses cannot be piped. This is a bug in Next.js'
+      )
+    }
+    return pipeToReadableStream(this._result, writer)
   }
 
   isDynamic(): boolean {

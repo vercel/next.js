@@ -104,7 +104,6 @@ export function getRender({
 
     const transformStream = new TransformStream()
     const writer = transformStream.writable.getWriter()
-    const encoder = new TextEncoder()
 
     let result: RenderResult | null
     let renderError: any
@@ -148,11 +147,7 @@ export function getRender({
       return sendError(req, new Error('No result returned from render.'))
     }
 
-    result.pipe({
-      write: (str: string) => writer.write(encoder.encode(str)),
-      end: () => writer.close(),
-      // Not implemented: cork/uncork/on/removeListener
-    } as any)
+    result.pipeToWritableStreamDefaultWriter(writer)
 
     return new Response(transformStream.readable, {
       headers: createHeaders(),
