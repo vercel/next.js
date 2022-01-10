@@ -661,7 +661,11 @@ export async function renderToHTML(
     locales: renderOpts.locales,
     defaultLocale: renderOpts.defaultLocale,
     AppTree: (props: any) => {
-      return renderApp(App, Component, router, props, isServerComponent)
+      return (
+        <AppContainerWithIsomorphicFiberStructure>
+          {renderApp(App, Component, router, props, isServerComponent)}
+        </AppContainerWithIsomorphicFiberStructure>
+      )
     },
     defaultGetInitialProps: async (
       docCtx: DocumentContext,
