@@ -76,8 +76,7 @@ export async function getStaticProps() {
 > CORRECT=pre\$A
 > ```
 
-> **Note**: If you are using a `/src` folder, please note that Next.js will load the .env files **only** from the parent
-> folder and **not** from the `/src` folder.
+> **Note**: If you are using a `/src` folder, please note that Next.js will load the .env files **only** from the parent folder and **not** from the `/src` folder.
 
 ## Exposing Environment Variables to the Browser
 
