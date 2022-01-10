@@ -295,8 +295,6 @@ export default class MiddlewarePlugin {
             .tap(PLUGIN_NAME, ignore)
 
           const memberChainHandler = (_expr: any, members: string[]) => {
-            if (!isMiddlewareModule()) return
-
             if (members.length >= 2 && members[0] === 'env') {
               const envName = members[1]
               const { buildInfo } = parser.state.module
@@ -305,7 +303,7 @@ export default class MiddlewarePlugin {
               }
 
               buildInfo.nextUsedEnvVars.add(envName)
-              return true
+              if (isMiddlewareModule()) return true
             }
           }
 
