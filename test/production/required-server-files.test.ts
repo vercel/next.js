@@ -108,10 +108,10 @@ describe('should set-up next', () => {
   })
 
   it('should output middleware correctly', async () => {
-    // the middleware-runtime is located in .next/static/chunks so ensure
-    // the folder is present
     expect(
-      await fs.pathExists(join(next.testDir, 'standalone/.next/static/chunks'))
+      await fs.pathExists(
+        join(next.testDir, 'standalone/.next/server/middleware-runtime.js')
+      )
     ).toBe(true)
     expect(
       await fs.pathExists(
