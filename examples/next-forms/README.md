@@ -1,6 +1,6 @@
 # Building Web Forms with Next.js Example
 
-Next.js and Vercel provide you with an all-in solution for hosting web forms and handling submissions with serverless functions. This example helps you set up a working environment for building forms with Next.js and Vercel.js.
+This example shows how you can build forms with Next.js.
 
 ## Deploy your own
 
