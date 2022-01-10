@@ -635,9 +635,7 @@ function renderApp(
 ) {
   if (process.env.__NEXT_RSC) {
     const { Component, router: _, err: __, ...props } = appProps
-    const AppServerComponent = App as React.ComponentType<{
-      children: React.ReactNode
-    }>
+    const AppServerComponent = App as React.ComponentType
     return (
       <AppServerComponent>
         <Component {...props} />

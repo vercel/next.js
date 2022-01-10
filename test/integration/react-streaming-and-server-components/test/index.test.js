@@ -57,8 +57,8 @@ export default function App({children}) {
 const appWithGlobalCss = `
 import '../styles.css'
 
-function App({ Component, pageProps }) {
-  return <Component {...pageProps} />
+function App({ children }) {
+  return children
 }
 
 export default App
