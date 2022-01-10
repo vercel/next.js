@@ -1,6 +1,6 @@
-import { NextPage } from "next";
+import { NextPage } from 'next'
 const A: NextPage = () => {
-  return <div>a</div>;
-};
+  return <div>a</div>
+}
 
-export default A;
+export default A

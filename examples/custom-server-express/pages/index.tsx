@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { NextPage } from "next";
+import Link from 'next/link'
+import { NextPage } from 'next'
 
 const Home: NextPage = () => {
   return (
@@ -15,7 +15,7 @@ const Home: NextPage = () => {
         </Link>
       </li>
     </ul>
-  );
-};
+  )
+}
 
-export default Home;
+export default Home
