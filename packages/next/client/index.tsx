@@ -32,7 +32,7 @@ import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
-import isError, { getProperError } from '../lib/is-error'
+import { getProperError } from '../lib/is-error'
 import { trackWebVitalMetric } from './vitals'
 import { RefreshContext } from './rsc/refresh'
 

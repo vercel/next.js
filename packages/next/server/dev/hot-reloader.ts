@@ -39,7 +39,7 @@ import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
-import isError, { getProperError } from '../../lib/is-error'
+import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 
 const wsServer = new ws.Server({ noServer: true })
