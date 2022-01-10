@@ -15,7 +15,10 @@ import { NextConfigComplete } from '../server/config-shared'
 import { isCustomErrorPage, isFlightPage, isReservedPage } from './utils'
 import { ssrEntries } from './webpack/plugins/middleware-plugin'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
-import { MIDDLEWARE_SSR_RUNTIME_WEBPACK } from '../shared/lib/constants'
+import {
+  MIDDLEWARE_RUNTIME_WEBPACK,
+  MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+} from '../shared/lib/constants'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 export type PagesMapping = {
@@ -291,6 +294,8 @@ export function finalizeEntrypoint({
         name: ['_ENTRIES', `middleware_[name]`],
         type: 'assign',
       },
+      runtime: MIDDLEWARE_RUNTIME_WEBPACK,
+      asyncChunks: false,
       ...entry,
     }
     return middlewareEntry

@@ -6,6 +6,7 @@ import {
   MIDDLEWARE_FLIGHT_MANIFEST,
   MIDDLEWARE_BUILD_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
+  MIDDLEWARE_RUNTIME_WEBPACK,
 } from '../../../shared/lib/constants'
 import { MIDDLEWARE_ROUTE } from '../../../lib/constants'
 import { nonNullable } from '../../../lib/non-nullable'
@@ -89,13 +90,7 @@ export default class MiddlewarePlugin {
             `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
             ...entryFiles.map((file) => 'server/' + file),
           ].filter(nonNullable)
-        : entryFiles.map((file: string) =>
-            // we need to use the unminified version of the webpack runtime,
-            // remove if we do start minifying middleware chunks
-            file.startsWith('static/chunks/webpack-')
-              ? file.replace('webpack-', 'webpack-middleware-')
-              : file
-          )
+        : entryFiles.map((file: string) => file)
 
       middlewareManifest.middleware[location] = {
         env: envPerRoute.get(entrypoint.name) || [],
@@ -130,6 +125,15 @@ export default class MiddlewarePlugin {
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
       (compilation, { normalModuleFactory }) => {
+        compilation.hooks.afterChunks.tap(PLUGIN_NAME, () => {
+          const middlewareRuntimeChunk = compilation.namedChunks.get(
+            MIDDLEWARE_RUNTIME_WEBPACK
+          )
+          if (middlewareRuntimeChunk) {
+            middlewareRuntimeChunk.filenameTemplate = 'server/[name].js'
+          }
+        })
+
         const envPerRoute = new Map<string, string[]>()
 
         compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, () => {
