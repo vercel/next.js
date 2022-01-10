@@ -182,6 +182,25 @@ function enhanceComponents(
   }
 }
 
+function renderApp(
+  App: AppType | React.ComponentType,
+  Component: React.ComponentType,
+  router: ServerRouter,
+  props: any,
+  isServerComponent: boolean
+) {
+  if (isServerComponent) {
+    let AppServerComponent = App as React.ComponentType
+    return (
+      <AppServerComponent>
+        <Component {...props} router={router} />
+      </AppServerComponent>
+    )
+  } else {
+    return <App {...props} Component={Component} router={router} />
+  }
+}
+
 export type RenderOptsPartial = {
   buildId: string
   canonicalBase: string
@@ -642,11 +661,7 @@ export async function renderToHTML(
     locales: renderOpts.locales,
     defaultLocale: renderOpts.defaultLocale,
     AppTree: (props: any) => {
-      return (
-        <AppContainerWithIsomorphicFiberStructure>
-          <App {...props} Component={Component} router={router} />
-        </AppContainerWithIsomorphicFiberStructure>
-      )
+      return renderApp(App, Component, router, props, isServerComponent)
     },
     defaultGetInitialProps: async (
       docCtx: DocumentContext,
@@ -714,11 +729,9 @@ export async function renderToHTML(
   // not be useful.
   // https://github.com/facebook/react/pull/22644
   const Noop = () => null
-  const AppContainerWithIsomorphicFiberStructure = ({
-    children,
-  }: {
+  const AppContainerWithIsomorphicFiberStructure: React.FC<{
     children: JSX.Element
-  }) => {
+  }> = ({ children }) => {
     return (
       <>
         {/* <Head/> */}
@@ -1164,11 +1177,13 @@ export async function renderToHTML(
         const html = ReactDOMServer.renderToString(
           <Body>
             <AppContainerWithIsomorphicFiberStructure>
-              <EnhancedApp
-                Component={EnhancedComponent}
-                router={router}
-                {...props}
-              />
+              {renderApp(
+                EnhancedApp,
+                EnhancedComponent,
+                router,
+                props,
+                isServerComponent
+              )}
             </AppContainerWithIsomorphicFiberStructure>
           </Body>
         )
@@ -1201,22 +1216,26 @@ export async function renderToHTML(
     } else {
       let bodyResult
 
+      const renderContent = () => {
+        return ctx.err && ErrorDebug ? (
+          <Body>
+            <ErrorDebug error={ctx.err} />
+          </Body>
+        ) : (
+          <Body>
+            <AppContainerWithIsomorphicFiberStructure>
+              {renderApp(App, Component, router, props, isServerComponent)}
+            </AppContainerWithIsomorphicFiberStructure>
+          </Body>
+        )
+      }
+
       if (concurrentFeatures) {
         bodyResult = async (suffix: string) => {
           // this must be called inside bodyResult so appWrappers is
           // up to date when getWrappedApp is called
-          const content =
-            ctx.err && ErrorDebug ? (
-              <Body>
-                <ErrorDebug error={ctx.err} />
-              </Body>
-            ) : (
-              <Body>
-                <AppContainerWithIsomorphicFiberStructure>
-                  <App {...props} Component={Component} router={router} />
-                </AppContainerWithIsomorphicFiberStructure>
-              </Body>
-            )
+
+          const content = renderContent()
           return process.browser
             ? await renderToWebStream(
                 content,
@@ -1226,18 +1245,7 @@ export async function renderToHTML(
             : await renderToNodeStream(content, suffix, generateStaticHTML)
         }
       } else {
-        const content =
-          ctx.err && ErrorDebug ? (
-            <Body>
-              <ErrorDebug error={ctx.err} />
-            </Body>
-          ) : (
-            <Body>
-              <AppContainerWithIsomorphicFiberStructure>
-                <App {...props} Component={Component} router={router} />
-              </AppContainerWithIsomorphicFiberStructure>
-            </Body>
-          )
+        const content = renderContent()
         // for non-concurrent rendering we need to ensure App is rendered
         // before _document so that updateHead is called/collected before
         // rendering _document's head

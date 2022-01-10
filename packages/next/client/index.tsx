@@ -629,6 +629,25 @@ function AppContainer({
   )
 }
 
+function renderApp(
+  App: AppComponent | React.ComponentType,
+  appProps: AppProps
+) {
+  if (process.env.__NEXT_RSC) {
+    const { Component, router: _, err: __, ...props } = appProps
+    const AppServerComponent = App as React.ComponentType<{
+      children: React.ReactNode
+    }>
+    return (
+      <AppServerComponent>
+        <Component {...props} />
+      </AppServerComponent>
+    )
+  } else {
+    return <App {...appProps} />
+  }
+}
+
 const wrapApp =
   (App: AppComponent) =>
   (wrappedAppProps: Record<string, any>): JSX.Element => {
@@ -640,7 +659,8 @@ const wrapApp =
     }
     return (
       <AppContainer>
-        <App {...appProps} />
+        {renderApp(App, appProps)}
+        {/* <App {...appProps} /> */}
       </AppContainer>
     )
   }
@@ -957,7 +977,8 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     <>
       <Head callback={onHeadCommit} />
       <AppContainer>
-        <App {...appProps} />
+        {/* <App {...appProps} /> */}
+        {renderApp(App, appProps)}
         <Portal type="next-route-announcer">
           <RouteAnnouncer />
         </Portal>

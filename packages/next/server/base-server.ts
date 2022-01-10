@@ -1220,6 +1220,7 @@ export default abstract class Server {
               parsed: parsed,
             })
           } catch (err) {
+            console.error('err', err)
             if (isError(err) && err.code === 'ENOENT') {
               await this.render404(req, res, parsed)
               return { finished: true }
@@ -1403,6 +1404,7 @@ export default abstract class Server {
             finished: true,
           }
         } catch (err) {
+          console.error('n err', err)
           if (err instanceof NoFallbackError && bubbleNoFallback) {
             return {
               finished: false,
