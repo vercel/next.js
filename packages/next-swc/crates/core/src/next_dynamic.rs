@@ -8,6 +8,7 @@ use swc_ecmascript::ast::{
     ExprOrSuper, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr, Null,
     ObjectLit, Prop, PropName, PropOrSpread, Str, StrKind,
 };
+use swc_ecmascript::utils::ExprFactory;
 use swc_ecmascript::utils::{
     ident::{Id, IdentLike},
     HANDLER,
@@ -245,22 +246,29 @@ impl Fold for NextDynamicPatcher {
                         }) = &*expr.args[1].expr
                         {
                             for prop in options_props.iter() {
-                                if let Some(KeyValueProp { key, value }) =
-                                    prop.clone().prop().and_then(|p| p.key_value())
-                                {
-                                    if key.ident().and_then(|i| (Some(i.sym.eq("ssr".into()))))
-                                        == Some(true)
-                                    {
-                                        if let Some(Bool { value, span: _ }) =
-                                            value.lit().and_then(|l| {
-                                                if let Lit::Bool(value) = l {
-                                                    Some(value)
-                                                } else {
-                                                    None
-                                                }
-                                            })
-                                        {
-                                            if value == false {
+                                if let Some(KeyValueProp { key, value }) = match prop {
+                                    PropOrSpread::Prop(prop) => match &**prop {
+                                        Prop::KeyValue(key_value_prop) => Some(key_value_prop),
+                                        _ => None,
+                                    },
+                                    _ => None,
+                                } {
+                                    if let Some(Ident {
+                                        sym,
+                                        span: _,
+                                        optional: _,
+                                    }) = match key {
+                                        PropName::Ident(ident) => Some(ident),
+                                        _ => None,
+                                    } {
+                                        if sym == "ssr" {
+                                            if let Some(Lit::Bool(Bool {
+                                                value: false,
+                                                span: _,
+                                            })) = match &**value {
+                                                Expr::Lit(lit) => Some(lit),
+                                                _ => None,
+                                            } {
                                                 has_ssr_false = true
                                             }
                                         }
@@ -272,10 +280,7 @@ impl Fold for NextDynamicPatcher {
                     }
 
                     if has_ssr_false && self.is_server {
-                        expr.args[0] = ExprOrSpread {
-                            spread: None,
-                            expr: Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))),
-                        }
+                        expr.args[0] = Lit::Null(Null { span: DUMMY_SP }).as_arg();
                     }
 
                     let second_arg = ExprOrSpread {
