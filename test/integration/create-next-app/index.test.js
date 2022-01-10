@@ -401,12 +401,7 @@ describe('create next app', () => {
       const res = await run([projectName, '--skip-install'], { cwd })
       expect(res.exitCode).toBe(0)
 
-      const files = [
-        'package.json',
-        'pages/index.js',
-        '.gitignore',
-        '.eslintrc.json',
-      ]
+      const files = ['package.json', 'pages/index.js', '.gitignore']
       files.forEach((file) =>
         expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
       )
@@ -415,6 +410,57 @@ describe('create next app', () => {
       expect(
         fs.existsSync(path.join(cwd, projectName, 'node_modules'))
       ).toBeFalsy()
+    })
+  })
+
+  it('should generate package.json on supplying --skip-install', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'test-skip-install'
+      const res = await run([projectName, '--skip-install'], { cwd })
+      expect(res.exitCode).toBe(0)
+      const pkgJSONPath = path.join(cwd, projectName, 'package.json')
+
+      expect(fs.existsSync(pkgJSONPath)).toBeTruthy()
+
+      // Assert for default dependencies
+      const pkgJSON = require(pkgJSONPath)
+      expect(pkgJSON.dependencies).toMatchObject({
+        react: 'latest',
+        'react-dom': 'latest',
+        next: 'latest',
+      })
+      expect(pkgJSON.devDependencies).toMatchObject({
+        eslint: 'latest',
+        'eslint-config-next': 'latest',
+      })
+    })
+  })
+
+  it('should generate package.json with ts dependencies on supplying --skip-install and --typescript', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'test-skip-install'
+      const res = await run([projectName, '--skip-install', '--typescript'], {
+        cwd,
+      })
+      expect(res.exitCode).toBe(0)
+      const pkgJSONPath = path.join(cwd, projectName, 'package.json')
+
+      expect(fs.existsSync(pkgJSONPath)).toBeTruthy()
+
+      // Assert for default dependencies for ts projects
+      const pkgJSON = require(pkgJSONPath)
+      expect(pkgJSON.dependencies).toMatchObject({
+        react: 'latest',
+        'react-dom': 'latest',
+        next: 'latest',
+      })
+      expect(pkgJSON.devDependencies).toMatchObject({
+        eslint: 'latest',
+        'eslint-config-next': 'latest',
+        typescript: 'latest',
+        '@types/react': 'latest',
+        '@types/node': 'latest',
+      })
     })
   })
 
