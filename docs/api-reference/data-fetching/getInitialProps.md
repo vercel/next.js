@@ -139,6 +139,6 @@ For more information on what to do next, we recommend the following sections:
 <div class="card">
   <a href="/docs/advanced-features/automatic-static-optimization.md">
     <b>Automatic Static Optimization:</b>
-    <small>Learn about how Nextjs automatically optimizes your pages.</small>
+    <small>Learn about how Next.js automatically optimizes your pages.</small>
   </a>
 </div>

@@ -265,9 +265,10 @@ function handleLoading(
       const p = 'decode' in img ? img.decode() : Promise.resolve()
       p.catch(() => {}).then(() => {
         if (placeholder === 'blur') {
-          img.style.filter = 'none'
-          img.style.backgroundSize = 'none'
-          img.style.backgroundImage = 'none'
+          img.style.filter = ''
+          img.style.backgroundSize = ''
+          img.style.backgroundImage = ''
+          img.style.backgroundPosition = ''
         }
         loadedImageURLs.add(src)
         if (onLoadingComplete) {
@@ -279,7 +280,9 @@ function handleLoading(
         if (process.env.NODE_ENV !== 'production') {
           if (img.parentElement?.parentElement) {
             const parent = getComputedStyle(img.parentElement.parentElement)
-            if (layout === 'responsive' && parent.display === 'flex') {
+            if (!parent.position) {
+              // The parent has not been rendered to the dom yet and therefore it has no position. Skip the warnings for such cases.
+            } else if (layout === 'responsive' && parent.display === 'flex') {
               console.warn(
                 `Image with src "${src}" may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width.`
               )
@@ -416,6 +419,11 @@ export default function Image({
     if (priority && loading === 'lazy') {
       throw new Error(
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
+      )
+    }
+    if (sizes && layout !== 'fill' && layout !== 'responsive') {
+      console.warn(
+        `Image with src "${src}" has "sizes" property but it will be ignored. Only use "sizes" with "layout='fill'" or "layout='responsive'".`
       )
     }
     if (placeholder === 'blur') {
@@ -637,6 +645,18 @@ export default function Image({
     }
   }
 
+  let imageSrcSetPropName = 'imagesrcset'
+  let imageSizesPropName = 'imagesizes'
+  if (process.env.__NEXT_REACT_ROOT) {
+    imageSrcSetPropName = 'imageSrcSet'
+    imageSizesPropName = 'imageSizes'
+  }
+  const linkProps = {
+    // Note: imagesrcset and imagesizes are not in the link element type with react 17.
+    [imageSrcSetPropName]: imgAttributes.srcSet,
+    [imageSizesPropName]: imgAttributes.sizes,
+  }
+
   return (
     <span style={wrapperStyle}>
       {hasSizer ? (
@@ -673,26 +693,28 @@ export default function Image({
         }}
         style={{ ...imgStyle, ...blurStyle }}
       />
-      <noscript>
-        <img
-          {...rest}
-          {...generateImgAttrs({
-            src,
-            unoptimized,
-            layout,
-            width: widthInt,
-            quality: qualityInt,
-            sizes,
-            loader,
-          })}
-          decoding="async"
-          data-nimg={layout}
-          style={imgStyle}
-          className={className}
-          // @ts-ignore - TODO: upgrade to `@types/react@17`
-          loading={loading || 'lazy'}
-        />
-      </noscript>
+      {isLazy && (
+        <noscript>
+          <img
+            {...rest}
+            {...generateImgAttrs({
+              src,
+              unoptimized,
+              layout,
+              width: widthInt,
+              quality: qualityInt,
+              sizes,
+              loader,
+            })}
+            decoding="async"
+            data-nimg={layout}
+            style={imgStyle}
+            className={className}
+            // @ts-ignore - TODO: upgrade to `@types/react@17`
+            loading={loading || 'lazy'}
+          />
+        </noscript>
+      )}
 
       {priority ? (
         // Note how we omit the `href` attribute, as it would only be relevant
@@ -711,11 +733,8 @@ export default function Image({
             rel="preload"
             as="image"
             href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-            // @ts-ignore: imagesrcset is not yet in the link element type.
-            imagesrcset={imgAttributes.srcSet}
-            // @ts-ignore: imagesizes is not yet in the link element type.
-            imagesizes={imgAttributes.sizes}
-          ></link>
+            {...linkProps}
+          />
         </Head>
       ) : null}
     </span>
@@ -759,7 +778,7 @@ function cloudinaryLoader({
 }: DefaultImageLoaderProps): string {
   // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
   const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
-  let paramsString = params.join(',') + '/'
+  const paramsString = params.join(',') + '/'
   return `${root}${paramsString}${normalizeSrc(src)}`
 }
 

@@ -129,6 +129,10 @@
           "title": "Advanced Features",
           "routes": [
             {
+              "title": "Next.js Compiler",
+              "path": "/docs/advanced-features/compiler.md"
+            },
+            {
               "title": "Preview Mode",
               "path": "/docs/advanced-features/preview-mode.md"
             },
@@ -147,6 +151,10 @@
             {
               "title": "Absolute Imports and Module Path Aliases",
               "path": "/docs/advanced-features/module-path-aliases.md"
+            },
+            {
+              "title": "Using MDX",
+              "path": "/docs/advanced-features/using-mdx.md"
             },
             {
               "title": "AMP Support",
@@ -287,6 +295,10 @@
         {
           "title": "next/image",
           "path": "/docs/api-reference/next/image.md"
+        },
+        {
+          "title": "next/script",
+          "path": "/docs/api-reference/next/script.md"
         },
         {
           "title": "next/head",

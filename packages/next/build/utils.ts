@@ -1,5 +1,5 @@
 import '../server/node-polyfill-fetch'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
@@ -16,6 +16,7 @@ import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
+  MIDDLEWARE_ROUTE,
 } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
@@ -24,7 +25,10 @@ import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
 import { GetStaticPaths, PageConfig } from 'next/types'
-import { denormalizePagePath } from '../server/normalize-page-path'
+import {
+  denormalizePagePath,
+  normalizePagePath,
+} from '../server/normalize-page-path'
 import { BuildManifest } from '../server/get-page-files'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { UnwrapPromise } from '../lib/coalesced-function'
@@ -35,8 +39,12 @@ import { trace } from '../trace'
 import { setHttpAgentOptions } from '../server/config'
 import { NextConfigComplete } from '../server/config-shared'
 import isError from '../lib/is-error'
+import { recursiveDelete } from '../lib/recursive-delete'
+import { Sema } from 'next/dist/compiled/async-sema'
+import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 
 const { builtinModules } = require('module')
+const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
 const fsStatGzip = (file: string) => {
   const cached = fileGzipStats[file]
@@ -1143,4 +1151,141 @@ export function getUnresolvedModuleFromError(
   )
   const [, moduleName] = error.match(moduleErrorRegex) || []
   return builtinModules.find((item: string) => item === moduleName)
+}
+
+export async function copyTracedFiles(
+  dir: string,
+  distDir: string,
+  pageKeys: string[],
+  tracingRoot: string,
+  serverConfig: { [key: string]: any },
+  middlewareManifest: MiddlewareManifest
+) {
+  const outputPath = path.join(distDir, 'standalone')
+  const copiedFiles = new Set()
+  await recursiveDelete(outputPath)
+
+  async function handleTraceFiles(traceFilePath: string) {
+    const traceData = JSON.parse(await fs.readFile(traceFilePath, 'utf8')) as {
+      files: string[]
+    }
+    const copySema = new Sema(10, { capacity: traceData.files.length })
+    const traceFileDir = path.dirname(traceFilePath)
+
+    await Promise.all(
+      traceData.files.map(async (relativeFile) => {
+        await copySema.acquire()
+
+        const tracedFilePath = path.join(traceFileDir, relativeFile)
+        const fileOutputPath = path.join(
+          outputPath,
+          path.relative(tracingRoot, tracedFilePath)
+        )
+
+        if (!copiedFiles.has(fileOutputPath)) {
+          copiedFiles.add(fileOutputPath)
+
+          await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
+          const symlink = await fs.readlink(tracedFilePath).catch(() => null)
+
+          if (symlink) {
+            console.log('symlink', path.relative(tracingRoot, symlink))
+            await fs.symlink(
+              path.relative(tracingRoot, symlink),
+              fileOutputPath
+            )
+          } else {
+            await fs.copyFile(tracedFilePath, fileOutputPath)
+          }
+        }
+
+        await copySema.release()
+      })
+    )
+  }
+
+  for (const page of pageKeys) {
+    if (MIDDLEWARE_ROUTE.test(page)) {
+      const { files } =
+        middlewareManifest.middleware[page.replace(/\/_middleware$/, '') || '/']
+
+      for (const file of files) {
+        const originalPath = path.join(distDir, file)
+        const fileOutputPath = path.join(
+          outputPath,
+          path.relative(tracingRoot, distDir),
+          file
+        )
+        await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
+        await fs.copyFile(originalPath, fileOutputPath)
+      }
+      continue
+    }
+
+    const pageFile = path.join(
+      distDir,
+      'server',
+      'pages',
+      `${normalizePagePath(page)}.js`
+    )
+    const pageTraceFile = `${pageFile}.nft.json`
+    await handleTraceFiles(pageTraceFile)
+  }
+  await handleTraceFiles(path.join(distDir, 'next-server.js.nft.json'))
+  const serverOutputPath = path.join(
+    outputPath,
+    path.relative(tracingRoot, dir),
+    'server.js'
+  )
+  await fs.writeFile(
+    serverOutputPath,
+    `
+process.env.NODE_ENV = 'production'
+process.chdir(__dirname)
+const NextServer = require('next/dist/server/next-server').default
+const http = require('http')
+const path = require('path')
+
+let handler
+
+const server = http.createServer(async (req, res) => {
+  try {
+    await handler(req, res)
+  } catch (err) {
+    console.error(err);
+    res.statusCode = 500
+    res.end('internal server error')
+  }
+})
+const currentPort = parseInt(process.env.PORT, 10) || 3000
+
+server.listen(currentPort, (err) => {
+  if (err) {
+    console.error("Failed to start server", err)
+    process.exit(1)
+  }
+  const addr = server.address()
+  const nextServer = new NextServer({
+    hostname: 'localhost',
+    port: currentPort,
+    dir: path.join(__dirname),
+    dev: false,
+    conf: ${JSON.stringify({
+      ...serverConfig,
+      distDir: `./${path.relative(dir, distDir)}`,
+    })},
+  })
+  handler = nextServer.getRequestHandler()
+
+  console.log("Listening on port", currentPort)
+})
+    `
+  )
+}
+export function isReservedPage(page: string) {
+  return RESERVED_PAGE.test(page)
+}
+
+export function isCustomErrorPage(page: string) {
+  return page === '/404' || page === '/500'
 }

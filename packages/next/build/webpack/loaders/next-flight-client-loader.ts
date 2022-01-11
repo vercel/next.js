@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import * as acorn from 'acorn'
+import * as acorn from 'next/dist/compiled/acorn'
 
 type ResolveContext = {
   conditions: Array<string>
@@ -81,7 +81,7 @@ async function parseExportNamesInto(
   loadModule: TransformSourceFunction
 ): Promise<void> {
   const { body } = acorn.parse(transformedSource, {
-    ecmaVersion: 2019,
+    ecmaVersion: 11,
     sourceType: 'module',
   }) as any
   for (let i = 0; i < body.length; i++) {
