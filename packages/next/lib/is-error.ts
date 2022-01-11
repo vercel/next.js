@@ -28,6 +28,13 @@ export function getProperError(err: unknown): Error {
           'see here for more info: https://nextjs.org/docs/messages/threw-undefined'
       )
     }
+
+    if (err === null) {
+      return new Error(
+        'A null error was thrown, ' +
+          'see here for more info: https://nextjs.org/docs/messages/threw-undefined'
+      )
+    }
   }
 
   return new Error(isPlainObject(err) ? JSON.stringify(err) : err + '')

@@ -982,6 +982,34 @@ describe('ReactRefreshLogBox', () => {
       `"Error: string error"`
     )
 
+    // fix previous error
+    await session.patch(
+      'index.js',
+      `
+        export default () => {
+          return (
+            <div>hello</div>
+          )
+        }
+      `
+    )
+    expect(await session.hasRedbox(false)).toBe(false)
+    await session.patch(
+      'index.js',
+      `
+        export default () => {
+          throw null
+          return (
+            <div>hello</div>
+          )
+        }
+      `
+    )
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxDescription()).toContain(
+      `Error: A null error was thrown`
+    )
+
     await cleanup()
   })
 })
