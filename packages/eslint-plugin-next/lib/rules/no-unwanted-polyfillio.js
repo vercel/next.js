@@ -1,3 +1,4 @@
+// Keep in sync with next.js polyfills file : https://github.com/vercel/next.js/blob/master/packages/next-polyfill-nomodule/src/index.js
 const NEXT_POLYFILLED_FEATURES = [
   'Array.prototype.@@iterator',
   'Array.prototype.copyWithin',
@@ -20,6 +21,9 @@ const NEXT_POLYFILLED_FEATURES = [
   'Number.isSafeInteger',
   'Number.MAX_SAFE_INTEGER',
   'Number.MIN_SAFE_INTEGER',
+  'Number.parseFloat',
+  'Number.parseInt',
+  'Object.assign',
   'Object.entries',
   'Object.getOwnPropertyDescriptor',
   'Object.getOwnPropertyDescriptors',
@@ -42,21 +46,21 @@ const NEXT_POLYFILLED_FEATURES = [
   'String.prototype.startsWith',
   'String.prototype.trimEnd',
   'String.prototype.trimStart',
-  'String.prototype.trim',
   'URL',
+  'URL.prototype.toJSON',
   'URLSearchParams',
   'WeakMap',
   'WeakSet',
   'Promise',
   'Promise.prototype.finally',
   'es2015', // Should be covered by babel-preset-env instead.
-  'es2016', // Should be covered by babel-preset-env instead.
-  'es2017', // Should be covered by babel-preset-env instead.
-  'es2018', // Should be covered by babel-preset-env instead.
-  'es2019', // Should be covered by babel-preset-env instead.
+  'es2016', // contains polyfilled 'Array.prototype.includes', 'String.prototype.padEnd' and 'String.prototype.padStart'
+  'es2017', // contains polyfilled 'Object.entries', 'Object.getOwnPropertyDescriptors', 'Object.values', 'String.prototype.padEnd' and 'String.prototype.padStart'
+  'es2018', // contains polyfilled 'Promise.prototype.finally' and ''Symbol.asyncIterator'
+  // 'es2019', // Contains unpolyfilled 'Object.fromEntries' and polyfilled 'Array.prototype.flat', 'Array.prototype.flatMap', 'String.prototype.trimEnd' and 'String.prototype.trimStart'
   'es5', // Should be covered by babel-preset-env instead.
   'es6', // Should be covered by babel-preset-env instead.
-  'es7', // Should be covered by babel-preset-env instead.
+  'es7', // contains polyfilled 'Array.prototype.includes', 'String.prototype.padEnd' and 'String.prototype.padStart'
 ]
 
 //------------------------------------------------------------------------------

@@ -48,6 +48,18 @@ ruleTester.run('unwanted-polyfillsio', rule, {
             </div>
           );
     }`,
+    `import {Head} from 'next/document';
+
+      export class ES2019Features extends Head {
+        render() {
+          return (
+            <div>
+              <h1>Hello title</h1>
+              <script src='https://polyfill.io/v3/polyfill.min.js?features=es2019,Object.fromEntries'></script>
+            </div>
+          );
+        }
+    }`,
   ],
 
   invalid: [
