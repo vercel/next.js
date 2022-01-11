@@ -634,11 +634,12 @@ function renderApp(
   appProps: AppProps
 ) {
   if (process.env.__NEXT_RSC) {
-    const { Component, router: _, err: __, ...props } = appProps
+    const { Component, ...props } = appProps
     const AppServerComponent = App as React.ComponentType
+    const ComponentType = Component as React.ComponentType<typeof props>
     return (
       <AppServerComponent>
-        <Component {...props} />
+        <ComponentType {...props} />
       </AppServerComponent>
     )
   } else {

@@ -186,14 +186,13 @@ function renderApp(
   App: AppType | React.ComponentType,
   Component: React.ComponentType,
   router: ServerRouter,
-  props: any,
-  isServerComponent: boolean
+  props: any
 ) {
-  if (isServerComponent) {
+  if (process.env.__NEXT_RSC) {
     let AppServerComponent = App as React.ComponentType
     return (
       <AppServerComponent>
-        <Component {...props} router={router} />
+        <Component {...props.pageProps} router={router} />
       </AppServerComponent>
     )
   } else {
@@ -663,7 +662,7 @@ export async function renderToHTML(
     AppTree: (props: any) => {
       return (
         <AppContainerWithIsomorphicFiberStructure>
-          {renderApp(App, Component, router, props, isServerComponent)}
+          {renderApp(App, Component, router, props)}
         </AppContainerWithIsomorphicFiberStructure>
       )
     },
@@ -1181,13 +1180,7 @@ export async function renderToHTML(
         const html = ReactDOMServer.renderToString(
           <Body>
             <AppContainerWithIsomorphicFiberStructure>
-              {renderApp(
-                EnhancedApp,
-                EnhancedComponent,
-                router,
-                props,
-                isServerComponent
-              )}
+              {renderApp(EnhancedApp, EnhancedComponent, router, props)}
             </AppContainerWithIsomorphicFiberStructure>
           </Body>
         )
@@ -1228,7 +1221,7 @@ export async function renderToHTML(
         ) : (
           <Body>
             <AppContainerWithIsomorphicFiberStructure>
-              {renderApp(App, Component, router, props, isServerComponent)}
+              {renderApp(App, Component, router, props)}
             </AppContainerWithIsomorphicFiberStructure>
           </Body>
         )
