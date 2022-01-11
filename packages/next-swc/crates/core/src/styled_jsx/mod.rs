@@ -569,13 +569,10 @@ impl StyledJSXTransformer {
             compute_class_names(&styles, &self.style_import_name.as_ref().unwrap());
         let tag = match &*tagged_tpl.tag {
             Expr::Ident(Ident { sym, .. }) => sym.to_string(),
-            Expr::Member(MemberExpr { prop, .. }) => {
-                if let Expr::Ident(Ident { sym, .. }) = &**prop {
-                    sym.to_string()
-                } else {
-                    String::from("not_styled_jsx_tag")
-                }
-            }
+            Expr::Member(MemberExpr {
+                prop: MemberProp::Ident(Ident { sym, .. }),
+                ..
+            }) => sym.to_string(),
             _ => String::from("not_styled_jsx_tag"),
         };
         let style = if let JSXStyle::Local(style) = &styles[0] {
