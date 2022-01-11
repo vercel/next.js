@@ -56,7 +56,7 @@ import {
   parseStack,
 } from 'next/dist/compiled/@next/react-dev-overlay/middleware'
 import * as Log from '../../build/output/log'
-import isError from '../../lib/is-error'
+import isError, { getProperError } from '../../lib/is-error'
 import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware-regex'
 import { isCustomErrorPage, isReservedPage } from '../../build/utils'
 
@@ -538,7 +538,7 @@ export default class DevServer extends Server {
       return result
     } catch (error) {
       this.logErrorWithOriginalStack(error, undefined, 'client')
-      const err = isError(error) ? error : new Error(error + '')
+      const err = getProperError(error)
       ;(err as any).middleware = true
       const { request, response, parsedUrl } = params
       this.renderError(err, request, response, parsedUrl.pathname)
@@ -591,7 +591,7 @@ export default class DevServer extends Server {
       return await super.run(req, res, parsedUrl)
     } catch (error) {
       res.statusCode = 500
-      const err = isError(error) ? error : error ? new Error(error + '') : null
+      const err = getProperError(error)
       try {
         this.logErrorWithOriginalStack(err).catch(() => {})
         return await this.renderError(err, req, res, pathname!, {
