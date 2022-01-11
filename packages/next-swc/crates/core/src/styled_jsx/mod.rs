@@ -227,8 +227,7 @@ impl Fold for StyledJSXTransformer {
                     }
                 }
                 Expr::Member(MemberExpr {
-                    obj: ExprOrSuper::Expr(boxed_ident),
-                    ..
+                    obj: boxed_ident, ..
                 }) => {
                     if let Expr::Ident(identifier) = &**boxed_ident {
                         if self.external_bindings.contains(&identifier.to_id()) {
@@ -489,13 +488,12 @@ impl StyledJSXTransformer {
             StyleExpr::Ident(ident) => {
                 return JSXStyle::External(ExternalStyle {
                     expr: Expr::Member(MemberExpr {
-                        obj: ExprOrSuper::Expr(Box::new(Expr::Ident(ident.clone()))),
-                        prop: Box::new(Expr::Ident(Ident {
+                        obj: Box::new(Expr::Ident(ident.clone())),
+                        prop: MemberProp::Ident(Ident {
                             sym: "__hash".into(),
                             span: DUMMY_SP,
                             optional: false,
-                        })),
-                        computed: false,
+                        }),
                         span: DUMMY_SP,
                     }),
                     identifier: ident.clone(),
@@ -809,10 +807,9 @@ fn get_existing_class_name(el: &JSXOpeningElement) -> (Option<Expr>, Option<usiz
 
                 if valid_spread {
                     let member_dot_name = Expr::Member(MemberExpr {
-                        obj: ExprOrSuper::Expr(Box::new(*expr.clone())),
-                        prop: Box::new(Expr::Ident(ident("className"))),
+                        obj: Box::new(*expr.clone()),
+                        prop: MemberProp::Ident(ident("className")),
                         span: DUMMY_SP,
-                        computed: false,
                     });
                     // `${name} && ${name}.className != null && ${name}.className`
                     spreads.push(and(
