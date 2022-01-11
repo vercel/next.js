@@ -2,33 +2,26 @@
 
 This example shows how you can build forms with Next.js.
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/next-forms)
+
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com/?utm_source=github&utm_medium=readme&utm_campaign=next-forms-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/next-forms&project-name=next-forms&repository-name=next-forms)
 
 ## How to use
 
-- Clone this example locally using your terminal.
-- Install yarn:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
-```sh
-npm install -g yarn
+```bash
+npx create-next-app --example next-forms next-forms-app
+# or
+yarn create next-app --example next-forms next-forms-app
 ```
 
-- Install the dependencies with:
-
-```sh
-yarn
-```
-
-- Start developing and watch for code changes:
-
-```sh
-yarn dev
-```
-
-- Go to [localhost:](http://localhost:3000/) to preview changes on front-end.
-
-Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-forms-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
