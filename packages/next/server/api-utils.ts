@@ -11,8 +11,12 @@ import generateETag from 'next/dist/compiled/etag'
 import isError from '../lib/is-error'
 import { interopDefault } from '../lib/interop-default'
 
-export type NextApiRequestCookies = { [key: string]: string }
-export type NextApiRequestQuery = { [key: string]: string | string[] }
+export declare type NextApiRequestCookies = {
+    [key: string]: string | undefined;
+};
+export declare type NextApiRequestQuery = {
+    [key: string]: string | string[] | undefined;
+};
 
 export type __ApiPreviewProps = {
   previewModeId: string
