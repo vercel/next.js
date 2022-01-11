@@ -75,7 +75,7 @@ impl Fold for NextDynamicPatcher {
             return expr.fold_children_with(self);
         }
         let mut expr = expr.fold_children_with(self);
-        if let ExprOrSuper::Expr(i) = &expr.callee {
+        if let Callee::Expr(i) = &expr.callee {
             if let Expr::Ident(identifier) = &**i {
                 if self.dynamic_bindings.contains(&identifier.to_id()) {
                     if expr.args.len() == 0 {
