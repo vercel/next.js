@@ -2,6 +2,7 @@ import { formatUrl } from './router/utils/format-url'
 import type { BuildManifest } from '../../server/get-page-files'
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../server/config'
+import type { NextApiRequestQuery, NextApiRequestCookies } from "../../server/api-utils";
 import type { Env } from '@next/env'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextRouter } from './router/router'
@@ -235,15 +236,11 @@ export interface NextApiRequest extends IncomingMessage {
   /**
    * Object of `query` values from url
    */
-  query: {
-    [key: string]: string | string[]
-  }
+  query: NextApiRequestQuery;
   /**
    * Object of `cookies` from header
    */
-  cookies: {
-    [key: string]: string
-  }
+  cookies: NextApiRequestCookies;
 
   body: any
 
