@@ -344,6 +344,9 @@ export default abstract class Server {
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
+    if (this.nextConfig.experimental.serverComponents) {
+      process.env.__NEXT_RSC = JSON.stringify(true)
+    }
   }
 
   public logError(err: Error): void {
