@@ -725,6 +725,7 @@ export default abstract class Server {
         result = await run({
           name: middlewareInfo.name,
           paths: middlewareInfo.paths,
+          env: middlewareInfo.env,
           request: {
             headers: params.request.headers,
             method: params.request.method || 'GET',
