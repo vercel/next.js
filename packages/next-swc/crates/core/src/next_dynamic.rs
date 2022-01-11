@@ -4,9 +4,9 @@ use pathdiff::diff_paths;
 use swc_atoms::js_word;
 use swc_common::{FileName, DUMMY_SP};
 use swc_ecmascript::ast::{
-    ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, Bool, CallExpr, Expr, ExprOrSpread,
-    ExprOrSuper, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr, Null,
-    ObjectLit, Prop, PropName, PropOrSpread, Str, StrKind,
+    ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
+    ExprOrSpread, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr, MemberProp,
+    Null, ObjectLit, Prop, PropName, PropOrSpread, Str, StrKind,
 };
 use swc_ecmascript::utils::ExprFactory;
 use swc_ecmascript::utils::{
@@ -182,21 +182,18 @@ impl Fold for NextDynamicPatcher {
                                     body: BlockStmtOrExpr::Expr(Box::new(Expr::Array(ArrayLit {
                                         elems: vec![Some(ExprOrSpread {
                                             expr: Box::new(Expr::Call(CallExpr {
-                                                callee: ExprOrSuper::Expr(Box::new(Expr::Member(
+                                                callee: Callee::Expr(Box::new(Expr::Member(
                                                     MemberExpr {
-                                                        obj: ExprOrSuper::Expr(Box::new(
-                                                            Expr::Ident(Ident {
-                                                                sym: js_word!("require"),
-                                                                span: DUMMY_SP,
-                                                                optional: false,
-                                                            }),
-                                                        )),
-                                                        prop: Box::new(Expr::Ident(Ident {
-                                                            sym: "resolveWeak".into(),
+                                                        obj: Box::new(Expr::Ident(Ident {
+                                                            sym: js_word!("require"),
                                                             span: DUMMY_SP,
                                                             optional: false,
                                                         })),
-                                                        computed: false,
+                                                        prop: MemberProp::Ident(Ident {
+                                                            sym: "resolveWeak".into(),
+                                                            span: DUMMY_SP,
+                                                            optional: false,
+                                                        }),
                                                         span: DUMMY_SP,
                                                     },
                                                 ))),
