@@ -4,7 +4,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-[https://cms-builder-blog.vercel.app/](https://cms-builder-blog.vercel.app/)
+[https://cms-builder-io.vercel.app/](https://cms-builder-io.vercel.app/)
 
 ## How to use
 
@@ -75,7 +75,6 @@ Alternatively, you can deploy using our template by clicking on the Deploy butto
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-builder-io&project-name=cms-builder-io&repository-name=cms-builder-io&env=BUILDER_PUBLIC_KEY&envDescription=Required%20to%20connect%20the%20app%20with%20Builder.io&envLink=https://www.builder.io/c/docs/custom-react-components#api-key)
 
-
 ### Related examples
 
 - [WordPress](/examples/cms-wordpress)
@@ -92,5 +91,3 @@ Alternatively, you can deploy using our template by clicking on the Deploy butto
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
-
-
