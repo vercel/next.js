@@ -141,6 +141,31 @@ impl Fold for Analyzer<'_> {
         e
     }
 
+    fn fold_jsx_element(&mut self, jsx: JSXElement) -> JSXElement {
+        fn get_leftmost_id_member_expr(e: &JSXMemberExpr) -> Id {
+            match &e.obj {
+                JSXObject::Ident(i) => {
+                    i.to_id()
+                }
+                JSXObject::JSXMemberExpr(e) => {
+                    get_leftmost_id_member_expr(e)
+                }
+            }
+        }
+
+        match &jsx.opening.name {
+            JSXElementName::Ident(i) => {
+                self.add_ref(i.to_id());
+            }
+            JSXElementName::JSXMemberExpr(e) => {
+                self.add_ref(get_leftmost_id_member_expr(e));
+            }
+            _ => {}
+        }
+
+        jsx.fold_children_with(self)
+    }
+
     fn fold_fn_decl(&mut self, f: FnDecl) -> FnDecl {
         let old_in_data = self.in_data_fn;
 
