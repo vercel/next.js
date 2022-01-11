@@ -86,12 +86,20 @@ pub enum JSXStyle {
     External(ExternalStyle),
 }
 
+enum StyleExpr<'a> {
+    Str(&'a Str),
+    Tpl(&'a Tpl, &'a Expr),
+    Ident(&'a Ident),
+}
+
 impl Fold for StyledJSXTransformer {
     fn fold_jsx_element(&mut self, el: JSXElement) -> JSXElement {
         if is_styled_jsx(&el) {
             let parent_has_styled_jsx = self.has_styled_jsx;
             if !parent_has_styled_jsx {
-                self.check_for_jsx_styles(Some(&el), &el.children);
+                if self.check_for_jsx_styles(Some(&el), &el.children).is_err() {
+                    return el;
+                }
             }
             let el = match self.replace_jsx_style(&el) {
                 Ok(el) => el,
@@ -107,7 +115,9 @@ impl Fold for StyledJSXTransformer {
             return el.fold_children_with(self);
         }
 
-        self.check_for_jsx_styles(None, &el.children);
+        if self.check_for_jsx_styles(None, &el.children).is_err() {
+            return el;
+        }
         let el = el.fold_children_with(self);
         self.reset_styles_state();
 
@@ -119,7 +129,9 @@ impl Fold for StyledJSXTransformer {
             return fragment.fold_children_with(self);
         }
 
-        self.check_for_jsx_styles(None, &fragment.children);
+        if self.check_for_jsx_styles(None, &fragment.children).is_err() {
+            return fragment;
+        };
         let fragment = fragment.fold_children_with(self);
         self.reset_styles_state();
 
@@ -383,23 +395,29 @@ impl Fold for StyledJSXTransformer {
 }
 
 impl StyledJSXTransformer {
-    fn check_for_jsx_styles(&mut self, el: Option<&JSXElement>, children: &Vec<JSXElementChild>) {
+    fn check_for_jsx_styles(
+        &mut self,
+        el: Option<&JSXElement>,
+        children: &[JSXElementChild],
+    ) -> Result<(), Error> {
         let mut styles = vec![];
         let mut process_style = |el: &JSXElement| {
             self.file_has_styled_jsx = true;
             self.has_styled_jsx = true;
-            let expr = get_style_expr(el);
+            let expr = get_style_expr(el)?;
             let style_info = self.get_jsx_style(expr, is_global(el));
             styles.insert(0, style_info);
+
+            Ok(())
         };
 
         if el.is_some() && is_styled_jsx(el.unwrap()) {
-            process_style(el.unwrap());
+            process_style(el.unwrap())?;
         } else {
             for i in 0..children.len() {
                 if let JSXElementChild::JSXElement(child_el) = &children[i] {
                     if is_styled_jsx(&child_el) {
-                        process_style(&child_el);
+                        process_style(&child_el)?;
                     }
                 }
             }
@@ -412,26 +430,31 @@ impl StyledJSXTransformer {
             self.static_class_name = static_class_name;
             self.class_name = class_name;
         }
+
+        Ok(())
     }
 
-    fn get_jsx_style(&mut self, expr: &Expr, is_global_jsx_element: bool) -> JSXStyle {
+    fn get_jsx_style(&mut self, style_expr: StyleExpr, is_global_jsx_element: bool) -> JSXStyle {
         let mut hasher = DefaultHasher::new();
         let css: String;
         let css_span: Span;
         let is_dynamic;
         let mut expressions = vec![];
-        match expr {
-            Expr::Lit(Lit::Str(Str { value, span, .. })) => {
+        match style_expr {
+            StyleExpr::Str(Str { value, span, .. }) => {
                 hasher.write(value.as_ref().as_bytes());
                 css = value.to_string().clone();
                 css_span = span.clone();
                 is_dynamic = false;
             }
-            Expr::Tpl(Tpl {
-                exprs,
-                quasis,
-                span,
-            }) => {
+            StyleExpr::Tpl(
+                Tpl {
+                    exprs,
+                    quasis,
+                    span,
+                },
+                expr,
+            ) => {
                 if exprs.is_empty() {
                     hasher.write(quasis[0].raw.value.as_bytes());
                     css = quasis[0].raw.value.to_string();
@@ -463,7 +486,7 @@ impl StyledJSXTransformer {
                     expressions = exprs.clone();
                 }
             }
-            Expr::Ident(ident) => {
+            StyleExpr::Ident(ident) => {
                 return JSXStyle::External(ExternalStyle {
                     expr: Expr::Member(MemberExpr {
                         obj: ExprOrSuper::Expr(Box::new(Expr::Ident(ident.clone()))),
@@ -479,7 +502,6 @@ impl StyledJSXTransformer {
                     is_global: is_global_jsx_element,
                 });
             }
-            _ => panic!("Not implemented"), // TODO: handle bad style input
         }
 
         return JSXStyle::Local(LocalStyle {
@@ -539,7 +561,11 @@ impl StyledJSXTransformer {
             // references to this.something (e.g. props or state).
             // We allow dynamic styles only when resolving styles.
         }
-        let style = self.get_jsx_style(&Expr::Tpl(tagged_tpl.tpl.clone()), false);
+
+        let style = self.get_jsx_style(
+            StyleExpr::Tpl(&tagged_tpl.tpl, &Expr::Tpl(tagged_tpl.tpl.clone())),
+            false,
+        );
         let styles = vec![style];
         let (static_class_name, class_name) =
             compute_class_names(&styles, &self.style_import_name.as_ref().unwrap());
@@ -657,7 +683,7 @@ fn is_global(el: &JSXElement) -> bool {
     })
 }
 
-fn get_style_expr(el: &JSXElement) -> &Expr {
+fn get_style_expr(el: &JSXElement) -> Result<StyleExpr, Error> {
     let non_whitespace_children: &Vec<&JSXElementChild> = &el
         .children
         .iter()
@@ -677,14 +703,13 @@ fn get_style_expr(el: &JSXElement) -> &Expr {
                 .struct_span_err(
                     el.span,
                     &format!(
-                        "Expected one child under JSX style tag, but got {} (eg: <style \
-                         jsx>{{`hi`}}</style>)",
+                        "Expected one child under JSX style tag, but got {}.\nRead more: https://nextjs.org/docs/messages/invalid-styled-jsx-children",
                         non_whitespace_children.len()
                     ),
                 )
                 .emit()
         });
-        panic!("styled-jsx style error");
+        bail!("styled-jsx style error");
     }
 
     if let JSXElementChild::JSXExprContainer(JSXExprContainer {
@@ -692,19 +717,33 @@ fn get_style_expr(el: &JSXElement) -> &Expr {
         ..
     }) = non_whitespace_children[0]
     {
-        return &**expr;
+        return Ok(match &**expr {
+            Expr::Lit(Lit::Str(str)) => StyleExpr::Str(str),
+            Expr::Tpl(tpl) => StyleExpr::Tpl(tpl, &**expr),
+            Expr::Ident(ident) => StyleExpr::Ident(ident),
+            _ => {
+                HANDLER.with(|handler| {
+                    handler
+                        .struct_span_err(
+                            el.span,
+                            "Expected a template literal, string or identifier inside the JSXExpressionContainer.\nRead more: https://nextjs.org/docs/messages/invalid-styled-jsx-children",
+                        )
+                        .emit()
+                });
+                bail!("wrong jsx expression container type");
+            }
+        });
     }
 
     HANDLER.with(|handler| {
         handler
             .struct_span_err(
                 el.span,
-                "Expected a single child of type JSXExpressionContainer under JSX Style tag (eg: \
-                 <style jsx>{{`hi`}}</style>)",
+                "Expected a single child of type JSXExpressionContainer under JSX Style tag.\nRead more: https://nextjs.org/docs/messages/invalid-styled-jsx-children",
             )
             .emit()
     });
-    panic!("next-swc compilation error");
+    bail!("next-swc compilation error");
 }
 
 fn get_existing_class_name(el: &JSXOpeningElement) -> (Option<Expr>, Option<usize>, Option<usize>) {

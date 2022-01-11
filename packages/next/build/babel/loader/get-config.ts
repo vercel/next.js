@@ -81,13 +81,6 @@ function getPlugins(
         { type: 'plugin' }
       )
     : null
-  const noAnonymousDefaultExportItem =
-    hasReactRefresh && !isServer
-      ? createConfigItem(
-          [require('../plugins/no-anonymous-default-export'), {}],
-          { type: 'plugin' }
-        )
-      : null
   const pageConfigItem =
     !isServer && isPageFile
       ? createConfigItem([require('../plugins/next-page-config')], {
@@ -127,7 +120,6 @@ function getPlugins(
     : null
 
   return [
-    noAnonymousDefaultExportItem,
     reactRefreshItem,
     pageConfigItem,
     disallowExportAllItem,
