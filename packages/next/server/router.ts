@@ -8,6 +8,7 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { RouteHas } from '../lib/load-custom-routes'
 import { matchHas } from '../shared/lib/router/utils/prepare-destination'
 import { getRequestMeta } from './request-meta'
+import { NextApiIncomingMessage } from './api-utils'
 
 export const route = pathMatch()
 
@@ -31,7 +32,7 @@ export type Route = {
   requireBasePath?: false
   internal?: true
   fn: (
-    req: IncomingMessage,
+    req: NextApiIncomingMessage,
     res: ServerResponse,
     params: Params,
     parsedUrl: NextUrlWithParsedQuery
@@ -134,7 +135,7 @@ export default class Router {
   }
 
   async execute(
-    req: IncomingMessage,
+    req: NextApiIncomingMessage,
     res: ServerResponse,
     parsedUrl: NextUrlWithParsedQuery
   ): Promise<boolean> {

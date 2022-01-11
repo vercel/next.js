@@ -5,7 +5,10 @@ import { sendRenderResult } from '../../../../server/send-payload'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 
 import { renderToHTML } from '../../../../server/render'
-import { tryGetPreviewData } from '../../../../server/api-utils'
+import {
+  NextApiIncomingMessage,
+  tryGetPreviewData,
+} from '../../../../server/api-utils'
 import { denormalizePagePath } from '../../../../server/denormalize-page-path'
 import { setLazyProp, getCookieParser } from '../../../../server/api-utils'
 import { getRedirectStatus } from '../../../../lib/load-custom-routes'
@@ -58,7 +61,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
   } = getUtils(ctx)
 
   async function renderReqToHTML(
-    req: IncomingMessage,
+    req: NextApiIncomingMessage,
     res: ServerResponse,
     renderMode?: 'export' | 'passthrough' | true,
     _renderOpts?: any,
@@ -473,7 +476,10 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
   return {
     renderReqToHTML,
-    render: async function render(req: IncomingMessage, res: ServerResponse) {
+    render: async function render(
+      req: NextApiIncomingMessage,
+      res: ServerResponse
+    ) {
       try {
         const html = await renderReqToHTML(req, res)
         if (html) {

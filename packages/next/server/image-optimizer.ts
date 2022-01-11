@@ -18,6 +18,7 @@ import type Server from './base-server'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import chalk from 'next/dist/compiled/chalk'
+import { NextApiIncomingMessage } from './api-utils'
 
 const AVIF = 'image/avif'
 const WEBP = 'image/webp'
@@ -48,7 +49,7 @@ let showSharpMissingWarning = process.env.NODE_ENV === 'production'
 
 export async function imageOptimizer(
   server: Server,
-  req: IncomingMessage,
+  req: NextApiIncomingMessage,
   res: ServerResponse,
   parsedUrl: UrlWithParsedQuery,
   nextConfig: NextConfig,

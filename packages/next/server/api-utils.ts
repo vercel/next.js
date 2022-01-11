@@ -13,6 +13,9 @@ import { interopDefault } from '../lib/interop-default'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
+export type NextApiIncomingMessage = IncomingMessage & {
+  cookies: NextApiRequestCookies
+}
 
 export type __ApiPreviewProps = {
   previewModeId: string

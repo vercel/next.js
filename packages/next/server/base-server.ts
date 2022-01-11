@@ -1,4 +1,4 @@
-import type { __ApiPreviewProps } from './api-utils'
+import type { NextApiIncomingMessage, __ApiPreviewProps } from './api-utils'
 import type { CustomRoutes, Header } from '../lib/load-custom-routes'
 import type { DomainLocale } from './config'
 import type { DynamicRoutes, PageChecker, Params, Route } from './router'
@@ -160,7 +160,7 @@ export interface RequestHandler {
 }
 
 type RequestContext = {
-  req: IncomingMessage
+  req: NextApiIncomingMessage
   res: ServerResponse
   pathname: string
   query: NextParsedUrlQuery
@@ -510,7 +510,13 @@ export default abstract class Server {
         } catch (err) {
           if (err instanceof DecodeError) {
             res.statusCode = 400
-            return this.renderError(null, req, res, '/_error', {})
+            return this.renderError(
+              null,
+              req as NextApiIncomingMessage,
+              res,
+              '/_error',
+              {}
+            )
           }
           throw err
         }
@@ -532,7 +538,7 @@ export default abstract class Server {
         req.url = formatUrl(url)
         addRequestMeta(req, '__nextStrippedLocale', true)
         if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
-          return this.render404(req, res, parsedUrl)
+          return this.render404(req as NextApiIncomingMessage, res, parsedUrl)
         }
       }
 
@@ -554,14 +560,20 @@ export default abstract class Server {
       }
 
       res.statusCode = 200
-      return await this.run(req, res, parsedUrl)
+      return await this.run(req as NextApiIncomingMessage, res, parsedUrl)
     } catch (err: any) {
       if (
         (err && typeof err === 'object' && err.code === 'ERR_INVALID_URL') ||
         err instanceof DecodeError
       ) {
         res.statusCode = 400
-        return this.renderError(null, req, res, '/_error', {})
+        return this.renderError(
+          null,
+          req as NextApiIncomingMessage,
+          res,
+          '/_error',
+          {}
+        )
       }
 
       if (this.minimalMode || this.renderOpts.dev) {
@@ -673,7 +685,7 @@ export default abstract class Server {
   })
 
   protected async runMiddleware(params: {
-    request: IncomingMessage
+    request: NextApiIncomingMessage
     response: ServerResponse
     parsedUrl: ParsedNextUrl
     parsed: UrlWithParsedQuery
@@ -1576,7 +1588,7 @@ export default abstract class Server {
   }
 
   protected async run(
-    req: IncomingMessage,
+    req: NextApiIncomingMessage,
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
@@ -1600,12 +1612,7 @@ export default abstract class Server {
 
   private async pipe(
     fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
-    partialContext: {
-      req: IncomingMessage
-      res: ServerResponse
-      pathname: string
-      query: NextParsedUrlQuery
-    }
+    partialContext: Pick<RequestContext, 'req' | 'res' | 'pathname' | 'query'>
   ): Promise<void> {
     const userAgent = partialContext.req.headers['user-agent']
     const ctx = {
@@ -1641,12 +1648,7 @@ export default abstract class Server {
 
   private async getStaticHTML(
     fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
-    partialContext: {
-      req: IncomingMessage
-      res: ServerResponse
-      pathname: string
-      query: ParsedUrlQuery
-    }
+    partialContext: Pick<RequestContext, 'req' | 'res' | 'pathname' | 'query'>
   ): Promise<string | null> {
     const payload = await fn({
       ...partialContext,
@@ -1662,7 +1664,7 @@ export default abstract class Server {
   }
 
   public async render(
-    req: IncomingMessage,
+    req: NextApiIncomingMessage,
     res: ServerResponse,
     pathname: string,
     query: NextParsedUrlQuery = {},
@@ -2322,7 +2324,7 @@ export default abstract class Server {
   }
 
   public async renderToHTML(
-    req: IncomingMessage,
+    req: NextApiIncomingMessage,
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {}
@@ -2337,7 +2339,7 @@ export default abstract class Server {
 
   public async renderError(
     err: Error | null,
-    req: IncomingMessage,
+    req: NextApiIncomingMessage,
     res: ServerResponse,
     pathname: string,
     query: NextParsedUrlQuery = {},
@@ -2460,7 +2462,7 @@ export default abstract class Server {
 
   public async renderErrorToHTML(
     err: Error | null,
-    req: IncomingMessage,
+    req: NextApiIncomingMessage,
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {}
@@ -2489,7 +2491,7 @@ export default abstract class Server {
   }
 
   public async render404(
-    req: IncomingMessage,
+    req: NextApiIncomingMessage,
     res: ServerResponse,
     parsedUrl?: NextUrlWithParsedQuery,
     setHeaders = true
@@ -2510,7 +2512,7 @@ export default abstract class Server {
   }
 
   public async serveStatic(
-    req: IncomingMessage,
+    req: NextApiIncomingMessage,
     res: ServerResponse,
     path: string,
     parsedUrl?: UrlWithParsedQuery

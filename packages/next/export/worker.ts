@@ -23,6 +23,7 @@ import { isInAmpMode } from '../shared/lib/amp'
 import { setHttpAgentOptions } from '../server/config'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
+import { NextApiIncomingMessage } from '../server/api-utils'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -188,12 +189,13 @@ export default async function exportPage({
         hasHeader: () => false,
         removeHeader: () => {},
         getHeaderNames: () => [],
+        cookies: {},
       }
 
       const req = {
         url: updatedPath,
         ...headerMocks,
-      } as unknown as IncomingMessage
+      } as unknown as NextApiIncomingMessage
       const res = {
         ...headerMocks,
       } as unknown as ServerResponse

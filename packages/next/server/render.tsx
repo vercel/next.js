@@ -48,7 +48,11 @@ import {
   RenderPage,
   RenderPageResult,
 } from '../shared/lib/utils'
-import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
+import type {
+  NextApiIncomingMessage,
+  NextApiRequestCookies,
+  __ApiPreviewProps,
+} from './api-utils'
 import { denormalizePagePath } from './denormalize-page-path'
 import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType, ManifestItem } from './load-components'
@@ -389,7 +393,7 @@ function createServerComponentRenderer(
 }
 
 export async function renderToHTML(
-  req: IncomingMessage,
+  req: NextApiIncomingMessage,
   res: ServerResponse,
   pathname: string,
   query: NextParsedUrlQuery,

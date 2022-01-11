@@ -1,4 +1,4 @@
-import type { __ApiPreviewProps } from '../api-utils'
+import type { NextApiIncomingMessage, __ApiPreviewProps } from '../api-utils'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
 import type { FetchEventResult } from '../web/types'
 import type { FindComponentsResult } from '../next-server'
@@ -443,7 +443,7 @@ export default class DevServer extends Server {
   }
 
   protected async _beforeCatchAllRender(
-    req: IncomingMessage,
+    req: NextApiIncomingMessage,
     res: ServerResponse,
     params: Params,
     parsedUrl: UrlWithParsedQuery
@@ -519,7 +519,7 @@ export default class DevServer extends Server {
   }
 
   async runMiddleware(params: {
-    request: IncomingMessage
+    request: NextApiIncomingMessage
     response: ServerResponse
     parsedUrl: ParsedNextUrl
     parsed: UrlWithParsedQuery
@@ -547,7 +547,7 @@ export default class DevServer extends Server {
   }
 
   async run(
-    req: IncomingMessage,
+    req: NextApiIncomingMessage,
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
@@ -932,7 +932,7 @@ export default class DevServer extends Server {
   }
 
   private servePublic(
-    req: IncomingMessage,
+    req: NextApiIncomingMessage,
     res: ServerResponse,
     pathParts: string[]
   ): Promise<void> {

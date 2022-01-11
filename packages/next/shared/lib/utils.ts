@@ -1,4 +1,5 @@
 import { formatUrl } from './router/utils/format-url'
+import type { NextApiIncomingMessage } from '../../server/api-utils'
 import type { BuildManifest } from '../../server/get-page-files'
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../server/config'
@@ -121,7 +122,7 @@ export interface NextPageContext {
   /**
    * `HTTP` request object.
    */
-  req?: IncomingMessage
+  req?: NextApiIncomingMessage
   /**
    * `HTTP` response object.
    */
