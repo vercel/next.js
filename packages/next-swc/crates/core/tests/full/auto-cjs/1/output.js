@@ -1,8 +1,7 @@
 "use strict";
-var _esm = _interopRequireDefault(require("esm"));
-function _interopRequireDefault(a) {
+var a = function(a) {
     return a && a.__esModule ? a : {
         default: a
     };
-}
-console.log(_esm.default.foo), module.exports = _esm.default;
+}(require("esm"));
+console.log(a.default.foo), module.exports = a.default;

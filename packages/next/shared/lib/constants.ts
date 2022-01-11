@@ -46,6 +46,7 @@ export const CLIENT_STATIC_FILES_RUNTIME_WEBPACK = `webpack`
 export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL = Symbol(`polyfills`)
 // server/middleware-flight-runtime.js
 export const MIDDLEWARE_SSR_RUNTIME_WEBPACK = 'middleware-ssr-runtime'
+export const MIDDLEWARE_RUNTIME_WEBPACK = 'middleware-runtime'
 export const TEMPORARY_REDIRECT_STATUS = 307
 export const PERMANENT_REDIRECT_STATUS = 308
 export const STATIC_PROPS_ID = '__N_SSG'
