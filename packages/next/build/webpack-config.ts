@@ -635,7 +635,7 @@ export default async function getBaseWebpackConfig(
             os: require.resolve('next/dist/compiled/os-browserify'),
             path: require.resolve('next/dist/compiled/path-browserify'),
             punycode: require.resolve('next/dist/compiled/punycode'),
-            process: require.resolve('next/dist/compiled/process'),
+            process: require.resolve('./polyfills/process'),
             // Handled in separate alias
             querystring: require.resolve('next/dist/compiled/querystring-es3'),
             // TODO: investigate ncc'ing stream-browserify
