@@ -683,6 +683,9 @@ export default async function getBaseWebpackConfig(
 
   const isModuleCSS = (module: { type: string }): boolean => {
     return (
+      // webpack css
+      module.type === `css/module` ||
+      module.type === `css/global` ||
       // mini-css-extract-plugin
       module.type === `css/mini-extract` ||
       // extract-css-chunks-webpack-plugin (old)
@@ -1129,6 +1132,8 @@ export default async function getBaseWebpackConfig(
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}${
             dev ? '[name]' : '[name].[contenthash]'
           }.js`,
+      cssFilename: 'static/css/[contenthash].css',
+      cssChunkFilename: 'static/css/[contenthash].css',
       strictModuleExceptionHandling: true,
       crossOriginLoading: crossOrigin,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
@@ -1535,6 +1540,7 @@ export default async function getBaseWebpackConfig(
           ...config.experimental.urlImports,
         }
       : undefined,
+    css: !isServer && config.experimental.webpackCss,
   }
 
   webpack5Config.module!.parser = {

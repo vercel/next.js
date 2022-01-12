@@ -139,6 +139,7 @@ export type NextConfig = { [key: string]: any } & {
     styledComponents?: boolean
     swcMinify?: boolean
     swcFileReading?: boolean
+    webpackCss?: boolean
     cpus?: number
     sharedPool?: boolean
     plugins?: boolean
@@ -244,6 +245,7 @@ export const defaultConfig: NextConfig = {
     disableOptimizedLoading: false,
     gzipSize: true,
     swcFileReading: true,
+    webpackCss: false,
     craCompat: false,
     esmExternals: true,
     // default to 50MB limit

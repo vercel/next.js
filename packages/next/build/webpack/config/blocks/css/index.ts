@@ -4,7 +4,7 @@ import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
-import { getCssModuleLoader, getGlobalCssLoader } from './loaders'
+import { getCssModuleLoader, getGlobalCssRuleActions } from './loaders'
 import {
   getCustomDocumentError,
   getGlobalImportError,
@@ -31,7 +31,7 @@ const regexSassModules = /\.module\.(scss|sass)$/
  *
  * @returns {webpack.RuleSetRule} the marked rule
  */
-function markRemovable(r: webpack.RuleSetRule): webpack.RuleSetRule {
+function markRemovable(r: webpack5.RuleSetRule): webpack5.RuleSetRule {
   Object.defineProperty(r, Symbol.for('__next_css_remove'), {
     enumerable: false,
     value: true,
@@ -305,7 +305,7 @@ export const css = curry(async function css(
                   and: [ctx.rootDirectory],
                   not: [/node_modules/],
                 },
-            use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
+            ...getGlobalCssRuleActions(ctx, lazyPostCSSInitializer),
           }),
         ],
       })
@@ -323,7 +323,7 @@ export const css = curry(async function css(
               sideEffects: true,
               test: regexCssGlobal,
               issuer: { and: [ctx.customAppFile] },
-              use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
+              ...getGlobalCssRuleActions(ctx, lazyPostCSSInitializer),
             }),
           ],
         })
@@ -339,7 +339,7 @@ export const css = curry(async function css(
               sideEffects: true,
               test: regexSassGlobal,
               issuer: { and: [ctx.customAppFile] },
-              use: getGlobalCssLoader(
+              ...getGlobalCssRuleActions(
                 ctx,
                 lazyPostCSSInitializer,
                 sassPreprocessors
@@ -413,7 +413,7 @@ export const css = curry(async function css(
     )
   }
 
-  if (ctx.isClient && ctx.isProduction) {
+  if (ctx.isClient && ctx.isProduction && !ctx.experimental.webpackCss) {
     // Extract CSS as CSS file(s) in the client-side production bundle.
     fns.push(
       plugin(

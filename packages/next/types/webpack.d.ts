@@ -193,6 +193,8 @@ declare module 'webpack4' {
       filename?: string | Function
       /** The filename of non-entry chunks as relative path inside the output.path directory. */
       chunkFilename?: string
+      cssFilename?: string
+      cssChunkFilename?: string
       /** Number of milliseconds before chunk request expires, defaults to 120,000. */
       chunkLoadTimeout?: number
       /** This option enables cross-origin loading of chunks. */

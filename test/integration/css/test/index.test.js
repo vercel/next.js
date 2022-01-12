@@ -18,13 +18,11 @@ import { join } from 'path'
 
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
 
-describe('CSS Support', () => {
+const testCases = (prepare) => {
   describe('Basic Global Support', () => {
     const appDir = join(fixturesDir, 'single-global')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should compile successfully', async () => {
       const { code, stdout } = await nextBuild(appDir, [], {
@@ -50,9 +48,7 @@ describe('CSS Support', () => {
   describe('Basic Global Support with special characters in path', () => {
     const appDir = join(fixturesDir, 'single-global-special-characters', 'a+b')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should compile successfully', async () => {
       const { code, stdout } = await nextBuild(appDir, [], {
@@ -78,9 +74,7 @@ describe('CSS Support', () => {
   describe('Basic Global Support with src/ dir', () => {
     const appDir = join(fixturesDir, 'single-global-src')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should compile successfully', async () => {
       const { code, stdout } = await nextBuild(appDir, [], {
@@ -106,9 +100,7 @@ describe('CSS Support', () => {
   describe('Multi Global Support', () => {
     const appDir = join(fixturesDir, 'multi-global')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should compile successfully', async () => {
       const { code, stdout } = await nextBuild(appDir, [], {
@@ -135,9 +127,7 @@ describe('CSS Support', () => {
   describe('Nested @import() Global Support', () => {
     const appDir = join(fixturesDir, 'nested-global')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should compile successfully', async () => {
       const { code, stdout } = await nextBuild(appDir, [], {
@@ -166,9 +156,7 @@ describe('CSS Support', () => {
   describe('CSS Compilation and Prefixing', () => {
     const appDir = join(fixturesDir, 'compilation-and-prefixing')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should compile successfully', async () => {
       const { code, stdout } = await nextBuild(appDir, [], {
@@ -245,9 +233,7 @@ describe('CSS Support', () => {
   describe('Multi Global Support (reversed)', () => {
     const appDir = join(fixturesDir, 'multi-global-reversed')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should compile successfully', async () => {
       const { code, stdout } = await nextBuild(appDir, [], {
@@ -273,9 +259,7 @@ describe('CSS Support', () => {
 
   describe('React Lifecyce Order (dev)', () => {
     const appDir = join(fixturesDir, 'transition-react')
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     let appPort
     let app
@@ -306,9 +290,7 @@ describe('CSS Support', () => {
 
   describe('React Lifecyce Order (production)', () => {
     const appDir = join(fixturesDir, 'transition-react')
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     let appPort
     let app
@@ -350,9 +332,7 @@ describe('CSS Support', () => {
   describe('Invalid CSS in _document', () => {
     const appDir = join(fixturesDir, 'invalid-module-document')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should fail to build', async () => {
       const { code, stderr } = await nextBuild(appDir, [], {
@@ -371,9 +351,7 @@ describe('CSS Support', () => {
   describe('Invalid Global CSS', () => {
     const appDir = join(fixturesDir, 'invalid-global')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should fail to build', async () => {
       const { code, stderr } = await nextBuild(appDir, [], {
@@ -392,9 +370,7 @@ describe('CSS Support', () => {
   describe('Valid Global CSS from npm', () => {
     const appDir = join(fixturesDir, 'import-global-from-module')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should compile successfully', async () => {
       const { code, stdout } = await nextBuild(appDir, [], {
@@ -421,9 +397,7 @@ describe('CSS Support', () => {
   describe('Invalid Global CSS with Custom App', () => {
     const appDir = join(fixturesDir, 'invalid-global-with-app')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should fail to build', async () => {
       const { code, stderr } = await nextBuild(appDir, [], {
@@ -442,9 +416,7 @@ describe('CSS Support', () => {
   describe('Valid and Invalid Global CSS with Custom App', () => {
     const appDir = join(fixturesDir, 'valid-and-invalid-global')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should fail to build', async () => {
       const { code, stderr } = await nextBuild(appDir, [], {
@@ -461,9 +433,7 @@ describe('CSS Support', () => {
   describe('Can hot reload CSS without losing state', () => {
     const appDir = join(fixturesDir, 'multi-page')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     let appPort
     let app
@@ -521,9 +491,7 @@ describe('CSS Support', () => {
   describe('Has CSS in computed styles in Development', () => {
     const appDir = join(fixturesDir, 'multi-page')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     let appPort
     let app
@@ -555,9 +523,7 @@ describe('CSS Support', () => {
   describe('Body is not hidden when unused in Development', () => {
     const appDir = join(fixturesDir, 'unused')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     let appPort
     let app
@@ -588,10 +554,11 @@ describe('CSS Support', () => {
   describe('Body is not hidden when broken in Development', () => {
     const appDir = join(fixturesDir, 'unused')
 
+    prepare(appDir)
+
     let appPort
     let app
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
@@ -623,12 +590,13 @@ describe('CSS Support', () => {
   describe('Has CSS in computed styles in Production', () => {
     const appDir = join(fixturesDir, 'multi-page')
 
+    prepare(appDir)
+
     let appPort
     let app
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
@@ -677,9 +645,7 @@ describe('CSS Support', () => {
   describe('CSS URL via `file-loader`', () => {
     const appDir = join(fixturesDir, 'url-global')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should compile successfully', async () => {
       const { code, stdout } = await nextBuild(appDir, [], {
@@ -723,9 +689,7 @@ describe('CSS Support', () => {
   describe('CSS URL via `file-loader` and asset prefix (1)', () => {
     const appDir = join(fixturesDir, 'url-global-asset-prefix-1')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should compile successfully', async () => {
       const { code, stdout } = await nextBuild(appDir, [], {
@@ -769,9 +733,7 @@ describe('CSS Support', () => {
   describe('CSS URL via `file-loader` and asset prefix (2)', () => {
     const appDir = join(fixturesDir, 'url-global-asset-prefix-2')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should compile successfully', async () => {
       const { code, stdout } = await nextBuild(appDir, [], {
@@ -815,9 +777,7 @@ describe('CSS Support', () => {
   describe('Good CSS Import from node_modules', () => {
     const appDir = join(fixturesDir, 'npm-import')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should compile successfully', async () => {
       const { code, stdout } = await nextBuild(appDir, [], {
@@ -842,9 +802,7 @@ describe('CSS Support', () => {
   describe('Good Nested CSS Import from node_modules', () => {
     const appDir = join(fixturesDir, 'npm-import-nested')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should compile successfully', async () => {
       const { code, stdout } = await nextBuild(appDir, [], {
@@ -871,9 +829,7 @@ describe('CSS Support', () => {
   describe('CSS Import from node_modules', () => {
     const appDir = join(fixturesDir, 'npm-import-bad')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should fail the build', async () => {
       const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
@@ -887,10 +843,11 @@ describe('CSS Support', () => {
   describe('Ordering with styled-jsx (dev)', () => {
     const appDir = join(fixturesDir, 'with-styled-jsx')
 
+    prepare(appDir)
+
     let appPort
     let app
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
@@ -911,12 +868,13 @@ describe('CSS Support', () => {
   describe('Ordering with styled-jsx (prod)', () => {
     const appDir = join(fixturesDir, 'with-styled-jsx')
 
+    prepare(appDir)
+
     let appPort
     let app
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
@@ -945,10 +903,11 @@ describe('CSS Support', () => {
   describe('Ordering with Global CSS and Modules (dev)', () => {
     const appDir = join(fixturesDir, 'global-and-module-ordering')
 
+    prepare(appDir)
+
     let appPort
     let app
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
@@ -1028,12 +987,13 @@ describe('CSS Support', () => {
   describe('Ordering with Global CSS and Modules (prod)', () => {
     const appDir = join(fixturesDir, 'global-and-module-ordering')
 
+    prepare(appDir)
+
     let appPort
     let app
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
@@ -1063,12 +1023,13 @@ describe('CSS Support', () => {
   describe('CSS Property Ordering', () => {
     const appDir = join(fixturesDir, 'next-issue-15468')
 
+    prepare(appDir)
+
     let appPort
     let app
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
@@ -1102,9 +1063,7 @@ describe('CSS Support', () => {
   describe('Basic Tailwind CSS', () => {
     const appDir = join(fixturesDir, 'with-tailwindcss')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should compile successfully', async () => {
       const { code, stdout } = await nextBuild(appDir, [], {
@@ -1144,9 +1103,7 @@ describe('CSS Support', () => {
   describe('Tailwind and Purge CSS', () => {
     const appDir = join(fixturesDir, 'with-tailwindcss-and-purgecss')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+    prepare(appDir)
 
     it('should compile successfully', async () => {
       const { code, stdout } = await nextBuild(appDir, [], {
@@ -1321,9 +1278,8 @@ describe('CSS Support', () => {
     }
 
     describe('Production Mode', () => {
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-      })
+      prepare(appDir)
+
       beforeAll(async () => {
         await nextBuild(appDir, [], {})
         appPort = await findPort()
@@ -1477,9 +1433,8 @@ describe('CSS Support', () => {
     }
 
     describe('Development Mode', () => {
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-      })
+      prepare(appDir)
+
       beforeAll(async () => {
         appPort = await findPort()
         app = await launchApp(appDir, appPort)
@@ -1492,9 +1447,8 @@ describe('CSS Support', () => {
     })
 
     describe('Production Mode', () => {
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-      })
+      prepare(appDir)
+
       beforeAll(async () => {
         await nextBuild(appDir, [], {})
         appPort = await findPort()
@@ -1555,9 +1509,8 @@ describe('CSS Support', () => {
     }
 
     describe('Production Mode', () => {
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-      })
+      prepare(appDir)
+
       beforeAll(async () => {
         await nextBuild(appDir, [], {})
         appPort = await findPort()
@@ -1604,9 +1557,8 @@ describe('CSS Support', () => {
     }
 
     describe('Production Mode', () => {
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-      })
+      prepare(appDir)
+
       beforeAll(async () => {
         await nextBuild(appDir, [], {})
         appPort = await findPort()
@@ -1697,9 +1649,8 @@ describe('CSS Support', () => {
     }
 
     describe('Production Mode', () => {
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-      })
+      prepare(appDir)
+
       beforeAll(async () => {
         await nextBuild(appDir, [], {})
         appPort = await findPort()
@@ -1789,9 +1740,8 @@ describe('CSS Support', () => {
     }
 
     describe('Development Mode', () => {
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-      })
+      prepare(appDir)
+
       beforeAll(async () => {
         appPort = await findPort()
         app = await launchApp(appDir, appPort)
@@ -1804,9 +1754,8 @@ describe('CSS Support', () => {
     })
 
     describe('Production Mode', () => {
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-      })
+      prepare(appDir)
+
       beforeAll(async () => {
         await nextBuild(appDir, [], {})
         appPort = await findPort()
@@ -1821,22 +1770,23 @@ describe('CSS Support', () => {
   })
 
   describe('should handle unresolved files gracefully', () => {
-    const workDir = join(fixturesDir, 'unresolved-css-url')
+    const appDir = join(fixturesDir, 'unresolved-css-url')
+
+    prepare(appDir)
 
     it('should build correctly', async () => {
-      await remove(join(workDir, '.next'))
-      const { code } = await nextBuild(workDir)
+      const { code } = await nextBuild(appDir)
       expect(code).toBe(0)
     })
 
     it('should have correct file references in CSS output', async () => {
-      const cssFiles = await readdir(join(workDir, '.next/static/css'))
+      const cssFiles = await readdir(join(appDir, '.next/static/css'))
 
       for (const file of cssFiles) {
         if (file.endsWith('.css.map')) continue
 
         const content = await readFile(
-          join(workDir, '.next/static/css', file),
+          join(appDir, '.next/static/css', file),
           'utf8'
         )
         console.log(file, content)
@@ -1852,4 +1802,29 @@ describe('CSS Support', () => {
       }
     })
   })
-})
+}
+
+for (const config of [undefined, 'experimental: { webpackCss: true }']) {
+  describe(`CSS Support with ${config || 'default'} config`, () => {
+    testCases((appDir) => {
+      const nextConfig = new File(join(appDir, 'next.config.js'))
+      const existingNextConfig = !!nextConfig.originalContent
+      beforeAll(async () => {
+        if (config) {
+          nextConfig.write(
+            `${
+              nextConfig.originalContent || ''
+            }\nObject.assign(module.exports, {${config}});`
+          )
+        }
+        await remove(join(appDir, '.next'))
+      })
+      afterAll(async () => {
+        if (config) {
+          if (existingNextConfig) nextConfig.restore()
+          else nextConfig.delete()
+        }
+      })
+    })
+  })
+}
