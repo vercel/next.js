@@ -93,16 +93,12 @@ describe('Middleware base tests', () => {
       )
       for (const key of Object.keys(manifest.middleware)) {
         const middleware = manifest.middleware[key]
-        expect(
-          middleware.files.some((file) => file.includes('webpack-middleware'))
-        ).toBe(true)
-        expect(
-          middleware.files.filter(
-            (file) =>
-              file.startsWith('static/chunks/') &&
-              !file.startsWith('static/chunks/webpack-middleware')
-          ).length
-        ).toBe(0)
+        expect(middleware.files).toContainEqual(
+          expect.stringContaining('middleware-runtime')
+        )
+        expect(middleware.files).not.toContainEqual(
+          expect.stringContaining('static/chunks/')
+        )
       }
     })
   })

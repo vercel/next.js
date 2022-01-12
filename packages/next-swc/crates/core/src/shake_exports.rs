@@ -84,11 +84,15 @@ impl Fold for ExportShaker {
             .filter_map(|spec| {
                 if let ExportSpecifier::Named(named_spec) = spec {
                     if let Some(ident) = &named_spec.exported {
+                        if let ModuleExportName::Ident(ident) = ident {
+                            if self.ignore.contains(&ident.sym) {
+                                return Some(ExportSpecifier::Named(named_spec));
+                            }
+                        }
+                    } else if let ModuleExportName::Ident(ident) = &named_spec.orig {
                         if self.ignore.contains(&ident.sym) {
                             return Some(ExportSpecifier::Named(named_spec));
                         }
-                    } else if self.ignore.contains(&named_spec.orig.sym) {
-                        return Some(ExportSpecifier::Named(named_spec));
                     }
                 }
                 None

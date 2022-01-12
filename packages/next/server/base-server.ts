@@ -89,7 +89,7 @@ import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
 import { PreviewData } from 'next/types'
 import ResponseCache from './response-cache'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
-import isError from '../lib/is-error'
+import isError, { getProperError } from '../lib/is-error'
 import { getMiddlewareInfo } from './require'
 import { parseUrl as simpleParseUrl } from '../shared/lib/router/utils/parse-url'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
@@ -568,7 +568,7 @@ export default abstract class Server {
       if (this.minimalMode || this.renderOpts.dev) {
         throw err
       }
-      this.logError(isError(err) ? err : new Error(err + ''))
+      this.logError(getProperError(err))
       res.statusCode = 500
       res.end('Internal Server Error')
     }
@@ -1226,7 +1226,7 @@ export default abstract class Server {
               return { finished: true }
             }
 
-            const error = isError(err) ? err : new Error(err + '')
+            const error = getProperError(err)
             console.error(error)
             res.statusCode = 500
             this.renderError(error, req, res, parsed.pathname || '')
@@ -2295,7 +2295,7 @@ export default abstract class Server {
         }
       }
     } catch (error) {
-      const err = isError(error) ? error : error ? new Error(error + '') : null
+      const err = getProperError(error)
       if (err instanceof NoFallbackError && bubbleNoFallback) {
         throw err
       }
@@ -2316,7 +2316,7 @@ export default abstract class Server {
           if (isError(err)) err.page = page
           throw err
         }
-        this.logError(err || new Error(error + ''))
+        this.logError(getProperError(err))
       }
       return response
     }
@@ -2373,16 +2373,9 @@ export default abstract class Server {
 
   private async renderErrorToResponse(
     ctx: RequestContext,
-    _err: Error | null
+    err: Error | null
   ): Promise<ResponsePayload | null> {
     const { res, query } = ctx
-    let err = _err
-    if (this.renderOpts.dev && !err && res.statusCode === 500) {
-      err = new Error(
-        'An undefined error was thrown sometime during render... ' +
-          'See https://nextjs.org/docs/messages/threw-undefined'
-      )
-    }
     try {
       let result: null | FindComponentsResult = null
 
@@ -2433,14 +2426,10 @@ export default abstract class Server {
         throw maybeFallbackError
       }
     } catch (error) {
-      const renderToHtmlError = isError(error)
-        ? error
-        : error
-        ? new Error(error + '')
-        : null
+      const renderToHtmlError = getProperError(error)
       const isWrappedError = renderToHtmlError instanceof WrappedBuildError
       if (!isWrappedError) {
-        this.logError(renderToHtmlError || new Error(error + ''))
+        this.logError(renderToHtmlError)
       }
       res.statusCode = 500
       const fallbackComponents = await this.getFallbackErrorComponents()
