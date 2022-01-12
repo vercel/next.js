@@ -46,3 +46,10 @@ Note that you must use export `getStaticPaths` as a standalone function — it w
 ## Runs on every request in development
 
 In development (`next dev`), `getStaticPaths` will be called on every request.
+
+<div class="card">
+  <a href="/docs/api-reference/data-fetching/get-static-paths.md">
+    <b>getStaticPaths API Reference</b>
+    <small>Read the API Reference for getStaticPaths</small>
+  </a>
+</div>
