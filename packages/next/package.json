@@ -78,6 +78,7 @@
     "node-fetch": "2.6.1",
     "postcss": "8.2.15",
     "react-refresh": "0.8.3",
+    "styled-jsx": "5.0.0-beta.6",
     "use-subscription": "1.5.1"
   },
   "peerDependencies": {
@@ -252,7 +253,6 @@
     "string-hash": "1.1.3",
     "string_decoder": "1.3.0",
     "strip-ansi": "6.0.0",
-    "styled-jsx": "5.0.0-beta.6",
     "taskr": "1.1.0",
     "terser": "5.7.1",
     "text-table": "0.2.0",
