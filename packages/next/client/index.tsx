@@ -629,19 +629,10 @@ function AppContainer({
   )
 }
 
-function renderApp(
-  App: AppComponent | React.ComponentType,
-  appProps: AppProps
-) {
+function renderApp(App: AppComponent, appProps: AppProps) {
   if (process.env.__NEXT_RSC) {
-    const { Component, ...props } = appProps
-    const AppServerComponent = App as React.ComponentType
-    const ComponentType = Component as React.ComponentType<typeof props>
-    return (
-      <AppServerComponent>
-        <ComponentType {...props} />
-      </AppServerComponent>
-    )
+    const { Component, err: _, router: __, ...props } = appProps
+    return <Component {...props} />
   } else {
     return <App {...appProps} />
   }

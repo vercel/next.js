@@ -25,6 +25,7 @@ const nativeModuleTestAppDir = join(__dirname, '../unsupported-native-module')
 const distDir = join(__dirname, '../app/.next')
 const documentPage = new File(join(appDir, 'pages/_document.jsx'))
 const appPage = new File(join(appDir, 'pages/_app.js'))
+const appServerPage = new File(join(appDir, 'pages/_app.server.js'))
 const error500Page = new File(join(appDir, 'pages/500.js'))
 
 const documentWithGip = `
@@ -48,7 +49,7 @@ Document.getInitialProps = (ctx) => {
 `
 
 const rscAppPage = `
-import Container from '../components/container.client'
+import Container from '../components/container.server'
 export default function App({children}) {
   return <Container>{children}</Container>
 }
@@ -184,13 +185,15 @@ describe('concurrentFeatures - prod', () => {
 
 const customAppPageSuite = {
   runTests: (context) => {
-    it('should render app page', async () => {
-      const html = await renderViaHTTP(context.appPort, '/')
-      expect(html).toContain('_app.server')
+    it('should render container in app', async () => {
+      const indexHtml = await renderViaHTTP(context.appPort, '/')
+      const indexFlight = await renderViaHTTP(context.appPort, '/?__flight__=1')
+      expect(indexHtml).toContain('container.server')
+      expect(indexFlight).toContain('container.server')
     })
   },
-  before: () => appPage.write(rscAppPage),
-  after: () => appPage.delete(),
+  before: () => appServerPage.write(rscAppPage),
+  after: () => appServerPage.delete(),
 }
 
 runSuite('Custom App', 'dev', customAppPageSuite)

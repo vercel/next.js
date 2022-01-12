@@ -183,18 +183,13 @@ function enhanceComponents(
 }
 
 function renderApp(
-  App: AppType | React.ComponentType,
+  App: AppType,
   Component: React.ComponentType,
   router: ServerRouter,
   props: any
 ) {
   if (process.env.__NEXT_RSC) {
-    let AppServerComponent = App as React.ComponentType
-    return (
-      <AppServerComponent>
-        <Component {...props.pageProps} router={router} />
-      </AppServerComponent>
-    )
+    return <Component {...props.pageProps} router={router} />
   } else {
     return <App {...props} Component={Component} router={router} />
   }
@@ -360,6 +355,7 @@ const useRSCResponse = createRSCHook()
 function createServerComponentRenderer(
   cachePrefix: string,
   transformStream: TransformStream,
+  App: React.ComponentType,
   OriginalComponent: React.ComponentType,
   serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
 ) {
@@ -367,7 +363,9 @@ function createServerComponentRenderer(
   const ServerComponentWrapper = (props: any) => {
     const id = (React as any).useId()
     const reqStream = renderToReadableStream(
-      <OriginalComponent {...props} />,
+      <App>
+        <OriginalComponent {...props} />
+      </App>,
       serverComponentManifest
     )
 
@@ -381,6 +379,7 @@ function createServerComponentRenderer(
     rscCache.delete(id)
     return root
   }
+
   const Component = (props: any) => {
     return (
       <React.Suspense fallback={null}>
@@ -459,6 +458,7 @@ export async function renderToHTML(
     ? createServerComponentRenderer(
         cachePrefix,
         serverComponentsInlinedTransformStream!,
+        App as React.ComponentType,
         OriginalComponent,
         serverComponentManifest
       )
@@ -1095,8 +1095,11 @@ export async function renderToHTML(
   if (isResSent(res) && !isSSG) return null
 
   if (renderServerComponentData) {
+    const AppServerComponent = App as React.ComponentType
     const stream: ReadableStream = renderToReadableStream(
-      <OriginalComponent {...props.pageProps} {...serverComponentProps} />,
+      <AppServerComponent>
+        <OriginalComponent {...props.pageProps} {...serverComponentProps} />
+      </AppServerComponent>,
       serverComponentManifest
     )
     const reader = stream.getReader()
