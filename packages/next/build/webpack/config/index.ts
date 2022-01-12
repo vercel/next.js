@@ -1,4 +1,4 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { NextConfigComplete } from '../../../server/config-shared'
 import { base } from './blocks/base'
 import { css } from './blocks/css'
@@ -6,7 +6,7 @@ import { images } from './blocks/images'
 import { ConfigurationContext, pipe } from './utils'
 
 export async function build(
-  config: webpack.Configuration,
+  config: webpack5.Configuration,
   {
     supportedBrowsers,
     rootDirectory,
@@ -36,7 +36,7 @@ export async function build(
     experimental: NextConfigComplete['experimental']
     disableStaticImages: NextConfigComplete['disableStaticImages']
   }
-): Promise<webpack.Configuration> {
+): Promise<webpack5.Configuration> {
   const ctx: ConfigurationContext = {
     supportedBrowsers,
     rootDirectory,

@@ -1,4 +1,4 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { ConfigurationContext } from '../../../utils'
 import { getClientStyleLoader } from './client'
 import { cssFileResolve } from './file-resolve'
@@ -6,8 +6,8 @@ import { cssFileResolve } from './file-resolve'
 export function getGlobalCssLoader(
   ctx: ConfigurationContext,
   postcss: any,
-  preProcessors: readonly webpack.RuleSetUseItem[] = []
-): webpack.RuleSetUseItem[] {
+  preProcessors: readonly webpack5.RuleSetUseItem[] = []
+): webpack5.RuleSetUseItem[] {
   const loaders: webpack.RuleSetUseItem[] = []
 
   if (ctx.isClient) {

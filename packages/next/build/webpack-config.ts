@@ -1694,21 +1694,26 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  webpackConfig = await buildConfiguration(webpackConfig, {
-    supportedBrowsers,
-    rootDirectory: dir,
-    customAppFile: new RegExp(escapeStringRegexp(path.join(pagesDir, `_app`))),
-    isDevelopment: dev,
-    isServer,
-    webServerRuntime,
-    targetWeb,
-    assetPrefix: config.assetPrefix || '',
-    sassOptions: config.sassOptions,
-    productionBrowserSourceMaps: config.productionBrowserSourceMaps,
-    future: config.future,
-    experimental: config.experimental,
-    disableStaticImages: config.images.disableStaticImages,
-  })
+  webpackConfig = (await buildConfiguration(
+    webpackConfig as webpack5.Configuration,
+    {
+      supportedBrowsers,
+      rootDirectory: dir,
+      customAppFile: new RegExp(
+        escapeStringRegexp(path.join(pagesDir, `_app`))
+      ),
+      isDevelopment: dev,
+      isServer,
+      webServerRuntime,
+      targetWeb,
+      assetPrefix: config.assetPrefix || '',
+      sassOptions: config.sassOptions,
+      productionBrowserSourceMaps: config.productionBrowserSourceMaps,
+      future: config.future,
+      experimental: config.experimental,
+      disableStaticImages: config.images.disableStaticImages,
+    }
+  )) as webpack.Configuration
 
   // @ts-ignore Cache exists
   webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${

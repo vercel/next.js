@@ -1,10 +1,10 @@
 import curry from 'next/dist/compiled/lodash.curry'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { ConfigurationContext } from '../utils'
 
 export const base = curry(function base(
   ctx: ConfigurationContext,
-  config: webpack.Configuration
+  config: webpack5.Configuration
 ) {
   config.mode = ctx.isDevelopment ? 'development' : 'production'
   config.name = ctx.isServer

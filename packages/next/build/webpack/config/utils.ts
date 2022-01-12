@@ -1,4 +1,4 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { NextConfigComplete } from '../../../server/config-shared'
 
 export type ConfigurationContext = {
@@ -24,8 +24,8 @@ export type ConfigurationContext = {
 }
 
 export type ConfigurationFn = (
-  a: webpack.Configuration
-) => webpack.Configuration
+  a: webpack5.Configuration
+) => webpack5.Configuration
 
 export const pipe =
   <R>(...fns: Array<(a: R) => R | Promise<R>>) =>

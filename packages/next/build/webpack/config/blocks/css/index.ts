@@ -1,5 +1,6 @@
 import curry from 'next/dist/compiled/lodash.curry'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
@@ -131,7 +132,7 @@ export async function lazyPostCSS(
 
 export const css = curry(async function css(
   ctx: ConfigurationContext,
-  config: webpack.Configuration
+  config: webpack5.Configuration
 ) {
   const {
     prependData: sassPrependData,
