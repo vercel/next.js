@@ -53,6 +53,7 @@ pub mod next_dynamic;
 pub mod next_ssg;
 pub mod page_config;
 pub mod react_remove_properties;
+pub mod relay;
 pub mod remove_console;
 pub mod shake_exports;
 pub mod styled_jsx;
@@ -90,6 +91,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub react_remove_properties: Option<react_remove_properties::Config>,
+
+    #[serde(default)]
+    pub relay: Option<relay::Config>,
 
     #[serde(default)]
     pub shake_exports: Option<shake_exports::Config>,
@@ -130,6 +134,10 @@ pub fn custom_before_pass(
             page_config::page_config(opts.is_development, opts.is_page_file),
             !opts.disable_page_config
         ),
+        match &opts.relay {
+            Some(config) => Either::Left(relay::relay(config.clone(), file.name.clone())),
+            _ => Either::Right(noop()),
+        },
         match &opts.remove_console {
             Some(config) if config.truthy() =>
                 Either::Left(remove_console::remove_console(config.clone())),

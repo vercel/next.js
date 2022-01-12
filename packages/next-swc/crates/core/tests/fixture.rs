@@ -1,3 +1,4 @@
+use next_swc::relay::{relay, RelayLanguageConfig};
 use next_swc::{
     amp_attributes::amp_attributes,
     next_dynamic::next_dynamic,
@@ -133,6 +134,44 @@ impl swc_ecmascript::visit::VisitMut for DropSpan {
 fn page_config_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(syntax(), &|_tr| page_config_test(), &input, &output);
+}
+
+#[fixture("tests/fixture/relay/no-artifact-dir/**/input.js")]
+fn relay_no_artifact_dir_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            relay(
+                next_swc::relay::Config {
+                    artifact_directory: None,
+                    language: RelayLanguageConfig::TypeScript,
+                },
+                FileName::Real(PathBuf::from(input.clone())),
+            )
+        },
+        &input,
+        &output,
+    );
+}
+
+#[fixture("tests/fixture/relay/artifact-dir/**/input.js")]
+fn relay_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            relay(
+                next_swc::relay::Config {
+                    artifact_directory: Some(PathBuf::from("some/generated/dir")),
+                    language: RelayLanguageConfig::TypeScript,
+                },
+                FileName::Real(PathBuf::from(input.clone())),
+            )
+        },
+        &input,
+        &output,
+    );
 }
 
 #[fixture("tests/fixture/remove-console/**/input.js")]
