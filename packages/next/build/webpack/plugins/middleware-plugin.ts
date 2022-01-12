@@ -9,7 +9,6 @@ import {
   MIDDLEWARE_RUNTIME_WEBPACK,
   MIDDLEWARE_SSR_RUNTIME_WEBPACK,
 } from '../../../shared/lib/constants'
-import { MIDDLEWARE_ROUTE } from '../../../lib/constants'
 import { nonNullable } from '../../../lib/non-nullable'
 
 const PLUGIN_NAME = 'MiddlewarePlugin'
