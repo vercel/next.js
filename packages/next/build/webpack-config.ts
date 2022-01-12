@@ -817,11 +817,6 @@ export default async function getBaseWebpackConfig(
       resolveRequest: string
     ) => Promise<[string | null, boolean]>
   ) {
-    // styled-jsx must be external to share context
-    if (request === 'styled-jsx' || request.startsWith('styled-jsx/')) {
-      return `commonjs ${path.posix.join('next/dist/compiled', request)}`
-    }
-
     // We need to externalize internal requests for files intended to
     // not be bundled.
     const isLocal: boolean =

@@ -658,97 +658,6 @@ export async function ncc_async_sema(task, opts) {
     .target('compiled/async-sema')
 }
 
-// eslint-disable-next-line camelcase
-export async function ncc_styled_jsx(task, opts) {
-  // webpack loader
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('styled-jsx/webpack'))
-    )
-    .ncc({
-      packageName: 'styled-jsx',
-      externals: {
-        ...externals,
-        'loader-utils': externals['loader-utils2'], // actually loader-utils@1 but that is compatible
-      },
-    })
-    .target('compiled/styled-jsx')
-
-  const babelExternals = {
-    ...externals,
-    '@babel/types': 'next/dist/compiled/babel/types',
-    '@babel/plugin-syntax-jsx': 'next/dist/compiled/babel/plugin-syntax-jsx',
-  }
-  delete babelExternals['source-map']
-
-  // babel plugin
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('styled-jsx/babel'))
-    )
-    .ncc({
-      packageName: 'styled-jsx',
-      externals: babelExternals,
-    })
-    .target('compiled/styled-jsx')
-
-  // babel test plugin
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('styled-jsx/babel-test'))
-    )
-    .ncc({
-      packageName: 'styled-jsx',
-      externals: babelExternals,
-    })
-    .target('compiled/styled-jsx')
-
-  // css entry
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('styled-jsx/css')))
-    .ncc({
-      packageName: 'styled-jsx',
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-      externals: {
-        react: 'react',
-        'react-dom': 'react-dom',
-      },
-    })
-    .target('compiled/styled-jsx')
-
-  // client entry
-  await task
-    .source(opts.src || 'bundles/styled-jsx/index.js')
-    .ncc({
-      packageName: 'styled-jsx',
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-      externals: {
-        react: 'react',
-        'react-dom': 'react-dom',
-      },
-    })
-    .target('compiled/styled-jsx')
-
-  await task
-    .source(opts.src || 'bundles/styled-jsx/style.js')
-    .target('compiled/styled-jsx')
-
-  await task
-    .source(
-      opts.src ||
-        join(
-          relative(
-            __dirname,
-            dirname(require.resolve('styled-jsx/package.json'))
-          ),
-          '*.d.ts'
-        )
-    )
-    .target('compiled/styled-jsx')
-}
-
 const babelCorePackages = {
   'code-frame': 'next/dist/compiled/babel/code-frame',
   '@babel/generator': 'next/dist/compiled/babel/generator',
@@ -1679,7 +1588,6 @@ export async function ncc(task, opts) {
   await task.serial(
     [
       'ncc_next__react_dev_overlay',
-      'ncc_styled_jsx',
       'copy_regenerator_runtime',
       'copy_babel_runtime',
       'copy_constants_browserify',

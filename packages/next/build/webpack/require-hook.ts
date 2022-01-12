@@ -125,7 +125,6 @@ const hookPropertyMap = new Map(
       '@babel/runtime/package.json',
       'next/dist/compiled/@babel/runtime/package.json',
     ],
-    ['styled-jsx/webpack', 'next/dist/compiled/styled-jsx/webpack'],
   ].map(([request, replacement]) => [request, require.resolve(replacement)])
 )
 
