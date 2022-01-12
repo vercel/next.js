@@ -31,7 +31,7 @@ Note that you must export `getServerSideProps` as a standalone function — it w
 
 The [`getServerSideProps` API reference](/docs/api-reference/data-fetching/get-server-side-props.md) covers all parameters and props that can be used with `getServerSideProps`.
 
-## When should I use `getServerSideProps`?
+## When should I use getServerSideProps
 
 You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. [Time to First Byte (TTFB)](/learn/seo/web-performance) will be higher than [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) because the server must compute the result on every request, and the result can only be cached by a CDN using `cache-control` headers (which could require extra configuration).
 
@@ -73,3 +73,10 @@ export async function getServerSideProps() {
 
 export default Page
 ```
+
+<div class="card">
+  <a href="/docs/api-reference/data-fetching/get-server-side-props.md">
+    <b>getServerSideProps API Reference</b>
+    <small>Read the API Reference for getServerSideProps</small>
+  </a>
+</div>
