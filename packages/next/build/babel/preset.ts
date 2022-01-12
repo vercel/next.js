@@ -188,8 +188,8 @@ export default (
       ],
       [
         isTest && options['styled-jsx'] && options['styled-jsx']['babel-test']
-          ? require('next/dist/compiled/styled-jsx/babel-test')
-          : require('next/dist/compiled/styled-jsx/babel'),
+          ? require('styled-jsx/babel-test')
+          : require('styled-jsx/babel'),
         styledJsxOptions(options['styled-jsx']),
       ],
       require('./plugins/amp-attributes'),
