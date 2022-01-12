@@ -1,5 +1,3 @@
-import path from 'path'
-import resolveFrom from 'resolve-from'
 import { spawn } from 'child_process'
 import { NextInstance } from './base'
 

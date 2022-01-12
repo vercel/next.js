@@ -13,7 +13,7 @@ describe('yarn PnP', () => {
     'with-mdx',
     'with-styled-components',
   ]) {
-    it(`should compile and serve the index page correctly`, async () => {
+    it(`should compile and serve the index page correctly ${example}`, async () => {
       const srcDir = join(__dirname, '../../../examples', example)
       const srcFiles = await fs.readdir(srcDir)
       let next: NextInstance
@@ -30,7 +30,7 @@ describe('yarn PnP', () => {
             ...packageJson.dependencies,
             ...packageJson.devDependencies,
           },
-          installCommand: `touch yarn.lock && yarn set version berry && yarn config set pnpFallbackMode none && yarn config set enableGlobalCache true && yarn install`,
+          installCommand: `yarn set version berry && yarn config set pnpFallbackMode none && yarn config set enableGlobalCache true && yarn install`,
           buildCommand: `yarn build --no-lint`,
           startCommand: (global as any).isNextDev
             ? `yarn next`
