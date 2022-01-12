@@ -6,7 +6,7 @@ import semver from 'next/dist/compiled/semver'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import path, { join as pathJoin, relative as relativePath } from 'path'
-import escapeRegExp from 'next/dist/compiled/escape-string-regexp'
+import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -616,9 +616,7 @@ export default async function getBaseWebpackConfig(
           }
         : {}),
 
-      'styled-jsx': 'next/dist/compiled/styled-jsx',
-      'styled-jsx/css': 'next/dist/compiled/styled-jsx/css',
-      'styled-jsx/style': 'next/dist/compiled/styled-jsx/style',
+      setimmediate: 'next/dist/compiled/setimmediate',
     },
     ...(targetWeb
       ? {
@@ -636,8 +634,8 @@ export default async function getBaseWebpackConfig(
             https: require.resolve('next/dist/compiled/https-browserify'),
             os: require.resolve('next/dist/compiled/os-browserify'),
             path: require.resolve('next/dist/compiled/path-browserify'),
-            punycode: require.resolve('punycode'),
-            process: require.resolve('next/dist/compiled/process'),
+            punycode: require.resolve('next/dist/compiled/punycode'),
+            process: require.resolve('./polyfills/process'),
             // Handled in separate alias
             querystring: require.resolve('next/dist/compiled/querystring-es3'),
             stream: require.resolve('next/dist/compiled/stream-browserify'),
@@ -653,6 +651,7 @@ export default async function getBaseWebpackConfig(
             vm: require.resolve('next/dist/compiled/vm-browserify'),
             zlib: require.resolve('next/dist/compiled/browserify-zlib'),
             events: require.resolve('next/dist/compiled/events/'),
+            setImmediate: require.resolve('next/dist/compiled/setimmediate'),
           },
         }
       : undefined),
@@ -1703,7 +1702,7 @@ export default async function getBaseWebpackConfig(
   webpackConfig = await buildConfiguration(webpackConfig, {
     supportedBrowsers,
     rootDirectory: dir,
-    customAppFile: new RegExp(escapeRegExp(path.join(pagesDir, `_app`))),
+    customAppFile: new RegExp(escapeStringRegexp(path.join(pagesDir, `_app`))),
     isDevelopment: dev,
     isServer,
     webServerRuntime,

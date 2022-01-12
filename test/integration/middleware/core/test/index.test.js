@@ -93,16 +93,12 @@ describe('Middleware base tests', () => {
       )
       for (const key of Object.keys(manifest.middleware)) {
         const middleware = manifest.middleware[key]
-        expect(
-          middleware.files.some((file) => file.includes('webpack-middleware'))
-        ).toBe(true)
-        expect(
-          middleware.files.filter(
-            (file) =>
-              file.startsWith('static/chunks/') &&
-              !file.startsWith('static/chunks/webpack-middleware')
-          ).length
-        ).toBe(0)
+        expect(middleware.files).toContainEqual(
+          expect.stringContaining('middleware-runtime')
+        )
+        expect(middleware.files).not.toContainEqual(
+          expect.stringContaining('static/chunks/')
+        )
       }
     })
   })
@@ -212,6 +208,18 @@ function rewriteTests(locale = '') {
     expect(await browser.eval('window.__SAME_PAGE')).toBe(true)
     const element = await browser.elementByCss('.middleware')
     expect(await element.text()).toEqual('foo')
+  })
+
+  it('should allow to opt-out preflight caching', async () => {
+    const browser = await webdriver(context.appPort, '/rewrites/')
+    await browser.addCookie({ name: 'about-bypass', value: '1' })
+    await browser.eval('window.__SAME_PAGE = true')
+    await browser.elementByCss('#link-with-rewritten-url').click()
+    await browser.waitForElementByCss('.refreshed')
+    await browser.deleteCookies()
+    expect(await browser.eval('window.__SAME_PAGE')).toBe(true)
+    const element = await browser.elementByCss('.title')
+    expect(await element.text()).toEqual('About Bypassed Page')
   })
 }
 

@@ -168,10 +168,6 @@ declare module 'next/dist/compiled/devalue' {
   import m from 'devalue'
   export = m
 }
-declare module 'next/dist/compiled/escape-string-regexp' {
-  import m from 'escape-string-regexp'
-  export = m
-}
 declare module 'next/dist/compiled/find-up' {
   import m from 'find-up'
   export = m
