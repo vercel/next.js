@@ -144,7 +144,7 @@ export default class MiddlewarePlugin {
           for (const [name, info] of compilation.entries) {
             if (
               info.options.runtime === MIDDLEWARE_SSR_RUNTIME_WEBPACK ||
-              name.match(MIDDLEWARE_ROUTE)
+              info.options.runtime === MIDDLEWARE_RUNTIME_WEBPACK
             ) {
               const middlewareEntries = new Set<webpack5.Module>()
               const env = new Set<string>()
