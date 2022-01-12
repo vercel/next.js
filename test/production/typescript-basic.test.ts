@@ -26,6 +26,7 @@ describe('TypeScript basic', () => {
         `,
         'server.ts': `
           import next from 'next';
+          import assert from 'assert';
           const app = next({
             dir: '.',
             dev: process.env.NODE_ENV !== 'production',
@@ -35,6 +36,7 @@ describe('TypeScript basic', () => {
             quiet: false,
           });
           const requestHandler = app.getRequestHandler();
+          assert(requestHandler.cookies);
         `,
       },
       dependencies: {
