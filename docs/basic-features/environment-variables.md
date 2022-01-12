@@ -88,13 +88,14 @@ In order to expose a variable to the browser you have to prefix the variable wit
 NEXT_PUBLIC_ANALYTICS_ID=abcdefghijk
 ```
 
-This loads `process.env.NEXT_PUBLIC_ANALYTICS_ID` into the Node.js environment automatically, allowing you to use it anywhere in your code. The value will be inlined into JavaScript sent to the browser because of the `NEXT_PUBLIC_` prefix. This inlining occurs at build time, so your various `NEXT_PUBLIC_` envs need to be set when the project is built.
+This loads `process.env.NEXT_PUBLIC_ANALYTICS_ID` into the Node.js environment automatically, allowing you to use it anywhere in your code. To expose these variables to JavaScript on the browser, any JavaScript expressions of the form `process.env.NEXT_PUBLIC_FOO` will be inlined at build time, replaced with the string value of the `NEXT_PUBLIC_FOO` environment variable set when the project is built. For example:
 
 ```js
 // pages/index.js
 import setupAnalyticsService from '../lib/my-analytics-service'
 
-// NEXT_PUBLIC_ANALYTICS_ID can be used here as it's prefixed by NEXT_PUBLIC_
+// 'NEXT_PUBLIC_ANALYTICS_ID' can be used here as it's prefixed by 'NEXT_PUBLIC_'.
+// It will be transformed at build time to `setupAnalyticsService('abcdefghijk')`.
 setupAnalyticsService(process.env.NEXT_PUBLIC_ANALYTICS_ID)
 
 function HomePage() {
@@ -102,6 +103,18 @@ function HomePage() {
 }
 
 export default HomePage
+```
+
+Note that dynamic lookups will _not_ be inlined, such as:
+
+```js
+// This will not be inlined, because it uses a variable
+const varName = 'NEXT_PUBLIC_ANALYTICS_ID'
+setupAnalyticsService(process.env[varName])
+
+// This will not be inlined, because it uses a variable
+const env = process.env
+setupAnalyticsService(env.NEXT_PUBLIC_ANALYTICS_ID)
 ```
 
 ## Default Environment Variables
