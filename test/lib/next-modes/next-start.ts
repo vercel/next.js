@@ -1,6 +1,5 @@
 import path from 'path'
 import fs from 'fs-extra'
-import resolveFrom from 'resolve-from'
 import { spawn, SpawnOptions } from 'child_process'
 import { NextInstance } from './base'
 
@@ -49,13 +48,17 @@ export class NextStartInstance extends NextInstance {
         this.emit('stderr', [msg])
       })
     }
-    const nextDir = path.dirname(resolveFrom(this.testDir, 'next/package.json'))
+    let buildArgs = ['yarn', 'next', 'build']
+    let startArgs = ['yarn', 'next', 'start']
 
-    this.childProcess = spawn(
-      'node',
-      [path.join(nextDir, '/dist/bin/next'), 'build'],
-      spawnOpts
-    )
+    if (this.buildCommand) {
+      buildArgs = this.buildCommand.split(' ')
+    }
+    if (this.startCommand) {
+      startArgs = this.startCommand.split(' ')
+    }
+
+    this.childProcess = spawn(buildArgs[0], [...buildArgs.slice(1)], spawnOpts)
     handleStdio()
 
     await new Promise<void>((resolve, reject) => {
@@ -76,11 +79,7 @@ export class NextStartInstance extends NextInstance {
     ).trim()
     // we don't use yarn next here as yarn detaches itself from the
     // child process making it harder to kill all processes
-    this.childProcess = spawn(
-      'node',
-      [path.join(nextDir, '/dist/bin/next'), 'start'],
-      spawnOpts
-    )
+    this.childProcess = spawn(startArgs[0], [...startArgs.slice(1)], spawnOpts)
     handleStdio()
 
     this.childProcess.on('close', (code) => {

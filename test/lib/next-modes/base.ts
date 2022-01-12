@@ -14,6 +14,9 @@ export class NextInstance {
     [filename: string]: string | FileRef
   }
   protected nextConfig?: NextConfig
+  protected installCommand?: string
+  protected buildCommand?: string
+  protected startCommand?: string
   protected dependencies?: { [name: string]: string }
   protected events: { [eventName: string]: Set<any> }
   public testDir: string
@@ -27,6 +30,9 @@ export class NextInstance {
     files,
     dependencies,
     nextConfig,
+    installCommand,
+    buildCommand,
+    startCommand,
   }: {
     files: {
       [filename: string]: string | FileRef
@@ -35,10 +41,16 @@ export class NextInstance {
       [name: string]: string
     }
     nextConfig?: NextConfig
+    installCommand?: string
+    buildCommand?: string
+    startCommand?: string
   }) {
     this.files = files
     this.dependencies = dependencies
     this.nextConfig = nextConfig
+    this.installCommand = installCommand
+    this.buildCommand = buildCommand
+    this.startCommand = startCommand
     this.events = {}
     this.isDestroyed = false
     this.isStopping = false
@@ -62,11 +74,14 @@ export class NextInstance {
     if (process.env.NEXT_TEST_STARTER && !this.dependencies) {
       await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
     } else if (!skipIsolatedNext) {
-      this.testDir = await createNextInstall({
-        react: 'latest',
-        'react-dom': 'latest',
-        ...this.dependencies,
-      })
+      this.testDir = await createNextInstall(
+        {
+          react: 'latest',
+          'react-dom': 'latest',
+          ...this.dependencies,
+        },
+        this.installCommand
+      )
     }
 
     for (const filename of Object.keys(this.files)) {

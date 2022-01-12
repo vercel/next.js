@@ -97,6 +97,9 @@ export async function createNext(opts: {
   }
   nextConfig?: NextConfig
   skipStart?: boolean
+  installCommand?: string
+  buildCommand?: string
+  startCommand?: string
 }): Promise<NextInstance> {
   try {
     if (nextInstance) {

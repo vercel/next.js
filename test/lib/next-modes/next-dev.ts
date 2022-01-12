@@ -22,11 +22,13 @@ export class NextDevInstance extends NextInstance {
     if (this.childProcess) {
       throw new Error('next already started')
     }
-    // we don't use yarn next here as yarn detaches itself from the
-    // child process making it harder to kill all processes
-    const nextDir = path.dirname(resolveFrom(this.testDir, 'next/package.json'))
+    let startArgs = ['yarn', 'next']
 
-    this.childProcess = spawn('node', [path.join(nextDir, '/dist/bin/next')], {
+    if (this.startCommand) {
+      startArgs = this.startCommand.split(' ')
+    }
+
+    this.childProcess = spawn(startArgs[0], [...startArgs.slice(1)], {
       cwd: this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: false,

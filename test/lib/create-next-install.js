@@ -2,10 +2,11 @@ const os = require('os')
 const path = require('path')
 const execa = require('execa')
 const fs = require('fs-extra')
+const childProcess = require('child_process')
 const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
-async function createNextInstall(dependencies) {
+async function createNextInstall(dependencies, installCommand) {
   const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
   const origRepoDir = path.join(__dirname, '../../')
   const installDir = path.join(tmpDir, `next-install-${Date.now()}`)
@@ -61,14 +62,26 @@ async function createNextInstall(dependencies) {
       2
     )
   )
-  await execa('yarn', ['install'], {
-    cwd: installDir,
-    stdio: ['ignore', 'inherit', 'inherit'],
-    env: {
-      ...process.env,
-      YARN_CACHE_FOLDER: path.join(installDir, '.yarn-cache'),
-    },
-  })
+
+  if (installCommand) {
+    childProcess.execSync(installCommand, {
+      cwd: installDir,
+      stdio: ['ignore', 'inherit', 'inherit'],
+      env: {
+        ...process.env,
+        YARN_CACHE_FOLDER: path.join(installDir, '.yarn-cache'),
+      },
+    })
+  } else {
+    await execa('yarn', ['install'], {
+      cwd: installDir,
+      stdio: ['ignore', 'inherit', 'inherit'],
+      env: {
+        ...process.env,
+        YARN_CACHE_FOLDER: path.join(installDir, '.yarn-cache'),
+      },
+    })
+  }
 
   await fs.remove(tmpRepoDir)
   return installDir
