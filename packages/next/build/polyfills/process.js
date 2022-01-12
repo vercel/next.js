@@ -1,1 +1,4 @@
-module.exports = global.process || require('../../compiled/process')
+module.exports =
+  typeof global.process?.env === 'object'
+    ? global.process
+    : require('../../compiled/process')
