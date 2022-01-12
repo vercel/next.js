@@ -7,8 +7,8 @@ import {
   MIDDLEWARE_BUILD_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   MIDDLEWARE_RUNTIME_WEBPACK,
+  MIDDLEWARE_SSR_RUNTIME_WEBPACK,
 } from '../../../shared/lib/constants'
-import { MIDDLEWARE_ROUTE } from '../../../lib/constants'
 import { nonNullable } from '../../../lib/non-nullable'
 
 const PLUGIN_NAME = 'MiddlewarePlugin'
@@ -141,7 +141,10 @@ export default class MiddlewarePlugin {
           envPerRoute.clear()
 
           for (const [name, info] of compilation.entries) {
-            if (name.match(MIDDLEWARE_ROUTE)) {
+            if (
+              info.options.runtime === MIDDLEWARE_SSR_RUNTIME_WEBPACK ||
+              info.options.runtime === MIDDLEWARE_RUNTIME_WEBPACK
+            ) {
               const middlewareEntries = new Set<webpack5.Module>()
               const env = new Set<string>()
 
