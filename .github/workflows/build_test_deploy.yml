@@ -358,7 +358,6 @@ jobs:
         checkPrecompiled,
         testIntegration,
         testUnit,
-        testYarnPnP,
         testDev,
         testProd,
       ]
