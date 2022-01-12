@@ -2,7 +2,7 @@
 description: API reference for `getStaticPaths`. Learn how to fetch data and generate static pages with `getStaticPaths`.
 ---
 
-# `getStaticPaths`
+# getStaticPaths
 
 <details>
   <summary><b>Version History</b></summary>
@@ -27,7 +27,7 @@ export async function getStaticPaths() {
 }
 ```
 
-## `getStaticPaths` return values
+## getStaticPaths return values
 
 The `getStaticPaths` function should return an object with the following **required** properties:
 
@@ -199,7 +199,7 @@ export async function getStaticProps({ params }) {
 export default Post
 ```
 
-## `getStaticProps` with TypeScript
+## getStaticProps with TypeScript
 
 For TypeScript, you can use the `GetStaticPaths` type from `next`:
 
