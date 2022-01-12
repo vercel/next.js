@@ -63,13 +63,9 @@ impl Fold for NextDynamicPatcher {
 
     fn fold_call_expr(&mut self, expr: CallExpr) -> CallExpr {
         if self.is_next_dynamic_first_arg {
-            if let Callee::Expr(e) = &expr.callee {
-                if let Expr::Ident(Ident { sym, .. }) = &**e {
-                    if sym == "import" {
-                        if let Expr::Lit(Lit::Str(Str { value, .. })) = &*expr.args[0].expr {
-                            self.dynamically_imported_specifier = Some(value.to_string());
-                        }
-                    }
+            if let Callee::Import(..) = &expr.callee {
+                if let Expr::Lit(Lit::Str(Str { value, .. })) = &*expr.args[0].expr {
+                    self.dynamically_imported_specifier = Some(value.to_string());
                 }
             }
             return expr.fold_children_with(self);
