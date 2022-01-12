@@ -60,10 +60,7 @@ import {
 } from './api-utils'
 import { isTargetLikeServerless } from './config'
 import pathMatch from '../shared/lib/router/utils/path-match'
-import { loadComponents } from './load-components'
-import { normalizePagePath } from './normalize-page-path'
 import { renderToHTML } from './render'
-import { getPagePath, requireFontManifest } from './require'
 import Router, { replaceBasePath, route } from './router'
 import {
   compileNonPath,
@@ -90,7 +87,6 @@ import { PreviewData } from 'next/types'
 import ResponseCache from './response-cache'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import isError, { getProperError } from '../lib/is-error'
-import { getMiddlewareInfo } from './require'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { run } from './web/sandbox'
 import { addRequestMeta, getRequestMeta } from './request-meta'
@@ -193,7 +189,7 @@ export default abstract class Server {
     basePath: string
     optimizeFonts: boolean
     images: string
-    fontManifest: FontManifest
+    fontManifest?: FontManifest
     optimizeImages: boolean
     disableOptimizedLoading?: boolean
     optimizeCss: any
@@ -220,7 +216,21 @@ export default abstract class Server {
   protected abstract getPagesManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
   protected abstract generatePublicRoutes(): Route[]
+  protected abstract generateImageRoutes(): Route[]
   protected abstract getFilesystemPaths(): Set<string>
+  protected abstract findPageComponents(
+    pathname: string,
+    query?: NextParsedUrlQuery,
+    params?: Params | null
+  ): Promise<FindComponentsResult | null>
+  protected abstract getMiddlewareInfo(params: {
+    dev?: boolean
+    distDir: string
+    page: string
+    serverless: boolean
+  }): { name: string; paths: string[]; env: string[] }
+  protected abstract getPagePath(pathname: string, locales?: string[]): string
+  protected abstract getFontManifest(): FontManifest | undefined
 
   public constructor({
     dir = '.',
@@ -272,8 +282,8 @@ export default abstract class Server {
       optimizeFonts: !!this.nextConfig.optimizeFonts && !dev,
       fontManifest:
         this.nextConfig.optimizeFonts && !dev
-          ? requireFontManifest(this.distDir, this._isLikeServerless)
-          : null,
+          ? this.getFontManifest()
+          : undefined,
       optimizeImages: !!this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
       disableOptimizedLoading:
@@ -652,7 +662,7 @@ export default abstract class Server {
   ): Promise<boolean> {
     try {
       return (
-        getMiddlewareInfo({
+        this.getMiddlewareInfo({
           dev: this.renderOpts.dev,
           distDir: this.distDir,
           page: pathname,
@@ -715,7 +725,7 @@ export default abstract class Server {
 
         await this.ensureMiddleware(middleware.page, middleware.ssr)
 
-        const middlewareInfo = getMiddlewareInfo({
+        const middlewareInfo = this.getMiddlewareInfo({
           dev: this.renderOpts.dev,
           distDir: this.distDir,
           page: middleware.page,
@@ -792,8 +802,8 @@ export default abstract class Server {
     dynamicRoutes: DynamicRoutes | undefined
     locales: string[]
   } {
-    const server: Server = this
     const publicRoutes = this.generatePublicRoutes()
+    const imageRoutes = this.generateImageRoutes()
 
     const staticFilesRoute = this.hasStaticDir
       ? [
@@ -926,32 +936,7 @@ export default abstract class Server {
           }
         },
       },
-      {
-        match: route('/_next/image'),
-        type: 'route',
-        name: '_next/image catchall',
-        fn: (req, res, _params, parsedUrl) => {
-          if (this.minimalMode) {
-            res.statusCode = 400
-            res.end('Bad Request')
-            return {
-              finished: true,
-            }
-          }
-          const { imageOptimizer } =
-            require('./image-optimizer') as typeof import('./image-optimizer')
-
-          return imageOptimizer(
-            server,
-            req,
-            res,
-            parsedUrl,
-            server.nextConfig,
-            server.distDir,
-            this.renderOpts.dev
-          )
-        },
-      },
+      ...imageRoutes,
       {
         match: route('/_next/:path*'),
         type: 'route',
@@ -1442,26 +1427,10 @@ export default abstract class Server {
     }
   }
 
-  private async getPagePath(
-    pathname: string,
-    locales?: string[]
-  ): Promise<string> {
-    return getPagePath(
-      pathname,
-      this.distDir,
-      this._isLikeServerless,
-      this.renderOpts.dev,
-      locales
-    )
-  }
-
   protected async hasPage(pathname: string): Promise<boolean> {
     let found = false
     try {
-      found = !!(await this.getPagePath(
-        pathname,
-        this.nextConfig.i18n?.locales
-      ))
+      found = !!this.getPagePath(pathname, this.nextConfig.i18n?.locales)
     } catch (_) {}
 
     return found
@@ -1515,7 +1484,7 @@ export default abstract class Server {
 
     let builtPagePath
     try {
-      builtPagePath = await this.getPagePath(page)
+      builtPagePath = this.getPagePath(page)
     } catch (err) {
       if (isError(err) && err.code === 'ENOENT') {
         return false
@@ -1713,65 +1682,6 @@ export default abstract class Server {
       pathname,
       query,
     })
-  }
-
-  protected async findPageComponents(
-    pathname: string,
-    query: NextParsedUrlQuery = {},
-    params: Params | null = null
-  ): Promise<FindComponentsResult | null> {
-    let paths = [
-      // try serving a static AMP version first
-      query.amp ? normalizePagePath(pathname) + '.amp' : null,
-      pathname,
-    ].filter(Boolean)
-
-    if (query.__nextLocale) {
-      paths = [
-        ...paths.map(
-          (path) => `/${query.__nextLocale}${path === '/' ? '' : path}`
-        ),
-        ...paths,
-      ]
-    }
-
-    for (const pagePath of paths) {
-      try {
-        const components = await loadComponents(
-          this.distDir,
-          pagePath!,
-          !this.renderOpts.dev && this._isLikeServerless
-        )
-
-        if (
-          query.__nextLocale &&
-          typeof components.Component === 'string' &&
-          !pagePath?.startsWith(`/${query.__nextLocale}`)
-        ) {
-          // if loading an static HTML file the locale is required
-          // to be present since all HTML files are output under their locale
-          continue
-        }
-
-        return {
-          components,
-          query: {
-            ...(components.getStaticProps
-              ? ({
-                  amp: query.amp,
-                  _nextDataReq: query._nextDataReq,
-                  __nextLocale: query.__nextLocale,
-                  __nextDefaultLocale: query.__nextDefaultLocale,
-                } as NextParsedUrlQuery)
-              : query),
-            ...(params || {}),
-          },
-        }
-      } catch (err) {
-        if (isError(err) && err.code !== 'ENOENT') throw err
-      }
-    }
-    return null
   }
 
   protected async getStaticPaths(pathname: string): Promise<{

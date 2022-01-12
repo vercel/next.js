@@ -101,3 +101,10 @@ In development (`next dev`), `getStaticProps` will be called on every request.
 In some cases, you might want to temporarily bypass Static Generation and render the page at **request time** instead of build time. For example, you might be using a headless CMS and want to preview drafts before they're published.
 
 This use case is supported in Next.js by the [**Preview Mode**](/docs/advanced-features/preview-mode.md) feature.
+
+<div class="card">
+  <a href="/docs/api-reference/data-fetching/get-static-props.md">
+    <b>getStaticProps API Reference</b>
+    <small>Read the API Reference for getStaticProps</small>
+  </a>
+</div>
