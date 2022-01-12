@@ -292,4 +292,4 @@ In some rare cases, you might need to assign a custom status code for older HTTP
 ## Other Redirects
 
 - Inside [API Routes](/docs/api-routes/response-helpers.md), you can use `res.redirect()`.
-- Inside [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) and [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering), you can redirect specific pages at request-time.
+- Inside [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) and [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md), you can redirect specific pages at request-time.

@@ -8809,7 +8809,8 @@ enhanced-resolve@^4.3.0:
 
 enhanced-resolve@^5.8.3:
   version "5.8.3"
-  resolved "https://codeload.github.com/webpack/enhanced-resolve/tar.gz/a7c161eeb141bfc7fda375df36c13df006a8cf76"
+  resolved "https://registry.yarnpkg.com/enhanced-resolve/-/enhanced-resolve-5.8.3.tgz#6d552d465cce0423f5b3d718511ea53826a7b2f0"
+  integrity sha512-EGAbGvH7j7Xt2nc0E7D99La1OiEs8LnyimkRgwExpUMScN6O+3x9tIWs7PLQZVNx4YD+00skHXPXi1yQHpAmZA==
   dependencies:
     graceful-fs "^4.2.4"
     tapable "^2.2.0"
