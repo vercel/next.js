@@ -16,8 +16,4 @@ module.exports = {
       },
     ]
   },
-  env: {
-    // expose env to the browser
-    BUILDER_PUBLIC_KEY: process.env.BUILDER_PUBLIC_KEY,
-  },
 }

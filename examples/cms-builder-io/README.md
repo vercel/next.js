@@ -33,7 +33,7 @@ cd cms-builder-io-app
 builder create -k [private-key] -n [space-name] -d
 ```
 
-This command when done it'll print your new space's public api key, copy it and add as the value for `BUILDER_PUBLIC_KEY` into the .env files (`.env.production` and `.env.development`)
+This command when done it'll print your new space's public api key, copy it and add as the value for `NEXT_PUBLIC_BUILDER_API_KEY` into the .env files (`.env.production` and `.env.development`)
 
 ```
 BUILDER_PUBLIC_KEY=...
