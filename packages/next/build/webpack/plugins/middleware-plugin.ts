@@ -141,7 +141,10 @@ export default class MiddlewarePlugin {
           envPerRoute.clear()
 
           for (const [name, info] of compilation.entries) {
-            if (name.match(MIDDLEWARE_ROUTE)) {
+            if (
+              name.match(MIDDLEWARE_ROUTE) ||
+              info.options.runtime === 'middleware-ssr-runtime'
+            ) {
               const middlewareEntries = new Set<webpack5.Module>()
               const env = new Set<string>()
 
