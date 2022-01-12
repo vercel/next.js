@@ -91,7 +91,7 @@ So far, we get:
 
 - Automatic compilation and bundling (with webpack and babel)
 - [React Fast Refresh](https://nextjs.org/blog/next-9-4#fast-refresh)
-- [Static generation and server-side rendering](/docs/basic-features/data-fetching/index.md) of [`./pages/`](/docs/basic-features/pages.md)
+- [Static generation and server-side rendering](/docs/basic-features/data-fetching/overview.md) of [`./pages/`](/docs/basic-features/pages.md)
 - [Static file serving](/docs/basic-features/static-file-serving.md). `./public/` is mapped to `/`
 
 In addition, any Next.js application is ready for production from the start, read more in our [Deployment documentation](/docs/deployment.md).

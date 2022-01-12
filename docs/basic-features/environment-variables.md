@@ -30,7 +30,7 @@ DB_USER=myuser
 DB_PASS=mypassword
 ```
 
-This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in [Next.js data fetching methods](/docs/basic-features/data-fetching/index.md) and [API routes](/docs/api-routes/introduction.md).
+This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in [Next.js data fetching methods](/docs/basic-features/data-fetching/overview.md) and [API routes](/docs/api-routes/introduction.md).
 
 For example, using [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md):
 
