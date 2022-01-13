@@ -1,23 +1,18 @@
-use std::fmt::format;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::path::PathBuf;
 
 use pathdiff::diff_paths;
 use serde::Deserialize;
 use swc_atoms::{js_word, JsWord};
-use swc_common::collections::AHashSet;
 use swc_common::FileName::Real;
-use swc_common::{FileName, SourceFile, Span, DUMMY_SP};
+use swc_common::{FileName, Span};
 use swc_ecmascript::ast::*;
-use swc_ecmascript::utils::ident::IdentLike;
-use swc_ecmascript::utils::Id;
-use swc_ecmascript::visit::{noop_fold_type, Fold, FoldWith};
+use swc_ecmascript::visit::{Fold, FoldWith};
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RelayLanguageConfig {
-    TypeScript,
+    Typescript,
     Flow,
-    JavaScript,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -27,18 +22,10 @@ pub struct Config {
 }
 
 impl Config {
-    fn default() -> Self {
-        Self {
-            artifact_directory: None,
-            language: RelayLanguageConfig::JavaScript,
-        }
-    }
-
     fn file_extension(&mut self) -> &'static str {
         match self.language {
-            RelayLanguageConfig::TypeScript => "ts",
+            RelayLanguageConfig::Typescript => "ts",
             RelayLanguageConfig::Flow => "js",
-            RelayLanguageConfig::JavaScript => "js",
         }
     }
 }
@@ -72,7 +59,7 @@ fn pull_first_operation_name_from_tpl(tpl: TaggedTpl) -> Option<String> {
                     let word = slice[0];
                     let next_word = slice[1];
 
-                    if word == "query" {
+                    if word == "query" || word == "subscription" || word == "mutation" {
                         return Some(String::from(next_word));
                     }
 
@@ -106,53 +93,71 @@ fn build_require_expr_from_path(path: String) -> Expr {
 }
 
 impl Fold for Relay {
-    noop_fold_type!();
+    fn fold_expr(&mut self, expr: Expr) -> Expr {
+        let expr = expr.fold_children_with(self);
 
-    fn fold_expr(&mut self, n: Expr) -> Expr {
-        if let Expr::TaggedTpl(tpl) = n.clone() {
-            let operation_name = pull_first_operation_name_from_tpl(tpl);
-
-            if let (Some(operation_name), Real(source_path_buf)) =
-                (operation_name, self.file_name.clone())
-            {
-                let path_to_source_dir = source_path_buf.parent().unwrap();
-                let generated_file_name = format!(
-                    "{}.graphql.{}",
-                    operation_name,
-                    self.config.file_extension().clone()
-                );
-
-                let fully_qualified_require_path = match self.config.artifact_directory.clone() {
-                    Some(artifact_directory) => std::env::current_dir()
-                        .unwrap()
-                        .join(artifact_directory)
-                        .join(generated_file_name),
-                    _ => path_to_source_dir
-                        .clone()
-                        .join("__generated__")
-                        .join(generated_file_name),
-                };
-
-                let mut require_path = String::from(
-                    diff_paths(fully_qualified_require_path, path_to_source_dir)
-                        .unwrap()
-                        .to_str()
-                        .unwrap(),
-                );
-
-                if !require_path.starts_with(".") {
-                    require_path = format!("./{}", require_path);
+        match expr.clone() {
+            Expr::TaggedTpl(tpl) => {
+                if let Some(built_expr) = self.build_call_expr_from_tpl(tpl) {
+                    built_expr
+                } else {
+                    expr
                 }
+            }
+            _ => expr,
+        }
+    }
+}
 
-                return build_require_expr_from_path(require_path);
+impl Relay {
+    fn build_call_expr_from_tpl(&mut self, tpl: TaggedTpl) -> Option<Expr> {
+        if let Expr::Ident(ident) = *tpl.tag.clone() {
+            if ident.sym.to_string() != "graphql" {
+                return None;
             }
         }
 
-        n
+        let operation_name = pull_first_operation_name_from_tpl(tpl);
+
+        if let (Some(operation_name), Real(source_path_buf)) =
+            (operation_name, self.file_name.clone())
+        {
+            let path_to_source_dir = source_path_buf.parent().unwrap();
+            let generated_file_name = format!(
+                "{}.graphql.{}",
+                operation_name,
+                self.config.file_extension().clone()
+            );
+
+            let fully_qualified_require_path = match self.config.artifact_directory.clone() {
+                Some(artifact_directory) => std::env::current_dir()
+                    .unwrap()
+                    .join(artifact_directory)
+                    .join(generated_file_name),
+                _ => path_to_source_dir
+                    .clone()
+                    .join("__generated__")
+                    .join(generated_file_name),
+            };
+
+            let mut require_path = String::from(
+                diff_paths(fully_qualified_require_path, path_to_source_dir)
+                    .unwrap()
+                    .to_str()
+                    .unwrap(),
+            );
+
+            if !require_path.starts_with(".") {
+                require_path = format!("./{}", require_path);
+            }
+
+            return Some(build_require_expr_from_path(require_path));
+        }
+
+        None
     }
 }
 
 pub fn relay(config: Config, file_name: FileName) -> impl Fold {
-    println!("NOW IM HERE THO");
     Relay { config, file_name }
 }
