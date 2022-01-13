@@ -21,7 +21,7 @@ export default function Custom404() {
 }
 ```
 
-> **Note**: You can use [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) inside this page if you need to fetch data at build time.
+> **Note**: You can use [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) inside this page if you need to fetch data at build time.
 
 ## 500 Page
 
@@ -38,7 +38,7 @@ export default function Custom500() {
 }
 ```
 
-> **Note**: You can use [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) inside this page if you need to fetch data at build time.
+> **Note**: You can use [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) inside this page if you need to fetch data at build time.
 
 ### More Advanced Error Page Customizing
 
