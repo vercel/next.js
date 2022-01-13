@@ -10,7 +10,7 @@ export function runTests(example = '') {
   let next: NextInstance
 
   beforeAll(async () => {
-    const srcDir = join(__dirname, '../../../examples', example)
+    const srcDir = join(__dirname, '../../../../examples', example)
     const srcFiles = await fs.readdir(srcDir)
 
     const packageJson = await fs.readJson(join(srcDir, 'package.json'))
