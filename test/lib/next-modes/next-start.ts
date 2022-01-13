@@ -75,24 +75,16 @@ export class NextStartInstance extends NextInstance {
       })
     })
 
-    try {
-      this._buildId = (
-        await fs.readFile(
-          path.join(
-            this.testDir,
-            this.nextConfig?.distDir || '.next',
-            'BUILD_ID'
-          ),
-          'utf8'
-        )
-      ).trim()
-    } catch (err) {
-      childProcess.execSync('find', {
-        cwd: this.testDir,
-        stdio: ['ignore', 'inherit', 'inherit'],
-      })
-      throw err
-    }
+    this._buildId = (
+      await fs.readFile(
+        path.join(
+          this.testDir,
+          this.nextConfig?.distDir || '.next',
+          'BUILD_ID'
+        ),
+        'utf8'
+      )
+    ).trim()
 
     this.childProcess.on('close', (code, signal) => {
       this.childProcess = spawn(

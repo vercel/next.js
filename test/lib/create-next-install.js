@@ -64,10 +64,13 @@ async function createNextInstall(dependencies, installCommand) {
   )
 
   if (installCommand) {
-    childProcess.execSync(installCommand, {
-      cwd: installDir,
-      stdio: ['ignore', 'inherit', 'inherit'],
-    })
+    console.log(
+      childProcess
+        .execSync(installCommand, {
+          cwd: installDir,
+        })
+        .toString()
+    )
   } else {
     await execa('yarn', ['install'], {
       cwd: installDir,
