@@ -17,5 +17,5 @@
       "e2e-utils": ["test/lib/e2e-utils"]
     }
   },
-  "include": ["test/**/*.test.ts", "test/**/*.test.tsx", "test/**/test/*"]
+  "include": ["test/**/*.ts", "test/**/*.tsx", "test/**/test/*"]
 }
