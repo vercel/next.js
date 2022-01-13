@@ -67,10 +67,6 @@ async function createNextInstall(dependencies, installCommand) {
     childProcess.execSync(installCommand, {
       cwd: installDir,
       stdio: ['ignore', 'inherit', 'inherit'],
-      env: {
-        ...process.env,
-        YARN_CACHE_FOLDER: path.join(installDir, '.yarn-cache'),
-      },
     })
   } else {
     await execa('yarn', ['install'], {
