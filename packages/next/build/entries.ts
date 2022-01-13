@@ -84,7 +84,7 @@ export function createPagesMapping(
     pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
     pages['/_document'] = `${PAGES_DIR_ALIAS}/_document`
   } else {
-    pages['/_app'] = pages['/_app'] || `next/dist/pages/_app`
+    pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
     pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
     pages['/_document'] =
       pages['/_document'] || `next/dist/pages/${documentPage}`

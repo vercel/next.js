@@ -43,7 +43,7 @@ async function parseImportsInfo(
 
   let transformedSource = ''
   let lastIndex = 0
-  let defaultExportName = null
+  let defaultExportName = 'Component'
 
   for (let i = 0; i < body.length; i++) {
     const node = body[i]
@@ -61,9 +61,9 @@ async function parseImportsInfo(
           ) {
             continue
           }
-          transformedSource += source.substr(
+          transformedSource += source.substring(
             lastIndex,
-            node.source.start - lastIndex
+            node.source.start - 1
           )
           transformedSource += JSON.stringify(`${node.source.value}?flight`)
         } else {
@@ -98,7 +98,7 @@ async function parseImportsInfo(
   }
 
   if (!isClientCompilation) {
-    transformedSource += source.substr(lastIndex)
+    transformedSource += source.substring(lastIndex)
   }
 
   return { source: transformedSource, defaultExportName }
