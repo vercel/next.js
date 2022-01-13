@@ -2,7 +2,7 @@
 description: Fetch data and generate static pages with `getStaticProps`. Learn more about this API for data fetching in Next.js.
 ---
 
-# `getStaticProps`
+# getStaticProps
 
 If you export a function called `getStaticProps` (Static Site Generation) from a page, Next.js will pre-render this page at build time using the props returned by `getStaticProps`.
 
@@ -14,7 +14,7 @@ export async function getStaticProps(context) {
 }
 ```
 
-## When should I use `getStaticProps`?
+## When should I use getStaticProps?
 
 You should use `getStaticProps` if:
 
@@ -25,7 +25,7 @@ You should use `getStaticProps` if:
 
 Because `getStaticProps` runs at build time, it does **not** receive data that’s only available during request time, such as query parameters or `HTTP` headers, as it generates static `HTML`. When combined with [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md) however, it will run in the background while the stale page is being revalidated, and the fresh page served to the browser.
 
-## Using `getStaticProps` to fetch data from a CMS
+## Using getStaticProps to fetch data from a CMS
 
 The following example shows how you can fetch a list of blog posts from a CMS.
 
@@ -84,7 +84,7 @@ This JSON file will be used in client-side routing through [`next/link`](/docs/a
 
 When using Incremental Static Generation `getStaticProps` will be executed out of band to generate the JSON needed for client-side navigation. You may see this in the form of multiple requests being made for the same page, however, this is intended and has no impact on end-user performance
 
-## Where can I use `getStaticProps`
+## Where can I use getStaticProps
 
 `getStaticProps` can only be exported from a **page**. You **cannot** export it from non-page files.
 
@@ -101,3 +101,10 @@ In development (`next dev`), `getStaticProps` will be called on every request.
 In some cases, you might want to temporarily bypass Static Generation and render the page at **request time** instead of build time. For example, you might be using a headless CMS and want to preview drafts before they're published.
 
 This use case is supported in Next.js by the [**Preview Mode**](/docs/advanced-features/preview-mode.md) feature.
+
+<div class="card">
+  <a href="/docs/api-reference/data-fetching/get-static-props.md">
+    <b>getStaticProps API Reference</b>
+    <small>Read the API Reference for getStaticProps</small>
+  </a>
+</div>

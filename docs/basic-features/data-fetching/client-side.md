@@ -47,7 +47,7 @@ The team behind Next.js has created a React hook library for data fetching calle
 
 Using the same example as above, we can now use SWR to fetch the profile data. SWR will automatically cache the data for us and will revalidate the data if it becomes stale.
 
-For more information on using SWR, check out the [SWR docs](https://swr.vercel.app/docs).
+For more information on using SWR, check out the [SWR docs](https://swr.vercel.app/docs/getting-started).
 
 ```jsx
 import useSWR from 'swr'

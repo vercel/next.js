@@ -23,8 +23,6 @@ description: Add redirects to your Next.js app.
 
 Redirects allow you to redirect an incoming request path to a different destination path.
 
-Redirects are only available on the Node.js environment and do not affect client-side routing.
-
 To use Redirects you can use the `redirects` key in `next.config.js`:
 
 ```js

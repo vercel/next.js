@@ -2,7 +2,7 @@
 description: API reference for `getStaticProps`. Learn how to use `getStaticProps` to generate static pages with Next.js.
 ---
 
-# `getStaticProps`
+# getStaticProps
 
 <details>
   <summary><b>Version History</b></summary>
@@ -39,7 +39,7 @@ The `context` parameter is an object containing the following keys:
 - `locales` contains all supported locales (if enabled).
 - `defaultLocale` contains the configured default locale (if enabled).
 
-## `getStaticProps` return values
+## getStaticProps return values
 
 The `getStaticProps` function should return an object with the following **optional** properties:
 
@@ -192,7 +192,7 @@ export async function getStaticProps() {
 export default Blog
 ```
 
-## `getStaticProps` with TypeScript
+## getStaticProps with TypeScript
 
 You can use the `GetStaticProps` type from `next` to type the function:
 
