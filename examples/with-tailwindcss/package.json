@@ -1,5 +1,4 @@
 {
-  "name": "with-tailwindcss",
   "private": true,
   "scripts": {
     "dev": "next dev",
