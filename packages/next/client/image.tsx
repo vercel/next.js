@@ -101,6 +101,8 @@ export type ImageProps = Omit<
   quality?: number | string
   priority?: boolean
   loading?: LoadingValue
+  //added 'rootEl' property of type HTMLElement, nullable for being able to set default value to null (see Below)
+  rootEl?: HTMLElement | null
   lazyBoundary?: string
   placeholder?: PlaceholderValue
   blurDataURL?: string
@@ -315,6 +317,7 @@ export default function Image({
   unoptimized = false,
   priority = false,
   loading,
+  rootEl = null, //setting to null for the Intersection Observer API to set html root element as 'root' by default
   lazyBoundary = '200px',
   className,
   quality,
@@ -505,6 +508,8 @@ export default function Image({
   }
 
   const [setRef, isIntersected] = useIntersection<HTMLImageElement>({
+    //added 'root' to Options
+    root: rootEl,
     rootMargin: lazyBoundary,
     disabled: !isLazy,
   })

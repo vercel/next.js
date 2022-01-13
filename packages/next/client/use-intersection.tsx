@@ -4,7 +4,11 @@ import {
   cancelIdleCallback,
 } from './request-idle-callback'
 
-type UseIntersectionObserverInit = Pick<IntersectionObserverInit, 'rootMargin'>
+type UseIntersectionObserverInit = Pick<
+  IntersectionObserverInit,
+  'rootMargin' | 'root'
+> //added 'root' as a property
+
 type UseIntersection = { disabled?: boolean } & UseIntersectionObserverInit
 type ObserveCallback = (isVisible: boolean) => void
 type Observer = {
@@ -16,6 +20,8 @@ type Observer = {
 const hasIntersectionObserver = typeof IntersectionObserver !== 'undefined'
 
 export function useIntersection<T extends Element>({
+  //added 'root' as an option
+  root,
   rootMargin,
   disabled,
 }: UseIntersection): [(element: T | null) => void, boolean] {
@@ -37,11 +43,11 @@ export function useIntersection<T extends Element>({
         unobserve.current = observe(
           el,
           (isVisible) => isVisible && setVisible(isVisible),
-          { rootMargin }
+          { root, rootMargin } //added 'root' as an option
         )
       }
     },
-    [isDisabled, rootMargin, visible]
+    [isDisabled, root, rootMargin, visible] //added 'root' as a dependency
   )
 
   useEffect(() => {
