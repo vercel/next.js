@@ -3,20 +3,10 @@ import { join } from 'path'
 import { fetchViaHTTP } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { createNextInstall } from 'test/lib/create-next-install'
 
-jest.setTimeout(2 * 6 * 1000)
+jest.setTimeout(2 * 60 * 1000)
 
 describe('yarn PnP', () => {
-  beforeAll(async () => {
-    // pre-warm yarn PnP cache
-    await createNextInstall(
-      {},
-      ({ dependencies }) =>
-        `yarn set version berry && yarn config set enableGlobalCache true && yarn add next@${dependencies['next']}`
-    )
-  })
-
   for (const example of [
     'progressive-web-app',
     // 'with-eslint',
@@ -50,7 +40,7 @@ describe('yarn PnP', () => {
               prev.push(`yarn add ${cur}@${dependencies[cur]}`)
               return prev
             }, [] as string[])
-            return `yarn set version berry && yarn config set enableGlobalCache true && ${pkgs.join(
+            return `yarn set version berry && yarn config set enableGlobalCache true && yarn config set compressionLevel 0 && ${pkgs.join(
               ' && '
             )}`
           },
