@@ -1,7 +1,7 @@
 import path from 'path'
 import assert from 'assert'
 import { NextConfig } from 'next'
-import { NextInstance } from './next-modes/base'
+import { InstallCommand, NextInstance } from './next-modes/base'
 import { NextDevInstance } from './next-modes/next-dev'
 import { NextStartInstance } from './next-modes/next-start'
 
@@ -97,7 +97,7 @@ export async function createNext(opts: {
   }
   nextConfig?: NextConfig
   skipStart?: boolean
-  installCommand?: string
+  installCommand?: InstallCommand
   buildCommand?: string
   startCommand?: string
 }): Promise<NextInstance> {

@@ -33,7 +33,13 @@ describe('yarn PnP', () => {
             ...packageJson.dependencies,
             ...packageJson.devDependencies,
           },
-          installCommand: `yarn set version berry && YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn`,
+          installCommand: ({ dependencies }) => {
+            const pkgs = Object.keys(dependencies).reduce((prev, cur) => {
+              prev.push(`${cur}@${dependencies[cur]}`)
+              return prev
+            }, [] as string[])
+            return `yarn set version berry && yarn add ${pkgs.join(' ')}`
+          },
           buildCommand: `yarn next build --no-lint`,
           startCommand: (global as any).isNextDev
             ? `yarn next`

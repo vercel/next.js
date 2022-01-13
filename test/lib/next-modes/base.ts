@@ -8,13 +8,16 @@ import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
+export type InstallCommand =
+  | string
+  | ((ctx: { dependencies: { [key: string]: string } }) => string)
 
 export class NextInstance {
   protected files: {
     [filename: string]: string | FileRef
   }
   protected nextConfig?: NextConfig
-  protected installCommand?: string
+  protected installCommand?: InstallCommand
   protected buildCommand?: string
   protected startCommand?: string
   protected dependencies?: { [name: string]: string }
@@ -41,7 +44,7 @@ export class NextInstance {
       [name: string]: string
     }
     nextConfig?: NextConfig
-    installCommand?: string
+    installCommand?: InstallCommand
     buildCommand?: string
     startCommand?: string
   }) {

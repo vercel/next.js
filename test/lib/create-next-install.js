@@ -46,16 +46,17 @@ async function createNextInstall(dependencies, installCommand) {
   }
 
   const pkgPaths = await linkPackages(tmpRepoDir)
+  const combinedDependencies = {
+    ...dependencies,
+    next: pkgPaths.get('next'),
+  }
 
   await fs.ensureDir(installDir)
   await fs.writeFile(
     path.join(installDir, 'package.json'),
     JSON.stringify(
       {
-        dependencies: {
-          ...dependencies,
-          next: pkgPaths.get('next'),
-        },
+        dependencies: combinedDependencies,
         private: true,
       },
       null,
@@ -64,13 +65,17 @@ async function createNextInstall(dependencies, installCommand) {
   )
 
   if (installCommand) {
-    console.log(
-      childProcess
-        .execSync(installCommand, {
-          cwd: installDir,
-        })
-        .toString()
-    )
+    const installString =
+      typeof installCommand === 'function'
+        ? installCommand({ dependencies: combinedDependencies })
+        : installCommand
+
+    console.log('running install command', installString)
+
+    childProcess.execSync(installString, {
+      cwd: installDir,
+      stdio: ['ignore', 'inherit', 'inherit'],
+    })
   } else {
     await execa('yarn', ['install'], {
       cwd: installDir,
