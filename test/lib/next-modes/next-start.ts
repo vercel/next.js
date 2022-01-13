@@ -1,7 +1,6 @@
 import path from 'path'
 import fs from 'fs-extra'
 import { NextInstance } from './base'
-import childProcess from 'child_process'
 import { spawn, SpawnOptions } from 'child_process'
 
 export class NextStartInstance extends NextInstance {
@@ -86,22 +85,25 @@ export class NextStartInstance extends NextInstance {
       )
     ).trim()
 
-    this.childProcess.on('close', (code, signal) => {
+    console.log('running', startArgs.join(' '))
+
+    await new Promise<void>((resolve) => {
       this.childProcess = spawn(
         startArgs[0],
         [...startArgs.slice(1)],
         spawnOpts
       )
       handleStdio()
-      if (this.isStopping) return
-      if (code || signal) {
-        throw new Error(
-          `next start exited unexpectedly with code/signal ${code || signal}`
-        )
-      }
-    })
 
-    await new Promise<void>((resolve) => {
+      this.childProcess.on('close', (code, signal) => {
+        if (this.isStopping) return
+        if (code || signal) {
+          throw new Error(
+            `next start exited unexpectedly with code/signal ${code || signal}`
+          )
+        }
+      })
+
       const readyCb = (msg) => {
         if (msg.includes('started server on') && msg.includes('url:')) {
           this._url = msg.split('url: ').pop().trim()

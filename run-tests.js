@@ -87,6 +87,7 @@ async function main() {
     }
     case 'e2e': {
       filterTestsBy = testFilters.e2e
+      numRetries = 0
       break
     }
     case 'all':
