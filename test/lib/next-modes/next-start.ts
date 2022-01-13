@@ -1,7 +1,8 @@
 import path from 'path'
 import fs from 'fs-extra'
-import { spawn, SpawnOptions } from 'child_process'
 import { NextInstance } from './base'
+import childProcess from 'child_process'
+import { spawn, SpawnOptions } from 'child_process'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
@@ -58,31 +59,45 @@ export class NextStartInstance extends NextInstance {
       startArgs = this.startCommand.split(' ')
     }
 
-    this.childProcess = spawn(buildArgs[0], [...buildArgs.slice(1)], spawnOpts)
-    handleStdio()
-
     await new Promise<void>((resolve, reject) => {
+      this.childProcess = spawn(
+        buildArgs[0],
+        [...buildArgs.slice(1)],
+        spawnOpts
+      )
+      handleStdio()
       this.childProcess.on('exit', (code) => {
         if (code) reject(new Error(`next build failed with code ${code}`))
         else resolve()
       })
     })
-    this._buildId = (
-      await fs.readFile(
-        path.join(
-          this.testDir,
-          this.nextConfig?.distDir || '.next',
-          'BUILD_ID'
-        ),
-        'utf8'
-      )
-    ).trim()
-    // we don't use yarn next here as yarn detaches itself from the
-    // child process making it harder to kill all processes
-    this.childProcess = spawn(startArgs[0], [...startArgs.slice(1)], spawnOpts)
-    handleStdio()
+
+    try {
+      this._buildId = (
+        await fs.readFile(
+          path.join(
+            this.testDir,
+            this.nextConfig?.distDir || '.next',
+            'BUILD_ID'
+          ),
+          'utf8'
+        )
+      ).trim()
+    } catch (err) {
+      childProcess.execSync('find', {
+        cwd: this.testDir,
+        stdio: ['ignore', 'inherit', 'inherit'],
+      })
+      throw err
+    }
 
     this.childProcess.on('close', (code) => {
+      this.childProcess = spawn(
+        startArgs[0],
+        [...startArgs.slice(1)],
+        spawnOpts
+      )
+      handleStdio()
       if (this.isStopping) return
       if (code) {
         throw new Error(`next start exited unexpectedly with code ${code}`)

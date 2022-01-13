@@ -197,6 +197,7 @@ export class NextInstance {
     if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
       await fs.remove(this.testDir)
     }
+    console.log(`destroyed next instance`)
   }
 
   public get url() {

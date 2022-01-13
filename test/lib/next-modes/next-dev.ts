@@ -26,40 +26,39 @@ export class NextDevInstance extends NextInstance {
       startArgs = this.startCommand.split(' ')
     }
 
-    this.childProcess = spawn(startArgs[0], [...startArgs.slice(1)], {
-      cwd: this.testDir,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: false,
-      env: {
-        ...process.env,
-        NODE_ENV: '' as any,
-        __NEXT_TEST_MODE: '1',
-        __NEXT_RAND_PORT: '1',
-        __NEXT_TEST_WITH_DEVTOOL: '1',
-      },
-    })
-
-    this.childProcess.stdout.on('data', (chunk) => {
-      const msg = chunk.toString()
-      process.stdout.write(chunk)
-      this._cliOutput += msg
-      this.emit('stdout', [msg])
-    })
-    this.childProcess.stderr.on('data', (chunk) => {
-      const msg = chunk.toString()
-      process.stderr.write(chunk)
-      this._cliOutput += msg
-      this.emit('stderr', [msg])
-    })
-
-    this.childProcess.on('close', (code) => {
-      if (this.isStopping) return
-      if (code) {
-        throw new Error(`next dev exited unexpectedly with code ${code}`)
-      }
-    })
-
     await new Promise<void>((resolve) => {
+      this.childProcess = spawn(startArgs[0], [...startArgs.slice(1)], {
+        cwd: this.testDir,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: false,
+        env: {
+          ...process.env,
+          NODE_ENV: '' as any,
+          __NEXT_TEST_MODE: '1',
+          __NEXT_RAND_PORT: '1',
+          __NEXT_TEST_WITH_DEVTOOL: '1',
+        },
+      })
+
+      this.childProcess.stdout.on('data', (chunk) => {
+        const msg = chunk.toString()
+        process.stdout.write(chunk)
+        this._cliOutput += msg
+        this.emit('stdout', [msg])
+      })
+      this.childProcess.stderr.on('data', (chunk) => {
+        const msg = chunk.toString()
+        process.stderr.write(chunk)
+        this._cliOutput += msg
+        this.emit('stderr', [msg])
+      })
+
+      this.childProcess.on('close', (code) => {
+        if (this.isStopping) return
+        if (code) {
+          throw new Error(`next dev exited unexpectedly with code ${code}`)
+        }
+      })
       const readyCb = (msg) => {
         if (msg.includes('started server on') && msg.includes('url:')) {
           this._url = msg.split('url: ').pop().trim()
