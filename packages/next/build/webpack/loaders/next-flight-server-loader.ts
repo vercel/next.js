@@ -43,7 +43,7 @@ async function parseImportsInfo(
 
   let transformedSource = ''
   let lastIndex = 0
-  let defaultExportName = 'Component'
+  let defaultExportName = 'RSComponent'
 
   for (let i = 0; i < body.length; i++) {
     const node = body[i]

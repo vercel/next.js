@@ -182,17 +182,19 @@ function enhanceComponents(
   }
 }
 
-function renderApp(
+function renderFlight(
   App: AppType,
   Component: React.ComponentType,
-  router: ServerRouter,
   props: any
 ) {
-  if (process.env.__NEXT_RSC && (App as any).__next_rsc__) {
-    return <Component {...props.pageProps} router={router} />
-  } else {
-    return <App {...props} Component={Component} router={router} />
-  }
+  const AppServer = (App as any).__next_rsc__
+    ? (App as React.ComponentType)
+    : React.Fragment
+  return (
+    <AppServer>
+      <Component {...props} />
+    </AppServer>
+  )
 }
 
 export type RenderOptsPartial = {
@@ -232,6 +234,7 @@ export type RenderOptsPartial = {
   disableOptimizedLoading?: boolean
   supportsDynamicHTML?: boolean
   concurrentFeatures?: boolean
+  serverComponents?: boolean
   customServer?: boolean
   crossOrigin?: string
 }
@@ -362,13 +365,8 @@ function createServerComponentRenderer(
   const writable = transformStream.writable
   const ServerComponentWrapper = (props: any) => {
     const id = (React as any).useId()
-    const AppServer = (App as any).__next_rsc__
-      ? (App as React.ComponentType)
-      : React.Fragment
     const reqStream = renderToReadableStream(
-      <AppServer>
-        <OriginalComponent {...props} />
-      </AppServer>,
+      renderFlight(App, OriginalComponent, props),
       serverComponentManifest
     )
 
@@ -665,7 +663,7 @@ export async function renderToHTML(
     AppTree: (props: any) => {
       return (
         <AppContainerWithIsomorphicFiberStructure>
-          {renderApp(App, Component, router, props)}
+          <App {...props} Component={Component} router={router} />
         </AppContainerWithIsomorphicFiberStructure>
       )
     },
@@ -1098,13 +1096,11 @@ export async function renderToHTML(
   if (isResSent(res) && !isSSG) return null
 
   if (renderServerComponentData) {
-    const AppServer = (App as any).__next_rsc__
-      ? (App as React.ComponentType)
-      : React.Fragment
     const stream: ReadableStream = renderToReadableStream(
-      <AppServer>
-        <OriginalComponent {...props.pageProps} {...serverComponentProps} />
-      </AppServer>,
+      renderFlight(App, OriginalComponent, {
+        ...props.pageProps,
+        ...serverComponentProps,
+      }),
       serverComponentManifest
     )
     const reader = stream.getReader()
@@ -1188,7 +1184,11 @@ export async function renderToHTML(
         const html = ReactDOMServer.renderToString(
           <Body>
             <AppContainerWithIsomorphicFiberStructure>
-              {renderApp(EnhancedApp, EnhancedComponent, router, props)}
+              <EnhancedApp
+                Component={EnhancedComponent}
+                router={router}
+                {...props}
+              />
             </AppContainerWithIsomorphicFiberStructure>
           </Body>
         )
@@ -1229,7 +1229,11 @@ export async function renderToHTML(
         ) : (
           <Body>
             <AppContainerWithIsomorphicFiberStructure>
-              {renderApp(App, Component, router, props)}
+              {renderOpts.serverComponents && (App as any).__next_rsc__ ? (
+                <Component {...props.pageProps} router={router} />
+              ) : (
+                <App {...props} Component={Component} router={router} />
+              )}
             </AppContainerWithIsomorphicFiberStructure>
           </Body>
         )

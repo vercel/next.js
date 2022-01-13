@@ -203,6 +203,7 @@ export default abstract class Server {
     domainLocales?: DomainLocale[]
     distDir: string
     concurrentFeatures?: boolean
+    serverComponents?: boolean
     crossOrigin?: string
   }
   private compression?: ExpressMiddleware
@@ -281,6 +282,7 @@ export default abstract class Server {
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
       concurrentFeatures: this.nextConfig.experimental.concurrentFeatures,
+      serverComponents: this.nextConfig.experimental.serverComponents,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
         : undefined,
@@ -343,9 +345,6 @@ export default abstract class Server {
     }
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
-    }
-    if (this.nextConfig.experimental.serverComponents) {
-      process.env.__NEXT_RSC = JSON.stringify(true)
     }
   }
 
