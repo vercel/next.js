@@ -36,7 +36,7 @@ describe('yarn PnP', () => {
             ...packageJson.devDependencies,
           },
           installCommand: `yarn set version berry && YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn`,
-          buildCommand: `yarn build --no-lint`,
+          buildCommand: `yarn next build --no-lint`,
           startCommand: (global as any).isNextDev
             ? `yarn next`
             : `yarn next start`,
