@@ -59,6 +59,7 @@ export class NextStartInstance extends NextInstance {
     }
 
     await new Promise<void>((resolve, reject) => {
+      console.log('running', buildArgs.join(' '))
       this.childProcess = spawn(
         buildArgs[0],
         [...buildArgs.slice(1)],

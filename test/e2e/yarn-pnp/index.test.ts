@@ -4,7 +4,7 @@ import { fetchViaHTTP } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
-jest.setTimeout(120 * 1000)
+jest.setTimeout(60 * 1000)
 
 describe('yarn PnP', () => {
   for (const example of [
