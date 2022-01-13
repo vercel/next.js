@@ -188,7 +188,7 @@ function renderApp(
   router: ServerRouter,
   props: any
 ) {
-  if (process.env.__NEXT_RSC) {
+  if (process.env.__NEXT_RSC && (App as any).__next_rsc__) {
     return <Component {...props.pageProps} router={router} />
   } else {
     return <App {...props} Component={Component} router={router} />
@@ -355,17 +355,20 @@ const useRSCResponse = createRSCHook()
 function createServerComponentRenderer(
   cachePrefix: string,
   transformStream: TransformStream,
-  App: React.ComponentType,
+  App: AppType,
   OriginalComponent: React.ComponentType,
   serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
 ) {
   const writable = transformStream.writable
   const ServerComponentWrapper = (props: any) => {
     const id = (React as any).useId()
+    const AppServer = (App as any).__next_rsc__
+      ? (App as React.ComponentType)
+      : React.Fragment
     const reqStream = renderToReadableStream(
-      <App>
+      <AppServer>
         <OriginalComponent {...props} />
-      </App>,
+      </AppServer>,
       serverComponentManifest
     )
 
@@ -458,7 +461,7 @@ export async function renderToHTML(
     ? createServerComponentRenderer(
         cachePrefix,
         serverComponentsInlinedTransformStream!,
-        App as React.ComponentType,
+        App,
         OriginalComponent,
         serverComponentManifest
       )
@@ -1095,11 +1098,13 @@ export async function renderToHTML(
   if (isResSent(res) && !isSSG) return null
 
   if (renderServerComponentData) {
-    const AppServerComponent = App as React.ComponentType
+    const AppServer = (App as any).__next_rsc__
+      ? (App as React.ComponentType)
+      : React.Fragment
     const stream: ReadableStream = renderToReadableStream(
-      <AppServerComponent>
+      <AppServer>
         <OriginalComponent {...props.pageProps} {...serverComponentProps} />
-      </AppServerComponent>,
+      </AppServer>,
       serverComponentManifest
     )
     const reader = stream.getReader()

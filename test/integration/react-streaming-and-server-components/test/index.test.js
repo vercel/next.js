@@ -58,8 +58,8 @@ export default function App({children}) {
 const appWithGlobalCss = `
 import '../styles.css'
 
-function App({ children }) {
-  return children
+function App({ Component, pageProps }) {
+  return <Component {...pageProps} />
 }
 
 export default App
@@ -188,8 +188,8 @@ const customAppPageSuite = {
     it('should render container in app', async () => {
       const indexHtml = await renderViaHTTP(context.appPort, '/')
       const indexFlight = await renderViaHTTP(context.appPort, '/?__flight__=1')
-      expect(indexHtml).toContain('container.server')
-      expect(indexFlight).toContain('container.server')
+      expect(indexHtml).toContain('container-server')
+      expect(indexFlight).toContain('container-server')
     })
   },
   before: () => appServerPage.write(rscAppPage),

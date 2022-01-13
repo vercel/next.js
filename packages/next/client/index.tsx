@@ -630,7 +630,7 @@ function AppContainer({
 }
 
 function renderApp(App: AppComponent, appProps: AppProps) {
-  if (process.env.__NEXT_RSC) {
+  if (process.env.__NEXT_RSC && (App as any).__next_rsc__) {
     const { Component, err: _, router: __, ...props } = appProps
     return <Component {...props} />
   } else {
