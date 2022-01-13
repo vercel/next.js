@@ -26,7 +26,9 @@ describe('yarn PnP', () => {
       try {
         next = await createNext({
           files: srcFiles.reduce((prev, file) => {
-            prev[file] = new FileRef(join(srcDir, file))
+            if (file !== 'package.json') {
+              prev[file] = new FileRef(join(srcDir, file))
+            }
             return prev
           }, {} as { [key: string]: FileRef }),
           dependencies: {

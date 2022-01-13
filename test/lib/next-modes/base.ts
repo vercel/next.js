@@ -71,7 +71,11 @@ export class NextInstance {
       `next-test-${Date.now()}-${(Math.random() * 1000) | 0}`
     )
 
-    if (process.env.NEXT_TEST_STARTER && !this.dependencies) {
+    if (
+      process.env.NEXT_TEST_STARTER &&
+      !this.dependencies &&
+      !this.installCommand
+    ) {
       await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
     } else if (!skipIsolatedNext) {
       this.testDir = await createNextInstall(
@@ -83,6 +87,7 @@ export class NextInstance {
         this.installCommand
       )
     }
+    console.log('created next.js install, writing test files')
 
     for (const filename of Object.keys(this.files)) {
       const item = this.files[filename]
