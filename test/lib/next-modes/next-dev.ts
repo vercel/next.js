@@ -53,10 +53,12 @@ export class NextDevInstance extends NextInstance {
         this.emit('stderr', [msg])
       })
 
-      this.childProcess.on('close', (code) => {
+      this.childProcess.on('close', (code, signal) => {
         if (this.isStopping) return
         if (code) {
-          throw new Error(`next dev exited unexpectedly with code ${code}`)
+          throw new Error(
+            `next dev exited unexpectedly with code/signal ${code || signal}`
+          )
         }
       })
       const readyCb = (msg) => {

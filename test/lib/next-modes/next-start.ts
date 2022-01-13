@@ -66,8 +66,11 @@ export class NextStartInstance extends NextInstance {
         spawnOpts
       )
       handleStdio()
-      this.childProcess.on('exit', (code) => {
-        if (code) reject(new Error(`next build failed with code ${code}`))
+      this.childProcess.on('exit', (code, signal) => {
+        if (code || signal)
+          reject(
+            new Error(`next build failed with code/signal ${code || signal}`)
+          )
         else resolve()
       })
     })
@@ -91,7 +94,7 @@ export class NextStartInstance extends NextInstance {
       throw err
     }
 
-    this.childProcess.on('close', (code) => {
+    this.childProcess.on('close', (code, signal) => {
       this.childProcess = spawn(
         startArgs[0],
         [...startArgs.slice(1)],
@@ -99,8 +102,10 @@ export class NextStartInstance extends NextInstance {
       )
       handleStdio()
       if (this.isStopping) return
-      if (code) {
-        throw new Error(`next start exited unexpectedly with code ${code}`)
+      if (code || signal) {
+        throw new Error(
+          `next start exited unexpectedly with code/signal ${code || signal}`
+        )
       }
     })
 
