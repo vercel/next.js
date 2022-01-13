@@ -1,10 +1,13 @@
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
-const regeneratorRuntimePath = require.resolve('regenerator-runtime')
+const regeneratorRuntimePath = require.resolve(
+  'next/dist/compiled/regenerator-runtime'
+)
 
 function getBaseSWCOptions({
   filename,
+  jest,
   development,
   hasReactRefresh,
   globalWindow,
@@ -48,15 +51,17 @@ function getBaseSWCOptions({
         },
         optimizer: {
           simplify: false,
-          globals: {
-            typeofs: {
-              window: globalWindow ? 'object' : 'undefined',
-            },
-            envs: {
-              NODE_ENV: development ? '"development"' : '"production"',
-            },
-            // TODO: handle process.browser to match babel replacing as well
-          },
+          globals: jest
+            ? null
+            : {
+                typeofs: {
+                  window: globalWindow ? 'object' : 'undefined',
+                },
+                envs: {
+                  NODE_ENV: development ? '"development"' : '"production"',
+                },
+                // TODO: handle process.browser to match babel replacing as well
+              },
         },
         regenerator: {
           importPath: regeneratorRuntimePath,
@@ -84,6 +89,7 @@ export function getJestSWCOptions({
 }) {
   let baseOptions = getBaseSWCOptions({
     filename,
+    jest: true,
     development: false,
     hasReactRefresh: false,
     globalWindow: !isServer,
@@ -141,6 +147,7 @@ export function getLoaderSWCOptions({
       disableNextSsg: true,
       disablePageConfig: true,
       isDevelopment: development,
+      isServer,
       pagesDir,
       isPageFile,
       env: {
@@ -165,6 +172,7 @@ export function getLoaderSWCOptions({
         : {}),
       disableNextSsg: !isPageFile,
       isDevelopment: development,
+      isServer,
       pagesDir,
       isPageFile,
     }

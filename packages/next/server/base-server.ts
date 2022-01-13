@@ -18,6 +18,7 @@ import type { Redirect, Rewrite, RouteType } from '../lib/load-custom-routes'
 import type { RenderOpts, RenderOptsPartial } from './render'
 import type { ResponseCacheEntry, ResponseCacheValue } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
+import type { CacheFs } from '../shared/lib/utils'
 
 import compression from 'next/dist/compiled/compression'
 import Proxy from 'next/dist/compiled/http-proxy'
@@ -59,10 +60,7 @@ import {
 } from './api-utils'
 import { isTargetLikeServerless } from './config'
 import pathMatch from '../shared/lib/router/utils/path-match'
-import { loadComponents } from './load-components'
-import { normalizePagePath } from './normalize-page-path'
 import { renderToHTML } from './render'
-import { getPagePath, requireFontManifest } from './require'
 import Router, { replaceBasePath, route } from './router'
 import {
   compileNonPath,
@@ -88,13 +86,12 @@ import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
 import { PreviewData } from 'next/types'
 import ResponseCache from './response-cache'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
-import isError from '../lib/is-error'
-import { getMiddlewareInfo } from './require'
+import isError, { getProperError } from '../lib/is-error'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
-import { NextResponse } from './web/spec-extension/response'
 import { run } from './web/sandbox'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { toNodeHeaders } from './web/utils'
+import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -192,7 +189,7 @@ export default abstract class Server {
     basePath: string
     optimizeFonts: boolean
     images: string
-    fontManifest: FontManifest
+    fontManifest?: FontManifest
     optimizeImages: boolean
     disableOptimizedLoading?: boolean
     optimizeCss: any
@@ -219,7 +216,21 @@ export default abstract class Server {
   protected abstract getPagesManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
   protected abstract generatePublicRoutes(): Route[]
+  protected abstract generateImageRoutes(): Route[]
   protected abstract getFilesystemPaths(): Set<string>
+  protected abstract findPageComponents(
+    pathname: string,
+    query?: NextParsedUrlQuery,
+    params?: Params | null
+  ): Promise<FindComponentsResult | null>
+  protected abstract getMiddlewareInfo(params: {
+    dev?: boolean
+    distDir: string
+    page: string
+    serverless: boolean
+  }): { name: string; paths: string[]; env: string[] }
+  protected abstract getPagePath(pathname: string, locales?: string[]): string
+  protected abstract getFontManifest(): FontManifest | undefined
 
   public constructor({
     dir = '.',
@@ -271,8 +282,8 @@ export default abstract class Server {
       optimizeFonts: !!this.nextConfig.optimizeFonts && !dev,
       fontManifest:
         this.nextConfig.optimizeFonts && !dev
-          ? requireFontManifest(this.distDir, this._isLikeServerless)
-          : null,
+          ? this.getFontManifest()
+          : undefined,
       optimizeImages: !!this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
       disableOptimizedLoading:
@@ -314,6 +325,7 @@ export default abstract class Server {
     this.setAssetPrefix(assetPrefix)
 
     this.incrementalCache = new IncrementalCache({
+      fs: this.getCacheFilesystem(),
       dev,
       distDir: this.distDir,
       pagesDir: join(
@@ -379,7 +391,13 @@ export default abstract class Server {
         parsedUrl.query = parseQs(parsedUrl.query)
       }
 
-      addRequestMeta(req, '__NEXT_INIT_URL', req.url)
+      // When there are hostname and port we build an absolute URL
+      const initUrl =
+        this.hostname && this.port
+          ? `http://${this.hostname}:${this.port}${req.url}`
+          : req.url
+
+      addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
       addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
 
       const url = parseNextUrl({
@@ -541,7 +559,7 @@ export default abstract class Server {
       if (url.locale?.redirect) {
         res.setHeader('Location', url.locale.redirect)
         res.statusCode = TEMPORARY_REDIRECT_STATUS
-        res.end()
+        res.end(url.locale.redirect)
         return
       }
 
@@ -559,7 +577,7 @@ export default abstract class Server {
       if (this.minimalMode || this.renderOpts.dev) {
         throw err
       }
-      this.logError(isError(err) ? err : new Error(err + ''))
+      this.logError(getProperError(err))
       res.statusCode = 500
       res.end('Internal Server Error')
     }
@@ -644,7 +662,7 @@ export default abstract class Server {
   ): Promise<boolean> {
     try {
       return (
-        getMiddlewareInfo({
+        this.getMiddlewareInfo({
           dev: this.renderOpts.dev,
           distDir: this.distDir,
           page: pathname,
@@ -673,6 +691,14 @@ export default abstract class Server {
   }): Promise<FetchEventResult | null> {
     this.middlewareBetaWarning()
 
+    // For middleware to "fetch" we must always provide an absolute URL
+    const url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
+    if (!url.startsWith('http')) {
+      throw new Error(
+        'To use middleware you must provide a `hostname` and `port` to the Next.js Server'
+      )
+    }
+
     const page: { name?: string; params?: { [key: string]: string } } = {}
     if (await this.hasPage(params.parsedUrl.pathname)) {
       page.name = params.parsedUrl.pathname
@@ -687,8 +713,6 @@ export default abstract class Server {
       }
     }
 
-    const subreq = params.request.headers[`x-middleware-subrequest`]
-    const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
     const allHeaders = new Headers()
     let result: FetchEventResult | null = null
 
@@ -701,24 +725,17 @@ export default abstract class Server {
 
         await this.ensureMiddleware(middleware.page, middleware.ssr)
 
-        const middlewareInfo = getMiddlewareInfo({
+        const middlewareInfo = this.getMiddlewareInfo({
           dev: this.renderOpts.dev,
           distDir: this.distDir,
           page: middleware.page,
           serverless: this._isLikeServerless,
         })
 
-        if (subrequests.includes(middlewareInfo.name)) {
-          result = {
-            response: NextResponse.next(),
-            waitUntil: Promise.resolve(),
-          }
-          continue
-        }
-
         result = await run({
           name: middlewareInfo.name,
           paths: middlewareInfo.paths,
+          env: middlewareInfo.env,
           request: {
             headers: params.request.headers,
             method: params.request.method || 'GET',
@@ -727,7 +744,7 @@ export default abstract class Server {
               i18n: this.nextConfig.i18n,
               trailingSlash: this.nextConfig.trailingSlash,
             },
-            url: getRequestMeta(params.request, '__NEXT_INIT_URL')!,
+            url: url,
             page: page,
           },
           useCache: !this.nextConfig.experimental.concurrentFeatures,
@@ -785,8 +802,8 @@ export default abstract class Server {
     dynamicRoutes: DynamicRoutes | undefined
     locales: string[]
   } {
-    const server: Server = this
     const publicRoutes = this.generatePublicRoutes()
+    const imageRoutes = this.generateImageRoutes()
 
     const staticFilesRoute = this.hasStaticDir
       ? [
@@ -919,32 +936,7 @@ export default abstract class Server {
           }
         },
       },
-      {
-        match: route('/_next/image'),
-        type: 'route',
-        name: '_next/image catchall',
-        fn: (req, res, _params, parsedUrl) => {
-          if (this.minimalMode) {
-            res.statusCode = 400
-            res.end('Bad Request')
-            return {
-              finished: true,
-            }
-          }
-          const { imageOptimizer } =
-            require('./image-optimizer') as typeof import('./image-optimizer')
-
-          return imageOptimizer(
-            server,
-            req,
-            res,
-            parsedUrl,
-            server.nextConfig,
-            server.distDir,
-            this.renderOpts.dev
-          )
-        },
-      },
+      ...imageRoutes,
       {
         match: route('/_next/:path*'),
         type: 'route',
@@ -1185,9 +1177,13 @@ export default abstract class Server {
         type: 'route',
         name: 'middleware catchall',
         fn: async (req, res, _params, parsed) => {
-          const fullUrl = getRequestMeta(req, '__NEXT_INIT_URL')
+          if (!this.middleware?.length) {
+            return { finished: false }
+          }
+
+          const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
           const parsedUrl = parseNextUrl({
-            url: fullUrl,
+            url: initUrl,
             headers: req.headers,
             nextConfig: {
               basePath: this.nextConfig.basePath,
@@ -1215,7 +1211,7 @@ export default abstract class Server {
               return { finished: true }
             }
 
-            const error = isError(err) ? err : new Error(err + '')
+            const error = getProperError(err)
             console.error(error)
             res.statusCode = 500
             this.renderError(error, req, res, parsed.pathname || '')
@@ -1224,6 +1220,18 @@ export default abstract class Server {
 
           if (result === null) {
             return { finished: true }
+          }
+
+          if (result.response.headers.has('x-middleware-rewrite')) {
+            const value = result.response.headers.get('x-middleware-rewrite')!
+            const rel = relativizeURL(value, initUrl)
+            result.response.headers.set('x-middleware-rewrite', rel)
+          }
+
+          if (result.response.headers.has('Location')) {
+            const value = result.response.headers.get('Location')!
+            const rel = relativizeURL(value, initUrl)
+            result.response.headers.set('Location', rel)
           }
 
           if (
@@ -1265,7 +1273,7 @@ export default abstract class Server {
               res.setHeader('Refresh', `0;url=${location}`)
             }
 
-            res.end()
+            res.end(location)
             return {
               finished: true,
             }
@@ -1311,7 +1319,7 @@ export default abstract class Server {
 
           if (result.response.headers.has('x-middleware-refresh')) {
             res.writeHead(result.response.status)
-            for await (const chunk of result.response.body || []) {
+            for await (const chunk of result.response.body || ([] as any)) {
               res.write(chunk)
             }
             res.end()
@@ -1419,26 +1427,10 @@ export default abstract class Server {
     }
   }
 
-  private async getPagePath(
-    pathname: string,
-    locales?: string[]
-  ): Promise<string> {
-    return getPagePath(
-      pathname,
-      this.distDir,
-      this._isLikeServerless,
-      this.renderOpts.dev,
-      locales
-    )
-  }
-
   protected async hasPage(pathname: string): Promise<boolean> {
     let found = false
     try {
-      found = !!(await this.getPagePath(
-        pathname,
-        this.nextConfig.i18n?.locales
-      ))
+      found = !!this.getPagePath(pathname, this.nextConfig.i18n?.locales)
     } catch (_) {}
 
     return found
@@ -1492,7 +1484,7 @@ export default abstract class Server {
 
     let builtPagePath
     try {
-      builtPagePath = await this.getPagePath(page)
+      builtPagePath = this.getPagePath(page)
     } catch (err) {
       if (isError(err) && err.code === 'ENOENT') {
         return false
@@ -1692,65 +1684,6 @@ export default abstract class Server {
     })
   }
 
-  protected async findPageComponents(
-    pathname: string,
-    query: NextParsedUrlQuery = {},
-    params: Params | null = null
-  ): Promise<FindComponentsResult | null> {
-    let paths = [
-      // try serving a static AMP version first
-      query.amp ? normalizePagePath(pathname) + '.amp' : null,
-      pathname,
-    ].filter(Boolean)
-
-    if (query.__nextLocale) {
-      paths = [
-        ...paths.map(
-          (path) => `/${query.__nextLocale}${path === '/' ? '' : path}`
-        ),
-        ...paths,
-      ]
-    }
-
-    for (const pagePath of paths) {
-      try {
-        const components = await loadComponents(
-          this.distDir,
-          pagePath!,
-          !this.renderOpts.dev && this._isLikeServerless
-        )
-
-        if (
-          query.__nextLocale &&
-          typeof components.Component === 'string' &&
-          !pagePath?.startsWith(`/${query.__nextLocale}`)
-        ) {
-          // if loading an static HTML file the locale is required
-          // to be present since all HTML files are output under their locale
-          continue
-        }
-
-        return {
-          components,
-          query: {
-            ...(components.getStaticProps
-              ? ({
-                  amp: query.amp,
-                  _nextDataReq: query._nextDataReq,
-                  __nextLocale: query.__nextLocale,
-                  __nextDefaultLocale: query.__nextDefaultLocale,
-                } as NextParsedUrlQuery)
-              : query),
-            ...(params || {}),
-          },
-        }
-      } catch (err) {
-        if (isError(err) && err.code !== 'ENOENT') throw err
-      }
-    }
-    return null
-  }
-
   protected async getStaticPaths(pathname: string): Promise<{
     staticPaths: string[] | undefined
     fallbackMode: 'static' | 'blocking' | false
@@ -1899,7 +1832,7 @@ export default abstract class Server {
 
       res.statusCode = statusCode
       res.setHeader('Location', redirect.destination)
-      res.end()
+      res.end(redirect.destination)
     }
 
     // remove /_next/data prefix from urlPathname so it matches
@@ -2270,7 +2203,7 @@ export default abstract class Server {
         }
       }
     } catch (error) {
-      const err = isError(error) ? error : error ? new Error(error + '') : null
+      const err = getProperError(error)
       if (err instanceof NoFallbackError && bubbleNoFallback) {
         throw err
       }
@@ -2291,7 +2224,7 @@ export default abstract class Server {
           if (isError(err)) err.page = page
           throw err
         }
-        this.logError(err || new Error(error + ''))
+        this.logError(getProperError(err))
       }
       return response
     }
@@ -2348,16 +2281,9 @@ export default abstract class Server {
 
   private async renderErrorToResponse(
     ctx: RequestContext,
-    _err: Error | null
+    err: Error | null
   ): Promise<ResponsePayload | null> {
     const { res, query } = ctx
-    let err = _err
-    if (this.renderOpts.dev && !err && res.statusCode === 500) {
-      err = new Error(
-        'An undefined error was thrown sometime during render... ' +
-          'See https://nextjs.org/docs/messages/threw-undefined'
-      )
-    }
     try {
       let result: null | FindComponentsResult = null
 
@@ -2408,14 +2334,10 @@ export default abstract class Server {
         throw maybeFallbackError
       }
     } catch (error) {
-      const renderToHtmlError = isError(error)
-        ? error
-        : error
-        ? new Error(error + '')
-        : null
+      const renderToHtmlError = getProperError(error)
       const isWrappedError = renderToHtmlError instanceof WrappedBuildError
       if (!isWrappedError) {
-        this.logError(renderToHtmlError || new Error(error + ''))
+        this.logError(renderToHtmlError)
       }
       res.statusCode = 500
       const fallbackComponents = await this.getFallbackErrorComponents()
@@ -2460,6 +2382,16 @@ export default abstract class Server {
       pathname,
       query,
     })
+  }
+
+  protected getCacheFilesystem(): CacheFs {
+    return {
+      readFile: () => Promise.resolve(''),
+      readFileSync: () => '',
+      writeFile: () => Promise.resolve(),
+      mkdir: () => Promise.resolve(),
+      stat: () => Promise.resolve({ mtime: new Date() }),
+    }
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {

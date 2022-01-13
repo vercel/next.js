@@ -11,7 +11,7 @@ The `src` directory is very common in many apps and Next.js supports it by defau
 ## Caveats
 
 - `src/pages` will be ignored if `pages` is present in the root directory
-- Config files like `next.config.js` and `tsconfig.json` should be inside the root directory, moving them to `src` won't work. Same goes for the [`public` directory](/docs/basic-features/static-file-serving.md)
+- Config files like `next.config.js` and `tsconfig.json`, as well as environment variables, should be inside the root directory, moving them to `src` won't work. Same goes for the [`public` directory](/docs/basic-features/static-file-serving.md)
 
 ## Related
 

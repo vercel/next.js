@@ -1,5 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies */
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import spawn from 'next/dist/compiled/cross-spawn'
 
 interface InstallArgs {

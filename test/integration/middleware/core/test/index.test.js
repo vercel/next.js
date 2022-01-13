@@ -5,6 +5,7 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import {
+  check,
   fetchViaHTTP,
   findPort,
   killApp,
@@ -92,22 +93,41 @@ describe('Middleware base tests', () => {
       )
       for (const key of Object.keys(manifest.middleware)) {
         const middleware = manifest.middleware[key]
-        expect(
-          middleware.files.some((file) => file.includes('webpack-middleware'))
-        ).toBe(true)
-        expect(
-          middleware.files.filter(
-            (file) =>
-              file.startsWith('static/chunks/') &&
-              !file.startsWith('static/chunks/webpack-middleware')
-          ).length
-        ).toBe(0)
+        expect(middleware.files).toContainEqual(
+          expect.stringContaining('middleware-runtime')
+        )
+        expect(middleware.files).not.toContainEqual(
+          expect.stringContaining('static/chunks/')
+        )
       }
     })
   })
 })
 
 function rewriteTests(locale = '') {
+  it('should rewrite to fallback: true page successfully', async () => {
+    const randomSlug = `another-${Date.now()}`
+    const res2 = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/to-blog/${randomSlug}`
+    )
+    expect(res2.status).toBe(200)
+    expect(await res2.text()).toContain('Loading...')
+
+    const randomSlug2 = `another-${Date.now()}`
+    const browser = await webdriver(
+      context.appPort,
+      `${locale}/rewrites/to-blog/${randomSlug2}`
+    )
+
+    await check(async () => {
+      const props = JSON.parse(await browser.elementByCss('#props').text())
+      return props.params.slug === randomSlug2
+        ? 'success'
+        : JSON.stringify(props)
+    }, 'success')
+  })
+
   it(`${locale} should add a cookie and rewrite to a/b test`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
@@ -188,6 +208,18 @@ function rewriteTests(locale = '') {
     expect(await browser.eval('window.__SAME_PAGE')).toBe(true)
     const element = await browser.elementByCss('.middleware')
     expect(await element.text()).toEqual('foo')
+  })
+
+  it('should allow to opt-out preflight caching', async () => {
+    const browser = await webdriver(context.appPort, '/rewrites/')
+    await browser.addCookie({ name: 'about-bypass', value: '1' })
+    await browser.eval('window.__SAME_PAGE = true')
+    await browser.elementByCss('#link-with-rewritten-url').click()
+    await browser.waitForElementByCss('.refreshed')
+    await browser.deleteCookies()
+    expect(await browser.eval('window.__SAME_PAGE')).toBe(true)
+    const element = await browser.elementByCss('.title')
+    expect(await element.text()).toEqual('About Bypassed Page')
   })
 }
 
@@ -381,6 +413,18 @@ function interfaceTests(locale = '') {
     expect(response.error.name).not.toBe('TypeError')
   })
 
+  it(`${locale} abort a fetch request`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      '/interface/abort-controller'
+    )
+    const response = await res.json()
+
+    expect('error' in response).toBe(true)
+    expect(response.error.name).toBe('AbortError')
+    expect(response.error.message).toBe('The user aborted a request.')
+  })
+
   it(`${locale} should validate request url parameters from a static route`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
@@ -446,6 +490,25 @@ function interfaceTests(locale = '') {
     )
     const element = await browser.elementByCss('.title')
     expect(await element.text()).toEqual('Dynamic route')
+  })
+
+  it(`${locale} allows subrequests without infinite loops`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `/interface/root-subrequest`
+    )
+    expect(res.headers.get('x-dynamic-path')).toBe('true')
+  })
+
+  it(`${locale} renders correctly rewriting to a different dynamic path`, async () => {
+    const browser = await webdriver(
+      context.appPort,
+      '/interface/dynamic-replace'
+    )
+    const element = await browser.elementByCss('.title')
+    expect(await element.text()).toEqual('Parts page')
+    const logs = await browser.log()
+    expect(logs.every((log) => log.source === 'log')).toEqual(true)
   })
 }
 
