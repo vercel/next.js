@@ -1,13 +1,20 @@
-import type { Route } from './router'
+import type { Route, Params } from './router'
 import type { CacheFs } from '../shared/lib/utils'
+import type { NextParsedUrlQuery } from './request-meta'
+import type { FontManifest } from './font-utils'
 
 import fs from 'fs'
 import { join, relative } from 'path'
-import { PAGES_MANIFEST, BUILD_ID_FILE } from '../shared/lib/constants'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { route } from './router'
-import BaseServer from './base-server'
+import BaseServer, { FindComponentsResult } from './base-server'
+import { getMiddlewareInfo } from './require'
+import { loadComponents } from './load-components'
+import isError from '../lib/is-error'
+import { normalizePagePath } from './normalize-page-path'
+import { getPagePath, requireFontManifest } from './require'
+import { BUILD_ID_FILE, PAGES_MANIFEST } from '../shared/lib/constants'
 
 export * from './base-server'
 
@@ -34,6 +41,38 @@ export default class NextNodeServer extends BaseServer {
 
       throw err
     }
+  }
+
+  protected generateImageRoutes(): Route[] {
+    const server = this
+    return [
+      {
+        match: route('/_next/image'),
+        type: 'route',
+        name: '_next/image catchall',
+        fn: (req, res, _params, parsedUrl) => {
+          if (this.minimalMode) {
+            res.statusCode = 400
+            res.end('Bad Request')
+            return {
+              finished: true,
+            }
+          }
+          const { imageOptimizer } =
+            require('./image-optimizer') as typeof import('./image-optimizer')
+
+          return imageOptimizer(
+            server,
+            req,
+            res,
+            parsedUrl,
+            server.nextConfig,
+            server.distDir,
+            this.renderOpts.dev
+          )
+        },
+      },
+    ]
   }
 
   protected generatePublicRoutes(): Route[] {
@@ -135,6 +174,79 @@ export default class NextNodeServer extends BaseServer {
     ]))
   }
 
+  protected getPagePath(pathname: string, locales?: string[]): string {
+    return getPagePath(
+      pathname,
+      this.distDir,
+      this._isLikeServerless,
+      this.renderOpts.dev,
+      locales
+    )
+  }
+
+  protected async findPageComponents(
+    pathname: string,
+    query: NextParsedUrlQuery = {},
+    params: Params | null = null
+  ): Promise<FindComponentsResult | null> {
+    let paths = [
+      // try serving a static AMP version first
+      query.amp ? normalizePagePath(pathname) + '.amp' : null,
+      pathname,
+    ].filter(Boolean)
+
+    if (query.__nextLocale) {
+      paths = [
+        ...paths.map(
+          (path) => `/${query.__nextLocale}${path === '/' ? '' : path}`
+        ),
+        ...paths,
+      ]
+    }
+
+    for (const pagePath of paths) {
+      try {
+        const components = await loadComponents(
+          this.distDir,
+          pagePath!,
+          !this.renderOpts.dev && this._isLikeServerless
+        )
+
+        if (
+          query.__nextLocale &&
+          typeof components.Component === 'string' &&
+          !pagePath?.startsWith(`/${query.__nextLocale}`)
+        ) {
+          // if loading an static HTML file the locale is required
+          // to be present since all HTML files are output under their locale
+          continue
+        }
+
+        return {
+          components,
+          query: {
+            ...(components.getStaticProps
+              ? ({
+                  amp: query.amp,
+                  _nextDataReq: query._nextDataReq,
+                  __nextLocale: query.__nextLocale,
+                  __nextDefaultLocale: query.__nextDefaultLocale,
+                } as NextParsedUrlQuery)
+              : query),
+            ...(params || {}),
+          },
+        }
+      } catch (err) {
+        if (isError(err) && err.code !== 'ENOENT') throw err
+      }
+    }
+    return null
+  }
+
+  protected getFontManifest(): FontManifest {
+    return requireFontManifest(this.distDir, this._isLikeServerless)
+  }
+
   protected getCacheFilesystem(): CacheFs {
     return {
       readFile: (f) => fs.promises.readFile(f, 'utf8'),
@@ -143,5 +255,14 @@ export default class NextNodeServer extends BaseServer {
       mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
       stat: (f) => fs.promises.stat(f),
     }
+  }
+
+  protected getMiddlewareInfo(params: {
+    dev?: boolean
+    distDir: string
+    page: string
+    serverless: boolean
+  }) {
+    return getMiddlewareInfo(params)
   }
 }
