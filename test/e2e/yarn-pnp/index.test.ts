@@ -35,10 +35,10 @@ describe('yarn PnP', () => {
           },
           installCommand: ({ dependencies }) => {
             const pkgs = Object.keys(dependencies).reduce((prev, cur) => {
-              prev.push(`${cur}@${dependencies[cur]}`)
+              prev.push(`yarn add ${cur}@${dependencies[cur]}`)
               return prev
             }, [] as string[])
-            return `yarn set version berry && yarn add ${pkgs.join(' ')}`
+            return `yarn set version berry && ${pkgs.join(' && ')}`
           },
           buildCommand: `yarn next build --no-lint`,
           startCommand: (global as any).isNextDev
