@@ -9,11 +9,11 @@ jest.setTimeout(2 * 60 * 1000)
 describe('yarn PnP', () => {
   for (const example of [
     'progressive-web-app',
-    // 'with-eslint',
-    // 'with-typescript',
-    // 'with-next-sass',
-    // 'with-mdx',
-    // 'with-styled-components',
+    'with-eslint',
+    'with-typescript',
+    'with-next-sass',
+    'with-mdx',
+    'with-styled-components',
   ]) {
     // eslint-disable-next-line no-loop-func
     it(`should compile and serve the index page correctly ${example}`, async () => {
