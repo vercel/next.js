@@ -328,14 +328,9 @@ async function main() {
     testNames.map(async (test) => {
       const dirName = path.dirname(test)
       let dirSema = directorySemas.get(dirName)
-
-      if (!testType) {
-        // limit integration tests to one active in a directory at a
-        // time, isolated tests (e2e, dev, prod) don't need to be limited
-        if (dirSema === undefined)
-          directorySemas.set(dirName, (dirSema = new Sema(1)))
-        await dirSema.acquire()
-      }
+      if (dirSema === undefined)
+        directorySemas.set(dirName, (dirSema = new Sema(1)))
+      await dirSema.acquire()
       await sema.acquire()
       let passed = false
 
@@ -387,10 +382,7 @@ async function main() {
         cleanUpAndExit(1)
       }
       sema.release()
-
-      if (dirSema) {
-        dirSema.release()
-      }
+      dirSema.release()
     })
   )
 
