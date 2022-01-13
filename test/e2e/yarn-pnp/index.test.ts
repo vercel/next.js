@@ -33,7 +33,7 @@ describe('yarn PnP', () => {
             ...packageJson.dependencies,
             ...packageJson.devDependencies,
           },
-          installCommand: `yarn set version berry && yarn config set pnpFallbackMode none && yarn config set enableGlobalCache true && YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install`,
+          installCommand: `yarn set version berry && yarn`,
           buildCommand: `yarn build --no-lint`,
           startCommand: (global as any).isNextDev
             ? `yarn next`
