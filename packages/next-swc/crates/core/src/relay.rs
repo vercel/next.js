@@ -30,12 +30,6 @@ impl Config {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
-pub struct Options {
-    #[serde(default)]
-    pub exclude: Vec<JsWord>,
-}
-
 struct Relay {
     config: Config,
     file_name: FileName,
