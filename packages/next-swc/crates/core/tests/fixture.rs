@@ -12,6 +12,7 @@ use next_swc::{
 use std::path::PathBuf;
 use swc_common::{chain, comments::SingleThreadedComments, FileName, Mark, Span, DUMMY_SP};
 use swc_ecma_transforms_testing::{test, test_fixture};
+use swc_ecmascript::parser::TsConfig;
 use swc_ecmascript::{
     parser::{EsConfig, Syntax},
     transforms::{react::jsx, resolver},
@@ -136,7 +137,7 @@ fn page_config_fixture(input: PathBuf) {
     test_fixture(syntax(), &|_tr| page_config_test(), &input, &output);
 }
 
-#[fixture("tests/fixture/relay/no-artifact-dir/**/input.js")]
+#[fixture("tests/fixture/relay/no-artifact-dir/**/input.ts*")]
 fn relay_no_artifact_dir_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
@@ -145,7 +146,7 @@ fn relay_no_artifact_dir_fixture(input: PathBuf) {
             relay(
                 next_swc::relay::Config {
                     artifact_directory: None,
-                    language: RelayLanguageConfig::TypeScript,
+                    language: RelayLanguageConfig::Typescript,
                 },
                 FileName::Real(PathBuf::from(input.clone())),
             )
@@ -155,16 +156,21 @@ fn relay_no_artifact_dir_fixture(input: PathBuf) {
     );
 }
 
-#[fixture("tests/fixture/relay/artifact-dir/**/input.js")]
+#[fixture("tests/fixture/relay/artifact-dir/**/input.ts*")]
 fn relay_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
-        syntax(),
+        Syntax::Typescript(TsConfig {
+            tsx: true,
+            decorators: false,
+            dts: false,
+            no_early_errors: false,
+        }),
         &|_tr| {
             relay(
                 next_swc::relay::Config {
                     artifact_directory: Some(PathBuf::from("some/generated/dir")),
-                    language: RelayLanguageConfig::TypeScript,
+                    language: RelayLanguageConfig::Typescript,
                 },
                 FileName::Real(PathBuf::from(input.clone())),
             )
