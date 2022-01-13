@@ -255,7 +255,7 @@ jobs:
       #   name: Run test/production
       #   if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: NEXT_TEST_MODE=start node run-tests.js test/e2e/yarn-pnp/index.test.ts
+      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e test/e2e/yarn-pnp/index.test.ts
         name: Run test/e2e (production)
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
