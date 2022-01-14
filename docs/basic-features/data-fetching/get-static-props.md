@@ -23,7 +23,9 @@ You should use `getStaticProps` if:
 - The data can be publicly cached (not user-specific)
 - The page must be pre-rendered (for SEO) and be very fast — `getStaticProps` generates `HTML` and `JSON` files, both of which can be cached by a CDN for performance
 
-Because `getStaticProps` runs at build time, it does **not** receive data that’s only available during request time, such as query parameters or `HTTP` headers, as it generates static `HTML`. When combined with [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md) however, it will run in the background while the stale page is being revalidated, and the fresh page served to the browser.
+When combined with [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md), `getStaticProps` will run in the background while the stale page is being revalidated, and the fresh page served to the browser.
+
+Because `getStaticProps` runs at build time, it does **not** have access to the incoming request (such as query parameters or `HTTP` headers) as it generates static `HTML`. If you need access to the request for your page, consider using [Middleware](/docs/middleware.md) in addition to `getStaticProps`.
 
 ## Using getStaticProps to fetch data from a CMS
 
@@ -76,7 +78,7 @@ Alternatively, if you are **not** using API routes to fetch data, then the [`fet
 
 To verify what Next.js eliminates from the client-side bundle, you can use the [next-code-elimination tool](https://next-code-elimination.vercel.app/).
 
-## Statically Generates both HTML and JSON
+## Statically generates both HTML and JSON
 
 When a page with `getStaticProps` is pre-rendered at build time, in addition to the page HTML file, Next.js generates a JSON file holding the result of running `getStaticProps`.
 
