@@ -90,11 +90,11 @@ export default class DevServer extends Server {
   protected sortedRoutes?: string[]
   private addedUpgradeListener = false
 
-  protected staticPathsWorker?: import('next/dist/compiled/jest-worker').Worker & {
+  protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
   }
 
-  private getStaticPathsWorker(): import('next/dist/compiled/jest-worker').Worker & {
+  private getStaticPathsWorker(): { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
   } {
     if (this.staticPathsWorker) {

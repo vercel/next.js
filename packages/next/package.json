@@ -73,7 +73,6 @@
   "dependencies": {
     "@next/env": "12.0.9-canary.0",
     "caniuse-lite": "^1.0.30001283",
-    "node-fetch": "2.6.1",
     "postcss": "8.4.5",
     "styled-jsx": "5.0.0-beta.6",
     "use-subscription": "1.5.1"
@@ -218,6 +217,7 @@
     "nanoid": "3.1.30",
     "native-url": "0.3.4",
     "neo-async": "2.6.1",
+    "node-fetch": "2.6.1",
     "node-html-parser": "1.4.9",
     "ora": "4.0.4",
     "os-browserify": "0.3.0",

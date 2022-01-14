@@ -127,6 +127,15 @@ export async function copy_babel_runtime(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+externals['node-fetch'] = 'next/dist/compiled/node-fetch'
+export async function ncc_node_fetch(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('node-fetch')))
+    .ncc({ packageName: 'node-fetch', externals })
+    .target('compiled/node-fetch')
+}
+
+// eslint-disable-next-line camelcase
 externals['acorn'] = 'next/dist/compiled/acorn'
 export async function ncc_acorn(task, opts) {
   await task
@@ -1577,6 +1586,7 @@ export async function ncc(task, opts) {
         'ncc_image_size',
         'ncc_get_orientation',
         'ncc_hapi_accept',
+        'ncc_node_fetch',
         'ncc_acorn',
         'ncc_amphtml_validator',
         'ncc_arg',
