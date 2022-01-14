@@ -105,7 +105,9 @@ module.exports = (actionInfo) => {
           pkgData.files.push('native')
           console.log(
             'using swc binaries: ',
-            await exec(`ls ${path.join(path.dirname(pkgDataPath), 'native')}`)
+            (await fs.readdir(path.join(path.dirname(pkgDataPath)))).filter(
+              (name) => name.includes('native')
+            )
           )
         }
         if (pkg === 'next') {
