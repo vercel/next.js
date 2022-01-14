@@ -35,10 +35,10 @@ struct Relay {
     file_name: FileName,
 }
 
-fn pull_first_operation_name_from_tpl(tpl: TaggedTpl) -> Option<String> {
+fn pull_first_operation_name_from_tpl(tpl: &TaggedTpl) -> Option<String> {
     tpl.tpl
         .quasis
-        .into_iter()
+        .iter()
         .filter_map(|quasis| {
             let split_content = quasis.raw.value.split(" ").collect::<Vec<&str>>();
 
@@ -89,7 +89,7 @@ impl Fold for Relay {
     fn fold_expr(&mut self, expr: Expr) -> Expr {
         let expr = expr.fold_children_with(self);
 
-        match expr.clone() {
+        match &expr {
             Expr::TaggedTpl(tpl) => {
                 if let Some(built_expr) = self.build_call_expr_from_tpl(tpl) {
                     built_expr
@@ -103,8 +103,8 @@ impl Fold for Relay {
 }
 
 impl Relay {
-    fn build_call_expr_from_tpl(&mut self, tpl: TaggedTpl) -> Option<Expr> {
-        if let Expr::Ident(ident) = *tpl.tag.clone() {
+    fn build_call_expr_from_tpl(&mut self, tpl: &TaggedTpl) -> Option<Expr> {
+        if let Expr::Ident(ident) = &*tpl.tag {
             if ident.sym.to_string() != "graphql" {
                 return None;
             }
