@@ -1,15 +1,17 @@
-import { Provider } from '@skynexui/components';
+import { Provider } from '@skynexui/components'
 
 export default function App({ Component, pageProps }) {
   return (
-    <Provider theme={{
+    <Provider
+      theme={{
         components: {
-            textField: {
-                variant: "basicBordered", // or put "bottomBorder"
-            }
-        }
-    }}>
-        <Component {...pageProps} />
+          textField: {
+            variant: 'basicBordered', // or put "bottomBorder"
+          },
+        },
+      }}
+    >
+      <Component {...pageProps} />
     </Provider>
-  );
+  )
 }
