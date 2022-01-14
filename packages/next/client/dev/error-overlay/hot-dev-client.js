@@ -330,7 +330,12 @@ const FULL_REFRESH_STORAGE_KEY = '_has_warned_about_full_refresh'
 function performFullRefresh(err) {
   if (shouldWarnAboutFullRefresh()) {
     sessionStorage.setItem(FULL_REFRESH_STORAGE_KEY, 'true')
-    onFullRefreshNeeded(err.message)
+    const reason =
+      err &&
+      ((err.stack && err.stack.split('\n').slice(0, 5).join('\n')) ||
+        err.message ||
+        err + '')
+    onFullRefreshNeeded(reason)
   } else {
     window.location.reload()
   }
