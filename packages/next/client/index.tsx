@@ -32,7 +32,7 @@ import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
-import isError from '../lib/is-error'
+import { getProperError } from '../lib/is-error'
 import { trackWebVitalMetric } from './vitals'
 import { RefreshContext } from './rsc/refresh'
 
@@ -339,7 +339,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     }
   } catch (error) {
     // This catches errors like throwing in the top level of a module
-    initialErr = isError(error) ? error : new Error(error + '')
+    initialErr = getProperError(error)
   }
 
   if (process.env.NODE_ENV === 'development') {
@@ -439,7 +439,7 @@ export async function render(renderingProps: RenderRouteInfo): Promise<void> {
   try {
     await doRender(renderingProps)
   } catch (err) {
-    const renderErr = err instanceof Error ? err : new Error(err + '')
+    const renderErr = getProperError(err)
     // bubble up cancelation errors
     if ((renderErr as Error & { cancelled?: boolean }).cancelled) {
       throw renderErr
