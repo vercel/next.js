@@ -114,22 +114,21 @@ impl Relay {
         let operation_name = pull_first_operation_name_from_tpl(tpl);
 
         if let (Some(operation_name), Real(source_path_buf)) =
-            (operation_name, self.file_name.clone())
+            (operation_name, self.file_name.borrow())
         {
             let path_to_source_dir = source_path_buf.parent().unwrap();
             let generated_file_name = format!(
                 "{}.graphql.{}",
                 operation_name,
-                self.config.file_extension().clone()
+                self.config.file_extension()
             );
 
-            let fully_qualified_require_path = match self.config.artifact_directory.clone() {
+            let fully_qualified_require_path = match &self.config.artifact_directory {
                 Some(artifact_directory) => std::env::current_dir()
                     .unwrap()
                     .join(artifact_directory)
                     .join(generated_file_name),
                 _ => path_to_source_dir
-                    .clone()
                     .join("__generated__")
                     .join(generated_file_name),
             };
