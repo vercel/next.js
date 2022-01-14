@@ -4,7 +4,8 @@ const notifier = require('node-notifier')
 const { relative, basename, resolve, join, dirname } = require('path')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const glob = require('glob')
-const fs = require('fs')
+// eslint-disable-next-line import/no-extraneous-dependencies
+const fs = require('fs-extra')
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -200,6 +201,61 @@ export async function ncc_watchpack(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+externals['jest-worker'] = 'next/dist/compiled/jest-worker'
+export async function ncc_jest_worker(task, opts) {
+  await fs.remove(join(__dirname, 'compiled/jest-worker'))
+  await fs.ensureDir(join(__dirname, 'compiled/jest-worker/workers'))
+
+  const workers = ['processChild.js', 'threadChild.js']
+
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('jest-worker')))
+    .ncc({ packageName: 'jest-worker', externals })
+    .target('compiled/jest-worker')
+
+  for (const worker of workers) {
+    const content = await fs.readFile(
+      join(
+        dirname(require.resolve('jest-worker/package.json')),
+        'build/workers',
+        worker
+      ),
+      'utf8'
+    )
+    await fs.writeFile(
+      join(
+        dirname(require.resolve('jest-worker/package.json')),
+        'build/workers',
+        worker + '.tmp.js'
+      ),
+      content.replace(/require\(file\)/g, '__non_webpack_require__(file)')
+    )
+    await task
+      .source(
+        opts.src ||
+          relative(
+            __dirname,
+            join(
+              dirname(require.resolve('jest-worker/package.json')),
+              'build/workers',
+              worker + '.tmp.js'
+            )
+          )
+      )
+      .ncc({ packageName: 'jest-worker', externals })
+      .target('compiled/jest-worker/out')
+
+    await fs.move(
+      join(__dirname, 'compiled/jest-worker/out', worker + '.tmp.js'),
+      join(__dirname, 'compiled/jest-worker', worker),
+      { overwrite: true }
+    )
+  }
+  await fs.remove(join(__dirname, 'compiled/jest-worker/workers'))
+  await fs.remove(join(__dirname, 'compiled/jest-worker/out'))
+}
+
+// eslint-disable-next-line camelcase
 externals['chalk'] = 'next/dist/compiled/chalk'
 export async function ncc_chalk(task, opts) {
   await task
@@ -352,10 +408,10 @@ export async function copy_react_is(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function copy_constants_browserify(task, opts) {
-  await fs.promises.mkdir(join(__dirname, 'compiled/constants-browserify'), {
+  await fs.mkdir(join(__dirname, 'compiled/constants-browserify'), {
     recursive: true,
   })
-  await fs.promises.writeFile(
+  await fs.writeFile(
     join(__dirname, 'compiled/constants-browserify/package.json'),
     JSON.stringify({ name: 'constants-browserify', main: './constants.json' })
   )
@@ -705,7 +761,7 @@ export async function ncc_babel_bundle_packages(task, opts) {
     })
     .target(`compiled/babel-packages`)
 
-  await fs.promises.writeFile(
+  await fs.writeFile(
     join(__dirname, 'compiled/babel-packages/package.json'),
     JSON.stringify({ name: 'babel-packages', main: './packages-bundle.js' })
   )
@@ -1112,11 +1168,10 @@ export async function ncc_icss_utils(task, opts) {
 }
 // eslint-disable-next-line camelcase
 export async function copy_react_server_dom_webpack(task, opts) {
-  await fs.promises.mkdir(
-    join(__dirname, 'compiled/react-server-dom-webpack'),
-    { recursive: true }
-  )
-  await fs.promises.writeFile(
+  await fs.mkdir(join(__dirname, 'compiled/react-server-dom-webpack'), {
+    recursive: true,
+  })
+  await fs.writeFile(
     join(__dirname, 'compiled/react-server-dom-webpack/package.json'),
     JSON.stringify({ name: 'react-server-dom-webpack', main: './index.js' })
   )
@@ -1593,6 +1648,7 @@ export async function ncc(task, opts) {
       'copy_constants_browserify',
       'copy_react_server_dom_webpack',
       'copy_react_is',
+      'ncc_jest_worker',
     ],
     opts
   )

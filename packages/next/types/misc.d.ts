@@ -17,6 +17,10 @@ declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
 }
 
+declare module 'next/dist/compiled/jest-worker' {
+  export * from 'jest-worker'
+}
+
 declare module 'next/dist/compiled/react-is' {
   export * from 'react-is'
 }
