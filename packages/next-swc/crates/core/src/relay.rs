@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::path::PathBuf;
 
 use pathdiff::diff_paths;
@@ -104,8 +105,8 @@ impl Fold for Relay {
 
 impl Relay {
     fn build_call_expr_from_tpl(&mut self, tpl: &TaggedTpl) -> Option<Expr> {
-        if let Expr::Ident(ident) = &*tpl.tag {
-            if ident.sym.to_string() != "graphql" {
+        if let Expr::Ident(ident) = tpl.tag.borrow() {
+            if ident.sym.borrow() != "graphql" {
                 return None;
             }
         }
