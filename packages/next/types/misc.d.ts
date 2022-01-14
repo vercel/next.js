@@ -13,6 +13,11 @@ declare module 'next/dist/compiled/@next/react-dev-overlay/middleware' {
   export * from '@next/react-dev-overlay/lib/middleware'
 }
 
+declare module 'next/dist/compiled/@next/react-refresh-utils/ReactRefreshWebpackPlugin' {
+  import m from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
+  export = m
+}
+
 declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
 }

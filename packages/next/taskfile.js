@@ -256,6 +256,40 @@ export async function ncc_jest_worker(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+export async function ncc_react_refresh_utils(task, opts) {
+  await fs.remove(join(__dirname, 'compiled/react-refresh'))
+  await fs.copy(
+    dirname(require.resolve('react-refresh/package.json')),
+    join(__dirname, 'compiled/react-refresh')
+  )
+
+  const srcDir = dirname(
+    require.resolve('@next/react-refresh-utils/package.json')
+  )
+  const destDir = join(__dirname, 'compiled/@next/react-refresh-utils')
+  await fs.remove(destDir)
+  await fs.ensureDir(destDir)
+
+  const files = glob.sync('**/*.{js,json}', { cwd: srcDir })
+
+  for (const file of files) {
+    if (file === 'tsconfig.json') continue
+
+    const content = await fs.readFile(join(srcDir, file), 'utf8')
+    const outputFile = join(destDir, file)
+
+    await fs.ensureDir(dirname(outputFile))
+    await fs.writeFile(
+      outputFile,
+      content.replace(
+        /react-refresh\/runtime/g,
+        'next/dist/compiled/react-refresh/runtime'
+      )
+    )
+  }
+}
+
+// eslint-disable-next-line camelcase
 externals['chalk'] = 'next/dist/compiled/chalk'
 export async function ncc_chalk(task, opts) {
   await task
@@ -1643,6 +1677,7 @@ export async function ncc(task, opts) {
   await task.serial(
     [
       'ncc_next__react_dev_overlay',
+      'ncc_react_refresh_utils',
       'copy_regenerator_runtime',
       'copy_babel_runtime',
       'copy_constants_browserify',

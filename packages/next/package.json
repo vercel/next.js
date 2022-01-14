@@ -72,11 +72,9 @@
   },
   "dependencies": {
     "@next/env": "12.0.9-canary.0",
-    "@next/react-refresh-utils": "12.0.9-canary.0",
     "caniuse-lite": "^1.0.30001283",
     "node-fetch": "2.6.1",
     "postcss": "8.4.5",
-    "react-refresh": "0.8.3",
     "styled-jsx": "5.0.0-beta.6",
     "use-subscription": "1.5.1"
   },
@@ -125,6 +123,7 @@
     "@next/polyfill-module": "12.0.9-canary.0",
     "@next/polyfill-nomodule": "12.0.9-canary.0",
     "@next/react-dev-overlay": "12.0.9-canary.0",
+    "@next/react-refresh-utils": "12.0.9-canary.0",
     "@next/swc": "12.0.9-canary.0",
     "@peculiar/webcrypto": "1.1.7",
     "@taskr/clear": "1.1.0",
@@ -239,6 +238,7 @@
     "querystring-es3": "0.2.1",
     "raw-body": "2.4.1",
     "react-is": "17.0.2",
+    "react-refresh": "0.8.3",
     "react-server-dom-webpack": "0.0.0-experimental-13455d26d-20211104",
     "regenerator-runtime": "0.13.4",
     "sass-loader": "10.2.0",
