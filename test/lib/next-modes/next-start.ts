@@ -6,6 +6,7 @@ import { spawn, SpawnOptions } from 'child_process'
 export class NextStartInstance extends NextInstance {
   private _buildId: string
   private _cliOutput: string
+  private spawnOpts: SpawnOptions
 
   public get buildId() {
     return this._buildId
@@ -19,11 +20,26 @@ export class NextStartInstance extends NextInstance {
     await super.createTestDir()
   }
 
+  private handleStdio = (childProcess) => {
+    childProcess.stdout.on('data', (chunk) => {
+      const msg = chunk.toString()
+      process.stdout.write(chunk)
+      this._cliOutput += msg
+      this.emit('stdout', [msg])
+    })
+    childProcess.stderr.on('data', (chunk) => {
+      const msg = chunk.toString()
+      process.stderr.write(chunk)
+      this._cliOutput += msg
+      this.emit('stderr', [msg])
+    })
+  }
+
   public async start() {
     if (this.childProcess) {
       throw new Error('next already started')
     }
-    const spawnOpts: SpawnOptions = {
+    this.spawnOpts = {
       cwd: this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: false,
@@ -33,20 +49,6 @@ export class NextStartInstance extends NextInstance {
         __NEXT_TEST_MODE: '1',
         __NEXT_RAND_PORT: '1',
       },
-    }
-    const handleStdio = () => {
-      this.childProcess.stdout.on('data', (chunk) => {
-        const msg = chunk.toString()
-        process.stdout.write(chunk)
-        this._cliOutput += msg
-        this.emit('stdout', [msg])
-      })
-      this.childProcess.stderr.on('data', (chunk) => {
-        const msg = chunk.toString()
-        process.stderr.write(chunk)
-        this._cliOutput += msg
-        this.emit('stderr', [msg])
-      })
     }
     let buildArgs = ['yarn', 'next', 'build']
     let startArgs = ['yarn', 'next', 'start']
@@ -60,8 +62,12 @@ export class NextStartInstance extends NextInstance {
 
     await new Promise<void>((resolve, reject) => {
       console.log('running', buildArgs.join(' '))
-      this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
-      handleStdio()
+      this.childProcess = spawn(
+        buildArgs[0],
+        buildArgs.slice(1),
+        this.spawnOpts
+      )
+      this.handleStdio(this.childProcess)
       this.childProcess.on('exit', (code, signal) => {
         if (code || signal)
           reject(
@@ -85,8 +91,12 @@ export class NextStartInstance extends NextInstance {
     console.log('running', startArgs.join(' '))
 
     await new Promise<void>((resolve) => {
-      this.childProcess = spawn(startArgs[0], startArgs.slice(1), spawnOpts)
-      handleStdio()
+      this.childProcess = spawn(
+        startArgs[0],
+        startArgs.slice(1),
+        this.spawnOpts
+      )
+      this.handleStdio(this.childProcess)
 
       this.childProcess.on('close', (code, signal) => {
         if (this.isStopping) return
@@ -106,6 +116,35 @@ export class NextStartInstance extends NextInstance {
         }
       }
       this.on('stdout', readyCb)
+    })
+  }
+
+  public async export() {
+    return new Promise((resolve) => {
+      const curOutput = this._cliOutput.length
+      const exportArgs = ['yarn', 'next', 'export']
+
+      if (this.childProcess) {
+        throw new Error(
+          `can not run export while server is running, use next.stop() first`
+        )
+      }
+      console.log('running', exportArgs.join(' '))
+
+      this.childProcess = spawn(
+        exportArgs[0],
+        exportArgs.slice(1),
+        this.spawnOpts
+      )
+      this.handleStdio(this.childProcess)
+
+      this.childProcess.on('exit', (code, signal) => {
+        this.childProcess = undefined
+        resolve({
+          exitCode: signal || code,
+          cliOutput: this.cliOutput.substr(curOutput),
+        })
+      })
     })
   }
 }
