@@ -60,11 +60,7 @@ export class NextStartInstance extends NextInstance {
 
     await new Promise<void>((resolve, reject) => {
       console.log('running', buildArgs.join(' '))
-      this.childProcess = spawn(
-        buildArgs[0],
-        [...buildArgs.slice(1)],
-        spawnOpts
-      )
+      this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
       handleStdio()
       this.childProcess.on('exit', (code, signal) => {
         if (code || signal)
@@ -89,11 +85,7 @@ export class NextStartInstance extends NextInstance {
     console.log('running', startArgs.join(' '))
 
     await new Promise<void>((resolve) => {
-      this.childProcess = spawn(
-        startArgs[0],
-        [...startArgs.slice(1)],
-        spawnOpts
-      )
+      this.childProcess = spawn(startArgs[0], startArgs.slice(1), spawnOpts)
       handleStdio()
 
       this.childProcess.on('close', (code, signal) => {

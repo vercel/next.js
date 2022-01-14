@@ -27,7 +27,7 @@ export class NextDevInstance extends NextInstance {
     }
 
     await new Promise<void>((resolve) => {
-      this.childProcess = spawn(startArgs[0], [...startArgs.slice(1)], {
+      this.childProcess = spawn(startArgs[0], startArgs.slice(1), {
         cwd: this.testDir,
         stdio: ['ignore', 'pipe', 'pipe'],
         shell: false,
