@@ -8,7 +8,7 @@ examples](#adding-examples)** below.
 
 The development branch is `canary`, and this is the branch that all pull
 requests should be made against. After publishing a stable release, the changes
-in the `canary` branch are rebased into `master`. The changes on the `canary`
+in the `canary` branch are rebased into `main`. The changes on the `canary`
 branch are published to the `@canary` dist-tag daily.
 
 To develop locally:
