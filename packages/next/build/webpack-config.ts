@@ -1620,6 +1620,7 @@ export default async function getBaseWebpackConfig(
     removeConsole: config.experimental.removeConsole,
     reactRemoveProperties: config.experimental.reactRemoveProperties,
     styledComponents: config.experimental.styledComponents,
+    webpackCss: config.experimental.webpackCss,
   })
 
   const cache: any = {
