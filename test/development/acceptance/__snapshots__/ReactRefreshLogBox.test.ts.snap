@@ -80,12 +80,12 @@ Caused by:
 `;
 
 exports[`ReactRefreshLogBox module init error not shown 1`] = `
-"index.js (4:14) @ eval
+"index.js (4:8) @ <unknown>
 
   2 | // top offset for snapshot
   3 | import * as React from 'react';
 > 4 | throw new Error('no')
-    |      ^
+    |        ^
   5 | class ClassDefault extends React.Component {
   6 |   render() {
   7 |     return <h1>Default Export</h1>;"
