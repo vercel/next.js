@@ -532,6 +532,7 @@ export default class HotReloader {
                     absolute404Path: this.pagesMapping['/404'] || '',
                     absolutePagePath,
                     isServerComponent,
+                    serverComponents: this.hasServerComponents,
                     buildId: this.buildId,
                     basePath: this.config.basePath,
                     assetPrefix: this.config.assetPrefix,
