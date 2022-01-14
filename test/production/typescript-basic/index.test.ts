@@ -25,7 +25,9 @@ describe('TypeScript basic', () => {
       },
       dependencies: {
         typescript: '4.4.3',
-        '@types/react': '16.9.17',
+        '@types/node': 'latest',
+        '@types/react': 'latest',
+        '@types/react-dom': 'latest',
       },
     })
   })
