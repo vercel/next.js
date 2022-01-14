@@ -1,35 +1,43 @@
 import type { Params, Route } from './router'
 import type { CacheFs } from '../shared/lib/utils'
+import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
+import type RenderResult from './render-result'
 
 import fs from 'fs'
 import { join, relative } from 'path'
-
 import { IncomingMessage, ServerResponse } from 'http'
+
 import { PAGES_MANIFEST, BUILD_ID_FILE } from '../shared/lib/constants'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
-import { route } from './router'
-import { format as formatUrl } from 'url'
+import { format as formatUrl, UrlWithParsedQuery } from 'url'
 import compression from 'next/dist/compiled/compression'
 import Proxy from 'next/dist/compiled/http-proxy'
-import { UrlWithParsedQuery } from 'url'
+import { route } from './router'
 
-import BaseServer, { prepareServerlessUrl, stringifyQuery } from './base-server'
 import {
   BaseNextRequest,
   BaseNextResponse,
   NodeNextRequest,
   NodeNextResponse,
 } from './base-http'
-import renderResult from './render-result'
 import { PayloadOptions, sendRenderResult } from './send-payload'
 import { serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils'
 import { RenderOpts, renderToHTML } from './render'
-import { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import RenderResult from './render-result'
 import { ParsedUrl } from '../shared/lib/router/utils/parse-url'
+
+import BaseServer, {
+  FindComponentsResult,
+  prepareServerlessUrl,
+  stringifyQuery,
+} from './base-server'
+import { getMiddlewareInfo, getPagePath, requireFontManifest } from './require'
+import { normalizePagePath } from './normalize-page-path'
+import { loadComponents } from './load-components'
+import isError from '../lib/is-error'
+import { FontManifest } from './font-utils'
 
 export * from './base-server'
 
@@ -75,6 +83,31 @@ export default class NextNodeServer extends BaseServer {
 
       throw err
     }
+  }
+
+  protected generateImageRoutes(): Route[] {
+    return [
+      {
+        match: route('/_next/image'),
+        type: 'route',
+        name: '_next/image catchall',
+        fn: (req, res, _params, parsedUrl) => {
+          if (this.minimalMode) {
+            res.statusCode = 400
+            res.body('Bad Request').send()
+            return {
+              finished: true,
+            }
+          }
+
+          return this.imageOptimizer(
+            req as NodeNextRequest,
+            res as NodeNextResponse,
+            parsedUrl
+          )
+        },
+      },
+    ]
   }
 
   protected generatePublicRoutes(): Route[] {
@@ -180,7 +213,7 @@ export default class NextNodeServer extends BaseServer {
     req: NodeNextRequest,
     res: NodeNextResponse,
     options: {
-      result: renderResult
+      result: RenderResult
       type: 'html' | 'json'
       generateEtags: boolean
       poweredByHeader: boolean
@@ -328,6 +361,79 @@ export default class NextNodeServer extends BaseServer {
     )
   }
 
+  protected getPagePath(pathname: string, locales?: string[]): string {
+    return getPagePath(
+      pathname,
+      this.distDir,
+      this._isLikeServerless,
+      this.renderOpts.dev,
+      locales
+    )
+  }
+
+  protected async findPageComponents(
+    pathname: string,
+    query: NextParsedUrlQuery = {},
+    params: Params | null = null
+  ): Promise<FindComponentsResult | null> {
+    let paths = [
+      // try serving a static AMP version first
+      query.amp ? normalizePagePath(pathname) + '.amp' : null,
+      pathname,
+    ].filter(Boolean)
+
+    if (query.__nextLocale) {
+      paths = [
+        ...paths.map(
+          (path) => `/${query.__nextLocale}${path === '/' ? '' : path}`
+        ),
+        ...paths,
+      ]
+    }
+
+    for (const pagePath of paths) {
+      try {
+        const components = await loadComponents(
+          this.distDir,
+          pagePath!,
+          !this.renderOpts.dev && this._isLikeServerless
+        )
+
+        if (
+          query.__nextLocale &&
+          typeof components.Component === 'string' &&
+          !pagePath?.startsWith(`/${query.__nextLocale}`)
+        ) {
+          // if loading an static HTML file the locale is required
+          // to be present since all HTML files are output under their locale
+          continue
+        }
+
+        return {
+          components,
+          query: {
+            ...(components.getStaticProps
+              ? ({
+                  amp: query.amp,
+                  _nextDataReq: query._nextDataReq,
+                  __nextLocale: query.__nextLocale,
+                  __nextDefaultLocale: query.__nextDefaultLocale,
+                } as NextParsedUrlQuery)
+              : query),
+            ...(params || {}),
+          },
+        }
+      } catch (err) {
+        if (isError(err) && err.code !== 'ENOENT') throw err
+      }
+    }
+    return null
+  }
+
+  protected getFontManifest(): FontManifest {
+    return requireFontManifest(this.distDir, this._isLikeServerless)
+  }
+
   protected getCacheFilesystem(): CacheFs {
     return {
       readFile: (f) => fs.promises.readFile(f, 'utf8'),
@@ -447,5 +553,14 @@ export default class NextNodeServer extends BaseServer {
       path,
       parsedUrl
     )
+  }
+
+  protected getMiddlewareInfo(params: {
+    dev?: boolean
+    distDir: string
+    page: string
+    serverless: boolean
+  }) {
+    return getMiddlewareInfo(params)
   }
 }
