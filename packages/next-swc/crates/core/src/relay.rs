@@ -40,8 +40,7 @@ fn pull_first_operation_name_from_tpl(tpl: TaggedTpl) -> Option<String> {
         .quasis
         .into_iter()
         .filter_map(|quasis| {
-            let template_string_content = String::from(quasis.raw.value.to_string());
-            let split_content = template_string_content.split(" ").collect::<Vec<&str>>();
+            let split_content = quasis.raw.value.split(" ").collect::<Vec<&str>>();
 
             let operation = split_content
                 .chunks(2)
