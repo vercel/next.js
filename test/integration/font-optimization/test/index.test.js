@@ -328,4 +328,10 @@ describe('Font Optimization', () => {
     const { code } = await nextBuild(appDir)
     expect(code).toBe(0)
   })
+
+  test('makeStylesheetInert regression', async () => {
+    const appDir = join(fixturesDir, 'make-stylesheet-inert-regression')
+    const { code } = await nextBuild(appDir)
+    expect(code).toBe(0)
+  })
 })

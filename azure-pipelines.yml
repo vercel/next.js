@@ -10,14 +10,14 @@ trigger:
       - docs
       - errors
       - examples
-  # Do not run Azure on `canary`, `master`, or release tags. This unnecessarily
+  # Do not run Azure on `canary`, `main`, or release tags. This unnecessarily
   # increases the backlog, and the change was already tested on the PR.
   branches:
     include:
       - '*'
     exclude:
       - canary
-      - master
+      - main
       - refs/tags/*
 
 pr:
@@ -34,7 +34,7 @@ pr:
 variables:
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
   NEXT_TELEMETRY_DISABLED: '1'
-  node_version: ^12.0.0
+  node_version: ^12.22.0
 
 stages:
   - stage: Build

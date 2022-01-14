@@ -133,10 +133,7 @@ module.exports = {
           content: `
             module.exports = {
               generateBuildId: () => 'BUILD_ID',
-              experimental: {
-                swcLoader: true,
-                swcMinify: true,
-              },
+              swcMinify: true,
               webpack(config) {
                 config.optimization.minimize = false
                 config.optimization.minimizer = undefined
@@ -157,10 +154,7 @@ module.exports = {
           path: 'next.config.js',
           content: `
             module.exports = {
-              experimental: {
-                swcLoader: true,
-                swcMinify: true
-              },
+              swcMinify: true,
               generateBuildId: () => 'BUILD_ID'
             }
           `,

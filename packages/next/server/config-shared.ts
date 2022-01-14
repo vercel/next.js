@@ -1,4 +1,5 @@
 import os from 'os'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import {
   ImageConfig,
@@ -9,6 +10,9 @@ import {
 export type NextConfigComplete = Required<NextConfig> & {
   images: ImageConfigComplete
   typescript: Required<TypeScriptConfig>
+  configOrigin?: string
+  configFile?: string
+  configFileName: string
 }
 
 export interface I18NConfig {
@@ -89,6 +93,11 @@ export type NextConfig = { [key: string]: any } & {
   images?: ImageConfig
   devIndicators?: {
     buildActivity?: boolean
+    buildActivityPosition?:
+      | 'bottom-right'
+      | 'bottom-left'
+      | 'top-right'
+      | 'top-left'
   }
   onDemandEntries?: {
     maxInactiveAge?: number
@@ -110,12 +119,26 @@ export type NextConfig = { [key: string]: any } & {
      * @deprecated this options was moved to the top level
      */
     webpack5?: false
-    strictPostcssConfiguration?: boolean
   }
+  outputFileTracing?: boolean
+  staticPageGenerationTimeout?: number
   crossOrigin?: false | 'anonymous' | 'use-credentials'
+  swcMinify?: boolean
   experimental?: {
+    disablePostcssPresetEnv?: boolean
+    removeConsole?:
+      | boolean
+      | {
+          exclude?: string[]
+        }
+    reactRemoveProperties?:
+      | boolean
+      | {
+          properties?: string[]
+        }
+    styledComponents?: boolean
     swcMinify?: boolean
-    swcLoader?: boolean
+    swcFileReading?: boolean
     cpus?: number
     sharedPool?: boolean
     plugins?: boolean
@@ -127,7 +150,6 @@ export type NextConfig = { [key: string]: any } & {
     optimizeImages?: boolean
     optimizeCss?: boolean
     scrollRestoration?: boolean
-    stats?: boolean
     externalDir?: boolean
     conformance?: boolean
     amp?: {
@@ -140,11 +162,13 @@ export type NextConfig = { [key: string]: any } & {
     gzipSize?: boolean
     craCompat?: boolean
     esmExternals?: boolean | 'loose'
-    staticPageGenerationTimeout?: number
     isrMemoryCacheSize?: number
-    outputFileTracing?: boolean
     concurrentFeatures?: boolean
     serverComponents?: boolean
+    fullySpecified?: boolean
+    urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
+    outputFileTracingRoot?: string
+    outputStandalone?: boolean
   }
 }
 
@@ -174,9 +198,10 @@ export const defaultConfig: NextConfig = {
   images: imageConfigDefault,
   devIndicators: {
     buildActivity: true,
+    buildActivityPosition: 'bottom-right',
   },
   onDemandEntries: {
-    maxInactiveAge: 60 * 1000,
+    maxInactiveAge: 15 * 1000,
     pagesBufferLength: 2,
   },
   amp: {
@@ -188,8 +213,7 @@ export const defaultConfig: NextConfig = {
   i18n: null,
   productionBrowserSourceMaps: false,
   optimizeFonts: true,
-  webpack5:
-    Number(process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) > 0 ? false : undefined,
+  webpack5: undefined,
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
@@ -197,15 +221,16 @@ export const defaultConfig: NextConfig = {
   httpAgentOptions: {
     keepAlive: true,
   },
+  outputFileTracing: true,
+  staticPageGenerationTimeout: 60,
+  swcMinify: false,
   experimental: {
-    swcLoader: false,
-    swcMinify: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    sharedPool: false,
+    sharedPool: true,
     plugins: false,
     profiling: false,
     isrFlushToDisk: true,
@@ -214,22 +239,20 @@ export const defaultConfig: NextConfig = {
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
-    stats: false,
     externalDir: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     disableOptimizedLoading: false,
     gzipSize: true,
+    swcFileReading: true,
     craCompat: false,
-    esmExternals: false,
-    staticPageGenerationTimeout: 60,
+    esmExternals: true,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
-    outputFileTracing: false,
     concurrentFeatures: false,
     serverComponents: false,
-  },
-  future: {
-    strictPostcssConfiguration: false,
+    fullySpecified: false,
+    outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
+    outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
   },
 }
 

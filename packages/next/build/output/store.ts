@@ -1,18 +1,25 @@
 import createStore from 'next/dist/compiled/unistore'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { flushAllTraces } from '../../trace'
+import { getUnresolvedModuleFromError } from '../utils'
 
 import * as Log from './log'
 
 export type OutputState =
   | { bootstrap: true; appUrl: string | null; bindAddr: string | null }
   | ({ bootstrap: false; appUrl: string | null; bindAddr: string | null } & (
-      | { loading: true }
+      | {
+          loading: true
+          trigger: string | undefined
+        }
       | {
           loading: false
           typeChecking: boolean
+          partial: 'client and server' | undefined
+          modules: number
           errors: string[] | null
           warnings: string[] | null
+          hasServerWeb: boolean
         }
     ))
 
@@ -53,8 +60,16 @@ store.subscribe((state) => {
   }
 
   if (state.loading) {
-    Log.wait('compiling...')
-    if (startTime === 0) startTime = Date.now()
+    if (state.trigger) {
+      if (state.trigger !== 'initial') {
+        Log.wait(`compiling ${state.trigger}...`)
+      }
+    } else {
+      Log.wait('compiling...')
+    }
+    if (startTime === 0) {
+      startTime = Date.now()
+    }
     return
   }
 
@@ -75,6 +90,14 @@ store.subscribe((state) => {
       }
     }
 
+    const moduleName = getUnresolvedModuleFromError(cleanError)
+    if (state.hasServerWeb && moduleName) {
+      console.error(
+        `Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`${moduleName}\` imported.\n`
+      )
+      return
+    }
+
     // Ensure traces are flushed after each compile in development mode
     flushAllTraces()
     return
@@ -86,7 +109,17 @@ store.subscribe((state) => {
     startTime = 0
 
     timeMessage =
-      time > 2000 ? ` in ${Math.round(time / 100) / 10} s` : ` in ${time} ms`
+      time > 2000 ? ` in ${Math.round(time / 100) / 10}s` : ` in ${time} ms`
+  }
+
+  let modulesMessage = ''
+  if (state.modules) {
+    modulesMessage = ` (${state.modules} modules)`
+  }
+
+  let partialMessage = ''
+  if (state.partial) {
+    partialMessage = ` ${state.partial}`
   }
 
   if (state.warnings) {
@@ -98,12 +131,14 @@ store.subscribe((state) => {
 
   if (state.typeChecking) {
     Log.info(
-      `bundled successfully${timeMessage}, waiting for typecheck results...`
+      `bundled${partialMessage} successfully${timeMessage}${modulesMessage}, waiting for typecheck results...`
     )
     return
   }
 
-  Log.event(`compiled successfully${timeMessage}`)
+  Log.event(
+    `compiled${partialMessage} successfully${timeMessage}${modulesMessage}`
+  )
   // Ensure traces are flushed after each compile in development mode
   flushAllTraces()
 })

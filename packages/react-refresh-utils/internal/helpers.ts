@@ -48,6 +48,7 @@ function isSafeExport(key: string): boolean {
     key === '__esModule' ||
     key === '__N_SSG' ||
     key === '__N_SSP' ||
+    key === '__N_RSC' ||
     // TODO: remove this key from page config instead of allow listing it
     key === 'config'
   )

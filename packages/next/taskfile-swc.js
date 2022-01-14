@@ -20,6 +20,7 @@ module.exports = function (task) {
       const swcClientOptions = {
         module: {
           type: 'commonjs',
+          ignoreDynamic: true,
         },
         jsc: {
           loose: true,
@@ -45,6 +46,7 @@ module.exports = function (task) {
       const swcServerOptions = {
         module: {
           type: 'commonjs',
+          ignoreDynamic: true,
         },
         env: {
           targets: {
@@ -93,14 +95,6 @@ module.exports = function (task) {
         const extRegex = new RegExp(ext.replace('.', '\\.') + '$', 'i')
         // Remove the extension if stripExtension is enabled or replace it with `.js`
         file.base = file.base.replace(extRegex, stripExtension ? '' : '.js')
-      }
-
-      // Workaround for noop.js loading
-      if (file.base === 'next-dev.js') {
-        output.code = output.code.replace(
-          /__REPLACE_NOOP_IMPORT__/g,
-          `import('./dev/noop');`
-        )
       }
 
       if (output.map) {
