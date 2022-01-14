@@ -50,8 +50,8 @@ export function getApiHandler(ctx: ServerlessHandlerCtx) {
       }
 
       await apiResolver(
-        req.req,
-        res.res,
+        req.originalRequest,
+        res.originalResponse,
         Object.assign({}, parsedUrl.query, params),
         await pageModule,
         encodedPreviewProps,

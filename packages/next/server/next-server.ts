@@ -221,8 +221,8 @@ export default class NextNodeServer extends BaseServer {
     }
   ): Promise<void> {
     return sendRenderResult({
-      req: req.req,
-      res: res.res,
+      req: req.originalRequest,
+      res: res.originalResponse,
       ...options,
     })
   }
@@ -232,7 +232,7 @@ export default class NextNodeServer extends BaseServer {
     res: NodeNextResponse,
     path: string
   ): Promise<void> {
-    return serveStatic(req.req, res.res, path)
+    return serveStatic(req.originalRequest, res.originalResponse, path)
   }
 
   protected handleCompression(
@@ -240,7 +240,7 @@ export default class NextNodeServer extends BaseServer {
     res: NodeNextResponse
   ): void {
     if (this.compression) {
-      this.compression(req.req, res.res, () => {})
+      this.compression(req.originalRequest, res.originalResponse, () => {})
     }
   }
 
@@ -279,7 +279,7 @@ export default class NextNodeServer extends BaseServer {
           proxyReject(err)
         }
       })
-      proxy.web(req.req, res.res)
+      proxy.web(req.originalRequest, res.originalResponse)
     })
 
     return {
@@ -310,8 +310,8 @@ export default class NextNodeServer extends BaseServer {
     }
 
     await apiResolver(
-      req.req,
-      res.res,
+      req.originalRequest,
+      res.originalResponse,
       query,
       pageModule,
       this.renderOpts.previewProps,
@@ -329,11 +329,17 @@ export default class NextNodeServer extends BaseServer {
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult | null> {
-    return renderToHTML(req.req, res.res, pathname, query, renderOpts)
+    return renderToHTML(
+      req.originalRequest,
+      res.originalResponse,
+      pathname,
+      query,
+      renderOpts
+    )
   }
 
   protected streamResponseChunk(res: NodeNextResponse, chunk: any) {
-    res.res.write(chunk)
+    res.originalResponse.write(chunk)
   }
 
   protected async imageOptimizer(
@@ -345,8 +351,8 @@ export default class NextNodeServer extends BaseServer {
       require('./image-optimizer') as typeof import('./image-optimizer')
 
     return imageOptimizer(
-      req.req,
-      res.res,
+      req.originalRequest,
+      res.originalResponse,
       parsedUrl,
       this.nextConfig,
       this.distDir,

@@ -37,7 +37,7 @@ export class NodeNextRequest extends BaseNextRequest<Readable> {
 
   [NEXT_REQUEST_META]: RequestMeta
 
-  get req() {
+  get originalRequest() {
     // Need to mimic these changes to the original req object for places where we use it:
     // render.tsx, api/ssg requests
     this._req[NEXT_REQUEST_META] = this[NEXT_REQUEST_META]
@@ -138,7 +138,7 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
 
   public [SYMBOL_CLEARED_COOKIES]?: boolean
 
-  get res() {
+  get originalResponse() {
     if (SYMBOL_CLEARED_COOKIES in this) {
       this._res[SYMBOL_CLEARED_COOKIES] = this[SYMBOL_CLEARED_COOKIES]
     }

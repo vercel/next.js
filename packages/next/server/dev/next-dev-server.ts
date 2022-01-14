@@ -485,7 +485,7 @@ export default class DevServer extends Server {
   private setupWebSocketHandler(server?: HTTPServer, _req?: NodeNextRequest) {
     if (!this.addedUpgradeListener) {
       this.addedUpgradeListener = true
-      server = server || (_req?.req.socket as any)?.server
+      server = server || (_req?.originalRequest.socket as any)?.server
 
       if (!server) {
         // this is very unlikely to happen but show an error in case
@@ -578,8 +578,8 @@ export default class DevServer extends Server {
     }
 
     const { finished = false } = await this.hotReloader!.run(
-      req.req,
-      res.res,
+      req.originalRequest,
+      res.originalResponse,
       parsedUrl
     )
 
