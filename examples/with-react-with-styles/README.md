@@ -6,7 +6,7 @@ In this case we are using [react-with-styles](https://github.com/airbnb/react-wi
 
 For this purpose we are extending the `<Document />` and injecting the server side rendered styles into the `<head>`.
 
-We are using `pages/_index.js` from this example [with-aphrodite](https://github.com/vercel/next.js/tree/master/examples/with-aphrodite).
+We are using `pages/_index.js` from this example [with-aphrodite](https://github.com/vercel/next.js/tree/canary/examples/with-aphrodite).
 
 ## Preview
 

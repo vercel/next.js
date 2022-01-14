@@ -7,8 +7,8 @@ import {
   MIDDLEWARE_BUILD_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   MIDDLEWARE_RUNTIME_WEBPACK,
+  MIDDLEWARE_SSR_RUNTIME_WEBPACK,
 } from '../../../shared/lib/constants'
-import { MIDDLEWARE_ROUTE } from '../../../lib/constants'
 import { nonNullable } from '../../../lib/non-nullable'
 
 const PLUGIN_NAME = 'MiddlewarePlugin'
@@ -141,7 +141,10 @@ export default class MiddlewarePlugin {
           envPerRoute.clear()
 
           for (const [name, info] of compilation.entries) {
-            if (name.match(MIDDLEWARE_ROUTE)) {
+            if (
+              info.options.runtime === MIDDLEWARE_SSR_RUNTIME_WEBPACK ||
+              info.options.runtime === MIDDLEWARE_RUNTIME_WEBPACK
+            ) {
               const middlewareEntries = new Set<webpack5.Module>()
               const env = new Set<string>()
 
@@ -295,8 +298,6 @@ export default class MiddlewarePlugin {
             .tap(PLUGIN_NAME, ignore)
 
           const memberChainHandler = (_expr: any, members: string[]) => {
-            if (!isMiddlewareModule()) return
-
             if (members.length >= 2 && members[0] === 'env') {
               const envName = members[1]
               const { buildInfo } = parser.state.module
@@ -305,7 +306,7 @@ export default class MiddlewarePlugin {
               }
 
               buildInfo.nextUsedEnvVars.add(envName)
-              return true
+              if (isMiddlewareModule()) return true
             }
           }
 
