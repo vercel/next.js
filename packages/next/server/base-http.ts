@@ -81,8 +81,7 @@ export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
   }
 
   async parseBody(_limit: string | number): Promise<any> {
-    // TODO: implement parseBody for web
-    return
+    throw new Error('parseBody is not implemented in the web runtime')
   }
 }
 
@@ -125,6 +124,8 @@ export abstract class BaseNextResponse<Destination = any> {
     this.setHeader('Location', destination)
     this.statusCode = statusCode
 
+    // Since IE11 doesn't support the 308 header add backwards
+    // compatibility using refresh header
     if (statusCode === PERMANENT_REDIRECT_STATUS) {
       this.setHeader('Refresh', `0;url=${destination}`)
     }
