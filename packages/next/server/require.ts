@@ -26,10 +26,7 @@ import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plu
  * @returns The loaded module.
  */
 export function isolatedRequire(specifier: string) {
-  const sandbox = createContext({
-    require,
-  })
-
+  const sandbox = createContext({ require })
   return runInNewContext(`require(${JSON.stringify(specifier)})`, sandbox)
 }
 
