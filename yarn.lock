@@ -20610,9 +20610,9 @@ webpack-sources@^3.2.2:
     watchpack "^1.7.4"
     webpack-sources "^1.4.1"
 
-webpack5@webpack/webpack#main:
+webpack5@webpack/webpack#bugfix/css-modules-edge-cases:
   version "5.66.0"
-  resolved "https://codeload.github.com/webpack/webpack/tar.gz/b3871e84122b6cc5298ad403ca46c3cd3df2a2b5"
+  resolved "https://codeload.github.com/webpack/webpack/tar.gz/04ddb71e06b0d898eb70f3b42a9e11e0799f5cd2"
   dependencies:
     "@types/eslint-scope" "^3.7.0"
     "@types/estree" "^0.0.50"
