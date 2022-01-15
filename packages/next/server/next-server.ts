@@ -1,24 +1,66 @@
-import type { Route, Params } from './router'
+import type { Params, Route } from './router'
 import type { CacheFs } from '../shared/lib/utils'
-import type { NextParsedUrlQuery } from './request-meta'
-import type { FontManifest } from './font-utils'
+import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
+import type RenderResult from './render-result'
 
 import fs from 'fs'
 import { join, relative } from 'path'
+import { IncomingMessage, ServerResponse } from 'http'
+
+import { PAGES_MANIFEST, BUILD_ID_FILE } from '../shared/lib/constants'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
+import { format as formatUrl, UrlWithParsedQuery } from 'url'
+import compression from 'next/dist/compiled/compression'
+import Proxy from 'next/dist/compiled/http-proxy'
 import { route } from './router'
-import BaseServer, { FindComponentsResult } from './base-server'
-import { getMiddlewareInfo } from './require'
+
+import {
+  BaseNextRequest,
+  BaseNextResponse,
+  NodeNextRequest,
+  NodeNextResponse,
+} from './base-http'
+import { PayloadOptions, sendRenderResult } from './send-payload'
+import { serveStatic } from './serve-static'
+import { ParsedUrlQuery } from 'querystring'
+import { apiResolver } from './api-utils'
+import { RenderOpts, renderToHTML } from './render'
+import { ParsedUrl } from '../shared/lib/router/utils/parse-url'
+
+import BaseServer, {
+  FindComponentsResult,
+  prepareServerlessUrl,
+  stringifyQuery,
+} from './base-server'
+import { getMiddlewareInfo, getPagePath, requireFontManifest } from './require'
+import { normalizePagePath } from './normalize-page-path'
 import { loadComponents } from './load-components'
 import isError from '../lib/is-error'
-import { normalizePagePath } from './normalize-page-path'
-import { getPagePath, requireFontManifest } from './require'
-import { BUILD_ID_FILE, PAGES_MANIFEST } from '../shared/lib/constants'
+import { FontManifest } from './font-utils'
 
 export * from './base-server'
 
+type ExpressMiddleware = (
+  req: IncomingMessage,
+  res: ServerResponse,
+  next: (err?: Error) => void
+) => void
+
+export interface NodeRequestHandler {
+  (
+    req: IncomingMessage | BaseNextRequest,
+    res: ServerResponse | BaseNextResponse,
+    parsedUrl?: NextUrlWithParsedQuery | undefined
+  ): Promise<void>
+}
+
 export default class NextNodeServer extends BaseServer {
+  private compression =
+    this.nextConfig.compress && this.nextConfig.target === 'server'
+      ? (compression() as ExpressMiddleware)
+      : undefined
+
   protected getHasStaticDir(): boolean {
     return fs.existsSync(join(this.dir, 'static'))
   }
@@ -44,7 +86,6 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected generateImageRoutes(): Route[] {
-    const server = this
     return [
       {
         match: route('/_next/image'),
@@ -53,22 +94,16 @@ export default class NextNodeServer extends BaseServer {
         fn: (req, res, _params, parsedUrl) => {
           if (this.minimalMode) {
             res.statusCode = 400
-            res.end('Bad Request')
+            res.body('Bad Request').send()
             return {
               finished: true,
             }
           }
-          const { imageOptimizer } =
-            require('./image-optimizer') as typeof import('./image-optimizer')
 
-          return imageOptimizer(
-            server,
-            req,
-            res,
-            parsedUrl,
-            server.nextConfig,
-            server.distDir,
-            this.renderOpts.dev
+          return this.imageOptimizer(
+            req as NodeNextRequest,
+            res as NodeNextResponse,
+            parsedUrl
           )
         },
       },
@@ -174,6 +209,164 @@ export default class NextNodeServer extends BaseServer {
     ]))
   }
 
+  protected sendRenderResult(
+    req: NodeNextRequest,
+    res: NodeNextResponse,
+    options: {
+      result: RenderResult
+      type: 'html' | 'json'
+      generateEtags: boolean
+      poweredByHeader: boolean
+      options?: PayloadOptions | undefined
+    }
+  ): Promise<void> {
+    return sendRenderResult({
+      req: req.originalRequest,
+      res: res.originalResponse,
+      ...options,
+    })
+  }
+
+  protected sendStatic(
+    req: NodeNextRequest,
+    res: NodeNextResponse,
+    path: string
+  ): Promise<void> {
+    return serveStatic(req.originalRequest, res.originalResponse, path)
+  }
+
+  protected handleCompression(
+    req: NodeNextRequest,
+    res: NodeNextResponse
+  ): void {
+    if (this.compression) {
+      this.compression(req.originalRequest, res.originalResponse, () => {})
+    }
+  }
+
+  protected async proxyRequest(
+    req: NodeNextRequest,
+    res: NodeNextResponse,
+    parsedUrl: ParsedUrl
+  ) {
+    const { query } = parsedUrl
+    delete (parsedUrl as any).query
+    parsedUrl.search = stringifyQuery(req, query)
+
+    const target = formatUrl(parsedUrl)
+    const proxy = new Proxy({
+      target,
+      changeOrigin: true,
+      ignorePath: true,
+      xfwd: true,
+      proxyTimeout: 30_000, // limit proxying to 30 seconds
+    })
+
+    await new Promise((proxyResolve, proxyReject) => {
+      let finished = false
+
+      proxy.on('proxyReq', (proxyReq) => {
+        proxyReq.on('close', () => {
+          if (!finished) {
+            finished = true
+            proxyResolve(true)
+          }
+        })
+      })
+      proxy.on('error', (err) => {
+        if (!finished) {
+          finished = true
+          proxyReject(err)
+        }
+      })
+      proxy.web(req.originalRequest, res.originalResponse)
+    })
+
+    return {
+      finished: true,
+    }
+  }
+
+  protected async runApi(
+    req: NodeNextRequest,
+    res: NodeNextResponse,
+    query: ParsedUrlQuery,
+    params: Params | false,
+    page: string,
+    builtPagePath: string
+  ): Promise<boolean> {
+    const pageModule = await require(builtPagePath)
+    query = { ...query, ...params }
+
+    delete query.__nextLocale
+    delete query.__nextDefaultLocale
+
+    if (!this.renderOpts.dev && this._isLikeServerless) {
+      if (typeof pageModule.default === 'function') {
+        prepareServerlessUrl(req, query)
+        await pageModule.default(req, res)
+        return true
+      }
+    }
+
+    await apiResolver(
+      req.originalRequest,
+      res.originalResponse,
+      query,
+      pageModule,
+      this.renderOpts.previewProps,
+      this.minimalMode,
+      this.renderOpts.dev,
+      page
+    )
+    return true
+  }
+
+  protected async renderHTML(
+    req: NodeNextRequest,
+    res: NodeNextResponse,
+    pathname: string,
+    query: NextParsedUrlQuery,
+    renderOpts: RenderOpts
+  ): Promise<RenderResult | null> {
+    return renderToHTML(
+      req.originalRequest,
+      res.originalResponse,
+      pathname,
+      query,
+      renderOpts
+    )
+  }
+
+  protected streamResponseChunk(res: NodeNextResponse, chunk: any) {
+    res.originalResponse.write(chunk)
+  }
+
+  protected async imageOptimizer(
+    req: NodeNextRequest,
+    res: NodeNextResponse,
+    parsedUrl: UrlWithParsedQuery
+  ): Promise<{ finished: boolean }> {
+    const { imageOptimizer } =
+      require('./image-optimizer') as typeof import('./image-optimizer')
+
+    return imageOptimizer(
+      req.originalRequest,
+      res.originalResponse,
+      parsedUrl,
+      this.nextConfig,
+      this.distDir,
+      () => this.render404(req, res, parsedUrl),
+      (newReq, newRes, newParsedUrl) =>
+        this.getRequestHandler()(
+          new NodeNextRequest(newReq),
+          new NodeNextResponse(newRes),
+          newParsedUrl
+        ),
+      this.renderOpts.dev
+    )
+  }
+
   protected getPagePath(pathname: string, locales?: string[]): string {
     return getPagePath(
       pathname,
@@ -255,6 +448,117 @@ export default class NextNodeServer extends BaseServer {
       mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
       stat: (f) => fs.promises.stat(f),
     }
+  }
+
+  private normalizeReq(
+    req: BaseNextRequest | IncomingMessage
+  ): BaseNextRequest {
+    return req instanceof IncomingMessage ? new NodeNextRequest(req) : req
+  }
+
+  private normalizeRes(
+    res: BaseNextResponse | ServerResponse
+  ): BaseNextResponse {
+    return res instanceof ServerResponse ? new NodeNextResponse(res) : res
+  }
+
+  public getRequestHandler(): NodeRequestHandler {
+    const handler = super.getRequestHandler()
+    return async (req, res, parsedUrl) => {
+      return handler(this.normalizeReq(req), this.normalizeRes(res), parsedUrl)
+    }
+  }
+
+  public async render(
+    req: BaseNextRequest | IncomingMessage,
+    res: BaseNextResponse | ServerResponse,
+    pathname: string,
+    query?: NextParsedUrlQuery,
+    parsedUrl?: NextUrlWithParsedQuery
+  ): Promise<void> {
+    return super.render(
+      this.normalizeReq(req),
+      this.normalizeRes(res),
+      pathname,
+      query,
+      parsedUrl
+    )
+  }
+
+  public async renderToHTML(
+    req: BaseNextRequest | IncomingMessage,
+    res: BaseNextResponse | ServerResponse,
+    pathname: string,
+    query?: ParsedUrlQuery
+  ): Promise<string | null> {
+    return super.renderToHTML(
+      this.normalizeReq(req),
+      this.normalizeRes(res),
+      pathname,
+      query
+    )
+  }
+
+  public async renderError(
+    err: Error | null,
+    req: BaseNextRequest | IncomingMessage,
+    res: BaseNextResponse | ServerResponse,
+    pathname: string,
+    query?: NextParsedUrlQuery,
+    setHeaders?: boolean
+  ): Promise<void> {
+    return super.renderError(
+      err,
+      this.normalizeReq(req),
+      this.normalizeRes(res),
+      pathname,
+      query,
+      setHeaders
+    )
+  }
+
+  public async renderErrorToHTML(
+    err: Error | null,
+    req: BaseNextRequest | IncomingMessage,
+    res: BaseNextResponse | ServerResponse,
+    pathname: string,
+    query?: ParsedUrlQuery
+  ): Promise<string | null> {
+    return super.renderErrorToHTML(
+      err,
+      this.normalizeReq(req),
+      this.normalizeRes(res),
+      pathname,
+      query
+    )
+  }
+
+  public async render404(
+    req: BaseNextRequest | IncomingMessage,
+    res: BaseNextResponse | ServerResponse,
+    parsedUrl?: NextUrlWithParsedQuery,
+    setHeaders?: boolean
+  ): Promise<void> {
+    return super.render404(
+      this.normalizeReq(req),
+      this.normalizeRes(res),
+      parsedUrl,
+      setHeaders
+    )
+  }
+
+  public async serveStatic(
+    req: BaseNextRequest | IncomingMessage,
+    res: BaseNextResponse | ServerResponse,
+    path: string,
+    parsedUrl?: UrlWithParsedQuery
+  ): Promise<void> {
+    return super.serveStatic(
+      this.normalizeReq(req),
+      this.normalizeRes(res),
+      path,
+      parsedUrl
+    )
   }
 
   protected getMiddlewareInfo(params: {
