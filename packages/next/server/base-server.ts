@@ -60,7 +60,10 @@ import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage, isBot } from './utils'
 import RenderResult from './render-result'
 import { loadEnvConfig } from '@next/env'
+
+// @TODO: only polyfill this for the nodejs server
 import './node-polyfill-fetch'
+
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { denormalizePagePath } from './denormalize-page-path'
