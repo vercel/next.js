@@ -1,0 +1,43 @@
+{
+  "name": "mantine-next-template",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "analyze": "ANALYZE=true next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "export": "next build && next export",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@mantine/core": "3.5.0",
+    "@mantine/dates": "3.5.0",
+    "@mantine/hooks": "3.5.0",
+    "@mantine/next": "3.5.0",
+    "@mantine/notifications": "3.5.0",
+    "@mantine/prism": "3.5.0",
+    "dayjs": "^1.10.7",
+    "next": "12.0.7",
+    "prism-react-renderer": "^1.2.1",
+    "react": "17.0.2",
+    "react-dom": "17.0.2"
+  },
+  "devDependencies": {
+    "@mantine/eslint-config": "3.5.0",
+    "@next/bundle-analyzer": "^12.0.7",
+    "@types/react": "17.0.37",
+    "@typescript-eslint/eslint-plugin": "^5.8.1",
+    "@typescript-eslint/parser": "^5.8.1",
+    "eslint": "^8.6.0",
+    "eslint-config-airbnb-typescript": "^16.1.0",
+    "eslint-plugin-import": "^2.25.4",
+    "eslint-plugin-jest": "^25.3.4",
+    "eslint-plugin-jsx-a11y": "^6.5.1",
+    "eslint-plugin-react": "^7.28.0",
+    "eslint-plugin-react-hooks": "^4.3.0",
+    "jest": "^26.6.3",
+    "typescript": "4.5.2"
+  }
+}
