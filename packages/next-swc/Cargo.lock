@@ -1455,12 +1455,15 @@ name = "next-swc"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "common",
  "easy-error",
  "either",
  "fxhash",
+ "intern",
  "pathdiff",
  "regex",
  "relay-compiler",
+ "relay-config",
  "serde",
  "serde_json",
  "styled_components",
