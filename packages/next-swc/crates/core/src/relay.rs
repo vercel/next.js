@@ -1,10 +1,12 @@
+use relay_compiler_common::SourceLocationKey;
+use relay_compiler_intern::string_key::StringKey;
 use std::borrow::Borrow;
 use std::path::PathBuf;
+use std::str::FromStr;
 
-use pathdiff::diff_paths;
+use relay_compiler::{create_path_for_artifact, ProjectConfig};
 use serde::Deserialize;
 use swc_atoms::{js_word, JsWord};
-use swc_common::FileName::Real;
 use swc_common::{FileName, Span};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{Fold, FoldWith};
@@ -16,27 +18,12 @@ pub enum RelayLanguageConfig {
     Flow,
 }
 
-#[derive(Clone, Debug, Deserialize)]
-pub struct Config {
-    pub artifact_directory: Option<PathBuf>,
-    pub language: RelayLanguageConfig,
-}
-
-impl Config {
-    fn file_extension(&mut self) -> &'static str {
-        match self.language {
-            RelayLanguageConfig::Typescript => "ts",
-            RelayLanguageConfig::Flow => "js",
-        }
-    }
-}
-
 struct Relay {
-    config: Config,
     file_name: FileName,
+    relay_config_for_tests: Option<ProjectConfig>,
 }
 
-fn pull_first_operation_name_from_tpl(tpl: &TaggedTpl) -> Option<String> {
+fn pull_first_operation_name_from_tpl(tpl: &TaggedTpl) -> Option<&str> {
     tpl.tpl
         .quasis
         .iter()
@@ -54,7 +41,7 @@ fn pull_first_operation_name_from_tpl(tpl: &TaggedTpl) -> Option<String> {
                     let next_word = slice[1];
 
                     if word == "query" || word == "subscription" || word == "mutation" {
-                        return Some(String::from(next_word));
+                        return Some(next_word);
                     }
 
                     None
@@ -103,7 +90,45 @@ impl Fold for Relay {
     }
 }
 
+// This is copied from https://github.com/facebook/relay/blob/main/compiler/crates/relay-compiler/src/build_project/generate_artifacts.rs#L251
+// until the Relay team exposes it for external use.
+fn path_for_artifact(project_config: &ProjectConfig, definition_name: &str) -> PathBuf {
+    let source_file_location_key = SourceLocationKey::Standalone {
+        // TODO: Figure out why passing in the actual path here causes the requires to be an
+        // absolute path.
+        path: StringKey::from_str("NA").unwrap(),
+    };
+    let filename = if let Some(filename_for_artifact) = &project_config.filename_for_artifact {
+        filename_for_artifact(
+            source_file_location_key,
+            StringKey::from_str(definition_name).unwrap(),
+        )
+    } else {
+        match &project_config.typegen_config.language {
+            relay_config::TypegenLanguage::Flow => format!("{}.graphql.js", definition_name),
+            relay_config::TypegenLanguage::TypeScript => format!("{}.graphql.ts", definition_name),
+        }
+    };
+    create_path_for_artifact(project_config, source_file_location_key, filename)
+}
+
 impl Relay {
+    fn build_require_path(&mut self, operation_name: &str) -> PathBuf {
+        match &self.relay_config_for_tests {
+            Some(config) => path_for_artifact(config, operation_name),
+            _ => {
+                let config = relay_compiler::config::Config::search(
+                    std::env::current_dir().unwrap().as_path(),
+                )
+                .unwrap();
+
+                let project_config = &config.projects[&StringKey::from_str("default").unwrap()];
+
+                path_for_artifact(project_config, operation_name)
+            }
+        }
+    }
+
     fn build_call_expr_from_tpl(&mut self, tpl: &TaggedTpl) -> Option<Expr> {
         if let Expr::Ident(ident) = tpl.tag.borrow() {
             if ident.sym.borrow() != "graphql" {
@@ -113,44 +138,28 @@ impl Relay {
 
         let operation_name = pull_first_operation_name_from_tpl(tpl);
 
-        if let (Some(operation_name), Real(source_path_buf)) =
-            (operation_name, self.file_name.borrow())
-        {
-            let path_to_source_dir = source_path_buf.parent().unwrap();
-            let generated_file_name = format!(
-                "{}.graphql.{}",
-                operation_name,
-                self.config.file_extension()
-            );
+        if let Some(operation_name) = operation_name {
+            let final_path = self.build_require_path(operation_name);
 
-            let fully_qualified_require_path = match &self.config.artifact_directory {
-                Some(artifact_directory) => std::env::current_dir()
-                    .unwrap()
-                    .join(artifact_directory)
-                    .join(generated_file_name),
-                _ => path_to_source_dir
-                    .join("__generated__")
-                    .join(generated_file_name),
-            };
-
-            let mut require_path = String::from(
-                diff_paths(fully_qualified_require_path, path_to_source_dir)
-                    .unwrap()
-                    .to_str()
-                    .unwrap(),
-            );
-
-            if !require_path.starts_with(".") {
-                require_path = format!("./{}", require_path);
-            }
-
-            return Some(build_require_expr_from_path(require_path));
+            return Some(build_require_expr_from_path(
+                final_path.to_str().unwrap().to_string(),
+            ));
         }
 
         None
     }
 }
 
-pub fn relay(config: Config, file_name: FileName) -> impl Fold {
-    Relay { config, file_name }
+pub fn relay(file_name: FileName) -> impl Fold {
+    Relay {
+        file_name,
+        relay_config_for_tests: None,
+    }
+}
+
+pub fn test_relay(file_name: FileName, relay_config_for_tests: ProjectConfig) -> impl Fold {
+    Relay {
+        file_name,
+        relay_config_for_tests: Some(relay_config_for_tests),
+    }
 }

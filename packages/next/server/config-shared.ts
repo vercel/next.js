@@ -169,10 +169,7 @@ export type NextConfig = { [key: string]: any } & {
     urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
     outputFileTracingRoot?: string
     outputStandalone?: boolean
-    relay?: {
-      artifactDirectory?: string
-      language: 'typescript' | 'javascript'
-    }
+    relay?: boolean
   }
 }
 
