@@ -14,10 +14,10 @@ import { NextConfig } from './config-shared'
 import { fileExists } from '../lib/file-exists'
 import { ImageConfig, imageConfigDefault } from './image-config'
 import { processBuffer, decodeBuffer, Operation } from './lib/squoosh/main'
-import type Server from './base-server'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import chalk from 'next/dist/compiled/chalk'
+import { NextUrlWithParsedQuery } from './request-meta'
 
 const AVIF = 'image/avif'
 const WEBP = 'image/webp'
@@ -47,12 +47,17 @@ try {
 let showSharpMissingWarning = process.env.NODE_ENV === 'production'
 
 export async function imageOptimizer(
-  server: Server,
   req: IncomingMessage,
   res: ServerResponse,
   parsedUrl: UrlWithParsedQuery,
   nextConfig: NextConfig,
   distDir: string,
+  render404: () => Promise<void>,
+  handleRequest: (
+    newReq: IncomingMessage,
+    newRes: ServerResponse,
+    newParsedUrl?: NextUrlWithParsedQuery
+  ) => Promise<void>,
   isDev = false
 ) {
   const imageData: ImageConfig = nextConfig.images || imageConfigDefault
@@ -66,7 +71,7 @@ export async function imageOptimizer(
   } = imageData
 
   if (loader !== 'default') {
-    await server.render404(req, res, parsedUrl)
+    await render404()
     return { finished: true }
   }
 
@@ -282,11 +287,7 @@ export async function imageOptimizer(
         mockReq.url = href
         mockReq.connection = req.connection
 
-        await server.getRequestHandler()(
-          mockReq,
-          mockRes,
-          nodeUrl.parse(href, true)
-        )
+        await handleRequest(mockReq, mockRes, nodeUrl.parse(href, true))
         await isStreamFinished
         res.statusCode = mockRes.statusCode
 
