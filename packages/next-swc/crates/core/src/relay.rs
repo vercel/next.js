@@ -40,7 +40,11 @@ fn pull_first_operation_name_from_tpl(tpl: &TaggedTpl) -> Option<&str> {
                     let word = slice[0];
                     let next_word = slice[1];
 
-                    if word == "query" || word == "subscription" || word == "mutation" {
+                    if word == "query"
+                        || word == "subscription"
+                        || word == "mutation"
+                        || word == "fragment"
+                    {
                         return Some(next_word);
                     }
 
