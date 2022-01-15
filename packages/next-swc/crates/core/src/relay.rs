@@ -11,7 +11,7 @@ use swc_common::{FileName, Span};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RelayLanguageConfig {
     Typescript,
