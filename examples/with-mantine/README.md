@@ -1,5 +1,3 @@
-# Mantine Next Template
+# Next.js + Mantine Example
 
-Get started with Mantine + Next with just a few button clicks.
-Click `Use this template` button at the header of repository or [follow this link](https://github.com/mantinedev/mantine-next-template/generate) and
-create new repository with all @mantine packages.
+This example shows how to use [Mantine](https://github.com/mantinedev/mantine) as a component library within a Next.js project.
