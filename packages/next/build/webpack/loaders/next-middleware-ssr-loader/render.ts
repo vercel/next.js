@@ -1,11 +1,20 @@
 import { NextRequest } from '../../../../server/web/spec-extension/request'
 import { renderToHTML } from '../../../../server/web/render'
 import RenderResult from '../../../../server/render-result'
+import { toNodeHeaders } from '../../../../server/web/utils'
 
 const createHeaders = (args?: any) => ({
   ...args,
   'x-middleware-ssr': '1',
 })
+
+function sendError(req: any, error: Error) {
+  const defaultMessage = 'An error occurred while rendering ' + req.url + '.'
+  return new Response((error && error.message) || defaultMessage, {
+    status: 500,
+    headers: createHeaders(),
+  })
+}
 
 export function getRender({
   App,
@@ -33,6 +42,11 @@ export function getRender({
     const { pathname, searchParams } = url
 
     const query = Object.fromEntries(searchParams)
+    const req = {
+      url: pathname,
+      cookies,
+      headers: toNodeHeaders(headers),
+    }
 
     // Preflight request
     if (request.method === 'HEAD') {
@@ -41,16 +55,25 @@ export function getRender({
       })
     }
 
+    if (Document.getInitialProps) {
+      const err = new Error(
+        '`getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
+      )
+      return sendError(req, err)
+    }
+
     const renderServerComponentData = isServerComponent
       ? query.__flight__ !== undefined
       : false
-    delete query.__flight__
 
-    const req = {
-      url: pathname,
-      cookies,
-      headers,
-    }
+    const serverComponentProps =
+      isServerComponent && query.__props__
+        ? JSON.parse(query.__props__)
+        : undefined
+
+    delete query.__flight__
+    delete query.__props__
+
     const renderOpts = {
       ...restRenderOpts,
       // Locales are not supported yet.
@@ -71,7 +94,10 @@ export function getRender({
       env: process.env,
       supportsDynamicHTML: true,
       concurrentFeatures: true,
+      // When streaming, opt-out the `defer` behavior for script tags.
+      disableOptimizedLoading: true,
       renderServerComponentData,
+      serverComponentProps,
       serverComponentManifest: isServerComponent ? rscManifest : null,
       ComponentMod: null,
     }
@@ -81,6 +107,7 @@ export function getRender({
     const encoder = new TextEncoder()
 
     let result: RenderResult | null
+    let renderError: any
     try {
       result = await renderToHTML(
         req as any,
@@ -90,8 +117,14 @@ export function getRender({
         renderOpts
       )
     } catch (err: any) {
+      console.error(
+        'An error occurred while rendering the initial result:',
+        err
+      )
       const errorRes = { statusCode: 500, err }
+      renderError = err
       try {
+        req.url = '/_error'
         result = await renderToHTML(
           req as any,
           errorRes as any,
@@ -99,6 +132,7 @@ export function getRender({
           query,
           {
             ...renderOpts,
+            err,
             Component: errorMod.default,
             getStaticProps: errorMod.getStaticProps,
             getServerSideProps: errorMod.getServerSideProps,
@@ -106,26 +140,12 @@ export function getRender({
           }
         )
       } catch (err2: any) {
-        return new Response(
-          (
-            err2 || 'An error occurred while rendering ' + pathname + '.'
-          ).toString(),
-          {
-            status: 500,
-            headers: createHeaders(),
-          }
-        )
+        return sendError(req, err2)
       }
     }
 
     if (!result) {
-      return new Response(
-        'An error occurred while rendering ' + pathname + '.',
-        {
-          status: 500,
-          headers: createHeaders(),
-        }
-      )
+      return sendError(req, new Error('No result returned from render.'))
     }
 
     result.pipe({
@@ -136,7 +156,7 @@ export function getRender({
 
     return new Response(transformStream.readable, {
       headers: createHeaders(),
-      status: 200,
+      status: renderError ? 500 : 200,
     })
   }
 }

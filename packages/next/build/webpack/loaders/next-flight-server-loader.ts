@@ -1,8 +1,14 @@
-import * as acorn from 'acorn'
+import * as acorn from 'next/dist/compiled/acorn'
 import { getRawPageExtensions } from '../../utils'
 
 function isClientComponent(importSource: string, pageExtensions: string[]) {
   return new RegExp(`\\.client(\\.(${pageExtensions.join('|')}))?`).test(
+    importSource
+  )
+}
+
+function isServerComponent(importSource: string, pageExtensions: string[]) {
+  return new RegExp(`\\.server(\\.(${pageExtensions.join('|')}))?`).test(
     importSource
   )
 }
@@ -26,7 +32,10 @@ async function parseImportsInfo(
   imports: Array<string>,
   isClientCompilation: boolean,
   pageExtensions: string[]
-): Promise<string> {
+): Promise<{
+  source: string
+  defaultExportName: string
+}> {
   const { body } = acorn.parse(source, {
     ecmaVersion: 11,
     sourceType: 'module',
@@ -34,16 +43,14 @@ async function parseImportsInfo(
 
   let transformedSource = ''
   let lastIndex = 0
+  let defaultExportName = 'RSComponent'
 
   for (let i = 0; i < body.length; i++) {
     const node = body[i]
     switch (node.type) {
-      case 'ImportDeclaration':
-        // When importing from a server component, ignore
+      case 'ImportDeclaration': {
         const importSource = node.source.value
 
-        // For the client compilation, we have to always import the component to
-        // ensure that all dependencies are tracked.
         if (!isClientCompilation) {
           if (
             !(
@@ -54,26 +61,47 @@ async function parseImportsInfo(
           ) {
             continue
           }
-          transformedSource += source.substr(
+          transformedSource += source.substring(
             lastIndex,
-            node.source.start - lastIndex
+            node.source.start - 1
           )
           transformedSource += JSON.stringify(`${node.source.value}?flight`)
+        } else {
+          // For the client compilation, we skip all modules imports but
+          // always keep client components in the bundle. All client components
+          // have to be imported from either server or client components.
+          if (
+            !(
+              isClientComponent(importSource, pageExtensions) ||
+              isServerComponent(importSource, pageExtensions) ||
+              // Special cases for Next.js APIs that are considered as client
+              // components:
+              isNextComponent(importSource) ||
+              isImageImport(importSource)
+            )
+          ) {
+            continue
+          }
         }
 
         lastIndex = node.source.end
         imports.push(`require(${JSON.stringify(importSource)})`)
         continue
+      }
+      case 'ExportDefaultDeclaration': {
+        defaultExportName = node.declaration.id.name
+        break
+      }
       default:
         break
     }
   }
 
   if (!isClientCompilation) {
-    transformedSource += source.substr(lastIndex)
+    transformedSource += source.substring(lastIndex)
   }
 
-  return transformedSource
+  return { source: transformedSource, defaultExportName }
 }
 
 export default async function transformSource(
@@ -94,17 +122,32 @@ export default async function transformSource(
   }
 
   const imports: string[] = []
-  const transformed = await parseImportsInfo(
-    source,
-    imports,
-    isClientCompilation,
-    getRawPageExtensions(pageExtensions)
-  )
+  const { source: transformedSource, defaultExportName } =
+    await parseImportsInfo(
+      source,
+      imports,
+      isClientCompilation,
+      getRawPageExtensions(pageExtensions)
+    )
 
-  const noop = `\nexport const __rsc_noop__=()=>{${imports.join(';')}}`
+  /**
+   * Server side component module output:
+   *
+   * export default function ServerComponent() { ... }
+   * + export const __rsc_noop__=()=>{ ... }
+   * + ServerComponent.__next_rsc__=1;
+   *
+   * Client side component module output:
+   *
+   * The function body of ServerComponent will be removed
+   */
+
+  const noop = `export const __rsc_noop__=()=>{${imports.join(';')}}`
   const defaultExportNoop = isClientCompilation
-    ? `\nexport default function Comp(){}\nComp.__next_rsc__=1`
-    : ''
+    ? `export default function ${defaultExportName}(){}\n${defaultExportName}.__next_rsc__=1;`
+    : `${defaultExportName}.__next_rsc__=1;`
 
-  return transformed + noop + defaultExportNoop
+  const transformed = transformedSource + '\n' + noop + '\n' + defaultExportNoop
+
+  return transformed
 }

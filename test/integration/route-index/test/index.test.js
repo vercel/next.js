@@ -32,6 +32,19 @@ const runTests = () => {
     expect(res.status).toBe(404)
     expect(await res.text()).toContain('page could not be found')
   })
+
+  it('should handle /index/?bar%60%3C%25%22%27%7B%24%2A%25%5C correctly', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/index/?bar%60%3C%25%22%27%7B%24%2A%25%5C'
+    )
+    expect(res.status).toBe(200)
+  })
+
+  it('should handle /index?file%3A%5C correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/index?file%3A%5C')
+    expect(res.status).toBe(200)
+  })
 }
 
 describe('Route index handling', () => {
