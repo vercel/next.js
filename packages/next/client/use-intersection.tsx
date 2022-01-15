@@ -7,7 +7,7 @@ import {
 type UseIntersectionObserverInit = Pick<
   IntersectionObserverInit,
   'rootMargin' | 'root'
-> //added 'root' as a property
+>
 
 type UseIntersection = { disabled?: boolean } & UseIntersectionObserverInit
 type ObserveCallback = (isVisible: boolean) => void
@@ -20,7 +20,6 @@ type Observer = {
 const hasIntersectionObserver = typeof IntersectionObserver !== 'undefined'
 
 export function useIntersection<T extends Element>({
-  //added 'root' as an option
   root,
   rootMargin,
   disabled,
@@ -43,11 +42,11 @@ export function useIntersection<T extends Element>({
         unobserve.current = observe(
           el,
           (isVisible) => isVisible && setVisible(isVisible),
-          { root, rootMargin } //added 'root' as an option
+          { root, rootMargin }
         )
       }
     },
-    [isDisabled, root, rootMargin, visible] //added 'root' as a dependency
+    [isDisabled, root, rootMargin, visible]
   )
 
   useEffect(() => {
