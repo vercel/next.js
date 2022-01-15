@@ -36,6 +36,7 @@ const cleanUpAndExit = async (code) => {
   if (process.env.NEXT_TEST_STARTER) {
     await fs.remove(process.env.NEXT_TEST_STARTER)
   }
+  console.log(`exiting with code ${code}`)
   process.exit(code)
 }
 

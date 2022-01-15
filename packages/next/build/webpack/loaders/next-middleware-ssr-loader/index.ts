@@ -50,7 +50,7 @@ export default async function middlewareSSRLoader(this: any) {
       buildManifest,
       reactLoadableManifest,
       rscManifest,
-      isServerComponent: ${JSON.stringify(isServerComponent)},
+      isServerComponent: ${isServerComponent},
       restRenderOpts: ${JSON.stringify(restRenderOpts)}
     })
 

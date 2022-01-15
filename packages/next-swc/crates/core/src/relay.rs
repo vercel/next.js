@@ -60,7 +60,7 @@ fn pull_first_operation_name_from_tpl(tpl: &TaggedTpl) -> Option<&str> {
 fn build_require_expr_from_path(path: String) -> Expr {
     Expr::Call(CallExpr {
         span: Default::default(),
-        callee: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident::new(
+        callee: Callee::Expr(Box::new(Expr::Ident(Ident::new(
             js_word!("require"),
             Span::default(),
         )))),
