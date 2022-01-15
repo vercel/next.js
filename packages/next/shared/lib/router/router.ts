@@ -16,7 +16,7 @@ import {
   isAssetError,
   markAssetError,
 } from '../../../client/route-loader'
-import isError from '../../../lib/is-error'
+import isError, { getProperError } from '../../../lib/is-error'
 import { denormalizePagePath } from '../../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt from '../mitt'
@@ -1559,7 +1559,7 @@ export default class Router implements BaseRouter {
       return routeInfo
     } catch (err) {
       return this.handleRouteInfoError(
-        isError(err) ? err : new Error(err + ''),
+        getProperError(err),
         pathname,
         query,
         as,

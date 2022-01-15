@@ -4,15 +4,11 @@ description: Enable Server-Side Rendering in a page and do initial data populati
 
 # getInitialProps
 
-> **Recommended: [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) or [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering)**.
->
-> If you're using Next.js 9.3 or newer, we recommend that you use `getStaticProps` or `getServerSideProps` instead of `getInitialProps`.
->
-> These new data fetching methods allow you to have a granular choice between static generation and server-side rendering. Learn more on the documentation for [Pages](/docs/basic-features/pages.md) and [Data Fetching](/docs/basic-features/data-fetching.md).
+**Recommended: [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) or [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md)** instead of `getInitialProps`. These data fetching methods allow you to have a granular choice between static generation and server-side rendering.
 
 `getInitialProps` enables [server-side rendering](/docs/basic-features/pages.md#server-side-rendering) in a page and allows you to do **initial data population**, it means sending the [page](/docs/basic-features/pages.md) with the data already populated from the server. This is especially useful for [SEO](https://en.wikipedia.org/wiki/Search_engine_optimization).
 
-> `getInitialProps` will disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).
+`getInitialProps` will disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).
 
 `getInitialProps` is an [`async`](https://vercel.com/blog/async-and-await) function that can be added to any page as a [`static method`](https://javascript.info/static-properties-methods). Take a look at the following example:
 
@@ -123,22 +119,8 @@ export default class Page extends React.Component<Props> {
 For more information on what to do next, we recommend the following sections:
 
 <div class="card">
-  <a href="/docs/basic-features/data-fetching.md">
+  <a href="/docs/basic-features/data-fetching/index.md">
     <b>Data Fetching:</b>
     <small>Learn more about data fetching in Next.js.</small>
-  </a>
-</div>
-
-<div class="card">
-  <a href="/docs/basic-features/pages.md">
-    <b>Pages:</b>
-    <small>Learn more about what pages are in Next.js.</small>
-  </a>
-</div>
-
-<div class="card">
-  <a href="/docs/advanced-features/automatic-static-optimization.md">
-    <b>Automatic Static Optimization:</b>
-    <small>Learn about how Next.js automatically optimizes your pages.</small>
   </a>
 </div>

@@ -141,6 +141,27 @@ impl Fold for Analyzer<'_> {
         e
     }
 
+    fn fold_jsx_element(&mut self, jsx: JSXElement) -> JSXElement {
+        fn get_leftmost_id_member_expr(e: &JSXMemberExpr) -> Id {
+            match &e.obj {
+                JSXObject::Ident(i) => i.to_id(),
+                JSXObject::JSXMemberExpr(e) => get_leftmost_id_member_expr(e),
+            }
+        }
+
+        match &jsx.opening.name {
+            JSXElementName::Ident(i) => {
+                self.add_ref(i.to_id());
+            }
+            JSXElementName::JSXMemberExpr(e) => {
+                self.add_ref(get_leftmost_id_member_expr(e));
+            }
+            _ => {}
+        }
+
+        jsx.fold_children_with(self)
+    }
+
     fn fold_fn_decl(&mut self, f: FnDecl) -> FnDecl {
         let old_in_data = self.in_data_fn;
 
@@ -175,16 +196,6 @@ impl Fold for Analyzer<'_> {
         }
 
         f
-    }
-
-    fn fold_member_expr(&mut self, mut e: MemberExpr) -> MemberExpr {
-        e.obj = e.obj.fold_with(self);
-
-        if e.computed {
-            e.prop = e.prop.fold_with(self);
-        }
-
-        e
     }
 
     /// Drops [ExportDecl] if all specifiers are removed.
