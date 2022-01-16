@@ -93,7 +93,7 @@ pub struct TransformOptions {
     pub react_remove_properties: Option<react_remove_properties::Config>,
 
     #[serde(default)]
-    pub relay: Option<bool>,
+    pub relay: bool,
 
     #[serde(default)]
     pub shake_exports: Option<shake_exports::Config>,
@@ -135,7 +135,7 @@ pub fn custom_before_pass(
             !opts.disable_page_config
         ),
         match &opts.relay {
-            Some(config) if *config => Either::Left(relay::relay(file.name.clone())),
+            true => Either::Left(relay::relay(file.name.clone())),
             _ => Either::Right(noop()),
         },
         match &opts.remove_console {
