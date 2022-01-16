@@ -131,7 +131,7 @@ Once you are able to measure the loading performance, use the following strategi
 
 - Use caching regions that are close to the regions where your database or API is deployed.
 - As described in the [caching](#caching) section, use a `stale-while-revalidate` value that will not overload your backend.
-- Use [Incremental Static Regeneration](/docs/basic-features/data-fetching#incremental-static-regeneration) to reduce the amount of times you call the backend.
+- Use [Incremental Static Regeneration](/docs/basic-features/data-fetching#incremental-static-regeneration) to reduce the number of requests to your backend.
 - Minimise the amount of Javascript in your pages by reducing the bundle size. Review this [blog post](https://calibreapp.com/blog/bundle-size-optimization) to understand what Core Web Vitals metrics bundle size affects and what strategies you can use to reduce it, such as:
   - Setting up your Code Editor to view import costs and sizes
   - Finding alternative smaller packages
