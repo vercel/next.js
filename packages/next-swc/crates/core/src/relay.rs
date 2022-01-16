@@ -1,13 +1,12 @@
 use relay_compiler_common::SourceLocationKey;
 use relay_compiler_intern::string_key::StringKey;
-use std::borrow::Borrow;
 use std::path::PathBuf;
 use std::str::FromStr;
 
 use relay_compiler::{create_path_for_artifact, ProjectConfig};
 use serde::Deserialize;
-use swc_atoms::{js_word, JsWord};
-use swc_common::{FileName, Span};
+use swc_atoms::JsWord;
+use swc_common::FileName;
 use swc_ecmascript::ast::*;
 use swc_ecmascript::utils::{quote_ident, ExprFactory};
 use swc_ecmascript::visit::{Fold, FoldWith};
