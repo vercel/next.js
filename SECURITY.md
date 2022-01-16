@@ -1,1 +1,5 @@
-Visit https://vercel.com/security to view the disclosure policy.
+# Security
+
+Email our security team (`security@vercel.com`) to disclose any security vulnerabilities.
+
+https://vercel.com/security
