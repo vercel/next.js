@@ -1,6 +1,6 @@
 # Analyzer Bundles example
 
-This example shows how to analyze the output bundles using [@next/bundle-analyzer](https://github.com/vercel/next.js/tree/master/packages/next-bundle-analyzer)
+This example shows how to analyze the output bundles using [@next/bundle-analyzer](https://github.com/vercel/next.js/tree/canary/packages/next-bundle-analyzer)
 
 ## Preview
 

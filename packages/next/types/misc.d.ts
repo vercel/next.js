@@ -164,10 +164,6 @@ declare module 'next/dist/compiled/devalue' {
   import m from 'devalue'
   export = m
 }
-declare module 'next/dist/compiled/escape-string-regexp' {
-  import m from 'escape-string-regexp'
-  export = m
-}
 declare module 'next/dist/compiled/find-up' {
   import m from 'find-up'
   export = m
@@ -243,6 +239,12 @@ declare module 'next/dist/compiled/string-hash' {
 declare module 'next/dist/compiled/web-streams-polyfill' {
   import m from 'web-streams-polyfill/ponyfill'
   export = m
+}
+declare module 'next/dist/compiled/abort-controller' {
+  type BaseAbortController = typeof AbortController
+  type BaseAbortSignal = typeof AbortSignal
+  export { BaseAbortController as AbortController }
+  export { BaseAbortSignal as AbortSignal }
 }
 declare module 'next/dist/compiled/ua-parser-js' {
   import m from 'ua-parser-js'

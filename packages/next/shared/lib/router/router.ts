@@ -16,7 +16,7 @@ import {
   isAssetError,
   markAssetError,
 } from '../../../client/route-loader'
-import isError from '../../../lib/is-error'
+import isError, { getProperError } from '../../../lib/is-error'
 import { denormalizePagePath } from '../../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt from '../mitt'
@@ -63,6 +63,7 @@ interface NextHistoryState {
 }
 
 interface PreflightData {
+  cache?: string | null
   redirect?: string | null
   refresh?: boolean
   rewrite?: string | null
@@ -824,7 +825,11 @@ export default class Router implements BaseRouter {
 
     // Make sure we don't re-render on initial load,
     // can be caused by navigating back from an external site
-    if (this.isSsr && as === this.asPath && pathname === this.pathname) {
+    if (
+      this.isSsr &&
+      as === addBasePath(this.asPath) &&
+      pathname === addBasePath(this.pathname)
+    ) {
       return
     }
 
@@ -1554,7 +1559,7 @@ export default class Router implements BaseRouter {
       return routeInfo
     } catch (err) {
       return this.handleRouteInfoError(
-        isError(err) ? err : new Error(err + ''),
+        getProperError(err),
         pathname,
         query,
         as,
@@ -1611,7 +1616,7 @@ export default class Router implements BaseRouter {
   }
 
   scrollToHash(as: string): void {
-    const [, hash] = as.split('#')
+    const [, hash = ''] = as.split('#')
     // Scroll to top if the hash is just `#` with no value or `#top`
     // To mirror browsers
     if (hash === '' || hash === 'top') {
@@ -1805,15 +1810,9 @@ export default class Router implements BaseRouter {
   }
 
   _getFlightData(dataHref: string): Promise<object> {
-    const { href: cacheKey } = new URL(dataHref, window.location.href)
-
-    if (!this.isPreview && this.sdc[cacheKey]) {
-      return Promise.resolve({ fresh: false, data: this.sdc[cacheKey] })
-    }
-
+    // Do not cache RSC flight response since it's not a static resource
     return fetchNextData(dataHref, true, true, this.sdc, false).then(
       (serialized) => {
-        this.sdc[cacheKey] = serialized
         return { fresh: true, data: serialized }
       }
     )
@@ -1952,6 +1951,7 @@ export default class Router implements BaseRouter {
         }
 
         return {
+          cache: res.headers.get('x-middleware-cache'),
           redirect: res.headers.get('Location'),
           refresh: res.headers.has('x-middleware-refresh'),
           rewrite: res.headers.get('x-middleware-rewrite'),
@@ -1959,7 +1959,7 @@ export default class Router implements BaseRouter {
         }
       })
       .then((data) => {
-        if (shouldCache) {
+        if (shouldCache && data.cache !== 'no-cache') {
           this.sde[cacheKey] = data
         }
 

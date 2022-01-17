@@ -30,8 +30,14 @@ export async function middleware(request) {
   }
 
   if (url.pathname === '/rewrites/rewrite-me-without-hard-navigation') {
-    url.pathname = '/rewrites/about'
     url.searchParams.set('middleware', 'foo')
-    return NextResponse.rewrite(url)
+    url.pathname =
+      request.cookies['about-bypass'] === '1'
+        ? '/rewrites/about-bypass'
+        : '/rewrites/about'
+
+    const response = NextResponse.rewrite(url)
+    response.headers.set('x-middleware-cache', 'no-cache')
+    return response
   }
 }

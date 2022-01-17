@@ -12,6 +12,8 @@ Ensure you have the `rc` npm tag of React installed:
 npm install next@latest react@rc react-dom@rc
 ```
 
+That's all! You can now start using React 18's new APIs like `startTransition` and `Suspense` in Next.js.
+
 ### Enable SSR Streaming (Alpha)
 
 Concurrent features in React 18 include built-in support for server-side Suspense and SSR streaming support, allowing you to server-render pages using HTTP streaming.
