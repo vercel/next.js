@@ -6,9 +6,10 @@ import type { RouteHas } from '../../../../lib/load-custom-routes'
 import { compile, pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { escapeStringRegexp } from '../../escape-regexp'
 import { parseUrl } from './parse-url'
+import { BaseNextRequest } from '../../../../server/base-http'
 
 export function matchHas(
-  req: IncomingMessage,
+  req: BaseNextRequest | IncomingMessage,
   has: RouteHas[],
   query: Params
 ): false | Params {
