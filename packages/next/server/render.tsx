@@ -961,7 +961,15 @@ export async function renderToHTML(
               warn(message)
             }
           }
-          return Reflect.get(obj, prop, receiver)
+          const value = Reflect.get(obj, prop, receiver)
+
+          // since ServerResponse uses internal fields which
+          // proxy can't map correctly we need to ensure functions
+          // are bound correctly while being proxied
+          if (typeof value === 'function') {
+            return value.bind(obj)
+          }
+          return value
         },
       })
     }
