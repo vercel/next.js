@@ -541,6 +541,46 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/"nextEslintPluginVersion": ".*?\..*?\..*?"/)
     expect(event1).toMatch(/"nextEslintPluginErrorsCount": \d{1,}/)
     expect(event1).toMatch(/"nextEslintPluginWarningsCount": \d{1,}/)
+
+    const event2 = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/
+      .exec(stderr)
+      .pop()
+    expect(event2).toContain(`"featureName": "build-lint"`)
+    expect(event2).toContain(`"invocationCount": 1`)
+  })
+
+  it(`emits telemetry for lint during build when '--no-lint' is specified`, async () => {
+    const { stderr } = await nextBuild(appDir, ['--no-lint'], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+
+    const event1 = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/
+      .exec(stderr)
+      .pop()
+
+    expect(event1).toContain(`"featureName": "build-lint"`)
+    expect(event1).toContain(`"invocationCount": 0`)
+  })
+
+  it(`emits telemetry for lint during build when 'ignoreDuringBuilds' is specified`, async () => {
+    const nextConfig = path.join(appDir, 'next.config.js')
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { eslint: { ignoreDuringBuilds: true } }`
+    )
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+    await fs.remove(nextConfig)
+
+    const event1 = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/
+      .exec(stderr)
+      .pop()
+
+    expect(event1).toContain(`"featureName": "build-lint"`)
+    expect(event1).toContain(`"invocationCount": 0`)
   })
 
   it('emits telemetry for `next lint`', async () => {
@@ -575,6 +615,7 @@ describe('Telemetry CLI', () => {
     })
     const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
     regex.exec(stderr).pop() // optimizeCss
+    regex.exec(stderr).pop() // build-lint
     const optimizeFonts = regex.exec(stderr).pop()
     expect(optimizeFonts).toContain(`"featureName": "optimizeFonts"`)
     expect(optimizeFonts).toContain(`"invocationCount": 1`)
@@ -612,6 +653,7 @@ describe('Telemetry CLI', () => {
     )
 
     const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
+    regex.exec(stderr).pop() // build-lint
     const optimizeCss = regex.exec(stderr).pop()
     expect(optimizeCss).toContain(`"featureName": "experimental/optimizeCss"`)
     expect(optimizeCss).toContain(`"invocationCount": 1`)

@@ -5,6 +5,10 @@
       "heading": true,
       "routes": [
         {
+          "title": "react-hydration-error",
+          "path": "/errors/react-hydration-error.md"
+        },
+        {
           "title": "beta-middleware",
           "path": "/errors/beta-middleware.md"
         },
@@ -443,6 +447,7 @@
           "path": "/errors/link-multiple-children.md"
         },
         { "title": "no-img-element", "path": "/errors/no-img-element.md" },
+        { "title": "no-head-element", "path": "/errors/no-head-element.md" },
         {
           "title": "non-dynamic-getstaticpaths-usage",
           "path": "/errors/non-dynamic-getstaticpaths-usage.md"
@@ -514,6 +519,14 @@
         {
           "title": "experimental-jest-transformer",
           "path": "/errors/experimental-jest-transformer.md"
+        },
+        {
+          "title": "invalid-dynamic-options-type",
+          "path": "/errors/invalid-dynamic-options-type.md"
+        },
+        {
+          "title": "invalid-styled-jsx-children",
+          "path": "/errors/invalid-styled-jsx-children.md"
         }
       ]
     }

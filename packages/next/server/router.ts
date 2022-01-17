@@ -1,4 +1,3 @@
-import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { NextUrlWithParsedQuery } from './request-meta'
 
@@ -8,6 +7,7 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { RouteHas } from '../lib/load-custom-routes'
 import { matchHas } from '../shared/lib/router/utils/prepare-destination'
 import { getRequestMeta } from './request-meta'
+import { BaseNextRequest, BaseNextResponse } from './base-http'
 
 export const route = pathMatch()
 
@@ -31,8 +31,8 @@ export type Route = {
   requireBasePath?: false
   internal?: true
   fn: (
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
     params: Params,
     parsedUrl: NextUrlWithParsedQuery
   ) => Promise<RouteResult> | RouteResult
@@ -134,8 +134,8 @@ export default class Router {
   }
 
   async execute(
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
     parsedUrl: NextUrlWithParsedQuery
   ): Promise<boolean> {
     // memoize page check calls so we don't duplicate checks for pages

@@ -28,7 +28,7 @@ module.exports = {
         ) {
           context.report({
             node,
-            message: `next/head should not be imported in pages${document}. Import Head from next/document instead. See https://nextjs.org/docs/messages/no-head-import-in-document.`,
+            message: `next/head should not be imported in pages${document}. Import Head from next/document instead. See: https://nextjs.org/docs/messages/no-head-import-in-document`,
           })
         }
       },

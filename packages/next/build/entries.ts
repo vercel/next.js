@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
@@ -15,7 +15,10 @@ import { NextConfigComplete } from '../server/config-shared'
 import { isCustomErrorPage, isFlightPage, isReservedPage } from './utils'
 import { ssrEntries } from './webpack/plugins/middleware-plugin'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
-import { MIDDLEWARE_SSR_RUNTIME_WEBPACK } from '../shared/lib/constants'
+import {
+  MIDDLEWARE_RUNTIME_WEBPACK,
+  MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+} from '../shared/lib/constants'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 export type PagesMapping = {
@@ -25,10 +28,23 @@ export type PagesMapping = {
 export function createPagesMapping(
   pagePaths: string[],
   extensions: string[],
-  isDev: boolean,
-  hasServerComponents: boolean
+  {
+    isDev,
+    hasServerComponents,
+    hasConcurrentFeatures,
+  }: {
+    isDev: boolean
+    hasServerComponents: boolean
+    hasConcurrentFeatures: boolean
+  }
 ): PagesMapping {
   const previousPages: PagesMapping = {}
+
+  // Do not process .d.ts files inside the `pages` folder
+  pagePaths = extensions.includes('ts')
+    ? pagePaths.filter((pagePath) => !pagePath.endsWith('.d.ts'))
+    : pagePaths
+
   const pages: PagesMapping = pagePaths.reduce(
     (result: PagesMapping, pagePath): PagesMapping => {
       let page = pagePath.replace(
@@ -65,7 +81,7 @@ export function createPagesMapping(
   // we alias these in development and allow webpack to
   // allow falling back to the correct source file so
   // that HMR can work properly when a file is added/removed
-  const documentPage = `_document${hasServerComponents ? '-web' : ''}`
+  const documentPage = `_document${hasConcurrentFeatures ? '-web' : ''}`
   if (isDev) {
     pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
     pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
@@ -141,6 +157,7 @@ export function createEntrypoints(
     const isFlight = isFlightPage(config, absolutePagePath)
 
     const webServerRuntime = !!config.experimental.concurrentFeatures
+    const hasServerComponents = !!config.experimental.serverComponents
 
     if (page.match(MIDDLEWARE_ROUTE)) {
       const loaderOpts: MiddlewareLoaderOptions = {
@@ -163,6 +180,7 @@ export function createEntrypoints(
           absolute500Path: pages['/500'] || '',
           absolutePagePath,
           isServerComponent: isFlight,
+          serverComponents: hasServerComponents,
           ...defaultServerlessOptions,
         } as any)}!`,
         isServer: false,
@@ -278,6 +296,8 @@ export function finalizeEntrypoint({
         name: ['_ENTRIES', `middleware_[name]`],
         type: 'assign',
       },
+      runtime: MIDDLEWARE_RUNTIME_WEBPACK,
+      asyncChunks: false,
       ...entry,
     }
     return middlewareEntry

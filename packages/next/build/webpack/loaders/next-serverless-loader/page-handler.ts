@@ -191,6 +191,10 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           locale: detectedLocale,
           defaultLocale,
           domainLocales: i18n?.domains,
+          optimizeImages: process.env.__NEXT_OPTIMIZE_IMAGES,
+          optimizeCss: process.env.__NEXT_OPTIMIZE_CSS,
+          concurrentFeatures: process.env.__NEXT_CONCURRENT_FEATURES,
+          crossOrigin: process.env.__NEXT_CROSS_ORIGIN,
         },
         options
       )
@@ -372,7 +376,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
             res.statusCode = statusCode
             res.setHeader('Location', redirect.destination)
-            res.end()
+            res.end(redirect.destination)
             return null
           } else {
             sendRenderResult({
