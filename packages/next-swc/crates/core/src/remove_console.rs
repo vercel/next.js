@@ -50,7 +50,7 @@ impl RemoveConsole {
     fn should_remove_call(&mut self, n: &CallExpr) -> bool {
         let callee = &n.callee;
         let member_expr = match callee {
-            ExprOrSuper::Expr(e) => match &**e {
+            Callee::Expr(e) => match &**e {
                 Expr::Member(m) => m,
                 _ => return false,
             },
@@ -58,24 +58,22 @@ impl RemoveConsole {
         };
 
         // Don't attempt to evaluate computed properties.
-        if member_expr.computed {
+
+        if matches!(&member_expr.prop, MemberProp::Computed(..)) {
             return false;
         }
 
         // Only proceed if the object is the global `console` object.
-        match &member_expr.obj {
-            ExprOrSuper::Expr(e) => match &**e {
-                Expr::Ident(i) if self.is_global_console(i) => {}
-                _ => return false,
-            },
+        match &*member_expr.obj {
+            Expr::Ident(i) if self.is_global_console(i) => {}
             _ => return false,
         }
 
         // Check if the property is requested to be excluded.
         // Here we do an O(n) search on the list of excluded properties because the size
         // should be small.
-        match &*member_expr.prop {
-            Expr::Ident(i) if self.exclude.iter().find(|x| **x == i.sym).is_none() => {}
+        match &member_expr.prop {
+            MemberProp::Ident(i) if self.exclude.iter().find(|x| **x == i.sym).is_none() => {}
             _ => return false,
         }
 
