@@ -15,11 +15,11 @@ export default function Form() {
         Get started by looking at{' '}
         <code className={styles.code}>pages/no-js-from.js</code>
       </p>
-      
-	{/*action: The action attribute defines where the data gets sent. Its value must be a valid relative or absolute URL. If this attribute isn't provided, the data will be sent to the URL of the page containing the form — the current page.
+
+      {/*action: The action attribute defines where the data gets sent. Its value must be a valid relative or absolute URL. If this attribute isn't provided, the data will be sent to the URL of the page containing the form — the current page.
 	method: The HTTP method to submit the form with. (case insensitive) s*/}
-      
-	<form action="/api/form" method="post">
+
+      <form action="/api/form" method="post">
         <label htmlFor="first">First Name</label>
         <input type="text" id="first" name="first" required />
 
