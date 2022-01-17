@@ -27,6 +27,7 @@ const documentPage = new File(join(appDir, 'pages/_document.jsx'))
 const appPage = new File(join(appDir, 'pages/_app.js'))
 const appServerPage = new File(join(appDir, 'pages/_app.server.js'))
 const error500Page = new File(join(appDir, 'pages/500.js'))
+const error404Page = new File(join(appDir, 'pages/404.js'))
 
 const documentWithGip = `
 import { Html, Head, Main, NextScript } from 'next/document'
@@ -68,6 +69,33 @@ export default App
 const page500 = `
 export default function Page500() {
   return 'custom-500-page'
+}
+`
+
+const suspense404 = `
+import { Suspense } from 'react'
+
+let result
+let promise
+function Data() {
+  if (result) return result
+  if (!promise)
+    promise = new Promise((res) => {
+      setTimeout(() => {
+        result = 'next_streaming_data'
+        res()
+      }, 500)
+    })
+  throw promise
+}
+
+export default function Page404() {
+  return (
+    <Suspense fallback={null}>
+      custom-404-page
+      <Data />
+    </Suspense>
+  )
 }
 `
 
@@ -118,11 +146,26 @@ describe('concurrentFeatures - basic', () => {
     expect(stderr).toContain(edgeRuntimeWarning)
     expect(stderr).toContain(rscWarning)
   })
+
   it('should warn user that native node APIs are not supported', async () => {
     const fsImportedErrorMessage =
       'Native Node.js APIs are not supported in the Edge Runtime with `concurrentFeatures` enabled. Found `dns` imported.'
     const { stderr } = await nextBuild(nativeModuleTestAppDir)
     expect(stderr).toContain(fsImportedErrorMessage)
+  })
+
+  it('should handle suspense error page correctly (node stream)', async () => {
+    error404Page.write(suspense404)
+    const appPort = await findPort()
+    await nextBuild(appDir)
+    await nextStart(appDir, appPort)
+    const browser = await webdriver(appPort, '/404')
+    const hydrationContent = await browser.eval(
+      `document.querySelector('#__next').textContent`
+    )
+    expect(hydrationContent).toBe('custom-404-pagenext_streaming_data')
+
+    error404Page.restore()
   })
 })
 
