@@ -3801,6 +3801,7 @@ dependencies = [
  "console_error_panic_hook",
  "next-swc",
  "once_cell",
+ "parking_lot_core",
  "path-clean",
  "serde",
  "serde_json",
