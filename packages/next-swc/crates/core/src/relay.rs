@@ -1,11 +1,15 @@
+use pathdiff::diff_paths;
 use relay_compiler_common::SourceLocationKey;
-use relay_compiler_intern::string_key::StringKey;
+use std::borrow::Cow;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use relay_compiler::{create_path_for_artifact, ProjectConfig};
+use relay_compiler::compiler_state::{SourceSet, SourceSetName};
+use relay_compiler::{create_path_for_artifact, FileCategorizer, FileGroup, ProjectConfig};
+use relay_compiler_intern::string_key::StringKey;
 use serde::Deserialize;
 use swc_atoms::JsWord;
+use swc_common::errors::HANDLER;
 use swc_common::FileName;
 use swc_ecmascript::ast::*;
 use swc_ecmascript::utils::{quote_ident, ExprFactory};
@@ -89,37 +93,120 @@ impl Fold for Relay {
     }
 }
 
+#[derive(Debug)]
+enum BuildRequirePathError<'a> {
+    FileNameNotReal,
+    MultipleSourceSetsFound {
+        source_set_names: Vec<SourceSetName>,
+        path: &'a PathBuf,
+    },
+    ProjectNotFoundForSourceSet {
+        source_set_name: SourceSetName,
+    },
+    FileNotASourceFile,
+    CouldNotCategorize {
+        err: Cow<'static, str>,
+        path: String,
+    },
+}
+
 // This is copied from https://github.com/facebook/relay/blob/main/compiler/crates/relay-compiler/src/build_project/generate_artifacts.rs#L251
 // until the Relay team exposes it for external use.
-fn path_for_artifact(project_config: &ProjectConfig, definition_name: &str) -> PathBuf {
+fn path_for_artifact(
+    root_dir: &PathBuf,
+    source_path: &PathBuf,
+    project_config: &ProjectConfig,
+    definition_name: &str,
+) -> PathBuf {
     let source_file_location_key = SourceLocationKey::Standalone {
-        // TODO: Figure out why passing in the actual path here causes the requires to be an
-        // absolute path.
-        path: "NA".parse().unwrap(),
+        path: StringKey::from_str(source_path.to_str().unwrap()).unwrap(),
     };
     let filename = if let Some(filename_for_artifact) = &project_config.filename_for_artifact {
         filename_for_artifact(source_file_location_key, definition_name.parse().unwrap())
     } else {
         match &project_config.typegen_config.language {
             relay_config::TypegenLanguage::Flow => format!("{}.graphql.js", definition_name),
-            relay_config::TypegenLanguage::TypeScript => format!("{}.graphql.ts", definition_name),
+            relay_config::TypegenLanguage::TypeScript => {
+                format!("{}.graphql.ts", definition_name)
+            }
         }
     };
-    create_path_for_artifact(project_config, source_file_location_key, filename)
-}
 
+    let output_path = create_path_for_artifact(project_config, source_file_location_key, filename);
+
+    if project_config.output.is_some() {
+        let absolute_output_path = root_dir.join(&output_path);
+
+        let diffed_path =
+            diff_paths(&absolute_output_path, &source_path.parent().unwrap()).unwrap();
+
+        return diffed_path;
+    }
+
+    output_path
+}
 impl Relay {
-    fn build_require_path(&mut self, operation_name: &str) -> PathBuf {
+    fn build_require_path(
+        &mut self,
+        operation_name: &str,
+    ) -> Result<PathBuf, BuildRequirePathError> {
         match &self.relay_config_for_tests {
-            Some(config) => path_for_artifact(config, operation_name),
+            Some(config) => match &self.file_name {
+                FileName::Real(real_file_path) => Ok(path_for_artifact(
+                    &std::env::current_dir().unwrap(),
+                    &real_file_path,
+                    config,
+                    operation_name,
+                )),
+                _ => Err(BuildRequirePathError::FileNameNotReal),
+            },
             _ => {
                 let config =
                     relay_compiler::config::Config::search(&std::env::current_dir().unwrap())
                         .unwrap();
 
-                let project_config = &config.projects[&StringKey::from_str("default").unwrap()];
+                let categorizer = FileCategorizer::from_config(&config);
 
-                path_for_artifact(project_config, operation_name)
+                match &self.file_name {
+                    FileName::Real(real_file_name) => {
+                        // Make sure we have a path which is relative to the config.
+                        // Otherwise, categorize won't be able to recognize that
+                        // the absolute source path is a child of a source set.
+                        let diffed_path = diff_paths(real_file_name, &config.root_dir).unwrap();
+
+                        let group = categorizer.categorize(diffed_path.as_path());
+
+                        match group {
+                            Ok(group) => match group {
+                                FileGroup::Source { source_set } => match source_set {
+                                    SourceSet::SourceSetName(source_set_name) => {
+                                        let project_config: Option<&ProjectConfig> =
+                                            config.projects.get(&source_set_name);
+
+                                        match project_config {
+                                            None => Err(BuildRequirePathError::ProjectNotFoundForSourceSet { source_set_name }),
+                                            Some(project_config) => {
+                                                Ok(path_for_artifact(&config.root_dir,real_file_name, &project_config, operation_name))
+                                            }
+                                        }
+                                    }
+                                    SourceSet::SourceSetNames(source_set_names) => {
+                                        Err(BuildRequirePathError::MultipleSourceSetsFound {
+                                            source_set_names,
+                                            path: real_file_name,
+                                        })
+                                    }
+                                },
+                                _ => Err(BuildRequirePathError::FileNotASourceFile),
+                            },
+                            Err(err) => Err(BuildRequirePathError::CouldNotCategorize {
+                                err,
+                                path: real_file_name.display().to_string(),
+                            }),
+                        }
+                    }
+                    _ => Err(BuildRequirePathError::FileNameNotReal),
+                }
             }
         }
     }
@@ -133,15 +220,67 @@ impl Relay {
 
         let operation_name = pull_first_operation_name_from_tpl(tpl);
 
-        if let Some(operation_name) = operation_name {
-            let final_path = self.build_require_path(operation_name);
+        match operation_name {
+            None => None,
+            Some(operation_name) => match self.build_require_path(operation_name) {
+                Ok(final_path) => Some(build_require_expr_from_path(
+                    final_path.display().to_string(),
+                )),
+                Err(err) => {
+                    let base_error = "Could not transform GraphQL template to a Relay import.";
+                    let error_message = match err {
+                        BuildRequirePathError::FileNameNotReal => "Source file was not a real \
+                                                                   file. This is likely a bug and \
+                                                                   should be reported to Next.JS"
+                            .to_string(),
+                        BuildRequirePathError::MultipleSourceSetsFound {
+                            source_set_names,
+                            path,
+                        } => {
+                            format!(
+                                "Multiple source sets were found for file: {}. Found source sets: \
+                                 [{}]. We could not determine the project config to use for the \
+                                 source file. Please consider narrowing down your source sets.",
+                                path.to_str().unwrap(),
+                                source_set_names
+                                    .iter()
+                                    .map(|name| name.lookup())
+                                    .collect::<Vec<&str>>()
+                                    .join(", ")
+                            )
+                        }
+                        BuildRequirePathError::ProjectNotFoundForSourceSet { source_set_name } => {
+                            format!(
+                                "Project could not be found for the source set: {}",
+                                source_set_name
+                            )
+                        }
+                        BuildRequirePathError::FileNotASourceFile => {
+                            "This file was not considered a source file by the Relay Compiler. \
+                             This is likely a bug and should be reported to Next.JS"
+                                .to_string()
+                        }
+                        BuildRequirePathError::CouldNotCategorize { path, err } => {
+                            format!(
+                                "Relay was unable to categorize the file at: {}. The underlying \
+                                 error is: {}. \nThis is likely a bug and should be reported to \
+                                 Next.JS",
+                                path, err
+                            )
+                        }
+                    };
 
-            return Some(build_require_expr_from_path(
-                final_path.display().to_string(),
-            ));
+                    HANDLER.with(|handler| {
+                        handler.span_err(
+                            tpl.span,
+                            format!("{} {}", base_error, error_message).as_str(),
+                        );
+                    });
+
+                    None
+                }
+            },
         }
-
-        None
     }
 }
 
