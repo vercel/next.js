@@ -90,6 +90,7 @@ Next.js provides an ESLint plugin, [`eslint-plugin-next`](https://www.npmjs.com/
 | ✔️  | [next/no-head-import-in-document](https://nextjs.org/docs/messages/no-head-import-in-document) | Disallow importing next/head in pages/document.js                                                                            |
 | ✔️  | [next/no-html-link-for-pages](https://nextjs.org/docs/messages/no-html-link-for-pages)         | Prohibit HTML anchor links to pages without a Link component                                                                 |
 | ✔️  | [next/no-img-element](https://nextjs.org/docs/messages/no-img-element)                         | Prohibit usage of HTML &lt;img&gt; element                                                                                   |
+| ✔️  | [next/no-head-element](https://nextjs.org/docs/messages/no-head-element)                       | Prohibit usage of HTML &lt;head&gt; element                                                                                  |
 | ✔️  | [next/no-page-custom-font](https://nextjs.org/docs/messages/no-page-custom-font)               | Prevent page-only custom fonts                                                                                               |
 | ✔️  | [next/no-sync-scripts](https://nextjs.org/docs/messages/no-sync-scripts)                       | Forbid synchronous scripts                                                                                                   |
 | ✔️  | [next/no-title-in-document-head](https://nextjs.org/docs/messages/no-title-in-document-head)   | Disallow using &lt;title&gt; with Head from next/document                                                                    |
@@ -202,11 +203,15 @@ Then, add `prettier` to your existing ESLint config:
 If you would like to use `next lint` with [lint-staged](https://github.com/okonet/lint-staged) to run the linter on staged git files, you'll have to add the following to the `.lintstagedrc.js` file in the root of your project in order to specify usage of the `--file` flag.
 
 ```js
+const path = require('path')
+
+const buildEslintCommand = (filenames) =>
+  `next lint --fix --file ${filenames
+    .map((f) => path.relative(process.cwd(), f))
+    .join(' --file ')}`
+
 module.exports = {
-  '**/*.js?(x)': (filenames) =>
-    `next lint --fix --file ${filenames
-      .map((file) => file.split(process.cwd())[1])
-      .join(' --file ')}`,
+  '*.{js,jsx,ts,tsx}': [buildEslintCommand],
 }
 ```
 

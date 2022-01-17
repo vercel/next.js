@@ -12,8 +12,8 @@ const CoverImage = ({ title, src, slug }: Props) => {
     <img
       src={src}
       alt={`Cover Image for ${title}`}
-      className={cn('shadow-small', {
-        'hover:shadow-medium transition-shadow duration-200': slug,
+      className={cn('shadow-sm', {
+        'hover:shadow-lg transition-shadow duration-200': slug,
       })}
     />
   )

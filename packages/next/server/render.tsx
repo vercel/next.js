@@ -1,5 +1,5 @@
 import { IncomingMessage, ServerResponse } from 'http'
-import { ParsedUrlQuery } from 'querystring'
+import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import type { Writable as WritableType } from 'stream'
 import React from 'react'
 import ReactDOMServer from 'react-dom/server'
@@ -182,6 +182,21 @@ function enhanceComponents(
   }
 }
 
+function renderFlight(
+  App: AppType,
+  Component: React.ComponentType,
+  props: any
+) {
+  const AppServer = (App as any).__next_rsc__
+    ? (App as React.ComponentType)
+    : React.Fragment
+  return (
+    <AppServer>
+      <Component {...props} />
+    </AppServer>
+  )
+}
+
 export type RenderOptsPartial = {
   buildId: string
   canonicalBase: string
@@ -219,6 +234,7 @@ export type RenderOptsPartial = {
   disableOptimizedLoading?: boolean
   supportsDynamicHTML?: boolean
   concurrentFeatures?: boolean
+  serverComponents?: boolean
   customServer?: boolean
   crossOrigin?: string
 }
@@ -282,9 +298,11 @@ function checkRedirectValues(
   }
 }
 
+const rscCache = new Map()
+
 function createRSCHook() {
-  const rscCache = new Map()
   const decoder = new TextDecoder()
+  const encoder = new TextEncoder()
 
   return (
     writable: WritableStream,
@@ -298,28 +316,37 @@ function createRSCHook() {
       entry = createFromReadableStream(renderStream)
       rscCache.set(id, entry)
 
-      const transfomer = new TransformStream({
-        start(controller) {
-          if (bootstrap) {
-            controller.enqueue(
-              `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-                0,
-                id,
-              ])})</script>`
+      let bootstrapped = false
+      const forwardReader = forwardStream.getReader()
+      const writer = writable.getWriter()
+      function process() {
+        forwardReader.read().then(({ done, value }) => {
+          if (bootstrap && !bootstrapped) {
+            bootstrapped = true
+            writer.write(
+              encoder.encode(
+                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
+                  [0, id]
+                )})</script>`
+              )
             )
           }
-        },
-        transform(chunk, controller) {
-          controller.enqueue(
-            `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-              1,
-              id,
-              decoder.decode(chunk),
-            ])})</script>`
-          )
-        },
-      })
-      forwardStream.pipeThrough(transfomer).pipeTo(writable)
+          if (done) {
+            rscCache.delete(id)
+            writer.close()
+          } else {
+            writer.write(
+              encoder.encode(
+                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
+                  [1, id, decoder.decode(value)]
+                )})</script>`
+              )
+            )
+            process()
+          }
+        })
+      }
+      process()
     }
     return entry
   }
@@ -329,24 +356,31 @@ const useRSCResponse = createRSCHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
+  cachePrefix: string,
   transformStream: TransformStream,
+  App: AppType,
   OriginalComponent: React.ComponentType,
   serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
 ) {
   const writable = transformStream.writable
   const ServerComponentWrapper = (props: any) => {
     const id = (React as any).useId()
+    const reqStream = renderToReadableStream(
+      renderFlight(App, OriginalComponent, props),
+      serverComponentManifest
+    )
+
     const response = useRSCResponse(
       writable,
-      id,
-      renderToReadableStream(
-        <OriginalComponent {...props} />,
-        serverComponentManifest
-      ),
+      cachePrefix + ',' + id,
+      reqStream,
       true
     )
-    return response.readRoot()
+    const root = response.readRoot()
+    rscCache.delete(id)
+    return root
   }
+
   const Component = (props: any) => {
     return (
       <React.Suspense fallback={null}>
@@ -419,9 +453,13 @@ export async function renderToHTML(
   const OriginalComponent = renderOpts.Component
   const serverComponentsInlinedTransformStream =
     process.browser && isServerComponent ? new TransformStream() : null
+  const search = stringifyQuery(query)
+  const cachePrefix = pathname + '?' + search
   const Component = isServerComponent
     ? createServerComponentRenderer(
+        cachePrefix,
         serverComponentsInlinedTransformStream!,
+        App,
         OriginalComponent,
         serverComponentManifest
       )
@@ -630,14 +668,15 @@ export async function renderToHTML(
       )
     },
     defaultGetInitialProps: async (
-      docCtx: DocumentContext
+      docCtx: DocumentContext,
+      options: { nonce?: string } = {}
     ): Promise<DocumentInitialProps> => {
       const enhanceApp = (AppComp: any) => {
         return (props: any) => <AppComp {...props} />
       }
 
       const { html, head } = await docCtx.renderPage({ enhanceApp })
-      const styles = jsxStyleRegistry.styles()
+      const styles = jsxStyleRegistry.styles({ nonce: options.nonce })
       return { html, head, styles }
     },
   }
@@ -694,11 +733,9 @@ export async function renderToHTML(
   // not be useful.
   // https://github.com/facebook/react/pull/22644
   const Noop = () => null
-  const AppContainerWithIsomorphicFiberStructure = ({
-    children,
-  }: {
+  const AppContainerWithIsomorphicFiberStructure: React.FC<{
     children: JSX.Element
-  }) => {
+  }> = ({ children }) => {
     return (
       <>
         {/* <Head/> */}
@@ -924,7 +961,15 @@ export async function renderToHTML(
               warn(message)
             }
           }
-          return Reflect.get(obj, prop, receiver)
+          const value = Reflect.get(obj, prop, receiver)
+
+          // since ServerResponse uses internal fields which
+          // proxy can't map correctly we need to ensure functions
+          // are bound correctly while being proxied
+          if (typeof value === 'function') {
+            return value.bind(obj)
+          }
+          return value
         },
       })
     }
@@ -1060,7 +1105,10 @@ export async function renderToHTML(
 
   if (renderServerComponentData) {
     const stream: ReadableStream = renderToReadableStream(
-      <OriginalComponent {...props.pageProps} {...serverComponentProps} />,
+      renderFlight(App, OriginalComponent, {
+        ...props.pageProps,
+        ...serverComponentProps,
+      }),
       serverComponentManifest
     )
     const reader = stream.getReader()
@@ -1119,11 +1167,6 @@ export async function renderToHTML(
    */
   const generateStaticHTML = supportsDynamicHTML !== true
   const renderDocument = async () => {
-    if (process.browser && Document.getInitialProps) {
-      throw new Error(
-        '`getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
-      )
-    }
     if (!process.browser && Document.getInitialProps) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
@@ -1186,22 +1229,30 @@ export async function renderToHTML(
     } else {
       let bodyResult
 
+      const renderContent = () => {
+        return ctx.err && ErrorDebug ? (
+          <Body>
+            <ErrorDebug error={ctx.err} />
+          </Body>
+        ) : (
+          <Body>
+            <AppContainerWithIsomorphicFiberStructure>
+              {renderOpts.serverComponents && (App as any).__next_rsc__ ? (
+                <Component {...props.pageProps} router={router} />
+              ) : (
+                <App {...props} Component={Component} router={router} />
+              )}
+            </AppContainerWithIsomorphicFiberStructure>
+          </Body>
+        )
+      }
+
       if (concurrentFeatures) {
         bodyResult = async (suffix: string) => {
           // this must be called inside bodyResult so appWrappers is
           // up to date when getWrappedApp is called
-          const content =
-            ctx.err && ErrorDebug ? (
-              <Body>
-                <ErrorDebug error={ctx.err} />
-              </Body>
-            ) : (
-              <Body>
-                <AppContainerWithIsomorphicFiberStructure>
-                  <App {...props} Component={Component} router={router} />
-                </AppContainerWithIsomorphicFiberStructure>
-              </Body>
-            )
+
+          const content = renderContent()
           return process.browser
             ? await renderToWebStream(
                 content,
@@ -1211,18 +1262,7 @@ export async function renderToHTML(
             : await renderToNodeStream(content, suffix, generateStaticHTML)
         }
       } else {
-        const content =
-          ctx.err && ErrorDebug ? (
-            <Body>
-              <ErrorDebug error={ctx.err} />
-            </Body>
-          ) : (
-            <Body>
-              <AppContainerWithIsomorphicFiberStructure>
-                <App {...props} Component={Component} router={router} />
-              </AppContainerWithIsomorphicFiberStructure>
-            </Body>
-          )
+        const content = renderContent()
         // for non-concurrent rendering we need to ensure App is rendered
         // before _document so that updateHead is called/collected before
         // rendering _document's head

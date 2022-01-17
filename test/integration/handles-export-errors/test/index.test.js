@@ -21,5 +21,7 @@ describe('Handles Errors During Export', () => {
     expect(stderr).toContain('/page-13')
     expect(stderr).toContain('/blog/[slug]: /blog/first')
     expect(stderr).toContain('/blog/[slug]: /blog/second')
+    expect(stderr).toContain('/custom-error')
+    expect(stderr).toContain('custom error message')
   })
 })

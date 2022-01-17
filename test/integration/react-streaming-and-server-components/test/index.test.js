@@ -25,6 +25,7 @@ const nativeModuleTestAppDir = join(__dirname, '../unsupported-native-module')
 const distDir = join(__dirname, '../app/.next')
 const documentPage = new File(join(appDir, 'pages/_document.jsx'))
 const appPage = new File(join(appDir, 'pages/_app.js'))
+const appServerPage = new File(join(appDir, 'pages/_app.server.js'))
 const error500Page = new File(join(appDir, 'pages/500.js'))
 
 const documentWithGip = `
@@ -44,6 +45,13 @@ export default function Document() {
 
 Document.getInitialProps = (ctx) => {
   return ctx.defaultGetInitialProps(ctx)
+}
+`
+
+const rscAppPage = `
+import Container from '../components/container.server'
+export default function App({children}) {
+  return <Container>{children}</Container>
 }
 `
 
@@ -175,6 +183,22 @@ describe('concurrentFeatures - prod', () => {
   runBasicTests(context, 'prod')
 })
 
+const customAppPageSuite = {
+  runTests: (context) => {
+    it('should render container in app', async () => {
+      const indexHtml = await renderViaHTTP(context.appPort, '/')
+      const indexFlight = await renderViaHTTP(context.appPort, '/?__flight__=1')
+      expect(indexHtml).toContain('container-server')
+      expect(indexFlight).toContain('container-server')
+    })
+  },
+  before: () => appServerPage.write(rscAppPage),
+  after: () => appServerPage.delete(),
+}
+
+runSuite('Custom App', 'dev', customAppPageSuite)
+runSuite('Custom App', 'prod', customAppPageSuite)
+
 describe('concurrentFeatures - dev', () => {
   const context = { appDir }
 
@@ -229,7 +253,7 @@ const documentSuite = {
 
       expect(res.status).toBe(500)
       expect(html).toContain(
-        'Error: `getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
+        '`getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
       )
     })
   },
@@ -300,7 +324,10 @@ async function runBasicTests(context, env) {
 
     await browser.waitForElementByCss('#next_id').click()
     await check(() => browser.elementByCss('#query').text(), 'query:2')
-    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    if (!isDev) {
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+    }
   })
 
   it('should suspense next/image on server side', async () => {

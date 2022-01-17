@@ -1,8 +1,8 @@
-import { mediaType } from '@hapi/accept'
+import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import { createHash } from 'crypto'
 import { createReadStream, promises } from 'fs'
-import { getOrientation, Orientation } from 'get-orientation'
-import imageSizeOf from 'image-size'
+import { getOrientation, Orientation } from 'next/dist/compiled/get-orientation'
+import imageSizeOf from 'next/dist/compiled/image-size'
 import { IncomingMessage, ServerResponse } from 'http'
 // @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
@@ -14,10 +14,10 @@ import { NextConfig } from './config-shared'
 import { fileExists } from '../lib/file-exists'
 import { ImageConfig, imageConfigDefault } from './image-config'
 import { processBuffer, decodeBuffer, Operation } from './lib/squoosh/main'
-import type Server from './base-server'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
+import { NextUrlWithParsedQuery } from './request-meta'
 
 const AVIF = 'image/avif'
 const WEBP = 'image/webp'
@@ -47,12 +47,17 @@ try {
 let showSharpMissingWarning = process.env.NODE_ENV === 'production'
 
 export async function imageOptimizer(
-  server: Server,
   req: IncomingMessage,
   res: ServerResponse,
   parsedUrl: UrlWithParsedQuery,
   nextConfig: NextConfig,
   distDir: string,
+  render404: () => Promise<void>,
+  handleRequest: (
+    newReq: IncomingMessage,
+    newRes: ServerResponse,
+    newParsedUrl?: NextUrlWithParsedQuery
+  ) => Promise<void>,
   isDev = false
 ) {
   const imageData: ImageConfig = nextConfig.images || imageConfigDefault
@@ -66,7 +71,7 @@ export async function imageOptimizer(
   } = imageData
 
   if (loader !== 'default') {
-    await server.render404(req, res, parsedUrl)
+    await render404()
     return { finished: true }
   }
 
@@ -282,11 +287,7 @@ export async function imageOptimizer(
         mockReq.url = href
         mockReq.connection = req.connection
 
-        await server.getRequestHandler()(
-          mockReq,
-          mockRes,
-          nodeUrl.parse(href, true)
-        )
+        await handleRequest(mockReq, mockRes, nodeUrl.parse(href, true))
         await isStreamFinished
         res.statusCode = mockRes.statusCode
 
@@ -387,6 +388,19 @@ export async function imageOptimizer(
         optimizedBuffer = await transformer.toBuffer()
         // End sharp transformation logic
       } else {
+        if (
+          showSharpMissingWarning &&
+          nextConfig.experimental?.outputStandalone
+        ) {
+          // TODO: should we ensure squoosh also works even though we don't
+          // recommend it be used in production and this is a production feature
+          console.error(
+            `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly`
+          )
+          req.statusCode = 500
+          res.end('internal server error')
+          return { finished: true }
+        }
         // Show sharp warning in production once
         if (showSharpMissingWarning) {
           console.warn(
