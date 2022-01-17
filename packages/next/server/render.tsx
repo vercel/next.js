@@ -1570,8 +1570,8 @@ function renderToNodeStream(
           callback()
         }
 
-        if (!shellFlushed) {
-          shellFlushed = true
+        if (shellFlushed) {
+          shellFlushed = false
           underlyingStream.write(suffixUnclosed)
         }
       }
@@ -1631,6 +1631,7 @@ function renderToNodeStream(
           abort()
         },
         onCompleteShell() {
+          shellFlushed = true
           if (!generateStaticHTML) {
             doResolve(() => pipe(stream))
           }

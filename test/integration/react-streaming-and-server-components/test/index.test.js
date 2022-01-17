@@ -266,7 +266,7 @@ runSuite('document', 'prod', documentSuite)
 
 async function runBasicTests(context, env) {
   const isDev = env === 'dev'
-  it('should render the correct html', async () => {
+  it('should render html correctly', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/', null, {
       headers: {
         'x-next-test-client': 'test-util',
@@ -293,6 +293,8 @@ async function runBasicTests(context, env) {
       '/this-is-not-found'
     )
 
+    const page404Content = 'custom-404-page'
+
     expect(homeHTML).toContain('component:index.server')
     expect(homeHTML).toContain('env:env_var_test')
     expect(homeHTML).toContain('header:test-util')
@@ -302,12 +304,14 @@ async function runBasicTests(context, env) {
     expect(dynamicRouteHTML1).toContain('[pid]')
     expect(dynamicRouteHTML2).toContain('[pid]')
 
-    expect(path404HTML).toContain('custom-404-page')
+    const $404 = cheerio.load(path404HTML)
+    expect($404('#__next').text()).toBe(page404Content)
+
     // in dev mode: custom error page is still using default _error
     expect(path500HTML).toContain(
       isDev ? 'Internal Server Error' : 'custom-500-page'
     )
-    expect(pathNotFoundHTML).toContain('custom-404-page')
+    expect(pathNotFoundHTML).toContain(page404Content)
   })
 
   it('should support next/link', async () => {
