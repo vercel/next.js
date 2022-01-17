@@ -38,7 +38,7 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
   })
 
   describe('dev mode', () => {
-    describe.only('project-a', () => {
+    describe('project-a', () => {
       beforeAll(async () => {
         appPort = await findPort()
         app = await launchApp(projectAAppDir, appPort, { cwd: projectAAppDir })

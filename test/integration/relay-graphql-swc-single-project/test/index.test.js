@@ -31,7 +31,7 @@ const runRelayCompiler = () => {
 }
 
 describe('Relay Compiler Transform - Single Project Config', () => {
-  describe.only('dev mode', () => {
+  describe('dev mode', () => {
     beforeAll(async () => {
       runRelayCompiler()
       appPort = await findPort()
