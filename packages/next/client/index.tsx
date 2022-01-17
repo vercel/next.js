@@ -330,7 +330,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     CachedComponent = pageEntrypoint.component
 
     if (process.env.NODE_ENV !== 'production') {
-      const { isValidElementType } = require('react-is')
+      const { isValidElementType } = require('next/dist/compiled/react-is')
       if (!isValidElementType(CachedComponent)) {
         throw new Error(
           `The default export is not a React Component in page: "${page}"`
