@@ -26,12 +26,12 @@ const runRelayCompiler = () => {
   // This ensures the CWD is the one with relay.json since running
   // the relay-compiler through yarn would make the root of the repo the CWD.
   execSync('../../../node_modules/relay-compiler/cli.js', {
-    cwd: './test/integration/relay-graphql-swc',
+    cwd: './test/integration/relay-graphql-swc-single-project',
   })
 }
 
-describe('Relay Compiler Transform', () => {
-  describe('dev mode', () => {
+describe('Relay Compiler Transform - Single Project Config', () => {
+  describe.only('dev mode', () => {
     beforeAll(async () => {
       runRelayCompiler()
       appPort = await findPort()
