@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
 
-export function middleware() {
-  return NextResponse.rewrite('/about/a')
+export function middleware(request) {
+  return NextResponse.rewrite(new URL('/about/a', request.url))
 }

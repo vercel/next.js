@@ -43,6 +43,8 @@ describe('Middleware base tests', () => {
     responseTests('/fr')
     interfaceTests()
     interfaceTests('/fr')
+    urlTests()
+    urlTests('/fr')
 
     it('should have showed warning for middleware usage', () => {
       expect(output).toContain(middlewareWarning)
@@ -78,6 +80,8 @@ describe('Middleware base tests', () => {
     responseTests('/fr')
     interfaceTests()
     interfaceTests('/fr')
+    urlTests()
+    urlTests('/fr')
 
     it('should have middleware warning during build', () => {
       expect(buildOutput).toContain(middlewareWarning)
@@ -103,6 +107,69 @@ describe('Middleware base tests', () => {
     })
   })
 })
+
+function urlTests(locale = '') {
+  it('rewrites by default to a target location', async () => {
+    const res = await fetchViaHTTP(context.appPort, `${locale}/urls`)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('.title').text()).toBe('URLs A')
+  })
+
+  it('throws when using URL with a relative URL', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-url`
+    )
+    const json = await res.json()
+    expect(json.error.message).toEqual('Invalid URL')
+  })
+
+  it('throws when using Request with a relative URL', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-request`
+    )
+    const json = await res.json()
+    expect(json.error.message).toEqual('Invalid URL')
+  })
+
+  it('throws when using Response.redirect with a relative URL', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-redirect`
+    )
+    const json = await res.json()
+    expect(json.error.message).toEqual('Invalid URL')
+  })
+
+  it('throws when using NextRequest with a relative URL', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-next-request`
+    )
+    const json = await res.json()
+    expect(json.error.message).toEqual('Invalid URL')
+  })
+
+  it('throws when using NextResponse.redirect with a relative URL', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-next-redirect`
+    )
+    const json = await res.json()
+    expect(json.error.message).toEqual('Invalid URL')
+  })
+
+  it('throws when using NextResponse.rewrite with a relative URL', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-next-rewrite`
+    )
+    const json = await res.json()
+    expect(json.error.message).toEqual('Invalid URL')
+  })
+}
 
 function rewriteTests(locale = '') {
   it('should rewrite to fallback: true page successfully', async () => {
