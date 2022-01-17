@@ -2,11 +2,9 @@ use pathdiff::diff_paths;
 use relay_compiler_common::SourceLocationKey;
 use std::borrow::Cow;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 use relay_compiler::compiler_state::{SourceSet, SourceSetName};
 use relay_compiler::{create_path_for_artifact, FileCategorizer, FileGroup, ProjectConfig};
-use relay_compiler_intern::string_key::StringKey;
 use serde::Deserialize;
 use swc_atoms::JsWord;
 use swc_common::errors::HANDLER;
@@ -119,7 +117,7 @@ fn path_for_artifact(
     definition_name: &str,
 ) -> PathBuf {
     let source_file_location_key = SourceLocationKey::Standalone {
-        path: StringKey::from_str(source_path.to_str().unwrap()).unwrap(),
+        path: source_path.to_str().unwrap().parse().unwrap(),
     };
     let filename = if let Some(filename_for_artifact) = &project_config.filename_for_artifact {
         filename_for_artifact(source_file_location_key, definition_name.parse().unwrap())
