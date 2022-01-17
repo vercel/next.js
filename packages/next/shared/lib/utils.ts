@@ -1,4 +1,3 @@
-import { formatUrl } from './router/utils/format-url'
 import type { BuildManifest } from '../../server/get-page-files'
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../server/config'
@@ -9,6 +8,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
 import type { UrlObject } from 'url'
 import { createContext } from 'react'
+import { formatUrl } from './router/utils/format-url'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -456,6 +456,6 @@ export interface CacheFs {
   readFile(f: string): Promise<string>
   readFileSync(f: string): string
   writeFile(f: string, d: any): Promise<void>
-  mkdir(dir: string): Promise<void>
+  mkdir(dir: string): Promise<void | string>
   stat(f: string): Promise<{ mtime: Date }>
 }

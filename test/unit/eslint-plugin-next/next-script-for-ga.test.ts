@@ -12,7 +12,7 @@ import { RuleTester } from 'eslint'
 })
 
 const ERROR_MSG =
-  'Use the `next/script` component for loading third party scripts. See: https://nextjs.org/docs/messages/next-script-for-ga.'
+  'Use the `next/script` component for loading third party scripts. See: https://nextjs.org/docs/messages/next-script-for-ga'
 
 const ruleTester = new RuleTester()
 
