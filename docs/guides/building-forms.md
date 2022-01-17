@@ -2,7 +2,7 @@
 description: This guide is tailored at creating web forms with Next.js and Vercel.
 ---
 
-# Building a Serverless Web Form with Vercel and Next.js
+# Building a Serverless Web Form with Next.js
 
 Web forms are an important source of communication between a user and a web application. These are used to send data handled by a web server for processing and storage. A web form has a **client-server** relationship. The form itself is the client, and the server is any storage mechanism that can be used to store, retrieve and send data when needed.
 
@@ -150,13 +150,13 @@ This was a quick recap of setting up web forms in HTML.
 
 > To learn more about HTML forms, check out the [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Learn/Forms).
 
-## Part 2: [SERVER] Serverless Forms with Vercel and Next.js
+## Part 2: [SERVER] Serverless Forms with Next.js and Vercel
 
 A serverless architecture, in literal terms, does involve servers. The difference is that they are managed and hosted by the cloud computing companies like [Amazon Web Services](https://aws.amazon.com/lambda/), [Microsoft Azure](https://docs.microsoft.com/en-us/azure/azure-functions/functions-overview), [Vercel](https://vercel.com/docs/concepts/functions/introduction#serverless-functions), and [Google Cloud Platform](https://cloud.google.com/functions/). Being relatively new to the league, Vercel offers top-notch cloud computing services — the first among them is its ease of use. You can write functions both as a part of its [Functions](https://vercel.com/docs/concepts/functions/introduction) framework and Next.js Framework via [API routes](https://nextjs.org/docs/api-routes/introduction).
 
 Vercel empowers you to write JavaScript Serverless functions and deploy them at its edge network. This significantly minimizes latency because your web application runs code in a serverless architecture as close to the end-user as possible. It works incredibly well if you want to build lightweight and flexible applications that can be expanded or updated quickly.
 
-Having said that, let's jump on to the next part, where you'll be recreating these HTML forms in React using Next.js and Vercel.
+Having said that, let's jump on to the next part, where you'll be recreating these HTML forms in React using Next.js.
 
 Create a simple Next.js app. You can use the [create-next-app](https://nextjs.org/docs/getting-started#setup) for a quick start. In your command line terminal, run the following:
 
@@ -164,13 +164,13 @@ Create a simple Next.js app. You can use the [create-next-app](https://nextjs.or
 npx create-next-app
 ```
 
-Answer the questions to create your project, and give it a name, this example uses `next-forms`. Next `cd` into this directory, and run `npm run dev` or `yarn dev` command to start the development server.
+Answer the questions to create your project, and give it a name, this example uses [`next-forms`](https://github.com/vercel/next.js/tree/canary/examples/next-forms). Next `cd` into this directory, and run `npm run dev` or `yarn dev` command to start the development server.
 
 Open the URL printed in the terminal to ensure that your app is running successfully.
 
 ## Setting up the Serverless Environment
 
-At the beginning of this guide, you learned that web forms have a client-server relationship. Next you will set up the server environment using Vercel.
+At the beginning of this guide, you learned that web forms have a client-server relationship. Now you will set up the server environment using Vercel.
 
 Vercel supports out-the-box deployments of [Serverless Functions](https://vercel.com/docs/concepts/functions/serverless-functions), which you can code in your favorite backend languages (Node.js, Go, Python and Ruby). These functions take an HTTP request and return a response.
 
@@ -258,7 +258,7 @@ Here's what changed:
 
 This completes the basic structure of your Next.js-based form.
 
-> You can view the entire source code of [maedahbatool/next-forms](https://github.com/MaedahBatool/nextjs-forms) repo that we're creating here as a working example. Feel free to clone it and start right away. This demo is built with create-next-app, and you can preview the basic form CSS styles inside `/styles/global.css` file.
+> You can view the entire source code of [next-forms](https://github.com/vercel/next.js/tree/canary/examples/next-forms) example repo that we're creating here as a working example. Feel free to clone it and start right away. This demo is built with create-next-app, and you can preview the basic form CSS styles inside `/styles/global.css` file.
 
 ![forms with nextjs](/docs/guides/images/forms-with-nextjs.jpg)
 
