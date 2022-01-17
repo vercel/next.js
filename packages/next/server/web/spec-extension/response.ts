@@ -79,7 +79,8 @@ export class NextResponse extends Response {
         'Failed to execute "redirect" on "response": Invalid status code'
       )
     }
-    const destination = typeof url === 'string' ? url : url.toString()
+
+    const destination = String(new URL(String(url)))
     return new NextResponse(destination, {
       headers: { Location: destination },
       status,
@@ -89,10 +90,7 @@ export class NextResponse extends Response {
   static rewrite(destination: string | NextURL) {
     return new NextResponse(null, {
       headers: {
-        'x-middleware-rewrite':
-          typeof destination === 'string'
-            ? destination
-            : destination.toString(),
+        'x-middleware-rewrite': String(new URL(String(destination))),
       },
     })
   }
