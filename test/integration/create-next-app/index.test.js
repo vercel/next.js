@@ -98,58 +98,6 @@ describe('create next app', () => {
     })
   })
 
-  it('should support typescript flag', async () => {
-    await usingTempDir(async (cwd) => {
-      const projectName = 'typescript'
-      const res = await run([projectName, '--typescript'], { cwd })
-      expect(res.exitCode).toBe(0)
-
-      const pkgJSONPath = path.join(cwd, projectName, 'package.json')
-
-      expect(fs.existsSync(pkgJSONPath)).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/_app.tsx'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/api/hello.ts'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'tsconfig.json'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'next-env.d.ts'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, '.eslintrc.json'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'node_modules/next'))
-      ).toBe(true)
-      // check we copied default `.gitignore`
-      expect(
-        fs.existsSync(path.join(cwd, projectName, '.gitignore'))
-      ).toBeTruthy()
-
-      // Assert for dependencies specific to the typescript template
-      const pkgJSON = require(pkgJSONPath)
-      expect(Object.keys(pkgJSON.dependencies)).toEqual([
-        'next',
-        'react',
-        'react-dom',
-      ])
-      expect(Object.keys(pkgJSON.devDependencies)).toEqual([
-        '@types/node',
-        '@types/react',
-        'eslint',
-        'eslint-config-next',
-        'typescript',
-      ])
-    })
-  })
-
   it('should allow example with GitHub URL', async () => {
     await usingTempDir(async (cwd) => {
       const projectName = 'github-app'
