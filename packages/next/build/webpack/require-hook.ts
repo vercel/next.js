@@ -125,6 +125,7 @@ const hookPropertyMap = new Map(
       '@babel/runtime/package.json',
       'next/dist/compiled/@babel/runtime/package.json',
     ],
+    ['node-fetch', 'next/dist/compiled/node-fetch'],
   ].map(([request, replacement]) => [request, require.resolve(replacement)])
 )
 
