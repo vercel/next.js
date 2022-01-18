@@ -44,7 +44,7 @@ Let's build a demo application to set a `theme` cookie to save the `light` or `d
 
 ![client-side-cookies](/docs/guides/images/client-cookies.png)
 
-Let's create a Next.js page that shows the current value of the cookie`theme` and allows you to change it to `light` or `dark`.
+First create a Next.js page that shows the current value of the cookie`theme` and allows you to change it to `light` or `dark`.
 
 ```js
 export default function ClientSideCookiePage() {
