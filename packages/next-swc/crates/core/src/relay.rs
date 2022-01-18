@@ -31,7 +31,7 @@ fn pull_first_operation_name_from_tpl(tpl: &TaggedTpl) -> Option<String> {
         .quasis
         .iter()
         .filter_map(|quasis| {
-            let regex = Regex::new(r"(fragment|mutation|query) (\w+)").unwrap();
+            let regex = Regex::new(r"(fragment|mutation|query|subscription) (\w+)").unwrap();
             let capture_group = regex.captures_iter(&quasis.raw.value).next();
 
             match capture_group {
