@@ -1,4 +1,5 @@
 use pathdiff::diff_paths;
+use regex::{Captures, Regex};
 use relay_compiler_common::SourceLocationKey;
 use std::borrow::Cow;
 use std::path::PathBuf;
@@ -25,36 +26,22 @@ struct Relay {
     relay_config_for_tests: Option<ProjectConfig>,
 }
 
-fn pull_first_operation_name_from_tpl(tpl: &TaggedTpl) -> Option<&str> {
+fn pull_first_operation_name_from_tpl(tpl: &TaggedTpl) -> Option<String> {
     tpl.tpl
         .quasis
         .iter()
         .filter_map(|quasis| {
-            let split_content = quasis.raw.value.split(" ").collect::<Vec<&str>>();
+            let regex = Regex::new(r"(fragment|mutation|query) (\w+)").unwrap();
+            let capture_group = regex.captures_iter(&quasis.raw.value).next();
 
-            let operation = split_content
-                .chunks(2)
-                .filter_map(|slice| {
-                    if slice.len() == 1 {
-                        return None;
-                    }
+            match capture_group {
+                None => None,
+                Some(capture_group) => {
+                    let operation_name: &str = &capture_group[2];
 
-                    let word = slice[0];
-                    let next_word = slice[1];
-
-                    if word == "query"
-                        || word == "subscription"
-                        || word == "mutation"
-                        || word == "fragment"
-                    {
-                        return Some(next_word);
-                    }
-
-                    None
-                })
-                .next();
-
-            return operation;
+                    Some(operation_name.to_string())
+                }
+            }
         })
         .next()
 }
@@ -114,7 +101,7 @@ fn path_for_artifact(
     root_dir: &PathBuf,
     source_path: &PathBuf,
     project_config: &ProjectConfig,
-    definition_name: &str,
+    definition_name: String,
 ) -> PathBuf {
     let source_file_location_key = SourceLocationKey::Standalone {
         path: source_path.to_str().unwrap().parse().unwrap(),
@@ -146,7 +133,7 @@ fn path_for_artifact(
 impl Relay {
     fn build_require_path(
         &mut self,
-        operation_name: &str,
+        operation_name: String,
     ) -> Result<PathBuf, BuildRequirePathError> {
         match &self.relay_config_for_tests {
             Some(config) => match &self.file_name {
