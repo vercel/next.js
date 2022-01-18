@@ -958,7 +958,8 @@ export default abstract class Server {
             res,
             pathname,
             { ..._parsedUrl.query, _nextDataReq: '1' },
-            parsedUrl
+            parsedUrl,
+            true
           )
           return {
             finished: true,
@@ -1344,7 +1345,7 @@ export default abstract class Server {
         }
 
         try {
-          await this.render(req, res, pathname, query, parsedUrl)
+          await this.render(req, res, pathname, query, parsedUrl, true)
 
           return {
             finished: true,
@@ -1565,7 +1566,8 @@ export default abstract class Server {
     res: BaseNextResponse,
     pathname: string,
     query: NextParsedUrlQuery = {},
-    parsedUrl?: NextUrlWithParsedQuery
+    parsedUrl?: NextUrlWithParsedQuery,
+    internalRender = false
   ): Promise<void> {
     if (!pathname.startsWith('/')) {
       console.warn(
@@ -1588,6 +1590,7 @@ export default abstract class Server {
     // we don't modify the URL for _next/data request but still
     // call render so we special case this to prevent an infinite loop
     if (
+      !internalRender &&
       !this.minimalMode &&
       !query._nextDataReq &&
       (req.url?.match(/^\/_next\//) ||

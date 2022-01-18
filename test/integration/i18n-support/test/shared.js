@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
 import url from 'url'
+import glob from 'glob'
 import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import { join } from 'path'
@@ -55,6 +56,26 @@ export function runTests(ctx) {
       }
     })
   }
+
+  it('should 404 for locale prefixed static assets correctly', async () => {
+    const assets = glob.sync('**/*.js', {
+      cwd: join(ctx.appDir, '.next/static'),
+    })
+
+    for (const locale of locales) {
+      for (const asset of assets) {
+        // _next/static asset
+        const res = await fetchViaHTTP(
+          ctx.appPort,
+          `${ctx.basePath || ''}/${locale}/_next/static/${asset}`,
+          undefined,
+          { redirect: 'manual' }
+        )
+        expect(res.status).toBe(404)
+        expect(await res.text()).toContain('could not be found')
+      }
+    }
+  })
 
   it('should redirect external domain correctly', async () => {
     const res = await fetchViaHTTP(

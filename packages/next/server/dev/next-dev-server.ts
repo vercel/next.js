@@ -216,7 +216,7 @@ export default class DevServer extends Server {
 
             const mergedQuery = { ...urlQuery, ...query }
 
-            await this.render(req, res, page, mergedQuery, parsedUrl)
+            await this.render(req, res, page, mergedQuery, parsedUrl, true)
             return {
               finished: true,
             }
