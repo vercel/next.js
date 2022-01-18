@@ -357,6 +357,18 @@ async function runBasicTests(context, env) {
     expect(pathNotFoundHTML).toContain(page404Content)
   })
 
+  it('should disable cache for RSC pages', async () => {
+    const urls = ['/', '/next-api/image', '/next-api/link']
+    await Promise.all(
+      urls.map(async (url) => {
+        const { headers } = await fetchViaHTTP(context.appPort, url)
+        expect(headers.get('cache-control')).toBe(
+          'no-cache, no-store, max-age=0, must-revalidate'
+        )
+      })
+    )
+  })
+
   it('should support next/link', async () => {
     const linkHTML = await renderViaHTTP(context.appPort, '/next-api/link')
     const $ = cheerio.load(linkHTML)
