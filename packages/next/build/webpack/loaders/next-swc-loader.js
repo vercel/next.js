@@ -101,6 +101,8 @@ export function pitch() {
   ;(async () => {
     let loaderOptions = this.getOptions() || {}
     if (
+      // TODO: investigate swc file reading in PnP mode?
+      !process.versions.pnp &&
       loaderOptions.fileReading &&
       !EXCLUDED_PATHS.test(this.resourcePath) &&
       this.loaders.length - 1 === this.loaderIndex &&

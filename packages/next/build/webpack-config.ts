@@ -1,4 +1,4 @@
-import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
+import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { stringify } from 'querystring'
@@ -132,7 +132,8 @@ export function attachReactRefresh(
   targetLoader: webpack.RuleSetUseItem
 ) {
   let injections = 0
-  const reactRefreshLoaderName = '@next/react-refresh-utils/loader'
+  const reactRefreshLoaderName =
+    'next/dist/compiled/@next/react-refresh-utils/loader'
   const reactRefreshLoader = require.resolve(reactRefreshLoaderName)
   webpackConfig.module?.rules.forEach((rule) => {
     const curr = rule.use
@@ -496,7 +497,7 @@ export default async function getBaseWebpackConfig(
         ...(dev
           ? {
               [CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]: require.resolve(
-                `@next/react-refresh-utils/runtime`
+                `next/dist/compiled/@next/react-refresh-utils/runtime`
               ),
               [CLIENT_STATIC_FILES_RUNTIME_AMP]:
                 `./` +
@@ -635,11 +636,10 @@ export default async function getBaseWebpackConfig(
             os: require.resolve('next/dist/compiled/os-browserify'),
             path: require.resolve('next/dist/compiled/path-browserify'),
             punycode: require.resolve('next/dist/compiled/punycode'),
-            process: require.resolve('next/dist/compiled/process'),
+            process: require.resolve('./polyfills/process'),
             // Handled in separate alias
             querystring: require.resolve('next/dist/compiled/querystring-es3'),
-            // TODO: investigate ncc'ing stream-browserify
-            stream: require.resolve('stream-browserify'),
+            stream: require.resolve('next/dist/compiled/stream-browserify'),
             string_decoder: require.resolve(
               'next/dist/compiled/string_decoder'
             ),
@@ -912,7 +912,8 @@ export default async function getBaseWebpackConfig(
     const externalType = isEsm ? 'module' : 'commonjs'
 
     if (
-      res.match(/next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/)
+      res.match(/next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/) ||
+      res.match(/next[/\\]dist[/\\]compiled[/\\].*\.[mc]?js$/)
     ) {
       return `${externalType} ${request}`
     }
@@ -1245,7 +1246,9 @@ export default async function getBaseWebpackConfig(
               ...codeCondition,
               use: hasReactRefresh
                 ? [
-                    require.resolve('@next/react-refresh-utils/loader'),
+                    require.resolve(
+                      'next/dist/compiled/@next/react-refresh-utils/loader'
+                    ),
                     defaultLoaders.babel,
                   ]
                 : defaultLoaders.babel,

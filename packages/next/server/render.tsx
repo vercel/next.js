@@ -182,6 +182,21 @@ function enhanceComponents(
   }
 }
 
+function renderFlight(
+  App: AppType,
+  Component: React.ComponentType,
+  props: any
+) {
+  const AppServer = (App as any).__next_rsc__
+    ? (App as React.ComponentType)
+    : React.Fragment
+  return (
+    <AppServer>
+      <Component {...props} />
+    </AppServer>
+  )
+}
+
 export type RenderOptsPartial = {
   buildId: string
   canonicalBase: string
@@ -219,6 +234,7 @@ export type RenderOptsPartial = {
   disableOptimizedLoading?: boolean
   supportsDynamicHTML?: boolean
   concurrentFeatures?: boolean
+  serverComponents?: boolean
   customServer?: boolean
   crossOrigin?: string
 }
@@ -342,6 +358,7 @@ const useRSCResponse = createRSCHook()
 function createServerComponentRenderer(
   cachePrefix: string,
   transformStream: TransformStream,
+  App: AppType,
   OriginalComponent: React.ComponentType,
   serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
 ) {
@@ -349,7 +366,7 @@ function createServerComponentRenderer(
   const ServerComponentWrapper = (props: any) => {
     const id = (React as any).useId()
     const reqStream = renderToReadableStream(
-      <OriginalComponent {...props} />,
+      renderFlight(App, OriginalComponent, props),
       serverComponentManifest
     )
 
@@ -363,6 +380,7 @@ function createServerComponentRenderer(
     rscCache.delete(id)
     return root
   }
+
   const Component = (props: any) => {
     return (
       <React.Suspense fallback={null}>
@@ -441,6 +459,7 @@ export async function renderToHTML(
     ? createServerComponentRenderer(
         cachePrefix,
         serverComponentsInlinedTransformStream!,
+        App,
         OriginalComponent,
         serverComponentManifest
       )
@@ -545,7 +564,7 @@ export async function renderToHTML(
   let asPath: string = renderOpts.resolvedAsPath || (req.url as string)
 
   if (dev) {
-    const { isValidElementType } = require('react-is')
+    const { isValidElementType } = require('next/dist/compiled/react-is')
     if (!isValidElementType(Component)) {
       throw new Error(
         `The default export is not a React Component in page: "${pathname}"`
@@ -714,11 +733,9 @@ export async function renderToHTML(
   // not be useful.
   // https://github.com/facebook/react/pull/22644
   const Noop = () => null
-  const AppContainerWithIsomorphicFiberStructure = ({
-    children,
-  }: {
+  const AppContainerWithIsomorphicFiberStructure: React.FC<{
     children: JSX.Element
-  }) => {
+  }> = ({ children }) => {
     return (
       <>
         {/* <Head/> */}
@@ -944,7 +961,15 @@ export async function renderToHTML(
               warn(message)
             }
           }
-          return Reflect.get(obj, prop, receiver)
+          const value = Reflect.get(obj, prop, receiver)
+
+          // since ServerResponse uses internal fields which
+          // proxy can't map correctly we need to ensure functions
+          // are bound correctly while being proxied
+          if (typeof value === 'function') {
+            return value.bind(obj)
+          }
+          return value
         },
       })
     }
@@ -1080,7 +1105,10 @@ export async function renderToHTML(
 
   if (renderServerComponentData) {
     const stream: ReadableStream = renderToReadableStream(
-      <OriginalComponent {...props.pageProps} {...serverComponentProps} />,
+      renderFlight(App, OriginalComponent, {
+        ...props.pageProps,
+        ...serverComponentProps,
+      }),
       serverComponentManifest
     )
     const reader = stream.getReader()
@@ -1201,22 +1229,30 @@ export async function renderToHTML(
     } else {
       let bodyResult
 
+      const renderContent = () => {
+        return ctx.err && ErrorDebug ? (
+          <Body>
+            <ErrorDebug error={ctx.err} />
+          </Body>
+        ) : (
+          <Body>
+            <AppContainerWithIsomorphicFiberStructure>
+              {renderOpts.serverComponents && (App as any).__next_rsc__ ? (
+                <Component {...props.pageProps} router={router} />
+              ) : (
+                <App {...props} Component={Component} router={router} />
+              )}
+            </AppContainerWithIsomorphicFiberStructure>
+          </Body>
+        )
+      }
+
       if (concurrentFeatures) {
         bodyResult = async (suffix: string) => {
           // this must be called inside bodyResult so appWrappers is
           // up to date when getWrappedApp is called
-          const content =
-            ctx.err && ErrorDebug ? (
-              <Body>
-                <ErrorDebug error={ctx.err} />
-              </Body>
-            ) : (
-              <Body>
-                <AppContainerWithIsomorphicFiberStructure>
-                  <App {...props} Component={Component} router={router} />
-                </AppContainerWithIsomorphicFiberStructure>
-              </Body>
-            )
+
+          const content = renderContent()
           return process.browser
             ? await renderToWebStream(
                 content,
@@ -1226,18 +1262,7 @@ export async function renderToHTML(
             : await renderToNodeStream(content, suffix, generateStaticHTML)
         }
       } else {
-        const content =
-          ctx.err && ErrorDebug ? (
-            <Body>
-              <ErrorDebug error={ctx.err} />
-            </Body>
-          ) : (
-            <Body>
-              <AppContainerWithIsomorphicFiberStructure>
-                <App {...props} Component={Component} router={router} />
-              </AppContainerWithIsomorphicFiberStructure>
-            </Body>
-          )
+        const content = renderContent()
         // for non-concurrent rendering we need to ensure App is rendered
         // before _document so that updateHead is called/collected before
         // rendering _document's head
@@ -1406,7 +1431,7 @@ export async function renderToHTML(
   }
 
   const [renderTargetPrefix, renderTargetSuffix] = documentHTML.split(
-    /<next-js-internal-body-render-target><\/next-js-internal-body-render-target>/
+    '<next-js-internal-body-render-target></next-js-internal-body-render-target>'
   )
 
   const prefix: Array<string> = []
@@ -1526,6 +1551,7 @@ function renderToNodeStream(
 
     // Based on the suggestion here:
     // https://github.com/reactwg/react-18/discussions/110
+    let suffixFlushed = false
     class NextWritable extends Writable {
       _write(
         chunk: any,
@@ -1547,7 +1573,15 @@ function renderToNodeStream(
 
         if (!shellFlushed) {
           shellFlushed = true
-          underlyingStream.write(suffixUnclosed)
+          // In the first round of streaming, all chunks will be finished in the micro task.
+          // We use setTimeout to guarantee the suffix is flushed after the micro task.
+          setTimeout(() => {
+            // Flush the suffix if stream is not closed.
+            if (underlyingStream) {
+              suffixFlushed = true
+              underlyingStream.write(suffixUnclosed)
+            }
+          })
         }
       }
 
@@ -1578,6 +1612,11 @@ function renderToNodeStream(
         resolved = true
         resolve((res, next) => {
           const doNext = (err?: Error) => {
+            // Some cases when the stream is closed too fast before setTimeout,
+            // have to ensure suffix is flushed anyway.
+            if (!suffixFlushed) {
+              res.write(suffixUnclosed)
+            }
             if (!err) {
               res.write(closeTag)
             }
@@ -1606,6 +1645,7 @@ function renderToNodeStream(
           abort()
         },
         onCompleteShell() {
+          shellFlushed = true
           if (!generateStaticHTML) {
             doResolve(() => pipe(stream))
           }

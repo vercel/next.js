@@ -20,7 +20,7 @@ If the above is not the case, Next.js will **statically optimize** your page aut
 
 During prerendering, the router's `query` object will be empty since we do not have `query` information to provide during this phase. After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.
 
-> **Note:** Parameters added with [dynamic routes](/docs/routing/dynamic-routes.md) to a page that's using [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) will always be available inside the `query` object.
+> **Note:** Parameters added with [dynamic routes](/docs/routing/dynamic-routes.md) to a page that's using [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) will always be available inside the `query` object.
 
 `next build` will emit `.html` files for statically optimized pages. For example, the result for the page `pages/about.js` would be:
 
@@ -36,5 +36,5 @@ And if you add `getServerSideProps` to the page, it will then be JavaScript, lik
 
 ## Caveats
 
-- If you have a [custom `App`](/docs/advanced-features/custom-app.md) with `getInitialProps` then this optimization will be turned off in pages without [Static Generation](/docs/basic-features/data-fetching.md#getstaticprops-static-generation).
+- If you have a [custom `App`](/docs/advanced-features/custom-app.md) with `getInitialProps` then this optimization will be turned off in pages without [Static Generation](/docs/basic-features/data-fetching/get-static-props.md).
 - If you have a [custom `Document`](/docs/advanced-features/custom-document.md) with `getInitialProps` be sure you check if `ctx.req` is defined before assuming the page is server-side rendered. `ctx.req` will be `undefined` for pages that are prerendered.

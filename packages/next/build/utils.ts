@@ -1,10 +1,9 @@
-import '../server/node-polyfill-fetch'
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { promises as fs } from 'fs'
-import { isValidElementType } from 'react-is'
+import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
   Redirect,
@@ -1207,7 +1206,7 @@ export async function copyTracedFiles(
   for (const page of pageKeys) {
     if (MIDDLEWARE_ROUTE.test(page)) {
       const { files } =
-        middlewareManifest.middleware[page.replace(/\/_middleware$/, '')]
+        middlewareManifest.middleware[page.replace(/\/_middleware$/, '') || '/']
 
       for (const file of files) {
         const originalPath = path.join(distDir, file)

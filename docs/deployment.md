@@ -41,7 +41,7 @@ When deploying to Vercel, the platform automatically detects Next.js, runs `next
 
 In addition, Vercel provides features like:
 
-- Automatic performance monitoring with [Next.js Analytics](/analytics)
+- Automatic performance monitoring with [Next.js Analytics](https://vercel.com/analytics)
 - Automatic HTTPS and SSL certificates
 - Automatic CI/CD (through GitHub, GitLab, Bitbucket, etc.)
 - Support for [Environment Variables](https://vercel.com/docs/environment-variables)

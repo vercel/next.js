@@ -77,7 +77,10 @@ function getPlugins(
     : null
   const reactRefreshItem = hasReactRefresh
     ? createConfigItem(
-        [require('react-refresh/babel'), { skipEnvCheck: true }],
+        [
+          require('next/dist/compiled/react-refresh/babel'),
+          { skipEnvCheck: true },
+        ],
         { type: 'plugin' }
       )
     : null

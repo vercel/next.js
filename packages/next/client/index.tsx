@@ -32,7 +32,7 @@ import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
-import isError from '../lib/is-error'
+import { getProperError } from '../lib/is-error'
 import { trackWebVitalMetric } from './vitals'
 import { RefreshContext } from './rsc/refresh'
 
@@ -330,7 +330,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     CachedComponent = pageEntrypoint.component
 
     if (process.env.NODE_ENV !== 'production') {
-      const { isValidElementType } = require('react-is')
+      const { isValidElementType } = require('next/dist/compiled/react-is')
       if (!isValidElementType(CachedComponent)) {
         throw new Error(
           `The default export is not a React Component in page: "${page}"`
@@ -339,7 +339,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     }
   } catch (error) {
     // This catches errors like throwing in the top level of a module
-    initialErr = isError(error) ? error : new Error(error + '')
+    initialErr = getProperError(error)
   }
 
   if (process.env.NODE_ENV === 'development') {
@@ -439,7 +439,7 @@ export async function render(renderingProps: RenderRouteInfo): Promise<void> {
   try {
     await doRender(renderingProps)
   } catch (err) {
-    const renderErr = err instanceof Error ? err : new Error(err + '')
+    const renderErr = getProperError(err)
     // bubble up cancelation errors
     if ((renderErr as Error & { cancelled?: boolean }).cancelled) {
       throw renderErr
@@ -629,6 +629,15 @@ function AppContainer({
   )
 }
 
+function renderApp(App: AppComponent, appProps: AppProps) {
+  if (process.env.__NEXT_RSC && (App as any).__next_rsc__) {
+    const { Component, err: _, router: __, ...props } = appProps
+    return <Component {...props} />
+  } else {
+    return <App {...appProps} />
+  }
+}
+
 const wrapApp =
   (App: AppComponent) =>
   (wrappedAppProps: Record<string, any>): JSX.Element => {
@@ -638,11 +647,7 @@ const wrapApp =
       err: hydrateErr,
       router,
     }
-    return (
-      <AppContainer>
-        <App {...appProps} />
-      </AppContainer>
-    )
+    return <AppContainer>{renderApp(App, appProps)}</AppContainer>
   }
 
 let RSCComponent: (props: any) => JSX.Element
@@ -957,7 +962,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     <>
       <Head callback={onHeadCommit} />
       <AppContainer>
-        <App {...appProps} />
+        {renderApp(App, appProps)}
         <Portal type="next-route-announcer">
           <RouteAnnouncer />
         </Portal>
