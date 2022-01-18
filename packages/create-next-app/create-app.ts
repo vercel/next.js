@@ -37,7 +37,7 @@ export async function createApp({
   typescript?: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
-  const template = typescript ? 'typescript' : 'default'
+  const template = !typescript ? 'javascript' : 'typescript'
 
   if (example) {
     let repoUrl: URL | undefined

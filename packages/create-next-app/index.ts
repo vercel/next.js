@@ -23,7 +23,14 @@ const program = new Commander.Command(packageJson.name)
     '--ts, --typescript',
     `
 
-  Initialize as a TypeScript project.
+  Initialize as a TypeScript project. (default)
+`
+  )
+  .option(
+    '--js, --javascript',
+    `
+
+  Initialize as a JavaScript project.
 `
   )
   .option(
@@ -126,7 +133,7 @@ async function run(): Promise<void> {
       useNpm: !!program.useNpm,
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
-      typescript: program.typescript,
+      typescript: !program.javascript || program.typescript,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
