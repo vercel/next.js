@@ -6,8 +6,9 @@ import { normalizeLocalePath } from '../../../../shared/lib/i18n/normalize-local
 import pathMatch from '../../../../shared/lib/router/utils/path-match'
 import { getRouteRegex } from '../../../../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../../../../shared/lib/router/utils/route-matcher'
-import prepareDestination, {
+import {
   matchHas,
+  prepareDestination,
 } from '../../../../shared/lib/router/utils/prepare-destination'
 import { __ApiPreviewProps } from '../../../../server/api-utils'
 import { BuildManifest } from '../../../../server/get-page-files'
@@ -23,6 +24,8 @@ import { denormalizePagePath } from '../../../../server/denormalize-page-path'
 import cookie from 'next/dist/compiled/cookie'
 import { TEMPORARY_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 import { NextConfig } from '../../../../server/config'
+import { addRequestMeta } from '../../../../server/request-meta'
+import { BaseNextRequest } from '../../../../server/base-http'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -83,7 +86,10 @@ export function getUtils({
     defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
   }
 
-  function handleRewrites(req: IncomingMessage, parsedUrl: UrlWithParsedQuery) {
+  function handleRewrites(
+    req: BaseNextRequest | IncomingMessage,
+    parsedUrl: UrlWithParsedQuery
+  ) {
     for (const rewrite of rewrites) {
       const matcher = getCustomRouteMatcher(rewrite.source)
       let params = matcher(parsedUrl.pathname)
@@ -99,12 +105,12 @@ export function getUtils({
       }
 
       if (params) {
-        const { parsedDestination } = prepareDestination(
-          rewrite.destination,
-          params,
-          parsedUrl.query,
-          true
-        )
+        const { parsedDestination } = prepareDestination({
+          appendParamsToQuery: true,
+          destination: rewrite.destination,
+          params: params,
+          query: parsedUrl.query,
+        })
 
         Object.assign(parsedUrl.query, parsedDestination.query)
         delete (parsedDestination as any).query
@@ -148,7 +154,10 @@ export function getUtils({
     return parsedUrl
   }
 
-  function handleBasePath(req: IncomingMessage, parsedUrl: UrlWithParsedQuery) {
+  function handleBasePath(
+    req: BaseNextRequest | IncomingMessage,
+    parsedUrl: UrlWithParsedQuery
+  ) {
     // always strip the basePath if configured since it is required
     req.url = req.url!.replace(new RegExp(`^${basePath}`), '') || '/'
     parsedUrl.pathname =
@@ -156,7 +165,7 @@ export function getUtils({
   }
 
   function getParamsFromRouteMatches(
-    req: IncomingMessage,
+    req: BaseNextRequest | IncomingMessage,
     renderOpts?: any,
     detectedLocale?: string
   ) {
@@ -267,7 +276,10 @@ export function getUtils({
     return pathname
   }
 
-  function normalizeVercelUrl(req: IncomingMessage, trustQuery: boolean) {
+  function normalizeVercelUrl(
+    req: BaseNextRequest | IncomingMessage,
+    trustQuery: boolean
+  ) {
     // make sure to normalize req.url on Vercel to strip dynamic params
     // from the query which are added during routing
     if (pageIsDynamic && trustQuery && defaultRouteRegex) {
@@ -372,7 +384,7 @@ export function getUtils({
     if (detectedDomain) {
       defaultLocale = detectedDomain.defaultLocale
       detectedLocale = defaultLocale
-      ;(req as any).__nextIsLocaleDomain = true
+      addRequestMeta(req as any, '__nextIsLocaleDomain', true)
     }
 
     // if not domain specific locale use accept-language preferred
@@ -392,7 +404,7 @@ export function getUtils({
         ...parsedUrl,
         pathname: localePathResult.pathname,
       })
-      ;(req as any).__nextStrippedLocale = true
+      addRequestMeta(req as any, '__nextStrippedLocale', true)
       parsedUrl.pathname = localePathResult.pathname
     }
 

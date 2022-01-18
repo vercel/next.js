@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import * as CommentJson from 'next/dist/compiled/comment-json'
 import semver from 'next/dist/compiled/semver'
 import os from 'os'
@@ -38,7 +38,7 @@ function getDesiredCompilerOptions(
     // 'parsedValue' matches the output value from ts.parseJsonConfigFileContent()
     esModuleInterop: {
       value: true,
-      reason: 'requirement for babel',
+      reason: 'requirement for SWC / babel',
     },
     module: {
       parsedValue: ts.ModuleKind.ESNext,
@@ -60,7 +60,7 @@ function getDesiredCompilerOptions(
     resolveJsonModule: { value: true, reason: 'to match webpack resolution' },
     isolatedModules: {
       value: true,
-      reason: 'requirement for babel',
+      reason: 'requirement for SWC / Babel',
     },
     jsx: {
       parsedValue: ts.JsxEmit.Preserve,
@@ -117,6 +117,9 @@ export async function writeConfigurationDefaults(
     const check = desiredCompilerOptions[optionKey]
     if ('suggested' in check) {
       if (!(optionKey in tsOptions)) {
+        if (!userTsConfig.compilerOptions) {
+          userTsConfig.compilerOptions = {}
+        }
         userTsConfig.compilerOptions[optionKey] = check.suggested
         suggestedActions.push(
           chalk.cyan(optionKey) + ' was set to ' + chalk.bold(check.suggested)
@@ -131,6 +134,9 @@ export async function writeConfigurationDefaults(
           ? check.parsedValue === ev
           : check.value === ev)
       ) {
+        if (!userTsConfig.compilerOptions) {
+          userTsConfig.compilerOptions = {}
+        }
         userTsConfig.compilerOptions[optionKey] = check.value
         requiredActions.push(
           chalk.cyan(optionKey) +

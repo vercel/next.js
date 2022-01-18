@@ -55,6 +55,7 @@ export function getPagePath(
   if (!pagePath) {
     throw pageNotFoundError(page)
   }
+
   return join(serverBuildPath, pagePath)
 }
 
@@ -84,7 +85,7 @@ export function getMiddlewareInfo(params: {
   distDir: string
   page: string
   serverless: boolean
-}): { name: string; paths: string[] } {
+}): { name: string; paths: string[]; env: string[] } {
   const serverBuildPath = join(
     params.distDir,
     params.serverless && !params.dev ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
@@ -111,5 +112,6 @@ export function getMiddlewareInfo(params: {
   return {
     name: pageInfo.name,
     paths: pageInfo.files.map((file) => join(params.distDir, file)),
+    env: pageInfo.env ?? [],
   }
 }

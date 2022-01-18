@@ -1,4 +1,4 @@
-import { Worker } from 'jest-worker'
+import { Worker } from 'next/dist/compiled/jest-worker'
 import * as path from 'path'
 import { execOnce } from '../../../shared/lib/utils'
 import { cpus } from 'os'
@@ -65,7 +65,12 @@ export async function processBuffer(
     case 'webp':
       return Buffer.from(await worker.encodeWebp(imageData, { quality }))
     case 'avif':
-      return Buffer.from(await worker.encodeAvif(imageData, { quality }))
+      const avifQuality = quality - 20
+      return Buffer.from(
+        await worker.encodeAvif(imageData, {
+          quality: Math.max(avifQuality, 0),
+        })
+      )
     case 'png':
       return Buffer.from(await worker.encodePng(imageData))
     default:

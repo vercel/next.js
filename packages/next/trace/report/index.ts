@@ -1,7 +1,4 @@
-import { TARGET, SpanId } from '../shared'
-import reportToConsole from './to-console'
-import reportToZipkin from './to-zipkin'
-import reportToJaeger from './to-jaeger'
+import { SpanId } from '../shared'
 import reportToTelemetry from './to-telemetry'
 import reportToJson from './to-json'
 
@@ -42,28 +39,5 @@ class MultiReporter implements Reporter {
   }
 }
 
-const target =
-  process.env.TRACE_TARGET && process.env.TRACE_TARGET in TARGET
-    ? TARGET[process.env.TRACE_TARGET as TARGET]
-    : TARGET.TELEMETRY
-
-if (process.env.TRACE_TARGET && !target) {
-  console.info(
-    'For TRACE_TARGET, please specify one of: CONSOLE, ZIPKIN, TELEMETRY'
-  )
-}
-
-let traceTargetReporter: Reporter
-
-if (target === TARGET.CONSOLE) {
-  traceTargetReporter = reportToConsole
-} else if (target === TARGET.ZIPKIN) {
-  traceTargetReporter = reportToZipkin
-} else if (target === TARGET.JAEGER) {
-  traceTargetReporter = reportToJaeger
-} else {
-  traceTargetReporter = reportToTelemetry
-}
-
 // JSON is always reported to allow for diagnostics
-export const reporter = new MultiReporter([reportToJson, traceTargetReporter])
+export const reporter = new MultiReporter([reportToJson, reportToTelemetry])

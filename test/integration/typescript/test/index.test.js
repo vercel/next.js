@@ -49,6 +49,16 @@ describe('TypeScript Features', () => {
       expect($('#cookies').text()).toBe('{}')
     })
 
+    it('should render the generics page', async () => {
+      const $ = await get$('/generics')
+      expect($('#value').text()).toBe('Hello World from Generic')
+    })
+
+    it('should render the angle bracket type assertions page', async () => {
+      const $ = await get$('/angle-bracket-type-assertions')
+      expect($('#value').text()).toBe('test')
+    })
+
     it('should resolve files in correct order', async () => {
       const $ = await get$('/hello')
       expect($('#imported-value').text()).toBe('OK')

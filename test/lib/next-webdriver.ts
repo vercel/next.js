@@ -2,6 +2,10 @@ import { getFullUrl } from 'next-test-utils'
 import os from 'os'
 import { BrowserInterface } from './browsers/base'
 
+if (!process.env.TEST_FILE_PATH) {
+  process.env.TEST_FILE_PATH = module.parent.filename
+}
+
 let deviceIP: string
 const isBrowserStack = !!process.env.BROWSERSTACK
 ;(global as any).browserName = process.env.BROWSER_NAME || 'chrome'

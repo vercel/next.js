@@ -120,6 +120,12 @@ const hookPropertyMap = new Map(
     ['webpack-sources/lib', 'next/dist/compiled/webpack/sources'],
     ['webpack-sources/lib/index', 'next/dist/compiled/webpack/sources'],
     ['webpack-sources/lib/index.js', 'next/dist/compiled/webpack/sources'],
+    ['@babel/runtime', 'next/dist/compiled/@babel/runtime/package.json'],
+    [
+      '@babel/runtime/package.json',
+      'next/dist/compiled/@babel/runtime/package.json',
+    ],
+    ['node-fetch', 'next/dist/compiled/node-fetch'],
   ].map(([request, replacement]) => [request, require.resolve(replacement)])
 )
 

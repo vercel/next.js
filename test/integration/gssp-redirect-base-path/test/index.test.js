@@ -51,6 +51,9 @@ const runTests = (isDev) => {
     )
     expect(res.status).toBe(307)
 
+    const text = await res.text()
+    expect(text).toEqual(`/404`)
+
     const parsedUrl = url.parse(res.headers.get('location'))
     expect(parsedUrl.pathname).toBe(`/404`)
 
@@ -76,6 +79,9 @@ const runTests = (isDev) => {
     )
     expect(res.status).toBe(308)
 
+    const text = await res.text()
+    expect(text).toEqual(`${basePath}/404`)
+
     const { pathname } = url.parse(res.headers.get('location'))
 
     expect(pathname).toBe(`${basePath}/404`)
@@ -93,6 +99,9 @@ const runTests = (isDev) => {
     )
     expect(res.status).toBe(301)
 
+    const text = await res.text()
+    expect(text).toEqual(`${basePath}/404`)
+
     const { pathname } = url.parse(res.headers.get('location'))
 
     expect(pathname).toBe(`${basePath}/404`)
@@ -109,6 +118,9 @@ const runTests = (isDev) => {
       }
     )
     expect(res.status).toBe(303)
+
+    const text = await res.text()
+    expect(text).toEqual(`${basePath}/404`)
 
     const { pathname } = url.parse(res.headers.get('location'))
 
@@ -536,6 +548,8 @@ describe('GS(S)P Redirect Support', () => {
         }
       )
       expect(res1.status).toBe(307)
+      const text1 = await res1.text()
+      expect(text1).toEqual(`${basePath}/gsp-blog/first`)
       const parsed = url.parse(res1.headers.get('location'), true)
       expect(parsed.pathname).toBe(`${basePath}/gsp-blog/first`)
       expect(parsed.query).toEqual({})
@@ -550,6 +564,8 @@ describe('GS(S)P Redirect Support', () => {
         }
       )
       expect(res2.status).toBe(308)
+      const text2 = await res2.text()
+      expect(text2).toEqual(`${basePath}/gsp-blog/first`)
       expect(res2.headers.get('refresh')).toContain(
         `url=${basePath}/gsp-blog/first`
       )
@@ -566,6 +582,8 @@ describe('GS(S)P Redirect Support', () => {
         }
       )
       expect(res3.status).toBe(307)
+      const text3 = await res3.text()
+      expect(text3).toEqual(`${basePath}/gssp-blog/first`)
       expect(res3.headers.get('refresh')).toBe(null)
       const parsed3 = url.parse(res3.headers.get('location'), true)
       expect(parsed3.pathname).toBe(`${basePath}/gssp-blog/first`)
@@ -580,6 +598,8 @@ describe('GS(S)P Redirect Support', () => {
         }
       )
       expect(res4.status).toBe(308)
+      const text4 = await res4.text()
+      expect(text4).toEqual(`${basePath}/gssp-blog/first`)
       expect(res4.headers.get('refresh')).toContain(
         `url=${basePath}/gssp-blog/first`
       )

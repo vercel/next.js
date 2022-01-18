@@ -1,0 +1,1 @@
+export { renderToHTML } from '../render'

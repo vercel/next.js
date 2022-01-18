@@ -11,12 +11,12 @@ By default, Next.js will automatically inline font CSS at build time, eliminatin
 ```js
 // Before
 <link
-  href="https://fonts.googleapis.com/css2?family=Inter"
+  href="https://fonts.googleapis.com/css2?family=Inter&display=optional"
   rel="stylesheet"
 />
 
 // After
-<style data-href="https://fonts.googleapis.com/css2?family=Inter">
+<style data-href="https://fonts.googleapis.com/css2?family=Inter&display=optional">
   @font-face{font-family:'Inter';font-style:normal...
 </style>
 ```
