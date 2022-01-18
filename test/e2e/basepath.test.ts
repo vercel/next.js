@@ -38,7 +38,7 @@ describe('basePath', () => {
             },
             {
               source: '/rewrite-no-basepath',
-              destination: 'https://test-404-jj4.vercel.app/',
+              destination: 'https://example.com',
               basePath: false,
             },
             {
@@ -262,7 +262,7 @@ describe('basePath', () => {
 
     it('should rewrite without basePath when set to false', async () => {
       const html = await renderViaHTTP(next.url, '/rewrite-no-basePath')
-      expect(html).toContain('Get started by editing')
+      expect(html).toContain('Example Domain')
     })
 
     it('should redirect with basePath by default', async () => {
@@ -548,7 +548,7 @@ describe('basePath', () => {
         )
         const text = await browser.elementByCss('body').text()
 
-        expect(text).toContain('Get started by editing')
+        expect(text).toContain('Example Domain')
       })
     }
 
