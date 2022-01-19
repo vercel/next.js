@@ -41,7 +41,6 @@ import {
   getRouteRegex,
   getSortedRoutes,
   isDynamicRoute,
-  getMiddlewareRegex,
 } from '../shared/lib/router/utils'
 import * as envConfig from '../shared/lib/runtime-config'
 import { DecodeError, normalizeRepeatedSlashes } from '../shared/lib/utils'
@@ -193,6 +192,14 @@ export default abstract class Server {
   protected abstract generateImageRoutes(): Route[]
   protected abstract generateCatchAllMiddlewareRoute(): Route | undefined
   protected abstract getFilesystemPaths(): Set<string>
+  protected abstract getMiddleware(): {
+    match: (pathname: string | null | undefined) =>
+      | false
+      | {
+          [paramName: string]: string | string[]
+        }
+    page: string
+  }[]
   protected abstract findPageComponents(
     pathname: string,
     query?: NextParsedUrlQuery,
@@ -666,18 +673,6 @@ export default abstract class Server {
 
   protected getPreviewProps(): __ApiPreviewProps {
     return this.getPrerenderManifest().preview
-  }
-
-  protected getMiddleware() {
-    const middleware = this.middlewareManifest?.middleware || {}
-    return (
-      this.middlewareManifest?.sortedMiddleware.map((page) => ({
-        match: getRouteMatcher(
-          getMiddlewareRegex(page, MIDDLEWARE_ROUTE.test(middleware[page].name))
-        ),
-        page,
-      })) || []
-    )
   }
 
   protected async hasMiddleware(

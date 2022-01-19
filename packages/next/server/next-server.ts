@@ -58,6 +58,8 @@ import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
+import { getMiddlewareRegex, getRouteMatcher } from '../shared/lib/router/utils'
+import { MIDDLEWARE_ROUTE } from '../lib/constants'
 
 export * from './base-server'
 
@@ -769,6 +771,18 @@ export default class NextNodeServer extends BaseServer {
         }
       },
     }
+  }
+
+  protected getMiddleware() {
+    const middleware = this.middlewareManifest?.middleware || {}
+    return (
+      this.middlewareManifest?.sortedMiddleware.map((page) => ({
+        match: getRouteMatcher(
+          getMiddlewareRegex(page, MIDDLEWARE_ROUTE.test(middleware[page].name))
+        ),
+        page,
+      })) || []
+    )
   }
 
   private middlewareBetaWarning = execOnce(() => {
