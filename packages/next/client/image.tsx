@@ -263,14 +263,15 @@ function handleLoading(
     if (img.src !== emptyDataURL) {
       const p = 'decode' in img ? img.decode() : Promise.resolve()
       p.catch(() => {}).then(() => {
+        const isLoaded = loadedImageURLs.has(src)
+        loadedImageURLs.add(src)
         if (placeholder === 'blur') {
           img.style.filter = ''
           img.style.backgroundSize = ''
           img.style.backgroundImage = ''
           img.style.backgroundPosition = ''
         }
-        loadedImageURLs.add(src)
-        if (onLoadingComplete) {
+        if (onLoadingComplete && !isLoaded) {
           const { naturalWidth, naturalHeight } = img
           // Pass back read-only primitive values but not the
           // underlying DOM element because it could be misused.
