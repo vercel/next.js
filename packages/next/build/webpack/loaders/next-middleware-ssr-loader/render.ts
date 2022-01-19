@@ -2,6 +2,7 @@ import { NextRequest } from '../../../../server/web/spec-extension/request'
 import { renderToHTML } from '../../../../server/web/render'
 import RenderResult from '../../../../server/render-result'
 import { toNodeHeaders } from '../../../../server/web/utils'
+import BaseServer from '../../../../server/base-server'
 
 const createHeaders = (args?: any) => ({
   ...args,
