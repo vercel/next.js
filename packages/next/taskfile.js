@@ -251,7 +251,7 @@ export async function ncc_jest_worker(task, opts) {
             )
           )
       )
-      .ncc({ packageName: 'jest-worker', externals })
+      .ncc({ externals })
       .target('compiled/jest-worker/out')
 
     await fs.move(
