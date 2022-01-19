@@ -122,7 +122,7 @@ function urlTests(locale = '') {
       `${locale}/urls/relative-url`
     )
     const json = await res.json()
-    expect(json.error.message).toEqual('Invalid URL')
+    expect(json.error.message).toContain('Invalid URL')
   })
 
   it('throws when using Request with a relative URL', async () => {
@@ -131,7 +131,7 @@ function urlTests(locale = '') {
       `${locale}/urls/relative-request`
     )
     const json = await res.json()
-    expect(json.error.message).toEqual('Invalid URL')
+    expect(json.error.message).toContain('Invalid URL')
   })
 
   it('throws when using Response.redirect with a relative URL', async () => {
@@ -140,7 +140,7 @@ function urlTests(locale = '') {
       `${locale}/urls/relative-redirect`
     )
     const json = await res.json()
-    expect(json.error.message).toEqual('Invalid URL')
+    expect(json.error.message).toContain('Invalid URL')
   })
 
   it('throws when using NextRequest with a relative URL', async () => {
@@ -149,7 +149,7 @@ function urlTests(locale = '') {
       `${locale}/urls/relative-next-request`
     )
     const json = await res.json()
-    expect(json.error.message).toEqual('Invalid URL')
+    expect(json.error.message).toContain('Invalid URL')
   })
 
   it('throws when using NextResponse.redirect with a relative URL', async () => {
@@ -158,7 +158,7 @@ function urlTests(locale = '') {
       `${locale}/urls/relative-next-redirect`
     )
     const json = await res.json()
-    expect(json.error.message).toEqual('Invalid URL')
+    expect(json.error.message).toContain('Invalid URL')
   })
 
   it('throws when using NextResponse.rewrite with a relative URL', async () => {
@@ -167,7 +167,7 @@ function urlTests(locale = '') {
       `${locale}/urls/relative-next-rewrite`
     )
     const json = await res.json()
-    expect(json.error.message).toEqual('Invalid URL')
+    expect(json.error.message).toContain('Invalid URL')
   })
 }
 
