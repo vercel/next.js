@@ -1,4 +1,5 @@
-import { createNext } from 'e2e-utils'
+import path from 'path'
+import { createNext, FileRef } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
@@ -8,22 +9,7 @@ describe('TypeScript basic', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'pages/index.tsx': `
-          import { useRouter } from 'next/router'
-          import Link from 'next/link' 
-          
-          export default function Page() { 
-            const router = useRouter()
-            return (
-              <>
-                <p>hello world</p>
-                <Link href='/another'>
-                  <a>to /another</a>
-                </Link>
-              </>
-            )
-          } 
-        `,
+        pages: new FileRef(path.join(__dirname, 'app/pages')),
         'server.ts': `
           import next from 'next';
           const app = next({
@@ -39,7 +25,9 @@ describe('TypeScript basic', () => {
       },
       dependencies: {
         typescript: '4.4.3',
-        '@types/react': '16.9.17',
+        '@types/node': 'latest',
+        '@types/react': 'latest',
+        '@types/react-dom': 'latest',
       },
     })
   })
