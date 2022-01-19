@@ -1447,6 +1447,7 @@ dependencies = [
  "either",
  "fxhash",
  "intern",
+ "once_cell",
  "pathdiff",
  "regex",
  "relay-compiler",

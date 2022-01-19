@@ -1,12 +1,12 @@
+use once_cell::sync::Lazy;
 use pathdiff::diff_paths;
-use regex::{Captures, Regex};
-use relay_compiler_common::SourceLocationKey;
-use std::borrow::Cow;
-use std::path::PathBuf;
-
+use regex::Regex;
 use relay_compiler::compiler_state::{SourceSet, SourceSetName};
 use relay_compiler::{create_path_for_artifact, FileCategorizer, FileGroup, ProjectConfig};
+use relay_compiler_common::SourceLocationKey;
 use serde::Deserialize;
+use std::borrow::Cow;
+use std::path::{Path, PathBuf};
 use swc_atoms::JsWord;
 use swc_common::errors::HANDLER;
 use swc_common::FileName;
@@ -27,26 +27,20 @@ struct Relay {
 }
 
 fn pull_first_operation_name_from_tpl(tpl: &TaggedTpl) -> Option<String> {
-    tpl.tpl
-        .quasis
-        .iter()
-        .filter_map(|quasis| {
-            let regex = Regex::new(r"(fragment|mutation|query|subscription) (\w+)").unwrap();
-            let capture_group = regex.captures_iter(&quasis.raw.value).next();
+    tpl.tpl.quasis.iter().find_map(|quasis| {
+        static OPERATION_REGEX: Lazy<Regex> =
+            Lazy::new(|| Regex::new(r"(fragment|mutation|query|subscription) (\w+)").unwrap());
 
-            match capture_group {
-                None => None,
-                Some(capture_group) => {
-                    let operation_name: &str = &capture_group[2];
+        let capture_group = OPERATION_REGEX.captures_iter(&quasis.raw.value).next();
 
-                    Some(operation_name.to_string())
-                }
-            }
-        })
-        .next()
+        match capture_group {
+            None => None,
+            Some(capture_group) => Some(capture_group[2].to_string()),
+        }
+    })
 }
 
-fn build_require_expr_from_path(path: String) -> Expr {
+fn build_require_expr_from_path(path: &str) -> Expr {
     Expr::Call(CallExpr {
         span: Default::default(),
         callee: quote_ident!("require").as_callee(),
@@ -98,10 +92,10 @@ enum BuildRequirePathError<'a> {
 // This is copied from https://github.com/facebook/relay/blob/main/compiler/crates/relay-compiler/src/build_project/generate_artifacts.rs#L251
 // until the Relay team exposes it for external use.
 fn path_for_artifact(
-    root_dir: &PathBuf,
-    source_path: &PathBuf,
+    root_dir: &Path,
+    source_path: &Path,
     project_config: &ProjectConfig,
-    definition_name: String,
+    definition_name: &str,
 ) -> PathBuf {
     let source_file_location_key = SourceLocationKey::Standalone {
         path: source_path.to_str().unwrap().parse().unwrap(),
@@ -133,7 +127,7 @@ fn path_for_artifact(
 impl Relay {
     fn build_require_path(
         &mut self,
-        operation_name: String,
+        operation_name: &str,
     ) -> Result<PathBuf, BuildRequirePathError> {
         match &self.relay_config_for_tests {
             Some(config) => match &self.file_name {
@@ -207,10 +201,8 @@ impl Relay {
 
         match operation_name {
             None => None,
-            Some(operation_name) => match self.build_require_path(operation_name) {
-                Ok(final_path) => Some(build_require_expr_from_path(
-                    final_path.display().to_string(),
-                )),
+            Some(operation_name) => match self.build_require_path(operation_name.as_str()) {
+                Ok(final_path) => Some(build_require_expr_from_path(final_path.to_str().unwrap())),
                 Err(err) => {
                     let base_error = "Could not transform GraphQL template to a Relay import.";
                     let error_message = match err {
