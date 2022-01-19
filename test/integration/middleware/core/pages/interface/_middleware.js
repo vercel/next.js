@@ -81,7 +81,8 @@ export async function middleware(request) {
   }
 
   if (url.pathname.endsWith('/dynamic-replace')) {
-    return NextResponse.rewrite('/_interface/dynamic-path')
+    url.pathname = '/_interface/dynamic-path'
+    return NextResponse.rewrite(url)
   }
 
   return new Response(null, {
