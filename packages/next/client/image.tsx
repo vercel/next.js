@@ -249,21 +249,21 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
 // See https://stackoverflow.com/q/39777833/266535 for why we use this ref
 // handler instead of the img's onLoad attribute.
 function handleLoading(
-  ref: React.RefObject<HTMLImageElement>,
+  imgRef: React.RefObject<HTMLImageElement>,
   src: string,
   layout: LayoutValue,
   placeholder: PlaceholderValue,
-  onLoadingComplete: React.MutableRefObject<OnLoadingComplete | undefined>
+  onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
 ) {
   const handleLoad = () => {
-    const img = ref.current
+    const img = imgRef.current
     if (!img) {
       return
     }
     if (img.src !== emptyDataURL) {
       const p = 'decode' in img ? img.decode() : Promise.resolve()
       p.catch(() => {}).then(() => {
-        if (!ref.current) {
+        if (!imgRef.current) {
           return
         }
         if (placeholder === 'blur') {
@@ -272,11 +272,11 @@ function handleLoading(
           img.style.backgroundImage = ''
           img.style.backgroundPosition = ''
         }
-        if (onLoadingComplete.current) {
+        if (onLoadingCompleteRef.current) {
           const { naturalWidth, naturalHeight } = img
           // Pass back read-only primitive values but not the
           // underlying DOM element because it could be misused.
-          onLoadingComplete.current({ naturalWidth, naturalHeight })
+          onLoadingCompleteRef.current({ naturalWidth, naturalHeight })
         }
         if (process.env.NODE_ENV !== 'production') {
           if (img.parentElement?.parentElement) {
@@ -301,14 +301,14 @@ function handleLoading(
       })
     }
   }
-  if (ref.current) {
-    if (ref.current.complete) {
+  if (imgRef.current) {
+    if (imgRef.current.complete) {
       // If the real image fails to load, this will still remove the placeholder.
       // This is the desired behavior for now, and will be revisited when error
       // handling is worked on for the image component itself.
       handleLoad()
     } else {
-      ref.current.onload = handleLoad
+      imgRef.current.onload = handleLoad
     }
   }
 }
@@ -332,7 +332,7 @@ export default function Image({
   blurDataURL,
   ...all
 }: ImageProps) {
-  const ref = useRef<HTMLImageElement>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
   if ('layout' in rest) {
@@ -381,7 +381,7 @@ export default function Image({
     unoptimized = true
     isLazy = false
   }
-  if (typeof window !== 'undefined' && ref.current?.complete) {
+  if (typeof window !== 'undefined' && imgRef.current?.complete) {
     isLazy = false
   }
 
@@ -671,15 +671,11 @@ export default function Image({
   }, [onLoadingComplete])
 
   useLayoutEffect(() => {
-    if (ref.current) {
-      setIntersection(ref.current)
-    }
+    setIntersection(imgRef.current)
   }, [setIntersection])
 
   useEffect(() => {
-    if (ref.current) {
-      handleLoading(ref, srcString, layout, placeholder, onLoadingCompleteRef)
-    }
+    handleLoading(imgRef, srcString, layout, placeholder, onLoadingCompleteRef)
   }, [srcString, layout, placeholder, isVisible])
 
   return (
@@ -712,7 +708,7 @@ export default function Image({
         decoding="async"
         data-nimg={layout}
         className={className}
-        ref={ref}
+        ref={imgRef}
         style={{ ...imgStyle, ...blurStyle }}
       />
       {isLazy && (
