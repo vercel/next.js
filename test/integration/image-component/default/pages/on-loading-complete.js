@@ -90,7 +90,7 @@ function ImageWithMessage({ id, idToCount, setIdToCount, ...props }) {
         <Image
           id={`img${id}`}
           onLoadingComplete={({ naturalWidth, naturalHeight }) => {
-            const count = idToCount[id] || 0
+            let count = idToCount[id] || 0
             count++
             idToCount[id] = count
             setIdToCount(idToCount)
