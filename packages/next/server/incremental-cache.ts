@@ -1,9 +1,10 @@
+import type { CacheFs } from '../shared/lib/utils'
+
 import LRUCache from 'next/dist/compiled/lru-cache'
 import path from 'path'
 import { PrerenderManifest } from '../build'
 import { PRERENDER_MANIFEST } from '../shared/lib/constants'
 import { normalizePagePath } from './normalize-page-path'
-import type { CacheFs } from '../shared/lib/utils'
 
 function toRoute(pathname: string): string {
   return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'

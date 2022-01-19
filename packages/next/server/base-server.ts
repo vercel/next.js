@@ -17,6 +17,9 @@ import type { RenderOpts, RenderOptsPartial } from './render'
 import type { ResponseCacheEntry, ResponseCacheValue } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 import type { CacheFs } from '../shared/lib/utils'
+import type { PreviewData } from 'next/types'
+import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
+import type { BaseNextRequest, BaseNextResponse } from './base-http'
 
 import { join, relative, resolve, sep } from 'path'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
@@ -32,14 +35,12 @@ import {
   SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
-  MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getRouteMatcher,
   getRouteRegex,
   getSortedRoutes,
   isDynamicRoute,
-  getMiddlewareRegex,
 } from '../shared/lib/router/utils'
 import * as envConfig from '../shared/lib/runtime-config'
 import { DecodeError, normalizeRepeatedSlashes } from '../shared/lib/utils'
@@ -57,7 +58,6 @@ import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage, isBot } from './utils'
 import RenderResult from './render-result'
 import { loadEnvConfig } from '@next/env'
-import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { denormalizePagePath } from './denormalize-page-path'
@@ -66,16 +66,11 @@ import * as Log from '../build/output/log'
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
-import { PreviewData } from 'next/types'
 import ResponseCache from './response-cache'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import isError, { getProperError } from '../lib/is-error'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
-import { run } from './web/sandbox'
 import { addRequestMeta, getRequestMeta } from './request-meta'
-import { toNodeHeaders } from './web/utils'
-import { BaseNextRequest, BaseNextResponse } from './base-http'
-import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -195,7 +190,16 @@ export default abstract class Server {
   protected abstract getBuildId(): string
   protected abstract generatePublicRoutes(): Route[]
   protected abstract generateImageRoutes(): Route[]
+  protected abstract generateCatchAllMiddlewareRoute(): Route | undefined
   protected abstract getFilesystemPaths(): Set<string>
+  protected abstract getMiddleware(): {
+    match: (pathname: string | null | undefined) =>
+      | false
+      | {
+          [paramName: string]: string | string[]
+        }
+    page: string
+  }[]
   protected abstract findPageComponents(
     pathname: string,
     query?: NextParsedUrlQuery,
@@ -209,6 +213,7 @@ export default abstract class Server {
   }): { name: string; paths: string[]; env: string[] }
   protected abstract getPagePath(pathname: string, locales?: string[]): string
   protected abstract getFontManifest(): FontManifest | undefined
+  protected abstract getMiddlewareManifest(): MiddlewareManifest | undefined
 
   protected abstract sendRenderResult(
     req: BaseNextRequest,
@@ -266,6 +271,14 @@ export default abstract class Server {
     res: BaseNextResponse,
     parsedUrl: UrlWithParsedQuery
   ): Promise<{ finished: boolean }>
+
+  protected abstract runMiddleware(params: {
+    request: BaseNextRequest
+    response: BaseNextResponse
+    parsedUrl: ParsedNextUrl
+    parsed: UrlWithParsedQuery
+    onWarning?: (warning: Error) => void
+  }): Promise<FetchEventResult | null>
 
   public constructor({
     dir = '.',
@@ -662,29 +675,6 @@ export default abstract class Server {
     return this.getPrerenderManifest().preview
   }
 
-  protected getMiddlewareManifest(): MiddlewareManifest | undefined {
-    if (!this.minimalMode) {
-      const middlewareManifestPath = join(
-        join(this.distDir, SERVER_DIRECTORY),
-        MIDDLEWARE_MANIFEST
-      )
-      return require(middlewareManifestPath)
-    }
-    return undefined
-  }
-
-  protected getMiddleware() {
-    const middleware = this.middlewareManifest?.middleware || {}
-    return (
-      this.middlewareManifest?.sortedMiddleware.map((page) => ({
-        match: getRouteMatcher(
-          getMiddlewareRegex(page, MIDDLEWARE_ROUTE.test(middleware[page].name))
-        ),
-        page,
-      })) || []
-    )
-  }
-
   protected async hasMiddleware(
     pathname: string,
     _isSSR?: boolean
@@ -704,115 +694,6 @@ export default abstract class Server {
   }
 
   protected async ensureMiddleware(_pathname: string, _isSSR?: boolean) {}
-
-  private middlewareBetaWarning = execOnce(() => {
-    Log.warn(
-      `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
-    )
-  })
-
-  protected async runMiddleware(params: {
-    request: BaseNextRequest
-    response: BaseNextResponse
-    parsedUrl: ParsedNextUrl
-    parsed: UrlWithParsedQuery
-    onWarning?: (warning: Error) => void
-  }): Promise<FetchEventResult | null> {
-    this.middlewareBetaWarning()
-
-    // For middleware to "fetch" we must always provide an absolute URL
-    const url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
-    if (!url.startsWith('http')) {
-      throw new Error(
-        'To use middleware you must provide a `hostname` and `port` to the Next.js Server'
-      )
-    }
-
-    const page: { name?: string; params?: { [key: string]: string } } = {}
-    if (await this.hasPage(params.parsedUrl.pathname)) {
-      page.name = params.parsedUrl.pathname
-    } else if (this.dynamicRoutes) {
-      for (const dynamicRoute of this.dynamicRoutes) {
-        const matchParams = dynamicRoute.match(params.parsedUrl.pathname)
-        if (matchParams) {
-          page.name = dynamicRoute.page
-          page.params = matchParams
-          break
-        }
-      }
-    }
-
-    const allHeaders = new Headers()
-    let result: FetchEventResult | null = null
-
-    for (const middleware of this.middleware || []) {
-      if (middleware.match(params.parsedUrl.pathname)) {
-        if (!(await this.hasMiddleware(middleware.page, middleware.ssr))) {
-          console.warn(`The Edge Function for ${middleware.page} was not found`)
-          continue
-        }
-
-        await this.ensureMiddleware(middleware.page, middleware.ssr)
-
-        const middlewareInfo = this.getMiddlewareInfo({
-          dev: this.renderOpts.dev,
-          distDir: this.distDir,
-          page: middleware.page,
-          serverless: this._isLikeServerless,
-        })
-
-        result = await run({
-          name: middlewareInfo.name,
-          paths: middlewareInfo.paths,
-          env: middlewareInfo.env,
-          request: {
-            headers: params.request.headers,
-            method: params.request.method || 'GET',
-            nextConfig: {
-              basePath: this.nextConfig.basePath,
-              i18n: this.nextConfig.i18n,
-              trailingSlash: this.nextConfig.trailingSlash,
-            },
-            url: url,
-            page: page,
-          },
-          useCache: !this.nextConfig.experimental.concurrentFeatures,
-          onWarning: (warning: Error) => {
-            if (params.onWarning) {
-              warning.message += ` "./${middlewareInfo.name}"`
-              params.onWarning(warning)
-            }
-          },
-        })
-
-        for (let [key, value] of result.response.headers) {
-          if (key !== 'x-middleware-next') {
-            allHeaders.append(key, value)
-          }
-        }
-
-        if (!this.renderOpts.dev) {
-          result.waitUntil.catch((error) => {
-            console.error(`Uncaught: middleware waitUntil errored`, error)
-          })
-        }
-
-        if (!result.response.headers.has('x-middleware-next')) {
-          break
-        }
-      }
-    }
-
-    if (!result) {
-      this.render404(params.request, params.response, params.parsed)
-    } else {
-      for (let [key, value] of allHeaders) {
-        result.response.headers.set(key, value)
-      }
-    }
-
-    return result
-  }
 
   protected generateRoutes(): {
     basePath: string
@@ -1135,171 +1016,7 @@ export default abstract class Server {
       }
     }
 
-    let catchAllMiddleware: Route | undefined
-
-    if (!this.minimalMode) {
-      catchAllMiddleware = {
-        match: route('/:path*'),
-        type: 'route',
-        name: 'middleware catchall',
-        fn: async (req, res, _params, parsed) => {
-          if (!this.middleware?.length) {
-            return { finished: false }
-          }
-
-          const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
-          const parsedUrl = parseNextUrl({
-            url: initUrl,
-            headers: req.headers,
-            nextConfig: {
-              basePath: this.nextConfig.basePath,
-              i18n: this.nextConfig.i18n,
-              trailingSlash: this.nextConfig.trailingSlash,
-            },
-          })
-
-          if (!this.middleware?.some((m) => m.match(parsedUrl.pathname))) {
-            return { finished: false }
-          }
-
-          let result: FetchEventResult | null = null
-
-          try {
-            result = await this.runMiddleware({
-              request: req,
-              response: res,
-              parsedUrl: parsedUrl,
-              parsed: parsed,
-            })
-          } catch (err) {
-            if (isError(err) && err.code === 'ENOENT') {
-              await this.render404(req, res, parsed)
-              return { finished: true }
-            }
-
-            const error = getProperError(err)
-            console.error(error)
-            res.statusCode = 500
-            this.renderError(error, req, res, parsed.pathname || '')
-            return { finished: true }
-          }
-
-          if (result === null) {
-            return { finished: true }
-          }
-
-          if (result.response.headers.has('x-middleware-rewrite')) {
-            const value = result.response.headers.get('x-middleware-rewrite')!
-            const rel = relativizeURL(value, initUrl)
-            result.response.headers.set('x-middleware-rewrite', rel)
-          }
-
-          if (result.response.headers.has('Location')) {
-            const value = result.response.headers.get('Location')!
-            const rel = relativizeURL(value, initUrl)
-            result.response.headers.set('Location', rel)
-          }
-
-          if (
-            !result.response.headers.has('x-middleware-rewrite') &&
-            !result.response.headers.has('x-middleware-next') &&
-            !result.response.headers.has('Location')
-          ) {
-            result.response.headers.set('x-middleware-refresh', '1')
-          }
-
-          result.response.headers.delete('x-middleware-next')
-
-          for (const [key, value] of Object.entries(
-            toNodeHeaders(result.response.headers)
-          )) {
-            if (key !== 'content-encoding' && value !== undefined) {
-              res.setHeader(key, value)
-            }
-          }
-
-          const preflight =
-            req.method === 'HEAD' && req.headers['x-middleware-preflight']
-
-          if (preflight) {
-            res.statusCode = 200
-            res.send()
-            return {
-              finished: true,
-            }
-          }
-
-          res.statusCode = result.response.status
-          res.statusMessage = result.response.statusText
-
-          const location = result.response.headers.get('Location')
-          if (location) {
-            res.statusCode = result.response.status
-            if (res.statusCode === 308) {
-              res.setHeader('Refresh', `0;url=${location}`)
-            }
-
-            res.body(location).send()
-            return {
-              finished: true,
-            }
-          }
-
-          if (result.response.headers.has('x-middleware-rewrite')) {
-            const { newUrl, parsedDestination } = prepareDestination({
-              appendParamsToQuery: true,
-              destination: result.response.headers.get('x-middleware-rewrite')!,
-              params: _params,
-              query: parsedUrl.query,
-            })
-
-            if (
-              parsedDestination.protocol &&
-              (parsedDestination.port
-                ? `${parsedDestination.hostname}:${parsedDestination.port}`
-                : parsedDestination.hostname) !== req.headers.host
-            ) {
-              return this.proxyRequest(req, res, parsedDestination)
-            }
-
-            if (this.nextConfig.i18n) {
-              const localePathResult = normalizeLocalePath(
-                newUrl,
-                this.nextConfig.i18n.locales
-              )
-              if (localePathResult.detectedLocale) {
-                parsedDestination.query.__nextLocale =
-                  localePathResult.detectedLocale
-              }
-            }
-
-            addRequestMeta(req, '_nextRewroteUrl', newUrl)
-            addRequestMeta(req, '_nextDidRewrite', newUrl !== req.url)
-
-            return {
-              finished: false,
-              pathname: newUrl,
-              query: parsedDestination.query,
-            }
-          }
-
-          if (result.response.headers.has('x-middleware-refresh')) {
-            res.statusCode = result.response.status
-            for await (const chunk of result.response.body || ([] as any)) {
-              this.streamResponseChunk(res, chunk)
-            }
-            res.send()
-            return {
-              finished: true,
-            }
-          }
-
-          return {
-            finished: false,
-          }
-        },
-      }
-    }
+    const catchAllMiddleware = this.generateCatchAllMiddlewareRoute()
 
     const catchAllRoute: Route = {
       match: route('/:path*'),

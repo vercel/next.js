@@ -1,7 +1,8 @@
 /* eslint-disable no-redeclare */
-import { IncomingMessage } from 'http'
+import type { IncomingMessage } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
+
 import { BaseNextRequest } from './base-http'
 
 export const NEXT_REQUEST_META = Symbol('NextRequestMeta')
