@@ -259,6 +259,7 @@ export default class NextNodeServer extends BaseServer {
       changeOrigin: true,
       ignorePath: true,
       xfwd: true,
+      ws: true,
       proxyTimeout: 30_000, // limit proxying to 30 seconds
     })
 
