@@ -670,8 +670,8 @@ export default class NextNodeServer extends BaseServer {
     }
   }
 
-  protected getStaticRoutes() {
-    this.hasStaticDir
+  protected getStaticRoutes(): Route[] {
+    return this.hasStaticDir
       ? [
           {
             // It's very important to keep this route's param optional.
