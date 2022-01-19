@@ -58,7 +58,7 @@ const Page = () => {
 
       <ImageWithMessage
         id="6"
-        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAAFCAYAAACAcVaiAAAAE0lEQVR42mNk+P+/ngEKGMngAADDdwx3Uz/3AAAAAABJRU5ErkJggg=="
         layout="fill"
         idToCount={idToCount}
         setIdToCount={setIdToCount}
