@@ -75,7 +75,6 @@ export type PageConfig = {
      */
     externalResolver?: true
   }
-  runtime?: 'nodejs' | 'edge'
   env?: Array<string>
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
