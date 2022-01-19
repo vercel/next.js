@@ -30,7 +30,7 @@ export function middleware(request: NextRequest) {
 }
 ```
 
-Or you can simply pass a string containing a valid absolute URL.
+You can also pass directly a string containing a valid absolute URL.
 
 ### Useful Links
 
