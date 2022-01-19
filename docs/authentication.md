@@ -71,7 +71,9 @@ import withSession from '../lib/session'
 import Layout from '../components/Layout'
 
 export const getServerSideProps = withSession(async function ({ req, res }) {
-  if (!req.session.user) {
+  const { user } = req.session
+
+  if (!user) {
     return {
       redirect: {
         destination: '/login',
