@@ -1,5 +1,6 @@
 import { Body, BodyInit, cloneBody, extractContentType } from './body'
 import { NextURL } from '../next-url'
+import { validateURL } from '../utils'
 
 const INTERNALS = Symbol('internal response')
 const REDIRECTS = new Set([301, 302, 303, 307, 308])
@@ -45,7 +46,7 @@ class BaseResponse extends Body implements Response {
       )
     }
 
-    return new Response(String(new URL(url)), {
+    return new Response(validateURL(url), {
       headers: { Location: url },
       status,
     })

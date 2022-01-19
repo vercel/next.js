@@ -1,6 +1,6 @@
 import type { I18NConfig } from '../../config-shared'
 import { NextURL } from '../next-url'
-import { toNodeHeaders } from '../utils'
+import { toNodeHeaders, validateURL } from '../utils'
 import cookie from 'next/dist/compiled/cookie'
 import { CookieSerializeOptions } from '../types'
 
@@ -80,7 +80,7 @@ export class NextResponse extends Response {
       )
     }
 
-    const destination = String(new URL(String(url)))
+    const destination = validateURL(url)
     return new NextResponse(destination, {
       headers: { Location: destination },
       status,
@@ -90,7 +90,7 @@ export class NextResponse extends Response {
   static rewrite(destination: string | NextURL) {
     return new NextResponse(null, {
       headers: {
-        'x-middleware-rewrite': String(new URL(String(destination))),
+        'x-middleware-rewrite': validateURL(destination),
       },
     })
   }
