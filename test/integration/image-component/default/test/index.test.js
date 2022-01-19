@@ -233,11 +233,11 @@ function runTests(mode) {
       )
       await check(
         () => browser.eval(`document.getElementById("msg6").textContent`),
-        'loaded 1 img6 with dimensions 3x5'
+        'loaded 1 img6 with dimensions 1x1'
       )
       await check(
         () => browser.eval(`document.getElementById("msg7").textContent`),
-        'loaded 1 img7 with dimensions 200x200'
+        'loaded 1 img7 with dimensions 400x400'
       )
     } finally {
       if (browser) {
