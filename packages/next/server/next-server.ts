@@ -14,7 +14,7 @@ import {
 } from './request-meta'
 
 import fs from 'fs'
-import { join, relative } from 'path'
+import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
 
 import {
@@ -22,6 +22,8 @@ import {
   BUILD_ID_FILE,
   SERVER_DIRECTORY,
   MIDDLEWARE_MANIFEST,
+  CLIENT_STATIC_FILES_PATH,
+  CLIENT_STATIC_FILES_RUNTIME,
 } from '../shared/lib/constants'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -154,6 +156,69 @@ export default class NextNodeServer extends BaseServer {
             res as NodeNextResponse,
             parsedUrl
           )
+        },
+      },
+    ]
+  }
+
+  protected generateStaticRotes(): Route[] {
+    return this.hasStaticDir
+      ? [
+          {
+            // It's very important to keep this route's param optional.
+            // (but it should support as many params as needed, separated by '/')
+            // Otherwise this will lead to a pretty simple DOS attack.
+            // See more: https://github.com/vercel/next.js/issues/2617
+            match: route('/static/:path*'),
+            name: 'static catchall',
+            fn: async (req, res, params, parsedUrl) => {
+              const p = join(this.dir, 'static', ...params.path)
+              await this.serveStatic(req, res, p, parsedUrl)
+              return {
+                finished: true,
+              }
+            },
+          } as Route,
+        ]
+      : []
+  }
+
+  protected generateFsStaticRoutes(): Route[] {
+    return [
+      {
+        match: route('/_next/static/:path*'),
+        type: 'route',
+        name: '_next/static catchall',
+        fn: async (req, res, params, parsedUrl) => {
+          // make sure to 404 for /_next/static itself
+          if (!params.path) {
+            await this.render404(req, res, parsedUrl)
+            return {
+              finished: true,
+            }
+          }
+
+          if (
+            params.path[0] === CLIENT_STATIC_FILES_RUNTIME ||
+            params.path[0] === 'chunks' ||
+            params.path[0] === 'css' ||
+            params.path[0] === 'image' ||
+            params.path[0] === 'media' ||
+            params.path[0] === this.buildId ||
+            params.path[0] === 'pages' ||
+            params.path[1] === 'pages'
+          ) {
+            this.setImmutableAssetCacheControl(res)
+          }
+          const p = join(
+            this.distDir,
+            CLIENT_STATIC_FILES_PATH,
+            ...(params.path || [])
+          )
+          await this.serveStatic(req, res, p, parsedUrl)
+          return {
+            finished: true,
+          }
         },
       },
     ]
@@ -602,12 +667,96 @@ export default class NextNodeServer extends BaseServer {
     path: string,
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
-    return super.serveStatic(
-      this.normalizeReq(req),
-      this.normalizeRes(res),
-      path,
-      parsedUrl
-    )
+    if (!this.isServeableUrl(path)) {
+      return this.render404(req, res, parsedUrl)
+    }
+
+    if (!(req.method === 'GET' || req.method === 'HEAD')) {
+      res.statusCode = 405
+      res.setHeader('Allow', ['GET', 'HEAD'])
+      return this.renderError(null, req, res, path)
+    }
+
+    try {
+      await this.sendStatic(
+        req as NodeNextRequest,
+        res as NodeNextResponse,
+        path
+      )
+    } catch (error) {
+      if (!isError(error)) throw error
+      const err = error as Error & { code?: string; statusCode?: number }
+      if (err.code === 'ENOENT' || err.statusCode === 404) {
+        this.render404(req, res, parsedUrl)
+      } else if (err.statusCode === 412) {
+        res.statusCode = 412
+        return this.renderError(err, req, res, path)
+      } else {
+        throw err
+      }
+    }
+  }
+
+  protected getStaticRoutes(): Route[] {
+    return this.hasStaticDir
+      ? [
+          {
+            // It's very important to keep this route's param optional.
+            // (but it should support as many params as needed, separated by '/')
+            // Otherwise this will lead to a pretty simple DOS attack.
+            // See more: https://github.com/vercel/next.js/issues/2617
+            match: route('/static/:path*'),
+            name: 'static catchall',
+            fn: async (req, res, params, parsedUrl) => {
+              const p = join(this.dir, 'static', ...params.path)
+              await this.serveStatic(req, res, p, parsedUrl)
+              return {
+                finished: true,
+              }
+            },
+          } as Route,
+        ]
+      : []
+  }
+
+  protected isServeableUrl(untrustedFileUrl: string): boolean {
+    // This method mimics what the version of `send` we use does:
+    // 1. decodeURIComponent:
+    //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L989
+    //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L518-L522
+    // 2. resolve:
+    //    https://github.com/pillarjs/send/blob/de073ed3237ade9ff71c61673a34474b30e5d45b/index.js#L561
+
+    let decodedUntrustedFilePath: string
+    try {
+      // (1) Decode the URL so we have the proper file name
+      decodedUntrustedFilePath = decodeURIComponent(untrustedFileUrl)
+    } catch {
+      return false
+    }
+
+    // (2) Resolve "up paths" to determine real request
+    const untrustedFilePath = resolve(decodedUntrustedFilePath)
+
+    // don't allow null bytes anywhere in the file path
+    if (untrustedFilePath.indexOf('\0') !== -1) {
+      return false
+    }
+
+    // Check if .next/static, static and public are in the path.
+    // If not the path is not available.
+    if (
+      (untrustedFilePath.startsWith(join(this.distDir, 'static') + sep) ||
+        untrustedFilePath.startsWith(join(this.dir, 'static') + sep) ||
+        untrustedFilePath.startsWith(join(this.dir, 'public') + sep)) === false
+    ) {
+      return false
+    }
+
+    // Check against the real filesystem paths
+    const filesystemUrls = this.getFilesystemPaths()
+    const resolved = relative(this.dir, untrustedFilePath)
+    return filesystemUrls.has(resolved)
   }
 
   protected getMiddlewareInfo(params: {

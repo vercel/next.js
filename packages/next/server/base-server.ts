@@ -21,14 +21,12 @@ import type { PreviewData } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 
-import { join, relative, resolve, sep } from 'path'
+import { join, resolve } from 'path'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus, modifyRouteRegex } from '../lib/load-custom-routes'
 import {
   CLIENT_PUBLIC_FILES_PATH,
-  CLIENT_STATIC_FILES_PATH,
-  CLIENT_STATIC_FILES_RUNTIME,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
@@ -189,6 +187,8 @@ export default abstract class Server {
   protected abstract getBuildId(): string
   protected abstract generatePublicRoutes(): Route[]
   protected abstract generateImageRoutes(): Route[]
+  protected abstract generateStaticRotes(): Route[]
+  protected abstract generateFsStaticRoutes(): Route[]
   protected abstract generateCatchAllMiddlewareRoute(): Route | undefined
   protected abstract getFilesystemPaths(): Set<string>
   protected abstract getMiddleware(): {
@@ -224,12 +224,6 @@ export default abstract class Server {
       poweredByHeader: boolean
       options?: PayloadOptions
     }
-  ): Promise<void>
-
-  protected abstract sendStatic(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    path: string
   ): Promise<void>
 
   protected abstract runApi(
@@ -699,64 +693,10 @@ export default abstract class Server {
   } {
     const publicRoutes = this.generatePublicRoutes()
     const imageRoutes = this.generateImageRoutes()
-
-    const staticFilesRoute = this.hasStaticDir
-      ? [
-          {
-            // It's very important to keep this route's param optional.
-            // (but it should support as many params as needed, separated by '/')
-            // Otherwise this will lead to a pretty simple DOS attack.
-            // See more: https://github.com/vercel/next.js/issues/2617
-            match: route('/static/:path*'),
-            name: 'static catchall',
-            fn: async (req, res, params, parsedUrl) => {
-              const p = join(this.dir, 'static', ...params.path)
-              await this.serveStatic(req, res, p, parsedUrl)
-              return {
-                finished: true,
-              }
-            },
-          } as Route,
-        ]
-      : []
+    const staticFilesRoutes = this.generateStaticRotes()
 
     const fsRoutes: Route[] = [
-      {
-        match: route('/_next/static/:path*'),
-        type: 'route',
-        name: '_next/static catchall',
-        fn: async (req, res, params, parsedUrl) => {
-          // make sure to 404 for /_next/static itself
-          if (!params.path) {
-            await this.render404(req, res, parsedUrl)
-            return {
-              finished: true,
-            }
-          }
-
-          if (
-            params.path[0] === CLIENT_STATIC_FILES_RUNTIME ||
-            params.path[0] === 'chunks' ||
-            params.path[0] === 'css' ||
-            params.path[0] === 'image' ||
-            params.path[0] === 'media' ||
-            params.path[0] === this.buildId ||
-            params.path[0] === 'pages' ||
-            params.path[1] === 'pages'
-          ) {
-            this.setImmutableAssetCacheControl(res)
-          }
-          const p = join(
-            this.distDir,
-            CLIENT_STATIC_FILES_PATH,
-            ...(params.path || [])
-          )
-          await this.serveStatic(req, res, p, parsedUrl)
-          return {
-            finished: true,
-          }
-        },
-      },
+      ...this.generateFsStaticRoutes(),
       {
         match: route('/_next/data/:path*'),
         type: 'route',
@@ -845,7 +785,7 @@ export default abstract class Server {
         },
       },
       ...publicRoutes,
-      ...staticFilesRoute,
+      ...staticFilesRoutes,
     ]
 
     const restrictedRedirectPaths = ['/_next'].map((p) =>
@@ -2046,78 +1986,6 @@ export default abstract class Server {
 
     res.statusCode = 404
     return this.renderError(null, req, res, pathname!, query, setHeaders)
-  }
-
-  public async serveStatic(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    path: string,
-    parsedUrl?: UrlWithParsedQuery
-  ): Promise<void> {
-    if (!this.isServeableUrl(path)) {
-      return this.render404(req, res, parsedUrl)
-    }
-
-    if (!(req.method === 'GET' || req.method === 'HEAD')) {
-      res.statusCode = 405
-      res.setHeader('Allow', ['GET', 'HEAD'])
-      return this.renderError(null, req, res, path)
-    }
-
-    try {
-      await this.sendStatic(req, res, path)
-    } catch (error) {
-      if (!isError(error)) throw error
-      const err = error as Error & { code?: string; statusCode?: number }
-      if (err.code === 'ENOENT' || err.statusCode === 404) {
-        this.render404(req, res, parsedUrl)
-      } else if (err.statusCode === 412) {
-        res.statusCode = 412
-        return this.renderError(err, req, res, path)
-      } else {
-        throw err
-      }
-    }
-  }
-
-  protected isServeableUrl(untrustedFileUrl: string): boolean {
-    // This method mimics what the version of `send` we use does:
-    // 1. decodeURIComponent:
-    //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L989
-    //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L518-L522
-    // 2. resolve:
-    //    https://github.com/pillarjs/send/blob/de073ed3237ade9ff71c61673a34474b30e5d45b/index.js#L561
-
-    let decodedUntrustedFilePath: string
-    try {
-      // (1) Decode the URL so we have the proper file name
-      decodedUntrustedFilePath = decodeURIComponent(untrustedFileUrl)
-    } catch {
-      return false
-    }
-
-    // (2) Resolve "up paths" to determine real request
-    const untrustedFilePath = resolve(decodedUntrustedFilePath)
-
-    // don't allow null bytes anywhere in the file path
-    if (untrustedFilePath.indexOf('\0') !== -1) {
-      return false
-    }
-
-    // Check if .next/static, static and public are in the path.
-    // If not the path is not available.
-    if (
-      (untrustedFilePath.startsWith(join(this.distDir, 'static') + sep) ||
-        untrustedFilePath.startsWith(join(this.dir, 'static') + sep) ||
-        untrustedFilePath.startsWith(join(this.dir, 'public') + sep)) === false
-    ) {
-      return false
-    }
-
-    // Check against the real filesystem paths
-    const filesystemUrls = this.getFilesystemPaths()
-    const resolved = relative(this.dir, untrustedFilePath)
-    return filesystemUrls.has(resolved)
   }
 
   protected get _isLikeServerless(): boolean {
