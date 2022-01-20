@@ -3,7 +3,7 @@ export async function middleware(request) {
 
   if (url.searchParams.get('foo') === 'bar') {
     url.pathname = '/redirects/new-home'
-    url.searchParams.delete('foo')
+    url.searchParams.set('foo', '')
     return Response.redirect(url)
   }
 

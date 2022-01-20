@@ -42,7 +42,7 @@ import { serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils'
 import { RenderOpts, renderToHTML } from './render'
-import { ParsedUrl } from '../shared/lib/router/utils/parse-url'
+import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
 
 import BaseServer, {
@@ -62,6 +62,7 @@ import { prepareDestination } from '../shared/lib/router/utils/prepare-destinati
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getMiddlewareRegex, getRouteMatcher } from '../shared/lib/router/utils'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
+import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 
 export * from './base-server'
 
@@ -814,7 +815,28 @@ export default class NextNodeServer extends BaseServer {
         if (result.response.headers.has('Location')) {
           const value = result.response.headers.get('Location')!
           const rel = relativizeURL(value, initUrl)
-          result.response.headers.set('Location', rel)
+          const parsedRel = parseUrl(rel)
+          const relQuery = urlQueryToSearchParams(parsedRel.query)
+          const newQuery = urlQueryToSearchParams(parsedUrl.query)
+
+          for (const key of relQuery.keys()) {
+            newQuery.delete(key)
+            for (const param of relQuery.getAll(key)) {
+              newQuery.append(key, param)
+            }
+          }
+
+          parsedRel.search = newQuery.toString()
+          const location = formatUrl(parsedRel)
+
+          if (location !== rel) {
+            Log.warn(
+              `Merging query params for response, from ${rel} to ${location}`,
+              JSON.stringify({ initUrl, query: parsedUrl.query })
+            )
+          }
+
+          result.response.headers.set('Location', location)
         }
 
         if (
