@@ -94,7 +94,7 @@ const packageMap = {
 
 let activePackage = packageMap[process.platform]?.[process.arch]?.find(
   (item) => {
-    return typeof item.check === 'undefined' ? true : item.check()
+    return typeof item.check === 'undefined' || item.check()
   }
 )
 
