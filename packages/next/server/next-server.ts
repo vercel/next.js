@@ -821,6 +821,12 @@ export default class NextNodeServer extends BaseServer {
 
           for (const key of relQuery.keys()) {
             newQuery.delete(key)
+            const allValues = relQuery.getAll(key)
+
+            if (allValues.length === 1 && allValues[0] === '') {
+              continue
+            }
+
             for (const param of relQuery.getAll(key)) {
               newQuery.append(key, param)
             }

@@ -12,9 +12,7 @@ describe('middleware redirects merge the query params', () => {
           import { NextResponse } from 'next/server';
 
           export default function middleware({ nextUrl }) {
-            for (const key of nextUrl.searchParams.keys()) {
-              nextUrl.searchParams.delete(key);
-            }
+            nextUrl.searchParams.delete('foo');
             nextUrl.searchParams.set('overridden', 'middleware');
             nextUrl.searchParams.set('getsEmpty', '');
             return NextResponse.redirect(nextUrl);
@@ -40,7 +38,6 @@ describe('middleware redirects merge the query params', () => {
     expect(query).toEqual({
       foo: 'bar',
       overridden: 'middleware',
-      getsEmpty: '',
     })
   })
 })

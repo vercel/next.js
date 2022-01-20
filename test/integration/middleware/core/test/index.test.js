@@ -312,7 +312,7 @@ function redirectTests(locale = '') {
         await browser.eval(
           `window.location.href.replace(window.location.origin, '')`
         )
-      ).toBe(`${locale}/redirects/new-home?foo=`)
+      ).toBe(`${locale}/redirects/new-home`)
     } finally {
       await browser.close()
     }
