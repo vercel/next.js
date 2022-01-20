@@ -3,7 +3,7 @@ import 'reflect-metadata'
 import { container, singleton } from 'tsyringe'
 
 @singleton()
-export class HelloService {
+class HelloService {
   getHello() {
     return 'Hello, world!'
   }

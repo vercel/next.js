@@ -15,6 +15,10 @@ describe('emitDecoratorMetadata SWC option', () => {
         ),
         pages: new FileRef(join(__dirname, 'emit-decorator-metadata/pages')),
       },
+      dependencies: {
+        'reflect-metadata': '0.1.13',
+        tsyringe: '4.6.0',
+      },
     })
   })
 
