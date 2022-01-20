@@ -78,6 +78,7 @@ const Page = () => {
       <ImageWithMessage
         id="8"
         src={clicked ? '/foo/test-rect.jpg' : '/wide.png'}
+        layout={clicked ? 'fixed' : 'intrinsic'}
         width="500"
         height="500"
         idToCount={idToCount}

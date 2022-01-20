@@ -245,10 +245,24 @@ function runTests(mode) {
         () => browser.eval(`document.getElementById("msg8").textContent`),
         'loaded 1 img8 with dimensions 640x373'
       )
+      await check(
+        () =>
+          browser.eval(
+            `document.getElementById("img8").getAttribute("data-nimg")`
+          ),
+        'intrinsic'
+      )
       await browser.eval('document.getElementById("toggle").click()')
       await check(
         () => browser.eval(`document.getElementById("msg8").textContent`),
         'loaded 2 img8 with dimensions 400x300'
+      )
+      await check(
+        () =>
+          browser.eval(
+            `document.getElementById("img8").getAttribute("data-nimg")`
+          ),
+        'fixed'
       )
     } finally {
       if (browser) {
