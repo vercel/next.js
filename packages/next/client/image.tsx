@@ -381,7 +381,7 @@ export default function Image({
     unoptimized = true
     isLazy = false
   }
-  if (typeof window !== 'undefined' && ref?.current?.complete) {
+  if (typeof window !== 'undefined' && ref.current?.complete) {
     isLazy = false
   }
 
