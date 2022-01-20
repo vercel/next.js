@@ -62,7 +62,10 @@ import { prepareDestination } from '../shared/lib/router/utils/prepare-destinati
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getMiddlewareRegex, getRouteMatcher } from '../shared/lib/router/utils'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
-import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
+import {
+  searchParamsToUrlQuery,
+  urlQueryToSearchParams,
+} from '../shared/lib/router/utils/querystring'
 
 export * from './base-server'
 
@@ -832,7 +835,10 @@ export default class NextNodeServer extends BaseServer {
             }
           }
 
-          parsedRel.search = newQuery.toString()
+          const queryAsString = `${newQuery}`
+          parsedRel.query = searchParamsToUrlQuery(newQuery)
+          parsedRel.search = queryAsString ? `?${queryAsString}` : ''
+
           const location = formatUrl(parsedRel)
 
           if (location !== rel) {
