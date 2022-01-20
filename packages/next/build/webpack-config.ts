@@ -1400,6 +1400,7 @@ export default async function getBaseWebpackConfig(
           `,
             }
           : {}),
+        'typeof window': JSON.stringify(isServer ? 'undefined' : 'object'),
       }),
       !isServer &&
         new ReactLoadablePlugin({
