@@ -251,7 +251,7 @@ export async function ncc_jest_worker(task, opts) {
             )
           )
       )
-      .ncc({ packageName: 'jest-worker', externals })
+      .ncc({ externals })
       .target('compiled/jest-worker/out')
 
     await fs.move(
@@ -269,13 +269,13 @@ export async function ncc_react_refresh_utils(task, opts) {
   await fs.remove(join(__dirname, 'compiled/react-refresh'))
   await fs.copy(
     dirname(require.resolve('react-refresh/package.json')),
-    join(__dirname, 'compiled/react-refresh')
+    join(__dirname, 'dist/compiled/react-refresh')
   )
 
   const srcDir = dirname(
     require.resolve('@next/react-refresh-utils/package.json')
   )
-  const destDir = join(__dirname, 'compiled/@next/react-refresh-utils')
+  const destDir = join(__dirname, 'dist/compiled/@next/react-refresh-utils')
   await fs.remove(destDir)
   await fs.ensureDir(destDir)
 
@@ -1687,7 +1687,6 @@ export async function ncc(task, opts) {
   await task.serial(
     [
       'ncc_next__react_dev_overlay',
-      'ncc_react_refresh_utils',
       'copy_regenerator_runtime',
       'copy_babel_runtime',
       'copy_constants_browserify',
@@ -1720,6 +1719,7 @@ export async function compile(task, opts) {
     ],
     opts
   )
+  await task.serial(['ncc_react_refresh_utils'])
 }
 
 export async function bin(task, opts) {
