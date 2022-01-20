@@ -302,7 +302,7 @@ function redirectTests(locale = '') {
     expect($('.title').text()).toBe('Welcome to a new page')
   })
 
-  it(`${locale} should redirect with the original url param empty`, async () => {
+  it(`${locale} should redirect cleanly with the original url param`, async () => {
     const browser = await webdriver(
       context.appPort,
       `${locale}/redirects/blank-page?foo=bar`
