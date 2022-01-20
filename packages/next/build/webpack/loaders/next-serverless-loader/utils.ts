@@ -25,6 +25,7 @@ import cookie from 'next/dist/compiled/cookie'
 import { TEMPORARY_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 import { NextConfig } from '../../../../server/config'
 import { addRequestMeta } from '../../../../server/request-meta'
+import { BaseNextRequest } from '../../../../server/base-http'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -85,7 +86,10 @@ export function getUtils({
     defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
   }
 
-  function handleRewrites(req: IncomingMessage, parsedUrl: UrlWithParsedQuery) {
+  function handleRewrites(
+    req: BaseNextRequest | IncomingMessage,
+    parsedUrl: UrlWithParsedQuery
+  ) {
     for (const rewrite of rewrites) {
       const matcher = getCustomRouteMatcher(rewrite.source)
       let params = matcher(parsedUrl.pathname)
@@ -150,7 +154,10 @@ export function getUtils({
     return parsedUrl
   }
 
-  function handleBasePath(req: IncomingMessage, parsedUrl: UrlWithParsedQuery) {
+  function handleBasePath(
+    req: BaseNextRequest | IncomingMessage,
+    parsedUrl: UrlWithParsedQuery
+  ) {
     // always strip the basePath if configured since it is required
     req.url = req.url!.replace(new RegExp(`^${basePath}`), '') || '/'
     parsedUrl.pathname =
@@ -158,7 +165,7 @@ export function getUtils({
   }
 
   function getParamsFromRouteMatches(
-    req: IncomingMessage,
+    req: BaseNextRequest | IncomingMessage,
     renderOpts?: any,
     detectedLocale?: string
   ) {
@@ -269,7 +276,10 @@ export function getUtils({
     return pathname
   }
 
-  function normalizeVercelUrl(req: IncomingMessage, trustQuery: boolean) {
+  function normalizeVercelUrl(
+    req: BaseNextRequest | IncomingMessage,
+    trustQuery: boolean
+  ) {
     // make sure to normalize req.url on Vercel to strip dynamic params
     // from the query which are added during routing
     if (pageIsDynamic && trustQuery && defaultRouteRegex) {
@@ -374,7 +384,7 @@ export function getUtils({
     if (detectedDomain) {
       defaultLocale = detectedDomain.defaultLocale
       detectedLocale = defaultLocale
-      addRequestMeta(req, '__nextIsLocaleDomain', true)
+      addRequestMeta(req as any, '__nextIsLocaleDomain', true)
     }
 
     // if not domain specific locale use accept-language preferred
@@ -394,7 +404,7 @@ export function getUtils({
         ...parsedUrl,
         pathname: localePathResult.pathname,
       })
-      addRequestMeta(req, '__nextStrippedLocale', true)
+      addRequestMeta(req as any, '__nextStrippedLocale', true)
       parsedUrl.pathname = localePathResult.pathname
     }
 

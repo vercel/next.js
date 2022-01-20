@@ -15,7 +15,10 @@ import { NextConfigComplete } from '../server/config-shared'
 import { isCustomErrorPage, isFlightPage, isReservedPage } from './utils'
 import { ssrEntries } from './webpack/plugins/middleware-plugin'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
-import { MIDDLEWARE_SSR_RUNTIME_WEBPACK } from '../shared/lib/constants'
+import {
+  MIDDLEWARE_RUNTIME_WEBPACK,
+  MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+} from '../shared/lib/constants'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 export type PagesMapping = {
@@ -154,6 +157,7 @@ export function createEntrypoints(
     const isFlight = isFlightPage(config, absolutePagePath)
 
     const webServerRuntime = !!config.experimental.concurrentFeatures
+    const hasServerComponents = !!config.experimental.serverComponents
 
     if (page.match(MIDDLEWARE_ROUTE)) {
       const loaderOpts: MiddlewareLoaderOptions = {
@@ -176,6 +180,7 @@ export function createEntrypoints(
           absolute500Path: pages['/500'] || '',
           absolutePagePath,
           isServerComponent: isFlight,
+          serverComponents: hasServerComponents,
           ...defaultServerlessOptions,
         } as any)}!`,
         isServer: false,
@@ -291,6 +296,8 @@ export function finalizeEntrypoint({
         name: ['_ENTRIES', `middleware_[name]`],
         type: 'assign',
       },
+      runtime: MIDDLEWARE_RUNTIME_WEBPACK,
+      asyncChunks: false,
       ...entry,
     }
     return middlewareEntry

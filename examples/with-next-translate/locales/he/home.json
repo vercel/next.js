@@ -1,10 +1,7 @@
 {
   "arabic": "עֲרָבִית",
   "catalan": "קטלאנית",
-  "change-arabic": "שנה שפה לערבית",
-  "change-catalan": "שנה שפה לקטלונית",
-  "change-english": "שנה שפה לאנגלית",
-  "change-hebrew": "שנה את השפה לעברית",
+  "change-to": "שנה את השפה ל",
   "description": "התחל על ידי עריכה",
   "english": "אנגלית",
   "hebrew": "עִברִית",
