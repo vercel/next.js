@@ -5,7 +5,7 @@
 // - chalk.bold.cyan('message')
 // - chalk.hex('#fff').underline('hello')
 const log = console.log
-const chalk = new Proxy(log, {
+const chalk: any = new Proxy(log, {
   get(_, prop: string) {
     if (
       ['hex', 'rgb', 'ansi256', 'bgHex', 'bgRgb', 'bgAnsi256'].includes(prop)
@@ -14,6 +14,6 @@ const chalk = new Proxy(log, {
     }
     return chalk
   },
-}) as typeof import('next/dist/compiled/chalk')
+})
 
 export default chalk
