@@ -28,6 +28,12 @@ declare module 'next/dist/compiled/node-fetch' {
   export * from 'node-fetch'
 }
 
+declare module 'next/dist/compiled/tar' {
+  import m from 'tar'
+  export default m
+  export * from 'tar'
+}
+
 declare module 'next/dist/compiled/jest-worker' {
   export * from 'jest-worker'
 }

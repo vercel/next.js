@@ -79,15 +79,12 @@ const cwd = process.cwd()
       )
     }
 
-    // Update optional dependencies versions
+    // Add postinstall script for downloading correct
+    // swc binary before publish
     let nextPkg = JSON.parse(
       await readFile(path.join(cwd, 'packages/next/package.json'))
     )
-    for (let platform of platforms) {
-      let optionalDependencies = nextPkg.optionalDependencies || {}
-      optionalDependencies['@next/swc-' + platform] = version
-      nextPkg.optionalDependencies = optionalDependencies
-    }
+    nextPkg.scripts.postinstall = 'node install-swc.js'
     await writeFile(
       path.join(path.join(cwd, 'packages/next/package.json')),
       JSON.stringify(nextPkg, null, 2)

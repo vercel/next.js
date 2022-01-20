@@ -317,6 +317,15 @@ export async function ncc_browserslist(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+externals['tar'] = 'next/dist/compiled/tar'
+export async function ncc_tar(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('tar')))
+    .ncc({ packageName: 'tar', externals })
+    .target('compiled/tar')
+}
+
+// eslint-disable-next-line camelcase
 externals['@napi-rs/triples'] = 'next/dist/compiled/@napi-rs/triples'
 export async function ncc_napirs_triples(task, opts) {
   await task
@@ -1579,6 +1588,7 @@ export async function ncc(task, opts) {
         'ncc_chalk',
         'ncc_browserslist',
         'ncc_napirs_triples',
+        'ncc_tar',
         'ncc_etag',
         'ncc_p_limit',
         'ncc_raw_body',

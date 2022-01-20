@@ -43,3 +43,4 @@ test-timings.json
 
 # Cache
 *.tsbuildinfo
+packages/next/native
