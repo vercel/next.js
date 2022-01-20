@@ -193,7 +193,9 @@ function runTests(mode) {
     try {
       browser = await webdriver(appPort, '/on-loading-complete')
 
-      await browser.eval(`document.getElementById("footer").scrollIntoView()`)
+      await browser.eval(
+        `document.getElementById("footer").scrollIntoView({behavior: "smooth"})`
+      )
 
       await check(
         () => browser.eval(`document.getElementById("img1").src`),
@@ -238,6 +240,15 @@ function runTests(mode) {
       await check(
         () => browser.eval(`document.getElementById("msg7").textContent`),
         'loaded 1 img7 with dimensions 400x400'
+      )
+      await check(
+        () => browser.eval(`document.getElementById("msg8").textContent`),
+        'loaded 1 img8 with dimensions 640x373'
+      )
+      await browser.eval('document.getElementById("toggle").click()')
+      await check(
+        () => browser.eval(`document.getElementById("msg8").textContent`),
+        'loaded 2 img8 with dimensions 400x300'
       )
     } finally {
       if (browser) {

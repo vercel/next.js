@@ -4,6 +4,7 @@ import Image from 'next/image'
 const Page = () => {
   // Hoisted state to count each image load callback
   const [idToCount, setIdToCount] = useState({})
+  const [clicked, setClicked] = useState(false)
 
   return (
     <div>
@@ -68,11 +69,23 @@ const Page = () => {
         id="7"
         src="/test.bmp"
         loading="eager"
-        width={400}
-        height={400}
+        width="400"
+        height="400"
         idToCount={idToCount}
         setIdToCount={setIdToCount}
       />
+
+      <ImageWithMessage
+        id="8"
+        src={clicked ? '/foo/test-rect.jpg' : '/wide.png'}
+        width="500"
+        height="500"
+        idToCount={idToCount}
+        setIdToCount={setIdToCount}
+      />
+      <button id="toggle" onClick={() => setClicked(!clicked)}>
+        Toggle
+      </button>
       <div id="footer" />
     </div>
   )
