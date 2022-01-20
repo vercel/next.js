@@ -34,6 +34,7 @@ fn amp_attributes_fixture(input: PathBuf) {
 fn next_dynamic_fixture(input: PathBuf) {
     let output_dev = input.parent().unwrap().join("output-dev.js");
     let output_prod = input.parent().unwrap().join("output-prod.js");
+    let output_server = input.parent().unwrap().join("output-server.js");
     test_fixture(
         syntax(),
         &|_tr| {
@@ -59,6 +60,19 @@ fn next_dynamic_fixture(input: PathBuf) {
         },
         &input,
         &output_prod,
+    );
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            next_dynamic(
+                false,
+                true,
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                Some("/some-project/src".into()),
+            )
+        },
+        &input,
+        &output_server,
     );
 }
 

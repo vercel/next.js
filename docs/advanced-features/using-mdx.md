@@ -118,7 +118,7 @@ Checkout my React component:
 
 <MyComponent/>
 
-export default = ({ children }) => <MyLayoutComponent meta={meta}>{children}</MyLayoutComponent>
+export default ({ children }) => <MyLayoutComponent meta={meta}>{children}</MyLayoutComponent>
 ```
 
 ### Custom Elements
