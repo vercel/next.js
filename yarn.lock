@@ -20572,6 +20572,7 @@ webpack-bundle-analyzer@4.3.0:
     source-map "~0.6.1"
 
 "webpack-sources3@npm:webpack-sources@3.2.3", webpack-sources@^3.2.3:
+  name webpack-sources3
   version "3.2.3"
   resolved "https://registry.yarnpkg.com/webpack-sources/-/webpack-sources-3.2.3.tgz#2d4daab8451fd4b240cc27055ff6a0c2ccea0cde"
   integrity sha512-/DyMEOrDgLKKIG0fmvtz+4dUX/3Ghozwgm6iPp8KRhvn+eQf9+Q7GWxVNMk3+uCPWfdXYC4ExGBckIXdFEfH1w==
@@ -20607,7 +20608,7 @@ webpack-bundle-analyzer@4.3.0:
 
 webpack5@webpack/webpack#feature/css-exports-in-node:
   version "5.66.0"
-  resolved "https://codeload.github.com/webpack/webpack/tar.gz/318f16e63f7d51693a1c24939decaf6b49a6549d"
+  resolved "https://codeload.github.com/webpack/webpack/tar.gz/181a2f032ac57d7efda67c2b2fd0dccd14790588"
   dependencies:
     "@types/eslint-scope" "^3.7.0"
     "@types/estree" "^0.0.50"
