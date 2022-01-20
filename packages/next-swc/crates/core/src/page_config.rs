@@ -82,15 +82,7 @@ impl Fold for PageConfig {
                     }
 
                     if is_config {
-                        let init = decl.init.as_ref().map(|expr| {
-                            if let Expr::TsAs(ts_as) = &**expr {
-                                &ts_as.expr
-                            } else {
-                                expr
-                            }
-                        });
-
-                        if let Some(expr) = init {
+                        if let Some(expr) = &decl.init {
                             if let Expr::Object(obj) = &**expr {
                                 for prop in &obj.props {
                                     if let PropOrSpread::Prop(prop) = prop {

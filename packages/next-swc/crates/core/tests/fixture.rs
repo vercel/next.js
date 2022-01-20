@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use swc_common::{chain, comments::SingleThreadedComments, FileName, Mark, Span, DUMMY_SP};
 use swc_ecma_transforms_testing::{test, test_fixture};
 use swc_ecmascript::{
-    parser::{TsConfig, EsConfig, Syntax},
+    parser::{EsConfig, Syntax},
     transforms::{react::jsx, resolver},
 };
 use testing::fixture;
@@ -20,13 +20,6 @@ use testing::fixture;
 fn syntax() -> Syntax {
     Syntax::Es(EsConfig {
         jsx: true,
-        ..Default::default()
-    })
-}
-
-fn syntax_ts() -> Syntax {
-    Syntax::Typescript(TsConfig {
-        tsx: true,
         ..Default::default()
     })
 }
@@ -150,10 +143,10 @@ impl swc_ecmascript::visit::VisitMut for DropSpan {
     }
 }
 
-#[fixture("tests/fixture/page-config/**/input.tsx")]
+#[fixture("tests/fixture/page-config/**/input.js")]
 fn page_config_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    test_fixture(syntax_ts(), &|_tr| page_config_test(), &input, &output);
+    test_fixture(syntax(), &|_tr| page_config_test(), &input, &output);
 }
 
 #[fixture("tests/fixture/remove-console/**/input.js")]
