@@ -1,15 +1,17 @@
 import type { Params, Route } from './router'
-import { CacheFs, execOnce } from '../shared/lib/utils'
+import type { CacheFs } from '../shared/lib/utils'
+import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
+import type RenderResult from './render-result'
+import type { FetchEventResult } from './web/types'
+import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
+
+import { execOnce } from '../shared/lib/utils'
 import {
   addRequestMeta,
   getRequestMeta,
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
 } from './request-meta'
-import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
-import type RenderResult from './render-result'
-import type { FetchEventResult } from './web/types'
-import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
@@ -46,6 +48,7 @@ import { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
 
 import BaseServer, {
+  Options,
   FindComponentsResult,
   prepareServerlessUrl,
   stringifyQuery,
@@ -62,6 +65,7 @@ import { prepareDestination } from '../shared/lib/router/utils/prepare-destinati
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getMiddlewareRegex, getRouteMatcher } from '../shared/lib/router/utils'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
+import { loadEnvConfig } from '@next/env'
 
 export * from './base-server'
 
@@ -80,10 +84,33 @@ export interface NodeRequestHandler {
 }
 
 export default class NextNodeServer extends BaseServer {
+  constructor(options: Options) {
+    super(options)
+    /**
+     * This sets environment variable to be used at the time of SSR by head.tsx.
+     * Using this from process.env allows targeting both serverless and SSR by calling
+     * `process.env.__NEXT_OPTIMIZE_IMAGES`.
+     * TODO(atcastle@): Remove this when experimental.optimizeImages are being cleaned up.
+     */
+    if (this.renderOpts.optimizeFonts) {
+      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+    }
+    if (this.renderOpts.optimizeImages) {
+      process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
+    }
+    if (this.renderOpts.optimizeCss) {
+      process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
+    }
+  }
+
   private compression =
     this.nextConfig.compress && this.nextConfig.target === 'server'
       ? (compression() as ExpressMiddleware)
       : undefined
+
+  protected loadEnvConfig({ dev }: { dev: boolean }) {
+    loadEnvConfig(this.dir, dev, Log)
+  }
 
   protected getHasStaticDir(): boolean {
     return fs.existsSync(join(this.dir, 'static'))
