@@ -198,19 +198,19 @@ function runTests(mode) {
       )
 
       await check(
-        () => browser.eval(`document.getElementById("img1").src`),
+        () => browser.eval(`document.getElementById("img1").currentSrc`),
         /test(.*)jpg/
       )
       await check(
-        () => browser.eval(`document.getElementById("img2").src`),
+        () => browser.eval(`document.getElementById("img2").currentSrc`),
         /test(.*).png/
       )
       await check(
-        () => browser.eval(`document.getElementById("img3").src`),
+        () => browser.eval(`document.getElementById("img3").currentSrc`),
         /test(.*)svg/
       )
       await check(
-        () => browser.eval(`document.getElementById("img4").src`),
+        () => browser.eval(`document.getElementById("img4").currentSrc`),
         /test(.*)ico/
       )
       await check(
@@ -252,6 +252,10 @@ function runTests(mode) {
           ),
         'intrinsic'
       )
+      await check(
+        () => browser.eval(`document.getElementById("img8").currentSrc`),
+        /wide.png/
+      )
       await browser.eval('document.getElementById("toggle").click()')
       await check(
         () => browser.eval(`document.getElementById("msg8").textContent`),
@@ -263,6 +267,10 @@ function runTests(mode) {
             `document.getElementById("img8").getAttribute("data-nimg")`
           ),
         'fixed'
+      )
+      await check(
+        () => browser.eval(`document.getElementById("img8").currentSrc`),
+        /test-rect.jpg/
       )
     } finally {
       if (browser) {
