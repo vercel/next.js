@@ -45,7 +45,7 @@ import {
 import * as envConfig from '../shared/lib/runtime-config'
 import { DecodeError, normalizeRepeatedSlashes } from '../shared/lib/utils'
 import { setLazyProp, getCookieParser, tryGetPreviewData } from './api-utils'
-import { isTargetLikeServerless } from './config'
+import { isTargetLikeServerless } from './utils'
 import pathMatch from '../shared/lib/router/utils/path-match'
 import Router, { replaceBasePath, route } from './router'
 import {
@@ -57,7 +57,6 @@ import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage, isBot } from './utils'
 import RenderResult from './render-result'
-import { loadEnvConfig } from '@next/env'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { denormalizePagePath } from './denormalize-page-path'
@@ -280,6 +279,8 @@ export default abstract class Server {
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null>
 
+  protected abstract loadEnvConfig(params: { dev: boolean }): void
+
   public constructor({
     dir = '.',
     quiet = false,
@@ -292,7 +293,7 @@ export default abstract class Server {
   }: Options) {
     this.dir = resolve(dir)
     this.quiet = quiet
-    loadEnvConfig(this.dir, dev, Log)
+    this.loadEnvConfig({ dev })
 
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
@@ -382,22 +383,6 @@ export default abstract class Server {
       flushToDisk: !minimalMode && this.nextConfig.experimental.isrFlushToDisk,
     })
     this.responseCache = new ResponseCache(this.incrementalCache)
-
-    /**
-     * This sets environment variable to be used at the time of SSR by head.tsx.
-     * Using this from process.env allows targeting both serverless and SSR by calling
-     * `process.env.__NEXT_OPTIMIZE_IMAGES`.
-     * TODO(atcastle@): Remove this when experimental.optimizeImages are being cleaned up.
-     */
-    if (this.renderOpts.optimizeFonts) {
-      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
-    }
-    if (this.renderOpts.optimizeImages) {
-      process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
-    }
-    if (this.renderOpts.optimizeCss) {
-      process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
-    }
   }
 
   public logError(err: Error): void {

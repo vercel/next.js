@@ -656,12 +656,6 @@ export default async function loadConfig(
   return completeConfig
 }
 
-export function isTargetLikeServerless(target: string) {
-  const isServerless = target === 'serverless'
-  const isServerlessTrace = target === 'experimental-serverless-trace'
-  return isServerless || isServerlessTrace
-}
-
 export function setHttpAgentOptions(
   options: NextConfigComplete['httpAgentOptions']
 ) {

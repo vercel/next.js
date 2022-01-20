@@ -3,6 +3,8 @@ import { renderToHTML } from '../../../../server/web/render'
 import RenderResult from '../../../../server/render-result'
 import { toNodeHeaders } from '../../../../server/web/utils'
 
+import Server from '../../../../server/base-server'
+
 const createHeaders = (args?: any) => ({
   ...args,
   'x-middleware-ssr': '1',
@@ -39,6 +41,8 @@ export function getRender({
   restRenderOpts: any
 }) {
   return async function render(request: NextRequest) {
+    console.log(Server)
+
     const { nextUrl: url, cookies, headers } = request
     const { pathname, searchParams } = url
 
