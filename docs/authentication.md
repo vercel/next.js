@@ -48,7 +48,7 @@ const Profile = () => {
 export default Profile
 ```
 
-You can view this [example in action](https://iron-session-example.vercel.app/). Check out the [`with-iron-session`](https://github.com/vercel/next.js/tree/canary/examples/with-iron-session) example to see how it works.
+You can view this [example in action](https://next-with-iron-session.vercel.app/). Check out the [`with-iron-session`](https://github.com/vercel/next.js/tree/canary/examples/with-iron-session) example to see how it works.
 
 ### Authenticating Server-Rendered Pages
 
@@ -62,7 +62,7 @@ export async function getServerSideProps(context) {
 }
 ```
 
-Let's transform the profile example to use [server-side rendering](/docs/basic-features/pages#server-side-rendering). If there's a session, return `user` as a prop to the `Profile` component in the page. Notice there is not a loading skeleton in [this example](https://next-with-iron-session.vercel.app/).
+Let's transform the profile example to use [server-side rendering](/docs/basic-features/pages#server-side-rendering). If there's a session, return `user` as a prop to the `Profile` component in the page. Notice there is not a loading skeleton in [this example](https://iron-session-example.vercel.app/).
 
 ```jsx
 // pages/profile.js
