@@ -1109,6 +1109,7 @@ export default async function getBaseWebpackConfig(
       // we must set publicPath to an empty value to override the default of
       // auto which doesn't work in IE11
       publicPath: `${config.assetPrefix || ''}/_next/`,
+      uniqueName: '_N_E',
       path:
         isServer && !dev && !webServerRuntime
           ? path.join(outputPath, 'chunks')
@@ -1132,8 +1133,8 @@ export default async function getBaseWebpackConfig(
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}${
             dev ? '[name]' : '[name].[contenthash]'
           }.js`,
-      cssFilename: 'static/css/[contenthash].css',
-      cssChunkFilename: 'static/css/[contenthash].css',
+      cssFilename: `static/css/${dev ? '[name]' : '[contenthash]'}.css`,
+      cssChunkFilename: `static/css/${dev ? '[name]' : '[contenthash]'}.css`,
       strictModuleExceptionHandling: true,
       crossOriginLoading: crossOrigin,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
@@ -1413,6 +1414,21 @@ export default async function getBaseWebpackConfig(
           dev,
         }),
       targetWeb && new DropClientPage(),
+      !dev &&
+        config.experimental.webpackCss &&
+        new (
+          webpack as unknown as typeof webpack5
+        ).experiments.ids.SyncModuleIdsPlugin({
+          path: path.join(outputPath, 'css-module-id.json'),
+          test: (m) => m.type.startsWith('css'),
+          mode: isServer ? 'read' : 'create',
+        }),
+      dev &&
+        !isServer &&
+        new (webpack as unknown as typeof webpack5).SourceMapDevToolPlugin({
+          test: /\.css$/,
+          namespace: '_N_E',
+        }),
       config.outputFileTracing &&
         !isLikeServerless &&
         isServer &&
@@ -1540,7 +1556,7 @@ export default async function getBaseWebpackConfig(
           ...config.experimental.urlImports,
         }
       : undefined,
-    css: !isServer && config.experimental.webpackCss,
+    css: config.experimental.webpackCss,
   }
 
   webpack5Config.module!.parser = {

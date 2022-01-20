@@ -251,6 +251,7 @@ declare module 'webpack4' {
       pathinfo?: boolean
       /** The output.path from the view of the Javascript / HTML page. */
       publicPath?: string
+      uniqueName?: string
       /** The filename of the SourceMaps for the JavaScript files. They are inside the output.path directory. */
       sourceMapFilename?: string
       /** Prefixes every line of the source in the bundle with this string. */

@@ -4,7 +4,7 @@ import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
-import { getCssModuleLoader, getGlobalCssRuleActions } from './loaders'
+import { getCssModuleRuleActions, getGlobalCssRuleActions } from './loaders'
 import {
   getCustomDocumentError,
   getGlobalImportError,
@@ -218,7 +218,7 @@ export const css = curry(async function css(
             and: [ctx.rootDirectory],
             not: [/node_modules/],
           },
-          use: getCssModuleLoader(ctx, lazyPostCSSInitializer),
+          ...getCssModuleRuleActions(ctx, lazyPostCSSInitializer),
         }),
       ],
     })
@@ -241,7 +241,7 @@ export const css = curry(async function css(
             and: [ctx.rootDirectory],
             not: [/node_modules/],
           },
-          use: getCssModuleLoader(
+          ...getCssModuleRuleActions(
             ctx,
             lazyPostCSSInitializer,
             sassPreprocessors
