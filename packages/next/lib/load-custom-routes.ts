@@ -1,6 +1,6 @@
 import type { NextConfig } from '../server/config'
 
-import chalk from 'next/dist/compiled/chalk'
+import chalk from './chalk'
 import { parse as parseUrl } from 'url'
 import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'

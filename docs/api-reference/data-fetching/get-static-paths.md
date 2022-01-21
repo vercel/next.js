@@ -199,7 +199,7 @@ export async function getStaticProps({ params }) {
 export default Post
 ```
 
-## getStaticProps with TypeScript
+## getStaticPaths with TypeScript
 
 For TypeScript, you can use the `GetStaticPaths` type from `next`:
 

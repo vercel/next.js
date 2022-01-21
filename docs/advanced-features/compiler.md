@@ -94,6 +94,34 @@ const customJestConfig = {
 module.exports = createJestConfig(customJestConfig)
 ```
 
+### Remove React Properties
+
+Allows to remove JSX properties. This is often used for testing. Similar to `babel-plugin-react-remove-properties`.
+
+To remove properties matching the default regex `^data-test`:
+
+```js
+// next.config.js
+module.exports = {
+  experimental: {
+    reactRemoveProperties: true,
+  },
+}
+```
+
+To remove custom properties:
+
+```js
+// next.config.js
+module.exports = {
+  experimental: {
+    // The regexes defined here are processed in Rust so the syntax is different from
+    // JavaScript `RegExp`s. See https://docs.rs/regex.
+    reactRemoveProperties: { properties: ['^data-custom$'] },
+  },
+}
+```
+
 ### Legacy Decorators
 
 Next.js will automatically detect `experimentalDecorators` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with older versions of libraries like `mobx`.
@@ -107,6 +135,34 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
   "compilerOptions": {
     "experimentalDecorators": true
   }
+}
+```
+
+### Remove Console
+
+This transform allows for removing all `console.*` calls in application code (not `node_modules`). Similar to `babel-plugin-transform-remove-console`.
+
+Remove all `console.*` calls:
+
+```js
+// next.config.js
+module.exports = {
+  experimental: {
+    removeConsole: true,
+  },
+}
+```
+
+Remove `console.*` output except `console.error`:
+
+```js
+// next.config.js
+module.exports = {
+  experimental: {
+    removeConsole: {
+      exclude: ['error'],
+    },
+  },
 }
 ```
 

@@ -330,7 +330,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     CachedComponent = pageEntrypoint.component
 
     if (process.env.NODE_ENV !== 'production') {
-      const { isValidElementType } = require('react-is')
+      const { isValidElementType } = require('next/dist/compiled/react-is')
       if (!isValidElementType(CachedComponent)) {
         throw new Error(
           `The default export is not a React Component in page: "${page}"`
@@ -629,6 +629,15 @@ function AppContainer({
   )
 }
 
+function renderApp(App: AppComponent, appProps: AppProps) {
+  if (process.env.__NEXT_RSC && (App as any).__next_rsc__) {
+    const { Component, err: _, router: __, ...props } = appProps
+    return <Component {...props} />
+  } else {
+    return <App {...appProps} />
+  }
+}
+
 const wrapApp =
   (App: AppComponent) =>
   (wrappedAppProps: Record<string, any>): JSX.Element => {
@@ -638,11 +647,7 @@ const wrapApp =
       err: hydrateErr,
       router,
     }
-    return (
-      <AppContainer>
-        <App {...appProps} />
-      </AppContainer>
-    )
+    return <AppContainer>{renderApp(App, appProps)}</AppContainer>
   }
 
 let RSCComponent: (props: any) => JSX.Element
@@ -957,7 +962,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     <>
       <Head callback={onHeadCommit} />
       <AppContainer>
-        <App {...appProps} />
+        {renderApp(App, appProps)}
         <Portal type="next-route-announcer">
           <RouteAnnouncer />
         </Portal>

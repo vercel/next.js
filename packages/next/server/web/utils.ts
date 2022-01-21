@@ -147,3 +147,20 @@ export function splitCookiesString(cookiesString: string) {
 
   return cookiesStrings
 }
+
+/**
+ * We will be soon deprecating the usage of relative URLs in Middleware introducing
+ * URL validation. This helper puts the future code in place and prints a warning
+ * for cases where it will break. Meanwhile we preserve the previous behavior.
+ */
+export function validateURL(url: string | URL): string {
+  try {
+    return String(new URL(String(url)))
+  } catch (error: any) {
+    console.log(
+      `warn  -`,
+      'using relative URLs for Middleware will be deprecated soon - https://nextjs.org/docs/messages/middleware-relative-urls'
+    )
+    return String(url)
+  }
+}

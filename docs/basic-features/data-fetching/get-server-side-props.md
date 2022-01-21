@@ -45,7 +45,7 @@ Take the following example. An API route is used to fetch some data from a CMS. 
 
 ## Fetching data on the client side
 
-If your page contains frequently updating data, and you don’t need to pre-render the data, you can fetch the data on the [client side](/docs/basic-features/client-side.md). An example of this is user-specific data:
+If your page contains frequently updating data, and you don’t need to pre-render the data, you can fetch the data on the [client side](/docs/basic-features/data-fetching/client-side.md). An example of this is user-specific data:
 
 - First, immediately show the page without data. Parts of the page can be pre-rendered using Static Generation. You can show loading states for missing data.
 - Then, fetch the data on the client side and display it when ready.
