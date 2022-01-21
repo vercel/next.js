@@ -1,5 +1,4 @@
-import {
-  getRedirectStatus,
+import type {
   Header,
   Redirect,
   Rewrite,
@@ -9,7 +8,7 @@ import type { Route } from './router'
 import type { BaseNextRequest } from './base-http'
 import type { ParsedUrlQuery } from 'querystring'
 
-import { modifyRouteRegex } from '../dist/lib/load-custom-routes'
+import { getRedirectStatus, modifyRouteRegex } from '../lib/load-custom-routes'
 import pathMatch from '../shared/lib/router/utils/path-match'
 import {
   compileNonPath,
