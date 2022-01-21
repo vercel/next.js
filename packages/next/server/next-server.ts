@@ -1,15 +1,18 @@
 import type { Params, Route } from './router'
-import { CacheFs, execOnce } from '../shared/lib/utils'
+import type { CacheFs } from '../shared/lib/utils'
+import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
+import type RenderResult from './render-result'
+import type { FetchEventResult } from './web/types'
+import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
+import type { PrerenderManifest } from '../build'
+
+import { execOnce } from '../shared/lib/utils'
 import {
   addRequestMeta,
   getRequestMeta,
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
 } from './request-meta'
-import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
-import type RenderResult from './render-result'
-import type { FetchEventResult } from './web/types'
-import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
@@ -22,6 +25,10 @@ import {
   MIDDLEWARE_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
+  PRERENDER_MANIFEST,
+  ROUTES_MANIFEST,
+  CLIENT_PUBLIC_FILES_PATH,
+  SERVERLESS_DIRECTORY,
 } from '../shared/lib/constants'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -46,6 +53,7 @@ import { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
 
 import BaseServer, {
+  Options,
   FindComponentsResult,
   prepareServerlessUrl,
   stringifyQuery,
@@ -62,6 +70,7 @@ import { prepareDestination } from '../shared/lib/router/utils/prepare-destinati
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getMiddlewareRegex, getRouteMatcher } from '../shared/lib/router/utils'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
+import { loadEnvConfig } from '@next/env'
 
 export * from './base-server'
 
@@ -80,17 +89,48 @@ export interface NodeRequestHandler {
 }
 
 export default class NextNodeServer extends BaseServer {
+  constructor(options: Options) {
+    super(options)
+    /**
+     * This sets environment variable to be used at the time of SSR by head.tsx.
+     * Using this from process.env allows targeting both serverless and SSR by calling
+     * `process.env.__NEXT_OPTIMIZE_IMAGES`.
+     * TODO(atcastle@): Remove this when experimental.optimizeImages are being cleaned up.
+     */
+    if (this.renderOpts.optimizeFonts) {
+      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+    }
+    if (this.renderOpts.optimizeImages) {
+      process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
+    }
+    if (this.renderOpts.optimizeCss) {
+      process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
+    }
+  }
+
   private compression =
     this.nextConfig.compress && this.nextConfig.target === 'server'
       ? (compression() as ExpressMiddleware)
       : undefined
+
+  protected loadEnvConfig({ dev }: { dev: boolean }) {
+    loadEnvConfig(this.dir, dev, Log)
+  }
+
+  protected getPublicDir(): string {
+    return join(this.dir, CLIENT_PUBLIC_FILES_PATH)
+  }
 
   protected getHasStaticDir(): boolean {
     return fs.existsSync(join(this.dir, 'static'))
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
-    const pagesManifestPath = join(this.serverBuildDir, PAGES_MANIFEST)
+    const serverBuildDir = join(
+      this.distDir,
+      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+    )
+    const pagesManifestPath = join(serverBuildDir, PAGES_MANIFEST)
     return require(pagesManifestPath)
   }
 
@@ -734,13 +774,13 @@ export default class NextNodeServer extends BaseServer {
     return filesystemUrls.has(resolved)
   }
 
-  protected getMiddlewareInfo(params: {
-    dev?: boolean
-    distDir: string
-    page: string
-    serverless: boolean
-  }) {
-    return getMiddlewareInfo(params)
+  protected getMiddlewareInfo(page: string) {
+    return getMiddlewareInfo({
+      dev: this.renderOpts.dev,
+      page,
+      distDir: this.distDir,
+      serverless: this._isLikeServerless,
+    })
   }
 
   protected getMiddlewareManifest(): MiddlewareManifest | undefined {
@@ -985,12 +1025,7 @@ export default class NextNodeServer extends BaseServer {
 
         await this.ensureMiddleware(middleware.page, middleware.ssr)
 
-        const middlewareInfo = this.getMiddlewareInfo({
-          dev: this.renderOpts.dev,
-          distDir: this.distDir,
-          page: middleware.page,
-          serverless: this._isLikeServerless,
-        })
+        const middlewareInfo = this.getMiddlewareInfo(middleware.page)
 
         result = await run({
           name: middlewareInfo.name,
@@ -1043,5 +1078,18 @@ export default class NextNodeServer extends BaseServer {
     }
 
     return result
+  }
+
+  private _cachedPreviewManifest: PrerenderManifest | undefined
+  protected getPrerenderManifest(): PrerenderManifest {
+    if (this._cachedPreviewManifest) {
+      return this._cachedPreviewManifest
+    }
+    const manifest = require(join(this.distDir, PRERENDER_MANIFEST))
+    return (this._cachedPreviewManifest = manifest)
+  }
+
+  protected getRoutesManifest() {
+    return require(join(this.distDir, ROUTES_MANIFEST))
   }
 }
