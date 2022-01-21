@@ -24,7 +24,6 @@ import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus, modifyRouteRegex } from '../lib/load-custom-routes'
 import {
-  CLIENT_PUBLIC_FILES_PATH,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
@@ -137,7 +136,6 @@ export default abstract class Server {
   protected pagesDir?: string
   protected publicDir: string
   protected hasStaticDir: boolean
-  protected serverBuildDir: string
   protected pagesManifest?: PagesManifest
   protected buildId: string
   protected minimalMode: boolean
@@ -178,6 +176,7 @@ export default abstract class Server {
   public readonly hostname?: string
   public readonly port?: number
 
+  protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
   protected abstract getPagesManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
@@ -282,9 +281,8 @@ export default abstract class Server {
     this.nextConfig = conf as NextConfigComplete
     this.hostname = hostname
     this.port = port
-
     this.distDir = join(this.dir, this.nextConfig.distDir)
-    this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
+    this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
     // Only serverRuntimeConfig needs the default
@@ -338,11 +336,6 @@ export default abstract class Server {
       serverRuntimeConfig,
       publicRuntimeConfig,
     })
-
-    this.serverBuildDir = join(
-      this.distDir,
-      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-    )
 
     this.pagesManifest = this.getPagesManifest()
     this.middlewareManifest = this.getMiddlewareManifest()

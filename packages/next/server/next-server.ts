@@ -27,6 +27,8 @@ import {
   CLIENT_STATIC_FILES_RUNTIME,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
+  CLIENT_PUBLIC_FILES_PATH,
+  SERVERLESS_DIRECTORY,
 } from '../shared/lib/constants'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -115,12 +117,20 @@ export default class NextNodeServer extends BaseServer {
     loadEnvConfig(this.dir, dev, Log)
   }
 
+  protected getPublicDir(): string {
+    return join(this.dir, CLIENT_PUBLIC_FILES_PATH)
+  }
+
   protected getHasStaticDir(): boolean {
     return fs.existsSync(join(this.dir, 'static'))
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
-    const pagesManifestPath = join(this.serverBuildDir, PAGES_MANIFEST)
+    const serverBuildDir = join(
+      this.distDir,
+      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+    )
+    const pagesManifestPath = join(serverBuildDir, PAGES_MANIFEST)
     return require(pagesManifestPath)
   }
 
@@ -780,6 +790,15 @@ export default class NextNodeServer extends BaseServer {
     return filesystemUrls.has(resolved)
   }
 
+  protected getMiddlewareInfo(page: string) {
+    return getMiddlewareInfo({
+      dev: this.renderOpts.dev,
+      page,
+      distDir: this.distDir,
+      serverless: this._isLikeServerless,
+    })
+  }
+
   protected getMiddlewareManifest(): MiddlewareManifest | undefined {
     if (!this.minimalMode) {
       const middlewareManifestPath = join(
@@ -1022,12 +1041,7 @@ export default class NextNodeServer extends BaseServer {
 
         await this.ensureMiddleware(middleware.page, middleware.ssr)
 
-        const middlewareInfo = getMiddlewareInfo({
-          dev: this.renderOpts.dev,
-          distDir: this.distDir,
-          page: middleware.page,
-          serverless: this._isLikeServerless,
-        })
+        const middlewareInfo = this.getMiddlewareInfo(middleware.page)
 
         result = await run({
           name: middlewareInfo.name,
