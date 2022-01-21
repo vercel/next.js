@@ -1720,7 +1720,7 @@ export default async function getBaseWebpackConfig(
 
   let originalDevtool = webpackConfig.devtool
   if (typeof config.webpack === 'function') {
-    webpackConfig = config.webpack(webpackConfig, {
+    webpackConfig = await config.webpack(webpackConfig, {
       dir,
       dev,
       isServer,
