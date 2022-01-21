@@ -671,6 +671,23 @@ describe('should set-up next', () => {
     expect(json.url).toBe('/api/optional?another=value')
   })
 
+  it('should normalize index optional values correctly for API page', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/api/optional/index',
+      { rest: 'index', another: 'value' },
+      {
+        headers: {
+          'x-matched-path': '/api/optional/[[...rest]]',
+        },
+      }
+    )
+
+    const json = await res.json()
+    expect(json.query).toEqual({ another: 'value', rest: ['index'] })
+    expect(json.url).toBe('/api/optional/index?another=value')
+  })
+
   it('should match the index page correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/', undefined, {
       headers: {
