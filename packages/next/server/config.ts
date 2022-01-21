@@ -24,6 +24,8 @@ import { hasNextSupport } from '../telemetry/ci-info'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
+const defaultConfig = getDefaultConfig()
+
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 
 const experimentalWarning = execOnce(() => {
@@ -60,8 +62,6 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
     delete userConfig.experimental.reactMode
   }
-
-  const defaultConfig = getDefaultConfig()
 
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
     (currentConfig, key) => {
@@ -659,7 +659,7 @@ export default async function loadConfig(
     }
   }
 
-  const completeConfig = getDefaultConfig() as NextConfigComplete
+  const completeConfig = defaultConfig as NextConfigComplete
   completeConfig.configFileName = configFileName
   setHttpAgentOptions(completeConfig.httpAgentOptions)
   return completeConfig
