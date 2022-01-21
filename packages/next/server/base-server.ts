@@ -27,8 +27,6 @@ import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus, modifyRouteRegex } from '../lib/load-custom-routes'
 import {
   CLIENT_PUBLIC_FILES_PATH,
-  PRERENDER_MANIFEST,
-  ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
@@ -213,6 +211,8 @@ export default abstract class Server {
   protected abstract getPagePath(pathname: string, locales?: string[]): string
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getMiddlewareManifest(): MiddlewareManifest | undefined
+  protected abstract getPrerenderManifest(): PrerenderManifest
+  protected abstract getRoutesManifest(): CustomRoutes
 
   protected abstract sendRenderResult(
     req: BaseNextRequest,
@@ -623,7 +623,7 @@ export default abstract class Server {
   }
 
   protected getCustomRoutes(): CustomRoutes {
-    const customRoutes = require(join(this.distDir, ROUTES_MANIFEST))
+    const customRoutes = this.getRoutesManifest()
     let rewrites: CustomRoutes['rewrites']
 
     // rewrites can be stored as an array when an array is
@@ -639,15 +639,6 @@ export default abstract class Server {
       rewrites = customRoutes.rewrites
     }
     return Object.assign(customRoutes, { rewrites })
-  }
-
-  private _cachedPreviewManifest: PrerenderManifest | undefined
-  protected getPrerenderManifest(): PrerenderManifest {
-    if (this._cachedPreviewManifest) {
-      return this._cachedPreviewManifest
-    }
-    const manifest = require(join(this.distDir, PRERENDER_MANIFEST))
-    return (this._cachedPreviewManifest = manifest)
   }
 
   protected getPreviewProps(): __ApiPreviewProps {

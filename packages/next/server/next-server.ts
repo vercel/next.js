@@ -4,6 +4,7 @@ import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plu
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
+import type { PrerenderManifest } from '../build'
 
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -24,6 +25,8 @@ import {
   MIDDLEWARE_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
+  PRERENDER_MANIFEST,
+  ROUTES_MANIFEST,
 } from '../shared/lib/constants'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -1068,5 +1071,18 @@ export default class NextNodeServer extends BaseServer {
     }
 
     return result
+  }
+
+  private _cachedPreviewManifest: PrerenderManifest | undefined
+  protected getPrerenderManifest(): PrerenderManifest {
+    if (this._cachedPreviewManifest) {
+      return this._cachedPreviewManifest
+    }
+    const manifest = require(join(this.distDir, PRERENDER_MANIFEST))
+    return (this._cachedPreviewManifest = manifest)
+  }
+
+  protected getRoutesManifest() {
+    return require(join(this.distDir, ROUTES_MANIFEST))
   }
 }
