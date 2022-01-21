@@ -2,13 +2,11 @@ import type { __ApiPreviewProps } from './api-utils'
 import type { CustomRoutes, Header } from '../lib/load-custom-routes'
 import type { DomainLocale } from './config'
 import type { DynamicRoutes, PageChecker, Params, Route } from './router'
-import type { FetchEventResult } from './web/types'
 import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { PrerenderManifest } from '../build'
@@ -202,12 +200,10 @@ export default abstract class Server {
     query?: NextParsedUrlQuery,
     params?: Params | null
   ): Promise<FindComponentsResult | null>
-  protected abstract getMiddlewareInfo(params: {
-    dev?: boolean
-    distDir: string
-    page: string
-    serverless: boolean
-  }): { name: string; paths: string[]; env: string[] }
+  protected abstract hasMiddleware(
+    pathname: string,
+    _isSSR?: boolean
+  ): Promise<boolean>
   protected abstract getPagePath(pathname: string, locales?: string[]): string
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getMiddlewareManifest(): MiddlewareManifest | undefined
@@ -264,14 +260,6 @@ export default abstract class Server {
     res: BaseNextResponse,
     parsedUrl: UrlWithParsedQuery
   ): Promise<{ finished: boolean }>
-
-  protected abstract runMiddleware(params: {
-    request: BaseNextRequest
-    response: BaseNextResponse
-    parsedUrl: ParsedNextUrl
-    parsed: UrlWithParsedQuery
-    onWarning?: (warning: Error) => void
-  }): Promise<FetchEventResult | null>
 
   protected abstract loadEnvConfig(params: { dev: boolean }): void
 
@@ -643,24 +631,6 @@ export default abstract class Server {
 
   protected getPreviewProps(): __ApiPreviewProps {
     return this.getPrerenderManifest().preview
-  }
-
-  protected async hasMiddleware(
-    pathname: string,
-    _isSSR?: boolean
-  ): Promise<boolean> {
-    try {
-      return (
-        this.getMiddlewareInfo({
-          dev: this.renderOpts.dev,
-          distDir: this.distDir,
-          page: pathname,
-          serverless: this._isLikeServerless,
-        }).paths.length > 0
-      )
-    } catch (_) {}
-
-    return false
   }
 
   protected async ensureMiddleware(_pathname: string, _isSSR?: boolean) {}

@@ -664,6 +664,24 @@ export default class NextNodeServer extends BaseServer {
     )
   }
 
+  protected async hasMiddleware(
+    pathname: string,
+    _isSSR?: boolean
+  ): Promise<boolean> {
+    try {
+      return (
+        getMiddlewareInfo({
+          dev: this.renderOpts.dev,
+          distDir: this.distDir,
+          page: pathname,
+          serverless: this._isLikeServerless,
+        }).paths.length > 0
+      )
+    } catch (_) {}
+
+    return false
+  }
+
   public async serveStatic(
     req: BaseNextRequest | IncomingMessage,
     res: BaseNextResponse | ServerResponse,
@@ -760,15 +778,6 @@ export default class NextNodeServer extends BaseServer {
     const filesystemUrls = this.getFilesystemPaths()
     const resolved = relative(this.dir, untrustedFilePath)
     return filesystemUrls.has(resolved)
-  }
-
-  protected getMiddlewareInfo(params: {
-    dev?: boolean
-    distDir: string
-    page: string
-    serverless: boolean
-  }) {
-    return getMiddlewareInfo(params)
   }
 
   protected getMiddlewareManifest(): MiddlewareManifest | undefined {
@@ -1013,7 +1022,7 @@ export default class NextNodeServer extends BaseServer {
 
         await this.ensureMiddleware(middleware.page, middleware.ssr)
 
-        const middlewareInfo = this.getMiddlewareInfo({
+        const middlewareInfo = getMiddlewareInfo({
           dev: this.renderOpts.dev,
           distDir: this.distDir,
           page: middleware.page,
