@@ -5,6 +5,7 @@ import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { PrerenderManifest } from '../build'
+import type { Rewrite } from '../lib/load-custom-routes'
 
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -71,6 +72,7 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getMiddlewareRegex, getRouteMatcher } from '../shared/lib/router/utils'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { loadEnvConfig } from '@next/env'
+import { getCustomRoute } from './server-route-utils'
 
 export * from './base-server'
 
@@ -808,6 +810,79 @@ export default class NextNodeServer extends BaseServer {
       return require(middlewareManifestPath)
     }
     return undefined
+  }
+
+  protected generateRewrites({
+    restrictedRedirectPaths,
+  }: {
+    restrictedRedirectPaths: string[]
+  }) {
+    let beforeFiles: Route[] = []
+    let afterFiles: Route[] = []
+    let fallback: Route[] = []
+
+    if (!this.minimalMode) {
+      const buildRewrite = (rewrite: Rewrite, check = true) => {
+        const rewriteRoute = getCustomRoute({
+          type: 'rewrite',
+          rule: rewrite,
+          restrictedRedirectPaths,
+        })
+        return {
+          ...rewriteRoute,
+          check,
+          type: rewriteRoute.type,
+          name: `Rewrite route ${rewriteRoute.source}`,
+          match: rewriteRoute.match,
+          fn: async (req, res, params, parsedUrl) => {
+            const { newUrl, parsedDestination } = prepareDestination({
+              appendParamsToQuery: true,
+              destination: rewriteRoute.destination,
+              params: params,
+              query: parsedUrl.query,
+            })
+
+            // external rewrite, proxy it
+            if (parsedDestination.protocol) {
+              return this.proxyRequest(
+                req as NodeNextRequest,
+                res as NodeNextResponse,
+                parsedDestination
+              )
+            }
+
+            addRequestMeta(req, '_nextRewroteUrl', newUrl)
+            addRequestMeta(req, '_nextDidRewrite', newUrl !== req.url)
+
+            return {
+              finished: false,
+              pathname: newUrl,
+              query: parsedDestination.query,
+            }
+          },
+        } as Route
+      }
+
+      if (Array.isArray(this.customRoutes.rewrites)) {
+        afterFiles = this.customRoutes.rewrites.map((r) => buildRewrite(r))
+      } else {
+        beforeFiles = this.customRoutes.rewrites.beforeFiles.map((r) =>
+          buildRewrite(r, false)
+        )
+        afterFiles = this.customRoutes.rewrites.afterFiles.map((r) =>
+          buildRewrite(r)
+        )
+        fallback = this.customRoutes.rewrites.fallback.map((r) =>
+          buildRewrite(r)
+        )
+      }
+    }
+
+    return {
+      beforeFiles,
+      afterFiles,
+      fallback,
+    }
   }
 
   protected generateCatchAllMiddlewareRoute(): Route | undefined {
