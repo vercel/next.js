@@ -81,13 +81,12 @@ Middleware uses a [strict runtime](/docs/api-reference/edge-runtime.md) that sup
 When using a custom server with middleware, you must specify the hostname and port when instantiating your `NextApp`.
 
 ```ts
-import next from "next";
+import next from 'next'
 // ...
-const port = process.env.PORT ? +process.env.PORT : 3000;
-const dev = process.env.NODE_ENV !== "production";
-const app = next({ dev, customServer: true, hostname: "localhost", port });
+const port = process.env.PORT ? +process.env.PORT : 3000
+const dev = process.env.NODE_ENV !== 'production'
+const app = next({ dev, customServer: true, hostname: 'localhost', port })
 ```
-
 
 ## Related
 
