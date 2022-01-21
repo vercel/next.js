@@ -26,7 +26,6 @@ import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus, modifyRouteRegex } from '../lib/load-custom-routes'
 import {
-  CLIENT_PUBLIC_FILES_PATH,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
@@ -137,9 +136,7 @@ export default abstract class Server {
   protected nextConfig: NextConfigComplete
   protected distDir: string
   protected pagesDir?: string
-  protected publicDir: string
   protected hasStaticDir: boolean
-  protected serverBuildDir: string
   protected pagesManifest?: PagesManifest
   protected buildId: string
   protected minimalMode: boolean
@@ -202,12 +199,11 @@ export default abstract class Server {
     query?: NextParsedUrlQuery,
     params?: Params | null
   ): Promise<FindComponentsResult | null>
-  protected abstract getMiddlewareInfo(params: {
-    dev?: boolean
-    distDir: string
-    page: string
-    serverless: boolean
-  }): { name: string; paths: string[]; env: string[] }
+  protected abstract getMiddlewareInfo(page: string): {
+    name: string
+    paths: string[]
+    env: string[]
+  }
   protected abstract getPagePath(pathname: string, locales?: string[]): string
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getMiddlewareManifest(): MiddlewareManifest | undefined
@@ -294,9 +290,7 @@ export default abstract class Server {
     this.nextConfig = conf as NextConfigComplete
     this.hostname = hostname
     this.port = port
-
     this.distDir = join(this.dir, this.nextConfig.distDir)
-    this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
     // Only serverRuntimeConfig needs the default
@@ -350,11 +344,6 @@ export default abstract class Server {
       serverRuntimeConfig,
       publicRuntimeConfig,
     })
-
-    this.serverBuildDir = join(
-      this.distDir,
-      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-    )
 
     this.pagesManifest = this.getPagesManifest()
     this.middlewareManifest = this.getMiddlewareManifest()
@@ -650,14 +639,7 @@ export default abstract class Server {
     _isSSR?: boolean
   ): Promise<boolean> {
     try {
-      return (
-        this.getMiddlewareInfo({
-          dev: this.renderOpts.dev,
-          distDir: this.distDir,
-          page: pathname,
-          serverless: this._isLikeServerless,
-        }).paths.length > 0
-      )
+      return this.getMiddlewareInfo(pathname).paths.length > 0
     } catch (_) {}
 
     return false

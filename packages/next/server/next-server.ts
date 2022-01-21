@@ -27,6 +27,8 @@ import {
   CLIENT_STATIC_FILES_RUNTIME,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
+  CLIENT_PUBLIC_FILES_PATH,
+  SERVERLESS_DIRECTORY,
 } from '../shared/lib/constants'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -87,6 +89,9 @@ export interface NodeRequestHandler {
 }
 
 export default class NextNodeServer extends BaseServer {
+  protected publicDir: string
+  protected serverBuildDir: string
+
   constructor(options: Options) {
     super(options)
     /**
@@ -104,6 +109,12 @@ export default class NextNodeServer extends BaseServer {
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
+
+    this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
+    this.serverBuildDir = join(
+      this.distDir,
+      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+    )
   }
 
   private compression =
@@ -762,13 +773,13 @@ export default class NextNodeServer extends BaseServer {
     return filesystemUrls.has(resolved)
   }
 
-  protected getMiddlewareInfo(params: {
-    dev?: boolean
-    distDir: string
-    page: string
-    serverless: boolean
-  }) {
-    return getMiddlewareInfo(params)
+  protected getMiddlewareInfo(page: string) {
+    return getMiddlewareInfo({
+      dev: this.renderOpts.dev,
+      page,
+      distDir: this.distDir,
+      serverless: this._isLikeServerless,
+    })
   }
 
   protected getMiddlewareManifest(): MiddlewareManifest | undefined {
@@ -1013,12 +1024,7 @@ export default class NextNodeServer extends BaseServer {
 
         await this.ensureMiddleware(middleware.page, middleware.ssr)
 
-        const middlewareInfo = this.getMiddlewareInfo({
-          dev: this.renderOpts.dev,
-          distDir: this.distDir,
-          page: middleware.page,
-          serverless: this._isLikeServerless,
-        })
+        const middlewareInfo = this.getMiddlewareInfo(middleware.page)
 
         result = await run({
           name: middlewareInfo.name,
