@@ -601,14 +601,16 @@ export default class NextNodeServer extends BaseServer {
     res: BaseNextResponse | ServerResponse,
     pathname: string,
     query?: NextParsedUrlQuery,
-    parsedUrl?: NextUrlWithParsedQuery
+    parsedUrl?: NextUrlWithParsedQuery,
+    internal = false
   ): Promise<void> {
     return super.render(
       this.normalizeReq(req),
       this.normalizeRes(res),
       pathname,
       query,
-      parsedUrl
+      parsedUrl,
+      internal
     )
   }
 
