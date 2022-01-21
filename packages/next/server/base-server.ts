@@ -136,6 +136,7 @@ export default abstract class Server {
   protected nextConfig: NextConfigComplete
   protected distDir: string
   protected pagesDir?: string
+  protected publicDir: string
   protected hasStaticDir: boolean
   protected pagesManifest?: PagesManifest
   protected buildId: string
@@ -177,6 +178,7 @@ export default abstract class Server {
   public readonly hostname?: string
   public readonly port?: number
 
+  protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
   protected abstract getPagesManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
@@ -291,6 +293,7 @@ export default abstract class Server {
     this.hostname = hostname
     this.port = port
     this.distDir = join(this.dir, this.nextConfig.distDir)
+    this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
     // Only serverRuntimeConfig needs the default

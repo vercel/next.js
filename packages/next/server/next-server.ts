@@ -89,9 +89,6 @@ export interface NodeRequestHandler {
 }
 
 export default class NextNodeServer extends BaseServer {
-  protected publicDir: string
-  protected serverBuildDir: string
-
   constructor(options: Options) {
     super(options)
     /**
@@ -109,12 +106,6 @@ export default class NextNodeServer extends BaseServer {
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
-
-    this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
-    this.serverBuildDir = join(
-      this.distDir,
-      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-    )
   }
 
   private compression =
@@ -126,12 +117,20 @@ export default class NextNodeServer extends BaseServer {
     loadEnvConfig(this.dir, dev, Log)
   }
 
+  protected getPublicDir(): string {
+    return join(this.dir, CLIENT_PUBLIC_FILES_PATH)
+  }
+
   protected getHasStaticDir(): boolean {
     return fs.existsSync(join(this.dir, 'static'))
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
-    const pagesManifestPath = join(this.serverBuildDir, PAGES_MANIFEST)
+    const serverBuildDir = join(
+      this.distDir,
+      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+    )
+    const pagesManifestPath = join(serverBuildDir, PAGES_MANIFEST)
     return require(pagesManifestPath)
   }
 
