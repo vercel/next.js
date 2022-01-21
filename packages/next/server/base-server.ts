@@ -27,8 +27,6 @@ import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus, modifyRouteRegex } from '../lib/load-custom-routes'
 import {
   CLIENT_PUBLIC_FILES_PATH,
-  PRERENDER_MANIFEST,
-  ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
