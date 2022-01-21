@@ -4,6 +4,7 @@ import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plu
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
+import type { PrerenderManifest } from '../build'
 
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -24,6 +25,10 @@ import {
   MIDDLEWARE_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
+  PRERENDER_MANIFEST,
+  ROUTES_MANIFEST,
+  CLIENT_PUBLIC_FILES_PATH,
+  SERVERLESS_DIRECTORY,
 } from '../shared/lib/constants'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -112,12 +117,20 @@ export default class NextNodeServer extends BaseServer {
     loadEnvConfig(this.dir, dev, Log)
   }
 
+  protected getPublicDir(): string {
+    return join(this.dir, CLIENT_PUBLIC_FILES_PATH)
+  }
+
   protected getHasStaticDir(): boolean {
     return fs.existsSync(join(this.dir, 'static'))
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
-    const pagesManifestPath = join(this.serverBuildDir, PAGES_MANIFEST)
+    const serverBuildDir = join(
+      this.distDir,
+      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+    )
+    const pagesManifestPath = join(serverBuildDir, PAGES_MANIFEST)
     return require(pagesManifestPath)
   }
 
@@ -588,14 +601,16 @@ export default class NextNodeServer extends BaseServer {
     res: BaseNextResponse | ServerResponse,
     pathname: string,
     query?: NextParsedUrlQuery,
-    parsedUrl?: NextUrlWithParsedQuery
+    parsedUrl?: NextUrlWithParsedQuery,
+    internal = false
   ): Promise<void> {
     return super.render(
       this.normalizeReq(req),
       this.normalizeRes(res),
       pathname,
       query,
-      parsedUrl
+      parsedUrl,
+      internal
     )
   }
 
@@ -759,13 +774,13 @@ export default class NextNodeServer extends BaseServer {
     return filesystemUrls.has(resolved)
   }
 
-  protected getMiddlewareInfo(params: {
-    dev?: boolean
-    distDir: string
-    page: string
-    serverless: boolean
-  }) {
-    return getMiddlewareInfo(params)
+  protected getMiddlewareInfo(page: string) {
+    return getMiddlewareInfo({
+      dev: this.renderOpts.dev,
+      page,
+      distDir: this.distDir,
+      serverless: this._isLikeServerless,
+    })
   }
 
   protected getMiddlewareManifest(): MiddlewareManifest | undefined {
@@ -1010,12 +1025,7 @@ export default class NextNodeServer extends BaseServer {
 
         await this.ensureMiddleware(middleware.page, middleware.ssr)
 
-        const middlewareInfo = this.getMiddlewareInfo({
-          dev: this.renderOpts.dev,
-          distDir: this.distDir,
-          page: middleware.page,
-          serverless: this._isLikeServerless,
-        })
+        const middlewareInfo = this.getMiddlewareInfo(middleware.page)
 
         result = await run({
           name: middlewareInfo.name,
@@ -1068,5 +1078,18 @@ export default class NextNodeServer extends BaseServer {
     }
 
     return result
+  }
+
+  private _cachedPreviewManifest: PrerenderManifest | undefined
+  protected getPrerenderManifest(): PrerenderManifest {
+    if (this._cachedPreviewManifest) {
+      return this._cachedPreviewManifest
+    }
+    const manifest = require(join(this.distDir, PRERENDER_MANIFEST))
+    return (this._cachedPreviewManifest = manifest)
+  }
+
+  protected getRoutesManifest() {
+    return require(join(this.distDir, ROUTES_MANIFEST))
   }
 }
