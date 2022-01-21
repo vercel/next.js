@@ -107,6 +107,27 @@ describe('should set-up next', () => {
     if (server) await killApp(server)
   })
 
+  it('should output middleware correctly', async () => {
+    expect(
+      await fs.pathExists(
+        join(next.testDir, 'standalone/.next/server/middleware-runtime.js')
+      )
+    ).toBe(true)
+    expect(
+      await fs.pathExists(
+        join(
+          next.testDir,
+          'standalone/.next/server/pages/middleware/_middleware.js'
+        )
+      )
+    ).toBe(true)
+    expect(
+      await fs.pathExists(
+        join(next.testDir, 'standalone/.next/server/pages/_middleware.js')
+      )
+    ).toBe(true)
+  })
+
   it('should output required-server-files manifest correctly', async () => {
     expect(requiredFilesManifest.version).toBe(1)
     expect(Array.isArray(requiredFilesManifest.files)).toBe(true)

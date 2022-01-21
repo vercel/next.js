@@ -447,6 +447,7 @@
           "path": "/errors/link-multiple-children.md"
         },
         { "title": "no-img-element", "path": "/errors/no-img-element.md" },
+        { "title": "no-head-element", "path": "/errors/no-head-element.md" },
         {
           "title": "non-dynamic-getstaticpaths-usage",
           "path": "/errors/non-dynamic-getstaticpaths-usage.md"
@@ -526,6 +527,10 @@
         {
           "title": "invalid-styled-jsx-children",
           "path": "/errors/invalid-styled-jsx-children.md"
+        },
+        {
+          "title": "middleware-relative-urls",
+          "path": "/errors/middleware-relative-urls.md"
         }
       ]
     }

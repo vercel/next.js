@@ -19,18 +19,20 @@ const context = {}
 context.appDir = join(__dirname, '../')
 
 const middlewareWarning = 'using beta Middleware (not covered by semver)'
+const urlsWarning = 'using relative URLs for Middleware will be deprecated soon'
 
 describe('Middleware base tests', () => {
   describe('dev mode', () => {
-    let output = ''
+    const log = { output: '' }
+
     beforeAll(async () => {
       context.appPort = await findPort()
       context.app = await launchApp(context.appDir, context.appPort, {
         onStdout(msg) {
-          output += msg
+          log.output += msg
         },
         onStderr(msg) {
-          output += msg
+          log.output += msg
         },
       })
     })
@@ -43,14 +45,16 @@ describe('Middleware base tests', () => {
     responseTests('/fr')
     interfaceTests()
     interfaceTests('/fr')
+    urlTests(log)
+    urlTests(log, '/fr')
 
     it('should have showed warning for middleware usage', () => {
-      expect(output).toContain(middlewareWarning)
+      expect(log.output).toContain(middlewareWarning)
     })
   })
   describe('production mode', () => {
+    let serverOutput = { output: '' }
     let buildOutput
-    let serverOutput
 
     beforeAll(async () => {
       const res = await nextBuild(context.appDir, undefined, {
@@ -62,10 +66,10 @@ describe('Middleware base tests', () => {
       context.appPort = await findPort()
       context.app = await nextStart(context.appDir, context.appPort, {
         onStdout(msg) {
-          serverOutput += msg
+          serverOutput.output += msg
         },
         onStderr(msg) {
-          serverOutput += msg
+          serverOutput.output += msg
         },
       })
     })
@@ -78,13 +82,15 @@ describe('Middleware base tests', () => {
     responseTests('/fr')
     interfaceTests()
     interfaceTests('/fr')
+    urlTests(serverOutput)
+    urlTests(serverOutput, '/fr')
 
     it('should have middleware warning during build', () => {
       expect(buildOutput).toContain(middlewareWarning)
     })
 
     it('should have middleware warning during start', () => {
-      expect(serverOutput).toContain(middlewareWarning)
+      expect(serverOutput.output).toContain(middlewareWarning)
     })
 
     it('should have correct files in manifest', async () => {
@@ -93,20 +99,67 @@ describe('Middleware base tests', () => {
       )
       for (const key of Object.keys(manifest.middleware)) {
         const middleware = manifest.middleware[key]
-        expect(
-          middleware.files.some((file) => file.includes('webpack-middleware'))
-        ).toBe(true)
-        expect(
-          middleware.files.filter(
-            (file) =>
-              file.startsWith('static/chunks/') &&
-              !file.startsWith('static/chunks/webpack-middleware')
-          ).length
-        ).toBe(0)
+        expect(middleware.files).toContainEqual(
+          expect.stringContaining('middleware-runtime')
+        )
+        expect(middleware.files).not.toContainEqual(
+          expect.stringContaining('static/chunks/')
+        )
       }
     })
   })
 })
+
+function urlTests(log, locale = '') {
+  it('rewrites by default to a target location', async () => {
+    const res = await fetchViaHTTP(context.appPort, `${locale}/urls`)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('.title').text()).toBe('URLs A')
+  })
+
+  it('throws when using URL with a relative URL', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-url`
+    )
+    const json = await res.json()
+    expect(json.error.message).toContain('Invalid URL')
+  })
+
+  it('throws when using Request with a relative URL', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-request`
+    )
+    const json = await res.json()
+    expect(json.error.message).toContain('Invalid URL')
+  })
+
+  it('throws when using NextRequest with a relative URL', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-next-request`
+    )
+    const json = await res.json()
+    expect(json.error.message).toContain('Invalid URL')
+  })
+
+  it('warns when using Response.redirect with a relative URL', async () => {
+    await fetchViaHTTP(context.appPort, `${locale}/urls/relative-redirect`)
+    expect(log.output).toContain(urlsWarning)
+  })
+
+  it('warns when using NextResponse.redirect with a relative URL', async () => {
+    await fetchViaHTTP(context.appPort, `${locale}/urls/relative-next-redirect`)
+    expect(log.output).toContain(urlsWarning)
+  })
+
+  it('warns when using NextResponse.rewrite with a relative URL', async () => {
+    await fetchViaHTTP(context.appPort, `${locale}/urls/relative-next-rewrite`)
+    expect(log.output).toContain(urlsWarning)
+  })
+}
 
 function rewriteTests(locale = '') {
   it('should rewrite to fallback: true page successfully', async () => {
@@ -212,6 +265,18 @@ function rewriteTests(locale = '') {
     expect(await browser.eval('window.__SAME_PAGE')).toBe(true)
     const element = await browser.elementByCss('.middleware')
     expect(await element.text()).toEqual('foo')
+  })
+
+  it('should allow to opt-out preflight caching', async () => {
+    const browser = await webdriver(context.appPort, '/rewrites/')
+    await browser.addCookie({ name: 'about-bypass', value: '1' })
+    await browser.eval('window.__SAME_PAGE = true')
+    await browser.elementByCss('#link-with-rewritten-url').click()
+    await browser.waitForElementByCss('.refreshed')
+    await browser.deleteCookies()
+    expect(await browser.eval('window.__SAME_PAGE')).toBe(true)
+    const element = await browser.elementByCss('.title')
+    expect(await element.text()).toEqual('About Bypassed Page')
   })
 }
 
