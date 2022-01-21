@@ -1419,7 +1419,7 @@ export default async function getBaseWebpackConfig(
         new (
           webpack as unknown as typeof webpack5
         ).experiments.ids.SyncModuleIdsPlugin({
-          path: path.join(outputPath, 'css-module-id.json'),
+          path: path.join(distDir, 'css-module-id.json'),
           test: (m) => m.type.startsWith('css'),
           mode: isServer ? 'read' : 'create',
         }),
