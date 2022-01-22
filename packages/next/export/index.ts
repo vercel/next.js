@@ -28,7 +28,8 @@ import {
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
 } from '../shared/lib/constants'
-import loadConfig, { isTargetLikeServerless } from '../server/config'
+import loadConfig from '../server/config'
+import { isTargetLikeServerless } from '../server/utils'
 import { NextConfigComplete } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
