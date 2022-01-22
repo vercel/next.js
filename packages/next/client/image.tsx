@@ -3,6 +3,7 @@ import Head from '../shared/lib/head'
 import {
   ImageConfigComplete,
   imageConfigDefault,
+  imageConfigRuntime,
   LoaderValue,
   VALID_LOADERS,
 } from '../server/image-config'
@@ -118,7 +119,9 @@ const {
   path: configPath,
   domains: configDomains,
 } = (process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete) ||
+imageConfigRuntime ||
 imageConfigDefault
+
 // sort smallest to largest
 const allSizes = [...configDeviceSizes, ...configImageSizes]
 configDeviceSizes.sort((a, b) => a - b)

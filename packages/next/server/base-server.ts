@@ -58,6 +58,7 @@ import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
+import { ImageConfigComplete, setImageConfigRuntime } from './image-config'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -325,6 +326,8 @@ export default abstract class Server {
       serverRuntimeConfig,
       publicRuntimeConfig,
     })
+
+    this.saveImageConfigRuntime(this.nextConfig.images)
 
     this.pagesManifest = this.getPagesManifest()
     this.middlewareManifest = this.getMiddlewareManifest()
@@ -1812,6 +1815,12 @@ export default abstract class Server {
 
   protected get _isLikeServerless(): boolean {
     return isTargetLikeServerless(this.nextConfig.target)
+  }
+
+  public saveImageConfigRuntime(
+    imageConfig: Partial<ImageConfigComplete>
+  ): void {
+    setImageConfigRuntime(imageConfig)
   }
 }
 
