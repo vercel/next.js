@@ -116,7 +116,7 @@ export type NextConfig = { [key: string]: any } & {
   httpAgentOptions?: { keepAlive?: boolean }
   future?: {
     /**
-     * @deprecated this options was moved to the top level
+     * @deprecated This option was moved to the top level
      */
     webpack5?: false
   }
