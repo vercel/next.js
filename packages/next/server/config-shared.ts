@@ -116,7 +116,7 @@ export type NextConfig = { [key: string]: any } & {
   httpAgentOptions?: { keepAlive?: boolean }
   future?: {
     /**
-     * @deprecated This option was moved to the top level
+     * @deprecated This option has been removed as webpack 5 is now default
      */
     webpack5?: false
   }
