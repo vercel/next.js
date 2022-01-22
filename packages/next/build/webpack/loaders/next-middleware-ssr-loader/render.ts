@@ -6,6 +6,7 @@ import { toNodeHeaders } from '../../../../server/web/utils'
 const createHeaders = (args?: any) => ({
   ...args,
   'x-middleware-ssr': '1',
+  'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
 })
 
 function sendError(req: any, error: Error) {
