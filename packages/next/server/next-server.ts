@@ -6,6 +6,7 @@ import type { FetchEventResult } from './web/types'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { PrerenderManifest } from '../build'
 import type { Rewrite } from '../lib/load-custom-routes'
+import type { NextConfigComplete } from './config-shared'
 
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -91,8 +92,18 @@ export interface NodeRequestHandler {
 }
 
 export default class NextNodeServer extends BaseServer {
+  // @TODO: The following line can be removed once we have TS 4.6 upgraded:
+  // https://devblogs.microsoft.com/typescript/announcing-typescript-4-6-beta/#code-before-super
+  // @ts-expect-error
   constructor(options: Options) {
-    super(options)
+    // Load manifest files
+    const dir = resolve(options.dir || '.')
+    const distDir = join(dir, (options.conf as NextConfigComplete).distDir)
+    const prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
+
+    // Initialize super class
+    super({ ...options, prerenderManifest })
+
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
      * Using this from process.env allows targeting both serverless and SSR by calling

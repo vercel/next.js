@@ -105,6 +105,10 @@ export interface Options {
   port?: number
 }
 
+export interface Manifests {
+  prerenderManifest: PrerenderManifest
+}
+
 export interface BaseRequestHandler {
   (
     req: BaseNextRequest,
@@ -166,6 +170,7 @@ export default abstract class Server {
   protected customRoutes: CustomRoutes
   protected middlewareManifest?: MiddlewareManifest
   protected middleware?: RoutingItem[]
+  protected prerenderManifest: PrerenderManifest
   public readonly hostname?: string
   public readonly port?: number
 
@@ -208,7 +213,6 @@ export default abstract class Server {
   protected abstract getPagePath(pathname: string, locales?: string[]): string
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getMiddlewareManifest(): MiddlewareManifest | undefined
-  protected abstract getPrerenderManifest(): PrerenderManifest
   protected abstract getRoutesManifest(): CustomRoutes
 
   protected abstract sendRenderResult(
@@ -256,7 +260,12 @@ export default abstract class Server {
     customServer = true,
     hostname,
     port,
-  }: Options) {
+    //
+    prerenderManifest,
+  }: Options & Manifests) {
+    // Assign manifest files
+    this.prerenderManifest = prerenderManifest
+
     this.dir = resolve(dir)
     this.quiet = quiet
     this.loadEnvConfig({ dev })
@@ -608,7 +617,7 @@ export default abstract class Server {
   }
 
   protected getPreviewProps(): __ApiPreviewProps {
-    return this.getPrerenderManifest().preview
+    return this.prerenderManifest.preview
   }
 
   protected async ensureMiddleware(_pathname: string, _isSSR?: boolean) {}
@@ -1065,7 +1074,7 @@ export default abstract class Server {
 
     // Read whether or not fallback should exist from the manifest.
     const fallbackField =
-      this.getPrerenderManifest().dynamicRoutes[pathname].fallback
+      this.prerenderManifest.dynamicRoutes[pathname].fallback
 
     return {
       staticPaths,

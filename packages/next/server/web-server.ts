@@ -4,16 +4,12 @@ import type RenderResult from './render-result'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { Params } from './router'
 import type { PayloadOptions } from './send-payload'
-import type { PrerenderManifest } from '../build'
+import type { Options, Manifests } from './base-server'
 
-import BaseServer, { Options } from './base-server'
+import BaseServer from './base-server'
 
 export default class NextWebServer extends BaseServer {
-  constructor(
-    options: Options & {
-      prerenderManifest: PrerenderManifest
-    }
-  ) {
+  constructor(options: Options & Manifests) {
     super(options)
   }
   protected generateRewrites() {
@@ -126,19 +122,5 @@ export default class NextWebServer extends BaseServer {
   ) {
     // @TODO
     return null
-  }
-  protected getPrerenderManifest() {
-    // @TODO
-    return {
-      version: 3 as const,
-      routes: {},
-      dynamicRoutes: {},
-      notFoundRoutes: [],
-      preview: {
-        previewModeId: '',
-        previewModeEncryptionKey: '',
-        previewModeSigningKey: '',
-      },
-    }
   }
 }

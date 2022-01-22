@@ -3,7 +3,7 @@ import { renderToHTML } from '../../../../server/web/render'
 import RenderResult from '../../../../server/render-result'
 import { toNodeHeaders } from '../../../../server/web/utils'
 
-import WebServer from '../../../../server/web-server'
+// import WebServer from '../../../../server/web-server'
 
 const createHeaders = (args?: any) => ({
   ...args,
@@ -40,8 +40,9 @@ export function getRender({
   isServerComponent: boolean
   restRenderOpts: any
 }) {
+  // const server = new WebServer({
+  // })
   return async function render(request: NextRequest) {
-    console.log(WebServer)
     const { nextUrl: url, cookies, headers } = request
     const { pathname, searchParams } = url
 
