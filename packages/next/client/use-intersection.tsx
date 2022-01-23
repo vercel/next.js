@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { ReactLoadablePlugin } from '../build/webpack/plugins/react-loadable-plugin'
 import {
   requestIdleCallback,
   cancelIdleCallback,
@@ -9,7 +10,9 @@ type UseIntersectionObserverInit = Pick<
   'rootMargin' | 'root'
 >
 
-type UseIntersection = { disabled?: boolean } & UseIntersectionObserverInit
+type UseIntersection = { disabled?: boolean } & UseIntersectionObserverInit & {
+    rootEl?: React.RefObject<HTMLElement> | null
+  }
 type ObserveCallback = (isVisible: boolean) => void
 type Observer = {
   id: string
@@ -20,7 +23,7 @@ type Observer = {
 const hasIntersectionObserver = typeof IntersectionObserver !== 'undefined'
 
 export function useIntersection<T extends Element>({
-  root,
+  rootEl,
   rootMargin,
   disabled,
 }: UseIntersection): [(element: T | null) => void, boolean] {
@@ -28,7 +31,7 @@ export function useIntersection<T extends Element>({
 
   const unobserve = useRef<Function>()
   const [visible, setVisible] = useState(false)
-
+  const [myRoot, setMyroot] = useState(rootEl ? rootEl.current : null)
   const setRef = useCallback(
     (el: T | null) => {
       if (unobserve.current) {
@@ -42,11 +45,11 @@ export function useIntersection<T extends Element>({
         unobserve.current = observe(
           el,
           (isVisible) => isVisible && setVisible(isVisible),
-          { root, rootMargin }
+          { root: myRoot, rootMargin }
         )
       }
     },
-    [isDisabled, root, rootMargin, visible]
+    [isDisabled, myRoot, rootMargin, visible]
   )
 
   useEffect(() => {
@@ -58,6 +61,9 @@ export function useIntersection<T extends Element>({
     }
   }, [visible])
 
+  useEffect(() => {
+    if (rootEl) setMyroot(rootEl.current)
+  }, [rootEl])
   return [setRef, visible]
 }
 
