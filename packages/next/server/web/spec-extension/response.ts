@@ -1,6 +1,6 @@
 import type { I18NConfig } from '../../config-shared'
 import { NextURL } from '../next-url'
-import { toNodeHeaders } from '../utils'
+import { toNodeHeaders, validateURL } from '../utils'
 import cookie from 'next/dist/compiled/cookie'
 import { CookieSerializeOptions } from '../types'
 
@@ -79,7 +79,8 @@ export class NextResponse extends Response {
         'Failed to execute "redirect" on "response": Invalid status code'
       )
     }
-    const destination = typeof url === 'string' ? url : url.toString()
+
+    const destination = validateURL(url)
     return new NextResponse(destination, {
       headers: { Location: destination },
       status,
@@ -89,10 +90,7 @@ export class NextResponse extends Response {
   static rewrite(destination: string | NextURL) {
     return new NextResponse(null, {
       headers: {
-        'x-middleware-rewrite':
-          typeof destination === 'string'
-            ? destination
-            : destination.toString(),
+        'x-middleware-rewrite': validateURL(destination),
       },
     })
   }
