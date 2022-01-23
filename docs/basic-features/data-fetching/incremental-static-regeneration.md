@@ -83,6 +83,39 @@ When a request is made to a page that was pre-rendered at build time, it will in
 - Next.js triggers a regeneration of the page in the background.
 - Once the page has been successfully generated, Next.js will invalidate the cache and show the updated page. If the background regeneration fails, the old page would still be unaltered.
 
-When a request is made to a path that hasn’t been generated, Next.js will server-render the page on the first request. Future requests will serve the static file from the cache.
+When a request is made to a path that hasn’t been generated, Next.js will server-render the page on the first request. Future requests will serve the static file from the cache. ISR on Vercel [persists the cache globally and handle rollbacks](https://vercel.com/docs/concepts/next.js/incremental-static-regeneration).
 
-[Incremental Static Regeneration](https://vercel.com/docs/concepts/next.js/incremental-static-regeneration) covers how to persist the cache globally and handle rollbacks.
+## Error Handling and Revalidation
+
+If there is an error inside `getStaticProps`/`getStaticPaths` when handling background regeneration, or you manually throw an error, the last successfully generated page will continue to be shown. On the next subsequent request, Next.js will retry calling `getStaticProps`/`getStaticPaths`.
+
+```jsx
+export async function getStaticProps() {
+  try {
+    // If this request fails or throws an error, Next.js will
+    // not invalidate the currently shown posts.
+    const res = await fetch('https://.../posts')
+    const posts = await res.json()
+
+    // If the request was successful, return the posts
+    // and revalidate every 10 seconds.
+    return {
+      props: {
+        posts,
+      },
+      revalidate: 10,
+    }
+  } catch (e) {
+    // Since the last request to getStaticProps threw an
+    // error, getStaticProps will be retried on the next request.
+    // Set a revalidation time of 60 seconds to attempt to
+    // fetch the latest posts.
+    return {
+      props: {
+        posts,
+      },
+      revalidate: 60,
+    }
+  }
+}
+```
