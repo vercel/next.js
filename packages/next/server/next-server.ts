@@ -74,6 +74,7 @@ import { getMiddlewareRegex, getRouteMatcher } from '../shared/lib/router/utils'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { loadEnvConfig } from '@next/env'
 import { getCustomRoute } from './server-route-utils'
+import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 
 export * from './base-server'
 
@@ -1005,12 +1006,20 @@ export default class NextNodeServer extends BaseServer {
         }
 
         if (result.response.headers.has('x-middleware-rewrite')) {
+          const rewritePath = result.response.headers.get(
+            'x-middleware-rewrite'
+          )!
           const { newUrl, parsedDestination } = prepareDestination({
-            appendParamsToQuery: true,
-            destination: result.response.headers.get('x-middleware-rewrite')!,
+            appendParamsToQuery: false,
+            destination: rewritePath,
             params: _params,
-            query: parsedUrl.query,
+            query: {},
           })
+
+          warnIfQueryParametersWereDeleted(
+            parsedUrl.query,
+            parsedDestination.query
+          )
 
           if (
             parsedDestination.protocol &&
@@ -1191,5 +1200,26 @@ export default class NextNodeServer extends BaseServer {
 
   protected getRoutesManifest() {
     return require(join(this.distDir, ROUTES_MANIFEST))
+  }
+}
+
+function warnIfQueryParametersWereDeleted(
+  incoming: ParsedUrlQuery,
+  rewritten: ParsedUrlQuery
+): void {
+  const incomingQuery = urlQueryToSearchParams(incoming)
+  const rewrittenQuery = urlQueryToSearchParams(rewritten)
+
+  const missingKeys = [...incomingQuery.keys()].filter((key) => {
+    return !rewrittenQuery.has(key)
+  })
+
+  if (missingKeys.length > 0) {
+    Log.warn(
+      `Middleware rewrite deleted the following query parameters from the URL: ${missingKeys.join(
+        ', '
+      )}.`,
+      'We are no longer merging query parameters - https://nextjs.org/docs/messages/errors/deleting-query-params-in-middlewares'
+    )
   }
 }
