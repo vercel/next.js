@@ -18,7 +18,7 @@ import { isYarn } from '../is-yarn'
 
 import * as Log from '../../build/output/log'
 import { EventLintCheckCompleted } from '../../telemetry/events/build'
-import isError from '../is-error'
+import isError, { getProperError } from '../is-error'
 
 type Config = {
   plugins: string[]
@@ -221,7 +221,7 @@ async function lint(
       )
       return null
     } else {
-      throw new Error(err + '')
+      throw getProperError(err)
     }
   }
 }

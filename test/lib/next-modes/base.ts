@@ -8,12 +8,18 @@ import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
+export type InstallCommand =
+  | string
+  | ((ctx: { dependencies: { [key: string]: string } }) => string)
 
 export class NextInstance {
   protected files: {
     [filename: string]: string | FileRef
   }
   protected nextConfig?: NextConfig
+  protected installCommand?: InstallCommand
+  protected buildCommand?: string
+  protected startCommand?: string
   protected dependencies?: { [name: string]: string }
   protected events: { [eventName: string]: Set<any> }
   public testDir: string
@@ -27,6 +33,9 @@ export class NextInstance {
     files,
     dependencies,
     nextConfig,
+    installCommand,
+    buildCommand,
+    startCommand,
   }: {
     files: {
       [filename: string]: string | FileRef
@@ -35,10 +44,16 @@ export class NextInstance {
       [name: string]: string
     }
     nextConfig?: NextConfig
+    installCommand?: InstallCommand
+    buildCommand?: string
+    startCommand?: string
   }) {
     this.files = files
     this.dependencies = dependencies
     this.nextConfig = nextConfig
+    this.installCommand = installCommand
+    this.buildCommand = buildCommand
+    this.startCommand = startCommand
     this.events = {}
     this.isDestroyed = false
     this.isStopping = false
@@ -59,15 +74,23 @@ export class NextInstance {
       `next-test-${Date.now()}-${(Math.random() * 1000) | 0}`
     )
 
-    if (process.env.NEXT_TEST_STARTER && !this.dependencies) {
+    if (
+      process.env.NEXT_TEST_STARTER &&
+      !this.dependencies &&
+      !this.installCommand
+    ) {
       await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
     } else if (!skipIsolatedNext) {
-      this.testDir = await createNextInstall({
-        react: 'latest',
-        'react-dom': 'latest',
-        ...this.dependencies,
-      })
+      this.testDir = await createNextInstall(
+        {
+          react: 'latest',
+          'react-dom': 'latest',
+          ...this.dependencies,
+        },
+        this.installCommand
+      )
     }
+    console.log('created next.js install, writing test files')
 
     for (const filename of Object.keys(this.files)) {
       const item = this.files[filename]
@@ -125,6 +148,9 @@ export class NextInstance {
     }
   }
 
+  public async export(): Promise<{ exitCode?: number; cliOutput?: string }> {
+    return {}
+  }
   public async setup(): Promise<void> {}
   public async start(): Promise<void> {}
   public async stop(): Promise<void> {
@@ -182,6 +208,7 @@ export class NextInstance {
     if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
       await fs.remove(this.testDir)
     }
+    console.log(`destroyed next instance`)
   }
 
   public get url() {
