@@ -7,6 +7,8 @@ import type { PayloadOptions } from './send-payload'
 import type { Options } from './base-server'
 
 import BaseServer from './base-server'
+import { renderToHTML } from './render'
+import { LoadComponentsReturnType } from './load-components'
 
 export default class NextWebServer extends BaseServer {
   constructor(options: Options) {
@@ -106,9 +108,17 @@ export default class NextWebServer extends BaseServer {
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult | null> {
-    // @TODO
-    console.log(pathname)
-    return null
+    return renderToHTML(
+      {
+        url: pathname,
+        cookies: req.cookies,
+        headers: req.headers,
+      } as any,
+      {} as any,
+      pathname,
+      query,
+      { ...renderOpts, supportsDynamicHTML: true }
+    )
   }
   protected async sendRenderResult(
     req: WebNextRequest,
@@ -122,7 +132,14 @@ export default class NextWebServer extends BaseServer {
     }
   ): Promise<void> {
     // @TODO
-    console.log(options)
+    const writer = res.transformStream.writable.getWriter()
+    const encoder = new TextEncoder()
+    options.result.pipe({
+      write: (str: string) => writer.write(encoder.encode(str)),
+      end: () => writer.close(),
+      // Not implemented: cork/uncork/on/removeListener
+    } as any)
+    res.send()
   }
   protected async runApi() {
     // @TODO
@@ -134,6 +151,10 @@ export default class NextWebServer extends BaseServer {
     params?: Params | null
   ) {
     // @TODO
-    return null
+    return {
+      query: query || {},
+      components: (globalThis as any)
+        .__web_components as LoadComponentsReturnType,
+    }
   }
 }

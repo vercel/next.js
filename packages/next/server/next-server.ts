@@ -6,7 +6,6 @@ import type { FetchEventResult } from './web/types'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { PrerenderManifest } from '../build'
 import type { Rewrite } from '../lib/load-custom-routes'
-import type { NextConfigComplete } from './config-shared'
 
 import { execOnce } from '../shared/lib/utils'
 import {

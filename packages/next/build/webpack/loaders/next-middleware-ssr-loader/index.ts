@@ -43,6 +43,26 @@ export default async function middlewareSSRLoader(this: any) {
       throw new Error('Your page must export a \`default\` component')
     }
 
+    // Set server context
+    self.__web_components = {
+      Component: pageMod.default,
+      pageConfig: pageMod.config || {},
+      buildManifest,
+      reactLoadableManifest,
+      Document,
+      App,
+      getStaticProps: pageMod.getStaticProps,
+      getServerSideProps: pageMod.getServerSideProps,
+      getStaticPaths: pageMod.getStaticPaths,
+      ComponentMod: undefined,
+      
+      // renderOpts
+      env: process.env,
+      supportsDynamicHTML: true,
+      concurrentFeatures: true,
+      disableOptimizedLoading: true,
+    }
+  
     const render = getRender({
       App,
       Document,

@@ -6,12 +6,16 @@ import RenderResult from '../../../../server/render-result'
 import { toNodeHeaders } from '../../../../server/web/utils'
 
 import WebServer from '../../../../server/web-server'
+import { WebNextRequest, WebNextResponse } from '../../../../server/base-http'
 
 const createHeaders = (args?: any) => ({
   ...args,
   'x-middleware-ssr': '1',
   'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
 })
+
+const encoder = new TextEncoder()
+const decoder = new TextDecoder()
 
 function sendError(req: any, error: Error) {
   const defaultMessage = 'An error occurred while rendering ' + req.url + '.'
@@ -46,11 +50,11 @@ export function getRender({
 }) {
   // Used by `path-browserify`.
   process.cwd = () => ''
-
   const server = new WebServer({
     conf: config,
     minimalMode: true,
   })
+  const requestHandler = server.getRequestHandler()
 
   return async function render(request: NextRequest) {
     const { nextUrl: url, cookies, headers } = request
@@ -89,6 +93,19 @@ export function getRender({
     delete query.__flight__
     delete query.__props__
 
+    // @TODO
+    Object.assign((self as any).__web_components, {
+      renderServerComponentData,
+      serverComponentProps,
+      serverComponentManifest: isServerComponent ? rscManifest : null,
+    })
+
+    const extendedReq = new WebNextRequest(request)
+    const t = new TransformStream()
+    const extendedRes = new WebNextResponse(t)
+    requestHandler(extendedReq, extendedRes)
+    return await extendedRes.toResponse()
+
     const renderOpts = {
       ...restRenderOpts,
       // Locales are not supported yet.
@@ -119,7 +136,6 @@ export function getRender({
 
     const transformStream = new TransformStream()
     const writer = transformStream.writable.getWriter()
-    const encoder = new TextEncoder()
 
     let result: RenderResult | null
     let renderError: any
