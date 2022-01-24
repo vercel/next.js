@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ReactLoadablePlugin } from '../build/webpack/plugins/react-loadable-plugin'
 import {
   requestIdleCallback,
   cancelIdleCallback,
