@@ -39,7 +39,7 @@ export default function Home({ isConnected }) {
           </a>
 
           <a
-            href="https://github.com/vercel/next.js/tree/master/examples"
+            href="https://github.com/vercel/next.js/tree/canary/examples"
             className="card"
           >
             <h3>Examples &rarr;</h3>

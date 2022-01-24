@@ -14,7 +14,8 @@ jobs:
         with:
           only-labels: 'please add a complete reproduction'
           close-issue-message: 'This issue has been automatically closed after 30 days of inactivity with no reproduction. If you are running into a similar issue, please open a new issue with a reproduction. Thank you.'
-          days-before-issue-close: 30
+          days-before-issue-close: 1
+          days-before-issue-stale: 30
           days-before-pr-close: -1
           days-before-pr-stale: -1
           exempt-issue-labels: 'blocked,must,should,keep'

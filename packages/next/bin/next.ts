@@ -23,6 +23,7 @@ const commands: { [command: string]: () => Promise<cliCommand> } = {
   lint: () => Promise.resolve(require('../cli/next-lint').nextLint),
   telemetry: () =>
     Promise.resolve(require('../cli/next-telemetry').nextTelemetry),
+  info: () => Promise.resolve(require('../cli/next-info').nextInfo),
 }
 
 const args = arg(
