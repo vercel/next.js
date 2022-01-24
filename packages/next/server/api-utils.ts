@@ -89,7 +89,7 @@ export async function apiResolver(
     }
     apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
     apiRes.send = (data) => sendData(apiReq, apiRes, data)
-    apiRes.json = (data) => sendJson(apiRes, data)
+    apiRes.json = apiRes.send
     apiRes.redirect = (statusOrUrl: number | string, url?: string) =>
       redirect(apiRes, statusOrUrl, url)
     apiRes.setPreviewData = (data, options = {}) =>
@@ -266,7 +266,7 @@ export function sendData(
   res: NextApiResponse,
   body: any
 ): void {
-  if (body === null || body === undefined) {
+  if (body === undefined) {
     res.end()
     return
   }
@@ -297,7 +297,10 @@ export function sendData(
     return
   }
 
-  const isJSONLike = ['object', 'number', 'boolean'].includes(typeof body)
+  const isJSONLike = ['object', 'number', 'boolean', 'string'].includes(
+    typeof body
+  )
+
   const stringifiedBody = isJSONLike ? JSON.stringify(body) : body
   const etag = generateETag(stringifiedBody)
   if (sendEtagResponse(req, res, etag)) {
@@ -319,19 +322,6 @@ export function sendData(
 
   res.setHeader('Content-Length', Buffer.byteLength(stringifiedBody))
   res.end(stringifiedBody)
-}
-
-/**
- * Send `JSON` object
- * @param res response object
- * @param jsonBody of data
- */
-export function sendJson(res: NextApiResponse, jsonBody: any): void {
-  // Set header to application/json
-  res.setHeader('Content-Type', 'application/json; charset=utf-8')
-
-  // Use send to handle request
-  res.send(jsonBody)
 }
 
 const COOKIE_NAME_PRERENDER_BYPASS = `__prerender_bypass`
