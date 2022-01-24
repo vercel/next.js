@@ -27,17 +27,6 @@ export default class NextWebServer extends BaseServer {
   protected handleCompression() {
     // @TODO
   }
-  protected getRoutesManifest() {
-    return {
-      headers: [],
-      rewrites: {
-        fallback: [],
-        afterFiles: [],
-        beforeFiles: [],
-      },
-      redirects: [],
-    }
-  }
   protected getPagePath() {
     // @TODO
     return ''
@@ -81,10 +70,6 @@ export default class NextWebServer extends BaseServer {
     return undefined
   }
   protected getMiddlewareManifest() {
-    return undefined
-  }
-  protected getPagesManifest() {
-    // @TODO
     return undefined
   }
   protected getFilesystemPaths() {

@@ -107,6 +107,8 @@ export interface Options {
 
 export interface Manifests {
   prerenderManifest: PrerenderManifest
+  routesManifest: CustomRoutes
+  pagesManifest: PagesManifest | undefined
 }
 
 export interface BaseRequestHandler {
@@ -171,12 +173,13 @@ export default abstract class Server {
   protected middlewareManifest?: MiddlewareManifest
   protected middleware?: RoutingItem[]
   protected prerenderManifest: PrerenderManifest
+  protected routesManifest: CustomRoutes
+
   public readonly hostname?: string
   public readonly port?: number
 
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
-  protected abstract getPagesManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
   protected abstract generatePublicRoutes(): Route[]
   protected abstract generateImageRoutes(): Route[]
@@ -213,7 +216,6 @@ export default abstract class Server {
   protected abstract getPagePath(pathname: string, locales?: string[]): string
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getMiddlewareManifest(): MiddlewareManifest | undefined
-  protected abstract getRoutesManifest(): CustomRoutes
 
   protected abstract sendRenderResult(
     req: BaseNextRequest,
@@ -263,10 +265,6 @@ export default abstract class Server {
     port,
     manifestOpts,
   }: Options & { manifestOpts?: Manifests }) {
-    // Assign manifest files if provided, otherwise we load them.
-    const manifests = this.loadManifests(manifestOpts)
-    this.prerenderManifest = manifests.prerenderManifest
-
     this.dir = resolve(dir)
     this.quiet = quiet
     this.loadEnvConfig({ dev })
@@ -279,6 +277,12 @@ export default abstract class Server {
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
+
+    // Assign manifest files if provided, otherwise we load them.
+    const manifests = this.loadManifests(manifestOpts)
+    this.prerenderManifest = manifests.prerenderManifest
+    this.routesManifest = manifests.routesManifest
+    this.pagesManifest = manifests.pagesManifest
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -332,7 +336,6 @@ export default abstract class Server {
       publicRuntimeConfig,
     })
 
-    this.pagesManifest = this.getPagesManifest()
     this.middlewareManifest = this.getMiddlewareManifest()
 
     this.customRoutes = this.getCustomRoutes()
@@ -599,7 +602,7 @@ export default abstract class Server {
   }
 
   protected getCustomRoutes(): CustomRoutes {
-    const customRoutes = this.getRoutesManifest()
+    const customRoutes = { ...this.routesManifest }
     let rewrites: CustomRoutes['rewrites']
 
     // rewrites can be stored as an array when an array is

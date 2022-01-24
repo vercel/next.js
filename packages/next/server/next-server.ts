@@ -1175,10 +1175,8 @@ export default class NextNodeServer extends BaseServer {
   protected loadManifests() {
     return {
       prerenderManifest: require(join(this.distDir, PRERENDER_MANIFEST)),
+      routesManifest: require(join(this.distDir, ROUTES_MANIFEST)),
+      pagesManifest: this.getPagesManifest(),
     }
-  }
-
-  protected getRoutesManifest() {
-    return require(join(this.distDir, ROUTES_MANIFEST))
   }
 }
