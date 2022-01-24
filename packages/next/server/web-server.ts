@@ -81,7 +81,7 @@ export default class NextWebServer extends BaseServer {
   }
   protected getPagesManifest() {
     // @TODO
-    return undefined
+    return {}
   }
   protected getFilesystemPaths() {
     return new Set<string>()

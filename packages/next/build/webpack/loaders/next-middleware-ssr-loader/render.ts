@@ -44,12 +44,13 @@ export function getRender({
   restRenderOpts: any
   config: NextConfig
 }) {
+  // Used by `path-browserify`.
+  process.cwd = () => ''
+
   const server = new WebServer({
     conf: config,
     minimalMode: true,
   })
-
-  console.log(server)
 
   return async function render(request: NextRequest) {
     const { nextUrl: url, cookies, headers } = request
