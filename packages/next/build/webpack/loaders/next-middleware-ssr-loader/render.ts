@@ -93,7 +93,7 @@ export function getRender({
     delete query.__flight__
     delete query.__props__
 
-    // @TODO
+    // Extend the options.
     Object.assign((self as any).__web_components, {
       renderServerComponentData,
       serverComponentProps,
@@ -101,93 +101,93 @@ export function getRender({
     })
 
     const extendedReq = new WebNextRequest(request)
-    const t = new TransformStream()
-    const extendedRes = new WebNextResponse(t)
+    const transformStream = new TransformStream()
+    const extendedRes = new WebNextResponse(transformStream)
     requestHandler(extendedReq, extendedRes)
     return await extendedRes.toResponse()
 
-    const renderOpts = {
-      ...restRenderOpts,
-      // Locales are not supported yet.
-      // locales: i18n?.locales,
-      // locale: detectedLocale,
-      // defaultLocale,
-      // domainLocales: i18n?.domains,
-      dev: process.env.NODE_ENV !== 'production',
-      App,
-      Document,
-      buildManifest,
-      Component: pageMod.default,
-      pageConfig: pageMod.config || {},
-      getStaticProps: pageMod.getStaticProps,
-      getServerSideProps: pageMod.getServerSideProps,
-      getStaticPaths: pageMod.getStaticPaths,
-      reactLoadableManifest,
-      env: process.env,
-      supportsDynamicHTML: true,
-      concurrentFeatures: true,
-      // When streaming, opt-out the `defer` behavior for script tags.
-      disableOptimizedLoading: true,
-      renderServerComponentData,
-      serverComponentProps,
-      serverComponentManifest: isServerComponent ? rscManifest : null,
-      ComponentMod: null,
-    }
+    // const renderOpts = {
+    //   ...restRenderOpts,
+    //   // Locales are not supported yet.
+    //   // locales: i18n?.locales,
+    //   // locale: detectedLocale,
+    //   // defaultLocale,
+    //   // domainLocales: i18n?.domains,
+    //   dev: process.env.NODE_ENV !== 'production',
+    //   App,
+    //   Document,
+    //   buildManifest,
+    //   Component: pageMod.default,
+    //   pageConfig: pageMod.config || {},
+    //   getStaticProps: pageMod.getStaticProps,
+    //   getServerSideProps: pageMod.getServerSideProps,
+    //   getStaticPaths: pageMod.getStaticPaths,
+    //   reactLoadableManifest,
+    //   env: process.env,
+    //   supportsDynamicHTML: true,
+    //   concurrentFeatures: true,
+    //   // When streaming, opt-out the `defer` behavior for script tags.
+    //   disableOptimizedLoading: true,
+    //   renderServerComponentData,
+    //   serverComponentProps,
+    //   serverComponentManifest: isServerComponent ? rscManifest : null,
+    //   ComponentMod: null,
+    // }
 
-    const transformStream = new TransformStream()
-    const writer = transformStream.writable.getWriter()
+    // const transformStream = new TransformStream()
+    // const writer = transformStream.writable.getWriter()
 
-    let result: RenderResult | null
-    let renderError: any
-    try {
-      result = await renderToHTML(
-        req as any,
-        {} as any,
-        pathname,
-        query,
-        renderOpts
-      )
-    } catch (err: any) {
-      console.error(
-        'An error occurred while rendering the initial result:',
-        err
-      )
-      const errorRes = { statusCode: 500, err }
-      renderError = err
-      try {
-        req.url = '/_error'
-        result = await renderToHTML(
-          req as any,
-          errorRes as any,
-          '/_error',
-          query,
-          {
-            ...renderOpts,
-            err,
-            Component: errorMod.default,
-            getStaticProps: errorMod.getStaticProps,
-            getServerSideProps: errorMod.getServerSideProps,
-            getStaticPaths: errorMod.getStaticPaths,
-          }
-        )
-      } catch (err2: any) {
-        return sendError(req, err2)
-      }
-    }
+    // let result: RenderResult | null
+    // let renderError: any
+    // try {
+    //   result = await renderToHTML(
+    //     req as any,
+    //     {} as any,
+    //     pathname,
+    //     query,
+    //     renderOpts
+    //   )
+    // } catch (err: any) {
+    //   console.error(
+    //     'An error occurred while rendering the initial result:',
+    //     err
+    //   )
+    //   const errorRes = { statusCode: 500, err }
+    //   renderError = err
+    //   try {
+    //     req.url = '/_error'
+    //     result = await renderToHTML(
+    //       req as any,
+    //       errorRes as any,
+    //       '/_error',
+    //       query,
+    //       {
+    //         ...renderOpts,
+    //         err,
+    //         Component: errorMod.default,
+    //         getStaticProps: errorMod.getStaticProps,
+    //         getServerSideProps: errorMod.getServerSideProps,
+    //         getStaticPaths: errorMod.getStaticPaths,
+    //       }
+    //     )
+    //   } catch (err2: any) {
+    //     return sendError(req, err2)
+    //   }
+    // }
 
-    if (!result) {
-      return sendError(req, new Error('No result returned from render.'))
-    }
+    // if (!result) {
+    //   return sendError(req, new Error('No result returned from render.'))
+    // }
 
-    result.pipe({
-      write: (str: string) => writer.write(encoder.encode(str)),
-      end: () => writer.close(),
-      // Not implemented: cork/uncork/on/removeListener
-    } as any)
+    // result.pipe({
+    //   write: (str: string) => writer.write(encoder.encode(str)),
+    //   end: () => writer.close(),
+    //   // Not implemented: cork/uncork/on/removeListener
+    // } as any)
 
-    return new Response(transformStream.readable, {
-      headers: createHeaders(),
-      status: renderError ? 500 : 200,
-    })
+    // return new Response(transformStream.readable, {
+    //   headers: createHeaders(),
+    //   status: renderError ? 500 : 200,
+    // })
   }
 }
