@@ -374,7 +374,7 @@ The `handleSubmit()` function processes your form data through a series of steps
 - We then use `fetch()` to send the data to our `/api/form` endpoint using JSON and HTTP `POST` method.
 - Server sends back a response with the name submitted. Woohoo! 🥳
 
-https://assets.vercel.com/video/upload/c_scale,w_675/v1643009088/nextjs/guides/building-forms/form-with-js.mov
+![](https://assets.vercel.com/video/upload/c_scale,w_675/v1643009088/nextjs/guides/building-forms/form-with-js.mov)
 
 ## Conclusion
 
