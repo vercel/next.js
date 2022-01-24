@@ -1009,7 +1009,7 @@ function runTests(mode) {
     }
   })
 
-  it('should load the lazy', async () => {
+  it('should load the image when the lazyRoot prop is used', async () => {
     let browser
     try {
       //trying on '/lazy-noref' it fails
