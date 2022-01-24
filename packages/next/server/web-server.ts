@@ -9,12 +9,8 @@ import type { Options, Manifests } from './base-server'
 import BaseServer from './base-server'
 
 export default class NextWebServer extends BaseServer {
-  // For the web server, we provide the manifests directly via the constructor.
-  constructor(options: Options & { manifestOpts: Manifests }) {
+  constructor(options: Options & Manifests) {
     super(options)
-  }
-  protected loadManifests(manifests: Manifests) {
-    return manifests
   }
   protected generateRewrites() {
     // @TODO: assuming minimal mode right now

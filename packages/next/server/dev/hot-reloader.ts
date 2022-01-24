@@ -541,7 +541,6 @@ export default class HotReloader {
                     canonicalBase: this.config.amp.canonicalBase,
                     i18n: this.config.i18n,
                     previewProps: this.previewProps,
-                    confg: this.config,
                   } as any)}!`,
                   isServer: false,
                   isServerWeb: true,

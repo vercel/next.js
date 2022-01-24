@@ -250,7 +250,6 @@ export default abstract class Server {
   ): void
 
   protected abstract loadEnvConfig(params: { dev: boolean }): void
-  protected abstract loadManifests(options: any): Manifests
 
   public constructor({
     dir = '.',
@@ -261,11 +260,11 @@ export default abstract class Server {
     customServer = true,
     hostname,
     port,
-    manifestOpts,
-  }: Options & { manifestOpts?: Manifests }) {
-    // Assign manifest files if provided, otherwise we load them.
-    const manifests = this.loadManifests(manifestOpts)
-    this.prerenderManifest = manifests.prerenderManifest
+    //
+    prerenderManifest,
+  }: Options & Manifests) {
+    // Assign manifest files
+    this.prerenderManifest = prerenderManifest
 
     this.dir = resolve(dir)
     this.quiet = quiet
