@@ -1,7 +1,15 @@
-import { IncomingMessage, ServerResponse } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { Rewrite } from '../../../../lib/load-custom-routes'
+import type { BuildManifest } from '../../../../server/get-page-files'
+import type { NextConfig } from '../../../../server/config'
+import type {
+  GetServerSideProps,
+  GetStaticPaths,
+  GetStaticProps,
+} from '../../../../types'
+
 import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
-import { Rewrite } from '../../../../lib/load-custom-routes'
 import { normalizeLocalePath } from '../../../../shared/lib/i18n/normalize-locale-path'
 import pathMatch from '../../../../shared/lib/router/utils/path-match'
 import { getRouteRegex } from '../../../../shared/lib/router/utils/route-regex'
@@ -11,19 +19,12 @@ import {
   prepareDestination,
 } from '../../../../shared/lib/router/utils/prepare-destination'
 import { __ApiPreviewProps } from '../../../../server/api-utils'
-import { BuildManifest } from '../../../../server/get-page-files'
-import {
-  GetServerSideProps,
-  GetStaticPaths,
-  GetStaticProps,
-} from '../../../../types'
 import { acceptLanguage } from '../../../../server/accept-header'
 import { detectLocaleCookie } from '../../../../shared/lib/i18n/detect-locale-cookie'
 import { detectDomainLocale } from '../../../../shared/lib/i18n/detect-domain-locale'
 import { denormalizePagePath } from '../../../../server/denormalize-page-path'
 import cookie from 'next/dist/compiled/cookie'
 import { TEMPORARY_REDIRECT_STATUS } from '../../../../shared/lib/constants'
-import { NextConfig } from '../../../../server/config'
 import { addRequestMeta } from '../../../../server/request-meta'
 import { BaseNextRequest } from '../../../../server/base-http'
 

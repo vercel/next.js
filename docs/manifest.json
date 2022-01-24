@@ -15,7 +15,6 @@
             },
             {
               "title": "Data Fetching",
-              "path": "/docs/basic-features/data-fetching/index.md",
               "routes": [
                 {
                   "title": "Overview",

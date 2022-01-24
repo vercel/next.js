@@ -1,7 +1,7 @@
-import { IncomingMessage, ServerResponse } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
+
 import { parse } from 'next/dist/compiled/content-type'
 import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
-import getRawBody from 'next/dist/compiled/raw-body'
 import { PageConfig, PreviewData } from 'next/types'
 import { Stream } from 'stream'
 import { isResSent, NextApiRequest, NextApiResponse } from '../shared/lib/utils'
@@ -157,6 +157,8 @@ export async function parseBody(
   let buffer
 
   try {
+    const getRawBody =
+      require('next/dist/compiled/raw-body') as typeof import('next/dist/compiled/raw-body')
     buffer = await getRawBody(req, { encoding, limit })
   } catch (e) {
     if (isError(e) && e.type === 'entity.too.large') {
