@@ -510,7 +510,9 @@ export default abstract class Server {
             }
 
             if (params) {
-              params = utils.normalizeDynamicRouteParams(params).params
+              if (!paramsResult.hasValidParams) {
+                params = utils.normalizeDynamicRouteParams(params).params
+              }
 
               matchedPathname = utils.interpolateDynamicPath(
                 matchedPathname,

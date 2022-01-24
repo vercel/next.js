@@ -60,6 +60,9 @@ export type NextConfig = { [key: string]: any } & {
   >
   redirects?: () => Promise<Redirect[]>
 
+  /**
+   * @deprecated This option has been removed as webpack 5 is now default
+   */
   webpack5?: false
   excludeDefaultMomentLocales?: boolean
 
@@ -116,7 +119,7 @@ export type NextConfig = { [key: string]: any } & {
   httpAgentOptions?: { keepAlive?: boolean }
   future?: {
     /**
-     * @deprecated this options was moved to the top level
+     * @deprecated This option has been removed as webpack 5 is now default
      */
     webpack5?: false
   }
