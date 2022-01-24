@@ -512,7 +512,7 @@ export default function Image({
   }
 
   const [setIntersection, isIntersected] = useIntersection<HTMLImageElement>({
-    rootEl: lazyRoot,
+    rootRef: lazyRoot,
     rootMargin: lazyBoundary,
     disabled: !isLazy,
   })

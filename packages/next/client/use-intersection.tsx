@@ -11,7 +11,7 @@ type UseIntersectionObserverInit = Pick<
 >
 
 type UseIntersection = { disabled?: boolean } & UseIntersectionObserverInit & {
-    rootEl?: React.RefObject<HTMLElement> | null
+    rootRef?: React.RefObject<HTMLElement> | null
   }
 type ObserveCallback = (isVisible: boolean) => void
 type Observer = {
@@ -23,7 +23,7 @@ type Observer = {
 const hasIntersectionObserver = typeof IntersectionObserver !== 'undefined'
 
 export function useIntersection<T extends Element>({
-  rootEl,
+  rootRef,
   rootMargin,
   disabled,
 }: UseIntersection): [(element: T | null) => void, boolean] {
@@ -31,7 +31,7 @@ export function useIntersection<T extends Element>({
 
   const unobserve = useRef<Function>()
   const [visible, setVisible] = useState(false)
-  const [myRoot, setMyroot] = useState(rootEl ? rootEl.current : null)
+  const [root, setRoot] = useState(rootRef ? rootRef.current : null)
   const setRef = useCallback(
     (el: T | null) => {
       if (unobserve.current) {
@@ -45,11 +45,11 @@ export function useIntersection<T extends Element>({
         unobserve.current = observe(
           el,
           (isVisible) => isVisible && setVisible(isVisible),
-          { root: myRoot, rootMargin }
+          { root: root, rootMargin }
         )
       }
     },
-    [isDisabled, myRoot, rootMargin, visible]
+    [isDisabled, root, rootMargin, visible]
   )
 
   useEffect(() => {
@@ -62,8 +62,8 @@ export function useIntersection<T extends Element>({
   }, [visible])
 
   useEffect(() => {
-    if (rootEl) setMyroot(rootEl.current)
-  }, [rootEl])
+    if (rootRef) setRoot(rootRef.current)
+  }, [rootRef])
   return [setRef, visible]
 }
 
