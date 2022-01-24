@@ -4,9 +4,7 @@ import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plu
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
-import type { PrerenderManifest } from '../build'
 import type { Rewrite } from '../lib/load-custom-routes'
-import type { NextConfigComplete } from './config-shared'
 
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -92,17 +90,9 @@ export interface NodeRequestHandler {
 }
 
 export default class NextNodeServer extends BaseServer {
-  // @TODO: The following line can be removed once we have TS 4.6 upgraded:
-  // https://devblogs.microsoft.com/typescript/announcing-typescript-4-6-beta/#code-before-super
-  // @ts-expect-error
   constructor(options: Options) {
-    // Load manifest files
-    const dir = resolve(options.dir || '.')
-    const distDir = join(dir, (options.conf as NextConfigComplete).distDir)
-    const prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
-
     // Initialize super class
-    super({ ...options, prerenderManifest })
+    super(options)
 
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
@@ -1182,13 +1172,10 @@ export default class NextNodeServer extends BaseServer {
     return result
   }
 
-  private _cachedPreviewManifest: PrerenderManifest | undefined
-  protected getPrerenderManifest(): PrerenderManifest {
-    if (this._cachedPreviewManifest) {
-      return this._cachedPreviewManifest
+  protected loadManifests() {
+    return {
+      prerenderManifest: require(join(this.distDir, PRERENDER_MANIFEST)),
     }
-    const manifest = require(join(this.distDir, PRERENDER_MANIFEST))
-    return (this._cachedPreviewManifest = manifest)
   }
 
   protected getRoutesManifest() {

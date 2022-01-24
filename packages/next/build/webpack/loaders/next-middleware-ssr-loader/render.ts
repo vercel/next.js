@@ -1,9 +1,11 @@
-import { NextRequest } from '../../../../server/web/spec-extension/request'
+import type { NextRequest } from '../../../../server/web/spec-extension/request'
+import type { NextConfig } from '../../../../types'
+
 import { renderToHTML } from '../../../../server/web/render'
 import RenderResult from '../../../../server/render-result'
 import { toNodeHeaders } from '../../../../server/web/utils'
 
-// import WebServer from '../../../../server/web-server'
+import WebServer from '../../../../server/web-server'
 
 const createHeaders = (args?: any) => ({
   ...args,
@@ -29,6 +31,7 @@ export function getRender({
   reactLoadableManifest,
   isServerComponent,
   restRenderOpts,
+  config,
 }: {
   App: any
   Document: any
@@ -39,9 +42,13 @@ export function getRender({
   reactLoadableManifest: any
   isServerComponent: boolean
   restRenderOpts: any
+  config: NextConfig
 }) {
   // const server = new WebServer({
+
   // })
+  console.log(config)
+
   return async function render(request: NextRequest) {
     const { nextUrl: url, cookies, headers } = request
     const { pathname, searchParams } = url

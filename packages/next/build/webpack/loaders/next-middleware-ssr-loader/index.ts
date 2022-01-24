@@ -2,6 +2,7 @@ import { stringifyRequest } from '../../stringify-request'
 
 export default async function middlewareSSRLoader(this: any) {
   const {
+    config,
     absolutePagePath,
     absoluteAppPath,
     absoluteDocumentPath,
@@ -51,7 +52,8 @@ export default async function middlewareSSRLoader(this: any) {
       reactLoadableManifest,
       rscManifest,
       isServerComponent: ${isServerComponent},
-      restRenderOpts: ${JSON.stringify(restRenderOpts)}
+      restRenderOpts: ${JSON.stringify(restRenderOpts)},
+      config: ${JSON.stringify(config)}
     })
 
     export default function rscMiddleware(opts) {
