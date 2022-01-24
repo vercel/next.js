@@ -27,7 +27,7 @@ Here's the syntax of a simple HTML form:
 
 The front-end looks like this:
 
-![html forms](https://assets.vercel.com/image/upload/w_675/nextjs/guides/building-forms/html-forms.png)
+![html forms](https://assets.vercel.com/image/upload/c_scale,w_675/v1643009088/nextjs/guides/building-forms/html-forms.png)
 
 The HTML `<form>` tag acts as a container for different `<input>` elements like `text` field and submit `button`. Let's study each of these elements:
 
@@ -80,7 +80,7 @@ Let's modify the form w.r.t. to these attributes:
 
 With these validation checks in place, when a user tries to submit an empty field for Last Name, it gives an error that pops right in the form field. Similarly, a roll number can only be entered if it's 10-20 characters long.
 
-![form validation](https://assets.vercel.com/image/upload/v1643009088/nextjs/guides/building-forms/form-validation.jpg)
+![form validation](https://assets.vercel.com/image/upload/c_scale,w_675/v1643009088/nextjs/guides/building-forms/form-validation.jpg)
 
 ### JavaScript-based Form Validation
 
@@ -120,7 +120,7 @@ Let's look at a simple example:
 The HTML [script](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script) tag is used to embed any client-side JavaScript. It can either contain inline scripting statements (as shown in the example above) or point to an external script file via the src attribute.
 This example validates the name and roll number of a user. The `validateFormWithJS()` function does not allow an empty name field, and the roll number must be at least three digits long. The validation is performed when you hit the Submit button. You are not redirected to the next page until the given values are correct.
 
-![js-validation](https://assets.vercel.com/image/upload/v1643009089/nextjs/guides/building-forms/js-validation.jpg)
+![js-validation](https://assets.vercel.com/image/upload/c_scale,w_675/v1643009089/nextjs/guides/building-forms/js-validation.jpg)
 
 #### Form Validation Using Regular Expressions
 
@@ -144,7 +144,7 @@ This was a quick recap of setting up web forms in HTML.
 
 The above example defines how to use the `pattern` attribute. In this case, the password form field must only contain digits (0 to 9) and lowercase alphabets (a to z). No other special characters (#,$,&, etc.) The rule in RegEx is written as `[a-z]{1,15}`.
 
-![form-validate-regex](https://assets.vercel.com/image/upload/v1643009088/nextjs/guides/building-forms/form-validate-regex.jpg)
+![form-validate-regex](https://assets.vercel.com/image/upload/c_scale,w_675/v1643009088/nextjs/guides/building-forms/form-validate-regex.jpg)
 
 This was a quick recap of setting up web forms in HTML.
 
@@ -227,7 +227,7 @@ You can now use `/api/form` relative endpoint inside the `action` attribute of t
 
 If you submit this form, it will submit the data to the forms API endpoint `/api/form`. The server then responds, generally handling the data and loading the URL defined by the action attribute, causing a new page load. So in this case you'll be redirected to `http://localhost:3000/api/form` with the following response from the server.
 
-![form-no-js](/docs/guides/images/form-no-js.jpg)
+![form-no-js](https://assets.vercel.com/image/upload/c_scale,w_675/v1643009087/nextjs/guides/building-forms/form-no-js.jpg)
 
 ## Part 3: Forms in Next.js
 
@@ -260,7 +260,7 @@ This completes the basic structure of your Next.js-based form.
 
 > You can view the entire source code of [next-forms](https://github.com/vercel/next.js/tree/canary/examples/next-forms) example repo that we're creating here as a working example. Feel free to clone it and start right away. This demo is built with create-next-app, and you can preview the basic form CSS styles inside `/styles/global.css` file.
 
-![forms with nextjs](/docs/guides/images/forms-with-nextjs.jpg)
+![forms with nextjs](https://assets.vercel.com/image/upload/c_scale,w_675/v1643009088/nextjs/guides/building-forms/forms-with-nextjs.png)
 
 ## Part 4: Form Submission without JavaScript
 
@@ -298,7 +298,7 @@ With JavaScript disabled, when you hit the Submit button, an event is triggered,
 
 The form data will be submitted on the server as a request `req` to the form handler function written above. It will process the data and return a JSON string as a response `res` with your submitted name included.
 
-https://user-images.githubusercontent.com/12712988/146770309-82754666-73da-482f-9baa-fc76ec656f93.mp4
+https://assets.vercel.com/video/upload/c_scale,w_675/v1643009088/nextjs/guides/building-forms/form-without-js.mov
 
 > To improve the experience here, as a response you can redirect the user to a page and thank them for submitting the form.
 
@@ -374,7 +374,7 @@ The `handleSubmit()` function processes your form data through a series of steps
 - We then use `fetch()` to send the data to our `/api/form` endpoint using JSON and HTTP `POST` method.
 - Server sends back a response with the name submitted. Woohoo! 🥳
 
-https://user-images.githubusercontent.com/12712988/146770467-d87512ef-167e-4449-a656-5fec63f8726d.mp4
+https://assets.vercel.com/video/upload/c_scale,w_675/v1643009088/nextjs/guides/building-forms/form-with-js.mov
 
 ## Conclusion
 
