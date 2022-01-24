@@ -43,7 +43,7 @@ async function parseImportsInfo(
 
   let transformedSource = ''
   let lastIndex = 0
-  let defaultExportName = 'RSComponent'
+  let defaultExportName = 'RSCComponent'
 
   for (let i = 0; i < body.length; i++) {
     const node = body[i]
@@ -89,7 +89,12 @@ async function parseImportsInfo(
         continue
       }
       case 'ExportDefaultDeclaration': {
-        defaultExportName = node.declaration.id.name
+        const def = node.declaration
+        if (def.type === 'Identifier') {
+          defaultExportName = def.name
+        } else if (def.type === 'FunctionDeclaration') {
+          defaultExportName = def.id.name
+        }
         break
       }
       default:
