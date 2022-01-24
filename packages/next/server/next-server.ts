@@ -1,3 +1,4 @@
+import './node-polyfill-fetch'
 import type { Params, Route } from './router'
 import type { CacheFs } from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
