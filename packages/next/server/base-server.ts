@@ -26,9 +26,6 @@ import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus, modifyRouteRegex } from '../lib/load-custom-routes'
 import {
-  CLIENT_PUBLIC_FILES_PATH,
-  PRERENDER_MANIFEST,
-  ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
@@ -43,7 +40,7 @@ import {
 import * as envConfig from '../shared/lib/runtime-config'
 import { DecodeError, normalizeRepeatedSlashes } from '../shared/lib/utils'
 import { setLazyProp, getCookieParser, tryGetPreviewData } from './api-utils'
-import { isTargetLikeServerless } from './config'
+import { isTargetLikeServerless } from './utils'
 import pathMatch from '../shared/lib/router/utils/path-match'
 import Router, { replaceBasePath, route } from './router'
 import {
@@ -55,7 +52,6 @@ import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage, isBot } from './utils'
 import RenderResult from './render-result'
-import { loadEnvConfig } from '@next/env'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { denormalizePagePath } from './denormalize-page-path'
@@ -142,7 +138,6 @@ export default abstract class Server {
   protected pagesDir?: string
   protected publicDir: string
   protected hasStaticDir: boolean
-  protected serverBuildDir: string
   protected pagesManifest?: PagesManifest
   protected buildId: string
   protected minimalMode: boolean
@@ -183,6 +178,7 @@ export default abstract class Server {
   public readonly hostname?: string
   public readonly port?: number
 
+  protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
   protected abstract getPagesManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
@@ -205,15 +201,16 @@ export default abstract class Server {
     query?: NextParsedUrlQuery,
     params?: Params | null
   ): Promise<FindComponentsResult | null>
-  protected abstract getMiddlewareInfo(params: {
-    dev?: boolean
-    distDir: string
-    page: string
-    serverless: boolean
-  }): { name: string; paths: string[]; env: string[] }
+  protected abstract getMiddlewareInfo(page: string): {
+    name: string
+    paths: string[]
+    env: string[]
+  }
   protected abstract getPagePath(pathname: string, locales?: string[]): string
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getMiddlewareManifest(): MiddlewareManifest | undefined
+  protected abstract getPrerenderManifest(): PrerenderManifest
+  protected abstract getRoutesManifest(): CustomRoutes
 
   protected abstract sendRenderResult(
     req: BaseNextRequest,
@@ -274,6 +271,8 @@ export default abstract class Server {
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null>
 
+  protected abstract loadEnvConfig(params: { dev: boolean }): void
+
   public constructor({
     dir = '.',
     quiet = false,
@@ -286,16 +285,15 @@ export default abstract class Server {
   }: Options) {
     this.dir = resolve(dir)
     this.quiet = quiet
-    loadEnvConfig(this.dir, dev, Log)
+    this.loadEnvConfig({ dev })
 
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
     this.nextConfig = conf as NextConfigComplete
     this.hostname = hostname
     this.port = port
-
     this.distDir = join(this.dir, this.nextConfig.distDir)
-    this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
+    this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
     // Only serverRuntimeConfig needs the default
@@ -350,11 +348,6 @@ export default abstract class Server {
       publicRuntimeConfig,
     })
 
-    this.serverBuildDir = join(
-      this.distDir,
-      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-    )
-
     this.pagesManifest = this.getPagesManifest()
     this.middlewareManifest = this.getMiddlewareManifest()
 
@@ -376,22 +369,6 @@ export default abstract class Server {
       flushToDisk: !minimalMode && this.nextConfig.experimental.isrFlushToDisk,
     })
     this.responseCache = new ResponseCache(this.incrementalCache)
-
-    /**
-     * This sets environment variable to be used at the time of SSR by head.tsx.
-     * Using this from process.env allows targeting both serverless and SSR by calling
-     * `process.env.__NEXT_OPTIMIZE_IMAGES`.
-     * TODO(atcastle@): Remove this when experimental.optimizeImages are being cleaned up.
-     */
-    if (this.renderOpts.optimizeFonts) {
-      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
-    }
-    if (this.renderOpts.optimizeImages) {
-      process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
-    }
-    if (this.renderOpts.optimizeCss) {
-      process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
-    }
   }
 
   public logError(err: Error): void {
@@ -533,7 +510,9 @@ export default abstract class Server {
             }
 
             if (params) {
-              params = utils.normalizeDynamicRouteParams(params).params
+              if (!paramsResult.hasValidParams) {
+                params = utils.normalizeDynamicRouteParams(params).params
+              }
 
               matchedPathname = utils.interpolateDynamicPath(
                 matchedPathname,
@@ -638,7 +617,7 @@ export default abstract class Server {
   }
 
   protected getCustomRoutes(): CustomRoutes {
-    const customRoutes = require(join(this.distDir, ROUTES_MANIFEST))
+    const customRoutes = this.getRoutesManifest()
     let rewrites: CustomRoutes['rewrites']
 
     // rewrites can be stored as an array when an array is
@@ -656,15 +635,6 @@ export default abstract class Server {
     return Object.assign(customRoutes, { rewrites })
   }
 
-  private _cachedPreviewManifest: PrerenderManifest | undefined
-  protected getPrerenderManifest(): PrerenderManifest {
-    if (this._cachedPreviewManifest) {
-      return this._cachedPreviewManifest
-    }
-    const manifest = require(join(this.distDir, PRERENDER_MANIFEST))
-    return (this._cachedPreviewManifest = manifest)
-  }
-
   protected getPreviewProps(): __ApiPreviewProps {
     return this.getPrerenderManifest().preview
   }
@@ -674,14 +644,7 @@ export default abstract class Server {
     _isSSR?: boolean
   ): Promise<boolean> {
     try {
-      return (
-        this.getMiddlewareInfo({
-          dev: this.renderOpts.dev,
-          distDir: this.distDir,
-          page: pathname,
-          serverless: this._isLikeServerless,
-        }).paths.length > 0
-      )
+      return this.getMiddlewareInfo(pathname).paths.length > 0
     } catch (_) {}
 
     return false
@@ -779,7 +742,8 @@ export default abstract class Server {
             res,
             pathname,
             { ..._parsedUrl.query, _nextDataReq: '1' },
-            parsedUrl
+            parsedUrl,
+            true
           )
           return {
             finished: true,
@@ -1001,7 +965,7 @@ export default abstract class Server {
         }
 
         try {
-          await this.render(req, res, pathname, query, parsedUrl)
+          await this.render(req, res, pathname, query, parsedUrl, true)
 
           return {
             finished: true,
@@ -1222,7 +1186,8 @@ export default abstract class Server {
     res: BaseNextResponse,
     pathname: string,
     query: NextParsedUrlQuery = {},
-    parsedUrl?: NextUrlWithParsedQuery
+    parsedUrl?: NextUrlWithParsedQuery,
+    internalRender = false
   ): Promise<void> {
     if (!pathname.startsWith('/')) {
       console.warn(
@@ -1245,6 +1210,7 @@ export default abstract class Server {
     // we don't modify the URL for _next/data request but still
     // call render so we special case this to prevent an infinite loop
     if (
+      !internalRender &&
       !this.minimalMode &&
       !query._nextDataReq &&
       (req.url?.match(/^\/_next\//) ||
