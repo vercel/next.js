@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "12.0.9-canary.4",
+  "version": "12.0.9-canary.6",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -71,10 +71,10 @@
     ]
   },
   "dependencies": {
-    "@next/env": "12.0.9-canary.4",
+    "@next/env": "12.0.9-canary.6",
     "caniuse-lite": "^1.0.30001283",
     "postcss": "8.4.5",
-    "styled-jsx": "5.0.0-beta.7",
+    "styled-jsx": "5.0.0",
     "use-subscription": "1.5.1"
   },
   "peerDependencies": {
@@ -119,11 +119,11 @@
     "@hapi/accept": "5.0.2",
     "@napi-rs/cli": "1.2.1",
     "@napi-rs/triples": "1.0.3",
-    "@next/polyfill-module": "12.0.9-canary.4",
-    "@next/polyfill-nomodule": "12.0.9-canary.4",
-    "@next/react-dev-overlay": "12.0.9-canary.4",
-    "@next/react-refresh-utils": "12.0.9-canary.4",
-    "@next/swc": "12.0.9-canary.4",
+    "@next/polyfill-module": "12.0.9-canary.6",
+    "@next/polyfill-nomodule": "12.0.9-canary.6",
+    "@next/react-dev-overlay": "12.0.9-canary.6",
+    "@next/react-refresh-utils": "12.0.9-canary.6",
+    "@next/swc": "12.0.9-canary.6",
     "@peculiar/webcrypto": "1.1.7",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
@@ -161,7 +161,7 @@
     "@types/webpack-sources1": "npm:@types/webpack-sources@0.1.5",
     "@types/ws": "8.2.0",
     "@vercel/ncc": "0.33.1",
-    "@vercel/nft": "0.17.2",
+    "@vercel/nft": "0.17.4",
     "acorn": "8.5.0",
     "amphtml-validator": "1.0.33",
     "arg": "4.1.0",
