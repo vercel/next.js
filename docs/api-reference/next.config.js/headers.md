@@ -50,7 +50,7 @@ module.exports = {
 `headers` is an async function that expects an array to be returned holding objects with `source` and `headers` properties:
 
 - `source` is the incoming request path pattern.
-- `headers` is an array of headers to add to the response - each header is an object with `key` and `value` properties.
+- `headers` is an array of response header objects, with `key` and `value` properties.
 - `basePath`: `false` or `undefined` - if false the basePath won't be included when matching, can be used for external rewrites only.
 - `locale`: `false` or `undefined` - whether the locale should not be included when matching.
 - `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
