@@ -27,7 +27,7 @@ Here's the syntax of a simple HTML form:
 
 The front-end looks like this:
 
-![html forms](https://assets.vercel.com/image/upload/v1643009088/nextjs/guides/building-forms/html-forms.png)
+![html forms](https://assets.vercel.com/image/upload/w_675/nextjs/guides/building-forms/html-forms.png)
 
 The HTML `<form>` tag acts as a container for different `<input>` elements like `text` field and submit `button`. Let's study each of these elements:
 
@@ -80,7 +80,7 @@ Let's modify the form w.r.t. to these attributes:
 
 With these validation checks in place, when a user tries to submit an empty field for Last Name, it gives an error that pops right in the form field. Similarly, a roll number can only be entered if it's 10-20 characters long.
 
-![form validation](/docs/guides/images/form-validation.jpg)
+![form validation](https://assets.vercel.com/image/upload/v1643009088/nextjs/guides/building-forms/form-validation.jpg)
 
 ### JavaScript-based Form Validation
 
@@ -120,7 +120,7 @@ Let's look at a simple example:
 The HTML [script](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script) tag is used to embed any client-side JavaScript. It can either contain inline scripting statements (as shown in the example above) or point to an external script file via the src attribute.
 This example validates the name and roll number of a user. The `validateFormWithJS()` function does not allow an empty name field, and the roll number must be at least three digits long. The validation is performed when you hit the Submit button. You are not redirected to the next page until the given values are correct.
 
-![js-validation](/docs/guides/images/js-validation.jpg)
+![js-validation](https://assets.vercel.com/image/upload/v1643009089/nextjs/guides/building-forms/js-validation.jpg)
 
 #### Form Validation Using Regular Expressions
 
@@ -144,7 +144,7 @@ This was a quick recap of setting up web forms in HTML.
 
 The above example defines how to use the `pattern` attribute. In this case, the password form field must only contain digits (0 to 9) and lowercase alphabets (a to z). No other special characters (#,$,&, etc.) The rule in RegEx is written as `[a-z]{1,15}`.
 
-![form-validate-regex](/docs/guides/images/form-validate-regex.jpg)
+![form-validate-regex](https://assets.vercel.com/image/upload/v1643009088/nextjs/guides/building-forms/form-validate-regex.jpg)
 
 This was a quick recap of setting up web forms in HTML.
 
