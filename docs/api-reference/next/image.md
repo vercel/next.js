@@ -221,6 +221,12 @@ A string (with similar syntax to the margin property) that acts as the bounding 
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/rootMargin)
 
+### lazyRoot
+
+A React RefObject pointing to the Element which the [lazyBoundary](#lazyBoundary) calculates for the Intersection detection. Defaults to 'null', refering to the root Html Element.
+
+[Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/root)
+
 ### unoptimized
 
 When true, the source image will be served as-is instead of changing quality,
