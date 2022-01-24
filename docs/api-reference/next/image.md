@@ -223,7 +223,7 @@ A string (with similar syntax to the margin property) that acts as the bounding 
 
 ### lazyRoot
 
-A React RefObject pointing to the Element which the [lazyBoundary](#lazyBoundary) calculates for the Intersection detection. Defaults to 'null', refering to the root Html Element.
+A React [Ref](https://reactjs.org/docs/refs-and-the-dom.html) pointing to the Element which the [lazyBoundary](#lazyBoundary) calculates for the Intersection detection. Defaults to `null`, referring to the document viewport.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/root)
 

@@ -44,7 +44,7 @@ export function useIntersection<T extends Element>({
         unobserve.current = observe(
           el,
           (isVisible) => isVisible && setVisible(isVisible),
-          { root: root, rootMargin }
+          { root, rootMargin }
         )
       }
     },
