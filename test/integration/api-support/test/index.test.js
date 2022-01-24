@@ -94,7 +94,7 @@ function runTests(dev = false) {
     const text = await fetchViaHTTP(appPort, '/api', null, {}).then(
       (res) => res.ok && res.text()
     )
-    expect(text).toEqual('Index should work')
+    expect(text).toEqual('"Index should work"')
   })
 
   it('should return custom error', async () => {
@@ -162,8 +162,28 @@ function runTests(dev = false) {
     expect(body).toBe(true)
   })
 
+  it('should support string for JSON in api page', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/json-string')
+    const body = res.ok ? await res.json() : 'Some error'
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe(
+      'application/json; charset=utf-8'
+    )
+    expect(body).toBe('Hello world!')
+  })
+
+  it('should support null for JSON in api page', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/json-null')
+    const body = res.ok ? await res.json() : 'Not null'
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe(
+      'application/json; charset=utf-8'
+    )
+    expect(body).toBe(null)
+  })
+
   it('should support undefined response body', async () => {
-    const res = await fetchViaHTTP(appPort, '/api/undefined', null, {})
+    const res = await fetchViaHTTP(appPort, '/api/json-undefined', null, {})
     const body = res.ok ? await res.text() : null
     expect(body).toBe('')
   })
@@ -501,7 +521,7 @@ function runTests(dev = false) {
       expect(stderr).toContain(
         `API resolved without sending a response for ${apiURL}, this may result in stalled requests.`
       )
-      expect(await req.text()).toBe('hello world')
+      expect(await req.text()).toBe('"hello world"')
     })
 
     it('should not show warning if using externalResolver flag', async () => {
@@ -511,7 +531,7 @@ function runTests(dev = false) {
       expect(stderr.substr(startIdx)).not.toContain(
         `API resolved without sending a response for ${apiURL}`
       )
-      expect(await req.text()).toBe('hello world')
+      expect(await req.text()).toBe('"hello world"')
     })
   } else {
     it('should show warning with next export', async () => {
