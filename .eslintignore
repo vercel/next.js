@@ -26,6 +26,7 @@ packages/next-env/**/*.d.ts
 packages/create-next-app/templates/**
 test/integration/eslint/**
 test/development/basic/legacy-decorators/**/*
+test/development/basic/emit-decorator-metadata/**/*.js
 test-timings.json
 packages/next-swc/crates/**
 bench/nested-deps/pages/**
