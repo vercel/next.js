@@ -4,12 +4,12 @@ import type RenderResult from './render-result'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { Params } from './router'
 import type { PayloadOptions } from './send-payload'
-import type { Options, Manifests } from './base-server'
+import type { Options } from './base-server'
 
 import BaseServer from './base-server'
 
 export default class NextWebServer extends BaseServer {
-  constructor(options: Options & Manifests) {
+  constructor(options: Options) {
     super(options)
   }
   protected generateRewrites() {
@@ -85,6 +85,19 @@ export default class NextWebServer extends BaseServer {
   }
   protected getFilesystemPaths() {
     return new Set<string>()
+  }
+  protected getPrerenderManifest() {
+    return {
+      version: 3 as const,
+      routes: {},
+      dynamicRoutes: {},
+      notFoundRoutes: [],
+      preview: {
+        previewModeId: '',
+        previewModeSigningKey: '',
+        previewModeEncryptionKey: '',
+      },
+    }
   }
   protected async renderHTML(
     req: WebNextRequest,

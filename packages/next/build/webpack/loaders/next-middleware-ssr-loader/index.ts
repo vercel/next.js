@@ -8,6 +8,7 @@ export default async function middlewareSSRLoader(this: any) {
     absolute500Path,
     absoluteErrorPath,
     isServerComponent,
+    stringifiedConfig,
     ...restRenderOpts
   } = this.getOptions()
 
@@ -51,6 +52,7 @@ export default async function middlewareSSRLoader(this: any) {
       reactLoadableManifest,
       rscManifest,
       isServerComponent: ${isServerComponent},
+      config: ${stringifiedConfig},
       restRenderOpts: ${JSON.stringify(restRenderOpts)}
     })
 

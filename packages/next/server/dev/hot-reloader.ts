@@ -526,6 +526,7 @@ export default class HotReloader {
                   name: '[name].js',
                   value: `next-middleware-ssr-loader?${stringify({
                     page,
+                    stringifiedConfig: JSON.stringify(this.config),
                     absoluteAppPath: this.pagesMapping['/_app'],
                     absoluteDocumentPath: this.pagesMapping['/_document'],
                     absoluteErrorPath: this.pagesMapping['/_error'],

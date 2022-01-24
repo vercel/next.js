@@ -92,17 +92,9 @@ export interface NodeRequestHandler {
 }
 
 export default class NextNodeServer extends BaseServer {
-  // @TODO: The following line can be removed once we have TS 4.6 upgraded:
-  // https://devblogs.microsoft.com/typescript/announcing-typescript-4-6-beta/#code-before-super
-  // @ts-expect-error
   constructor(options: Options) {
-    // Load manifest files
-    const dir = resolve(options.dir || '.')
-    const distDir = join(dir, (options.conf as NextConfigComplete).distDir)
-    const prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
-
     // Initialize super class
-    super({ ...options, prerenderManifest })
+    super(options)
 
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.

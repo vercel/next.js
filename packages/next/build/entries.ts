@@ -177,6 +177,7 @@ export function createEntrypoints(
         name: '[name].js',
         value: `next-middleware-ssr-loader?${stringify({
           page,
+          stringifiedConfig: JSON.stringify(config),
           absolute500Path: pages['/500'] || '',
           absolutePagePath,
           isServerComponent: isFlight,
