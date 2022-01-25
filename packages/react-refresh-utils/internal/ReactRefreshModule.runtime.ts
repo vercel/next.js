@@ -14,11 +14,11 @@ declare const module: {
   }
 }
 
+// This function gets unwrapped into global scope, which is why we don't invert
+// if-blocks. Also, you cannot use `return`.
 export default function () {
   // Wrapped in an IIFE to avoid polluting the global scope
   ;(function () {
-    // This function gets unwrapped into global scope, which is why we don't invert
-    // if-blocks. Also, you cannot use `return`.
     // Legacy CSS implementations will `eval` browser code in a Node.js context
     // to extract CSS. For backwards compatibility, we need to check we're in a
     // browser context before continuing.
