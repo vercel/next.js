@@ -661,7 +661,7 @@ jobs:
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.24
+      - run: npm i -g turbo@1.0.28
 
       - name: Build
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
@@ -796,7 +796,7 @@ jobs:
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.24
+      - run: npm i -g turbo@1.0.28
 
       - name: Install
         uses: actions-rs/toolchain@v1
@@ -894,7 +894,7 @@ jobs:
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.24
+      - run: npm i -g turbo@1.0.28
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -942,7 +942,7 @@ jobs:
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.24
+      - run: npm i -g turbo@1.0.28
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -1015,7 +1015,7 @@ jobs:
 
       - name: 'Build'
         run: |
-          docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd):/build -w /build builder sh -c "npm i -g @napi-rs/cli@1.2.1 && npm i -g turbo@1.0.24 && turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-musl"
+          docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd):/build -w /build builder sh -c "npm i -g @napi-rs/cli@1.2.1 && npm i -g turbo@1.0.28 && turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-musl"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -1043,7 +1043,7 @@ jobs:
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.24
+      - run: npm i -g turbo@1.0.28
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -1104,7 +1104,7 @@ jobs:
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.24
+      - run: npm i -g turbo@1.0.28
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -1165,7 +1165,7 @@ jobs:
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.24
+      - run: npm i -g turbo@1.0.28
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -1225,7 +1225,7 @@ jobs:
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.24
+      - run: npm i -g turbo@1.0.28
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -1285,7 +1285,7 @@ jobs:
           override: true
           target: wasm32-unknown-unknown
 
-      - run: npm i -g turbo@1.0.24
+      - run: npm i -g turbo@1.0.28
 
       - name: Turbo cache
         id: turbo-cache
@@ -1330,7 +1330,7 @@ jobs:
         with:
           node-version: 14
 
-      - run: npm i -g turbo@1.0.24
+      - run: npm i -g turbo@1.0.28
 
       - name: Install Rust
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
