@@ -16,6 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                           |
 | --------- | ------------------------------------------------------------------------------------------------- |
+| `v12.0.9` | `lazyRoot` prop added                                                                             |
 | `v12.0.0` | `formats` configuration added.<br/>AVIF support added.<br/>Wrapper `<div>` changed to `<span>`.   |
 | `v11.1.0` | `onLoadingComplete` and `lazyBoundary` props added.                                               |
 | `v11.0.0` | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added. |
@@ -220,6 +221,12 @@ You can also [generate a solid color Data URL](https://png-pixel.com) to match t
 A string (with similar syntax to the margin property) that acts as the bounding box used to detect the intersection of the viewport with the image and trigger lazy [loading](#loading). Defaults to `"200px"`.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/rootMargin)
+
+### lazyRoot
+
+A React [Ref](https://reactjs.org/docs/refs-and-the-dom.html) pointing to the Element which the [lazyBoundary](#lazyBoundary) calculates for the Intersection detection. Defaults to `null`, referring to the document viewport.
+
+[Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/root)
 
 ### unoptimized
 
