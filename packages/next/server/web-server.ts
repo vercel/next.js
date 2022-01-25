@@ -41,8 +41,7 @@ export default class NextWebServer extends BaseServer {
     return ''
   }
   protected getBuildId() {
-    // @TODO
-    return ''
+    return (globalThis as any).__server_context.buildId
   }
   protected loadEnvConfig() {
     // @TODO

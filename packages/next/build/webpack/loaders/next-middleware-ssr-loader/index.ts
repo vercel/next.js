@@ -4,6 +4,7 @@ export default async function middlewareSSRLoader(this: any) {
   const {
     dev,
     page,
+    buildId,
     absolutePagePath,
     absoluteAppPath,
     absoluteDocumentPath,
@@ -63,6 +64,7 @@ export default async function middlewareSSRLoader(this: any) {
       errorMod,
 
       // renderOpts
+      buildId: ${JSON.stringify(buildId)},
       dev: ${JSON.stringify(dev)},
       env: process.env,
       supportsDynamicHTML: true,

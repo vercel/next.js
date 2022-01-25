@@ -350,10 +350,8 @@ async function runBasicTests(context, env) {
     const $404 = cheerio.load(path404HTML)
     expect($404('#__next').text()).toBe(page404Content)
 
-    // in dev mode: custom error page is still using default _error
-    expect(path500HTML).toContain(
-      isDev ? 'Internal Server Error' : 'custom-500-page'
-    )
+    // In dev mode: it should show the error popup.
+    expect(path500HTML).toContain(isDev ? 'Error: oops' : 'custom-500-page')
     expect(pathNotFoundHTML).toContain(page404Content)
   })
 
