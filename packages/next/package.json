@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "12.0.9-canary.6",
+  "version": "12.0.9-canary.8",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -71,7 +71,7 @@
     ]
   },
   "dependencies": {
-    "@next/env": "12.0.9-canary.6",
+    "@next/env": "12.0.9-canary.8",
     "caniuse-lite": "^1.0.30001283",
     "postcss": "8.4.5",
     "styled-jsx": "5.0.0",
@@ -119,11 +119,11 @@
     "@hapi/accept": "5.0.2",
     "@napi-rs/cli": "1.2.1",
     "@napi-rs/triples": "1.0.3",
-    "@next/polyfill-module": "12.0.9-canary.6",
-    "@next/polyfill-nomodule": "12.0.9-canary.6",
-    "@next/react-dev-overlay": "12.0.9-canary.6",
-    "@next/react-refresh-utils": "12.0.9-canary.6",
-    "@next/swc": "12.0.9-canary.6",
+    "@next/polyfill-module": "12.0.9-canary.8",
+    "@next/polyfill-nomodule": "12.0.9-canary.8",
+    "@next/react-dev-overlay": "12.0.9-canary.8",
+    "@next/react-refresh-utils": "12.0.9-canary.8",
+    "@next/swc": "12.0.9-canary.8",
     "@peculiar/webcrypto": "1.1.7",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
@@ -217,7 +217,7 @@
     "nanoid": "3.1.30",
     "native-url": "0.3.4",
     "neo-async": "2.6.1",
-    "node-fetch": "2.6.1",
+    "node-fetch": "2.6.7",
     "node-html-parser": "1.4.9",
     "ora": "4.0.4",
     "os-browserify": "0.3.0",
@@ -269,7 +269,7 @@
     "webpack-sources1": "npm:webpack-sources@1.4.3",
     "webpack-sources3": "npm:webpack-sources@3.2.3",
     "webpack4": "npm:webpack@4.44.1",
-    "webpack5": "npm:webpack@5.66.0",
+    "webpack5": "npm:webpack@5.67.0",
     "ws": "8.2.3"
   },
   "resolutions": {
