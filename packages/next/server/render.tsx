@@ -1272,7 +1272,9 @@ export async function renderToHTML(
 
       return {
         bodyResult,
-        documentElement: () => (Document as any)(),
+        documentElement: (htmlProps: HtmlProps) => (
+          <Document {...(htmlProps as any)} />
+        ),
         head,
         headTags: [],
         styles: jsxStyleRegistry.styles(),
