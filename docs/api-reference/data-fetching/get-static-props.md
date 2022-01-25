@@ -41,7 +41,7 @@ The `context` parameter is an object containing the following keys:
 
 ## getStaticProps return values
 
-The `getStaticProps` function should return an object with **any one of the following** properties:
+The `getStaticProps` function should return an object containing either `props`, `redirect`, or `notFound` followed by an **optional** `revalidate` property.
 
 ### `props`
 
