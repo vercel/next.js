@@ -8,6 +8,7 @@ import {
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   MIDDLEWARE_RUNTIME_WEBPACK,
   MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+  MIDDLEWARE_PAGES_MANIFEST,
 } from '../../../shared/lib/constants'
 import { nonNullable } from '../../../lib/non-nullable'
 
@@ -83,9 +84,12 @@ export default class MiddlewarePlugin {
 
       const files = ssrEntryInfo
         ? [
-            ssrEntryInfo.requireFlightManifest
-              ? `server/${MIDDLEWARE_FLIGHT_MANIFEST}.js`
-              : null,
+            ...(ssrEntryInfo.requireFlightManifest
+              ? [
+                  `server/${MIDDLEWARE_FLIGHT_MANIFEST}.js`,
+                  `server/${MIDDLEWARE_PAGES_MANIFEST}.js`,
+                ]
+              : []),
             `server/${MIDDLEWARE_BUILD_MANIFEST}.js`,
             `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
             ...entryFiles.map((file) => 'server/' + file),

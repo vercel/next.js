@@ -37,6 +37,8 @@ export default async function middlewareSSRLoader(this: any) {
     const buildManifest = self.__BUILD_MANIFEST
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
     const rscManifest = self.__RSC_MANIFEST
+    // TODO: incoming manifests for web server
+    // const pagesManifest = self.__PAGES_MANIFEST
 
     if (typeof pageMod.default !== 'function') {
       throw new Error('Your page must export a \`default\` component')

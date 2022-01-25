@@ -1,5 +1,8 @@
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import { PAGES_MANIFEST } from '../../../shared/lib/constants'
+import {
+  MIDDLEWARE_PAGES_MANIFEST,
+  PAGES_MANIFEST,
+} from '../../../shared/lib/constants'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 
 export type PagesManifest = { [page: string]: string }
@@ -8,10 +11,20 @@ export type PagesManifest = { [page: string]: string }
 // This is used for mapping paths like `/` to `.next/server/static/<buildid>/pages/index.js` when doing SSR
 // It's also used by next export to provide defaultPathMap
 export default class PagesManifestPlugin implements webpack.Plugin {
+  exportRuntime: boolean
   serverless: boolean
   dev: boolean
 
-  constructor({ serverless, dev }: { serverless: boolean; dev: boolean }) {
+  constructor({
+    serverless,
+    dev,
+    exportRuntime,
+  }: {
+    serverless: boolean
+    dev: boolean
+    exportRuntime: boolean
+  }) {
+    this.exportRuntime = exportRuntime
     this.serverless = serverless
     this.dev = dev
   }
@@ -45,8 +58,14 @@ export default class PagesManifestPlugin implements webpack.Plugin {
       pages[pagePath] = pages[pagePath].replace(/\\/g, '/')
     }
 
-    assets[`${!this.dev ? '../' : ''}` + PAGES_MANIFEST] =
-      new sources.RawSource(JSON.stringify(pages, null, 2))
+    if (this.exportRuntime) {
+      assets[`${MIDDLEWARE_PAGES_MANIFEST}.js`] = new sources.RawSource(
+        `self.__PAGES_MANIFEST=${JSON.stringify(pages, null, 2)}`
+      )
+    } else {
+      assets[`${!this.dev ? '../' : ''}` + PAGES_MANIFEST] =
+        new sources.RawSource(JSON.stringify(pages, null, 2))
+    }
   }
 
   apply(compiler: webpack.Compiler): void {

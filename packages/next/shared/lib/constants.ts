@@ -33,6 +33,8 @@ export const MIDDLEWARE_BUILD_MANIFEST = 'middleware-build-manifest'
 // server/middleware-react-loadable-manifest.js
 export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
   'middleware-react-loadable-manifest'
+// server/middleware-pages-manifest.js
+export const MIDDLEWARE_PAGES_MANIFEST = 'middleware-pages-manifest'
 
 // static/runtime/main.js
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`
