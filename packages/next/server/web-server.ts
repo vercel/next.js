@@ -99,7 +99,7 @@ export default class NextWebServer extends BaseServer {
   }
   protected async renderHTML(
     req: WebNextRequest,
-    res: WebNextResponse,
+    _res: WebNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
@@ -122,7 +122,7 @@ export default class NextWebServer extends BaseServer {
     )
   }
   protected async sendRenderResult(
-    req: WebNextRequest,
+    _req: WebNextRequest,
     res: WebNextResponse,
     options: {
       result: RenderResult

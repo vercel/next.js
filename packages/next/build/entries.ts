@@ -157,7 +157,6 @@ export function createEntrypoints(
     const isFlight = isFlightPage(config, absolutePagePath)
 
     const webServerRuntime = !!config.experimental.concurrentFeatures
-    const hasServerComponents = !!config.experimental.serverComponents
 
     if (page.match(MIDDLEWARE_ROUTE)) {
       const loaderOpts: MiddlewareLoaderOptions = {
