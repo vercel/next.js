@@ -65,7 +65,7 @@ export default async function middlewareSSRLoader(this: any) {
 
       // renderOpts
       buildId: ${JSON.stringify(buildId)},
-      dev: ${JSON.stringify(dev)},
+      dev: ${dev},
       env: process.env,
       supportsDynamicHTML: true,
       concurrentFeatures: true,

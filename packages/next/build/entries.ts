@@ -175,6 +175,7 @@ export function createEntrypoints(
       serverWeb[serverBundlePath] = finalizeEntrypoint({
         name: '[name].js',
         value: `next-middleware-ssr-loader?${stringify({
+          dev: false,
           page,
           stringifiedConfig: JSON.stringify(config),
           absolute500Path: pages['/500'] || '',
