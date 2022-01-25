@@ -125,12 +125,12 @@ import type { ReactElement, ReactNode } from 'react'
 import type { NextPage } from 'next'
 import type { AppProps } from 'next/app'
 
-type NextPageWithLayout<T = void> = NextPage<T> & {
+type NextPageWithLayout<P = {}, IP = P> = NextPage<P, IP> & {
   getLayout?: (page: ReactElement) => ReactNode
 }
 
 type AppPropsWithLayout = AppProps & {
-  Component: NextPageWithLayout<unknown>
+  Component: NextPageWithLayout
 }
 
 export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
