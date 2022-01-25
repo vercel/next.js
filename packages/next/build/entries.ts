@@ -181,7 +181,6 @@ export function createEntrypoints(
           absolute500Path: pages['/500'] || '',
           absolutePagePath,
           isServerComponent: isFlight,
-          serverComponents: hasServerComponents,
           ...defaultServerlessOptions,
         } as any)}!`,
         isServer: false,

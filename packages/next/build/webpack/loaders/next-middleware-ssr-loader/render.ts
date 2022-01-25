@@ -29,7 +29,7 @@ export function getRender({
   isServerComponent: boolean
   config: NextConfig
 }) {
-  // Used by `path-browserify`.
+  // Polyfilled for `path-browserify`.
   process.cwd = () => ''
   const server = new WebServer({
     conf: config,
@@ -55,6 +55,7 @@ export function getRender({
       })
     }
 
+    // @TODO: We should move this into server/render.
     if (Document.getInitialProps) {
       const err = new Error(
         '`getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
@@ -71,15 +72,14 @@ export function getRender({
         ? JSON.parse(query.__props__)
         : undefined
 
-    // Extend the options.
+    // Extend the context.
     Object.assign((self as any).__server_context, {
       renderServerComponentData,
       serverComponentProps,
     })
 
     const extendedReq = new WebNextRequest(request)
-    const transformStream = new TransformStream()
-    const extendedRes = new WebNextResponse(transformStream)
+    const extendedRes = new WebNextResponse()
     requestHandler(extendedReq, extendedRes)
     return await extendedRes.toResponse()
   }
