@@ -1,3 +1,4 @@
+import './node-polyfill-fetch'
 import type { Params, Route } from './router'
 import type { CacheFs } from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
@@ -609,14 +610,16 @@ export default class NextNodeServer extends BaseServer {
     res: BaseNextResponse | ServerResponse,
     pathname: string,
     query?: NextParsedUrlQuery,
-    parsedUrl?: NextUrlWithParsedQuery
+    parsedUrl?: NextUrlWithParsedQuery,
+    internal = false
   ): Promise<void> {
     return super.render(
       this.normalizeReq(req),
       this.normalizeRes(res),
       pathname,
       query,
-      parsedUrl
+      parsedUrl,
+      internal
     )
   }
 
