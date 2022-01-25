@@ -12,9 +12,6 @@ const createHeaders = (args?: any) => ({
   'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
 })
 
-// const encoder = new TextEncoder()
-// const decoder = new TextDecoder()
-
 function sendError(req: any, error: Error) {
   const defaultMessage = 'An error occurred while rendering ' + req.url + '.'
   return new Response((error && error.message) || defaultMessage, {
@@ -24,26 +21,12 @@ function sendError(req: any, error: Error) {
 }
 
 export function getRender({
-  App,
   Document,
-  pageMod,
-  errorMod,
-  rscManifest,
-  buildManifest,
-  reactLoadableManifest,
   isServerComponent,
-  restRenderOpts,
   config,
 }: {
-  App: any
   Document: any
-  pageMod: any
-  errorMod: any
-  rscManifest: object
-  buildManifest: any
-  reactLoadableManifest: any
   isServerComponent: boolean
-  restRenderOpts: any
   config: NextConfig
 }) {
   // Used by `path-browserify`.
@@ -88,14 +71,10 @@ export function getRender({
         ? JSON.parse(query.__props__)
         : undefined
 
-    delete query.__flight__
-    delete query.__props__
-
     // Extend the options.
     Object.assign((self as any).__server_context, {
       renderServerComponentData,
       serverComponentProps,
-      serverComponentManifest: isServerComponent ? rscManifest : null,
     })
 
     const extendedReq = new WebNextRequest(request)
@@ -103,89 +82,5 @@ export function getRender({
     const extendedRes = new WebNextResponse(transformStream)
     requestHandler(extendedReq, extendedRes)
     return await extendedRes.toResponse()
-
-    // const renderOpts = {
-    //   ...restRenderOpts,
-    //   // Locales are not supported yet.
-    //   // locales: i18n?.locales,
-    //   // locale: detectedLocale,
-    //   // defaultLocale,
-    //   // domainLocales: i18n?.domains,
-    //   dev: process.env.NODE_ENV !== 'production',
-    //   App,
-    //   Document,
-    //   buildManifest,
-    //   Component: pageMod.default,
-    //   pageConfig: pageMod.config || {},
-    //   getStaticProps: pageMod.getStaticProps,
-    //   getServerSideProps: pageMod.getServerSideProps,
-    //   getStaticPaths: pageMod.getStaticPaths,
-    //   reactLoadableManifest,
-    //   env: process.env,
-    //   supportsDynamicHTML: true,
-    //   concurrentFeatures: true,
-    //   // When streaming, opt-out the `defer` behavior for script tags.
-    //   disableOptimizedLoading: true,
-    //   renderServerComponentData,
-    //   serverComponentProps,
-    //   serverComponentManifest: isServerComponent ? rscManifest : null,
-    //   ComponentMod: null,
-    // }
-
-    // const transformStream = new TransformStream()
-    // const writer = transformStream.writable.getWriter()
-
-    // let result: RenderResult | null
-    // let renderError: any
-    // try {
-    //   result = await renderToHTML(
-    //     req as any,
-    //     {} as any,
-    //     pathname,
-    //     query,
-    //     renderOpts
-    //   )
-    // } catch (err: any) {
-    //   console.error(
-    //     'An error occurred while rendering the initial result:',
-    //     err
-    //   )
-    //   const errorRes = { statusCode: 500, err }
-    //   renderError = err
-    //   try {
-    //     req.url = '/_error'
-    //     result = await renderToHTML(
-    //       req as any,
-    //       errorRes as any,
-    //       '/_error',
-    //       query,
-    //       {
-    //         ...renderOpts,
-    //         err,
-    //         Component: errorMod.default,
-    //         getStaticProps: errorMod.getStaticProps,
-    //         getServerSideProps: errorMod.getServerSideProps,
-    //         getStaticPaths: errorMod.getStaticPaths,
-    //       }
-    //     )
-    //   } catch (err2: any) {
-    //     return sendError(req, err2)
-    //   }
-    // }
-
-    // if (!result) {
-    //   return sendError(req, new Error('No result returned from render.'))
-    // }
-
-    // result.pipe({
-    //   write: (str: string) => writer.write(encoder.encode(str)),
-    //   end: () => writer.close(),
-    //   // Not implemented: cork/uncork/on/removeListener
-    // } as any)
-
-    // return new Response(transformStream.readable, {
-    //   headers: createHeaders(),
-    //   status: renderError ? 500 : 200,
-    // })
   }
 }

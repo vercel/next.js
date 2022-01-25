@@ -200,6 +200,10 @@ export default class NextNodeServer extends BaseServer {
       : []
   }
 
+  protected setImmutableAssetCacheControl(res: BaseNextResponse): void {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+  }
+
   protected generateFsStaticRoutes(): Route[] {
     return [
       {

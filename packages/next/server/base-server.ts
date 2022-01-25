@@ -597,10 +597,6 @@ export default abstract class Server {
   // Backwards compatibility
   protected async close(): Promise<void> {}
 
-  protected setImmutableAssetCacheControl(res: BaseNextResponse): void {
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-  }
-
   protected getCustomRoutes(): CustomRoutes {
     const customRoutes = this.getRoutesManifest()
     let rewrites: CustomRoutes['rewrites']

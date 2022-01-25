@@ -12,7 +12,6 @@ export default async function middlewareSSRLoader(this: any) {
     absoluteErrorPath,
     isServerComponent,
     stringifiedConfig,
-    ...restRenderOpts
   } = this.getOptions()
 
   const stringifiedAbsolutePagePath = stringifyRequest(this, absolutePagePath)
@@ -59,6 +58,7 @@ export default async function middlewareSSRLoader(this: any) {
       getServerSideProps: pageMod.getServerSideProps,
       getStaticPaths: pageMod.getStaticPaths,
       ComponentMod: undefined,
+      serverComponentManifest: ${isServerComponent} ? rscManifest : null,
 
       // components
       errorMod,
@@ -73,16 +73,9 @@ export default async function middlewareSSRLoader(this: any) {
     }
   
     const render = getRender({
-      App,
       Document,
-      pageMod,
-      errorMod,
-      buildManifest,
-      reactLoadableManifest,
-      rscManifest,
       isServerComponent: ${isServerComponent},
       config: ${stringifiedConfig},
-      restRenderOpts: ${JSON.stringify(restRenderOpts)}
     })
 
     export default function rscMiddleware(opts) {
