@@ -114,7 +114,12 @@ export default class NextWebServer extends BaseServer {
       {} as any,
       pathname,
       query,
-      { ...renderOpts, supportsDynamicHTML: true }
+      {
+        ...renderOpts,
+        supportsDynamicHTML: true,
+        concurrentFeatures: true,
+        disableOptimizedLoading: true,
+      }
     )
   }
   protected async sendRenderResult(
