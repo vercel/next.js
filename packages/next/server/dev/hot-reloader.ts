@@ -41,6 +41,7 @@ import { DecodeError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
+import { promises as fs } from 'fs'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -431,6 +432,15 @@ export default class HotReloader {
     startSpan.stop() // Stop immediately to create an artificial parent span
 
     await this.clean(startSpan)
+    // Ensure distDir exists before writing package.json
+    await fs.mkdir(this.config.distDir, { recursive: true })
+
+    // Ensure commonjs handling is used for files in the distDir (generally .next)
+    // Files outside of the distDir can be "type": "module"
+    await fs.writeFile(
+      join(this.config.distDir, 'package.json'),
+      '{"type": "commonjs"}'
+    )
 
     const configs = await this.getWebpackConfig(startSpan)
 
