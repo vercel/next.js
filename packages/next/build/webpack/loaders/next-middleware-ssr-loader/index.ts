@@ -2,6 +2,7 @@ import { stringifyRequest } from '../../stringify-request'
 
 export default async function middlewareSSRLoader(this: any) {
   const {
+    dev,
     page,
     absolutePagePath,
     absoluteAppPath,
@@ -62,6 +63,7 @@ export default async function middlewareSSRLoader(this: any) {
       errorMod,
 
       // renderOpts
+      dev: ${JSON.stringify(dev)},
       env: process.env,
       supportsDynamicHTML: true,
       concurrentFeatures: true,

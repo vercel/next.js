@@ -525,6 +525,7 @@ export default class HotReloader {
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   name: '[name].js',
                   value: `next-middleware-ssr-loader?${stringify({
+                    dev: true,
                     page,
                     stringifiedConfig: JSON.stringify(this.config),
                     absoluteAppPath: this.pagesMapping['/_app'],
