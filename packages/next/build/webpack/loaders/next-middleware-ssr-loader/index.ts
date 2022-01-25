@@ -58,6 +58,9 @@ export default async function middlewareSSRLoader(this: any) {
       getStaticPaths: pageMod.getStaticPaths,
       ComponentMod: undefined,
 
+      // components
+      errorMod,
+
       // renderOpts
       env: process.env,
       supportsDynamicHTML: true,

@@ -1,7 +1,3 @@
 export default function Pid({ router }) {
-  return (
-    <div>
-      route: {router.route}, query: {router.query.dynamic}
-    </div>
-  )
+  return <div>query: {router.query.dynamic}</div>
 }

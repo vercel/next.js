@@ -344,8 +344,8 @@ async function runBasicTests(context, env) {
     expect(homeHTML).toContain('path:/')
     expect(homeHTML).toContain('foo.client')
 
-    expect(dynamicRouteHTML1).toContain('[pid]')
-    expect(dynamicRouteHTML2).toContain('[pid]')
+    expect(dynamicRouteHTML1).toContain('query: dynamic1')
+    expect(dynamicRouteHTML2).toContain('query: dynamic2')
 
     const $404 = cheerio.load(path404HTML)
     expect($404('#__next').text()).toBe(page404Content)

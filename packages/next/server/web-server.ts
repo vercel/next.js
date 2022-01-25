@@ -4,16 +4,12 @@ import type RenderResult from './render-result'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { Params } from './router'
 import type { PayloadOptions } from './send-payload'
-import type { Options } from './base-server'
 
 import BaseServer from './base-server'
 import { renderToHTML } from './render'
 import { LoadComponentsReturnType } from './load-components'
 
 export default class NextWebServer extends BaseServer {
-  constructor(options: Options) {
-    super(options)
-  }
   protected generateRewrites() {
     // @TODO: assuming minimal mode right now
     return {
@@ -151,7 +147,6 @@ export default class NextWebServer extends BaseServer {
     query?: NextParsedUrlQuery,
     params?: Params | null
   ) {
-    // @TODO: error pages
     if (pathname === (globalThis as any).__current_route) {
       return {
         query: {
@@ -162,6 +157,24 @@ export default class NextWebServer extends BaseServer {
           .__server_context as LoadComponentsReturnType,
       }
     }
+
+    if (pathname === '/_error') {
+      const errorMod = (globalThis as any).__server_context.errorMod
+      return {
+        query: {
+          ...(query || {}),
+          ...(params || {}),
+        },
+        components: {
+          ...(globalThis as any).__server_context,
+          Component: errorMod.default,
+          getStaticProps: errorMod.getStaticProps,
+          getServerSideProps: errorMod.getServerSideProps,
+          getStaticPaths: errorMod.getStaticPaths,
+        } as LoadComponentsReturnType,
+      }
+    }
+
     return null
   }
 }

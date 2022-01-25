@@ -1601,7 +1601,7 @@ export default abstract class Server {
       )
 
       if (!isWrappedError) {
-        if (this.minimalMode || this.renderOpts.dev) {
+        if ((this.minimalMode && !process.browser) || this.renderOpts.dev) {
           if (isError(err)) err.page = page
           throw err
         }
