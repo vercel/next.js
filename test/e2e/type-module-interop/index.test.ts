@@ -1,6 +1,7 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
+import { hasRedbox, renderViaHTTP } from 'next-test-utils'
+import webdriver from 'next-webdriver'
 
 describe('Type module interop', () => {
   let next: NextInstance
@@ -28,8 +29,14 @@ describe('Type module interop', () => {
   })
   afterAll(() => next.destroy())
 
-  it('should work', async () => {
+  it('should render server-side', async () => {
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('hello world')
+  })
+
+  it('should render client-side', async () => {
+    const browser = await webdriver(next.url, '/')
+    expect(await hasRedbox(browser)).toBe(false)
+    await browser.close()
   })
 })
