@@ -1,8 +1,6 @@
 import type { NextConfig } from '../../../../server/config-shared'
 
 import { NextRequest } from '../../../../server/web/spec-extension/request'
-import { renderToHTML } from '../../../../server/web/render'
-import RenderResult from '../../../../server/render-result'
 import { toNodeHeaders } from '../../../../server/web/utils'
 
 import WebServer from '../../../../server/web-server'
@@ -14,8 +12,8 @@ const createHeaders = (args?: any) => ({
   'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
 })
 
-const encoder = new TextEncoder()
-const decoder = new TextDecoder()
+// const encoder = new TextEncoder()
+// const decoder = new TextDecoder()
 
 function sendError(req: any, error: Error) {
   const defaultMessage = 'An error occurred while rendering ' + req.url + '.'
@@ -94,7 +92,7 @@ export function getRender({
     delete query.__props__
 
     // Extend the options.
-    Object.assign((self as any).__web_components, {
+    Object.assign((self as any).__server_context, {
       renderServerComponentData,
       serverComponentProps,
       serverComponentManifest: isServerComponent ? rscManifest : null,

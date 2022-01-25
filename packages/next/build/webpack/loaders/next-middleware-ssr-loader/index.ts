@@ -2,6 +2,7 @@ import { stringifyRequest } from '../../stringify-request'
 
 export default async function middlewareSSRLoader(this: any) {
   const {
+    page,
     absolutePagePath,
     absoluteAppPath,
     absoluteDocumentPath,
@@ -44,7 +45,8 @@ export default async function middlewareSSRLoader(this: any) {
     }
 
     // Set server context
-    self.__web_components = {
+    self.__current_route = ${JSON.stringify(page)}
+    self.__server_context = {
       Component: pageMod.default,
       pageConfig: pageMod.config || {},
       buildManifest,
@@ -55,7 +57,7 @@ export default async function middlewareSSRLoader(this: any) {
       getServerSideProps: pageMod.getServerSideProps,
       getStaticPaths: pageMod.getStaticPaths,
       ComponentMod: undefined,
-      
+
       // renderOpts
       env: process.env,
       supportsDynamicHTML: true,

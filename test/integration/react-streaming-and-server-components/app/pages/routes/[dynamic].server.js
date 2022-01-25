@@ -1,4 +1,7 @@
-export default function Pid(props) {
-  console.log(props)
-  return '[pid]' // TODO: display based on query
+export default function Pid({ router }) {
+  return (
+    <div>
+      route: {router.route}, query: {router.query.dynamic}
+    </div>
+  )
 }

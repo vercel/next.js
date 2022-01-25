@@ -82,8 +82,9 @@ export default class NextWebServer extends BaseServer {
     return undefined
   }
   protected getPagesManifest() {
-    // @TODO
-    return {}
+    return {
+      [(globalThis as any).__current_route]: '',
+    }
   }
   protected getFilesystemPaths() {
     return new Set<string>()
@@ -150,11 +151,17 @@ export default class NextWebServer extends BaseServer {
     query?: NextParsedUrlQuery,
     params?: Params | null
   ) {
-    // @TODO
-    return {
-      query: query || {},
-      components: (globalThis as any)
-        .__web_components as LoadComponentsReturnType,
+    // @TODO: error pages
+    if (pathname === (globalThis as any).__current_route) {
+      return {
+        query: {
+          ...(query || {}),
+          ...(params || {}),
+        },
+        components: (globalThis as any)
+          .__server_context as LoadComponentsReturnType,
+      }
     }
+    return null
   }
 }
