@@ -259,15 +259,10 @@ export const defaultConfig: NextConfig = {
   },
 }
 
-export function normalizeConfig(phase: string, config: any) {
+export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
     config = config(phase, { defaultConfig })
-
-    if (typeof config.then === 'function') {
-      throw new Error(
-        '> Promise returned in next config. https://nextjs.org/docs/messages/promise-in-next-config'
-      )
-    }
   }
-  return config
+  // Support `new Promise` and `async () =>` as return values of the config export
+  return await config
 }
