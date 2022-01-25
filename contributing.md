@@ -6,10 +6,9 @@ examples](#adding-examples)** below.
 
 ## Developing
 
-The development branch is `canary`, and this is the branch that all pull
-requests should be made against. After publishing a stable release, the changes
-in the `canary` branch are rebased into `master`. The changes on the `canary`
-branch are published to the `@canary` dist-tag daily.
+The development branch is `canary`. This is the branch that all pull
+requests should be made against. The changes on the `canary`
+branch are published to the `@canary` tag on npm regularly.
 
 To develop locally:
 
@@ -203,15 +202,8 @@ In general, all warnings and errors added should have these links attached.
 
 Below are the steps to add a new link:
 
-1. Create a new markdown file under the `errors` directory based on
-   `errors/template.md`:
-
-   ```shell
-   cp errors/template.md errors/<error-file-name>.md
-   ```
-
-2. Add the newly added file to `errors/manifest.json`
-3. Add the following url to your warning/error:
+1. Run `yarn new-error` which will create the error document and update the manifest automatically.
+2. Add the following url to your warning/error:
    `https://nextjs.org/docs/messages/<file-path-without-dotmd>`.
 
    For example, to link to `errors/api-routes-static-export.md` you use the url:

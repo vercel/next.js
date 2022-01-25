@@ -55,7 +55,7 @@ module.exports = {
               attributes.value('passHref') !== true
                 ? 'must be set to true'
                 : 'is missing'
-            }. See https://nextjs.org/docs/messages/link-passhref`,
+            }. See: https://nextjs.org/docs/messages/link-passhref`,
           })
         }
       },

@@ -347,35 +347,6 @@ jobs:
       - run: xvfb-run node run-tests.js test/integration/with-electron/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-  testYarnPnP:
-    runs-on: ubuntu-latest
-    needs: [build, build-native-dev]
-    env:
-      NODE_OPTIONS: '--unhandled-rejections=strict'
-      YARN_COMPRESSION_LEVEL: '0'
-    steps:
-      - name: Setup node
-        uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
-        with:
-          node-version: 14
-
-      - uses: actions/cache@v2
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-        id: restore-build
-        with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
-
-      - uses: actions/download-artifact@v2
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-        with:
-          name: next-swc-dev-binary
-          path: packages/next-swc/native
-
-      - run: bash ./scripts/test-pnp.sh
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-
   testsPass:
     name: thank you, next
     runs-on: ubuntu-latest
@@ -387,7 +358,6 @@ jobs:
         checkPrecompiled,
         testIntegration,
         testUnit,
-        testYarnPnP,
         testDev,
         testProd,
       ]
@@ -552,7 +522,7 @@ jobs:
       - build-windows-aarch64
       - build-linux-musl
       - build-linux-arm7
-      - build-linux-aarch64
+      - build-linux-aarch64-gnu
       - build-android-aarch64
       - build-linux-aarch64-musl
     env:
@@ -664,16 +634,17 @@ jobs:
       - id: get-week
         run: echo ::set-output name=WEEK::$(date +%U)
 
-      # - name: Turbo Cache
-      #   id: turbo-cache
-      #   uses: actions/cache@v2
-      #   if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-      #   with:
-      #     path: .turbo
-      #     key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-${{ github.sha }}
-      #     restore-keys: |
-      #       turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-
-      #       turbo-${{ github.job }}-canary-${{ steps.get-week.outputs.WEEK }}-
+      - name: Turbo Cache
+        id: turbo-cache
+        uses: actions/cache@v2
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        with:
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-
+            turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-
+            turbo-${{ github.job }}-canary-${{ steps.get-week.outputs.WEEK }}-
 
       # We use restore-key to pick latest cache.
       # We will not get exact match, but doc says
@@ -683,24 +654,20 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ./packages/next-swc/target
-          key: next-swc-cargo-cache-ubuntu-18.04--${{ hashFiles('**/Cargo.lock') }}
+          key: next-swc-cargo-cache-dev-ubuntu-18.04-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            next-swc-cargo-cache-ubuntu-18.04
+            next-swc-cargo-cache-dev-ubuntu-18.04
 
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.14
+      - run: npm i -g turbo@1.0.28
 
       - name: Build
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        working-directory: packages/next-swc
-        run: yarn build-native
+        run: turbo run build-native --cache-dir=".turbo"
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: nextjs
-          TURBO_PROJECT: nextjs
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2.2.4
@@ -829,6 +796,7 @@ jobs:
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@1.2.1
+      - run: npm i -g turbo@1.0.28
 
       - name: Install
         uses: actions-rs/toolchain@v1
@@ -849,15 +817,16 @@ jobs:
           path: ~/.cargo/git
           key: stable-${{ matrix.os }}-node@14-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
 
-      # - name: Turbo cache
-      #   id: turbo-cache
-      #   uses: actions/cache@v2
-      #   with:
-      #     path: .turbo
-      #     key: turbo-${{ github.job }}-${{ matrix.name }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-      #     restore-keys: |
-      #       turbo-${{ github.job }}-${{ matrix.name }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-      #       turbo-${{ github.job }}-${{ matrix.name }}-canary-${{ needs.build.outputs.weekNum }}-
+      - name: Turbo cache
+        id: turbo-cache
+        uses: actions/cache@v2
+        with:
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ matrix.name }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-${{ matrix.name }}-
+            turbo-${{ github.job }}-${{ matrix.name }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
+            turbo-${{ github.job }}-${{ matrix.name }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: Cross build aarch64 setup
         if: ${{ matrix.target == 'aarch64-apple-darwin' }}
@@ -880,13 +849,10 @@ jobs:
             next-swc-cargo-cache-${{ matrix.os }}
 
       - name: 'Build'
-        working-directory: packages/next-swc
-        run: yarn build-native --release --target ${{ matrix.target }}
+        shell: bash
+        run: turbo run build-native --cache-dir=".turbo" -- --release --target ${{ matrix.target }}
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
-          TURBO_TOKEN: ${{secrets.TURBO_TOKEN}}
-          TURBO_TEAM: nextjs
-          TURBO_PROJECT: nextjs
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2.2.4
@@ -928,7 +894,7 @@ jobs:
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.14
+      - run: npm i -g turbo@1.0.28
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -937,20 +903,20 @@ jobs:
           override: true
           target: i686-pc-windows-msvc
 
-      # - name: Turbo Cache
-      #   id: turbo-cache
-      #   uses: actions/cache@v2
-      #   with:
-      #     path: .turbo
-      #     key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-      #     restore-keys: |
-      #       turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-      #       turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
+      - name: Turbo Cache
+        id: turbo-cache
+        uses: actions/cache@v2
+        with:
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-
+            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
+            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: Build
         shell: bash
-        working-directory: packages/next-swc
-        run: yarn build-native --release --target i686-pc-windows-msvc
+        run: turbo run build-native --cache-dir=".turbo" -- --release --target i686-pc-windows-msvc
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -976,7 +942,7 @@ jobs:
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.14
+      - run: npm i -g turbo@1.0.28
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -985,20 +951,20 @@ jobs:
           override: true
           target: aarch64-pc-windows-msvc
 
-      # - name: Turbo Cache
-      #   id: turbo-cache
-      #   uses: actions/cache@v2
-      #   with:
-      #     path: .turbo
-      #     key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-      #     restore-keys: |
-      #       turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-      #       turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
+      - name: Turbo Cache
+        id: turbo-cache
+        uses: actions/cache@v2
+        with:
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-
+            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
+            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: Build
         shell: bash
-        working-directory: packages/next-swc
-        run: yarn build-native --release --target aarch64-pc-windows-msvc
+        run: turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-pc-windows-msvc
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -1036,19 +1002,20 @@ jobs:
           docker pull ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
           docker tag ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine builder
 
-      # - name: Turbo Cache
-      #   id: turbo-cache
-      #   uses: actions/cache@v2
-      #   with:
-      #     path: .turbo
-      #     key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-      #     restore-keys: |
-      #       turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-      #       turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
+      - name: Turbo Cache
+        id: turbo-cache
+        uses: actions/cache@v2
+        with:
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-
+            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
+            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: 'Build'
         run: |
-          docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd)/packages/next-swc:/build -w /build builder sh -c "npm i -g @napi-rs/cli@1.2.1 && npm i -g turbo@1.0.14 && yarn build-native --release --target x86_64-unknown-linux-musl"
+          docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd):/build -w /build builder sh -c "npm i -g @napi-rs/cli@1.2.1 && npm i -g turbo@1.0.28 && turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-musl"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -1056,7 +1023,7 @@ jobs:
           name: next-swc-binaries
           path: packages/next-swc/native/next-swc.linux-x64-musl.node
 
-  build-linux-aarch64:
+  build-linux-aarch64-gnu:
     needs: build
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - aarch64-unknown-linux-gnu - node@14
@@ -1076,7 +1043,7 @@ jobs:
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.14
+      - run: npm i -g turbo@1.0.28
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -1098,20 +1065,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
 
-      # - name: Turbo Cache
-      #   id: turbo-cache
-      #   uses: actions/cache@v2
-      #   with:
-      #     path: .turbo
-      #     key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-      #     restore-keys: |
-      #       turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-      #       turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
+      - name: Turbo Cache
+        id: turbo-cache
+        uses: actions/cache@v2
+        with:
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-
+            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
+            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: Cross build aarch64
-        working-directory: packages/next-swc
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
-        run: yarn build-native --release --target aarch64-unknown-linux-gnu
+        run: turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -1137,7 +1104,7 @@ jobs:
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.14
+      - run: npm i -g turbo@1.0.28
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -1158,19 +1125,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install gcc-aarch64-linux-gnu -y
 
-      # - name: Turbo Cache
-      #   id: turbo-cache
-      #   uses: actions/cache@v2
-      #   with:
-      #     path: .turbo
-      #     key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-      #     restore-keys: |
-      #       turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-      #       turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
+      - name: Turbo Cache
+        id: turbo-cache
+        uses: actions/cache@v2
+        with:
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-
+            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
+            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: Cross build aarch64
-        working-directory: packages/next-swc
-        run: yarn build-native --release --target aarch64-unknown-linux-musl
+        run: turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-musl
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -1198,7 +1165,7 @@ jobs:
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.14
+      - run: npm i -g turbo@1.0.28
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -1220,19 +1187,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install gcc-arm-linux-gnueabihf -y
 
-      # - name: Turbo Cache
-      #   id: turbo-cache
-      #   uses: actions/cache@v2
-      #   with:
-      #     path: .turbo
-      #     key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-      #     restore-keys: |
-      #       turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-      #       turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
+      - name: Turbo Cache
+        id: turbo-cache
+        uses: actions/cache@v2
+        with:
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-
+            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
+            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: Cross build aarch64
-        working-directory: packages/next-swc
-        run: yarn build-native --release --target armv7-unknown-linux-gnueabihf
+        run: turbo run build-native --cache-dir=".turbo" -- --release --target armv7-unknown-linux-gnueabihf
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -1258,7 +1225,7 @@ jobs:
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.14
+      - run: npm i -g turbo@1.0.28
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -1268,22 +1235,22 @@ jobs:
           override: true
           target: aarch64-linux-android
 
-      # - name: Turbo Cache
-      #   id: turbo-cache
-      #   uses: actions/cache@v2
-      #   with:
-      #     path: .turbo
-      #     key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-      #     restore-keys: |
-      #       turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-      #       turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
+      - name: Turbo Cache
+        id: turbo-cache
+        uses: actions/cache@v2
+        with:
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-
+            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
+            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: Build
         shell: bash
-        working-directory: packages/next-swc
         run: |
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android24-clang"
-          yarn build-native --release --target aarch64-linux-android
+          turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-linux-android
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -1318,22 +1285,27 @@ jobs:
           override: true
           target: wasm32-unknown-unknown
 
-      - name: Cache
+      - run: npm i -g turbo@1.0.28
+
+      - name: Turbo cache
+        id: turbo-cache
         uses: actions/cache@v2
         with:
-          path: |
-            ~/.cargo/
-            **/target/
-          key: ${{ runner.os }}-publish-integration
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ matrix.target }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-${{ matrix.target }}-
+            turbo-${{ github.job }}-${{ matrix.target }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
+            turbo-${{ github.job }}-${{ matrix.target }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build
-        run: (wasm-pack build packages/next-swc/crates/wasm --release --scope=next --target ${{ matrix.target }})
+        run: turbo run build-wasm --cache-dir=".turbo" -- --target ${{ matrix.target }}
 
       - name: Add target to folder name
-        run: mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }}
+        run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -1358,6 +1330,8 @@ jobs:
         with:
           node-version: 14
 
+      - run: npm i -g turbo@1.0.28
+
       - name: Install Rust
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         uses: actions-rs/toolchain@v1
@@ -1367,34 +1341,29 @@ jobs:
           override: true
           target: wasm32-unknown-unknown
 
-      - name: Cache
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+      - name: Turbo Cache
+        id: turbo-cache
         uses: actions/cache@v2
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
-          path: |
-            ~/.cargo/
-            **/target/
-          key: ${{ runner.os }}-publish-integration
-
-      - name: Cache wasm binary
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-        id: binary-cache
-        uses: actions/cache@v2
-        with:
-          path: packages/next-swc/crates/wasm/pkg-nodejs
-          key: dev-wasm-next-swc-nightly-2021-11-15-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-
+            turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-
+            turbo-${{ github.job }}-canary-${{ steps.get-week.outputs.WEEK }}-
 
       - name: Install wasm-pack
-        if: ${{needs.build.outputs.docsChange != 'docs only change' && steps.binary-cache.outputs.cache-hit != 'true'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build
-        if: ${{needs.build.outputs.docsChange != 'docs only change' && steps.binary-cache.outputs.cache-hit != 'true'}}
-        run: (wasm-pack build packages/next-swc/crates/wasm --dev --scope=next --target nodejs)
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        run: turbo run build-wasm --cache-dir=".turbo" -- --target nodejs --dev
 
       - name: Add target to folder name
-        if: ${{needs.build.outputs.docsChange != 'docs only change' && steps.binary-cache.outputs.cache-hit != 'true'}}
-        run: mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs || ls packages/next-swc/crates/wasm'
 
       - name: Upload artifact
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}

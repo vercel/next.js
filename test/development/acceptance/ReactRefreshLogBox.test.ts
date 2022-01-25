@@ -903,4 +903,113 @@ describe('ReactRefreshLogBox', () => {
 
     await cleanup()
   })
+
+  test('non-Error errors are handled properly', async () => {
+    const { session, cleanup } = await sandbox(next)
+
+    await session.patch(
+      'index.js',
+      `
+        export default () => {
+          throw {'a': 1, 'b': 'x'};
+          return (
+            <div>hello</div>
+          )
+        }
+      `
+    )
+
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+      `"Error: {\\"a\\":1,\\"b\\":\\"x\\"}"`
+    )
+
+    // fix previous error
+    await session.patch(
+      'index.js',
+      `
+        export default () => {
+          return (
+            <div>hello</div>
+          )
+        }
+      `
+    )
+    expect(await session.hasRedbox(false)).toBe(false)
+    await session.patch(
+      'index.js',
+      `
+        class Hello {}
+        
+        export default () => {
+          throw Hello
+          return (
+            <div>hello</div>
+          )
+        }
+      `
+    )
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxDescription()).toContain(
+      `Error: class Hello {`
+    )
+
+    // fix previous error
+    await session.patch(
+      'index.js',
+      `
+        export default () => {
+          return (
+            <div>hello</div>
+          )
+        }
+      `
+    )
+    expect(await session.hasRedbox(false)).toBe(false)
+    await session.patch(
+      'index.js',
+      `
+        export default () => {
+          throw "string error"
+          return (
+            <div>hello</div>
+          )
+        }
+      `
+    )
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+      `"Error: string error"`
+    )
+
+    // fix previous error
+    await session.patch(
+      'index.js',
+      `
+        export default () => {
+          return (
+            <div>hello</div>
+          )
+        }
+      `
+    )
+    expect(await session.hasRedbox(false)).toBe(false)
+    await session.patch(
+      'index.js',
+      `
+        export default () => {
+          throw null
+          return (
+            <div>hello</div>
+          )
+        }
+      `
+    )
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxDescription()).toContain(
+      `Error: A null error was thrown`
+    )
+
+    await cleanup()
+  })
 })

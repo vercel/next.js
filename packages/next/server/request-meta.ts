@@ -1,15 +1,17 @@
 /* eslint-disable no-redeclare */
-import type { ParsedUrlQuery } from 'querystring'
 import type { IncomingMessage } from 'http'
+import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 
-const NEXT_REQUEST_META = Symbol('NextRequestMeta')
+import { BaseNextRequest } from './base-http'
 
-interface NextIncomingMessage extends IncomingMessage {
+export const NEXT_REQUEST_META = Symbol('NextRequestMeta')
+
+export type NextIncomingMessage = (BaseNextRequest | IncomingMessage) & {
   [NEXT_REQUEST_META]?: RequestMeta
 }
 
-interface RequestMeta {
+export interface RequestMeta {
   __NEXT_INIT_QUERY?: ParsedUrlQuery
   __NEXT_INIT_URL?: string
   __nextHadTrailingSlash?: boolean
