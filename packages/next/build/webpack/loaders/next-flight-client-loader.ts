@@ -11,19 +11,6 @@ import { parse } from '../../swc'
 // @ts-ignore
 import { getBaseSWCOptions } from '../../swc/options'
 
-type ResolveContext = {
-  conditions: Array<string>
-  parentURL: string | void
-}
-
-type ResolveFunction = (
-  specifier: string,
-  context: ResolveContext,
-  resolve: ResolveFunction
-) => { url: string } | Promise<{ url: string }>
-
-let stashedResolve: null | ResolveFunction = null
-
 function addExportNames(names: string[], node: any) {
   switch (node.type) {
     case 'Identifier':
