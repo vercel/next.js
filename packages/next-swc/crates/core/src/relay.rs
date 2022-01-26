@@ -208,7 +208,7 @@ impl Relay {
                     let error_message = match err {
                         BuildRequirePathError::FileNameNotReal => "Source file was not a real \
                                                                    file. This is likely a bug and \
-                                                                   should be reported to Next.JS"
+                                                                   should be reported to Next.js"
                             .to_string(),
                         BuildRequirePathError::MultipleSourceSetsFound {
                             source_set_names,
