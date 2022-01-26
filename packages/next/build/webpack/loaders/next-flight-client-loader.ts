@@ -5,7 +5,6 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-// import * as acorn from 'next/dist/compiled/acorn'
 // TODO: add ts support for next-swc api
 // @ts-ignore
 import { parse } from '../../swc'
@@ -55,24 +54,6 @@ function addExportNames(names: string[], node: any) {
     default:
       return
   }
-}
-
-function resolveClientImport(
-  specifier: string,
-  parentURL: string
-): { url: string } | Promise<{ url: string }> {
-  // Resolve an import specifier as if it was loaded by the client. This doesn't use
-  // the overrides that this loader does but instead reverts to the default.
-  // This resolution algorithm will not necessarily have the same configuration
-  // as the actual client loader. It should mostly work and if it doesn't you can
-  // always convert to explicit exported names instead.
-  const conditions = ['node', 'import']
-  if (stashedResolve === null) {
-    throw new Error(
-      'Expected resolve to have been called before transformSource'
-    )
-  }
-  return stashedResolve(specifier, { conditions, parentURL }, stashedResolve)
 }
 
 async function parseExportNamesInto(
