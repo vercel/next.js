@@ -94,19 +94,6 @@ const customJestConfig = {
 module.exports = createJestConfig(customJestConfig)
 ```
 
-### Relay
-
-To enable [Relay](https://relay.dev/) support:
-
-```js
-// next.config.js
-module.exports = {
-  experimental: {
-    relay: true,
-  },
-}
-```
-
 ### Remove React Properties
 
 Allows to remove JSX properties. This is often used for testing. Similar to `babel-plugin-react-remove-properties`.

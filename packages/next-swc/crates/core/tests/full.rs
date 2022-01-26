@@ -59,7 +59,6 @@ fn test(input: &Path, minify: bool) {
                 styled_components: Some(assert_json("{}")),
                 remove_console: None,
                 react_remove_properties: None,
-                relay: false,
                 shake_exports: None,
             };
 
