@@ -86,7 +86,7 @@ With these validation checks in place, when a user tries to submit an empty fiel
 
 Form Validation is important to ensure that a user has submitted appropriate data. JavaScript offers an additional level of validation along with HTML native form attributes on the client side. Developers generally prefer validating form data through JavaScript because its data processing is faster when compared to server-side validation.
 
-Let's look at a simple example:
+The following example shows using JavaScript to validate a form:
 
 ```html
 <form onsubmit="return validateFormWithJS()">
