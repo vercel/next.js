@@ -234,7 +234,7 @@ impl Relay {
                         }
                         BuildRequirePathError::FileNotASourceFile => {
                             "This file was not considered a source file by the Relay Compiler. \
-                             This is likely a bug and should be reported to Next.JS"
+                             This is likely a bug and should be reported to Next.js"
                                 .to_string()
                         }
                         BuildRequirePathError::CouldNotCategorize { path, err } => {
