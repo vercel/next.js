@@ -44,7 +44,7 @@ A process that checks if the information provided by a user is correct or not. F
 - **Client-side**: Validation is done in the browser
 - **Server-side**: Validation is done on the server
 
-Though both these types are equally important, for this guide, we'll focus on client-side validation only.
+Though both of these types are equally important, this guide will focus on client-side validation only.
 
 Client-side validation is further categorized as:
 
