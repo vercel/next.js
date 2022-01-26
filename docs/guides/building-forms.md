@@ -299,10 +299,6 @@ With JavaScript disabled, when you hit the Submit button, an event is triggered,
 
 The form data will be submitted on the server as a request `req` to the form handler function written above. It will process the data and return a JSON string as a response `res` with your submitted name included.
 
-<video autoplay loop muted playsinline>
-  <source src="https://assets.vercel.com/video/upload/c_scale,w_675/v1643009088/nextjs/guides/building-forms/form-without-js.mov" type="video/mp4">
-</video>
-
 > To improve the experience here, as a response you can redirect the user to a page and thank them for submitting the form.
 
 ## Part 5: Form Submission with JavaScript Enabled
@@ -376,10 +372,6 @@ The `handleSubmit()` function processes your form data through a series of steps
 - JSON is a language-agnostic data transfer format. So we use `JSON.stringify(data)` to convert the data to JSON.
 - We then use `fetch()` to send the data to our `/api/form` endpoint using JSON and HTTP `POST` method.
 - Server sends back a response with the name submitted. Woohoo! 🥳
-
-<video autoplay loop muted playsinline>
-  <source src="https://assets.vercel.com/video/upload/v1643009088/nextjs/guides/building-forms/form-with-js.mp4" type="video/mp4">
-</video>
 
 ## Conclusion
 
