@@ -672,6 +672,7 @@ export default class DevServer extends Server {
       }
     }
 
+    console.error(err)
     if (!usedOriginalStack) {
       if (type === 'warning') {
         Log.warn(err + '')

@@ -1,4 +1,8 @@
-import * as acorn from 'next/dist/compiled/acorn'
+// import * as acorn from 'next/dist/compiled/acorn'
+// @ts-ignore
+import { parse } from '../../swc'
+// @ts-ignore
+import { getBaseSWCOptions } from '../../swc/options'
 import { getRawPageExtensions } from '../../utils'
 
 function isClientComponent(importSource: string, pageExtensions: string[]) {
@@ -28,6 +32,7 @@ export function isImageImport(importSource: string) {
 }
 
 async function parseImportsInfo(
+  resourcePath: string,
   source: string,
   imports: Array<string>,
   isClientCompilation: boolean,
@@ -36,10 +41,18 @@ async function parseImportsInfo(
   source: string
   defaultExportName: string
 }> {
-  const { body } = acorn.parse(source, {
-    ecmaVersion: 11,
-    sourceType: 'module',
-  }) as any
+  const opts = getBaseSWCOptions({
+    filename: resourcePath,
+    // jest,
+    // development,
+    // hasReactRefresh,
+    globalWindow: isClientCompilation,
+    // nextConfig,
+    // resolvedBaseUrl,
+    // jsConfig,
+  })
+
+  const { body } = parse(source, { ...opts.jsc.parser, isModule: true })
 
   let transformedSource = ''
   let lastIndex = 0
@@ -129,6 +142,7 @@ export default async function transformSource(
   const imports: string[] = []
   const { source: transformedSource, defaultExportName } =
     await parseImportsInfo(
+      resourcePath,
       source,
       imports,
       isClientCompilation,
