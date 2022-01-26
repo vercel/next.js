@@ -163,7 +163,7 @@ There are many providers that offer this service such as:
 
 This part of the guide will focus on using Vercel.
 
-Vercel empowers you to write JavaScript Serverless functions and deploy them at its edge network. This significantly minimizes latency because your web application runs code in a serverless architecture as close to the end-user as possible. It works incredibly well if you want to build lightweight and flexible applications that can be expanded or updated quickly.
+Vercel empowers you to write JavaScript Serverless functions and deploy them at its edge network. This significantly minimizes latency because your web application runs code in a serverless architecture as close to the end-user as possible.
 
 Having said that, let's jump on to the next part, where you'll be recreating these HTML forms in React using Next.js.
 
