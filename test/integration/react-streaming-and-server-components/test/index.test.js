@@ -400,7 +400,7 @@ async function runBasicTests(context, env) {
     expect(imageTag.attr('src')).toContain('data:image')
   })
 
-  it('should handle various exports', async () => {
+  it('should handle multiple named exports correctly', async () => {
     const clientExportsHTML = await renderViaHTTP(
       context.appPort,
       '/client-exports'
