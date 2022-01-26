@@ -553,7 +553,9 @@ export default async function build(
         version: 1,
         config: {
           ...config,
-          compress: config.compress ?? false,
+          compress: !!(
+            config.experimental?.outputStandalone && config.compress
+          ),
           configFile: undefined,
         },
         appDir: dir,
