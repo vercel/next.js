@@ -400,6 +400,19 @@ async function runBasicTests(context, env) {
     expect(imageTag.attr('src')).toContain('data:image')
   })
 
+  it('should handle various exports', async () => {
+    const clientExportsHTML = await renderViaHTTP(
+      context.appPort,
+      '/client-exports'
+    )
+    const $clientExports = cheerio.load(clientExportsHTML)
+    expect($clientExports('div[hidden] > div').text()).toBe('abcde')
+
+    const browser = await webdriver(context.appPort, '/client-exports')
+    const text = await browser.waitForElementByCss('#__next').text()
+    expect(text).toBe('abcde')
+  })
+
   it('should support multi-level server component imports', async () => {
     const html = await renderViaHTTP(context.appPort, '/multi')
     expect(html).toContain('bar.server.js:')
