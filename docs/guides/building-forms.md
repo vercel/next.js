@@ -275,7 +275,13 @@ This completes the basic structure of your Next.js-based form.
 
 JavaScript brings interactivity to our web applications, but sometimes you need to control the JavaScript bundle from being too large, or your sites visitors might have JavaScript disabled.
 
-There are several reasons why users disable JavaScript, e.g., addressing bandwidth constraints, increasing device (phone or laptop) battery life, and even for privacy so they won’t be tracked with analytical scripts. Regardless of the reason, disabling JavaScript will impact site functionality partially, if not completely.
+There are several reasons why users disable JavaScript:
+
+- Addressing bandwidth constraints
+- Increasing device (phone or laptop) battery life
+- For privacy so they won’t be tracked with analytical scripts
+
+Regardless of the reason, disabling JavaScript will impact site functionality partially, if not completely.
 
 But with Vercel serverless functions, we can still use the forms without JavaScript, as seen in the **Form Submission without JavaScript** [section](#form-submission-without-javascript) above.
 
