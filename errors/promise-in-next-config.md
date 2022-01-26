@@ -16,6 +16,6 @@ module.exports = {
 
 In Next.js versions above 12.0.10 `module.exports = async () =>` is supported.
 
-For older versions you can check your `next.config.js` for `async` or `return Promise`
+For older versions, you can check your `next.config.js` for `async` or `return Promise`.
 
 Potentially a plugin is returning a `Promise` from the webpack function.
