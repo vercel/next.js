@@ -79,7 +79,7 @@ The following example shows using these attributes:
 </form>
 ```
 
-With these validation checks in place, when a user tries to submit an empty field for Last Name, it gives an error that pops right in the form field. Similarly, a roll number can only be entered if it's 10-20 characters long.
+With these validation checks in place, when a user tries to submit an empty field for Name, it gives an error that pops right in the form field. Similarly, a roll number can only be entered if it's 10-20 characters long.
 
 ![form validation](https://assets.vercel.com/image/upload/c_scale,w_675/v1643009088/nextjs/guides/building-forms/form-validation.jpg)
 
