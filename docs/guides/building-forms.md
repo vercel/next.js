@@ -165,7 +165,7 @@ This part of the guide will focus on using Vercel.
 
 Vercel empowers you to write JavaScript Serverless functions and deploy them at its edge network. This significantly minimizes latency because your web application runs code in a serverless architecture as close to the end-user as possible.
 
-Having said that, let's jump on to the next part, where you'll be recreating these HTML forms in React using Next.js.
+In the following section you will be creating forms in React using Next.js.
 
 Create a simple Next.js app. You can use the [create-next-app](https://nextjs.org/docs/getting-started#setup) for a quick start. In your command line terminal, run the following:
 
