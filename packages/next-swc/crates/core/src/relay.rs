@@ -239,9 +239,10 @@ impl Relay {
                         }
                         BuildRequirePathError::CouldNotCategorize { path, err } => {
                             format!(
-                                "Relay was unable to categorize the file at: {}. The underlying \
-                                 error is: {}. \nThis is likely a bug and should be reported to \
-                                 Next.js",
+                                "Relay was unable to categorize the file at: {}. Ensure your \
+                                 `src` path includes this file in `relay.config.js`  The \
+                                 underlying error is: {}. \n\nThis is likely a bug and should be \
+                                 reported to Next.js",
                                 path, err
                             )
                         }
