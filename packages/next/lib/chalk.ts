@@ -1,6 +1,6 @@
 let chalk: typeof import('next/dist/compiled/chalk')
 
-if (typeof window === 'undefined') {
+if (!process.browser) {
   chalk = require('next/dist/compiled/chalk')
 } else {
   chalk = require('./web/chalk').default

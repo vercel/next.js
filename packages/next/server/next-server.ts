@@ -1,3 +1,4 @@
+import './node-polyfill-fetch'
 import type { Params, Route } from './router'
 import type { CacheFs } from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
@@ -5,6 +6,7 @@ import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { PrerenderManifest } from '../build'
+import type { Rewrite } from '../lib/load-custom-routes'
 
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -71,6 +73,7 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getMiddlewareRegex, getRouteMatcher } from '../shared/lib/router/utils'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { loadEnvConfig } from '@next/env'
+import { getCustomRoute } from './server-route-utils'
 
 export * from './base-server'
 
@@ -90,7 +93,9 @@ export interface NodeRequestHandler {
 
 export default class NextNodeServer extends BaseServer {
   constructor(options: Options) {
+    // Initialize super class
     super(options)
+
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
      * Using this from process.env allows targeting both serverless and SSR by calling
@@ -194,6 +199,10 @@ export default class NextNodeServer extends BaseServer {
           } as Route,
         ]
       : []
+  }
+
+  protected setImmutableAssetCacheControl(res: BaseNextResponse): void {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
   protected generateFsStaticRoutes(): Route[] {
@@ -676,6 +685,24 @@ export default class NextNodeServer extends BaseServer {
     )
   }
 
+  protected async hasMiddleware(
+    pathname: string,
+    _isSSR?: boolean
+  ): Promise<boolean> {
+    try {
+      return (
+        getMiddlewareInfo({
+          dev: this.renderOpts.dev,
+          distDir: this.distDir,
+          page: pathname,
+          serverless: this._isLikeServerless,
+        }).paths.length > 0
+      )
+    } catch (_) {}
+
+    return false
+  }
+
   public async serveStatic(
     req: BaseNextRequest | IncomingMessage,
     res: BaseNextResponse | ServerResponse,
@@ -792,6 +819,79 @@ export default class NextNodeServer extends BaseServer {
       return require(middlewareManifestPath)
     }
     return undefined
+  }
+
+  protected generateRewrites({
+    restrictedRedirectPaths,
+  }: {
+    restrictedRedirectPaths: string[]
+  }) {
+    let beforeFiles: Route[] = []
+    let afterFiles: Route[] = []
+    let fallback: Route[] = []
+
+    if (!this.minimalMode) {
+      const buildRewrite = (rewrite: Rewrite, check = true) => {
+        const rewriteRoute = getCustomRoute({
+          type: 'rewrite',
+          rule: rewrite,
+          restrictedRedirectPaths,
+        })
+        return {
+          ...rewriteRoute,
+          check,
+          type: rewriteRoute.type,
+          name: `Rewrite route ${rewriteRoute.source}`,
+          match: rewriteRoute.match,
+          fn: async (req, res, params, parsedUrl) => {
+            const { newUrl, parsedDestination } = prepareDestination({
+              appendParamsToQuery: true,
+              destination: rewriteRoute.destination,
+              params: params,
+              query: parsedUrl.query,
+            })
+
+            // external rewrite, proxy it
+            if (parsedDestination.protocol) {
+              return this.proxyRequest(
+                req as NodeNextRequest,
+                res as NodeNextResponse,
+                parsedDestination
+              )
+            }
+
+            addRequestMeta(req, '_nextRewroteUrl', newUrl)
+            addRequestMeta(req, '_nextDidRewrite', newUrl !== req.url)
+
+            return {
+              finished: false,
+              pathname: newUrl,
+              query: parsedDestination.query,
+            }
+          },
+        } as Route
+      }
+
+      if (Array.isArray(this.customRoutes.rewrites)) {
+        afterFiles = this.customRoutes.rewrites.map((r) => buildRewrite(r))
+      } else {
+        beforeFiles = this.customRoutes.rewrites.beforeFiles.map((r) =>
+          buildRewrite(r, false)
+        )
+        afterFiles = this.customRoutes.rewrites.afterFiles.map((r) =>
+          buildRewrite(r)
+        )
+        fallback = this.customRoutes.rewrites.fallback.map((r) =>
+          buildRewrite(r)
+        )
+      }
+    }
+
+    return {
+      beforeFiles,
+      afterFiles,
+      fallback,
+    }
   }
 
   protected generateCatchAllMiddlewareRoute(): Route | undefined {
