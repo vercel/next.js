@@ -3,10 +3,6 @@ import Foo from '../components/foo.client'
 const envVar = process.env.ENV_VAR_TEST
 const headerKey = 'x-next-test-client'
 
-const a = () => {
-  console.log('a')
-}
-
 export default function Index({ header, router }) {
   return (
     <div>

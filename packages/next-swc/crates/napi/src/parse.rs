@@ -23,23 +23,16 @@ pub fn complete_parse<'a>(env: &Env, program: Program, _c: &Compiler) -> napi::R
   env.create_string_from_std(s)
 }
 
-
 impl Task for ParseTask {
   type Output = Program;
   type JsValue = JsString;
 
   fn compute(&mut self) -> napi::Result<Self::Output> {
-    //   println!("compute");
       let options: ParseOptions = deserialize_json(&self.options).convert_err()?;
-    //   println!("compute.options");
       let fm = self
           .c
           .cm
           .new_source_file(self.filename.clone(), self.src.clone());
-      println!("target {:?}", options.target);
-      println!("syntax {:?}", options.syntax);
-      println!("is_module {:?}", options.is_module);
-      println!("comments {:?}", options.comments);
       let program = try_with_handler(self.c.cm.clone(), false, |handler| {
           self.c.parse_js(
               fm,
@@ -62,25 +55,13 @@ impl Task for ParseTask {
 
 #[js_function(3)]
 pub fn parse(ctx: CallContext) -> napi::Result<JsObject> {
-    println!("get_compiler");
     let c = get_compiler(&ctx);
-    println!("ctx.src");
-
     let src = ctx.get_deserialized(0)?;
-    
-    // let src = ctx.get::<JsString>(0)?.into_utf8()?;
-    println!("ctx.opts");
-    // let options = ctx.get_deserialized(1)?;
     let options = ctx.get_buffer_as_string(1)?;
-    // let mut options: TransformOptions = cx.get_deserialized(2)?;
-    println!("ctx.filename");
     let filename = ctx.get::<Either<JsString, JsUndefined>>(2)?;
-    println!("ctx.filename2");
     let filename = if let Either::A(value) = filename {
-        println!("ctx.filename if");
         FileName::Real(value.into_utf8()?.as_str()?.to_owned().into())
     } else {
-        println!("ctx.filename else");
         FileName::Anon
     };
 

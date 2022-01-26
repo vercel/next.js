@@ -227,7 +227,7 @@ export async function bundle(options) {
   return bindings.bundle(toBuffer(options))
 }
 
-export function parse(src, options) {
+export async function parse(src, options) {
   let bindings = loadBindingsSync()
-  return bindings.parse(src, options)
+  return bindings.parse(src, options).then((astStr) => JSON.parse(astStr))
 }

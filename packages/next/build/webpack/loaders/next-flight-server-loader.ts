@@ -1,4 +1,4 @@
-// import * as acorn from 'next/dist/compiled/acorn'
+// TODO: add ts support for next-swc api
 // @ts-ignore
 import { parse } from '../../swc'
 // @ts-ignore
@@ -43,29 +43,20 @@ async function parseImportsInfo(
 }> {
   const opts = getBaseSWCOptions({
     filename: resourcePath,
-    // jest,
-    // development,
-    // hasReactRefresh,
     globalWindow: isClientCompilation,
-    // nextConfig,
-    // resolvedBaseUrl,
-    // jsConfig,
   })
 
   const ast = await parse(source, { ...opts.jsc.parser, isModule: true })
-  const body = JSON.parse(ast).body
-
-  console.log('body', body)
+  const { body } = ast
+  const beginPos = ast.span.start
   let transformedSource = ''
   let lastIndex = 0
-  let defaultExportName = 'RSCComponent'
-
+  let defaultExportName
   for (let i = 0; i < body.length; i++) {
     const node = body[i]
     switch (node.type) {
       case 'ImportDeclaration': {
         const importSource = node.source.value
-
         if (!isClientCompilation) {
           if (
             !(
@@ -76,10 +67,11 @@ async function parseImportsInfo(
           ) {
             continue
           }
-          transformedSource += source.substring(
+          const importDeclarations = source.substring(
             lastIndex,
-            node.source.start - 1
+            node.source.span.start - beginPos
           )
+          transformedSource += importDeclarations
           transformedSource += JSON.stringify(`${node.source.value}?flight`)
         } else {
           // For the client compilation, we skip all modules imports but
@@ -99,14 +91,13 @@ async function parseImportsInfo(
           }
         }
 
-        lastIndex = node.source.end
+        lastIndex = node.source.span.end - beginPos
         imports.push(`require(${JSON.stringify(importSource)})`)
         continue
       }
       case 'ExportDefaultDeclaration': {
         const def = node.decl
         if (def.type === 'Identifier') {
-          console.log('def', def)
           defaultExportName = def.name
         } else if (def.type === 'FunctionExpression') {
           defaultExportName = def.identifier.value
@@ -167,7 +158,9 @@ export default async function transformSource(
   const noop = `export const __rsc_noop__=()=>{${imports.join(';')}}`
   const defaultExportNoop = isClientCompilation
     ? `export default function ${defaultExportName}(){}\n${defaultExportName}.__next_rsc__=1;`
-    : `${defaultExportName}.__next_rsc__=1;`
+    : defaultExportName
+    ? `${defaultExportName}.__next_rsc__=1;`
+    : ''
 
   const transformed = transformedSource + '\n' + noop + '\n' + defaultExportNoop
 
