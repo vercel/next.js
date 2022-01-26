@@ -95,7 +95,7 @@ enum TaskStateType {
 
 use TaskStateType::*;
 
-use crate::{Node, TurboTasks};
+use crate::{node::Node, TurboTasks};
 
 impl Task {
     pub(crate) fn new(native_fn: NativeTaskFn) -> Self {
@@ -361,7 +361,7 @@ impl Task {
         }
     }
 
-    pub(crate) async fn wait_output_from_task(self: &Arc<Self>) -> Arc<Node> {
+    pub(crate) async fn into_output(self: Arc<Self>) -> Arc<Node> {
         loop {
             match {
                 let mut state = self.state.lock().unwrap();

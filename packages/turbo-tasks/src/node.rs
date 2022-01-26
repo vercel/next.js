@@ -48,6 +48,7 @@ pub struct Node {
 }
 
 struct NodeState {
+    // content can change, but must not change it type
     content: Arc<dyn Any + Send + Sync>,
     // TODO use a concurrent set instead
     dependent_tasks: Vec<Weak<Task>>,

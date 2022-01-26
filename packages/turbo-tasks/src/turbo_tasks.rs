@@ -1,0 +1,112 @@
+use std::{cell::Cell, future::Future, hash::Hash, pin::Pin, sync::Arc};
+
+use any_key::AnyHash;
+use anyhow::{anyhow, Result};
+use async_std::{
+    task::{Builder, JoinHandle},
+    task_local,
+};
+use chashmap::CHashMap;
+
+use crate::{node::Node, task::NativeTaskFn, NativeFunction, Task};
+
+pub struct TurboTasks {
+    interning_map: CHashMap<Box<dyn AnyHash + Send + Sync>, Arc<Node>>,
+    task_cache: CHashMap<Box<dyn AnyHash + Send + Sync>, Arc<Task>>,
+}
+
+task_local! {
+static TURBO_TASKS: Cell<Option<&'static TurboTasks>> = Cell::new(None);
+}
+
+impl TurboTasks {
+    // TODO better lifetime management for turbo tasks
+    // consider using unsafe for the task_local turbo tasks
+    // that should be safe as long tasks can't outlife turbo task
+    // so we probably want to make sure that all tasks are joined
+    // when trying to drop turbo tasks
+    pub fn new() -> &'static Self {
+        Box::leak(Box::new(Self {
+            interning_map: CHashMap::new(),
+            task_cache: CHashMap::new(),
+        }))
+    }
+
+    pub fn spawn_root_task(&'static self, native_fn: NativeTaskFn) -> Arc<Task> {
+        let task = Arc::new(Task::new(native_fn));
+        self.schedule(task.clone());
+        task
+    }
+
+    pub fn dynamic_call(
+        self: &'static TurboTasks,
+        func: &NativeFunction,
+        inputs: Vec<Arc<Node>>,
+    ) -> Result<Pin<Box<dyn Future<Output = Arc<Node>> + Sync + Send>>> {
+        let functor = func.bind(inputs)?;
+        let new_task = Arc::new(Task::new(functor));
+        self.schedule(new_task.clone());
+        return Ok(Box::pin(new_task.into_output()));
+    }
+
+    pub(crate) fn schedule(&'static self, task: Arc<Task>) -> JoinHandle<()> {
+        Builder::new()
+            .name(format!("{:?} {:?}", &*task, &*task as *const Task))
+            .spawn(async move {
+                Task::set_current(task.clone());
+                TURBO_TASKS.with(|c| c.set(Some(self)));
+                task.as_ref().execution_started();
+                let result = task.execute().await;
+                task.execution_completed(result, self);
+            })
+            .unwrap()
+    }
+
+    pub(crate) fn current() -> Option<&'static Self> {
+        TURBO_TASKS.with(|c| c.get())
+    }
+
+    pub(crate) fn intern<T: Hash + PartialEq + Eq + Send + Sync + 'static>(
+        &self,
+        key: T,
+        fallback: impl FnOnce() -> Arc<Node>,
+    ) -> Arc<Node> {
+        let mut node1 = None;
+        let mut node2 = None;
+        self.interning_map.upsert(
+            Box::new(key) as Box<dyn AnyHash + Send + Sync>,
+            || {
+                let new_node = fallback();
+                node1 = Some(new_node.clone());
+                new_node
+            },
+            |existing_node| {
+                node2 = Some(existing_node.clone());
+            },
+        );
+        // TODO ugly
+        if let Some(n) = node1 {
+            return n;
+        }
+        node2.unwrap()
+    }
+}
+
+pub fn dynamic_call(
+    func: &NativeFunction,
+    inputs: Vec<Arc<Node>>,
+) -> Result<Pin<Box<dyn Future<Output = Arc<Node>> + Sync + Send>>> {
+    let tt = TurboTasks::current()
+        .ok_or_else(|| anyhow!("tried to call dynamic_call outside of turbo tasks"))?;
+    tt.dynamic_call(func, inputs)
+}
+
+pub(crate) fn intern<T: Hash + PartialEq + Eq + Send + Sync + 'static>(
+    key: T,
+    fallback: impl FnOnce() -> Arc<Node>,
+) -> Arc<Node> {
+    let tt = TurboTasks::current()
+        .ok_or_else(|| anyhow!("tried to call intern outside of turbo tasks"))
+        .unwrap();
+    tt.intern(key, fallback)
+}
