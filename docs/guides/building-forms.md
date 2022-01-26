@@ -90,7 +90,7 @@ Form Validation is important to ensure that a user has submitted appropriate dat
 The following example shows using JavaScript to validate a form:
 
 ```html
-<form onsubmit="return validateFormWithJS()">
+<form onsubmit="validateFormWithJS()">
   <label for="name">Name:</label>
   <input type="text" name="name" id="name" />
 
