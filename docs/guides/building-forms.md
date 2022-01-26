@@ -125,7 +125,7 @@ This example validates the name and roll number of a user. The `validateFormWith
 #### Form Validation Using Regular Expressions
 
 JavaScript validation with Regular Expressions uses the `pattern` HTML attribute. A regular expression (commonly known as RegEx) is an object that describes a pattern of characters. You can only apply the `pattern` attribute to the `<input>` element. This way, you can validate the input value using Regular Expressions (RegEx) by defining your own rules. Once again, if the value does not match the defined pattern, the input will give an error.
-This was a quick recap of setting up web forms in HTML.
+The below example shows using the `pattern` attribute on an `input` element: 
 
 ```html
 <form action="/action_page.php">
