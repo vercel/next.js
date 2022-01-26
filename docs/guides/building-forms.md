@@ -117,7 +117,7 @@ The following example shows using JavaScript to validate a form:
 </script>
 ```
 
-The HTML [script](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script) tag is used to embed any client-side JavaScript. It can either contain inline scripting statements (as shown in the example above) or point to an external script file via the src attribute.
+The HTML [script](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script) tag is used to embed any client-side JavaScript. It can either contain inline scripting statements (as shown in the example above) or point to an external script file via the `src` attribute.
 This example validates the name and roll number of a user. The `validateFormWithJS()` function does not allow an empty name field, and the roll number must be at least three digits long. The validation is performed when you hit the Submit button. You are not redirected to the next page until the given values are correct.
 
 ![js-validation](https://assets.vercel.com/image/upload/c_scale,w_675/v1643009089/nextjs/guides/building-forms/js-validation.jpg)
