@@ -58,7 +58,7 @@ Client-side validation is further categorized as:
 - `minLength`: Decides the minimum length for the text data string.
 - `maxLength`: Decides the maximum length for the text data string.
 
-Let's modify the form w.r.t. to these attributes:
+The following example shows using these attributes:
 
 ```html
 <!-- HTML Form with Built-in Validation -->
