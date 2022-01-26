@@ -241,7 +241,7 @@ impl Relay {
                             format!(
                                 "Relay was unable to categorize the file at: {}. The underlying \
                                  error is: {}. \nThis is likely a bug and should be reported to \
-                                 Next.JS",
+                                 Next.js",
                                 path, err
                             )
                         }
