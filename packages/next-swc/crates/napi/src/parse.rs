@@ -60,8 +60,6 @@ impl Task for ParseTask {
   }
 }
 
-
-
 #[js_function(3)]
 pub fn parse(ctx: CallContext) -> napi::Result<JsObject> {
     println!("get_compiler");

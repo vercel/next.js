@@ -52,8 +52,10 @@ async function parseImportsInfo(
     // jsConfig,
   })
 
-  const { body } = parse(source, { ...opts.jsc.parser, isModule: true })
+  const ast = await parse(source, { ...opts.jsc.parser, isModule: true })
+  const body = JSON.parse(ast).body
 
+  console.log('body', body)
   let transformedSource = ''
   let lastIndex = 0
   let defaultExportName = 'RSCComponent'
@@ -102,11 +104,12 @@ async function parseImportsInfo(
         continue
       }
       case 'ExportDefaultDeclaration': {
-        const def = node.declaration
+        const def = node.decl
         if (def.type === 'Identifier') {
+          console.log('def', def)
           defaultExportName = def.name
-        } else if (def.type === 'FunctionDeclaration') {
-          defaultExportName = def.id.name
+        } else if (def.type === 'FunctionExpression') {
+          defaultExportName = def.identifier.value
         }
         break
       }
