@@ -6,7 +6,7 @@ description: This guide is tailored at creating web forms with Next.js and Verce
 
 A web form has a **client-server** relationship. They are used to send data handled by a web server for processing and storage. The form itself is the client, and the server is any storage mechanism that can be used to store, retrieve and send data when needed.
 
-This guide will help you learn and create a serverless web form with Next.js (client) and Vercel (server). But let's start with some basics:
+This guide will teach you how to create a serverless web form with Next.js (client) and Vercel (server).
 
 ## Part 1: [CLIENT] HTML Form
 
