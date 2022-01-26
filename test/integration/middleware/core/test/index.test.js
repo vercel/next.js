@@ -212,6 +212,24 @@ function rewriteTests(locale = '') {
     expect($('.title').text()).toBe(expectedText)
   })
 
+  it(`${locale} should clear query parameters`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/clear-query-params`,
+      {
+        a: '1',
+        b: '2',
+        foo: 'bar',
+        allowed: 'kept',
+      }
+    )
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#my-query-params').text())).toEqual({
+      allowed: 'kept',
+    })
+  })
+
   it(`${locale} should rewrite to about page`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
