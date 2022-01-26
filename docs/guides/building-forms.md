@@ -9,7 +9,7 @@ A web form has a **client-server** relationship. They are used to send data hand
 
 This guide will teach you how to create a serverless web form with Next.js (client) and Vercel (server).
 
-## Part 1: [CLIENT] HTML Form
+## Part 1: HTML Form
 
 HTML forms are built using the `<form>` tag. It takes a set of attributes and fields to structure the form for features like text fields, checkboxes, dropdown menus, buttons, radio buttons, etc.
 
@@ -150,7 +150,7 @@ The password form field must only contain digits (0 to 9) and lowercase alphabet
 
 > To learn more about HTML forms, check out the [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Learn/Forms).
 
-## Part 2: [SERVER] Serverless Forms with Next.js and Vercel
+## Part 2: Serverless Forms with Next.js and Vercel
 
 A serverless architecture, in literal terms, does involve servers. The difference is that the servers are managed and hosted in the cloud.
 
