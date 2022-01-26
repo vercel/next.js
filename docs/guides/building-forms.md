@@ -39,7 +39,7 @@ The HTML `<form>` tag acts as a container for different `<input>` elements like 
 
 ### Form Validation
 
-A process that checks if the information provided by a user is correct or not. Form validation also ensures that the provided info is in the correct format (e.g. there's an @ in the email field). These are of two types:
+A process that checks if the information provided by a user is correct or not. Form validation also ensures that the provided information is in the correct format (e.g. there's an @ in the email field). These are of two types:
 
 - **Client-side**: Validation is done in the browser
 - **Server-side**: Validation is done on the server
