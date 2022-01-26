@@ -8,6 +8,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 chrono = "0.4"
+once_cell = "1.8.0"
 easy-error = "1.0.0"
 either = "1"
 fxhash = "0.2.1"
@@ -25,6 +26,12 @@ swc_node_base = "0.5.1"
 swc_stylis = "0.43.0"
 tracing = {version = "0.1.28", features = ["release_max_level_off"]}
 regex = "1.5"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+relay-compiler = { git = "https://github.com/facebook/relay", tag="v13.0.1" }
+relay-compiler-intern = { package="intern", git = "https://github.com/facebook/relay", tag="v13.0.1" }
+relay-compiler-common = { package = "common", git = "https://github.com/facebook/relay", tag="v13.0.1" }
+relay-config = { git = "https://github.com/facebook/relay", tag="v13.0.1" }
 
 [dev-dependencies]
 swc_ecma_transforms_testing = "0.59.0"
