@@ -147,7 +147,6 @@ The password form field must only contain digits (0 to 9) and lowercase alphabet
 
 ![form-validate-regex](https://assets.vercel.com/image/upload/c_scale,w_675/v1643009088/nextjs/guides/building-forms/form-validate-regex.jpg)
 
-This was a quick recap of setting up web forms in HTML.
 
 > To learn more about HTML forms, check out the [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Learn/Forms).
 
