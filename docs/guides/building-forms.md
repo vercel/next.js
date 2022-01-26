@@ -167,7 +167,7 @@ Vercel empowers you to write JavaScript Serverless functions and deploy them at 
 
 In the following section you will be creating forms in React using Next.js.
 
-Create a simple Next.js app. You can use the [create-next-app](https://nextjs.org/docs/getting-started#setup) for a quick start. In your command line terminal, run the following:
+Create a new Next.js app. You can use the [create-next-app](https://nextjs.org/docs/getting-started#setup) for a quick start. In your command line terminal, run the following:
 
 ```
 npx create-next-app
