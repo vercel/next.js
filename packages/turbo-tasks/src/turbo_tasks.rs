@@ -1,4 +1,11 @@
-use std::{cell::Cell, future::Future, hash::Hash, pin::Pin, sync::Arc};
+use std::{
+    any::{Any, TypeId},
+    cell::Cell,
+    future::Future,
+    hash::Hash,
+    pin::Pin,
+    sync::Arc,
+};
 
 use any_key::AnyHash;
 use anyhow::{anyhow, Result};
@@ -66,15 +73,19 @@ impl TurboTasks {
         TURBO_TASKS.with(|c| c.get())
     }
 
-    pub(crate) fn intern<T: Hash + PartialEq + Eq + Send + Sync + 'static>(
+    pub(crate) fn intern<
+        T: Any,
+        K: Hash + PartialEq + Eq + Send + Sync + 'static,
+        F: FnOnce() -> Arc<Node>,
+    >(
         &self,
-        key: T,
-        fallback: impl FnOnce() -> Arc<Node>,
+        key: K,
+        fallback: F,
     ) -> Arc<Node> {
         let mut node1 = None;
         let mut node2 = None;
         self.interning_map.upsert(
-            Box::new(key) as Box<dyn AnyHash + Send + Sync>,
+            Box::new((TypeId::of::<T>(), key)) as Box<dyn AnyHash + Send + Sync>,
             || {
                 let new_node = fallback();
                 node1 = Some(new_node.clone());
@@ -101,12 +112,16 @@ pub fn dynamic_call(
     tt.dynamic_call(func, inputs)
 }
 
-pub(crate) fn intern<T: Hash + PartialEq + Eq + Send + Sync + 'static>(
-    key: T,
-    fallback: impl FnOnce() -> Arc<Node>,
+pub(crate) fn intern<
+    T: Any,
+    K: Hash + PartialEq + Eq + Send + Sync + 'static,
+    F: FnOnce() -> Arc<Node>,
+>(
+    key: K,
+    fallback: F,
 ) -> Arc<Node> {
     let tt = TurboTasks::current()
         .ok_or_else(|| anyhow!("tried to call intern outside of turbo tasks"))
         .unwrap();
-    tt.intern(key, fallback)
+    tt.intern::<T, K, F>(key, fallback)
 }

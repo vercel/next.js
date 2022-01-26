@@ -1,0 +1,18 @@
+[package]
+name = "turbo-tasks-macros"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+pmutil = "0.5.3"
+proc-macro2 = "1.0.36"
+quote = "1.0"
+
+[dependencies.syn]
+features = ["derive", "fold", "parsing", "printing", "visit-mut"]
+version = "1.0"
