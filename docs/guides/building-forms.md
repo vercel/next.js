@@ -270,7 +270,7 @@ There are several reasons why users disable JavaScript, e.g., addressing bandwid
 
 But with Vercel serverless functions, we can still use the forms without JavaScript, as we saw in the **Form Submission without JavaScript** [section](https://github.com/MaedahBatool/next.js/blob/forms/docs/guides/building-forms.md#form-submission-without-javascript) above.
 
-For that go to the `next-forms` directory. Inside the `/pages` directory, create a file `no-js-form.js`.
+Next open the `next-forms` directory. Inside the `/pages` directory, create a file `no-js-form.js`.
 
 > **Quick Tip**: In Next.js, a page is a React Component exported from a `.js`, `.jsx`, `.ts`, or `.tsx` file in the pages directory. Each page is associated with a route based on its file name.
 >
