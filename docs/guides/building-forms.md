@@ -143,7 +143,7 @@ The below example shows using the `pattern` attribute on an `input` element:
 </form>
 ```
 
-The above example defines how to use the `pattern` attribute. In this case, the password form field must only contain digits (0 to 9) and lowercase alphabets (a to z). No other special characters (#,$,&, etc.) The rule in RegEx is written as `[a-z]{1,15}`.
+The password form field must only contain digits (0 to 9) and lowercase alphabets (a to z). No other special characters (#,$,&, etc.) are allowed. The rule in RegEx is written as `[a-z]{1,15}`.
 
 ![form-validate-regex](https://assets.vercel.com/image/upload/c_scale,w_675/v1643009088/nextjs/guides/building-forms/form-validate-regex.jpg)
 
