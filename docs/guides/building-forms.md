@@ -268,7 +268,7 @@ JavaScript brings interactivity to our web applications, but sometimes you need 
 
 There are several reasons why users disable JavaScript, e.g., addressing bandwidth constraints, increasing device (phone or laptop) battery life, and even for privacy so they won’t be tracked with analytical scripts. Regardless of the reason, disabling JavaScript will impact site functionality partially, if not completely.
 
-But with Vercel serverless functions, we can still use the forms without JavaScript, as we saw in the **Form Submission without JavaScript** [section](https://github.com/MaedahBatool/next.js/blob/forms/docs/guides/building-forms.md#form-submission-without-javascript) above.
+But with Vercel serverless functions, we can still use the forms without JavaScript, as seen in the **Form Submission without JavaScript** [section](#form-submission-without-javascript) above.
 
 Next open the `next-forms` directory. Inside the `/pages` directory, create a file `no-js-form.js`.
 
