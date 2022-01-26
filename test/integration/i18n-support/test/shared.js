@@ -1177,6 +1177,66 @@ export function runTests(ctx) {
     }
   })
 
+  it('should not redirect to same path', async () => {
+    for (const [path, shouldRedirect, locale, pathname] of [
+      ['/en/redirect-6?search=some&filter[query]=some', false],
+    ]) {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath}${path}`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      expect(res.status).toBe(shouldRedirect ? 307 : 200)
+
+      if (shouldRedirect) {
+        const parsed = url.parse(res.headers.get('location'), true)
+        let expectedPathname = `${ctx.basePath}${locale || ''}${
+          pathname || '/somewhere-else'
+        }`
+        if (expectedPathname.endsWith('/') && expectedPathname !== '/') {
+          expectedPathname = expectedPathname.replace(/\/$/, '')
+        }
+        expect(parsed.pathname).toBe(expectedPathname)
+        expect(parsed.query).toEqual({})
+      }
+    }
+  })
+
+  it('should redirect to page with new query params', async () => {
+    for (const [path, pathname, query] of [
+      [
+        '/en/redirect-6?search=some',
+        '/en/redirect-6',
+        { search: 'some', 'filter[query]': 'some' },
+      ],
+      [
+        '/en-US/redirect-6?search=some',
+        '/redirect-6',
+        { search: 'some', 'filter[query]': 'some' },
+      ],
+    ]) {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath}${path}`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      expect(res.status).toBe(307)
+      const parsed = url.parse(res.headers.get('location'), true)
+
+      let expectedPathname = `${ctx.basePath}${pathname}`
+      expect(parsed.pathname).toBe(expectedPathname)
+      expect(parsed.query).toEqual(query)
+    }
+  })
+
   it('should apply redirects correctly', async () => {
     for (const [path, shouldRedirect, locale, pathname] of [
       ['/en-US/redirect-1', true],
@@ -1202,9 +1262,13 @@ export function runTests(ctx) {
 
       if (shouldRedirect) {
         const parsed = url.parse(res.headers.get('location'), true)
-        expect(parsed.pathname).toBe(
-          `${ctx.basePath}${locale || ''}${pathname || '/somewhere-else'}`
-        )
+        let expectedPathname = `${ctx.basePath}${locale || ''}${
+          pathname || '/somewhere-else'
+        }`
+        if (expectedPathname.endsWith('/') && expectedPathname !== '/') {
+          expectedPathname = expectedPathname.replace(/\/$/, '')
+        }
+        expect(parsed.pathname).toBe(expectedPathname)
         expect(parsed.query).toEqual({})
       }
     }

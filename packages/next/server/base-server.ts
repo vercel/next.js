@@ -838,6 +838,7 @@ export default abstract class Server {
                 destination: redirectRoute.destination,
                 params: params,
                 query: parsedUrl.query,
+                trailingSlash: this.nextConfig.trailingSlash,
               })
 
               const { query } = parsedDestination
@@ -850,6 +851,21 @@ export default abstract class Server {
               if (updatedDestination.startsWith('/')) {
                 updatedDestination =
                   normalizeRepeatedSlashes(updatedDestination)
+              }
+              const defaultLocale = parsedUrl.query.__nextDefaultLocale
+              let prevUrl = getRequestMeta(req, '__NEXT_INIT_URL')
+              if (
+                defaultLocale &&
+                parsedDestination.pathname ===
+                  `${this.nextConfig.basePath || ''}/${defaultLocale}/`
+              ) {
+                parsedDestination.pathname = `${
+                  this.nextConfig.basePath || ''
+                }${this.nextConfig.trailingSlash ? '/' : ''}`
+              }
+
+              if (updatedDestination === prevUrl) {
+                return { finished: false }
               }
 
               res

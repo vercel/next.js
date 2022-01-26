@@ -117,6 +117,7 @@ export function prepareDestination(args: {
   destination: string
   params: Params
   query: NextParsedUrlQuery
+  trailingSlash?: boolean
 }) {
   const query = Object.assign({}, args.query)
   delete query.__nextLocale
@@ -195,6 +196,15 @@ export function prepareDestination(args: {
     const [pathname, hash] = newUrl.split('#')
     parsedDestination.hostname = destHostnameCompiler(args.params)
     parsedDestination.pathname = pathname
+    if (args.trailingSlash && !pathname.endsWith('/')) {
+      parsedDestination.pathname = `${pathname}/`
+    } else if (
+      !args.trailingSlash &&
+      pathname.endsWith('/') &&
+      pathname !== '/'
+    ) {
+      parsedDestination.pathname = pathname.replace(/\/$/, '')
+    }
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
     delete (parsedDestination as any).search
   } catch (err: any) {

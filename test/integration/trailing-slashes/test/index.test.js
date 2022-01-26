@@ -169,7 +169,7 @@ function testWithTrailingSlash() {
   testShouldRedirect([
     ['/about', '/about/'],
     ['/catch-all/hello/world', '/catch-all/hello/world/'],
-    ['/catch-all/hello.world/', '/catch-all/hello.world'],
+    ['/catch-all/hello.world/', '/catch-all/hello.world/'],
   ])
 
   testShouldResolve([
@@ -321,7 +321,7 @@ describe('Trailing slashes', () => {
       ['/docs/about', '/docs/about/'],
       ['/docs', '/docs/'],
       ['/docs/catch-all/hello/world', '/docs/catch-all/hello/world/'],
-      ['/docs/catch-all/hello.world/', '/docs/catch-all/hello.world'],
+      ['/docs/catch-all/hello.world/', '/docs/catch-all/hello.world/'],
     ])
 
     testLinkShouldRewriteTo([
@@ -347,7 +347,7 @@ describe('Trailing slashes', () => {
       ['/docs/about', '/docs/about/'],
       ['/docs', '/docs/'],
       ['/docs/catch-all/hello/world', '/docs/catch-all/hello/world/'],
-      ['/docs/catch-all/hello.world/', '/docs/catch-all/hello.world'],
+      ['/docs/catch-all/hello.world/', '/docs/catch-all/hello.world/'],
     ])
 
     testLinkShouldRewriteTo([
