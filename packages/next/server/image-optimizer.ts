@@ -258,8 +258,17 @@ export async function imageOptimizer(
         mockRes.write = (chunk: Buffer | string) => {
           resBuffers.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
         }
-        mockRes._write = (chunk: Buffer | string) => {
+        mockRes._write = (
+          chunk: Buffer | string,
+          _encoding: string,
+          callback: () => void
+        ) => {
           mockRes.write(chunk)
+          // According to Node.js documentation, the callback MUST be invoked to signal that
+          // the write completed successfully. If this callback is not invoked, the 'finish' event
+          // will not be emitted.
+          // https://nodejs.org/docs/latest-v16.x/api/stream.html#writable_writechunk-encoding-callback
+          callback()
         }
 
         const mockHeaders: Record<string, string | string[]> = {}
@@ -295,7 +304,6 @@ export async function imageOptimizer(
         await handleRequest(mockReq, mockRes, nodeUrl.parse(href, true))
         await isStreamFinished
         res.statusCode = mockRes.statusCode
-
         upstreamBuffer = Buffer.concat(resBuffers)
         upstreamType =
           detectContentType(upstreamBuffer) || mockRes.getHeader('Content-Type')
@@ -334,7 +342,6 @@ export async function imageOptimizer(
         )
         return { finished: true }
       }
-
       if (!upstreamType.startsWith('image/')) {
         res.statusCode = 400
         res.end("The requested resource isn't a valid image.")

@@ -107,6 +107,12 @@ describe('should set-up next', () => {
     if (server) await killApp(server)
   })
 
+  it('`compress` should be `true` by default', async () => {
+    expect(
+      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
+    ).toContain('"compress":true')
+  })
+
   it('should output middleware correctly', async () => {
     expect(
       await fs.pathExists(

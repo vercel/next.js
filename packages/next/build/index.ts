@@ -551,11 +551,7 @@ export default async function build(
       .traceChild('generate-required-server-files')
       .traceFn(() => ({
         version: 1,
-        config: {
-          ...config,
-          compress: false,
-          configFile: undefined,
-        },
+        config: { ...config, configFile: undefined },
         appDir: dir,
         files: [
           ROUTES_MANIFEST,
