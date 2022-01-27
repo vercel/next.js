@@ -178,7 +178,7 @@ export async function imageOptimizer(
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
   const now = Date.now()
-  let serveStale = false
+  let staleWhileRevalidate = false
 
   // If there're concurrent requests hitting the same resource and it's still
   // being optimized, wait before accessing the cache.
@@ -201,6 +201,7 @@ export async function imageOptimizer(
         const contentType = getContentType(extension)
         const fsPath = join(hashDir, file)
         const isFresh = now < expireAt
+        const xCache = isFresh ? 'HIT' : 'STALE'
         const result = setResponseHeaders(
           req,
           res,
@@ -209,7 +210,8 @@ export async function imageOptimizer(
           maxAge,
           contentType,
           isStatic,
-          isDev
+          isDev,
+          xCache
         )
         if (!result.finished) {
           createReadStream(fsPath).pipe(res)
@@ -217,7 +219,8 @@ export async function imageOptimizer(
         if (isFresh) {
           return { finished: true }
         } else {
-          serveStale = true
+          await promises.unlink(fsPath)
+          staleWhileRevalidate = true
         }
       }
     }
@@ -318,18 +321,17 @@ export async function imageOptimizer(
           expireAt,
           upstreamBuffer
         )
-        if (!serveStale) {
-          sendResponse(
-            req,
-            res,
-            url,
-            maxAge,
-            upstreamType,
-            upstreamBuffer,
-            isStatic,
-            isDev
-          )
-        }
+        sendResponse(
+          req,
+          res,
+          url,
+          maxAge,
+          upstreamType,
+          upstreamBuffer,
+          isStatic,
+          isDev,
+          staleWhileRevalidate
+        )
         return { finished: true }
       }
 
@@ -474,34 +476,32 @@ export async function imageOptimizer(
           expireAt,
           optimizedBuffer
         )
-        if (!serveStale) {
-          sendResponse(
-            req,
-            res,
-            url,
-            maxAge,
-            contentType,
-            optimizedBuffer,
-            isStatic,
-            isDev
-          )
-        }
-      } else {
-        throw new Error('Unable to optimize buffer')
-      }
-    } catch (error) {
-      if (!serveStale) {
         sendResponse(
           req,
           res,
           url,
           maxAge,
-          upstreamType,
-          upstreamBuffer,
+          contentType,
+          optimizedBuffer,
           isStatic,
-          isDev
+          isDev,
+          staleWhileRevalidate
         )
+      } else {
+        throw new Error('Unable to optimize buffer')
       }
+    } catch (error) {
+      sendResponse(
+        req,
+        res,
+        url,
+        maxAge,
+        upstreamType,
+        upstreamBuffer,
+        isStatic,
+        isDev,
+        staleWhileRevalidate
+      )
     }
 
     return { finished: true }
@@ -549,7 +549,8 @@ function setResponseHeaders(
   maxAge: number,
   contentType: string | null,
   isStatic: boolean,
-  isDev: boolean
+  isDev: boolean,
+  xCache: 'MISS' | 'HIT' | 'STALE'
 ) {
   res.setHeader('Vary', 'Accept')
   res.setHeader(
@@ -575,6 +576,7 @@ function setResponseHeaders(
   }
 
   res.setHeader('Content-Security-Policy', `script-src 'none'; sandbox;`)
+  res.setHeader('X-Nextjs-Cache', xCache)
 
   return { finished: false }
 }
@@ -587,8 +589,13 @@ function sendResponse(
   contentType: string | null,
   buffer: Buffer,
   isStatic: boolean,
-  isDev: boolean
+  isDev: boolean,
+  staleWhileRevalidate: boolean
 ) {
+  if (staleWhileRevalidate) {
+    return
+  }
+  const xCache = 'MISS'
   const etag = getHash([buffer])
   const result = setResponseHeaders(
     req,
@@ -598,7 +605,8 @@ function sendResponse(
     maxAge,
     contentType,
     isStatic,
-    isDev
+    isDev,
+    xCache
   )
   if (!result.finished) {
     res.end(buffer)
