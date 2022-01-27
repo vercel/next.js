@@ -1,4 +1,5 @@
 {
+  "extends": "../../tsconfig-tsec.json",
   "compilerOptions": {
     "strict": true,
     "module": "esnext",

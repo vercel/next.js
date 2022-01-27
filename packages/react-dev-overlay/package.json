@@ -13,7 +13,8 @@
   "license": "MIT",
   "scripts": {
     "prepublish": "tsc -d -p tsconfig.json",
-    "dev": "tsc -d -w -p tsconfig.json"
+    "dev": "tsc -d -w -p tsconfig.json",
+    "typescript": "tsec --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@babel/code-frame": "7.12.11",

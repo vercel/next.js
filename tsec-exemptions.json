@@ -1,0 +1,17 @@
+{
+  "ban-element-innerhtml-assignments": [
+    "packages/next/client/head-manager.ts",
+    "packages/next/client/script.tsx",
+    "packages/react-dev-overlay/src/internal/components/Overlay/maintain--tab-focus.ts"
+  ],
+  "ban-element-setattribute": [
+    "packages/next/client/head-manager.ts",
+    "packages/next/client/script.tsx"
+  ],
+  "ban-script-content-assignments": ["packages/next/client/script.tsx"],
+  "ban-script-src-assignments": [
+    "packages/next/client/route-loader.ts",
+    "packages/next/client/script.tsx"
+  ],
+  "ban-window-stringfunctiondef": ["packages/next/lib/recursive-delete.ts"]
+}
