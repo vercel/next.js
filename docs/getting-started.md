@@ -89,7 +89,7 @@ export default HomePage
 
 So far, we get:
 
-- Automatic compilation and bundling (with webpack and babel)
+- Automatic compilation and bundling (with webpack and SWC or babel)
 - [React Fast Refresh](https://nextjs.org/blog/next-9-4#fast-refresh)
 - [Static generation and server-side rendering](/docs/basic-features/data-fetching/overview.md) of [`./pages/`](/docs/basic-features/pages.md)
 - [Static file serving](/docs/basic-features/static-file-serving.md). `./public/` is mapped to `/`
