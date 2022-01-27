@@ -58,7 +58,7 @@ pub fn value(_args: TokenStream, input: TokenStream) -> TokenStream {
 
             #[derive(Clone, Debug)]
             #vis struct #ref_ident {
-                node: std::sync::Arc<turbo_tasks::macro_helpers::Node>,
+                node: turbo_tasks::NodeRef,
             }
 
             lazy_static::lazy_static! {
@@ -67,7 +67,7 @@ pub fn value(_args: TokenStream, input: TokenStream) -> TokenStream {
             }
 
             impl #ref_ident {
-                pub fn from_node(node: std::sync::Arc<turbo_tasks::macro_helpers::Node>) -> Option<Self> {
+                pub fn from_node(node: turbo_tasks::NodeRef) -> Option<Self> {
                     if node.is_node_type(&#node_type_ident) {
                         Some(Self { node })
                     } else {
@@ -75,7 +75,7 @@ pub fn value(_args: TokenStream, input: TokenStream) -> TokenStream {
                     }
                 }
 
-                pub fn verify(node: &std::sync::Arc<turbo_tasks::macro_helpers::Node>) -> anyhow::Result<()> {
+                pub fn verify(node: &turbo_tasks::NodeRef) -> anyhow::Result<()> {
                     if node.is_node_type(&#node_type_ident) {
                         Ok(())
                     } else {
@@ -93,7 +93,7 @@ pub fn value(_args: TokenStream, input: TokenStream) -> TokenStream {
                 }
             }
 
-            impl From<#ref_ident> for std::sync::Arc<turbo_tasks::macro_helpers::Node> {
+            impl From<#ref_ident> for turbo_tasks::NodeRef {
                 fn from(node_ref: #ref_ident) -> Self {
                     node_ref.node
                 }
@@ -258,10 +258,10 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                                     }
                                 } else {
                                     quote! {
-                                        std::sync::Arc::new(turbo_tasks::macro_helpers::Node::new(
+                                        turbo_tasks::NodeRef::new(
                                             &#node_type_ident,
                                             std::sync::Arc::new(#ident::#fn_name(#(#input_names),*))
-                                        ))
+                                        )
                                     }
                                 };
                                 // TODO handle previous and update

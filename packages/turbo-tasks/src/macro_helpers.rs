@@ -1,27 +1,26 @@
-use std::{any::Any, hash::Hash, sync::Arc};
+use std::{any::Any, hash::Hash};
 
-pub use crate::node::Node;
-use crate::turbo_tasks::intern;
+use crate::{turbo_tasks::intern, NodeRef};
 
 pub fn new_node_intern<
     T: Any,
     K: Hash + PartialEq + Eq + Send + Sync + 'static,
-    F: FnOnce() -> Arc<Node>,
+    F: FnOnce() -> NodeRef,
 >(
     key: K,
     fallback: F,
-) -> Arc<Node> {
+) -> NodeRef {
     intern::<T, K, F>(key, fallback)
 }
 
 pub fn new_node_auto_intern<
     T: Any,
     K: Hash + PartialEq + Eq + Send + Sync + 'static,
-    F: FnOnce() -> Arc<Node>,
+    F: FnOnce() -> NodeRef,
 >(
     key: K,
     fallback: F,
-) -> Arc<Node> {
+) -> NodeRef {
     // TODO implement decision if intern or not
     intern::<T, K, F>(key, fallback)
 }

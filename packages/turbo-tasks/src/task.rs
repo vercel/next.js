@@ -1,3 +1,7 @@
+use crate::{NodeRef, TurboTasks, WeakNodeRef};
+use anyhow::anyhow;
+use async_std::task_local;
+use event_listener::Event;
 use std::{
     cell::Cell,
     fmt::{self, Debug, Formatter},
@@ -6,11 +10,7 @@ use std::{
     sync::{Arc, Mutex, MutexGuard, RwLock, Weak},
 };
 
-use anyhow::anyhow;
-use async_std::task_local;
-use event_listener::Event;
-
-pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Arc<Node>> + Send>>;
+pub type NativeTaskFuture = Pin<Box<dyn Future<Output = NodeRef> + Send>>;
 pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 
 task_local! {
@@ -21,12 +21,12 @@ pub struct Task {
     native_fn: NativeTaskFn,
     state: Mutex<TaskState>,
     // TODO use a concurrent set instead
-    dependencies: RwLock<Vec<Weak<Node>>>,
+    dependencies: RwLock<Vec<WeakNodeRef>>,
 }
 
 impl Debug for Task {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let deps: Vec<Arc<Node>> = self
+        let deps: Vec<NodeRef> = self
             .dependencies
             .read()
             .unwrap()
@@ -58,7 +58,7 @@ struct TaskState {
     parents: Vec<Weak<Task>>,
     // TODO use a concurrent set
     children: Vec<Arc<Task>>,
-    output: Option<Arc<Node>>,
+    output: Option<NodeRef>,
     event: Event,
 }
 
@@ -94,8 +94,6 @@ enum TaskStateType {
 }
 
 use TaskStateType::*;
-
-use crate::{node::Node, TurboTasks};
 
 impl Task {
     pub(crate) fn new(native_fn: NativeTaskFn) -> Self {
@@ -134,7 +132,7 @@ impl Task {
 
     pub(crate) fn execution_completed(
         self: Arc<Self>,
-        result: Arc<Node>,
+        result: NodeRef,
         turbo_tasks: &'static TurboTasks,
     ) {
         let mut state = self.state.lock().unwrap();
@@ -144,11 +142,7 @@ impl Task {
                 state.event.notify(usize::MAX);
                 let parents: Vec<Arc<Task>> =
                     state.parents.iter().filter_map(|p| p.upgrade()).collect();
-                if let Some(true) = state
-                    .output
-                    .as_ref()
-                    .map(|output| Arc::ptr_eq(&output, &result))
-                {
+                if let Some(true) = state.output.as_ref().map(|output| *output == result) {
                     // output hasn't changed
                     drop(state);
                     for parent in parents.iter() {
@@ -311,7 +305,7 @@ impl Task {
         })
     }
 
-    pub(crate) fn add_dependency(&self, node: Weak<Node>) {
+    pub(crate) fn add_dependency(&self, node: WeakNodeRef) {
         // TODO it's possible to schedule that work instead
         // maybe into a task_local dependencies list that
         // is stored that the end of the execution
@@ -344,7 +338,7 @@ impl Task {
         self.make_dirty(turbo_tasks)
     }
 
-    pub async fn wait_output(self: &Arc<Self>) -> Arc<Node> {
+    pub async fn wait_output(self: &Arc<Self>) -> NodeRef {
         loop {
             match {
                 let state = self.state.lock().unwrap();
@@ -361,7 +355,7 @@ impl Task {
         }
     }
 
-    pub(crate) async fn into_output(self: Arc<Self>) -> Arc<Node> {
+    pub(crate) async fn into_output(self: Arc<Self>) -> NodeRef {
         loop {
             match {
                 let mut state = self.state.lock().unwrap();
