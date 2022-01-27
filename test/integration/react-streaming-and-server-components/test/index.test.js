@@ -221,8 +221,8 @@ const customAppPageSuite = {
       expect(indexFlight).toContain('container-server')
     })
   },
-  before: () => appServerPage.write(rscAppPage),
-  after: () => appServerPage.delete(),
+  beforeAll: () => appServerPage.write(rscAppPage),
+  afterAll: () => appServerPage.delete(),
 }
 
 runSuite('Custom App', 'dev', customAppPageSuite)
@@ -267,8 +267,8 @@ describe('concurrentFeatures - dev', () => {
 
 const cssSuite = {
   runTests: css,
-  before: () => appPage.write(appWithGlobalCss),
-  after: () => appPage.delete(),
+  beforeAll: () => appPage.write(appWithGlobalCss),
+  afterAll: () => appPage.delete(),
 }
 
 runSuite('CSS', 'dev', cssSuite)
@@ -286,8 +286,8 @@ const documentSuite = {
       )
     })
   },
-  before: () => documentPage.write(documentWithGip),
-  after: () => documentPage.delete(),
+  beforeAll: () => documentPage.write(documentWithGip),
+  afterAll: () => documentPage.delete(),
 }
 
 runSuite('document', 'dev', documentSuite)
@@ -333,28 +333,29 @@ async function runBasicTests(context, env) {
   streaming(context)
 }
 
-function runSuite(suiteName, env, { runTests, before, after }) {
+function runSuite(suiteName, env, options) {
   const context = { appDir }
   describe(`${suiteName} ${env}`, () => {
     if (env === 'prod') {
       beforeAll(async () => {
-        before?.()
+        options.beforeAll?.()
         context.appPort = await findPort()
-        context.server = await nextDev(context.appDir, context.appPort)
+        await nextBuild(context.appDir)
+        context.server = await nextStart(context.appDir, context.appPort)
       })
     }
     if (env === 'dev') {
       beforeAll(async () => {
-        before?.()
+        options.beforeAll?.()
         context.appPort = await findPort()
         context.server = await nextDev(context.appDir, context.appPort)
       })
     }
     afterAll(async () => {
-      after?.()
+      options.afterAll?.()
       await killApp(context.server)
     })
 
-    runTests(context, env)
+    options.runTests(context, env)
   })
 }
