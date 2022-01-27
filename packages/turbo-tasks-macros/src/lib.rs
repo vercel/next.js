@@ -206,6 +206,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                 let ref_ident = get_ref_ident(&ident);
                 let node_type_ident = get_node_type_ident(&ident);
                 let mut constructors = Vec::new();
+                let mut i = 0;
                 for item in item.items.iter() {
                     match item {
                         ImplItem::Method(ImplItemMethod {
@@ -228,7 +229,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                                 let fn_name = &sig.ident;
                                 let inputs = &sig.inputs;
                                 let mut input_names = Vec::new();
-                                let mut inputs_for_intern_key = Vec::new();
+                                let mut inputs_for_intern_key = vec![quote! { #i }];
                                 for arg in inputs.iter() {
                                     if let FnArg::Typed(PatType { pat, ty, .. }) = arg {
                                         if let Pat::Ident(PatIdent { ident, .. }) = &**pat {
@@ -290,6 +291,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                                         }
                                     }
                                 });
+                                i += 1;
                             }
                         }
                         _ => {}
