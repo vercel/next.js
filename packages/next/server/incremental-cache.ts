@@ -3,7 +3,6 @@ import type { CacheFs } from '../shared/lib/utils'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import path from 'path'
 import { PrerenderManifest } from '../build'
-import { PRERENDER_MANIFEST } from '../shared/lib/constants'
 import { normalizePagePath } from './normalize-page-path'
 
 function toRoute(pathname: string): string {
@@ -52,6 +51,7 @@ export class IncrementalCache {
     pagesDir,
     flushToDisk,
     locales,
+    getPrerenderManifest,
   }: {
     fs: CacheFs
     dev: boolean
@@ -60,6 +60,7 @@ export class IncrementalCache {
     pagesDir: string
     flushToDisk?: boolean
     locales?: string[]
+    getPrerenderManifest: () => PrerenderManifest
   }) {
     this.fs = fs
     this.incrementalOptions = {
@@ -70,21 +71,7 @@ export class IncrementalCache {
         !dev && (typeof flushToDisk !== 'undefined' ? flushToDisk : true),
     }
     this.locales = locales
-
-    if (dev) {
-      this.prerenderManifest = {
-        version: -1 as any, // letting us know this doesn't conform to spec
-        routes: {},
-        dynamicRoutes: {},
-        notFoundRoutes: [],
-        preview: null as any, // `preview` is special case read in next-dev-server
-      }
-    } else {
-      const manifestJson = this.fs.readFileSync(
-        path.join(distDir, PRERENDER_MANIFEST)
-      )
-      this.prerenderManifest = JSON.parse(manifestJson)
-    }
+    this.prerenderManifest = getPrerenderManifest()
 
     if (process.env.__NEXT_TEST_MAX_ISR_CACHE) {
       // Allow cache size to be overridden for testing purposes
