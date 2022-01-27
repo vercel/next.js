@@ -1029,7 +1029,7 @@ export default async function build(
                   )
                 }
               } catch (err) {
-                if (isError(err) && err.message !== 'INVALID_DEFAULT_EXPORT')
+                if (!isError(err) || err.message !== 'INVALID_DEFAULT_EXPORT')
                   throw err
                 invalidPages.add(page)
               }
