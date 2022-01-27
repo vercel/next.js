@@ -54,7 +54,7 @@ The `ctx` object is equivalent to the one received in [`getInitialProps`](/docs/
 - `Document` is only rendered in the server, event handlers like `onClick` won't work.
 - React components outside of `<Main />` will not be initialized by the browser. Do _not_ add application logic here or custom CSS (like `styled-jsx`). If you need shared components in all your pages (like a menu or a toolbar), take a look at the [`App`](/docs/advanced-features/custom-app.md) component instead.
 - `Document`'s `getInitialProps` function is not called during client-side transitions, nor when a page is [statically optimized](/docs/advanced-features/automatic-static-optimization.md).
-- `Document` currently does not support Next.js [Data Fetching methods](/docs/basic-features/data-fetching/index.md) like [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) or [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md).
+- `Document` currently does not support Next.js [Data Fetching methods](/docs/basic-features/data-fetching/overview.md) like [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) or [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md).
 
 ## Customizing `renderPage`
 

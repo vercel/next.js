@@ -5,7 +5,7 @@ const regeneratorRuntimePath = require.resolve(
   'next/dist/compiled/regenerator-runtime'
 )
 
-function getBaseSWCOptions({
+export function getBaseSWCOptions({
   filename,
   jest,
   development,
@@ -45,9 +45,9 @@ function getBaseSWCOptions({
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
           throwIfNamespace: true,
-          development: development,
+          development: !!development,
           useBuiltins: true,
-          refresh: hasReactRefresh,
+          refresh: !!hasReactRefresh,
         },
         optimizer: {
           simplify: false,
