@@ -2,6 +2,7 @@ name: 'Lock Threads'
 
 on:
   schedule:
+    # This runs every hour: https://crontab.guru/every-1-hour
     - cron: '0 * * * *'
   workflow_dispatch:
 
