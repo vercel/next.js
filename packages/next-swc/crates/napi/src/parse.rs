@@ -1,21 +1,17 @@
-use crate::{
-    get_compiler,
-    util::{deserialize_json, CtxtExt, MapErr},
-};
+use crate::util::{deserialize_json, CtxtExt, MapErr};
 use anyhow::Context as _;
 use napi::{CallContext, Either, Env, JsObject, JsString, JsUndefined, Task};
 use std::sync::Arc;
-use swc::{config::ParseOptions, try_with_handler, Compiler};
-use swc_common::FileName;
+use swc::{config::ParseOptions, try_with_handler};
+use swc_common::{FileName, FilePathMapping, SourceMap};
 
 pub struct ParseTask {
-    pub c: Arc<Compiler>,
     pub filename: FileName,
     pub src: String,
     pub options: String,
 }
 
-pub fn complete_parse<'a>(env: &Env, ast_json: String, _c: &Compiler) -> napi::Result<JsString> {
+pub fn complete_parse<'a>(env: &Env, ast_json: String) -> napi::Result<JsString> {
     env.create_string_from_std(ast_json)
 }
 
@@ -24,13 +20,13 @@ impl Task for ParseTask {
     type JsValue = JsString;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
+        let c = swc::Compiler::new(Arc::new(SourceMap::new(FilePathMapping::empty())));
+
         let options: ParseOptions = deserialize_json(&self.options).convert_err()?;
-        let fm = self
-            .c
-            .cm
-            .new_source_file(self.filename.clone(), self.src.clone());
-        let program = try_with_handler(self.c.cm.clone(), false, |handler| {
-            self.c.parse_js(
+        let fm =
+            c.cm.new_source_file(self.filename.clone(), self.src.clone());
+        let program = try_with_handler(c.cm.clone(), false, |handler| {
+            c.parse_js(
                 fm,
                 &handler,
                 options.target,
@@ -49,13 +45,12 @@ impl Task for ParseTask {
     }
 
     fn resolve(self, env: Env, result: Self::Output) -> napi::Result<Self::JsValue> {
-        complete_parse(&env, result, &self.c)
+        complete_parse(&env, result)
     }
 }
 
 #[js_function(3)]
 pub fn parse(ctx: CallContext) -> napi::Result<JsObject> {
-    let c = get_compiler(&ctx);
     let src = ctx.get_deserialized(0)?;
     let options = ctx.get_buffer_as_string(1)?;
     let filename = ctx.get::<Either<JsString, JsUndefined>>(2)?;
@@ -67,7 +62,6 @@ pub fn parse(ctx: CallContext) -> napi::Result<JsObject> {
 
     ctx.env
         .spawn(ParseTask {
-            c: c.clone(),
             filename,
             src,
             options,
