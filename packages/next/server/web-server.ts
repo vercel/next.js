@@ -169,8 +169,26 @@ export default class NextWebServer extends BaseServer {
       }
     }
 
+    const { errorMod, error500Mod } = (globalThis as any).__server_context
+
+    // If there is a custom 500 page.
+    if (pathname === '/500' && error500Mod) {
+      return {
+        query: {
+          ...(query || {}),
+          ...(params || {}),
+        },
+        components: {
+          ...(globalThis as any).__server_context,
+          Component: error500Mod.default,
+          getStaticProps: error500Mod.getStaticProps,
+          getServerSideProps: error500Mod.getServerSideProps,
+          getStaticPaths: error500Mod.getStaticPaths,
+        } as LoadComponentsReturnType,
+      }
+    }
+
     if (pathname === '/_error') {
-      const errorMod = (globalThis as any).__server_context.errorMod
       return {
         query: {
           ...(query || {}),
