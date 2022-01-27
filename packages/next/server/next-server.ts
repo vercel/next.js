@@ -1017,7 +1017,7 @@ export default class NextNodeServer extends BaseServer {
           })
 
           // TODO: remove after next minor version current `v12.0.9`
-          warnIfQueryParametersWereDeleted(
+          this.warnIfQueryParametersWereDeleted(
             parsedUrl.query,
             parsedDestination.query
           )
@@ -1202,22 +1202,24 @@ export default class NextNodeServer extends BaseServer {
   protected getRoutesManifest() {
     return require(join(this.distDir, ROUTES_MANIFEST))
   }
-}
 
-function warnIfQueryParametersWereDeleted(
-  incoming: ParsedUrlQuery,
-  rewritten: ParsedUrlQuery
-): void {
-  const incomingQuery = urlQueryToSearchParams(incoming)
-  const rewrittenQuery = urlQueryToSearchParams(rewritten)
+  // TODO: remove after next minor version current `v12.0.9`
+  private warnIfQueryParametersWereDeleted(
+    incoming: ParsedUrlQuery,
+    rewritten: ParsedUrlQuery
+  ): void {
+    const incomingQuery = urlQueryToSearchParams(incoming)
+    const rewrittenQuery = urlQueryToSearchParams(rewritten)
 
-  const missingKeys = [...incomingQuery.keys()].filter((key) => {
-    return !rewrittenQuery.has(key)
-  })
+    const missingKeys = [...incomingQuery.keys()].filter((key) => {
+      return !rewrittenQuery.has(key)
+    })
 
-  if (missingKeys.length > 0) {
-    Log.warn(
-      `Query params are no longer automatically merged for rewrites in middleware, see more info here: https://nextjs.org/docs/messages/errors/deleting-query-params-in-middlewares'
-    )
+    if (missingKeys.length > 0) {
+      Log.warn(
+        `Query params are no longer automatically merged for rewrites in middleware, see more info here: https://nextjs.org/docs/messages/errors/deleting-query-params-in-middlewares`
+      )
+      this.warnIfQueryParametersWereDeleted = () => {}
+    }
   }
 }
