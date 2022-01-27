@@ -20,7 +20,7 @@ export default async function middlewareSSRLoader(this: any) {
   const stringifiedDocumentPath = stringifyRequest(this, absoluteDocumentPath)
   const stringified500Path = absolute500Path
     ? stringifyRequest(this, absolute500Path)
-    : ''
+    : 'null'
 
   const transformed = `
     import { adapter } from 'next/dist/server/web/adapter'
