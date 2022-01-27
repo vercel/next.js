@@ -13,7 +13,6 @@ easy-error = "1.0.0"
 either = "1"
 fxhash = "0.2.1"
 pathdiff = "0.2.0"
-hyper-tls = "0.5.0"
 serde = "1"
 serde_json = "1"
 styled_components = "0.13.0"
@@ -33,6 +32,7 @@ relay-compiler = { git = "https://github.com/facebook/relay", tag="v13.0.1" }
 relay-compiler-intern = { package="intern", git = "https://github.com/facebook/relay", tag="v13.0.1" }
 relay-compiler-common = { package = "common", git = "https://github.com/facebook/relay", tag="v13.0.1" }
 relay-config = { git = "https://github.com/facebook/relay", tag="v13.0.1" }
+hyper-tls = "0.5.0"
 
 [dev-dependencies]
 swc_ecma_transforms_testing = "0.59.0"
