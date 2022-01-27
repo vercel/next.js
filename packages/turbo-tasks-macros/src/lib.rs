@@ -56,7 +56,7 @@ pub fn value(_args: TokenStream, input: TokenStream) -> TokenStream {
         let expanded = quote! {
             #item
 
-            #[derive(Clone, Debug)]
+            #[derive(Clone, Debug, std::hash::Hash, std::cmp::Eq)]
             #vis struct #ref_ident {
                 node: turbo_tasks::NodeRef,
             }
@@ -98,7 +98,6 @@ pub fn value(_args: TokenStream, input: TokenStream) -> TokenStream {
                     node_ref.node
                 }
             }
-
         };
 
         return expanded.into();
