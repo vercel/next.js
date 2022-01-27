@@ -51,7 +51,7 @@ impl Task for ParseTask {
 
 #[js_function(3)]
 pub fn parse(ctx: CallContext) -> napi::Result<JsObject> {
-    let src = ctx.get_deserialized(0)?;
+    let src = ctx.get::<JsString>(0)?.into_utf8()?.as_str()?.to_string();
     let options = ctx.get_buffer_as_string(1)?;
     let filename = ctx.get::<Either<JsString, JsUndefined>>(2)?;
     let filename = if let Either::A(value) = filename {

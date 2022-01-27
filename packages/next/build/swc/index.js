@@ -184,7 +184,7 @@ function loadNative() {
       },
 
       parse(src, options) {
-        return bindings.parse(toBuffer(src), toBuffer(options ?? {}))
+        return bindings.parse(src, toBuffer(options ?? {}))
       },
     }
     return nativeBindings
