@@ -62,9 +62,7 @@ impl TurboTasks {
                         let new_task = Arc::new(Task::new(functor));
                         self.schedule(new_task.clone());
                         task = Ok(new_task.clone());
-                        // TODO enable caching
-                        // Some(new_task)
-                        None
+                        Some(new_task)
                     }
                     Err(err) => {
                         task = Err(err);
@@ -72,7 +70,7 @@ impl TurboTasks {
                     }
                 },
             });
-        return Ok(Box::pin(task?.into_output()));
+        return Ok(Box::pin(task?.into_output(self)));
     }
 
     pub(crate) fn schedule(&'static self, task: Arc<Task>) -> JoinHandle<()> {

@@ -1,13 +1,13 @@
 use crate::{NodeRef, TurboTasks, WeakNodeRef};
 use anyhow::anyhow;
 use async_std::task_local;
-use event_listener::Event;
+use event_listener::{Event, EventListener};
 use std::{
     cell::Cell,
     fmt::{self, Debug, Formatter},
     future::Future,
     pin::Pin,
-    sync::{Arc, Mutex, MutexGuard, RwLock, Weak},
+    sync::{Arc, Mutex, RwLock, Weak},
 };
 
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = NodeRef> + Send>>;
@@ -52,6 +52,7 @@ impl Debug for Task {
 struct TaskState {
     // TODO using a Atomic might be possible here
     state_type: TaskStateType,
+    dirty_children_count: usize,
     // TODO do we want to keep that or solve it in a different way?
     has_side_effect: bool,
     // TODO use a concurrent set
@@ -64,32 +65,67 @@ struct TaskState {
 
 #[derive(PartialEq, Eq, Debug)]
 enum TaskStateType {
-    // task is scheduled for execution
-    // it will soon move to InProgressLocally
+    /// task is scheduled for execution
+    ///
+    /// it will soon move to InProgressLocally
     Scheduled,
-    // task started executing
-    // it will soon move to Done
-    // but it may move to Dirty when invalidated
+
+    /// task started executing
+    ///
+    /// it will soon move to Done
+    ///
+    /// but it may move to Dirty when invalidated
+    ///
+    /// Children must not be Dirty or SomeChildrenDirty.
+    /// This node would move to InProgressLocallyOutdated if that would happen
     InProgressLocally,
-    // task started executing
-    // but it was invalidated during that
-    // it will soon reexecute and move to Scheduled
+
+    /// task started executing
+    /// but it was invalidated during that
+    ///
+    /// it will soon reexecute and move to Scheduled
     InProgressLocallyOutdated,
-    // task has executed and outputs are valid
-    // it may move to Dirty when invalidated
-    // it may move to SomeChildrenDirty when a child is invalidated
+
+    /// task has executed and outputs are valid
+    ///
+    /// it may move to Dirty when invalidated
+    ///
+    /// it may move to SomeChildrenDirty when a child is invalidated
+    ///
+    /// Children must be in Done state too.
+    /// We want to make sure to
+    /// - notify all parents when child move out of Done
+    /// - attach only children that are Done
+    ///
+    /// This is handled by make_dirty and into_output
     Done,
-    // the task has been invalidated for some reason
-    // the goal is to keep this task dirty until access
-    // on access it will move to Scheduled
+
+    /// the task has been invalidated for some reason
+    ///
+    /// the goal is to keep this task dirty until access
+    ///
+    /// on access it will move to Scheduled
     Dirty,
-    // some child tasks has been flagged as dirty
-    // the goal is to keep this task dirty until access
-    // on access it will move to SomeChildrenDirtyScheduled
-    // and schedule these dirty children
+
+    /// some child tasks has been flagged as dirty
+    ///
+    /// the goal is to keep this task dirty until access
+    ///
+    /// on access it will move to SomeChildrenDirtyScheduled
+    /// and schedule these dirty children
     SomeChildrenDirty,
-    // some child tasks has been flagged as dirty
-    // but with the goal is to get everything up to date again
+
+    /// some child tasks has been flagged as dirty
+    ///
+    /// but with the goal is to get everything up to date again
+    ///
+    /// Children must not be in Dirty or SomeChildrenDirty state,
+    /// they must make progress. We want to make sure to
+    /// - schedule all Dirty children
+    /// - switch all SomeChildrenDirty children to SomeChildrenDirtyScheduled
+    /// - children must not become Dirty or SomeChildrenDirty but Scheduled resp SomeChildrenDirtyScheduled instead
+    ///
+    /// this is handled by schedule_dirty_children
     SomeChildrenDirtyScheduled,
 }
 
@@ -101,6 +137,7 @@ impl Task {
             native_fn,
             state: Mutex::new(TaskState {
                 state_type: TaskStateType::Scheduled,
+                dirty_children_count: 0,
                 has_side_effect: false,
                 parents: Vec::new(),
                 children: Vec::new(),
@@ -171,53 +208,97 @@ impl Task {
         };
     }
 
-    pub(crate) fn child_dirty(self: &Arc<Self>, turbo_tasks: &'static TurboTasks) {
+    #[must_use]
+    pub(crate) fn child_dirty(self: &Arc<Self>, turbo_tasks: &'static TurboTasks) -> bool {
         let mut state = self.state.lock().unwrap();
         match state.state_type {
-            Dirty | Scheduled | InProgressLocallyOutdated => {}
+            Dirty | Scheduled | InProgressLocallyOutdated => false,
             InProgressLocally => {
                 state.state_type = InProgressLocallyOutdated;
+                false
             }
-            SomeChildrenDirty | SomeChildrenDirtyScheduled => {}
+            SomeChildrenDirty => {
+                state.dirty_children_count += 1;
+                false
+            }
+            SomeChildrenDirtyScheduled => {
+                state.dirty_children_count += 1;
+                true
+            }
+            // for SomeChildrenDirtyUndetermined we would need to propagate to parents again
             Done => {
-                let has_side_effect = state.has_side_effect;
-                if has_side_effect {
+                if state.has_side_effect {
                     state.state_type = Scheduled;
-                } else {
-                    state.state_type = SomeChildrenDirty;
-                }
-                let parents: Vec<Arc<Task>> =
-                    state.parents.iter().filter_map(|p| p.upgrade()).collect();
-                drop(state);
-                for parent in parents.iter() {
-                    parent.child_dirty(turbo_tasks);
-                }
-                if has_side_effect {
+                    let parents: Vec<Arc<Task>> =
+                        state.parents.iter().filter_map(|p| p.upgrade()).collect();
+                    drop(state);
+                    for parent in parents.iter() {
+                        let _ignored = parent.child_dirty(turbo_tasks);
+                    }
                     turbo_tasks.schedule(self.clone());
+                    false
+                } else {
+                    // TODO there is a race condition here
+                    // we better should introduce an additional state
+                    // SomeChildrenDirtyUndetermined to cover that
+                    // for now we use SomeChildrenDirtyScheduled
+                    // that might causes a few unneeded scheduled tasks
+                    // but that's better than missing to schedule some
+
+                    // Also see the constraint on SomeChildrenDirtyScheduled
+                    // we can't use SomeChildrenDirty since we do not know
+                    // if there are parents that are in SomeChildrenDirtyScheduled state
+                    state.state_type = SomeChildrenDirtyScheduled;
+                    state.dirty_children_count = 1;
+                    let parents: Vec<Arc<Task>> =
+                        state.parents.iter().filter_map(|p| p.upgrade()).collect();
+                    drop(state);
+                    let mut schedule = false;
+                    for parent in parents.iter() {
+                        if parent.child_dirty(turbo_tasks) {
+                            schedule = true
+                        }
+                    }
+                    if !schedule {
+                        // revert back to SomeChildrenDirty when no parent asked for scheduling
+                        let mut state = self.state.lock().unwrap();
+                        state.state_type = SomeChildrenDirty;
+                        drop(state);
+                        false
+                    } else {
+                        true
+                    }
                 }
             }
-        };
+        }
     }
 
     pub(crate) fn child_done(&self, turbo_tasks: &'static TurboTasks) {
-        let state = self.state.lock().unwrap();
-        if state.state_type != SomeChildrenDirtyScheduled {
-            return;
+        let mut state = self.state.lock().unwrap();
+        match state.state_type {
+            SomeChildrenDirty | SomeChildrenDirtyScheduled => {
+                state.dirty_children_count -= 1;
+                if state.dirty_children_count == 0 {
+                    state.state_type = Done;
+                    let parents: Vec<Arc<Task>> =
+                        state.parents.iter().filter_map(|p| p.upgrade()).collect();
+                    drop(state);
+                    for parent in parents.iter() {
+                        parent.child_done(turbo_tasks);
+                    }
+                } else {
+                    drop(state);
+                }
+            }
+            Dirty | InProgressLocally | InProgressLocallyOutdated | Scheduled => {}
+            Done => {
+                panic!("Task child has become done while parent task was already done")
+            }
         }
-        let children: Vec<Arc<Task>> = state.children.iter().map(|arc| arc.clone()).collect();
-        drop(state);
-        for child in children.into_iter() {
-            let state = child.state.lock().unwrap();
-            child.clone().schedule_dirty_children(state, turbo_tasks);
-        }
-        // TODO: automatically progress children
     }
 
-    fn schedule_dirty_children(
-        self: Arc<Self>,
-        mut state: MutexGuard<TaskState>,
-        turbo_tasks: &'static TurboTasks,
-    ) {
+    fn schedule_dirty_children(self: Arc<Self>, turbo_tasks: &'static TurboTasks) {
+        let mut state = self.state.lock().unwrap();
         match state.state_type {
             Dirty => {
                 state.state_type = Scheduled;
@@ -231,8 +312,7 @@ impl Task {
                     state.children.iter().map(|arc| arc.clone()).collect();
                 drop(state);
                 for child in children.into_iter() {
-                    let state = child.state.lock().unwrap();
-                    child.clone().schedule_dirty_children(state, turbo_tasks);
+                    child.schedule_dirty_children(turbo_tasks);
                 }
             }
             SomeChildrenDirtyScheduled => {}
@@ -270,21 +350,24 @@ impl Task {
                 let parents: Vec<Arc<Task>> =
                     state.parents.iter().filter_map(|p| p.upgrade()).collect();
                 drop(state);
+                let mut schedule = false;
                 for parent in parents.iter() {
-                    parent.child_dirty(turbo_tasks);
+                    if parent.child_dirty(turbo_tasks) {
+                        schedule = true
+                    }
                 }
                 if has_side_effect {
+                    turbo_tasks.schedule(self.clone());
+                } else if schedule {
+                    let mut state = self.state.lock().unwrap();
+                    state.state_type = Scheduled;
+                    drop(state);
                     turbo_tasks.schedule(self.clone());
                 }
             }
             SomeChildrenDirtyScheduled => {
                 state.state_type = Scheduled;
-                let parents: Vec<Arc<Task>> =
-                    state.parents.iter().filter_map(|p| p.upgrade()).collect();
                 drop(state);
-                for parent in parents.iter() {
-                    parent.child_dirty(turbo_tasks);
-                }
                 turbo_tasks.schedule(self.clone());
             }
         }
@@ -355,27 +438,65 @@ impl Task {
         }
     }
 
-    pub(crate) async fn into_output(self: Arc<Self>) -> NodeRef {
-        loop {
-            match {
-                let mut state = self.state.lock().unwrap();
-                if state.state_type == TaskStateType::Done {
-                    let parent = Task::current()
-                        .ok_or_else(|| anyhow!("tried to call wait_output outside of a task"))
-                        .unwrap();
+    pub(crate) async fn into_output(self: Arc<Self>, turbo_tasks: &'static TurboTasks) -> NodeRef {
+        fn get_or_schedule(
+            this: &Arc<Task>,
+            turbo_tasks: &'static TurboTasks,
+        ) -> Result<NodeRef, EventListener> {
+            {
+                let mut state = this.state.lock().unwrap();
+                match state.state_type {
+                    Done => {
+                        let parent = Task::current()
+                            .ok_or_else(|| anyhow!("tried to call wait_output outside of a task"))
+                            .unwrap();
 
-                    state.parents.push(Arc::downgrade(&parent));
-                    let arc = state.output.as_ref().unwrap().clone();
-                    drop(state);
+                        state.parents.push(Arc::downgrade(&parent));
+                        let arc = state.output.as_ref().unwrap().clone();
+                        let has_side_effect = state.has_side_effect;
+                        drop(state);
 
-                    let mut parent_state = parent.state.lock().unwrap();
-                    parent_state.children.push(self.clone());
+                        let mut parent_state = parent.state.lock().unwrap();
+                        parent_state.children.push(this.clone());
 
-                    Ok(arc)
-                } else {
-                    Err(state.event.listen())
+                        // propagate side effect
+                        if has_side_effect {
+                            parent_state.has_side_effect = true;
+                        }
+
+                        Ok(arc)
+                    }
+                    InProgressLocally
+                    | InProgressLocallyOutdated
+                    | Scheduled
+                    | SomeChildrenDirtyScheduled => {
+                        let listener = state.event.listen();
+                        drop(state);
+                        Err(listener)
+                    }
+                    Dirty => {
+                        state.state_type = Scheduled;
+                        let listener = state.event.listen();
+                        drop(state);
+                        turbo_tasks.schedule(this.clone());
+                        Err(listener)
+                    }
+                    SomeChildrenDirty => {
+                        state.state_type = SomeChildrenDirtyScheduled;
+                        let listener = state.event.listen();
+                        let children: Vec<Arc<Task>> =
+                            state.children.iter().map(|arc| arc.clone()).collect();
+                        drop(state);
+                        for child in children.into_iter() {
+                            child.schedule_dirty_children(turbo_tasks);
+                        }
+                        Err(listener)
+                    }
                 }
-            } {
+            }
+        }
+        loop {
+            match get_or_schedule(&self, turbo_tasks) {
                 Ok(arc) => return arc,
                 Err(listener) => listener.await,
             }
