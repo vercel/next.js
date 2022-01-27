@@ -6,7 +6,7 @@ description: Learn how to transition an existing Create React App project to Nex
 
 This guide will help you understand how to transition from an existing non-ejected Create React App project to Next.js. Migrating to Next.js will allow you to:
 
-- Choose which [data fetching](/docs/basic-features/data-fetching/index.md) strategy you want on a per-page basis.
+- Choose which [data fetching](/docs/basic-features/data-fetching/overview.md) strategy you want on a per-page basis.
 - Use [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md) to update _existing_ pages by re-rendering them in the background as traffic comes in.
 - Use [API Routes](/docs/api-routes/introduction.md).
 
