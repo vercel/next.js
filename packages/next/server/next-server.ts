@@ -1216,10 +1216,7 @@ function warnIfQueryParametersWereDeleted(
 
   if (missingKeys.length > 0) {
     Log.warn(
-      `Middleware rewrite deleted the following query parameters from the URL: ${missingKeys.join(
-        ', '
-      )}.`,
-      'We are no longer merging query parameters - https://nextjs.org/docs/messages/errors/deleting-query-params-in-middlewares'
+      `Query params are no longer automatically merged for rewrites in middleware, see more info here: https://nextjs.org/docs/messages/errors/deleting-query-params-in-middlewares'
     )
   }
 }
