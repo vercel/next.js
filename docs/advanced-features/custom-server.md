@@ -28,8 +28,10 @@ const { createServer } = require('http')
 const { parse } = require('url')
 const next = require('next')
 
+const port = 3000
 const dev = process.env.NODE_ENV !== 'production'
-const app = next({ dev })
+// when using middleware `hostname` and `port` must be provided below
+const app = next({ dev, hostname: 'localhost', port })
 const handle = app.getRequestHandler()
 
 app.prepare().then(() => {
@@ -46,9 +48,9 @@ app.prepare().then(() => {
     } else {
       handle(req, res, parsedUrl)
     }
-  }).listen(3000, (err) => {
+  }).listen(port, (err) => {
     if (err) throw err
-    console.log('> Ready on http://localhost:3000')
+    console.log(`> Ready on http://localhost:${port}`)
   })
 })
 ```
