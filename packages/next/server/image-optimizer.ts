@@ -178,6 +178,7 @@ export async function imageOptimizer(
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
   const now = Date.now()
+  let serveStale = false
 
   // If there're concurrent requests hitting the same resource and it's still
   // being optimized, wait before accessing the cache.
@@ -199,23 +200,24 @@ export async function imageOptimizer(
         const expireAt = Number(expireAtSt)
         const contentType = getContentType(extension)
         const fsPath = join(hashDir, file)
-        if (now < expireAt) {
-          const result = setResponseHeaders(
-            req,
-            res,
-            url,
-            etag,
-            maxAge,
-            contentType,
-            isStatic,
-            isDev
-          )
-          if (!result.finished) {
-            createReadStream(fsPath).pipe(res)
-          }
+        const isFresh = now < expireAt
+        const result = setResponseHeaders(
+          req,
+          res,
+          url,
+          etag,
+          maxAge,
+          contentType,
+          isStatic,
+          isDev
+        )
+        if (!result.finished) {
+          createReadStream(fsPath).pipe(res)
+        }
+        if (isFresh) {
           return { finished: true }
         } else {
-          await promises.unlink(fsPath)
+          serveStale = true
         }
       }
     }
@@ -316,16 +318,18 @@ export async function imageOptimizer(
           expireAt,
           upstreamBuffer
         )
-        sendResponse(
-          req,
-          res,
-          url,
-          maxAge,
-          upstreamType,
-          upstreamBuffer,
-          isStatic,
-          isDev
-        )
+        if (!serveStale) {
+          sendResponse(
+            req,
+            res,
+            url,
+            maxAge,
+            upstreamType,
+            upstreamBuffer,
+            isStatic,
+            isDev
+          )
+        }
         return { finished: true }
       }
 
@@ -470,30 +474,34 @@ export async function imageOptimizer(
           expireAt,
           optimizedBuffer
         )
+        if (!serveStale) {
+          sendResponse(
+            req,
+            res,
+            url,
+            maxAge,
+            contentType,
+            optimizedBuffer,
+            isStatic,
+            isDev
+          )
+        }
+      } else {
+        throw new Error('Unable to optimize buffer')
+      }
+    } catch (error) {
+      if (!serveStale) {
         sendResponse(
           req,
           res,
           url,
           maxAge,
-          contentType,
-          optimizedBuffer,
+          upstreamType,
+          upstreamBuffer,
           isStatic,
           isDev
         )
-      } else {
-        throw new Error('Unable to optimize buffer')
       }
-    } catch (error) {
-      sendResponse(
-        req,
-        res,
-        url,
-        maxAge,
-        upstreamType,
-        upstreamBuffer,
-        isStatic,
-        isDev
-      )
     }
 
     return { finished: true }
