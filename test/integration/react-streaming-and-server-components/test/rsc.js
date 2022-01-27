@@ -59,4 +59,17 @@ export default function (context) {
 
     expect(imageTag.attr('src')).toContain('data:image')
   })
+
+  it('should handle multiple named exports correctly', async () => {
+    const clientExportsHTML = await renderViaHTTP(
+      context.appPort,
+      '/client-exports'
+    )
+    const $clientExports = cheerio.load(clientExportsHTML)
+    expect($clientExports('div[hidden] > div').text()).toBe('abcde')
+
+    const browser = await webdriver(context.appPort, '/client-exports')
+    const text = await browser.waitForElementByCss('#__next').text()
+    expect(text).toBe('abcde')
+  })
 }
