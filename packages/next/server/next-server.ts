@@ -1016,6 +1016,7 @@ export default class NextNodeServer extends BaseServer {
             query: {},
           })
 
+          // TODO: remove after next minor version current `v12.0.9`
           warnIfQueryParametersWereDeleted(
             parsedUrl.query,
             parsedDestination.query
