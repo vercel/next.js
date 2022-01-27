@@ -531,6 +531,10 @@
         {
           "title": "middleware-relative-urls",
           "path": "/errors/middleware-relative-urls.md"
+        },
+        {
+          "title": "deleting-query-params-in-middlewares",
+          "path": "/errors/deleting-query-params-in-middlewares.md"
         }
       ]
     }
