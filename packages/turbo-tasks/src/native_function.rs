@@ -10,11 +10,16 @@ lazy_static! {
         NodeType::new("NativeFunction".to_string(), NodeReuseMode::None);
 }
 
+use crate as turbo_tasks;
+
+#[turbo_tasks::value]
 pub struct NativeFunction {
     bind_fn: Box<dyn (Fn(Vec<Arc<Node>>) -> Result<NativeTaskFn>) + Send + Sync + 'static>,
 }
 
+#[turbo_tasks::value_impl]
 impl NativeFunction {
+    #[turbo_tasks::constructor(!intern !previous)]
     pub fn new(
         bind_fn: impl (Fn(Vec<Arc<Node>>) -> Result<NativeTaskFn>) + Send + Sync + 'static,
     ) -> Self {
@@ -25,33 +30,5 @@ impl NativeFunction {
 
     pub fn bind(&self, inputs: Vec<Arc<Node>>) -> Result<NativeTaskFn> {
         (self.bind_fn)(inputs)
-    }
-}
-
-// TODO autogenerate NativeFunctionRef
-pub struct NativeFunctionRef {
-    node: Arc<Node>,
-}
-
-impl NativeFunctionRef {
-    pub fn new(
-        bind_fn: impl (Fn(Vec<Arc<Node>>) -> Result<NativeTaskFn>) + Send + Sync + 'static,
-    ) -> Self {
-        let value = Arc::new(NativeFunction::new(bind_fn));
-        let new_node = Node::new(&NATIVE_FUNCTION_NODE_TYPE, value);
-        Self {
-            node: Arc::new(new_node),
-        }
-    }
-
-    pub fn get(&self) -> Arc<NativeFunction> {
-        // unwrap is safe here since we ensure that it will be the correct node type
-        self.node.read::<NativeFunction>().unwrap()
-    }
-}
-
-impl From<NativeFunctionRef> for Arc<Node> {
-    fn from(node_ref: NativeFunctionRef) -> Self {
-        node_ref.node
     }
 }

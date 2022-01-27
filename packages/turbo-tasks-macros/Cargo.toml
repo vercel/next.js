@@ -9,10 +9,11 @@ proc-macro = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.53"
 pmutil = "0.5.3"
 proc-macro2 = "1.0.36"
 quote = "1.0"
 
 [dependencies.syn]
-features = ["derive", "fold", "parsing", "printing", "visit-mut"]
+features = ["full"]
 version = "1.0"
