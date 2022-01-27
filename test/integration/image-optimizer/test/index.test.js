@@ -500,6 +500,49 @@ function runTests({
       )
       await expectWidth(res, w)
     })
+
+    it('should use cache and stale-while-revalidate when query is the same for external image', async () => {
+      await fs.remove(imagesDir)
+
+      const url = 'https://image-optimization-test.vercel.app/test.jpg'
+      const query = { url, w, q: 39 }
+      const opts = { headers: { accept: 'image/webp' } }
+
+      const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res1.status).toBe(200)
+      expect(res1.headers.get('X-Nextjs-Cache')).toBe('MISS')
+      expect(res1.headers.get('Content-Type')).toBe('image/webp')
+      expect(res1.headers.get('Content-Disposition')).toBe(
+        `inline; filename="test.webp"`
+      )
+      const json1 = await fsToJson(imagesDir)
+      expect(Object.keys(json1).length).toBe(1)
+
+      const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res2.status).toBe(200)
+      expect(res2.headers.get('X-Nextjs-Cache')).toBe('HIT')
+      expect(res2.headers.get('Content-Type')).toBe('image/webp')
+      expect(res2.headers.get('Content-Disposition')).toBe(
+        `inline; filename="test.webp"`
+      )
+      const json2 = await fsToJson(imagesDir)
+      expect(json2).toStrictEqual(json1)
+
+      if (ttl) {
+        // Wait until expired so we can confirm image is regenerated
+        await waitFor(ttl * 1000)
+        const res3 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+        expect(res3.status).toBe(200)
+        expect(res3.headers.get('X-Nextjs-Cache')).toBe('STALE')
+        expect(res3.headers.get('Content-Type')).toBe('image/webp')
+        expect(res3.headers.get('Content-Disposition')).toBe(
+          `inline; filename="test.webp"`
+        )
+        const json3 = await fsToJson(imagesDir)
+        expect(json3).not.toStrictEqual(json1)
+        expect(Object.keys(json3).length).toBe(1)
+      }
+    })
   }
 
   it('should fail when url has file protocol', async () => {
@@ -532,7 +575,7 @@ function runTests({
     })
   }
 
-  it('should use cached image file when parameters are the same', async () => {
+  it('should use cache and stale-while-revalidate when query is the same for internal image', async () => {
     await fs.remove(imagesDir)
 
     const query = { url: '/test.png', w, q: 80 }
@@ -540,6 +583,7 @@ function runTests({
 
     const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res1.status).toBe(200)
+    expect(res1.headers.get('X-Nextjs-Cache')).toBe('MISS')
     expect(res1.headers.get('Content-Type')).toBe('image/webp')
     expect(res1.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.webp"`
@@ -549,6 +593,7 @@ function runTests({
 
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
+    expect(res2.headers.get('X-Nextjs-Cache')).toBe('HIT')
     expect(res2.headers.get('Content-Type')).toBe('image/webp')
     expect(res2.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.webp"`
@@ -561,6 +606,7 @@ function runTests({
       await waitFor(ttl * 1000)
       const res3 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res3.status).toBe(200)
+      expect(res3.headers.get('X-Nextjs-Cache')).toBe('STALE')
       expect(res3.headers.get('Content-Type')).toBe('image/webp')
       expect(res3.headers.get('Content-Disposition')).toBe(
         `inline; filename="test.webp"`
