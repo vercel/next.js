@@ -87,7 +87,7 @@ pub fn value(_args: TokenStream, input: TokenStream) -> TokenStream {
                     }
                 }
 
-                pub fn get(&self) -> std::sync::Arc<#ident> {
+                pub fn get(&self) -> impl std::ops::Deref<Target = #ident> {
                     // unwrap is safe here since we ensure that it will be the correct node type
                     self.node.read::<#ident>().unwrap()
                 }
