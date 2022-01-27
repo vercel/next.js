@@ -635,7 +635,7 @@ function runTests({
 
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
-    expect(res1.headers.get('X-Nextjs-Cache')).toBe('HIT')
+    expect(res2.headers.get('X-Nextjs-Cache')).toBe('HIT')
     expect(res2.headers.get('Content-Type')).toBe('image/svg+xml')
     expect(res2.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.svg"`
@@ -662,7 +662,7 @@ function runTests({
 
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
-    expect(res1.headers.get('X-Nextjs-Cache')).toBe('HIT')
+    expect(res2.headers.get('X-Nextjs-Cache')).toBe('HIT')
     expect(res2.headers.get('Content-Type')).toBe('image/gif')
     expect(res2.headers.get('Content-Disposition')).toBe(
       `inline; filename="animated.gif"`
