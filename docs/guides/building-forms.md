@@ -389,6 +389,13 @@ The `handleSubmit()` function processes your form data through a series of steps
 
 ## Conclusion
 
+That's about it. After reading this guide, here's what you'll learn:
+
+- The basic HTML `form` element
+- Understanding forms with React.js
+- Validating forms data with and without JavaScript
+- Using Next.js Sereverless Functions to handle `req` and `res` from the client and server
+
 Next.js and Vercel provide you with an all-in solution for hosting web forms and handling submissions with serverless functions. Use Next.js as the client for your JavaScript-based interaction and Vercel for its powerful serverless functions to handle the server.
 
 For more details go through [Next.js Learn Course](https://nextjs.org/learn/basics/create-nextjs-app).
