@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: dessant/lock-threads@v3
+        github-token: ${{ secrets.LOCK_TOKEN }}
         issue-inactive-days: 30
         issue-comment: 'This issue has been automatically locked due to no recent activity. If you are running into a similar issue, please open a new issue with a reproduction. Thank you.'
         pr-inactive-days: 30
