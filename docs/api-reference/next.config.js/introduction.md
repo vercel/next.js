@@ -48,6 +48,22 @@ module.exports = (phase, { defaultConfig }) => {
 }
 ```
 
+or if you are using `next.config.mjs`
+
+```js
+const config = (phase, { defaultConfig }) => {
+  /**
+   * @type {import('next').NextConfig}
+   */
+  const nextConfig = {
+    /* config options here */
+  }
+  return nextConfig
+}
+
+export default config
+```
+
 `phase` is the current context in which the configuration is loaded. You can see the [available phases](https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/constants.ts#L1-L5). Phases can be imported from `next/constants`:
 
 ```js
@@ -64,6 +80,27 @@ module.exports = (phase, { defaultConfig }) => {
     /* config options for all phases except development here */
   }
 }
+```
+
+or if you are using `next.config.mjs`
+
+```js
+import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
+
+
+const config = (phase, { defaultConfig }) => {
+  if (phase === PHASE_DEVELOPMENT_SERVER) {
+    return {
+      /* development only config options here */
+    }
+  }
+
+  return {
+    /* config options for all phases except development here */
+  }
+}
+
+export default config
 ```
 
 The commented lines are the place where you can put the configs allowed by `next.config.js`, which are [defined in this file](https://github.com/vercel/next.js/blob/canary/packages/next/server/config-shared.ts#L68).

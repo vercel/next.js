@@ -22,6 +22,8 @@ Rehype is an `HTML` processor, also powered by a plugin ecosystem. Similar to re
 
 To use a plugin from either remark or rehype, you will need to add it to the MDX packages config.
 
+> All unified plugins are [ECMAScript modules](https://nodejs.org/api/esm.html) so will have to use next.config.mjs instead of next.config.js
+
 ## `@next/mdx`
 
 The `@next/mdx` package is configured in the `next.config.js` file at your projects root. **It sources data from local files**, allowing you to create pages with a `.mdx` extension, directly in your `/pages` directory.
