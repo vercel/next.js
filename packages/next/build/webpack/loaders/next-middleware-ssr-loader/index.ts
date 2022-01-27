@@ -2,37 +2,38 @@ import { stringifyRequest } from '../../stringify-request'
 
 export default async function middlewareSSRLoader(this: any) {
   const {
+    dev,
+    page,
+    buildId,
     absolutePagePath,
     absoluteAppPath,
     absoluteDocumentPath,
     absolute500Path,
     absoluteErrorPath,
     isServerComponent,
-    ...restRenderOpts
+    stringifiedConfig,
   } = this.getOptions()
 
-  const stringifiedAbsolutePagePath = stringifyRequest(this, absolutePagePath)
-  const stringifiedAbsoluteAppPath = stringifyRequest(this, absoluteAppPath)
-  const stringifiedAbsolute500PagePath = stringifyRequest(
-    this,
-    absolute500Path || absoluteErrorPath
-  )
-  const stringifiedAbsoluteDocumentPath = stringifyRequest(
-    this,
-    absoluteDocumentPath
-  )
+  const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
+  const stringifiedAppPath = stringifyRequest(this, absoluteAppPath)
+  const stringifiedErrorPath = stringifyRequest(this, absoluteErrorPath)
+  const stringifiedDocumentPath = stringifyRequest(this, absoluteDocumentPath)
+  const stringified500Path = absolute500Path
+    ? stringifyRequest(this, absolute500Path)
+    : 'null'
 
   const transformed = `
     import { adapter } from 'next/dist/server/web/adapter'
     import { RouterContext } from 'next/dist/shared/lib/router-context'
 
-    import App from ${stringifiedAbsoluteAppPath}
-    import Document from ${stringifiedAbsoluteDocumentPath}
-
     import { getRender } from 'next/dist/build/webpack/loaders/next-middleware-ssr-loader/render'
 
-    const pageMod = require(${stringifiedAbsolutePagePath})
-    const errorMod = require(${stringifiedAbsolute500PagePath})
+    import App from ${stringifiedAppPath}
+    import Document from ${stringifiedDocumentPath}
+
+    const pageMod = require(${stringifiedPagePath})
+    const errorMod = require(${stringifiedErrorPath})
+    const error500Mod = ${stringified500Path} ? require(${stringified500Path}) : null
 
     const buildManifest = self.__BUILD_MANIFEST
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
@@ -42,16 +43,38 @@ export default async function middlewareSSRLoader(this: any) {
       throw new Error('Your page must export a \`default\` component')
     }
 
-    const render = getRender({
-      App,
-      Document,
-      pageMod,
-      errorMod,
+    // Set server context
+    self.__current_route = ${JSON.stringify(page)}
+    self.__server_context = {
+      Component: pageMod.default,
+      pageConfig: pageMod.config || {},
       buildManifest,
       reactLoadableManifest,
-      rscManifest,
+      Document,
+      App,
+      getStaticProps: pageMod.getStaticProps,
+      getServerSideProps: pageMod.getServerSideProps,
+      getStaticPaths: pageMod.getStaticPaths,
+      ComponentMod: undefined,
+      serverComponentManifest: ${isServerComponent} ? rscManifest : null,
+
+      // components
+      errorMod,
+      error500Mod,
+
+      // renderOpts
+      buildId: ${JSON.stringify(buildId)},
+      dev: ${dev},
+      env: process.env,
+      supportsDynamicHTML: true,
+      concurrentFeatures: true,
+      disableOptimizedLoading: true,
+    }
+  
+    const render = getRender({
+      Document,
       isServerComponent: ${isServerComponent},
-      restRenderOpts: ${JSON.stringify(restRenderOpts)}
+      config: ${stringifiedConfig},
     })
 
     export default function rscMiddleware(opts) {

@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import cheerio from 'cheerio'
 import { join } from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
@@ -14,10 +13,11 @@ import {
   nextBuild as _nextBuild,
   nextStart as _nextStart,
   renderViaHTTP,
-  check,
 } from 'next-test-utils'
 
 import css from './css'
+import rsc from './rsc'
+import streaming from './streaming'
 
 const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
 const appDir = join(__dirname, '../app')
@@ -121,20 +121,6 @@ async function nextDev(dir, port) {
     stderr: true,
     nodeArgs,
   })
-}
-
-async function resolveStreamResponse(response, onData) {
-  let result = ''
-  onData = onData || (() => {})
-  await new Promise((resolve) => {
-    response.body.on('data', (chunk) => {
-      result += chunk.toString()
-      onData(chunk.toString(), result)
-    })
-
-    response.body.on('end', resolve)
-  })
-  return result
 }
 
 describe('concurrentFeatures - basic', () => {
@@ -308,181 +294,43 @@ runSuite('document', 'dev', documentSuite)
 runSuite('document', 'prod', documentSuite)
 
 async function runBasicTests(context, env) {
-  const isDev = env === 'dev'
-  it('should render html correctly', async () => {
-    const homeHTML = await renderViaHTTP(context.appPort, '/', null, {
-      headers: {
-        'x-next-test-client': 'test-util',
-      },
-    })
+  it('should render 500 error correctly', async () => {
+    const path500HTML = await renderViaHTTP(context.appPort, '/err')
 
-    // should have only 1 DOCTYPE
-    expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
+    // In dev mode it should show the error popup.
+    const isDev = env === 'dev'
+    expect(path500HTML).toContain(isDev ? 'Error: oops' : 'custom-500-page')
+  })
 
-    // dynamic routes
-    const dynamicRouteHTML1 = await renderViaHTTP(
+  it('should render 404 error correctly', async () => {
+    const path404HTML = await renderViaHTTP(context.appPort, '/404')
+    const pathNotFoundHTML = await renderViaHTTP(context.appPort, '/not-found')
+
+    expect(path404HTML).toContain('custom-404-page')
+    expect(pathNotFoundHTML).toContain('custom-404-page')
+  })
+
+  it('should render dynamic routes correctly', async () => {
+    const dynamicRoute1HTML = await renderViaHTTP(
       context.appPort,
       '/routes/dynamic1'
     )
-    const dynamicRouteHTML2 = await renderViaHTTP(
+    const dynamicRoute2HTML = await renderViaHTTP(
       context.appPort,
       '/routes/dynamic2'
     )
 
-    const path404HTML = await renderViaHTTP(context.appPort, '/404')
-    const path500HTML = await renderViaHTTP(context.appPort, '/err')
-    const pathNotFoundHTML = await renderViaHTTP(
-      context.appPort,
-      '/this-is-not-found'
-    )
-
-    const page404Content = 'custom-404-page'
-
-    expect(homeHTML).toContain('component:index.server')
-    expect(homeHTML).toContain('env:env_var_test')
-    expect(homeHTML).toContain('header:test-util')
-    expect(homeHTML).toContain('path:/')
-    expect(homeHTML).toContain('foo.client')
-
-    expect(dynamicRouteHTML1).toContain('[pid]')
-    expect(dynamicRouteHTML2).toContain('[pid]')
-
-    const $404 = cheerio.load(path404HTML)
-    expect($404('#__next').text()).toBe(page404Content)
-
-    // in dev mode: custom error page is still using default _error
-    expect(path500HTML).toContain(
-      isDev ? 'Internal Server Error' : 'custom-500-page'
-    )
-    expect(pathNotFoundHTML).toContain(page404Content)
-  })
-
-  it('should disable cache for RSC pages', async () => {
-    const urls = ['/', '/next-api/image', '/next-api/link']
-    await Promise.all(
-      urls.map(async (url) => {
-        const { headers } = await fetchViaHTTP(context.appPort, url)
-        expect(headers.get('cache-control')).toBe(
-          'no-cache, no-store, max-age=0, must-revalidate'
-        )
-      })
-    )
-  })
-
-  it('should support next/link', async () => {
-    const linkHTML = await renderViaHTTP(context.appPort, '/next-api/link')
-    const $ = cheerio.load(linkHTML)
-    const linkText = $('div[hidden] > a[href="/"]').text()
-
-    expect(linkText).toContain('go home')
-
-    const browser = await webdriver(context.appPort, '/next-api/link')
-    await browser.eval('window.beforeNav = 1')
-    await browser.waitForElementByCss('#next_id').click()
-    await check(() => browser.elementByCss('#query').text(), 'query:1')
-
-    await browser.waitForElementByCss('#next_id').click()
-    await check(() => browser.elementByCss('#query').text(), 'query:2')
-
-    if (!isDev) {
-      expect(await browser.eval('window.beforeNav')).toBe(1)
-    }
-  })
-
-  it('should suspense next/image on server side', async () => {
-    const imageHTML = await renderViaHTTP(context.appPort, '/next-api/image')
-    const $ = cheerio.load(imageHTML)
-    const imageTag = $('div[hidden] > span > span > img')
-
-    expect(imageTag.attr('src')).toContain('data:image')
-  })
-
-  it('should support multi-level server component imports', async () => {
-    const html = await renderViaHTTP(context.appPort, '/multi')
-    expect(html).toContain('bar.server.js:')
-    expect(html).toContain('foo.client')
-  })
-
-  it('should support streaming', async () => {
-    await fetchViaHTTP(context.appPort, '/streaming', null, {}).then(
-      async (response) => {
-        let gotFallback = false
-        let gotData = false
-
-        await resolveStreamResponse(response, (_, result) => {
-          gotData = result.includes('next_streaming_data')
-          if (!gotFallback) {
-            gotFallback = result.includes('next_streaming_fallback')
-            if (gotFallback) {
-              expect(gotData).toBe(false)
-            }
-          }
-        })
-
-        expect(gotFallback).toBe(true)
-        expect(gotData).toBe(true)
-      }
-    )
-
-    // Should end up with "next_streaming_data".
-    const browser = await webdriver(context.appPort, '/streaming')
-    const content = await browser.eval(`window.document.body.innerText`)
-    expect(content).toMatchInlineSnapshot('"next_streaming_data"')
-  })
-
-  it('should support streaming flight request', async () => {
-    await fetchViaHTTP(context.appPort, '/?__flight__=1').then(
-      async (response) => {
-        const result = await resolveStreamResponse(response)
-        expect(result).toContain('component:index.server')
-      }
-    )
-  })
-
-  it('should support partial hydration with inlined server data', async () => {
-    await fetchViaHTTP(context.appPort, '/partial-hydration', null, {}).then(
-      async (response) => {
-        let gotFallback = false
-        let gotData = false
-        let gotInlinedData = false
-
-        await resolveStreamResponse(response, (_, result) => {
-          gotInlinedData = result.includes('self.__next_s=')
-          gotData = result.includes('next_streaming_data')
-          if (!gotFallback) {
-            gotFallback = result.includes('next_streaming_fallback')
-            if (gotFallback) {
-              expect(gotData).toBe(false)
-              expect(gotInlinedData).toBe(false)
-            }
-          }
-        })
-
-        expect(gotFallback).toBe(true)
-        expect(gotData).toBe(true)
-        expect(gotInlinedData).toBe(true)
-      }
-    )
-
-    // Should end up with "next_streaming_data".
-    const browser = await webdriver(context.appPort, '/partial-hydration')
-    const content = await browser.eval(`window.document.body.innerText`)
-    expect(content).toContain('next_streaming_data')
-
-    // Should support partial hydration: the boundary should still be pending
-    // while another part is hydrated already.
-    expect(await browser.eval(`window.partial_hydration_suspense_result`)).toBe(
-      'next_streaming_fallback'
-    )
-    expect(await browser.eval(`window.partial_hydration_counter_result`)).toBe(
-      'count: 1'
-    )
+    expect(dynamicRoute1HTML).toContain('query: dynamic1')
+    expect(dynamicRoute2HTML).toContain('query: dynamic2')
   })
 
   it('should support api routes', async () => {
     const res = await renderViaHTTP(context.appPort, '/api/ping')
     expect(res).toContain('pong')
   })
+
+  rsc(context)
+  streaming(context)
 }
 
 function runSuite(suiteName, env, { runTests, before, after }) {
