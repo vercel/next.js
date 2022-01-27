@@ -43,7 +43,7 @@ The `context` parameter is an object containing the following keys:
 
 ## getServerSideProps return values
 
-The `getServerSideProps` function should return an object with the following **optional** properties:
+The `getServerSideProps` function should return an object with **any one of the following** properties:
 
 ### `props`
 
