@@ -91,11 +91,12 @@ The following example shows using JavaScript to validate a form:
 
 ```html
 <form onsubmit="validateFormWithJS()">
-  <label for="name">Name:</label>
-  <input type="text" name="name" id="name" />
 
   <label for="rollNumber">Roll Number:</label>
   <input type="text" name="rollNumber" id="rollNumber" />
+  
+  <label for="name">Name:</label>
+  <input type="text" name="name" id="name" />
 
   <button type="submit">Submit</button>
 </form>
