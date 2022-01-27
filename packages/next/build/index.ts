@@ -57,9 +57,9 @@ import {
   isDynamicRoute,
 } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
-import loadConfig, { isTargetLikeServerless } from '../server/config'
+import loadConfig from '../server/config'
+import { isTargetLikeServerless } from '../server/utils'
 import { BuildManifest } from '../server/get-page-files'
-import '../server/node-polyfill-fetch'
 import { normalizePagePath } from '../server/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -551,11 +551,7 @@ export default async function build(
       .traceChild('generate-required-server-files')
       .traceFn(() => ({
         version: 1,
-        config: {
-          ...config,
-          compress: false,
-          configFile: undefined,
-        },
+        config: { ...config, configFile: undefined },
         appDir: dir,
         files: [
           ROUTES_MANIFEST,

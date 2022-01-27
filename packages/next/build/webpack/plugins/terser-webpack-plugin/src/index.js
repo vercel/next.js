@@ -6,7 +6,7 @@ import {
   sources,
 } from 'next/dist/compiled/webpack/webpack'
 import pLimit from 'next/dist/compiled/p-limit'
-import { Worker } from 'jest-worker'
+import { Worker } from 'next/dist/compiled/jest-worker'
 import { spans } from '../../profiling-plugin'
 
 function getEcmaVersion(environment) {

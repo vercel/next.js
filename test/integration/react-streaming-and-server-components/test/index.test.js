@@ -27,6 +27,7 @@ const documentPage = new File(join(appDir, 'pages/_document.jsx'))
 const appPage = new File(join(appDir, 'pages/_app.js'))
 const appServerPage = new File(join(appDir, 'pages/_app.server.js'))
 const error500Page = new File(join(appDir, 'pages/500.js'))
+const error404Page = new File(join(appDir, 'pages/404.js'))
 
 const documentWithGip = `
 import { Html, Head, Main, NextScript } from 'next/document'
@@ -68,6 +69,33 @@ export default App
 const page500 = `
 export default function Page500() {
   return 'custom-500-page'
+}
+`
+
+const suspense404 = `
+import { Suspense } from 'react'
+
+let result
+let promise
+function Data() {
+  if (result) return result
+  if (!promise)
+    promise = new Promise((res) => {
+      setTimeout(() => {
+        result = 'next_streaming_data'
+        res()
+      }, 500)
+    })
+  throw promise
+}
+
+export default function Page404() {
+  return (
+    <Suspense fallback={null}>
+      custom-404-page
+      <Data />
+    </Suspense>
+  )
 }
 `
 
@@ -118,11 +146,26 @@ describe('concurrentFeatures - basic', () => {
     expect(stderr).toContain(edgeRuntimeWarning)
     expect(stderr).toContain(rscWarning)
   })
+
   it('should warn user that native node APIs are not supported', async () => {
     const fsImportedErrorMessage =
       'Native Node.js APIs are not supported in the Edge Runtime with `concurrentFeatures` enabled. Found `dns` imported.'
     const { stderr } = await nextBuild(nativeModuleTestAppDir)
     expect(stderr).toContain(fsImportedErrorMessage)
+  })
+
+  it('should handle suspense error page correctly (node stream)', async () => {
+    error404Page.write(suspense404)
+    const appPort = await findPort()
+    await nextBuild(appDir)
+    await nextStart(appDir, appPort)
+    const browser = await webdriver(appPort, '/404')
+    const hydrationContent = await browser.eval(
+      `document.querySelector('#__next').textContent`
+    )
+    expect(hydrationContent).toBe('custom-404-pagenext_streaming_data')
+
+    error404Page.restore()
   })
 })
 
@@ -266,7 +309,7 @@ runSuite('document', 'prod', documentSuite)
 
 async function runBasicTests(context, env) {
   const isDev = env === 'dev'
-  it('should render the correct html', async () => {
+  it('should render html correctly', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/', null, {
       headers: {
         'x-next-test-client': 'test-util',
@@ -293,21 +336,35 @@ async function runBasicTests(context, env) {
       '/this-is-not-found'
     )
 
+    const page404Content = 'custom-404-page'
+
     expect(homeHTML).toContain('component:index.server')
     expect(homeHTML).toContain('env:env_var_test')
     expect(homeHTML).toContain('header:test-util')
     expect(homeHTML).toContain('path:/')
     expect(homeHTML).toContain('foo.client')
 
-    expect(dynamicRouteHTML1).toContain('[pid]')
-    expect(dynamicRouteHTML2).toContain('[pid]')
+    expect(dynamicRouteHTML1).toContain('query: dynamic1')
+    expect(dynamicRouteHTML2).toContain('query: dynamic2')
 
-    expect(path404HTML).toContain('custom-404-page')
-    // in dev mode: custom error page is still using default _error
-    expect(path500HTML).toContain(
-      isDev ? 'Internal Server Error' : 'custom-500-page'
+    const $404 = cheerio.load(path404HTML)
+    expect($404('#__next').text()).toBe(page404Content)
+
+    // In dev mode: it should show the error popup.
+    expect(path500HTML).toContain(isDev ? 'Error: oops' : 'custom-500-page')
+    expect(pathNotFoundHTML).toContain(page404Content)
+  })
+
+  it('should disable cache for fizz pages', async () => {
+    const urls = ['/', '/next-api/image', '/next-api/link']
+    await Promise.all(
+      urls.map(async (url) => {
+        const { headers } = await fetchViaHTTP(context.appPort, url)
+        expect(headers.get('cache-control')).toBe(
+          'no-cache, no-store, max-age=0, must-revalidate'
+        )
+      })
     )
-    expect(pathNotFoundHTML).toContain('custom-404-page')
   })
 
   it('should support next/link', async () => {
@@ -318,16 +375,21 @@ async function runBasicTests(context, env) {
     expect(linkText).toContain('go home')
 
     const browser = await webdriver(context.appPort, '/next-api/link')
+
+    // We need to make sure the app is fully hydrated before clicking, otherwise
+    // it will be a full redirection instead of being taken over by the next
+    // router. This timeout prevents it being flaky caused by fast refresh's
+    // rebuilding event.
+    await new Promise((res) => setTimeout(res, 1000))
     await browser.eval('window.beforeNav = 1')
+
     await browser.waitForElementByCss('#next_id').click()
     await check(() => browser.elementByCss('#query').text(), 'query:1')
 
     await browser.waitForElementByCss('#next_id').click()
     await check(() => browser.elementByCss('#query').text(), 'query:2')
 
-    if (!isDev) {
-      expect(await browser.eval('window.beforeNav')).toBe(1)
-    }
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should suspense next/image on server side', async () => {

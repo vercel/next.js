@@ -564,7 +564,7 @@ export async function renderToHTML(
   let asPath: string = renderOpts.resolvedAsPath || (req.url as string)
 
   if (dev) {
-    const { isValidElementType } = require('react-is')
+    const { isValidElementType } = require('next/dist/compiled/react-is')
     if (!isValidElementType(Component)) {
       throw new Error(
         `The default export is not a React Component in page: "${pathname}"`
@@ -1431,7 +1431,7 @@ export async function renderToHTML(
   }
 
   const [renderTargetPrefix, renderTargetSuffix] = documentHTML.split(
-    /<next-js-internal-body-render-target><\/next-js-internal-body-render-target>/
+    '<next-js-internal-body-render-target></next-js-internal-body-render-target>'
   )
 
   const prefix: Array<string> = []
@@ -1551,6 +1551,7 @@ function renderToNodeStream(
 
     // Based on the suggestion here:
     // https://github.com/reactwg/react-18/discussions/110
+    let suffixFlushed = false
     class NextWritable extends Writable {
       _write(
         chunk: any,
@@ -1572,7 +1573,15 @@ function renderToNodeStream(
 
         if (!shellFlushed) {
           shellFlushed = true
-          underlyingStream.write(suffixUnclosed)
+          // In the first round of streaming, all chunks will be finished in the micro task.
+          // We use setTimeout to guarantee the suffix is flushed after the micro task.
+          setTimeout(() => {
+            // Flush the suffix if stream is not closed.
+            if (underlyingStream) {
+              suffixFlushed = true
+              underlyingStream.write(suffixUnclosed)
+            }
+          })
         }
       }
 
@@ -1603,6 +1612,11 @@ function renderToNodeStream(
         resolved = true
         resolve((res, next) => {
           const doNext = (err?: Error) => {
+            // Some cases when the stream is closed too fast before setTimeout,
+            // have to ensure suffix is flushed anyway.
+            if (!suffixFlushed) {
+              res.write(suffixUnclosed)
+            }
             if (!err) {
               res.write(closeTag)
             }
@@ -1631,6 +1645,7 @@ function renderToNodeStream(
           abort()
         },
         onCompleteShell() {
+          shellFlushed = true
           if (!generateStaticHTML) {
             doResolve(() => pipe(stream))
           }

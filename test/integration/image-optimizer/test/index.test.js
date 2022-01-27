@@ -779,6 +779,14 @@ function runTests({
     expect(await res.text()).toBe("The requested resource isn't a valid image.")
   })
 
+  it('should error if the image file does not exist', async () => {
+    const query = { url: '/does_not_exist.jpg', w, q: 80 }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(400)
+    expect(await res.text()).toBe("The requested resource isn't a valid image.")
+  })
+
   it('should handle concurrent requests', async () => {
     await fs.remove(imagesDir)
     const query = { url: '/test.png', w, q: 80 }
