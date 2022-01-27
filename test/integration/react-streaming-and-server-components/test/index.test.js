@@ -344,20 +344,18 @@ async function runBasicTests(context, env) {
     expect(homeHTML).toContain('path:/')
     expect(homeHTML).toContain('foo.client')
 
-    expect(dynamicRouteHTML1).toContain('[pid]')
-    expect(dynamicRouteHTML2).toContain('[pid]')
+    expect(dynamicRouteHTML1).toContain('query: dynamic1')
+    expect(dynamicRouteHTML2).toContain('query: dynamic2')
 
     const $404 = cheerio.load(path404HTML)
     expect($404('#__next').text()).toBe(page404Content)
 
-    // in dev mode: custom error page is still using default _error
-    expect(path500HTML).toContain(
-      isDev ? 'Internal Server Error' : 'custom-500-page'
-    )
+    // In dev mode: it should show the error popup.
+    expect(path500HTML).toContain(isDev ? 'Error: oops' : 'custom-500-page')
     expect(pathNotFoundHTML).toContain(page404Content)
   })
 
-  it('should disable cache for RSC pages', async () => {
+  it('should disable cache for fizz pages', async () => {
     const urls = ['/', '/next-api/image', '/next-api/link']
     await Promise.all(
       urls.map(async (url) => {
@@ -377,16 +375,21 @@ async function runBasicTests(context, env) {
     expect(linkText).toContain('go home')
 
     const browser = await webdriver(context.appPort, '/next-api/link')
+
+    // We need to make sure the app is fully hydrated before clicking, otherwise
+    // it will be a full redirection instead of being taken over by the next
+    // router. This timeout prevents it being flaky caused by fast refresh's
+    // rebuilding event.
+    await new Promise((res) => setTimeout(res, 1000))
     await browser.eval('window.beforeNav = 1')
+
     await browser.waitForElementByCss('#next_id').click()
     await check(() => browser.elementByCss('#query').text(), 'query:1')
 
     await browser.waitForElementByCss('#next_id').click()
     await check(() => browser.elementByCss('#query').text(), 'query:2')
 
-    if (!isDev) {
-      expect(await browser.eval('window.beforeNav')).toBe(1)
-    }
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should suspense next/image on server side', async () => {
