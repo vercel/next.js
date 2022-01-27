@@ -35,12 +35,12 @@ const cwd = process.cwd()
       )
       // Publish failed after publishing swc packages so skip to allow
       // retrying
-      // execSync(
-      //   `npm publish ${path.join(
-      //     nativePackagesDir,
-      //     platform
-      //   )} --access public --tag next-11`
-      // )
+      execSync(
+        `npm publish ${path.join(
+          nativePackagesDir,
+          platform
+        )} --access public --tag next-11`
+      )
       // lerna publish in next step will fail if git status is not clean
       execSync(
         `git update-index --skip-worktree ${path.join(
