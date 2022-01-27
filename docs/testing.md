@@ -348,7 +348,7 @@ You can learn more about each configuration option in the [Jest docs](https://je
 
 **Handling stylesheets and image imports**
 
-Styleheets and images aren't used in the tests but importing them may cause errors, so they will need to be mocked. Create the mock files referenced in the configuration above - `fileMock.js` and `styleMock.js` - inside a `__mocks__` directory:
+Stylesheets and images aren't used in the tests but importing them may cause errors, so they will need to be mocked. Create the mock files referenced in the configuration above - `fileMock.js` and `styleMock.js` - inside a `__mocks__` directory:
 
 ```js
 // __mocks__/fileMock.js
