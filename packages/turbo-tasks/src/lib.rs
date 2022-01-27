@@ -8,4 +8,4 @@ pub use native_function::{NativeFunction, NativeFunctionRef};
 pub use node::{NodeReuseMode, NodeType};
 pub use task::{Invalidator, Task};
 pub use turbo_tasks::{dynamic_call, TurboTasks};
-pub use turbo_tasks_macros::{constructor, value, value_impl};
+pub use turbo_tasks_macros::{constructor, function, value, value_impl};

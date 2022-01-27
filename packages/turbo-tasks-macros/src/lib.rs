@@ -10,17 +10,28 @@ use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     spanned::Spanned,
-    Attribute, Error, Fields, FnArg, ImplItem, ImplItemMethod, ItemImpl, ItemStruct, Pat, PatIdent,
-    PatType, Path, PathArguments, PathSegment, Result, Token, Type, TypePath,
+    Attribute, Error, Fields, FnArg, ImplItem, ImplItemMethod, ItemFn, ItemImpl, ItemStruct, Pat,
+    PatIdent, PatType, Path, PathArguments, PathSegment, Result, ReturnType, Token, Type, TypePath,
 };
 
 fn get_ref_ident(ident: &Ident) -> Ident {
     Ident::new(&(ident.to_string() + "Ref"), ident.span())
 }
 
+fn get_internal_function_ident(ident: &Ident) -> Ident {
+    Ident::new(&(ident.to_string() + "_inline"), ident.span())
+}
+
 fn get_node_type_ident(ident: &Ident) -> Ident {
     Ident::new(
         &(ident.to_string().to_uppercase() + "_NODE_TYPE"),
+        ident.span(),
+    )
+}
+
+fn get_function_ident(ident: &Ident) -> Ident {
+    Ident::new(
+        &(ident.to_string().to_uppercase() + "_FUNCTION"),
         ident.span(),
     )
 }
@@ -243,7 +254,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                                 }
                                 let get_node = if constructor.create == Allowance::Disabled {
                                     quote! {
-                                        panic!("Creating a new #ident node is not allowed");
+                                        panic!(concat!("Creating a new ", stringify!(#ident), " node is not allowed"));
                                     }
                                 } else {
                                     quote! {
@@ -306,4 +317,105 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn constructor(_args: TokenStream, input: TokenStream) -> TokenStream {
     input
+}
+
+#[proc_macro_attribute]
+pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
+    let item = parse_macro_input!(input as ItemFn);
+    let ItemFn {
+        attrs,
+        vis,
+        sig,
+        block,
+    } = &item;
+    if let ReturnType::Type(_, ref output_type) = sig.output {
+        let ident = &sig.ident;
+        let function_ident = get_function_ident(ident);
+        let inline_ident = get_internal_function_ident(ident);
+
+        let mut inline_sig = sig.clone();
+        inline_sig.ident = inline_ident.clone();
+
+        let mut external_sig = sig.clone();
+        external_sig.asyncness = None;
+        external_sig.output = parse_quote! { -> impl std::future::Future<Output = #output_type> };
+
+        let mut input_extraction = Vec::new();
+        let mut input_verification = Vec::new();
+        let mut input_clone = Vec::new();
+        let mut input_from_node = Vec::new();
+        let mut input_arguments = Vec::new();
+        let mut input_node_arguments = Vec::new();
+
+        let mut index: i32 = 1;
+
+        for input in sig.inputs.iter() {
+            match input {
+                FnArg::Receiver(_) => {
+                    item.span()
+                        .unwrap()
+                        .error("functions referencing self are not supported yet")
+                        .emit();
+                }
+                FnArg::Typed(PatType { pat, ty, .. }) => {
+                    input_extraction.push(quote! {
+                        let #pat = __iter
+                            .next()
+                            .ok_or_else(|| anyhow::anyhow!(concat!(stringify!(#ident), "() argument ", stringify!(#index), " (", stringify!(#pat), ") missing")))?;
+                    });
+                    input_verification.push(quote! {
+                        anyhow::Context::context(#ty::verify(&#pat), concat!(stringify!(#ident), "() argument ", stringify!(#index), " (", stringify!(#pat), ") invalid"))?;
+                    });
+                    input_clone.push(quote! {
+                        let #pat = std::clone::Clone::clone(&#pat);
+                    });
+                    input_from_node.push(quote! {
+                        let #pat = #ty::from_node(#pat).unwrap();
+                    });
+                    input_arguments.push(quote! {
+                        #pat
+                    });
+                    input_node_arguments.push(quote! {
+                        #pat.into()
+                    });
+                    index += 1;
+                }
+            }
+        }
+
+        return quote! {
+            #(#attrs)*
+            #vis #external_sig {
+                let result = turbo_tasks::dynamic_call(&#function_ident, vec![#(#input_node_arguments),*]).unwrap();
+                async { #output_type::from_node(result.await).unwrap() }
+            }
+
+            #(#attrs)*
+            #vis #inline_sig #block
+
+            lazy_static::lazy_static! {
+                static ref #function_ident: turbo_tasks::NativeFunction = turbo_tasks::NativeFunction::new(|inputs| {
+                    let mut __iter = inputs.into_iter();
+                    #(#input_extraction)*
+                    if __iter.next().is_some() {
+                        return Err(anyhow::anyhow!(concat!(stringify!(#ident), "() called with too many arguments")));
+                    }
+                    #(#input_verification)*
+                    Ok(Box::new(move || {
+                        #(#input_clone)*
+                        Box::pin(async move {
+                            #(#input_from_node)*
+                            #inline_ident(#(#input_arguments),*).await.into()
+                        })
+                    }))
+                });
+            }
+        }
+        .into();
+    }
+    item.span().unwrap().error("unsupported syntax").emit();
+    quote! {
+        #item
+    }
+    .into()
 }
