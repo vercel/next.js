@@ -18,7 +18,15 @@
               "routes": [
                 {
                   "title": "Overview",
-                  "path": "/docs/basic-features/data-fetching/index.md"
+                  "path": "/docs/basic-features/data-fetching/index.md",
+                  "redirect": {
+                    "destination": "/docs/basic-features/data-fetching/overview.md",
+                    "permanent": true
+                  }
+                },
+                {
+                  "title": "Overview",
+                  "path": "/docs/basic-features/data-fetching/overview.md"
                 },
                 {
                   "title": "getServerSideProps",
