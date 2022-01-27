@@ -1103,19 +1103,6 @@ export function detectConflictingPaths(
   }
 }
 
-export function getCssFilePaths(buildManifest: BuildManifest): string[] {
-  const cssFiles = new Set<string>()
-  Object.values(buildManifest.pages).forEach((files) => {
-    files.forEach((file) => {
-      if (file.endsWith('.css')) {
-        cssFiles.add(file)
-      }
-    })
-  })
-
-  return [...cssFiles]
-}
-
 export function getRawPageExtensions(pageExtensions: string[]): string[] {
   return pageExtensions.filter(
     (ext) => !ext.startsWith('client.') && !ext.startsWith('server.')
