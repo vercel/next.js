@@ -625,6 +625,7 @@ function runTests({
 
     const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res1.status).toBe(200)
+    expect(res1.headers.get('X-Nextjs-Cache')).toBe('MISS')
     expect(res1.headers.get('Content-Type')).toBe('image/svg+xml')
     expect(res1.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.svg"`
@@ -634,6 +635,7 @@ function runTests({
 
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
+    expect(res1.headers.get('X-Nextjs-Cache')).toBe('HIT')
     expect(res2.headers.get('Content-Type')).toBe('image/svg+xml')
     expect(res2.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.svg"`
@@ -650,6 +652,7 @@ function runTests({
 
     const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res1.status).toBe(200)
+    expect(res1.headers.get('X-Nextjs-Cache')).toBe('MISS')
     expect(res1.headers.get('Content-Type')).toBe('image/gif')
     expect(res1.headers.get('Content-Disposition')).toBe(
       `inline; filename="animated.gif"`
@@ -659,6 +662,7 @@ function runTests({
 
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
+    expect(res1.headers.get('X-Nextjs-Cache')).toBe('HIT')
     expect(res2.headers.get('Content-Type')).toBe('image/gif')
     expect(res2.headers.get('Content-Disposition')).toBe(
       `inline; filename="animated.gif"`
@@ -848,6 +852,16 @@ function runTests({
 
     const json1 = await fsToJson(imagesDir)
     expect(Object.keys(json1).length).toBe(1)
+
+    const xCache1 = res1.headers.get('X-Nextjs-Cache')
+    const xCache2 = res2.headers.get('X-Nextjs-Cache')
+    if (xCache1 === 'HIT') {
+      expect(xCache1).toBe('HIT')
+      expect(xCache2).toBe('MISS')
+    } else {
+      expect(xCache1).toBe('MISS')
+      expect(xCache2).toBe('HIT')
+    }
   })
 
   if (isDev || isSharp) {
