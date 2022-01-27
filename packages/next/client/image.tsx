@@ -1,13 +1,13 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useContext } from 'react'
 import Head from '../shared/lib/head'
 import {
   ImageConfigComplete,
   imageConfigDefault,
-  imageConfigRuntime,
   LoaderValue,
   VALID_LOADERS,
 } from '../server/image-config'
 import { useIntersection } from './use-intersection'
+import { RuntimeImageConfigContext } from '../shared/lib/runtime-image-config-context'
 
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
@@ -112,15 +112,24 @@ export type ImageProps = Omit<
   onLoadingComplete?: OnLoadingComplete
 }
 
-const {
+let {
   deviceSizes: configDeviceSizes,
   imageSizes: configImageSizes,
   loader: configLoader,
   path: configPath,
   domains: configDomains,
 } = (process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete) ||
-imageConfigRuntime ||
 imageConfigDefault
+
+function setRuntimeImageConfig(imagesConfig: ImageConfigComplete) {
+  if (!imagesConfig || process.env.__NEXT_IMAGE_OPTS) return
+
+  configDeviceSizes = imagesConfig.deviceSizes
+  configImageSizes = imagesConfig.imageSizes
+  configLoader = imagesConfig.loader
+  configPath = imagesConfig.path
+  configDomains = imagesConfig.domains
+}
 
 // sort smallest to largest
 const allSizes = [...configDeviceSizes, ...configImageSizes]
@@ -391,6 +400,8 @@ export default function Image({
   if (typeof window !== 'undefined' && loadedImageURLs.has(src)) {
     isLazy = false
   }
+
+  setRuntimeImageConfig(useContext(RuntimeImageConfigContext))
 
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {

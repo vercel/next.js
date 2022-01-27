@@ -53,13 +53,3 @@ export const imageConfigDefault: ImageConfigComplete = {
   minimumCacheTTL: 60,
   formats: ['image/webp'],
 }
-
-export let imageConfigRuntime: Partial<ImageConfigComplete> = imageConfigDefault
-
-export function setImageConfigRuntime(
-  imageConfig: Partial<ImageConfigComplete>
-) {
-  if (imageConfig) {
-    imageConfigRuntime = imageConfig
-  }
-}

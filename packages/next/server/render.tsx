@@ -61,6 +61,7 @@ import { DomainLocale } from './config'
 import RenderResult from './render-result'
 import isError from '../lib/is-error'
 import { readableStreamTee } from './web/utils'
+import { RuntimeImageConfigContext } from '../shared/lib/runtime-image-config-context'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
@@ -232,6 +233,7 @@ export type RenderOptsPartial = {
   serverComponents?: boolean
   customServer?: boolean
   crossOrigin?: string
+  images: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -442,6 +444,7 @@ export async function renderToHTML(
     devOnlyCacheBusterQueryString,
     supportsDynamicHTML,
     concurrentFeatures,
+    images,
   } = renderOpts
 
   const isServerComponent = !!serverComponentManifest
@@ -713,7 +716,11 @@ export async function renderToHTML(
             value={(moduleName) => reactLoadableModules.push(moduleName)}
           >
             <StyleRegistry registry={jsxStyleRegistry}>
-              {children}
+              <RuntimeImageConfigContext.Provider
+                value={images ? JSON.parse(images) : null}
+              >
+                {children}
+              </RuntimeImageConfigContext.Provider>
             </StyleRegistry>
           </LoadableContext.Provider>
         </HeadManagerContext.Provider>

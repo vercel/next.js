@@ -1,5 +1,11 @@
 /* eslint-env jest */
-import { findPort, killApp, launchApp } from 'next-test-utils'
+import {
+  killApp,
+  findPort,
+  nextStart,
+  nextBuild,
+  launchApp,
+} from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -8,7 +14,29 @@ let appPort
 let app
 let browser
 
-// #31065
+function runTests() {
+  // #31065
+  it('should apply image config for node_modules', async () => {
+    browser = await webdriver(appPort, '/image-from-node-modules')
+    expect(
+      await browser.elementById('image-from-node-modules').getAttribute('src')
+    ).toMatch('i.imgur.com')
+  })
+}
+
+describe('Image Component Tests In Prod Mode', () => {
+  beforeAll(async () => {
+    await nextBuild(appDir)
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+  })
+  afterAll(async () => {
+    await killApp(app)
+  })
+
+  runTests()
+})
+
 describe('Image Component Tests In Dev Mode', () => {
   beforeAll(async () => {
     appPort = await findPort()
@@ -18,10 +46,5 @@ describe('Image Component Tests In Dev Mode', () => {
     await killApp(app)
   })
 
-  it('should apply image config for node_modules', async () => {
-    browser = await webdriver(appPort, '/image-from-node-modules')
-    expect(
-      await browser.elementById('image-from-node-modules').getAttribute('src')
-    ).toMatch('i.imgur.com')
-  })
+  runTests()
 })
