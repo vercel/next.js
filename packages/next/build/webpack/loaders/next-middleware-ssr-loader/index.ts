@@ -2,13 +2,16 @@ import { stringifyRequest } from '../../stringify-request'
 
 export default async function middlewareSSRLoader(this: any) {
   const {
+    dev,
+    page,
+    buildId,
     absolutePagePath,
     absoluteAppPath,
     absoluteDocumentPath,
     absolute500Path,
     absoluteErrorPath,
     isServerComponent,
-    ...restRenderOpts
+    stringifiedConfig,
   } = this.getOptions()
 
   const stringifiedAbsolutePagePath = stringifyRequest(this, absolutePagePath)
@@ -42,16 +45,37 @@ export default async function middlewareSSRLoader(this: any) {
       throw new Error('Your page must export a \`default\` component')
     }
 
-    const render = getRender({
-      App,
-      Document,
-      pageMod,
-      errorMod,
+    // Set server context
+    self.__current_route = ${JSON.stringify(page)}
+    self.__server_context = {
+      Component: pageMod.default,
+      pageConfig: pageMod.config || {},
       buildManifest,
       reactLoadableManifest,
-      rscManifest,
+      Document,
+      App,
+      getStaticProps: pageMod.getStaticProps,
+      getServerSideProps: pageMod.getServerSideProps,
+      getStaticPaths: pageMod.getStaticPaths,
+      ComponentMod: undefined,
+      serverComponentManifest: ${isServerComponent} ? rscManifest : null,
+
+      // components
+      errorMod,
+
+      // renderOpts
+      buildId: ${JSON.stringify(buildId)},
+      dev: ${dev},
+      env: process.env,
+      supportsDynamicHTML: true,
+      concurrentFeatures: true,
+      disableOptimizedLoading: true,
+    }
+  
+    const render = getRender({
+      Document,
       isServerComponent: ${isServerComponent},
-      restRenderOpts: ${JSON.stringify(restRenderOpts)}
+      config: ${stringifiedConfig},
     })
 
     export default function rscMiddleware(opts) {

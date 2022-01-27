@@ -33,7 +33,7 @@ The [`getServerSideProps` API reference](/docs/api-reference/data-fetching/get-s
 
 ## When should I use getServerSideProps
 
-You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. [Time to First Byte (TTFB)](/learn/seo/web-performance) will be higher than [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) because the server must compute the result on every request, and the result can only be cached by a CDN using `cache-control` headers (which could require extra configuration).
+You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. [Time to First Byte (TTFB)](https://web.dev/ttfb/) will be higher than [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) because the server must compute the result on every request, and the result can only be cached by a CDN using `cache-control` headers (which could require extra configuration).
 
 If you do not need to pre-render the data, then you should consider fetching data on the [client side](#fetching-data-on-the-client-side).
 
