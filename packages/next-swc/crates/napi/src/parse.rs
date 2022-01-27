@@ -1,56 +1,56 @@
 use crate::{
-  get_compiler,
-  util::{deserialize_json, CtxtExt, MapErr},
+    get_compiler,
+    util::{deserialize_json, CtxtExt, MapErr},
 };
 use anyhow::Context as _;
 use napi::{CallContext, Either, Env, JsObject, JsString, JsUndefined, Task};
-use std::{sync::Arc};
-use swc::{try_with_handler, config::ParseOptions, Compiler};
+use std::sync::Arc;
+use swc::{config::ParseOptions, try_with_handler, Compiler};
 use swc_common::FileName;
-use swc_ecmascript::ast::Program;
 
 pub struct ParseTask {
-  pub c: Arc<Compiler>,
-  pub filename: FileName,
-  pub src: String,
-  pub options: String,
+    pub c: Arc<Compiler>,
+    pub filename: FileName,
+    pub src: String,
+    pub options: String,
 }
 
-pub fn complete_parse<'a>(env: &Env, program: Program, _c: &Compiler) -> napi::Result<JsString> {
-  let s = serde_json::to_string(&program)
-      .context("failed to serialize Program")
-      .convert_err()?;
-  env.create_string_from_std(s)
+pub fn complete_parse<'a>(env: &Env, ast_json: String, _c: &Compiler) -> napi::Result<JsString> {
+    env.create_string_from_std(ast_json)
 }
 
 impl Task for ParseTask {
-  type Output = Program;
-  type JsValue = JsString;
+    type Output = String;
+    type JsValue = JsString;
 
-  fn compute(&mut self) -> napi::Result<Self::Output> {
-      let options: ParseOptions = deserialize_json(&self.options).convert_err()?;
-      let fm = self
-          .c
-          .cm
-          .new_source_file(self.filename.clone(), self.src.clone());
-      let program = try_with_handler(self.c.cm.clone(), false, |handler| {
-          self.c.parse_js(
-              fm,
-              &handler,
-              options.target,
-              options.syntax,
-              options.is_module,
-              options.comments,
-          )
-      })
-      .convert_err()?;
+    fn compute(&mut self) -> napi::Result<Self::Output> {
+        let options: ParseOptions = deserialize_json(&self.options).convert_err()?;
+        let fm = self
+            .c
+            .cm
+            .new_source_file(self.filename.clone(), self.src.clone());
+        let program = try_with_handler(self.c.cm.clone(), false, |handler| {
+            self.c.parse_js(
+                fm,
+                &handler,
+                options.target,
+                options.syntax,
+                options.is_module,
+                options.comments,
+            )
+        })
+        .convert_err()?;
 
-      Ok(program)
-  }
+        let ast_json = serde_json::to_string(&program)
+            .context("failed to serialize Program")
+            .convert_err()?;
 
-  fn resolve(self, env: Env, result: Self::Output) -> napi::Result<Self::JsValue> {
-      complete_parse(&env, result, &self.c)
-  }
+        Ok(ast_json)
+    }
+
+    fn resolve(self, env: Env, result: Self::Output) -> napi::Result<Self::JsValue> {
+        complete_parse(&env, result, &self.c)
+    }
 }
 
 #[js_function(3)]
