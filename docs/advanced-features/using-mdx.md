@@ -49,7 +49,7 @@ The following steps outline how to setup `@next/mdx` in your Next.js project:
      },
    })
    module.exports = withMDX({
-     pageExtensions: ['js', 'jsx', 'md', 'mdx'],
+     pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'md', 'mdx'],
    })
    ```
 
