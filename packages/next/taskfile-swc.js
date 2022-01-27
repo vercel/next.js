@@ -11,7 +11,11 @@ module.exports = function (task) {
   task.plugin(
     'swc',
     {},
-    function* (file, serverOrClient, { stripExtension, dev } = {}) {
+    function* (
+      file,
+      serverOrClient,
+      { stripExtension, keepImportAssertions = false } = {}
+    ) {
       // Don't compile .d.ts
       if (file.base.endsWith('.d.ts')) return
 
@@ -29,7 +33,11 @@ module.exports = function (task) {
           parser: {
             syntax: 'typescript',
             dynamicImport: true,
+            importAssertions: true,
             tsx: file.base.endsWith('.tsx'),
+          },
+          experimental: {
+            keepImportAssertions,
           },
           transform: {
             react: {
@@ -59,7 +67,11 @@ module.exports = function (task) {
           parser: {
             syntax: 'typescript',
             dynamicImport: true,
+            importAssertions: true,
             tsx: file.base.endsWith('.tsx'),
+          },
+          experimental: {
+            keepImportAssertions,
           },
           transform: {
             react: {
