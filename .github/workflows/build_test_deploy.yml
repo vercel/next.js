@@ -753,6 +753,7 @@ jobs:
       matrix:
         os: [ubuntu-18.04, macos-latest, windows-latest]
         description: [default]
+        fail-fast: false
         include:
           - os: ubuntu-18.04
             target: x86_64-unknown-linux-gnu
