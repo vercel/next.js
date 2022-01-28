@@ -6,14 +6,14 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, Literal, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{
-    braced, parenthesized,
-    parse::{Parse, ParseBuffer, ParseStream},
+    parenthesized,
+    parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
     Attribute, Error, Fields, FnArg, ImplItem, ImplItemMethod, ItemFn, ItemImpl, ItemStruct,
     ItemTrait, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver, Result,
-    ReturnType, Signature, Token, TraitItem, TraitItemMethod, Type, TypePath, Visibility,
+    ReturnType, Signature, Token, TraitItem, TraitItemMethod, Type, TypePath,
 };
 
 fn get_ref_ident(ident: &Ident) -> Ident {
@@ -256,15 +256,13 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
     for item in items.iter() {
         if let TraitItem::Method(TraitItemMethod {
             sig:
-                sig @ Signature {
+                Signature {
                     ident: method_ident,
                     inputs,
                     output,
                     ..
                 },
-            attrs,
-            default: _,
-            semi_token: _,
+            ..
         }) = item
         {
             trait_mod_items.push(quote! {
@@ -669,11 +667,7 @@ fn gen_native_function_code(
 
     for input in inputs {
         match input {
-            FnArg::Receiver(Receiver {
-                reference,
-                mutability,
-                ..
-            }) => {
+            FnArg::Receiver(Receiver { mutability, .. }) => {
                 if mutability.is_some() {
                     input.span().unwrap().error("mutable self is not supported in turbo_task traits (nodes are immutable)").emit();
                 }

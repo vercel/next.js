@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 use std::{
-    any::{type_name, Any, TypeId},
+    any::{Any, TypeId},
     collections::{HashMap, HashSet},
     fmt::{self, Debug, Formatter},
     hash::Hash,

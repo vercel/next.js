@@ -1,7 +1,4 @@
-use std::{
-    fs,
-    path::{self, Path},
-};
+use std::{fs, path::Path};
 
 #[turbo_tasks::value_trait]
 #[async_trait::async_trait]
