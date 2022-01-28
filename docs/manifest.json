@@ -25,10 +25,6 @@
                   }
                 },
                 {
-                  "title": "Overview",
-                  "path": "/docs/basic-features/data-fetching/overview.md"
-                },
-                {
                   "title": "getServerSideProps",
                   "path": "/docs/basic-features/data-fetching/get-server-side-props.md"
                 },
