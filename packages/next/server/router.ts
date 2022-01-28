@@ -1,5 +1,5 @@
 import type { ParsedUrlQuery } from 'querystring'
-import type { NextUrlWithParsedQuery } from './request-meta'
+import { getNextInternalQuery, NextUrlWithParsedQuery } from './request-meta'
 
 import pathMatch from '../shared/lib/router/utils/path-match'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
@@ -400,7 +400,7 @@ export default class Router {
 
         if (result.query) {
           parsedUrlUpdated.query = {
-            ...parsedUrlUpdated.query,
+            ...getNextInternalQuery(parsedUrlUpdated.query),
             ...result.query,
           }
         }
