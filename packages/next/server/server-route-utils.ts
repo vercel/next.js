@@ -146,16 +146,14 @@ export const stringifyQuery = (req: BaseNextRequest, query: ParsedUrlQuery) => {
 
   return stringifyQs(query, undefined, undefined, {
     encodeURIComponent(value) {
-      const queryContainsValue = (initialQueryVal: string | string[]) => {
-        // `value` always refers to a query value, even if it's nested in an array
-        return Array.isArray(initialQueryVal)
-          ? initialQueryVal.includes(value)
-          : initialQueryVal === value
-      }
-
       if (
         value in initialQuery ||
-        initialQueryValues.some(queryContainsValue)
+        initialQueryValues.some((initialQueryVal: string | string[]) => {
+          // `value` always refers to a query value, even if it's nested in an array
+          return Array.isArray(initialQueryVal)
+            ? initialQueryVal.includes(value)
+            : initialQueryVal === value
+        })
       ) {
         // Encode keys and values from initial query
         return encodeURIComponent(value)
