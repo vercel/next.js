@@ -150,11 +150,7 @@ export function collectAssets(
     envPerRoute: Map<string, string[]>,
     webServerRuntime: boolean
   ) => void,
-  {
-    dev,
-    pluginName,
-    webServerRuntime,
-  }: {
+  options: {
     dev: boolean
     pluginName: string
     webServerRuntime: boolean
@@ -162,9 +158,9 @@ export function collectAssets(
 ) {
   const wp = compiler.webpack
   compiler.hooks.compilation.tap(
-    pluginName,
+    options.pluginName,
     (compilation, { normalModuleFactory }) => {
-      compilation.hooks.afterChunks.tap(pluginName, () => {
+      compilation.hooks.afterChunks.tap(options.pluginName, () => {
         const middlewareRuntimeChunk = compilation.namedChunks.get(
           MIDDLEWARE_RUNTIME_WEBPACK
         )
@@ -203,7 +199,7 @@ export function collectAssets(
             for (const module of queue) {
               const { buildInfo } = module
               if (
-                !dev &&
+                !options.dev &&
                 buildInfo &&
                 isUsedByExports({
                   module,
@@ -257,7 +253,7 @@ export function collectAssets(
         const wrapExpression = (expr: any) => {
           if (!isMiddlewareModule()) return
 
-          if (dev) {
+          if (options.dev) {
             const dep1 = new wp.dependencies.ConstDependency(
               '__next_eval__(function() { return ',
               expr.range[0]
@@ -374,7 +370,12 @@ export function collectAssets(
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => {
-          createAssets(compilation, assets, envPerRoute, webServerRuntime)
+          createAssets(
+            compilation,
+            assets,
+            envPerRoute,
+            options.webServerRuntime
+          )
         }
       )
     }
