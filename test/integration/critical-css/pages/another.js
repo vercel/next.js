@@ -1,5 +1,7 @@
 import styles from '../styles/index.module.css'
-import Hello from '../components/hello'
+import dynamic from 'next/dynamic'
+
+const Hello = dynamic(() => import('../components/hello'))
 
 export default function Home() {
   return (
