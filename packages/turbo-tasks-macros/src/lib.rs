@@ -284,7 +284,7 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
                 trait_fns.push(quote! {
                     pub fn #method_ident(#(#method_args),*) -> impl std::future::Future<Output = #ty> {
                         let trait_method = self.node.get_trait_method(#ident.#method_ident());
-                        let result = turbo_tasks::dynamic_call(trait_method, vec![#(#args),*]).unwrap();
+                        let result = turbo_tasks::dynamic_call(trait_method, vec![self.clone().into(), #(#args),*]).unwrap();
                         async { #ty::from_node(result.await).unwrap() }
                     }
                 })
