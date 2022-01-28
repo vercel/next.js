@@ -177,6 +177,7 @@ describe('concurrentFeatures - prod', () => {
       'middleware-build-manifest.js',
       'middleware-flight-manifest.js',
       'middleware-ssr-runtime.js',
+      'functions-manifest.json',
       'middleware-manifest.json',
     ]
     files.forEach((file) => {
@@ -202,6 +203,27 @@ describe('concurrentFeatures - prod', () => {
       expect(content.clientInfo).toContainEqual(item)
     }
     expect(content.clientInfo).not.toContainEqual([['/404', true]])
+  })
+
+  it('should contain rsc paths in functions manifest', async () => {
+    const middlewareManifestPath = join(
+      distDir,
+      'server',
+      'functions-manifest.json'
+    )
+    const content = JSON.parse(
+      await fs.readFile(middlewareManifestPath, 'utf8')
+    )
+    const { pages } = content
+    const pageNames = Object.keys(pages)
+
+    const paths = ['/', '/next-api/link', '/routes/[dynamic]']
+    paths.forEach((path) => {
+      expect(pageNames).toContain(path)
+      expect(pages[path].runtime).toBe('web')
+    })
+
+    expect(content.version).toBe(1)
   })
 
   it('should support React.lazy and dynamic imports', async () => {

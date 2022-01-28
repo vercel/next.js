@@ -52,6 +52,7 @@ import type { Span } from '../trace'
 import { getRawPageExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
+import FunctionsManifestPlugin from './webpack/plugins/functions-manifest-plugin'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -1460,6 +1461,8 @@ export default async function getBaseWebpackConfig(
       // replacement is done before its process.env.* handling
       (!isServer || webServerRuntime) &&
         new MiddlewarePlugin({ dev, webServerRuntime }),
+      (!isServer || webServerRuntime) &&
+        new FunctionsManifestPlugin({ dev, webServerRuntime }),
       isServer && new NextJsSsrImportPlugin(),
       !isServer &&
         new BuildManifestPlugin({
