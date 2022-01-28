@@ -78,6 +78,10 @@ Automatic Webfont Optimization currently supports Google Fonts and Typekit with 
 
 See [Google Font Display](https://nextjs.org/docs/messages/google-font-display) for more information.
 
+> **Note**: If you want to download and self-host a font file, then our Font Optimization will not work. This is by design!
+>
+> To benefit from font optimization, it's recommended to include the link of the font file in the `Head` component and fetch it from a CDN like Google Fonts.
+
 ## Disabling Optimization
 
 If you do not want Next.js to optimize your fonts, you can opt-out.
