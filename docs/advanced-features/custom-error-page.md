@@ -97,4 +97,4 @@ If you have a custom `Error` component be sure to import that one instead. `next
 
 ### Caveats
 
-- `Error` currently does not support Next.js [Data Fetching methods](https://nextjs.org/docs/basic-features/data-fetching/index) like [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props) or [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props).
+- `Error` currently does not support Next.js [Data Fetching methods](/docs/basic-features/data-fetching/overview.md) like [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props) or [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props).
