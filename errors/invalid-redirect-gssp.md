@@ -29,4 +29,4 @@ export const getStaticProps = ({ params }) => {
 
 ### Useful Links
 
-- [Data Fetching Documentation](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation)
+- [Data Fetching Documentation](https://nextjs.org/docs/basic-features/data-fetching/get-static-props)
