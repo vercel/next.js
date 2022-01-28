@@ -91,7 +91,7 @@ impl TurboTasks {
     }
 
     pub(crate) fn intern<
-        T: Any,
+        T: Any + ?Sized,
         K: Hash + PartialEq + Eq + Send + Sync + 'static,
         F: FnOnce() -> NodeRef,
     >(
@@ -130,7 +130,7 @@ pub fn dynamic_call(
 }
 
 pub(crate) fn intern<
-    T: Any,
+    T: Any + ?Sized,
     K: Hash + PartialEq + Eq + Send + Sync + 'static,
     F: FnOnce() -> NodeRef,
 >(

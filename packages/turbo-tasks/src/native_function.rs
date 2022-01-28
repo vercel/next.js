@@ -1,12 +1,6 @@
-use crate::{self as turbo_tasks, task::NativeTaskFn, NodeRef, NodeReuseMode, NodeType};
+use crate::{self as turbo_tasks, task::NativeTaskFn, NodeRef};
 use anyhow::Result;
-use lazy_static::lazy_static;
 use std::hash::Hash;
-
-lazy_static! {
-    static ref NATIVE_FUNCTION_NODE_TYPE: NodeType =
-        NodeType::new("NativeFunction".to_string(), NodeReuseMode::None);
-}
 
 #[turbo_tasks::value]
 pub struct NativeFunction {

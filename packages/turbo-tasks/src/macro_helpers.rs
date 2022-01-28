@@ -3,7 +3,7 @@ use std::{any::Any, hash::Hash};
 use crate::{turbo_tasks::intern, NodeRef};
 
 pub fn new_node_intern<
-    T: Any,
+    T: Any + ?Sized,
     K: Hash + PartialEq + Eq + Send + Sync + 'static,
     F: FnOnce() -> NodeRef,
 >(
@@ -14,7 +14,7 @@ pub fn new_node_intern<
 }
 
 pub fn new_node_auto_intern<
-    T: Any,
+    T: Any + ?Sized,
     K: Hash + PartialEq + Eq + Send + Sync + 'static,
     F: FnOnce() -> NodeRef,
 >(

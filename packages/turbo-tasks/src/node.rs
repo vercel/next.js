@@ -1,6 +1,7 @@
 use anyhow::anyhow;
 use std::{
-    any::Any,
+    any::{type_name, Any, TypeId},
+    collections::{HashMap, HashSet},
     fmt::{self, Debug, Formatter},
     hash::Hash,
     sync::{
@@ -9,23 +10,24 @@ use std::{
     },
 };
 
-use crate::Task;
+use crate::{NativeFunction, Task};
 
 static NEXT_NODE_TYPE_ID: AtomicU32 = AtomicU32::new(1);
 
-#[derive(Hash, Eq, PartialEq, Debug)]
-pub enum NodeReuseMode {
-    None,
-    GlobalInterning,
-    // TaskMatching,
-}
-
-#[derive(Hash, Eq, Debug)]
 pub struct NodeType {
     pub name: String,
     id: u32,
-    reuse_mode: NodeReuseMode,
+    traits: HashSet<&'static TraitType>,
+    trait_methods: HashMap<TypeId, (&'static NativeFunction, &'static str)>,
 }
+
+impl Hash for NodeType {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
+impl Eq for NodeType {}
 
 impl PartialEq for NodeType {
     fn eq(&self, other: &Self) -> bool {
@@ -33,15 +35,73 @@ impl PartialEq for NodeType {
     }
 }
 
+impl Debug for NodeType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let mut d = f.debug_struct("NodeType");
+        d.field("name", &self.name);
+        d.field("id", &self.id);
+        for (_key, (_value, name)) in self.trait_methods.iter() {
+            d.field(name, &"(trait fn)");
+        }
+        d.finish()
+    }
+}
+
 impl NodeType {
-    pub fn new(name: String, reuse_mode: NodeReuseMode) -> Self {
+    pub fn new(name: String) -> Self {
         Self {
             name,
             id: NEXT_NODE_TYPE_ID.fetch_add(1, Ordering::Relaxed),
-            reuse_mode,
+            traits: HashSet::new(),
+            trait_methods: HashMap::new(),
+        }
+    }
+
+    pub fn register_trait_method(
+        &mut self,
+        (id, name): (TypeId, &'static str),
+        native_fn: &'static NativeFunction,
+    ) {
+        self.trait_methods.insert(id, (native_fn, name));
+    }
+
+    pub fn register_trait(&mut self, trait_type: &'static TraitType) {
+        self.traits.insert(trait_type);
+    }
+}
+
+static NEXT_TRAIT_TYPE_ID: AtomicU32 = AtomicU32::new(1);
+
+#[derive(Debug)]
+pub struct TraitType {
+    pub name: String,
+    id: u32,
+}
+
+impl Hash for TraitType {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
+impl Eq for TraitType {}
+
+impl PartialEq for TraitType {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl TraitType {
+    pub fn new(name: String) -> Self {
+        Self {
+            name,
+            id: NEXT_TRAIT_TYPE_ID.fetch_add(1, Ordering::Relaxed),
         }
     }
 }
+
+pub trait TraitMethod: Any {}
 
 pub struct Node {
     node_type: &'static NodeType,
@@ -103,6 +163,25 @@ impl NodeRef {
         WeakNodeRef {
             node: Arc::downgrade(&self.node),
         }
+    }
+
+    pub fn has_trait_type(&self, trait_type: &'static TraitType) -> bool {
+        self.node_type.traits.contains(trait_type)
+    }
+
+    pub fn get_trait_method(&self, (id, name): (TypeId, &'static str)) -> &'static NativeFunction {
+        self.node_type
+            .trait_methods
+            .get(&id)
+            .ok_or_else(|| {
+                anyhow!(
+                    "Trait method {} not found in node of type {}",
+                    name,
+                    self.node_type.name
+                )
+            })
+            .unwrap()
+            .0
     }
 }
 
