@@ -1,11 +1,6 @@
 use once_cell::sync::Lazy;
-use pathdiff::diff_paths;
 use regex::Regex;
-use relay_compiler::compiler_state::{SourceSet, SourceSetName};
-use relay_compiler::{create_path_for_artifact, FileCategorizer, FileGroup, ProjectConfig};
-use relay_compiler_common::SourceLocationKey;
 use serde::Deserialize;
-use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use swc_atoms::JsWord;
 use swc_common::errors::HANDLER;
@@ -15,15 +10,31 @@ use swc_ecmascript::utils::{quote_ident, ExprFactory};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 #[derive(Copy, Clone, Debug, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "lowercase")]
 pub enum RelayLanguageConfig {
-    Typescript,
+    TypeScript,
     Flow,
 }
 
-struct Relay {
+impl Default for RelayLanguageConfig {
+    fn default() -> Self {
+        Self::Flow
+    }
+}
+
+struct Relay<'a> {
+    root_dir: PathBuf,
     file_name: FileName,
-    relay_config_for_tests: Option<ProjectConfig>,
+    config: &'a Config,
+}
+
+#[derive(Deserialize, Debug, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Config {
+    pub src: PathBuf,
+    pub artifact_directory: Option<PathBuf>,
+    #[serde(default)]
+    pub language: RelayLanguageConfig,
 }
 
 fn pull_first_operation_name_from_tpl(tpl: &TaggedTpl) -> Option<String> {
@@ -33,10 +44,7 @@ fn pull_first_operation_name_from_tpl(tpl: &TaggedTpl) -> Option<String> {
 
         let capture_group = OPERATION_REGEX.captures_iter(&quasis.raw.value).next();
 
-        match capture_group {
-            None => None,
-            Some(capture_group) => Some(capture_group[2].to_string()),
-        }
+        capture_group.map(|capture_group| capture_group[2].to_string())
     })
 }
 
@@ -44,18 +52,20 @@ fn build_require_expr_from_path(path: &str) -> Expr {
     Expr::Call(CallExpr {
         span: Default::default(),
         callee: quote_ident!("require").as_callee(),
-        args: vec![Lit::Str(Str {
-            span: Default::default(),
-            value: JsWord::from(path),
-            has_escape: false,
-            kind: Default::default(),
-        })
-        .as_arg()],
+        args: vec![
+            Lit::Str(Str {
+                span: Default::default(),
+                value: JsWord::from(path),
+                has_escape: false,
+                kind: Default::default(),
+            })
+            .as_arg(),
+        ],
         type_args: None,
     })
 }
 
-impl Fold for Relay {
+impl<'a> Fold for Relay<'a> {
     fn fold_expr(&mut self, expr: Expr) -> Expr {
         let expr = expr.fold_children_with(self);
 
@@ -73,120 +83,40 @@ impl Fold for Relay {
 }
 
 #[derive(Debug)]
-enum BuildRequirePathError<'a> {
+enum BuildRequirePathError {
     FileNameNotReal,
-    MultipleSourceSetsFound {
-        source_set_names: Vec<SourceSetName>,
-        path: &'a PathBuf,
-    },
-    ProjectNotFoundForSourceSet {
-        source_set_name: SourceSetName,
-    },
-    FileNotASourceFile,
-    CouldNotCategorize {
-        err: Cow<'static, str>,
-        path: String,
-    },
+    ArtifactDirectoryExpected,
 }
 
-// This is copied from https://github.com/facebook/relay/blob/main/compiler/crates/relay-compiler/src/build_project/generate_artifacts.rs#L251
-// until the Relay team exposes it for external use.
 fn path_for_artifact(
     root_dir: &Path,
-    source_path: &Path,
-    project_config: &ProjectConfig,
+    config: &Config,
     definition_name: &str,
-) -> PathBuf {
-    let source_file_location_key = SourceLocationKey::Standalone {
-        path: source_path.to_str().unwrap().parse().unwrap(),
-    };
-    let filename = if let Some(filename_for_artifact) = &project_config.filename_for_artifact {
-        filename_for_artifact(source_file_location_key, definition_name.parse().unwrap())
-    } else {
-        match &project_config.typegen_config.language {
-            relay_config::TypegenLanguage::Flow => format!("{}.graphql.js", definition_name),
-            relay_config::TypegenLanguage::TypeScript => {
-                format!("{}.graphql.ts", definition_name)
-            }
+) -> Result<PathBuf, BuildRequirePathError> {
+    let filename = match &config.language {
+        RelayLanguageConfig::Flow => format!("{}.graphql.js", definition_name),
+        RelayLanguageConfig::TypeScript => {
+            format!("{}.graphql.ts", definition_name)
         }
     };
 
-    let output_path = create_path_for_artifact(project_config, source_file_location_key, filename);
-
-    if project_config.output.is_some() {
-        let absolute_output_path = root_dir.join(&output_path);
-
-        let diffed_path =
-            diff_paths(&absolute_output_path, &source_path.parent().unwrap()).unwrap();
-
-        return diffed_path;
+    if let Some(artifact_directory) = &config.artifact_directory {
+        Ok(root_dir.join(artifact_directory).join(filename))
+    } else {
+        Err(BuildRequirePathError::ArtifactDirectoryExpected)
     }
-
-    output_path
 }
-impl Relay {
+
+impl<'a> Relay<'a> {
     fn build_require_path(
         &mut self,
         operation_name: &str,
     ) -> Result<PathBuf, BuildRequirePathError> {
-        match &self.relay_config_for_tests {
-            Some(config) => match &self.file_name {
-                FileName::Real(real_file_path) => Ok(path_for_artifact(
-                    &std::env::current_dir().unwrap(),
-                    &real_file_path,
-                    config,
-                    operation_name,
-                )),
-                _ => Err(BuildRequirePathError::FileNameNotReal),
-            },
-            _ => {
-                let config =
-                    relay_compiler::config::Config::search(&std::env::current_dir().unwrap())
-                        .unwrap();
-
-                let categorizer = FileCategorizer::from_config(&config);
-
-                match &self.file_name {
-                    FileName::Real(real_file_name) => {
-                        // Make sure we have a path which is relative to the config.
-                        // Otherwise, categorize won't be able to recognize that
-                        // the absolute source path is a child of a source set.
-                        let diffed_path = diff_paths(real_file_name, &config.root_dir).unwrap();
-
-                        let group = categorizer.categorize(diffed_path.as_path());
-
-                        match group {
-                            Ok(group) => match group {
-                                FileGroup::Source { source_set } => match source_set {
-                                    SourceSet::SourceSetName(source_set_name) => {
-                                        let project_config: Option<&ProjectConfig> =
-                                            config.projects.get(&source_set_name);
-
-                                        match project_config {
-                                            None => Err(BuildRequirePathError::ProjectNotFoundForSourceSet { source_set_name }),
-                                            Some(project_config) => {
-                                                Ok(path_for_artifact(&config.root_dir,real_file_name, &project_config, operation_name))
-                                            }
-                                        }
-                                    }
-                                    SourceSet::SourceSetNames(source_set_names) => {
-                                        Err(BuildRequirePathError::MultipleSourceSetsFound {
-                                            source_set_names,
-                                            path: real_file_name,
-                                        })
-                                    }
-                                },
-                                _ => Err(BuildRequirePathError::FileNotASourceFile),
-                            },
-                            Err(err) => Err(BuildRequirePathError::CouldNotCategorize {
-                                err,
-                                path: real_file_name.display().to_string(),
-                            }),
-                        }
-                    }
-                    _ => Err(BuildRequirePathError::FileNameNotReal),
-                }
+        match &self.file_name {
+            FileName::Real(_real_file_name) => {
+                path_for_artifact(&self.root_dir, self.config, operation_name)
             }
+            _ => Err(BuildRequirePathError::FileNameNotReal),
         }
     }
 
@@ -210,41 +140,10 @@ impl Relay {
                                                                    file. This is likely a bug and \
                                                                    should be reported to Next.js"
                             .to_string(),
-                        BuildRequirePathError::MultipleSourceSetsFound {
-                            source_set_names,
-                            path,
-                        } => {
-                            format!(
-                                "Multiple source sets were found for file: {}. Found source sets: \
-                                 [{}]. We could not determine the project config to use for the \
-                                 source file. Please consider narrowing down your source sets.",
-                                path.to_str().unwrap(),
-                                source_set_names
-                                    .iter()
-                                    .map(|name| name.lookup())
-                                    .collect::<Vec<&str>>()
-                                    .join(", ")
-                            )
-                        }
-                        BuildRequirePathError::ProjectNotFoundForSourceSet { source_set_name } => {
-                            format!(
-                                "Project could not be found for the source set: {}",
-                                source_set_name
-                            )
-                        }
-                        BuildRequirePathError::FileNotASourceFile => {
-                            "This file was not considered a source file by the Relay Compiler. \
-                             This is likely a bug and should be reported to Next.js"
+                        BuildRequirePathError::ArtifactDirectoryExpected => {
+                            "The `artifactDirectory` is expected to be set in the Relay config \
+                             file to work correctly with Next.js."
                                 .to_string()
-                        }
-                        BuildRequirePathError::CouldNotCategorize { path, err } => {
-                            format!(
-                                "Relay was unable to categorize the file at: {}. Ensure your \
-                                 `src` path includes this file in `relay.config.js`  The \
-                                 underlying error is: {}. \n\nThis is likely a bug and should be \
-                                 reported to Next.js",
-                                path, err
-                            )
                         }
                     };
 
@@ -262,16 +161,10 @@ impl Relay {
     }
 }
 
-pub fn relay(file_name: FileName) -> impl Fold {
+pub fn relay<'a>(config: &'a Config, file_name: FileName) -> impl Fold + '_ {
     Relay {
+        root_dir: std::env::current_dir().unwrap(),
         file_name,
-        relay_config_for_tests: None,
-    }
-}
-
-pub fn test_relay(file_name: FileName, relay_config_for_tests: ProjectConfig) -> impl Fold {
-    Relay {
-        file_name,
-        relay_config_for_tests: Some(relay_config_for_tests),
+        config,
     }
 }

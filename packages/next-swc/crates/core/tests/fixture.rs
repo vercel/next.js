@@ -1,16 +1,14 @@
-use next_swc::relay::test_relay;
 use next_swc::{
     amp_attributes::amp_attributes,
     next_dynamic::next_dynamic,
     next_ssg::next_ssg,
     page_config::page_config_test,
     react_remove_properties::remove_properties,
+    relay::{relay, Config as RelayConfig, RelayLanguageConfig},
     remove_console::remove_console,
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
     styled_jsx::styled_jsx,
 };
-use relay_compiler::ProjectConfig;
-use relay_config::TypegenLanguage;
 use std::path::PathBuf;
 use swc_common::{chain, comments::SingleThreadedComments, FileName, Mark, Span, DUMMY_SP};
 use swc_ecma_transforms_testing::{test, test_fixture};
@@ -155,14 +153,14 @@ fn page_config_fixture(input: PathBuf) {
 #[fixture("tests/fixture/relay/**/input.ts*")]
 fn relay_no_artifact_dir_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
+    let config = RelayConfig {
+        language: RelayLanguageConfig::TypeScript,
+        artifact_directory: Some(PathBuf::from("__generated__")),
+        ..Default::default()
+    };
     test_fixture(
         syntax(),
-        &|_tr| {
-            let mut config = ProjectConfig::default();
-            config.typegen_config.language = TypegenLanguage::TypeScript;
-
-            test_relay(FileName::Real(PathBuf::from("input.tsx")), config)
-        },
+        &|_tr| relay(&config, FileName::Real(PathBuf::from("input.tsx"))),
         &input,
         &output,
     );

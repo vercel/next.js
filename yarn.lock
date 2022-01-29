@@ -17396,15 +17396,15 @@ rehype-retext@^2.0.1:
   dependencies:
     hast-util-to-nlcst "^1.0.0"
 
-relay-compiler@13.0.1:
-  version "13.0.1"
-  resolved "https://registry.yarnpkg.com/relay-compiler/-/relay-compiler-13.0.1.tgz#09c713647aa7e1d8cf3de9f7fb4ee6a76b32cf26"
-  integrity sha512-C/qJ7IdfZ140b9JaNpuAP6WhV/Odt/tIq4sUZoTwsaOlhs+1Zu3fvIOoWKTnZT5PC6krRuw1hD7GSX6/paVpTQ==
+relay-compiler@13.0.2:
+  version "13.0.2"
+  resolved "https://registry.yarnpkg.com/relay-compiler/-/relay-compiler-13.0.2.tgz#2ec086bcc55ac8cb94cc08a19be129e037ca8044"
+  integrity sha512-Gg/5FNj8gz03GRkG5KjMNpDB4nOeApDFZq+8CZehu3KkQQ+vNIurX6RiTY3UNUYvg5SX2A9DS5bq5iHJ8iEV3A==
 
-relay-runtime@13.0.1:
-  version "13.0.1"
-  resolved "https://registry.yarnpkg.com/relay-runtime/-/relay-runtime-13.0.1.tgz#7e59a07c3b4e8c58d04bc94f6f978822d4128ffb"
-  integrity sha512-n/+J8PFfLFPVUcz9OG/z2i+adnfk0INwlTkVTw0V6KJe9NI9plc5eRCJwzzwspT4pdCkis5Lcjzvzp4H+0zn8g==
+relay-runtime@13.0.2:
+  version "13.0.2"
+  resolved "https://registry.yarnpkg.com/relay-runtime/-/relay-runtime-13.0.2.tgz#02adb73ddc159c57b92a23c52984bf73fae0d1fc"
+  integrity sha512-sP4lNGfFcOm7tQD12qlvwsiOREDgjkw4FQAjtemmtwivKOqI4qHAL22Ar62r5TPVlASn4iVWMk7rIdIJI20KGQ==
   dependencies:
     "@babel/runtime" "^7.0.0"
     fbjs "^3.0.2"
