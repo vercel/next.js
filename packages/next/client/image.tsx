@@ -8,6 +8,7 @@ import {
 } from '../server/image-config'
 import { useIntersection } from './use-intersection'
 
+const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
   string,
   { src: string; priority: boolean; placeholder: string }
@@ -267,6 +268,7 @@ function handleLoading(
         if (!imgRef.current) {
           return
         }
+        loadedImageURLs.add(src)
         if (placeholder === 'blur') {
           img.style.filter = ''
           img.style.backgroundSize = ''
@@ -383,7 +385,7 @@ export default function Image({
     unoptimized = true
     isLazy = false
   }
-  if (typeof window !== 'undefined' && imgRef.current?.complete) {
+  if (typeof window !== 'undefined' && loadedImageURLs.has(src)) {
     isLazy = false
   }
 
