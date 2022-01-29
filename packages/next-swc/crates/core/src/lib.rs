@@ -53,7 +53,6 @@ pub mod next_dynamic;
 pub mod next_ssg;
 pub mod page_config;
 pub mod react_remove_properties;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod relay;
 pub mod remove_console;
 pub mod shake_exports;

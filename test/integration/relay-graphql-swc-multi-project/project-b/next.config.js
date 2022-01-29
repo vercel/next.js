@@ -4,7 +4,7 @@ module.exports = {
   experimental: {
     relay: {
       src: './pages',
-      artifactsDirectory: '../__generated__',
+      artifactDirectory: '../__generated__',
       language: relay.projects['project-b'].language,
     },
     externalDir: true,

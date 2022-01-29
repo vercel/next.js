@@ -33,7 +33,7 @@ struct Relay<'a> {
 #[serde(rename_all = "camelCase")]
 pub struct Config {
     pub src: PathBuf,
-    pub artifacts_directory: Option<PathBuf>,
+    pub artifact_directory: Option<PathBuf>,
     #[serde(default)]
     pub language: RelayLanguageConfig,
 }
@@ -101,8 +101,8 @@ fn path_for_artifact(
         }
     };
 
-    let output_path = if let Some(artifacts_directory) = &config.artifacts_directory {
-        root_dir.join(artifacts_directory).join(filename)
+    let output_path = if let Some(artifact_directory) = &config.artifact_directory {
+        root_dir.join(artifact_directory).join(filename)
     } else {
         root_dir
             .join(source_path)
