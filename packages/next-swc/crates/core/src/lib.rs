@@ -104,10 +104,6 @@ pub fn custom_before_pass(
     file: Arc<SourceFile>,
     opts: &TransformOptions,
 ) -> impl Fold + '_ {
-    #[cfg(target_arch = "wasm32")]
-    let relay_plugin = noop();
-
-    #[cfg(not(target_arch = "wasm32"))]
     let relay_plugin = {
         if let Some(config) = &opts.relay {
             Either::Left(relay::relay(config, file.name.clone()))
