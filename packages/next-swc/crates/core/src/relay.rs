@@ -28,7 +28,6 @@ struct Relay<'a> {
     config: &'a Config,
 }
 
-/// A simplified version of Relay's SingleProjectConfig file.
 #[derive(Deserialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
@@ -86,14 +85,14 @@ impl<'a> Fold for Relay<'a> {
 #[derive(Debug)]
 enum BuildRequirePathError {
     FileNameNotReal,
+    ArtifactDirectoryExpected,
 }
 
 fn path_for_artifact(
     root_dir: &Path,
-    source_path: &Path,
     config: &Config,
     definition_name: &str,
-) -> PathBuf {
+) -> Result<PathBuf, BuildRequirePathError> {
     let filename = match &config.language {
         RelayLanguageConfig::Flow => format!("{}.graphql.js", definition_name),
         RelayLanguageConfig::TypeScript => {
@@ -101,18 +100,11 @@ fn path_for_artifact(
         }
     };
 
-    let output_path = if let Some(artifact_directory) = &config.artifact_directory {
-        root_dir.join(artifact_directory).join(filename)
+    if let Some(artifact_directory) = &config.artifact_directory {
+        Ok(root_dir.join(artifact_directory).join(filename))
     } else {
-        root_dir
-            .join(source_path)
-            .parent()
-            .unwrap()
-            .join("__generated__")
-            .join(filename)
-    };
-
-    output_path
+        Err(BuildRequirePathError::ArtifactDirectoryExpected)
+    }
 }
 
 impl<'a> Relay<'a> {
@@ -121,12 +113,9 @@ impl<'a> Relay<'a> {
         operation_name: &str,
     ) -> Result<PathBuf, BuildRequirePathError> {
         match &self.file_name {
-            FileName::Real(real_file_name) => Ok(path_for_artifact(
-                &self.root_dir,
-                real_file_name,
-                self.config,
-                operation_name,
-            )),
+            FileName::Real(_real_file_name) => {
+                path_for_artifact(&self.root_dir, self.config, operation_name)
+            }
             _ => Err(BuildRequirePathError::FileNameNotReal),
         }
     }
@@ -151,6 +140,11 @@ impl<'a> Relay<'a> {
                                                                    file. This is likely a bug and \
                                                                    should be reported to Next.js"
                             .to_string(),
+                        BuildRequirePathError::ArtifactDirectoryExpected => {
+                            "The `artifactDirectory` is expected to be set in the Relay config \
+                             file to work correctly with Next.js."
+                                .to_string()
+                        }
                     };
 
                     HANDLER.with(|handler| {
