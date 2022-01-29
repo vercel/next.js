@@ -4,7 +4,7 @@ use next_swc::{
     next_ssg::next_ssg,
     page_config::page_config_test,
     react_remove_properties::remove_properties,
-    relay::{test_relay, ProjectConfig, RelayLanguageConfig},
+    relay::{relay, Config as RelayConfig, RelayLanguageConfig},
     remove_console::remove_console,
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
     styled_jsx::styled_jsx,
@@ -153,16 +153,14 @@ fn page_config_fixture(input: PathBuf) {
 #[fixture("tests/fixture/relay/**/input.ts*")]
 fn relay_no_artifact_dir_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
+    let config = RelayConfig {
+        language: RelayLanguageConfig::TypeScript,
+        artifact_directory: Some(PathBuf::from("__generated__")),
+        ..Default::default()
+    };
     test_fixture(
         syntax(),
-        &|_tr| {
-            let config = ProjectConfig {
-                language: RelayLanguageConfig::TypeScript,
-                ..Default::default()
-            };
-
-            test_relay(FileName::Real(PathBuf::from("input.tsx")), config)
-        },
+        &|_tr| relay(&config, FileName::Real(PathBuf::from("input.tsx"))),
         &input,
         &output,
     );
