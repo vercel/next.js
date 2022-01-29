@@ -105,14 +105,14 @@ module.exports = {
     relay: {
       // This should match relay.config.js
       src: './',
-      artifactsDirectory: './__generated__'
+      artifactDirectory: './__generated__'
       language: 'typescript',
     },
   },
 }
 ```
 
-NOTE: In Next.js all JavaScripts files in `pages` directory are considered routes. So, for `relay-compiler` you'll need to specify `artifactsDirectory` configuration settings outside of the `pages`, otherwise `relay-compiler` will generate files next to the source file in the `__generated__` directory, and this file will be considered a route, which will break production build.
+NOTE: In Next.js all JavaScripts files in `pages` directory are considered routes. So, for `relay-compiler` you'll need to specify `artifactDirectory` configuration settings outside of the `pages`, otherwise `relay-compiler` will generate files next to the source file in the `__generated__` directory, and this file will be considered a route, which will break production build.
 
 ### Remove React Properties
 
