@@ -1064,7 +1064,7 @@ jobs:
       - name: Install cross compile toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu musl-tools -y
+          sudo apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
 
       - name: Turbo Cache
         id: turbo-cache
@@ -1124,7 +1124,7 @@ jobs:
       - name: Install cross compile toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install gcc-aarch64-linux-gnu musl-tools -y
+          sudo apt-get install gcc-aarch64-linux-gnu -y
 
       - name: Turbo Cache
         id: turbo-cache
