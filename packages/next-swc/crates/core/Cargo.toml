@@ -27,17 +27,7 @@ swc_stylis = "0.43.0"
 tracing = {version = "0.1.28", features = ["release_max_level_off"]}
 regex = "1.5"
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-relay-compiler = { git = "https://github.com/facebook/relay", tag="v13.0.1" }
-relay-compiler-intern = { package="intern", git = "https://github.com/facebook/relay", tag="v13.0.1" }
-relay-compiler-common = { package = "common", git = "https://github.com/facebook/relay", tag="v13.0.1" }
-relay-config = { git = "https://github.com/facebook/relay", tag="v13.0.1" }
-hyper-tls = "0.5.0"
-
 [dev-dependencies]
 swc_ecma_transforms_testing = "0.59.0"
 testing = "0.18.0"
 walkdir = "2.3.2"
-
-[features]
-vendored = ["hyper-tls/vendored"]

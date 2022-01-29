@@ -94,7 +94,7 @@ pub struct TransformOptions {
     pub react_remove_properties: Option<react_remove_properties::Config>,
 
     #[serde(default)]
-    pub relay: bool,
+    pub relay: Option<relay::Config>,
 
     #[serde(default)]
     pub shake_exports: Option<shake_exports::Config>,
@@ -104,15 +104,16 @@ pub fn custom_before_pass(
     cm: Arc<SourceMap>,
     file: Arc<SourceFile>,
     opts: &TransformOptions,
-) -> impl Fold {
+) -> impl Fold + '_ {
     #[cfg(target_arch = "wasm32")]
     let relay_plugin = noop();
 
     #[cfg(not(target_arch = "wasm32"))]
     let relay_plugin = {
-        match &opts.relay {
-            true => Either::Left(relay::relay(file.name.clone())),
-            false => Either::Right(noop()),
+        if let Some(config) = &opts.relay {
+            Either::Left(relay::relay(config, file.name.clone()))
+        } else {
+            Either::Right(noop())
         }
     };
 

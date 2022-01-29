@@ -102,7 +102,10 @@ To enable [Relay](https://relay.dev/) support:
 // next.config.js
 module.exports = {
   experimental: {
-    relay: true,
+    relay: {
+      src: './',
+      language: 'typescript',
+    },
   },
 }
 ```
