@@ -16,7 +16,7 @@ The following example shows how you can fetch data on the client side using the 
 
 ```jsx
 function Profile() {
-  const [data, setData] = useState(null)
+  const [profileData, setProfileData] = useState(null)
   const [isLoading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -24,7 +24,7 @@ function Profile() {
     fetch('api/profile-data')
       .then((res) => res.json())
       .then((data) => {
-        setData(data)
+        setProfileData(data)
         setLoading(false)
       })
   }, [])
@@ -34,8 +34,8 @@ function Profile() {
 
   return (
     <div>
-      <h1>{data.name}</h1>
-      <p>{data.bio}</p>
+      <h1>{profileData.name}</h1>
+      <p>{profileData.bio}</p>
     </div>
   )
 }
