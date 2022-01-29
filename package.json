@@ -148,6 +148,7 @@
     "react-ssr-prepass": "1.0.8",
     "relay-compiler": "13.0.2",
     "relay-runtime": "13.0.2",
+    "react-virtualized": "9.22.3",
     "release": "6.3.0",
     "request-promise-core": "1.1.2",
     "resolve-from": "5.0.0",

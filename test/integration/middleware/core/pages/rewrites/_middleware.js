@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
 
+/**
+ * @param {import('next/server').NextRequest} request
+ */
 export async function middleware(request) {
   const url = request.nextUrl
 
@@ -30,6 +33,16 @@ export async function middleware(request) {
 
   if (url.pathname === '/rewrites/rewrite-me-to-vercel') {
     return NextResponse.rewrite('https://vercel.com')
+  }
+
+  if (url.pathname === '/rewrites/clear-query-params') {
+    const allowedKeys = ['allowed']
+    for (const key of [...url.searchParams.keys()]) {
+      if (!allowedKeys.includes(key)) {
+        url.searchParams.delete(key)
+      }
+    }
+    return NextResponse.rewrite(url)
   }
 
   if (url.pathname === '/rewrites/rewrite-me-without-hard-navigation') {
