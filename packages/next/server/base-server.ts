@@ -1532,15 +1532,20 @@ export default abstract class Server {
     delete query._nextBubbleNoFallback
 
     try {
-      const result = await this.findPageComponents(pathname, query)
-      if (result) {
-        try {
-          return await this.renderToResponseWithComponents(ctx, result)
-        } catch (err) {
-          const isNoFallbackError = err instanceof NoFallbackError
+      // The following guard is necessary to safely cast the URL pathname to a potential predefined page path.
+      // Without the guard, a request to the URL /accounts/[id] will find pages/accounts/[id].js
+      // and interpret it as a predefined route.
+      if (!isDynamicRoute(pathname)) {
+        const result = await this.findPageComponents(pathname, query)
+        if (result) {
+          try {
+            return await this.renderToResponseWithComponents(ctx, result)
+          } catch (err) {
+            const isNoFallbackError = err instanceof NoFallbackError
 
-          if (!isNoFallbackError || (isNoFallbackError && bubbleNoFallback)) {
-            throw err
+            if (!isNoFallbackError || (isNoFallbackError && bubbleNoFallback)) {
+              throw err
+            }
           }
         }
       }
