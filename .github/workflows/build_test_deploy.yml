@@ -748,9 +748,8 @@ jobs:
   # Build binaries for publishing
   build-native:
     needs: build
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     strategy:
-      fail-fast: false
       matrix:
         os: [ubuntu-18.04, macos-latest, windows-latest]
         description: [default]
@@ -868,7 +867,7 @@ jobs:
 
   build-windows-i686:
     needs: build
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - windows-i686 - node@14
     runs-on: windows-latest
     env:
@@ -927,7 +926,7 @@ jobs:
 
   build-windows-aarch64:
     needs: build
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - windows-aarch64 - node@14
     runs-on: windows-latest
     steps:
@@ -975,7 +974,7 @@ jobs:
 
   build-linux-musl:
     needs: build
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - linux-musl - node@lts
     runs-on: ubuntu-latest
     steps:
@@ -1026,7 +1025,7 @@ jobs:
 
   build-linux-aarch64-gnu:
     needs: build
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - aarch64-unknown-linux-gnu - node@14
     runs-on: ubuntu-18.04
     steps:
@@ -1064,7 +1063,7 @@ jobs:
       - name: Install cross compile toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu musl-tools -y
+          sudo apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
 
       - name: Turbo Cache
         id: turbo-cache
@@ -1089,7 +1088,7 @@ jobs:
 
   build-linux-aarch64-musl:
     needs: build
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - aarch64-unknown-linux-musl - node@14
     runs-on: ubuntu-18.04
     steps:
@@ -1124,7 +1123,7 @@ jobs:
       - name: Install cross compile toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install gcc-aarch64-linux-gnu musl-tools -y
+          sudo apt-get install gcc-aarch64-linux-gnu -y
 
       - name: Turbo Cache
         id: turbo-cache
@@ -1148,7 +1147,7 @@ jobs:
 
   build-linux-arm7:
     needs: build
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - arm7-unknown-linux-gnu - node@14
     runs-on: ubuntu-18.04
     steps:
@@ -1210,7 +1209,7 @@ jobs:
 
   build-android-aarch64:
     needs: build
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - Android - aarch64
     runs-on: macos-latest
     steps:
@@ -1261,7 +1260,7 @@ jobs:
 
   build-wasm:
     needs: build
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     strategy:
       matrix:
         target: [web, nodejs]
