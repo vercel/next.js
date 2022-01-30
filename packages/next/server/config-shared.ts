@@ -174,8 +174,8 @@ export type NextConfig = { [key: string]: any } & {
     outputStandalone?: boolean
     relay?: {
       src: string
-      artifactDirectory: ?string
-      language: 'typescript' | 'flow'
+      artifactDirectory?: string
+      language?: 'typescript' | 'flow'
     }
   }
 }
