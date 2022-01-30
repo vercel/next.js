@@ -535,6 +535,10 @@
         {
           "title": "deleting-query-params-in-middlewares",
           "path": "/errors/deleting-query-params-in-middlewares.md"
+        },
+        {
+          "title": "nested-styled-jsx-tags",
+          "path": "/errors/nested-styled-jsx-tags.md"
         }
       ]
     }
