@@ -8,12 +8,12 @@ module.exports = {
     'project-a': {
       schema: 'schema.graphql',
       language: 'typescript',
-      output: '__generated__',
+      output: 'project-a/__generated__',
     },
     'project-b': {
       schema: 'schema.graphql',
       language: 'typescript',
-      output: '__generated__',
+      output: 'project-b/__generated__',
     },
   },
 }

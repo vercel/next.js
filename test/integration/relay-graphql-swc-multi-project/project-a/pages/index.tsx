@@ -8,7 +8,7 @@ import {
   Store,
 } from 'relay-runtime'
 import { GetServerSideProps } from 'next'
-import { pagesQuery } from '../../__generated__/pagesQuery.graphql'
+import { pagesAQuery } from '../__generated__/pagesAQuery.graphql'
 
 type Props = { greeting: string }
 
@@ -41,10 +41,10 @@ export const getServerSideProps: GetServerSideProps = async ({ req }) => {
     network: Network.create(createGraphQLFetcher(req.headers.host)),
   })
 
-  const result = await fetchQuery<pagesQuery>(
+  const result = await fetchQuery<pagesAQuery>(
     environment,
     graphql`
-      query pagesQuery {
+      query pagesAQuery {
         greeting
       }
     `,

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<187ead9fb6e7b26d71c9161bda6ab902>>
+ * @generated SignedSource<<afaeba3a661c4bb0d2a399327c82d32b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,15 +9,15 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime'
-export type pagesQuery$variables = {}
-export type pagesQueryVariables = pagesQuery$variables
-export type pagesQuery$data = {
+export type pagesAQuery$variables = {}
+export type pagesAQueryVariables = pagesAQuery$variables
+export type pagesAQuery$data = {
   readonly greeting: string
 }
-export type pagesQueryResponse = pagesQuery$data
-export type pagesQuery = {
-  variables: pagesQueryVariables
-  response: pagesQuery$data
+export type pagesAQueryResponse = pagesAQuery$data
+export type pagesAQuery = {
+  variables: pagesAQueryVariables
+  response: pagesAQuery$data
 }
 
 const node: ConcreteRequest = (function () {
@@ -35,7 +35,7 @@ const node: ConcreteRequest = (function () {
       argumentDefinitions: [],
       kind: 'Fragment',
       metadata: null,
-      name: 'pagesQuery',
+      name: 'pagesAQuery',
       selections: v0 /*: any*/,
       type: 'Query',
       abstractKey: null,
@@ -44,20 +44,20 @@ const node: ConcreteRequest = (function () {
     operation: {
       argumentDefinitions: [],
       kind: 'Operation',
-      name: 'pagesQuery',
+      name: 'pagesAQuery',
       selections: v0 /*: any*/,
     },
     params: {
-      cacheID: '167b6de16340efeb876a7787c90e7cec',
+      cacheID: 'bc59dc1b50eecd19488f004d5cd93913',
       id: null,
       metadata: {},
-      name: 'pagesQuery',
+      name: 'pagesAQuery',
       operationKind: 'query',
-      text: 'query pagesQuery {\n  greeting\n}\n',
+      text: 'query pagesAQuery {\n  greeting\n}\n',
     },
   }
 })()
 
-;(node as any).hash = '4017856344f36f61252354e2eb442d98'
+;(node as any).hash = '7f699085b71746bb18cb74e3a0776f46'
 
 export default node
