@@ -37,7 +37,9 @@ Next.js will automatically configure this file with default values. Providing yo
 
 You can also provide a relative path to a tsconfig.json file by setting `typescript.tsconfigPath` prop inside your `next.config.js` file.
 
-> Next.js uses Babel to handle TypeScript, which has some [caveats](https://babeljs.io/docs/en/babel-plugin-transform-typescript#caveats), and some [compiler options are handled differently](https://babeljs.io/docs/en/babel-plugin-transform-typescript#typescript-compiler-options).
+Next.js will by default use [Rust SWC](https://nextjs.org/docs/advanced-features/compiler) to compile TypeScript and TSX, resulting in a much faster build time.
+
+> Next.js will use Babel to handle TypeScript if `.babelrc` is present, this has some [caveats](https://babeljs.io/docs/en/babel-plugin-transform-typescript#caveats), and some [compiler options are handled differently](https://babeljs.io/docs/en/babel-plugin-transform-typescript#typescript-compiler-options).
 
 Then, run `next` (normally `npm run dev` or `yarn dev`) and Next.js will guide you through the installation of the required packages to finish the setup:
 
