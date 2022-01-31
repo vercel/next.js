@@ -869,6 +869,7 @@ export class NextScript extends Component<OriginProps> {
                     dangerouslySetInnerHTML={{
                       __html: `(self.__NEXT_BL=self.__NEXT_BL||[]).push({})`,
                     }}
+                    data-ampdevmode
                   />
                 </>
               )}
