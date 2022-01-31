@@ -99,8 +99,9 @@ export default function Page404() {
 }
 `
 
-async function nextBuild(dir) {
+async function nextBuild(dir, options) {
   return await _nextBuild(dir, [], {
+    ...options,
     stdout: true,
     stderr: true,
     nodeArgs,
@@ -177,7 +178,6 @@ describe('concurrentFeatures - prod', () => {
       'middleware-build-manifest.js',
       'middleware-flight-manifest.js',
       'middleware-ssr-runtime.js',
-      'functions-manifest.json',
       'middleware-manifest.json',
     ]
     files.forEach((file) => {
@@ -205,15 +205,32 @@ describe('concurrentFeatures - prod', () => {
     expect(content.clientInfo).not.toContainEqual([['/404', true]])
   })
 
-  it('should contain rsc paths in functions manifest', async () => {
-    const middlewareManifestPath = join(
+  it('should support React.lazy and dynamic imports', async () => {
+    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
+    expect(html).toContain('foo.client')
+  })
+
+  runBasicTests(context, 'prod')
+})
+
+describe('Functions manifest', () => {
+  it('should not generate functions manifest when filesystem API is not enabled', async () => {
+    await nextBuild(appDir)
+    const functionsManifestPath = join(
       distDir,
       'server',
       'functions-manifest.json'
     )
-    const content = JSON.parse(
-      await fs.readFile(middlewareManifestPath, 'utf8')
+    expect(fs.existsSync(functionsManifestPath)).toBe(false)
+  })
+  it('should contain rsc paths in functions manifest', async () => {
+    await nextBuild(appDir, { env: { ENABLE_FILE_SYSTEM_API: '1' } })
+    const functionsManifestPath = join(
+      distDir,
+      'server',
+      'functions-manifest.json'
     )
+    const content = JSON.parse(await fs.readFile(functionsManifestPath, 'utf8'))
     const { pages } = content
     const pageNames = Object.keys(pages)
 
@@ -225,13 +242,6 @@ describe('concurrentFeatures - prod', () => {
 
     expect(content.version).toBe(1)
   })
-
-  it('should support React.lazy and dynamic imports', async () => {
-    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
-    expect(html).toContain('foo.client')
-  })
-
-  runBasicTests(context, 'prod')
 })
 
 const customAppPageSuite = {
