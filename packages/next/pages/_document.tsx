@@ -866,6 +866,8 @@ export class NextScript extends Component<OriginProps> {
                     data-ampdevmode
                   />
                   <script
+                    nonce={this.props.nonce}
+                    crossOrigin={this.props.crossOrigin || crossOrigin}
                     dangerouslySetInnerHTML={{
                       __html: `(self.__NEXT_BL=self.__NEXT_BL||[]).push({})`,
                     }}
@@ -925,6 +927,8 @@ export class NextScript extends Component<OriginProps> {
                   }}
                 />
                 <script
+                  nonce={this.props.nonce}
+                  crossOrigin={this.props.crossOrigin || crossOrigin}
                   dangerouslySetInnerHTML={{
                     __html: `(self.__NEXT_BL=self.__NEXT_BL||[]).push({})`,
                   }}
