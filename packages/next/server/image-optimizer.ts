@@ -178,6 +178,7 @@ export async function imageOptimizer(
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
   const now = Date.now()
+  let staleWhileRevalidate = false
 
   // If there're concurrent requests hitting the same resource and it's still
   // being optimized, wait before accessing the cache.
@@ -199,23 +200,27 @@ export async function imageOptimizer(
         const expireAt = Number(expireAtSt)
         const contentType = getContentType(extension)
         const fsPath = join(hashDir, file)
-        if (now < expireAt) {
-          const result = setResponseHeaders(
-            req,
-            res,
-            url,
-            etag,
-            maxAge,
-            contentType,
-            isStatic,
-            isDev
-          )
-          if (!result.finished) {
-            createReadStream(fsPath).pipe(res)
-          }
+        const isFresh = now < expireAt
+        const xCache = isFresh ? 'HIT' : 'STALE'
+        const result = setResponseHeaders(
+          req,
+          res,
+          url,
+          etag,
+          maxAge,
+          contentType,
+          isStatic,
+          isDev,
+          xCache
+        )
+        if (!result.finished) {
+          createReadStream(fsPath).pipe(res)
+        }
+        if (isFresh) {
           return { finished: true }
         } else {
           await promises.unlink(fsPath)
+          staleWhileRevalidate = true
         }
       }
     }
@@ -332,7 +337,8 @@ export async function imageOptimizer(
           upstreamType,
           upstreamBuffer,
           isStatic,
-          isDev
+          isDev,
+          staleWhileRevalidate
         )
         return { finished: true }
       }
@@ -485,7 +491,8 @@ export async function imageOptimizer(
           contentType,
           optimizedBuffer,
           isStatic,
-          isDev
+          isDev,
+          staleWhileRevalidate
         )
       } else {
         throw new Error('Unable to optimize buffer')
@@ -499,7 +506,8 @@ export async function imageOptimizer(
         upstreamType,
         upstreamBuffer,
         isStatic,
-        isDev
+        isDev,
+        staleWhileRevalidate
       )
     }
 
@@ -548,7 +556,8 @@ function setResponseHeaders(
   maxAge: number,
   contentType: string | null,
   isStatic: boolean,
-  isDev: boolean
+  isDev: boolean,
+  xCache: 'MISS' | 'HIT' | 'STALE'
 ) {
   res.setHeader('Vary', 'Accept')
   res.setHeader(
@@ -574,6 +583,7 @@ function setResponseHeaders(
   }
 
   res.setHeader('Content-Security-Policy', `script-src 'none'; sandbox;`)
+  res.setHeader('X-Nextjs-Cache', xCache)
 
   return { finished: false }
 }
@@ -586,8 +596,13 @@ function sendResponse(
   contentType: string | null,
   buffer: Buffer,
   isStatic: boolean,
-  isDev: boolean
+  isDev: boolean,
+  staleWhileRevalidate: boolean
 ) {
+  if (staleWhileRevalidate) {
+    return
+  }
+  const xCache = 'MISS'
   const etag = getHash([buffer])
   const result = setResponseHeaders(
     req,
@@ -597,7 +612,8 @@ function sendResponse(
     maxAge,
     contentType,
     isStatic,
-    isDev
+    isDev,
+    xCache
   )
   if (!result.finished) {
     res.end(buffer)
