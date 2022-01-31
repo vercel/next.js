@@ -582,10 +582,24 @@ impl Visualizable for Task {
                 output.visualize(visualizer);
                 visualizer.output(self as *const Task, &*output as *const Node);
             }
-            for dependency in self.dependencies.read().unwrap().iter() {
-                if let Some(dependency) = dependency.upgrade() {
-                    dependency.visualize(visualizer);
-                    visualizer.dependency(self as *const Task, &*dependency as *const Node);
+            let deps = self.dependencies.read().unwrap();
+            if !deps.is_empty() {
+                if children.is_empty() {
+                    for dependency in deps.iter() {
+                        if let Some(dependency) = dependency.upgrade() {
+                            dependency.visualize(visualizer);
+                            visualizer.dependency(self as *const Task, &*dependency as *const Node);
+                        }
+                    }
+                } else {
+                    visualizer.children_start(self as *const Task);
+                    for dependency in deps.iter() {
+                        if let Some(dependency) = dependency.upgrade() {
+                            dependency.visualize(visualizer);
+                            visualizer.dependency(self as *const Task, &*dependency as *const Node);
+                        }
+                    }
+                    visualizer.children_end(self as *const Task);
                 }
             }
         }

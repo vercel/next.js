@@ -18,19 +18,21 @@ pub trait Visualizer {
 }
 
 pub struct GraphViz {
-    visited_tasks: HashSet<usize>,
+    visited: HashSet<usize>,
     output_has_task: HashSet<usize>,
     id_map: HashMap<usize, usize>,
     output: String,
+    edges: String,
 }
 
 impl GraphViz {
     pub fn new() -> Self {
         Self {
-            visited_tasks: HashSet::new(),
+            visited: HashSet::new(),
             output_has_task: HashSet::new(),
             id_map: HashMap::new(),
             output: String::new(),
+            edges: String::new(),
         }
     }
 
@@ -72,6 +74,7 @@ impl ToString for GraphViz {
                   "
         .to_string()
             + &self.output
+            + &self.edges
             + "}";
     }
 }
@@ -85,10 +88,10 @@ fn escape(s: &str) -> String {
 impl Visualizer for GraphViz {
     fn task(&mut self, task: *const Task, name: &str, state: &str) -> bool {
         let id = self.get_id(task);
-        if self.visited_tasks.contains(&id) {
+        if self.visited.contains(&id) {
             false
         } else {
-            self.visited_tasks.insert(id);
+            self.visited.insert(id);
             self.output += &format!(
                 "{} [shape=box, label=\"{}\"]\n",
                 id,
@@ -104,7 +107,10 @@ impl Visualizer for GraphViz {
 
     fn node(&mut self, node: *const Node, type_name: &str) {
         let id = self.get_id(node);
-        self.output += &format!("{} [label=\"{}\"]\n", id, escape(type_name));
+        if !self.visited.contains(&id) {
+            self.visited.insert(id);
+            self.output += &format!("{} [label=\"{}\"]\n", id, escape(type_name));
+        }
     }
 
     fn output(&mut self, task: *const Task, node: *const Node) {
@@ -112,20 +118,23 @@ impl Visualizer for GraphViz {
         let node = self.get_id(node);
         if !self.output_has_task.contains(&node) {
             self.output_has_task.insert(node);
-            self.output += &format!("{}:e -> {}:w [color=red]\n", task, node);
+            // self.edges += &format!("{}:e -> {}:w [color=red]\n", task, node);
             self.output += &format!(
-                "subgraph cluster_{} {{\nrank=same; peripheries=0; {} {}\n}}\n",
+                "subgraph cluster_{} {{\ncolor=lightgray; {}:e -> {}:w [color=red]\n}}\n",
                 node, task, node
             );
         } else {
-            self.output += &format!("{}:e -> {}:n [color=\"#990000\"]\n", task, node);
+            self.edges += &format!(
+                "{}:e -> {}:n [color=\"#990000\", constraint=false]\n",
+                task, node
+            );
         }
     }
 
     fn input(&mut self, task: *const Task, node: *const Node) {
         let task = self.get_id(task);
         let node = self.get_id(node);
-        self.output += &format!("{} -> {} [color=\"#009129\"]\n", node, task);
+        self.edges += &format!("{} -> {} [color=\"#009129\"]\n", node, task);
     }
 
     fn child(&mut self, parent_task: *const Task, child_task: *const Task) {
@@ -140,19 +149,18 @@ impl Visualizer for GraphViz {
     fn dependency(&mut self, task: *const Task, node: *const Node) {
         let task = self.get_id(task);
         let node = self.get_id(node);
-        self.output += &format!(
-            "{} -> {} [style=dotted, weight=0, arrowhead=empty, color=lightgray]\n",
+        self.edges += &format!(
+            "{} -> {} [style=dotted, weight=0, arrowhead=empty, color=gray, constraint=false]\n",
             task, node
         );
     }
 
     fn children_start(&mut self, parent_task: *const Task) {
         let parent_task = self.get_id(parent_task);
-        self.output += &format!("subgraph cluster_{} {{\n", parent_task);
+        self.output += &format!("subgraph cluster_{} {{\nrank=same\n", parent_task);
     }
 
-    fn children_end(&mut self, parent_task: *const Task) {
-        let parent_task = self.get_id(parent_task);
+    fn children_end(&mut self, _parent_task: *const Task) {
         self.output += &format!("}}\n");
     }
 }

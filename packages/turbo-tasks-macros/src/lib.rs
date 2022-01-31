@@ -12,9 +12,9 @@ use syn::{
     punctuated::Punctuated,
     spanned::Spanned,
     token::Paren,
-    Attribute, Error, Fields, FnArg, ImplItem, ImplItemMethod, ItemFn, ItemImpl, ItemStruct,
-    ItemTrait, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver, Result,
-    ReturnType, Signature, Token, TraitItem, TraitItemMethod, Type, TypePath, TypeTuple,
+    Attribute, Error, FnArg, ImplItem, ImplItemMethod, Item, ItemEnum, ItemFn, ItemImpl,
+    ItemStruct, ItemTrait, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver,
+    Result, ReturnType, Signature, Token, TraitItem, TraitItemMethod, Type, TypePath, TypeTuple,
 };
 
 fn get_ref_ident(ident: &Ident) -> Ident {
@@ -73,7 +73,7 @@ fn get_trait_impl_function_ident(struct_ident: &Ident, ident: &Ident) -> Ident {
 
 #[proc_macro_attribute]
 pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
-    let item = parse_macro_input!(input as ItemStruct);
+    let item = parse_macro_input!(input as Item);
     let traits = if args.is_empty() {
         Vec::new()
     } else {
@@ -82,85 +82,81 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             .collect()
     };
 
-    if let ItemStruct {
-        attrs: _,
-        vis,
-        generics: _,
-        ident,
-        semi_token: _,
-        struct_token: _,
-        fields: Fields::Named(_fields),
-    } = item.clone()
-    {
-        let ref_ident = get_ref_ident(&ident);
-        let node_type_ident = get_node_type_ident(&ident);
-        let trait_registrations: Vec<_> = traits
-            .iter()
-            .map(|trait_ident| {
-                let register = get_register_trait_methods_ident(trait_ident, &ident);
-                quote! {
-                    #register(&mut node_type);
-                }
-            })
-            .collect();
-        let expanded = quote! {
-            #item
+    let (vis, ident) = match &item {
+        Item::Enum(ItemEnum { vis, ident, .. }) => (vis, ident),
+        Item::Struct(ItemStruct { vis, ident, .. }) => (vis, ident),
+        _ => {
+            item.span().unwrap().error("unsupported syntax").emit();
 
-            lazy_static::lazy_static! {
-                static ref #node_type_ident: turbo_tasks::NodeType = {
-                    let mut node_type = turbo_tasks::NodeType::new(std::any::type_name::<#ident>().to_string());
-                    #(#trait_registrations)*
-                    node_type
-                };
+            return quote! {
+                #item
             }
+            .into();
+        }
+    };
 
-            #[derive(Clone, Debug, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq)]
-            #vis struct #ref_ident {
-                node: turbo_tasks::NodeRef,
+    let ref_ident = get_ref_ident(&ident);
+    let node_type_ident = get_node_type_ident(&ident);
+    let trait_registrations: Vec<_> = traits
+        .iter()
+        .map(|trait_ident| {
+            let register = get_register_trait_methods_ident(trait_ident, &ident);
+            quote! {
+                #register(&mut node_type);
             }
-
-            impl #ref_ident {
-                pub fn from_node(node: turbo_tasks::NodeRef) -> Option<Self> {
-                    if node.is_node_type(&#node_type_ident) {
-                        Some(Self { node })
-                    } else {
-                        None
-                    }
-                }
-
-                pub fn verify(node: &turbo_tasks::NodeRef) -> anyhow::Result<()> {
-                    if node.is_node_type(&#node_type_ident) {
-                        Ok(())
-                    } else {
-                        Err(anyhow::anyhow!(
-                            "expected {:?} but got {:?}",
-                            *#node_type_ident,
-                            node.get_node_type()
-                        ))
-                    }
-                }
-
-                pub fn get(&self) -> impl std::ops::Deref<Target = #ident> {
-                    // unwrap is safe here since we ensure that it will be the correct node type
-                    self.node.read::<#ident>().unwrap()
-                }
-            }
-
-            impl From<#ref_ident> for turbo_tasks::NodeRef {
-                fn from(node_ref: #ref_ident) -> Self {
-                    node_ref.node
-                }
-            }
-        };
-
-        return expanded.into();
-    }
-    item.span().unwrap().error("unsupported syntax").emit();
-
-    quote! {
+        })
+        .collect();
+    let expanded = quote! {
         #item
-    }
-    .into()
+
+        lazy_static::lazy_static! {
+            static ref #node_type_ident: turbo_tasks::NodeType = {
+                let mut node_type = turbo_tasks::NodeType::new(std::any::type_name::<#ident>().to_string());
+                #(#trait_registrations)*
+                node_type
+            };
+        }
+
+        #[derive(Clone, Debug, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq)]
+        #vis struct #ref_ident {
+            node: turbo_tasks::NodeRef,
+        }
+
+        impl #ref_ident {
+            pub fn from_node(node: turbo_tasks::NodeRef) -> Option<Self> {
+                if node.is_node_type(&#node_type_ident) {
+                    Some(Self { node })
+                } else {
+                    None
+                }
+            }
+
+            pub fn verify(node: &turbo_tasks::NodeRef) -> anyhow::Result<()> {
+                if node.is_node_type(&#node_type_ident) {
+                    Ok(())
+                } else {
+                    Err(anyhow::anyhow!(
+                        "expected {:?} but got {:?}",
+                        *#node_type_ident,
+                        node.get_node_type()
+                    ))
+                }
+            }
+
+            pub fn get(&self) -> impl std::ops::Deref<Target = #ident> {
+                // unwrap is safe here since we ensure that it will be the correct node type
+                self.node.read::<#ident>().unwrap()
+            }
+        }
+
+        impl From<#ref_ident> for turbo_tasks::NodeRef {
+            fn from(node_ref: #ref_ident) -> Self {
+                node_ref.node
+            }
+        }
+    };
+
+    expanded.into()
 }
 
 #[derive(Eq, PartialEq)]
