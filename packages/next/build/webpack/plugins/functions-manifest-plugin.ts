@@ -2,7 +2,7 @@ import { sources, webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { collectAssets, getEntrypointInfo } from './middleware-plugin'
 import { FUNCTIONS_MANIFEST } from '../../../shared/lib/constants'
 
-const PLUGIN_NAME = 'MiddlewarePlugin'
+const PLUGIN_NAME = 'FunctionsManifestPlugin'
 export interface FunctionsManifest {
   version: 1
   pages: {

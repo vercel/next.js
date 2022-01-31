@@ -238,6 +238,7 @@ describe('Functions manifest', () => {
     paths.forEach((path) => {
       expect(pageNames).toContain(path)
       expect(pages[path].runtime).toBe('web')
+      expect(pages[path].files.every((f) => f.startsWith('server/'))).toBe(true)
     })
 
     expect(content.version).toBe(1)
