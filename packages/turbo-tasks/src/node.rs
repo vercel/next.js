@@ -10,7 +10,7 @@ use std::{
     },
 };
 
-use crate::{NativeFunction, Task};
+use crate::{viz::Visualizable, NativeFunction, Task};
 
 static NEXT_NODE_TYPE_ID: AtomicU32 = AtomicU32::new(1);
 
@@ -252,5 +252,11 @@ impl fmt::Debug for WeakNodeRef {
                 fmt::Debug::fmt(&node, f)
             }
         }
+    }
+}
+
+impl Visualizable for NodeRef {
+    fn visualize(&self, visualizer: &mut impl crate::viz::Visualizer) {
+        visualizer.node(&**self as *const Node, &self.node_type.name);
     }
 }

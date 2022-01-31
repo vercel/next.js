@@ -1,4 +1,4 @@
-use crate::{NodeRef, TurboTasks, WeakNodeRef};
+use crate::{node::Node, viz::Visualizable, NodeRef, TurboTasks, WeakNodeRef};
 use anyhow::anyhow;
 use async_std::task_local;
 use event_listener::{Event, EventListener};
@@ -111,7 +111,7 @@ enum TaskStateType {
     ///
     /// the goal is to keep this task dirty until access
     ///
-    /// on access it will move to SomeChildrenDirtyScheduled
+    /// on access it will move to SomeChildrenScheduled
     /// and schedule these dirty children
     SomeChildrenDirty,
 
@@ -122,11 +122,11 @@ enum TaskStateType {
     /// Children must not be in Dirty or SomeChildrenDirty state,
     /// they must make progress. We want to make sure to
     /// - schedule all Dirty children
-    /// - switch all SomeChildrenDirty children to SomeChildrenDirtyScheduled
-    /// - children must not become Dirty or SomeChildrenDirty but Scheduled resp SomeChildrenDirtyScheduled instead
+    /// - switch all SomeChildrenDirty children to SomeChildrenScheduled
+    /// - children must not become Dirty or SomeChildrenDirty but Scheduled resp SomeChildrenScheduled instead
     ///
     /// this is handled by schedule_dirty_children
-    SomeChildrenDirtyScheduled,
+    SomeChildrenScheduled,
 }
 
 use TaskStateType::*;
@@ -221,7 +221,7 @@ impl Task {
                 state.dirty_children_count += 1;
                 false
             }
-            SomeChildrenDirtyScheduled => {
+            SomeChildrenScheduled => {
                 state.dirty_children_count += 1;
                 true
             }
@@ -241,14 +241,14 @@ impl Task {
                     // TODO there is a race condition here
                     // we better should introduce an additional state
                     // SomeChildrenDirtyUndetermined to cover that
-                    // for now we use SomeChildrenDirtyScheduled
+                    // for now we use SomeChildrenScheduled
                     // that might causes a few unneeded scheduled tasks
                     // but that's better than missing to schedule some
 
-                    // Also see the constraint on SomeChildrenDirtyScheduled
+                    // Also see the constraint on SomeChildrenScheduled
                     // we can't use SomeChildrenDirty since we do not know
-                    // if there are parents that are in SomeChildrenDirtyScheduled state
-                    state.state_type = SomeChildrenDirtyScheduled;
+                    // if there are parents that are in SomeChildrenScheduled state
+                    state.state_type = SomeChildrenScheduled;
                     state.dirty_children_count = 1;
                     let parents: Vec<Arc<Task>> =
                         state.parents.iter().filter_map(|p| p.upgrade()).collect();
@@ -276,7 +276,7 @@ impl Task {
     pub(crate) fn child_done(&self, turbo_tasks: &'static TurboTasks) {
         let mut state = self.state.lock().unwrap();
         match state.state_type {
-            SomeChildrenDirty | SomeChildrenDirtyScheduled => {
+            SomeChildrenDirty | SomeChildrenScheduled => {
                 state.dirty_children_count -= 1;
                 if state.dirty_children_count == 0 {
                     state.state_type = Done;
@@ -315,7 +315,7 @@ impl Task {
                     child.schedule_dirty_children(turbo_tasks);
                 }
             }
-            SomeChildrenDirtyScheduled => {}
+            SomeChildrenScheduled => {}
         }
     }
 
@@ -365,7 +365,7 @@ impl Task {
                     turbo_tasks.schedule(self.clone());
                 }
             }
-            SomeChildrenDirtyScheduled => {
+            SomeChildrenScheduled => {
                 state.state_type = Scheduled;
                 drop(state);
                 turbo_tasks.schedule(self.clone());
@@ -469,7 +469,7 @@ impl Task {
                     InProgressLocally
                     | InProgressLocallyOutdated
                     | Scheduled
-                    | SomeChildrenDirtyScheduled => {
+                    | SomeChildrenScheduled => {
                         let listener = state.event.listen();
                         drop(state);
                         Err(listener)
@@ -482,7 +482,7 @@ impl Task {
                         Err(listener)
                     }
                     SomeChildrenDirty => {
-                        state.state_type = SomeChildrenDirtyScheduled;
+                        state.state_type = SomeChildrenScheduled;
                         let listener = state.event.listen();
                         let children: Vec<Arc<Task>> =
                             state.children.iter().map(|arc| arc.clone()).collect();
@@ -513,6 +513,40 @@ impl Invalidator {
     pub fn invalidate(self) {
         if let Some(task) = self.task.upgrade() {
             task.invaldate(self.turbo_tasks);
+        }
+    }
+}
+
+impl Visualizable for Task {
+    fn visualize(&self, visualizer: &mut impl crate::viz::Visualizer) {
+        let state = self.state.lock().unwrap();
+        if visualizer.task(
+            self as *const Task,
+            "task",
+            match state.state_type {
+                Scheduled => "scheduled",
+                InProgressLocally => "in progress (locally)",
+                InProgressLocallyOutdated => "in progress (locally, outdated)",
+                Done => "done",
+                Dirty => "dirty",
+                SomeChildrenDirty => "some children dirty",
+                SomeChildrenScheduled => "some children scheduled",
+            },
+        ) {
+            for child in state.children.iter() {
+                child.visualize(visualizer);
+                visualizer.child(self as *const Task, &**child as *const Task);
+            }
+            for dependency in self.dependencies.read().unwrap().iter() {
+                if let Some(dependency) = dependency.upgrade() {
+                    dependency.visualize(visualizer);
+                    visualizer.dependency(self as *const Task, &*dependency as *const Node);
+                }
+            }
+            if let Some(output) = &state.output {
+                output.visualize(visualizer);
+                visualizer.output(self as *const Task, &**output as *const Node);
+            }
         }
     }
 }

@@ -3,6 +3,7 @@ mod native_function;
 pub(crate) mod node;
 mod task;
 mod turbo_tasks;
+pub mod viz;
 
 pub use native_function::{NativeFunction, NativeFunctionRef};
 pub use node::{NodeRef, NodeType, TraitMethod, TraitType, WeakNodeRef};
