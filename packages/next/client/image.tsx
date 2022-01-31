@@ -545,7 +545,7 @@ export default function Image({
     padding: 0,
   }
   let hasSizer = false
-  let sizerSvg: string | undefined
+  let sizerSvgUrl: string | undefined
   const imgStyle: ImgElementStyle = {
     position: 'absolute',
     top: 0,
@@ -606,7 +606,7 @@ export default function Image({
       wrapperStyle.maxWidth = '100%'
       hasSizer = true
       sizerStyle.maxWidth = '100%'
-      sizerSvg = `<svg width="${widthInt}" height="${heightInt}" xmlns="http://www.w3.org/2000/svg" version="1.1"/>`
+      sizerSvgUrl = `data:image/svg+xml,%3csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20version=%271.1%27%20width=%27${widthInt}%27%20height=%27${heightInt}%27/%3e`
     } else if (layout === 'fixed') {
       // <Image src="i.png" width="100" height="100" layout="fixed" />
       wrapperStyle.display = 'inline-block'
@@ -687,7 +687,7 @@ export default function Image({
     <span style={wrapperStyle}>
       {hasSizer ? (
         <span style={sizerStyle}>
-          {sizerSvg ? (
+          {sizerSvgUrl ? (
             <img
               style={{
                 display: 'block',
@@ -702,7 +702,7 @@ export default function Image({
               }}
               alt=""
               aria-hidden={true}
-              src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
+              src={sizerSvgUrl}
             />
           ) : null}
         </span>
