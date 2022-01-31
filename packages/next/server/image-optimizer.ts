@@ -1,8 +1,8 @@
-import { mediaType } from '@hapi/accept'
+import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import { createHash } from 'crypto'
 import { createReadStream, promises } from 'fs'
-import { getOrientation, Orientation } from 'get-orientation'
-import imageSizeOf from 'image-size'
+import { getOrientation, Orientation } from 'next/dist/compiled/get-orientation'
+import imageSizeOf from 'next/dist/compiled/image-size'
 import { IncomingMessage, ServerResponse } from 'http'
 // @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
@@ -14,10 +14,10 @@ import { NextConfig } from './config-shared'
 import { fileExists } from '../lib/file-exists'
 import { ImageConfig, imageConfigDefault } from './image-config'
 import { processBuffer, decodeBuffer, Operation } from './lib/squoosh/main'
-import Server from './next-server'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
+import { NextUrlWithParsedQuery } from './request-meta'
 
 const AVIF = 'image/avif'
 const WEBP = 'image/webp'
@@ -47,12 +47,17 @@ try {
 let showSharpMissingWarning = process.env.NODE_ENV === 'production'
 
 export async function imageOptimizer(
-  server: Server,
   req: IncomingMessage,
   res: ServerResponse,
   parsedUrl: UrlWithParsedQuery,
   nextConfig: NextConfig,
   distDir: string,
+  render404: () => Promise<void>,
+  handleRequest: (
+    newReq: IncomingMessage,
+    newRes: ServerResponse,
+    newParsedUrl?: NextUrlWithParsedQuery
+  ) => Promise<void>,
   isDev = false
 ) {
   const imageData: ImageConfig = nextConfig.images || imageConfigDefault
@@ -66,7 +71,7 @@ export async function imageOptimizer(
   } = imageData
 
   if (loader !== 'default') {
-    await server.render404(req, res, parsedUrl)
+    await render404()
     return { finished: true }
   }
 
@@ -173,6 +178,7 @@ export async function imageOptimizer(
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
   const now = Date.now()
+  let staleWhileRevalidate = false
 
   // If there're concurrent requests hitting the same resource and it's still
   // being optimized, wait before accessing the cache.
@@ -194,23 +200,27 @@ export async function imageOptimizer(
         const expireAt = Number(expireAtSt)
         const contentType = getContentType(extension)
         const fsPath = join(hashDir, file)
-        if (now < expireAt) {
-          const result = setResponseHeaders(
-            req,
-            res,
-            url,
-            etag,
-            maxAge,
-            contentType,
-            isStatic,
-            isDev
-          )
-          if (!result.finished) {
-            createReadStream(fsPath).pipe(res)
-          }
+        const isFresh = now < expireAt
+        const xCache = isFresh ? 'HIT' : 'STALE'
+        const result = setResponseHeaders(
+          req,
+          res,
+          url,
+          etag,
+          maxAge,
+          contentType,
+          isStatic,
+          isDev,
+          xCache
+        )
+        if (!result.finished) {
+          createReadStream(fsPath).pipe(res)
+        }
+        if (isFresh) {
           return { finished: true }
         } else {
           await promises.unlink(fsPath)
+          staleWhileRevalidate = true
         }
       }
     }
@@ -248,8 +258,17 @@ export async function imageOptimizer(
         mockRes.write = (chunk: Buffer | string) => {
           resBuffers.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
         }
-        mockRes._write = (chunk: Buffer | string) => {
+        mockRes._write = (
+          chunk: Buffer | string,
+          _encoding: string,
+          callback: () => void
+        ) => {
           mockRes.write(chunk)
+          // According to Node.js documentation, the callback MUST be invoked to signal that
+          // the write completed successfully. If this callback is not invoked, the 'finish' event
+          // will not be emitted.
+          // https://nodejs.org/docs/latest-v16.x/api/stream.html#writable_writechunk-encoding-callback
+          callback()
         }
 
         const mockHeaders: Record<string, string | string[]> = {}
@@ -282,14 +301,9 @@ export async function imageOptimizer(
         mockReq.url = href
         mockReq.connection = req.connection
 
-        await server.getRequestHandler()(
-          mockReq,
-          mockRes,
-          nodeUrl.parse(href, true)
-        )
+        await handleRequest(mockReq, mockRes, nodeUrl.parse(href, true))
         await isStreamFinished
         res.statusCode = mockRes.statusCode
-
         upstreamBuffer = Buffer.concat(resBuffers)
         upstreamType =
           detectContentType(upstreamBuffer) || mockRes.getHeader('Content-Type')
@@ -323,11 +337,11 @@ export async function imageOptimizer(
           upstreamType,
           upstreamBuffer,
           isStatic,
-          isDev
+          isDev,
+          staleWhileRevalidate
         )
         return { finished: true }
       }
-
       if (!upstreamType.startsWith('image/')) {
         res.statusCode = 400
         res.end("The requested resource isn't a valid image.")
@@ -387,6 +401,19 @@ export async function imageOptimizer(
         optimizedBuffer = await transformer.toBuffer()
         // End sharp transformation logic
       } else {
+        if (
+          showSharpMissingWarning &&
+          nextConfig.experimental?.outputStandalone
+        ) {
+          // TODO: should we ensure squoosh also works even though we don't
+          // recommend it be used in production and this is a production feature
+          console.error(
+            `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly`
+          )
+          req.statusCode = 500
+          res.end('internal server error')
+          return { finished: true }
+        }
         // Show sharp warning in production once
         if (showSharpMissingWarning) {
           console.warn(
@@ -464,7 +491,8 @@ export async function imageOptimizer(
           contentType,
           optimizedBuffer,
           isStatic,
-          isDev
+          isDev,
+          staleWhileRevalidate
         )
       } else {
         throw new Error('Unable to optimize buffer')
@@ -478,7 +506,8 @@ export async function imageOptimizer(
         upstreamType,
         upstreamBuffer,
         isStatic,
-        isDev
+        isDev,
+        staleWhileRevalidate
       )
     }
 
@@ -527,7 +556,8 @@ function setResponseHeaders(
   maxAge: number,
   contentType: string | null,
   isStatic: boolean,
-  isDev: boolean
+  isDev: boolean,
+  xCache: 'MISS' | 'HIT' | 'STALE'
 ) {
   res.setHeader('Vary', 'Accept')
   res.setHeader(
@@ -553,6 +583,7 @@ function setResponseHeaders(
   }
 
   res.setHeader('Content-Security-Policy', `script-src 'none'; sandbox;`)
+  res.setHeader('X-Nextjs-Cache', xCache)
 
   return { finished: false }
 }
@@ -565,8 +596,13 @@ function sendResponse(
   contentType: string | null,
   buffer: Buffer,
   isStatic: boolean,
-  isDev: boolean
+  isDev: boolean,
+  staleWhileRevalidate: boolean
 ) {
+  if (staleWhileRevalidate) {
+    return
+  }
+  const xCache = 'MISS'
   const etag = getHash([buffer])
   const result = setResponseHeaders(
     req,
@@ -576,7 +612,8 @@ function sendResponse(
     maxAge,
     contentType,
     isStatic,
-    isDev
+    isDev,
+    xCache
   )
   if (!result.finished) {
     res.end(buffer)

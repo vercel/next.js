@@ -1,6 +1,5 @@
-import React from 'react'
+import React, { useRef, useEffect } from 'react'
 import Head from '../shared/lib/head'
-import { toBase64 } from '../shared/lib/to-base-64'
 import {
   ImageConfigComplete,
   imageConfigDefault,
@@ -102,6 +101,7 @@ export type ImageProps = Omit<
   quality?: number | string
   priority?: boolean
   loading?: LoadingValue
+  lazyRoot?: React.RefObject<HTMLElement> | null
   lazyBoundary?: string
   placeholder?: PlaceholderValue
   blurDataURL?: string
@@ -251,35 +251,42 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
 // See https://stackoverflow.com/q/39777833/266535 for why we use this ref
 // handler instead of the img's onLoad attribute.
 function handleLoading(
-  img: HTMLImageElement | null,
+  imgRef: React.RefObject<HTMLImageElement>,
   src: string,
   layout: LayoutValue,
   placeholder: PlaceholderValue,
-  onLoadingComplete?: OnLoadingComplete
+  onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
 ) {
-  if (!img) {
-    return
-  }
   const handleLoad = () => {
+    const img = imgRef.current
+    if (!img) {
+      return
+    }
     if (img.src !== emptyDataURL) {
       const p = 'decode' in img ? img.decode() : Promise.resolve()
       p.catch(() => {}).then(() => {
-        if (placeholder === 'blur') {
-          img.style.filter = 'none'
-          img.style.backgroundSize = 'none'
-          img.style.backgroundImage = 'none'
+        if (!imgRef.current) {
+          return
         }
         loadedImageURLs.add(src)
-        if (onLoadingComplete) {
+        if (placeholder === 'blur') {
+          img.style.filter = ''
+          img.style.backgroundSize = ''
+          img.style.backgroundImage = ''
+          img.style.backgroundPosition = ''
+        }
+        if (onLoadingCompleteRef.current) {
           const { naturalWidth, naturalHeight } = img
           // Pass back read-only primitive values but not the
           // underlying DOM element because it could be misused.
-          onLoadingComplete({ naturalWidth, naturalHeight })
+          onLoadingCompleteRef.current({ naturalWidth, naturalHeight })
         }
         if (process.env.NODE_ENV !== 'production') {
           if (img.parentElement?.parentElement) {
             const parent = getComputedStyle(img.parentElement.parentElement)
-            if (layout === 'responsive' && parent.display === 'flex') {
+            if (!parent.position) {
+              // The parent has not been rendered to the dom yet and therefore it has no position. Skip the warnings for such cases.
+            } else if (layout === 'responsive' && parent.display === 'flex') {
               console.warn(
                 `Image with src "${src}" may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width.`
               )
@@ -297,13 +304,15 @@ function handleLoading(
       })
     }
   }
-  if (img.complete) {
-    // If the real image fails to load, this will still remove the placeholder.
-    // This is the desired behavior for now, and will be revisited when error
-    // handling is worked on for the image component itself.
-    handleLoad()
-  } else {
-    img.onload = handleLoad
+  if (imgRef.current) {
+    if (imgRef.current.complete) {
+      // If the real image fails to load, this will still remove the placeholder.
+      // This is the desired behavior for now, and will be revisited when error
+      // handling is worked on for the image component itself.
+      handleLoad()
+    } else {
+      imgRef.current.onload = handleLoad
+    }
   }
 }
 
@@ -313,6 +322,7 @@ export default function Image({
   unoptimized = false,
   priority = false,
   loading,
+  lazyRoot = null,
   lazyBoundary = '200px',
   className,
   quality,
@@ -326,6 +336,7 @@ export default function Image({
   blurDataURL,
   ...all
 }: ImageProps) {
+  const imgRef = useRef<HTMLImageElement>(null)
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
   if ('layout' in rest) {
@@ -502,7 +513,8 @@ export default function Image({
     }
   }
 
-  const [setRef, isIntersected] = useIntersection<HTMLImageElement>({
+  const [setIntersection, isIntersected] = useIntersection<HTMLImageElement>({
+    rootRef: lazyRoot,
     rootMargin: lazyBoundary,
     disabled: !isLazy,
   })
@@ -532,7 +544,7 @@ export default function Image({
     padding: 0,
   }
   let hasSizer = false
-  let sizerSvg: string | undefined
+  let sizerSvgUrl: string | undefined
   const imgStyle: ImgElementStyle = {
     position: 'absolute',
     top: 0,
@@ -593,7 +605,8 @@ export default function Image({
       wrapperStyle.maxWidth = '100%'
       hasSizer = true
       sizerStyle.maxWidth = '100%'
-      sizerSvg = `<svg width="${widthInt}" height="${heightInt}" xmlns="http://www.w3.org/2000/svg" version="1.1"/>`
+      // url encoded svg is a little bit shorten than base64 encoding
+      sizerSvgUrl = `data:image/svg+xml,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 version=%271.1%27 width=%27${widthInt}%27 height=%27${heightInt}%27/%3e`
     } else if (layout === 'fixed') {
       // <Image src="i.png" width="100" height="100" layout="fixed" />
       wrapperStyle.display = 'inline-block'
@@ -642,11 +655,39 @@ export default function Image({
     }
   }
 
+  let imageSrcSetPropName = 'imagesrcset'
+  let imageSizesPropName = 'imagesizes'
+  if (process.env.__NEXT_REACT_ROOT) {
+    imageSrcSetPropName = 'imageSrcSet'
+    imageSizesPropName = 'imageSizes'
+  }
+  const linkProps = {
+    // Note: imagesrcset and imagesizes are not in the link element type with react 17.
+    [imageSrcSetPropName]: imgAttributes.srcSet,
+    [imageSizesPropName]: imgAttributes.sizes,
+  }
+
+  const useLayoutEffect =
+    typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
+  const onLoadingCompleteRef = useRef(onLoadingComplete)
+
+  useEffect(() => {
+    onLoadingCompleteRef.current = onLoadingComplete
+  }, [onLoadingComplete])
+
+  useLayoutEffect(() => {
+    setIntersection(imgRef.current)
+  }, [setIntersection])
+
+  useEffect(() => {
+    handleLoading(imgRef, srcString, layout, placeholder, onLoadingCompleteRef)
+  }, [srcString, layout, placeholder, isVisible])
+
   return (
     <span style={wrapperStyle}>
       {hasSizer ? (
         <span style={sizerStyle}>
-          {sizerSvg ? (
+          {sizerSvgUrl ? (
             <img
               style={{
                 display: 'block',
@@ -661,7 +702,7 @@ export default function Image({
               }}
               alt=""
               aria-hidden={true}
-              src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
+              src={sizerSvgUrl}
             />
           ) : null}
         </span>
@@ -672,32 +713,31 @@ export default function Image({
         decoding="async"
         data-nimg={layout}
         className={className}
-        ref={(img) => {
-          setRef(img)
-          handleLoading(img, srcString, layout, placeholder, onLoadingComplete)
-        }}
+        ref={imgRef}
         style={{ ...imgStyle, ...blurStyle }}
       />
-      <noscript>
-        <img
-          {...rest}
-          {...generateImgAttrs({
-            src,
-            unoptimized,
-            layout,
-            width: widthInt,
-            quality: qualityInt,
-            sizes,
-            loader,
-          })}
-          decoding="async"
-          data-nimg={layout}
-          style={imgStyle}
-          className={className}
-          // @ts-ignore - TODO: upgrade to `@types/react@17`
-          loading={loading || 'lazy'}
-        />
-      </noscript>
+      {isLazy && (
+        <noscript>
+          <img
+            {...rest}
+            {...generateImgAttrs({
+              src,
+              unoptimized,
+              layout,
+              width: widthInt,
+              quality: qualityInt,
+              sizes,
+              loader,
+            })}
+            decoding="async"
+            data-nimg={layout}
+            style={imgStyle}
+            className={className}
+            // @ts-ignore - TODO: upgrade to `@types/react@17`
+            loading={loading || 'lazy'}
+          />
+        </noscript>
+      )}
 
       {priority ? (
         // Note how we omit the `href` attribute, as it would only be relevant
@@ -716,11 +756,8 @@ export default function Image({
             rel="preload"
             as="image"
             href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-            // @ts-ignore: imagesrcset is not yet in the link element type.
-            imagesrcset={imgAttributes.srcSet}
-            // @ts-ignore: imagesizes is not yet in the link element type.
-            imagesizes={imgAttributes.sizes}
-          ></link>
+            {...linkProps}
+          />
         </Head>
       ) : null}
     </span>

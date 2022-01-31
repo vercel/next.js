@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import path from 'path'
 
 import findUp from 'next/dist/compiled/find-up'
@@ -18,7 +18,7 @@ import { isYarn } from '../is-yarn'
 
 import * as Log from '../../build/output/log'
 import { EventLintCheckCompleted } from '../../telemetry/events/build'
-import isError from '../is-error'
+import isError, { getProperError } from '../is-error'
 
 type Config = {
   plugins: string[]
@@ -221,7 +221,7 @@ async function lint(
       )
       return null
     } else {
-      throw new Error(err + '')
+      throw getProperError(err)
     }
   }
 }

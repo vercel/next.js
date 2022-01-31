@@ -1,39 +1,52 @@
+import type { NextConfig } from '../../../../server/config-shared'
+
 import { NextRequest } from '../../../../server/web/spec-extension/request'
-import { renderToHTML } from '../../../../server/web/render'
-import RenderResult from '../../../../server/render-result'
 import { toNodeHeaders } from '../../../../server/web/utils'
+
+import WebServer from '../../../../server/web-server'
+import { WebNextRequest, WebNextResponse } from '../../../../server/base-http'
 
 const createHeaders = (args?: any) => ({
   ...args,
   'x-middleware-ssr': '1',
+  'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
 })
 
+function sendError(req: any, error: Error) {
+  const defaultMessage = 'An error occurred while rendering ' + req.url + '.'
+  return new Response((error && error.message) || defaultMessage, {
+    status: 500,
+    headers: createHeaders(),
+  })
+}
+
 export function getRender({
-  App,
   Document,
-  pageMod,
-  errorMod,
-  rscManifest,
-  buildManifest,
-  reactLoadableManifest,
   isServerComponent,
-  restRenderOpts,
+  config,
 }: {
-  App: any
   Document: any
-  pageMod: any
-  errorMod: any
-  rscManifest: object
-  buildManifest: any
-  reactLoadableManifest: any
   isServerComponent: boolean
-  restRenderOpts: any
+  config: NextConfig
 }) {
+  // Polyfilled for `path-browserify`.
+  process.cwd = () => ''
+  const server = new WebServer({
+    conf: config,
+    minimalMode: true,
+  })
+  const requestHandler = server.getRequestHandler()
+
   return async function render(request: NextRequest) {
     const { nextUrl: url, cookies, headers } = request
     const { pathname, searchParams } = url
 
     const query = Object.fromEntries(searchParams)
+    const req = {
+      url: pathname,
+      cookies,
+      headers: toNodeHeaders(headers),
+    }
 
     // Preflight request
     if (request.method === 'HEAD') {
@@ -42,102 +55,32 @@ export function getRender({
       })
     }
 
+    // @TODO: We should move this into server/render.
+    if (Document.getInitialProps) {
+      const err = new Error(
+        '`getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
+      )
+      return sendError(req, err)
+    }
+
     const renderServerComponentData = isServerComponent
       ? query.__flight__ !== undefined
       : false
-    delete query.__flight__
 
-    const req = {
-      url: pathname,
-      cookies,
-      headers: toNodeHeaders(headers),
-    }
-    const renderOpts = {
-      ...restRenderOpts,
-      // Locales are not supported yet.
-      // locales: i18n?.locales,
-      // locale: detectedLocale,
-      // defaultLocale,
-      // domainLocales: i18n?.domains,
-      dev: process.env.NODE_ENV !== 'production',
-      App,
-      Document,
-      buildManifest,
-      Component: pageMod.default,
-      pageConfig: pageMod.config || {},
-      getStaticProps: pageMod.getStaticProps,
-      getServerSideProps: pageMod.getServerSideProps,
-      getStaticPaths: pageMod.getStaticPaths,
-      reactLoadableManifest,
-      env: process.env,
-      supportsDynamicHTML: true,
-      concurrentFeatures: true,
+    const serverComponentProps =
+      isServerComponent && query.__props__
+        ? JSON.parse(query.__props__)
+        : undefined
+
+    // Extend the context.
+    Object.assign((self as any).__server_context, {
       renderServerComponentData,
-      serverComponentManifest: isServerComponent ? rscManifest : null,
-      ComponentMod: null,
-    }
-
-    const transformStream = new TransformStream()
-    const writer = transformStream.writable.getWriter()
-    const encoder = new TextEncoder()
-
-    let result: RenderResult | null
-    try {
-      result = await renderToHTML(
-        req as any,
-        {} as any,
-        pathname,
-        query,
-        renderOpts
-      )
-    } catch (err: any) {
-      const errorRes = { statusCode: 500, err }
-      try {
-        result = await renderToHTML(
-          req as any,
-          errorRes as any,
-          '/_error',
-          query,
-          {
-            ...renderOpts,
-            Component: errorMod.default,
-            getStaticProps: errorMod.getStaticProps,
-            getServerSideProps: errorMod.getServerSideProps,
-            getStaticPaths: errorMod.getStaticPaths,
-          }
-        )
-      } catch (err2: any) {
-        return new Response(
-          (
-            err2 || 'An error occurred while rendering ' + pathname + '.'
-          ).toString(),
-          {
-            status: 500,
-            headers: createHeaders(),
-          }
-        )
-      }
-    }
-
-    if (!result) {
-      return new Response(
-        'An error occurred while rendering ' + pathname + '.',
-        {
-          status: 500,
-          headers: createHeaders(),
-        }
-      )
-    }
-
-    result.pipe({
-      write: (str: string) => writer.write(encoder.encode(str)),
-      end: () => writer.close(),
-      // Not implemented: cork/uncork/on/removeListener
-    } as any)
-
-    return new Response(transformStream.readable, {
-      headers: createHeaders(),
-      status: 200,
+      serverComponentProps,
     })
+
+    const extendedReq = new WebNextRequest(request)
+    const extendedRes = new WebNextResponse()
+    requestHandler(extendedReq, extendedRes)
+    return await extendedRes.toResponse()
   }
 }

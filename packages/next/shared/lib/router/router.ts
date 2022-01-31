@@ -18,7 +18,7 @@ import {
 } from '../../../client/route-loader'
 import { RouterEvent } from '../../../client/router'
 import { handleClientScriptLoad } from '../../../client/script'
-import isError from '../../../lib/is-error'
+import isError, { getProperError } from '../../../lib/is-error'
 import { denormalizePagePath } from '../../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt from '../mitt'
@@ -65,6 +65,7 @@ interface NextHistoryState {
 }
 
 interface PreflightData {
+  cache?: string | null
   redirect?: string | null
   refresh?: boolean
   rewrite?: string | null
@@ -826,7 +827,11 @@ export default class Router implements BaseRouter {
 
     // Make sure we don't re-render on initial load,
     // can be caused by navigating back from an external site
-    if (this.isSsr && as === this.asPath && pathname === this.pathname) {
+    if (
+      this.isSsr &&
+      as === addBasePath(this.asPath) &&
+      pathname === addBasePath(this.pathname)
+    ) {
       return
     }
 
@@ -1136,11 +1141,14 @@ export default class Router implements BaseRouter {
     resolvedAs = delLocale(delBasePath(resolvedAs), this.locale)
 
     /**
-     * If the route update was triggered for client-side hydration then
-     * do not check the preflight request. Otherwise when rendering
-     * a page with refresh it might get into an infinite loop.
+     * If the route update was triggered for client-side hydration and
+     * the rendered route is not dynamic do not check the preflight
+     * request as it is not necessary.
      */
-    if ((options as any)._h !== 1) {
+    if (
+      (options as any)._h !== 1 ||
+      isDynamicRoute(removePathTrailingSlash(pathname))
+    ) {
       const effect = await this._preflightRequest({
         as,
         cache: process.env.NODE_ENV === 'production',
@@ -1160,7 +1168,7 @@ export default class Router implements BaseRouter {
       } else if (effect.type === 'redirect' && effect.destination) {
         window.location.href = effect.destination
         return new Promise(() => {})
-      } else if (effect.type === 'refresh') {
+      } else if (effect.type === 'refresh' && as !== window.location.pathname) {
         window.location.href = as
         return new Promise(() => {})
       }
@@ -1503,7 +1511,7 @@ export default class Router implements BaseRouter {
       const { Component, __N_SSG, __N_SSP, __N_RSC } = routeInfo
 
       if (process.env.NODE_ENV !== 'production') {
-        const { isValidElementType } = require('react-is')
+        const { isValidElementType } = require('next/dist/compiled/react-is')
         if (!isValidElementType(Component)) {
           throw new Error(
             `The default export is not a React Component in page: "${pathname}"`
@@ -1561,7 +1569,7 @@ export default class Router implements BaseRouter {
       return routeInfo
     } catch (err) {
       return this.handleRouteInfoError(
-        isError(err) ? err : new Error(err + ''),
+        getProperError(err),
         pathname,
         query,
         as,
@@ -1618,7 +1626,7 @@ export default class Router implements BaseRouter {
   }
 
   scrollToHash(as: string): void {
-    const [, hash] = as.split('#')
+    const [, hash = ''] = as.split('#')
     // Scroll to top if the hash is just `#` with no value or `#top`
     // To mirror browsers
     if (hash === '' || hash === 'top') {
@@ -1812,15 +1820,9 @@ export default class Router implements BaseRouter {
   }
 
   _getFlightData(dataHref: string): Promise<object> {
-    const { href: cacheKey } = new URL(dataHref, window.location.href)
-
-    if (!this.isPreview && this.sdc[cacheKey]) {
-      return Promise.resolve({ fresh: false, data: this.sdc[cacheKey] })
-    }
-
+    // Do not cache RSC flight response since it's not a static resource
     return fetchNextData(dataHref, true, true, this.sdc, false).then(
       (serialized) => {
-        this.sdc[cacheKey] = serialized
         return { fresh: true, data: serialized }
       }
     )
@@ -1959,6 +1961,7 @@ export default class Router implements BaseRouter {
         }
 
         return {
+          cache: res.headers.get('x-middleware-cache'),
           redirect: res.headers.get('Location'),
           refresh: res.headers.has('x-middleware-refresh'),
           rewrite: res.headers.get('x-middleware-rewrite'),
@@ -1966,7 +1969,7 @@ export default class Router implements BaseRouter {
         }
       })
       .then((data) => {
-        if (shouldCache) {
+        if (shouldCache && data.cache !== 'no-cache') {
           this.sde[cacheKey] = data
         }
 

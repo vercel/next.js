@@ -118,7 +118,7 @@ Checkout my React component:
 
 <MyComponent/>
 
-export default = ({ children }) => <MyLayoutComponent meta={meta}>{children}</MyLayoutComponent>
+export default ({ children }) => <MyLayoutComponent meta={meta}>{children}</MyLayoutComponent>
 ```
 
 ### Custom Elements
@@ -140,9 +140,9 @@ This is a list in markdown:
 The above generates the following `HTML`:
 
 ```html
-<h1 id="h1-heading">H1 heading</h1>
+<h1>H1 heading</h1>
 
-<h2 id="h2-heading">H2 heading</h2>
+<h2>H2 heading</h2>
 
 <p>This is a list in markdown:</p>
 

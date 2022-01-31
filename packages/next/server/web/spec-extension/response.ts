@@ -1,8 +1,8 @@
 import type { I18NConfig } from '../../config-shared'
-import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import { NextURL } from '../next-url'
-import { toNodeHeaders } from '../utils'
+import { toNodeHeaders, validateURL } from '../utils'
 import cookie from 'next/dist/compiled/cookie'
+import { CookieSerializeOptions } from '../types'
 
 const INTERNALS = Symbol('internal response')
 const REDIRECTS = new Set([301, 302, 303, 307, 308])
@@ -73,15 +73,16 @@ export class NextResponse extends Response {
     })
   }
 
-  static redirect(url: string | NextURL, status = 302) {
+  static redirect(url: string | NextURL | URL, status = 302) {
     if (!REDIRECTS.has(status)) {
       throw new RangeError(
         'Failed to execute "redirect" on "response": Invalid status code'
       )
     }
 
-    return new NextResponse(null, {
-      headers: { Location: typeof url === 'string' ? url : url.toString() },
+    const destination = validateURL(url)
+    return new NextResponse(destination, {
+      headers: { Location: destination },
       status,
     })
   }
@@ -89,10 +90,7 @@ export class NextResponse extends Response {
   static rewrite(destination: string | NextURL) {
     return new NextResponse(null, {
       headers: {
-        'x-middleware-rewrite':
-          typeof destination === 'string'
-            ? destination
-            : destination.toString(),
+        'x-middleware-rewrite': validateURL(destination),
       },
     })
   }

@@ -4,7 +4,7 @@ function NavigationItem({ active , className  }) {
         active
     }, className, "navigation-item") || "")}>
 
-      <_JSXStyle id={"2342aae4628612c6"}>{".navigation-item.jsx-2342aae4628612c6 a::after {content:attr(data-text);\ncontent: attr(data-text) / ''}"}</_JSXStyle>
+      <_JSXStyle id={"2342aae4628612c6"}>{".navigation-item.jsx-2342aae4628612c6 a::after{content:attr(data-text);\ncontent: attr(data-text) / ''}"}</_JSXStyle>
 
     </span>;
 }

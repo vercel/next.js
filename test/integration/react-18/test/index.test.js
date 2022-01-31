@@ -24,8 +24,6 @@ const nextConfig = new File(join(appDir, 'next.config.js'))
 const dynamicHello = new File(join(appDir, 'components/dynamic-hello.js'))
 const unwrappedPage = new File(join(appDir, 'pages/suspense/unwrapped.js'))
 
-const UNSUPPORTED_PRERELEASE =
-  "You are using an unsupported prerelease of 'react-dom'"
 const USING_CREATE_ROOT = 'Using the createRoot API for React'
 
 async function getBuildOutput(dir) {
@@ -58,25 +56,23 @@ async function getDevOutput(dir) {
 }
 
 describe('React 18 Support', () => {
-  describe('no warns with stable supported version of react-dom', () => {
+  describe('Use legacy render', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, 'node_modules'))
-      nextConfig.replace('reactRoot: true', '// reactRoot: true')
+      nextConfig.replace('reactRoot: true', 'reactRoot: false')
     })
     afterAll(() => {
-      nextConfig.replace('// reactRoot: true', 'reactRoot: true')
+      nextConfig.replace('reactRoot: false', 'reactRoot: true')
     })
 
     test('supported version of react in dev', async () => {
       const output = await getDevOutput(appDir)
       expect(output).not.toMatch(USING_CREATE_ROOT)
-      expect(output).not.toMatch(UNSUPPORTED_PRERELEASE)
     })
 
     test('supported version of react in build', async () => {
       const output = await getBuildOutput(appDir)
       expect(output).not.toMatch(USING_CREATE_ROOT)
-      expect(output).not.toMatch(UNSUPPORTED_PRERELEASE)
     })
 
     test('suspense is not allowed in blocking rendering mode (prod)', async () => {
@@ -88,32 +84,6 @@ describe('React 18 Support', () => {
       expect(stderr).toContain(
         'Invalid suspense option usage in next/dynamic. Read more: https://nextjs.org/docs/messages/invalid-dynamic-suspense'
       )
-    })
-  })
-
-  describe('warns with stable supported version of react-dom', () => {
-    beforeAll(async () => {
-      const reactDomPkgPath = join(
-        appDir,
-        'node_modules/react-dom/package.json'
-      )
-      await fs.outputJson(reactDomPkgPath, {
-        name: 'react-dom',
-        version: '18.0.0-alpha-c76e4dbbc-20210722',
-      })
-    })
-    afterAll(async () => await fs.remove(join(appDir, 'node_modules')))
-
-    test('prerelease version of react in dev', async () => {
-      const output = await getDevOutput(appDir)
-      expect(output).toMatch(USING_CREATE_ROOT)
-      expect(output).toMatch(UNSUPPORTED_PRERELEASE)
-    })
-
-    test('prerelease version of react in build', async () => {
-      const output = await getBuildOutput(appDir)
-      expect(output).toMatch(USING_CREATE_ROOT)
-      expect(output).toMatch(UNSUPPORTED_PRERELEASE)
     })
   })
 })
@@ -208,14 +178,21 @@ function runTest(mode, name, fn) {
   describe(`${name} (${mode})`, () => {
     beforeAll(async () => {
       context.appPort = await findPort()
+      context.stderr = ''
       if (mode === 'dev') {
         context.server = await launchApp(context.appDir, context.appPort, {
           nodeArgs,
+          onStderr(msg) {
+            context.stderr += msg
+          },
         })
       } else {
         await nextBuild(context.appDir, [], { nodeArgs })
         context.server = await nextStart(context.appDir, context.appPort, {
           nodeArgs,
+          onStderr(msg) {
+            context.stderr += msg
+          },
         })
       }
     })

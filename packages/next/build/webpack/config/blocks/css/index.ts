@@ -42,7 +42,6 @@ let postcssInstancePromise: Promise<any>
 export async function lazyPostCSS(
   rootDirectory: string,
   supportedBrowsers: string[] | undefined,
-  strictPostcssConfiguration: boolean | undefined,
   disablePostcssPresetEnv: boolean | undefined
 ) {
   if (!postcssInstancePromise) {
@@ -117,7 +116,6 @@ export async function lazyPostCSS(
       const postCssPlugins = await getPostCssPlugins(
         rootDirectory,
         supportedBrowsers,
-        strictPostcssConfiguration,
         disablePostcssPresetEnv
       )
 
@@ -141,11 +139,10 @@ export const css = curry(async function css(
     ...sassOptions
   } = ctx.sassOptions
 
-  const lazyPostCSSInitalizer = () =>
+  const lazyPostCSSInitializer = () =>
     lazyPostCSS(
       ctx.rootDirectory,
       ctx.supportedBrowsers,
-      ctx.future.strictPostcssConfiguration,
       ctx.experimental.disablePostcssPresetEnv
     )
 
@@ -168,8 +165,9 @@ export const css = curry(async function css(
     // To fix this, we use `resolve-url-loader` to rewrite the CSS
     // imports to real file paths.
     {
-      loader: require.resolve('next/dist/compiled/resolve-url-loader'),
+      loader: require.resolve('../../../loaders/resolve-url-loader/index'),
       options: {
+        postcss: lazyPostCSSInitializer,
         // Source maps are not required here, but we may as well emit
         // them.
         sourceMap: true,
@@ -219,7 +217,7 @@ export const css = curry(async function css(
             and: [ctx.rootDirectory],
             not: [/node_modules/],
           },
-          use: getCssModuleLoader(ctx, lazyPostCSSInitalizer),
+          use: getCssModuleLoader(ctx, lazyPostCSSInitializer),
         }),
       ],
     })
@@ -244,7 +242,7 @@ export const css = curry(async function css(
           },
           use: getCssModuleLoader(
             ctx,
-            lazyPostCSSInitalizer,
+            lazyPostCSSInitializer,
             sassPreprocessors
           ),
         }),
@@ -306,7 +304,7 @@ export const css = curry(async function css(
                   and: [ctx.rootDirectory],
                   not: [/node_modules/],
                 },
-            use: getGlobalCssLoader(ctx, lazyPostCSSInitalizer),
+            use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
           }),
         ],
       })
@@ -324,7 +322,7 @@ export const css = curry(async function css(
               sideEffects: true,
               test: regexCssGlobal,
               issuer: { and: [ctx.customAppFile] },
-              use: getGlobalCssLoader(ctx, lazyPostCSSInitalizer),
+              use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
             }),
           ],
         })
@@ -342,7 +340,7 @@ export const css = curry(async function css(
               issuer: { and: [ctx.customAppFile] },
               use: getGlobalCssLoader(
                 ctx,
-                lazyPostCSSInitalizer,
+                lazyPostCSSInitializer,
                 sassPreprocessors
               ),
             }),
