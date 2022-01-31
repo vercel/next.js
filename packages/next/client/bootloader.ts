@@ -29,7 +29,5 @@ export function onBoot(callback: () => void) {
     },
   })
 
-  for (const command of queuedCommands) {
-    bootloader.push(command)
-  }
+  queuedCommands.forEach((command) => bootloader.push(command))
 }
