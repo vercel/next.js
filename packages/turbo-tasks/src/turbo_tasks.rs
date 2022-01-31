@@ -15,7 +15,7 @@ use async_std::{
 };
 use chashmap::CHashMap;
 
-use crate::{task::NativeTaskFn, NativeFunction, NodeRef, Task};
+use crate::{task::NativeTaskFuture, NativeFunction, NodeRef, Task};
 
 pub struct TurboTasks {
     interning_map: CHashMap<Box<dyn AnyHash + Send + Sync>, NodeRef>,
@@ -39,8 +39,11 @@ impl TurboTasks {
         }))
     }
 
-    pub fn spawn_root_task(&'static self, native_fn: NativeTaskFn) -> Arc<Task> {
-        let task = Arc::new(Task::new(native_fn));
+    pub fn spawn_root_task(
+        &'static self,
+        functor: impl Fn() -> NativeTaskFuture + Sync + Send + 'static,
+    ) -> Arc<Task> {
+        let task = Arc::new(Task::new_root(functor));
         self.schedule(task.clone());
         task
     }
@@ -49,28 +52,28 @@ impl TurboTasks {
         self: &'static TurboTasks,
         func: &'static NativeFunction,
         inputs: Vec<NodeRef>,
-    ) -> Result<Pin<Box<dyn Future<Output = NodeRef> + Sync + Send>>> {
-        let mut task = Err(anyhow!("Unreachable"));
+    ) -> Result<Pin<Box<dyn Future<Output = Option<NodeRef>> + Sync + Send>>> {
+        let mut result_task = Err(anyhow!("Unreachable"));
         self.task_cache
             .alter((func, inputs.clone()), |old| match old {
                 Some(t) => {
-                    task = Ok(t.clone());
+                    result_task = Ok(t.clone());
                     Some(t)
                 }
-                None => match func.bind(inputs) {
-                    Ok(functor) => {
-                        let new_task = Arc::new(Task::new(functor));
+                None => match Task::new_native(inputs, func) {
+                    Ok(task) => {
+                        let new_task = Arc::new(task);
                         self.schedule(new_task.clone());
-                        task = Ok(new_task.clone());
+                        result_task = Ok(new_task.clone());
                         Some(new_task)
                     }
                     Err(err) => {
-                        task = Err(err);
+                        result_task = Err(err);
                         None
                     }
                 },
             });
-        return Ok(Box::pin(task?.into_output(self)));
+        return Ok(Box::pin(result_task?.into_output(self)));
     }
 
     pub(crate) fn schedule(&'static self, task: Arc<Task>) -> JoinHandle<()> {
@@ -123,7 +126,7 @@ impl TurboTasks {
 pub fn dynamic_call(
     func: &'static NativeFunction,
     inputs: Vec<NodeRef>,
-) -> Result<Pin<Box<dyn Future<Output = NodeRef> + Sync + Send>>> {
+) -> Result<Pin<Box<dyn Future<Output = Option<NodeRef>> + Sync + Send>>> {
     let tt = TurboTasks::current()
         .ok_or_else(|| anyhow!("tried to call dynamic_call outside of turbo tasks"))?;
     tt.dynamic_call(func, inputs)

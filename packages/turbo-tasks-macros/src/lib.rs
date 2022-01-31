@@ -11,9 +11,10 @@ use syn::{
     parse_macro_input, parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
+    token::Paren,
     Attribute, Error, Fields, FnArg, ImplItem, ImplItemMethod, ItemFn, ItemImpl, ItemStruct,
     ItemTrait, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver, Result,
-    ReturnType, Signature, Token, TraitItem, TraitItemMethod, Type, TypePath,
+    ReturnType, Signature, Token, TraitItem, TraitItemMethod, Type, TypePath, TypeTuple,
 };
 
 fn get_ref_ident(ident: &Ident) -> Ident {
@@ -281,11 +282,16 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
                     }),
                 });
                 let method_args: Vec<_> = inputs.iter().collect();
+                let convert_result_code = if is_empty_type(&ty) {
+                    quote! { result.await; }
+                } else {
+                    quote! { #ty::from_node(result.await.unwrap()).unwrap() }
+                };
                 trait_fns.push(quote! {
                     pub fn #method_ident(#(#method_args),*) -> impl std::future::Future<Output = #ty> {
                         let trait_method = self.node.get_trait_method(#ident.#method_ident());
                         let result = turbo_tasks::dynamic_call(trait_method, vec![self.clone().into(), #(#args),*]).unwrap();
-                        async { #ty::from_node(result.await).unwrap() }
+                        async { #convert_result_code }
                     }
                 })
             }
@@ -469,18 +475,32 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
         for item in items.iter() {
             match item {
                 ImplItem::Method(ImplItemMethod {
-                    sig: Signature { ident, inputs, .. },
+                    sig:
+                        Signature {
+                            ident,
+                            inputs,
+                            output,
+                            ..
+                        },
                     ..
                 }) => {
+                    let output_type = match output {
+                        ReturnType::Default => Type::Tuple(TypeTuple {
+                            paren_token: Paren::default(),
+                            elems: Punctuated::new(),
+                        }),
+                        ReturnType::Type(_, ref output_type) => (**output_type).clone(),
+                    };
                     let function_ident = get_trait_impl_function_ident(struct_ident, ident);
                     trait_registers.push(quote! {
                         node_type.register_trait_method(#trait_ident.#ident(), &*#function_ident);
                     });
                     let native_function_code = gen_native_function_code(
-                        ident,
+                        quote! { stringify!(#trait_ident::#ident) },
                         quote! { #trait_ident::#ident },
                         &function_ident,
                         inputs,
+                        &output_type,
                         Some(&ref_ident),
                     );
                     impl_functions.push(quote! {
@@ -566,95 +586,112 @@ pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
         sig,
         block,
     } = &item;
-    if let ReturnType::Type(_, ref output_type) = sig.output {
-        let ident = &sig.ident;
-        let function_ident = get_function_ident(ident);
-        let inline_ident = get_internal_function_ident(ident);
+    let output_type = match sig.output {
+        ReturnType::Default => Type::Tuple(TypeTuple {
+            paren_token: Paren::default(),
+            elems: Punctuated::new(),
+        }),
+        ReturnType::Type(_, ref output_type) => (**output_type).clone(),
+    };
+    let ident = &sig.ident;
+    let function_ident = get_function_ident(ident);
+    let inline_ident = get_internal_function_ident(ident);
 
-        let mut inline_sig = sig.clone();
-        inline_sig.ident = inline_ident.clone();
+    let mut inline_sig = sig.clone();
+    inline_sig.ident = inline_ident.clone();
 
-        let mut external_sig = sig.clone();
-        external_sig.asyncness = None;
-        external_sig.output = parse_quote! { -> impl std::future::Future<Output = #output_type> };
+    let mut external_sig = sig.clone();
+    external_sig.asyncness = None;
+    external_sig.output = parse_quote! { -> impl std::future::Future<Output = #output_type> };
 
-        let mut input_extraction = Vec::new();
-        let mut input_verification = Vec::new();
-        let mut input_clone = Vec::new();
-        let mut input_from_node = Vec::new();
-        let mut input_arguments = Vec::new();
-        let mut input_node_arguments = Vec::new();
+    let mut input_extraction = Vec::new();
+    let mut input_verification = Vec::new();
+    let mut input_clone = Vec::new();
+    let mut input_from_node = Vec::new();
+    let mut input_arguments = Vec::new();
+    let mut input_node_arguments = Vec::new();
 
-        let mut index: i32 = 1;
+    let mut index: i32 = 1;
 
-        for input in sig.inputs.iter() {
-            match input {
-                FnArg::Receiver(_) => {
-                    item.span()
-                        .unwrap()
-                        .error("functions referencing self are not supported yet")
-                        .emit();
-                }
-                FnArg::Typed(PatType { pat, ty, .. }) => {
-                    input_extraction.push(quote! {
+    for input in sig.inputs.iter() {
+        match input {
+            FnArg::Receiver(_) => {
+                item.span()
+                    .unwrap()
+                    .error("functions referencing self are not supported yet")
+                    .emit();
+            }
+            FnArg::Typed(PatType { pat, ty, .. }) => {
+                input_extraction.push(quote! {
                         let #pat = __iter
                             .next()
                             .ok_or_else(|| anyhow::anyhow!(concat!(stringify!(#ident), "() argument ", stringify!(#index), " (", stringify!(#pat), ") missing")))?;
                     });
-                    input_verification.push(quote! {
+                input_verification.push(quote! {
                         anyhow::Context::context(#ty::verify(&#pat), concat!(stringify!(#ident), "() argument ", stringify!(#index), " (", stringify!(#pat), ") invalid"))?;
                     });
-                    input_clone.push(quote! {
-                        let #pat = std::clone::Clone::clone(&#pat);
-                    });
-                    input_from_node.push(quote! {
-                        let #pat = #ty::from_node(#pat).unwrap();
-                    });
-                    input_arguments.push(quote! {
-                        #pat
-                    });
-                    input_node_arguments.push(quote! {
-                        #pat.into()
-                    });
-                    index += 1;
-                }
+                input_clone.push(quote! {
+                    let #pat = std::clone::Clone::clone(&#pat);
+                });
+                input_from_node.push(quote! {
+                    let #pat = #ty::from_node(#pat).unwrap();
+                });
+                input_arguments.push(quote! {
+                    #pat
+                });
+                input_node_arguments.push(quote! {
+                    #pat.into()
+                });
+                index += 1;
             }
         }
+    }
 
-        let native_function_code = gen_native_function_code(
-            ident,
-            quote! { #inline_ident },
-            &function_ident,
-            &sig.inputs,
-            None,
-        );
+    let native_function_code = gen_native_function_code(
+        quote! { stringify!(#ident) },
+        quote! { #inline_ident },
+        &function_ident,
+        &sig.inputs,
+        &output_type,
+        None,
+    );
 
-        return quote! {
-            #(#attrs)*
-            #vis #external_sig {
-                let result = turbo_tasks::dynamic_call(&#function_ident, vec![#(#input_node_arguments),*]).unwrap();
-                async { #output_type::from_node(result.await).unwrap() }
-            }
+    let convert_result_code = if is_empty_type(&output_type) {
+        quote! { result.await; }
+    } else {
+        quote! { #output_type::from_node(result.await.unwrap()).unwrap() }
+    };
 
-            #(#attrs)*
-            #vis #inline_sig #block
-
-            #native_function_code
+    return quote! {
+        #(#attrs)*
+        #vis #external_sig {
+            let result = turbo_tasks::dynamic_call(&#function_ident, vec![#(#input_node_arguments),*]).unwrap();
+            async { #convert_result_code }
         }
-        .into();
+
+        #(#attrs)*
+        #vis #inline_sig #block
+
+        #native_function_code
     }
-    item.span().unwrap().error("unsupported syntax").emit();
-    quote! {
-        #item
+    .into();
+}
+
+fn is_empty_type(ty: &Type) -> bool {
+    if let Type::Tuple(TypeTuple { elems, .. }) = ty {
+        if elems.is_empty() {
+            return true;
+        }
     }
-    .into()
+    false
 }
 
 fn gen_native_function_code(
-    ident: &Ident,
+    name_code: TokenStream2,
     original_function: TokenStream2,
     function_ident: &Ident,
     inputs: &Punctuated<FnArg, Token![,]>,
+    output_type: &Type,
     self_ref_type: Option<&Ident>,
 ) -> TokenStream2 {
     let mut input_extraction = Vec::new();
@@ -675,10 +712,10 @@ fn gen_native_function_code(
                 input_extraction.push(quote! {
                     let __self = __iter
                         .next()
-                        .ok_or_else(|| anyhow::anyhow!(concat!(stringify!(#ident), "() self argument missing")))?;
+                        .ok_or_else(|| anyhow::anyhow!(concat!(#name_code, "() self argument missing")))?;
                 });
                 input_verification.push(quote! {
-                    anyhow::Context::context(#self_ref_type::verify(&__self), concat!(stringify!(#ident), "() self argument invalid"))?;
+                    anyhow::Context::context(#self_ref_type::verify(&__self), concat!(#name_code, "() self argument invalid"))?;
                 });
                 input_clone.push(quote! {
                     let __self = std::clone::Clone::clone(&__self);
@@ -694,10 +731,10 @@ fn gen_native_function_code(
                 input_extraction.push(quote! {
                     let #pat = __iter
                         .next()
-                        .ok_or_else(|| anyhow::anyhow!(concat!(stringify!(#ident), "() argument ", stringify!(#index), " (", stringify!(#pat), ") missing")))?;
+                        .ok_or_else(|| anyhow::anyhow!(concat!(#name_code, "() argument ", stringify!(#index), " (", stringify!(#pat), ") missing")))?;
                 });
                 input_verification.push(quote! {
-                    anyhow::Context::context(#ty::verify(&#pat), concat!(stringify!(#ident), "() argument ", stringify!(#index), " (", stringify!(#pat), ") invalid"))?;
+                    anyhow::Context::context(#ty::verify(&#pat), concat!(#name_code, "() argument ", stringify!(#index), " (", stringify!(#pat), ") invalid"))?;
                 });
                 input_clone.push(quote! {
                     let #pat = std::clone::Clone::clone(&#pat);
@@ -712,20 +749,28 @@ fn gen_native_function_code(
             }
         }
     }
+    let original_call_code = if is_empty_type(output_type) {
+        quote! {
+            #original_function(#(#input_arguments),*).await;
+            None
+        }
+    } else {
+        quote! { Some(#original_function(#(#input_arguments),*).await.into()) }
+    };
     quote! {
         lazy_static::lazy_static! {
-            static ref #function_ident: turbo_tasks::NativeFunction = turbo_tasks::NativeFunction::new(|inputs| {
+            static ref #function_ident: turbo_tasks::NativeFunction = turbo_tasks::NativeFunction::new(#name_code.to_string(), |inputs| {
                 let mut __iter = inputs.into_iter();
                 #(#input_extraction)*
                 if __iter.next().is_some() {
-                    return Err(anyhow::anyhow!(concat!(stringify!(#ident), "() called with too many arguments")));
+                    return Err(anyhow::anyhow!(concat!(#name_code, "() called with too many arguments")));
                 }
                 #(#input_verification)*
                 Ok(Box::new(move || {
                     #(#input_clone)*
                     Box::pin(async move {
                         #(#input_from_node)*
-                        #original_function(#(#input_arguments),*).await.into()
+                        #original_call_code
                     })
                 }))
             });

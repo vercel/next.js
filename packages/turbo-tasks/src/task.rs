@@ -1,5 +1,5 @@
-use crate::{node::Node, viz::Visualizable, NodeRef, TurboTasks, WeakNodeRef};
-use anyhow::anyhow;
+use crate::{node::Node, viz::Visualizable, NativeFunction, NodeRef, TurboTasks, WeakNodeRef};
+use anyhow::{anyhow, Result};
 use async_std::task_local;
 use event_listener::{Event, EventListener};
 use std::{
@@ -10,7 +10,7 @@ use std::{
     sync::{Arc, Mutex, RwLock, Weak},
 };
 
-pub type NativeTaskFuture = Pin<Box<dyn Future<Output = NodeRef> + Send>>;
+pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Option<NodeRef>> + Send>>;
 pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 
 task_local! {
@@ -18,7 +18,9 @@ task_local! {
 }
 
 pub struct Task {
-    native_fn: NativeTaskFn,
+    inputs: Vec<NodeRef>,
+    native_fn: Option<&'static NativeFunction>,
+    bound_fn: NativeTaskFn,
     state: Mutex<TaskState>,
     // TODO use a concurrent set instead
     dependencies: RwLock<Vec<WeakNodeRef>>,
@@ -132,9 +134,33 @@ enum TaskStateType {
 use TaskStateType::*;
 
 impl Task {
-    pub(crate) fn new(native_fn: NativeTaskFn) -> Self {
+    pub(crate) fn new_native(
+        inputs: Vec<NodeRef>,
+        native_fn: &'static NativeFunction,
+    ) -> Result<Self> {
+        let bound_fn = native_fn.bind(inputs.clone())?;
+        Ok(Self {
+            inputs,
+            native_fn: Some(native_fn),
+            bound_fn,
+            state: Mutex::new(TaskState {
+                state_type: TaskStateType::Scheduled,
+                dirty_children_count: 0,
+                has_side_effect: false,
+                parents: Vec::new(),
+                children: Vec::new(),
+                output: None,
+                event: Event::new(),
+            }),
+            dependencies: RwLock::new(Vec::new()),
+        })
+    }
+
+    pub(crate) fn new_root(functor: impl Fn() -> NativeTaskFuture + Sync + Send + 'static) -> Self {
         Self {
-            native_fn,
+            inputs: Vec::new(),
+            native_fn: None,
+            bound_fn: Box::new(functor),
             state: Mutex::new(TaskState {
                 state_type: TaskStateType::Scheduled,
                 dirty_children_count: 0,
@@ -169,7 +195,7 @@ impl Task {
 
     pub(crate) fn execution_completed(
         self: Arc<Self>,
-        result: NodeRef,
+        result: Option<NodeRef>,
         turbo_tasks: &'static TurboTasks,
     ) {
         let mut state = self.state.lock().unwrap();
@@ -179,14 +205,14 @@ impl Task {
                 state.event.notify(usize::MAX);
                 let parents: Vec<Arc<Task>> =
                     state.parents.iter().filter_map(|p| p.upgrade()).collect();
-                if let Some(true) = state.output.as_ref().map(|output| *output == result) {
+                if state.output == result {
                     // output hasn't changed
                     drop(state);
                     for parent in parents.iter() {
                         parent.child_done(turbo_tasks);
                     }
                 } else {
-                    state.output = Some(result);
+                    state.output = result;
                     drop(state);
                     for parent in parents.iter() {
                         parent.child_output_updated(turbo_tasks);
@@ -195,7 +221,7 @@ impl Task {
             }
             InProgressLocallyOutdated => {
                 state.state_type = Scheduled;
-                state.output = Some(result);
+                state.output = result;
                 drop(state);
                 turbo_tasks.schedule(self);
             }
@@ -399,7 +425,7 @@ impl Task {
     }
 
     pub(crate) fn execute(&self) -> NativeTaskFuture {
-        (self.native_fn)()
+        (self.bound_fn)()
     }
 
     pub fn get_invalidator() -> Invalidator {
@@ -421,12 +447,12 @@ impl Task {
         self.make_dirty(turbo_tasks)
     }
 
-    pub async fn wait_output(self: &Arc<Self>) -> NodeRef {
+    pub async fn wait_output(self: &Arc<Self>) -> Option<NodeRef> {
         loop {
             match {
                 let state = self.state.lock().unwrap();
                 if state.state_type == TaskStateType::Done {
-                    let arc = state.output.as_ref().unwrap().clone();
+                    let arc = state.output.clone();
                     Ok(arc)
                 } else {
                     Err(state.event.listen())
@@ -438,11 +464,14 @@ impl Task {
         }
     }
 
-    pub(crate) async fn into_output(self: Arc<Self>, turbo_tasks: &'static TurboTasks) -> NodeRef {
+    pub(crate) async fn into_output(
+        self: Arc<Self>,
+        turbo_tasks: &'static TurboTasks,
+    ) -> Option<NodeRef> {
         fn get_or_schedule(
             this: &Arc<Task>,
             turbo_tasks: &'static TurboTasks,
-        ) -> Result<NodeRef, EventListener> {
+        ) -> Result<Option<NodeRef>, EventListener> {
             {
                 let mut state = this.state.lock().unwrap();
                 match state.state_type {
@@ -452,7 +481,7 @@ impl Task {
                             .unwrap();
 
                         state.parents.push(Arc::downgrade(&parent));
-                        let arc = state.output.as_ref().unwrap().clone();
+                        let arc = state.output.clone();
                         let has_side_effect = state.has_side_effect;
                         drop(state);
 
@@ -522,7 +551,8 @@ impl Visualizable for Task {
         let state = self.state.lock().unwrap();
         if visualizer.task(
             self as *const Task,
-            "task",
+            self.native_fn
+                .map_or_else(|| "unnamed", |native_fn| &native_fn.name),
             match state.state_type {
                 Scheduled => "scheduled",
                 InProgressLocally => "in progress (locally)",
@@ -533,19 +563,30 @@ impl Visualizable for Task {
                 SomeChildrenScheduled => "some children scheduled",
             },
         ) {
-            for child in state.children.iter() {
-                child.visualize(visualizer);
-                visualizer.child(self as *const Task, &**child as *const Task);
+            let children = state.children.clone();
+            let output = state.output.clone();
+            drop(state);
+            for input in self.inputs.iter() {
+                input.visualize(visualizer);
+                visualizer.input(self as *const Task, &**input as *const Node);
+            }
+            if !children.is_empty() {
+                visualizer.children_start(self as *const Task);
+                for child in children.iter() {
+                    child.visualize(visualizer);
+                    visualizer.child(self as *const Task, &**child as *const Task);
+                }
+                visualizer.children_end(self as *const Task);
+            }
+            if let Some(output) = output {
+                output.visualize(visualizer);
+                visualizer.output(self as *const Task, &*output as *const Node);
             }
             for dependency in self.dependencies.read().unwrap().iter() {
                 if let Some(dependency) = dependency.upgrade() {
                     dependency.visualize(visualizer);
                     visualizer.dependency(self as *const Task, &*dependency as *const Node);
                 }
-            }
-            if let Some(output) = &state.output {
-                output.visualize(visualizer);
-                visualizer.output(self as *const Task, &**output as *const Node);
             }
         }
     }

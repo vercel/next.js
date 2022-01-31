@@ -4,16 +4,19 @@ use std::hash::Hash;
 
 #[turbo_tasks::value]
 pub struct NativeFunction {
-    bind_fn: Box<dyn (Fn(Vec<NodeRef>) -> Result<NativeTaskFn>) + Send + Sync + 'static>,
+    pub name: String,
+    pub bind_fn: Box<dyn (Fn(Vec<NodeRef>) -> Result<NativeTaskFn>) + Send + Sync + 'static>,
 }
 
 #[turbo_tasks::value_impl]
 impl NativeFunction {
     #[turbo_tasks::constructor(!intern !previous)]
     pub fn new(
+        name: String,
         bind_fn: impl (Fn(Vec<NodeRef>) -> Result<NativeTaskFn>) + Send + Sync + 'static,
     ) -> Self {
         Self {
+            name,
             bind_fn: Box::new(bind_fn),
         }
     }

@@ -9,13 +9,17 @@ pub trait Visualizable {
 pub trait Visualizer {
     fn task(&mut self, task: *const Task, name: &str, state: &str) -> bool;
     fn node(&mut self, node: *const Node, type_name: &str);
+    fn input(&mut self, task: *const Task, node: *const Node);
     fn output(&mut self, task: *const Task, node: *const Node);
+    fn children_start(&mut self, parent_task: *const Task);
     fn child(&mut self, parent_task: *const Task, child_task: *const Task);
+    fn children_end(&mut self, parent_task: *const Task);
     fn dependency(&mut self, task: *const Task, node: *const Node);
 }
 
 pub struct GraphViz {
-    visited_tasks: HashSet<*const Task>,
+    visited_tasks: HashSet<usize>,
+    output_has_task: HashSet<usize>,
     id_map: HashMap<usize, usize>,
     output: String,
 }
@@ -24,6 +28,7 @@ impl GraphViz {
     pub fn new() -> Self {
         Self {
             visited_tasks: HashSet::new(),
+            output_has_task: HashSet::new(),
             id_map: HashMap::new(),
             output: String::new(),
         }
@@ -79,36 +84,75 @@ fn escape(s: &str) -> String {
 
 impl Visualizer for GraphViz {
     fn task(&mut self, task: *const Task, name: &str, state: &str) -> bool {
-        if self.visited_tasks.contains(&task) {
+        let id = self.get_id(task);
+        if self.visited_tasks.contains(&id) {
             false
         } else {
-            self.visited_tasks.insert(task);
-            let id = self.get_id(task);
+            self.visited_tasks.insert(id);
             self.output += &format!(
                 "{} [shape=box, label=\"{}\"]\n",
                 id,
-                escape(&(name.to_string() + "\n" + state))
+                escape(&if state == "done" {
+                    name.to_string()
+                } else {
+                    name.to_string() + "\n" + state
+                })
             );
             true
         }
     }
+
     fn node(&mut self, node: *const Node, type_name: &str) {
         let id = self.get_id(node);
         self.output += &format!("{} [label=\"{}\"]\n", id, escape(type_name));
     }
+
     fn output(&mut self, task: *const Task, node: *const Node) {
         let task = self.get_id(task);
         let node = self.get_id(node);
-        self.output += &format!("{} -> {} [len=1]\n", task, node);
+        if !self.output_has_task.contains(&node) {
+            self.output_has_task.insert(node);
+            self.output += &format!("{}:e -> {}:w [color=red]\n", task, node);
+            self.output += &format!(
+                "subgraph cluster_{} {{\nrank=same; peripheries=0; {} {}\n}}\n",
+                node, task, node
+            );
+        } else {
+            self.output += &format!("{}:e -> {}:n [color=\"#990000\"]\n", task, node);
+        }
     }
+
+    fn input(&mut self, task: *const Task, node: *const Node) {
+        let task = self.get_id(task);
+        let node = self.get_id(node);
+        self.output += &format!("{} -> {} [color=\"#009129\"]\n", node, task);
+    }
+
     fn child(&mut self, parent_task: *const Task, child_task: *const Task) {
         let parent_task = self.get_id(parent_task);
         let child_task = self.get_id(child_task);
-        self.output += &format!("{} -> {} [style=dashed, len=6]\n", parent_task, child_task);
+        self.output += &format!(
+            "{}:e -> {}:w [style=dashed, color=lightgray]\n",
+            parent_task, child_task
+        );
     }
+
     fn dependency(&mut self, task: *const Task, node: *const Node) {
         let task = self.get_id(task);
         let node = self.get_id(node);
-        self.output += &format!("{} -> {} [style=dotted, len=3]\n", task, node);
+        self.output += &format!(
+            "{} -> {} [style=dotted, weight=0, arrowhead=empty, color=lightgray]\n",
+            task, node
+        );
+    }
+
+    fn children_start(&mut self, parent_task: *const Task) {
+        let parent_task = self.get_id(parent_task);
+        self.output += &format!("subgraph cluster_{} {{\n", parent_task);
+    }
+
+    fn children_end(&mut self, parent_task: *const Task) {
+        let parent_task = self.get_id(parent_task);
+        self.output += &format!("}}\n");
     }
 }
