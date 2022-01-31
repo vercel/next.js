@@ -854,16 +854,23 @@ export class NextScript extends Component<OriginProps> {
           return (
             <>
               {disableRuntimeJS ? null : (
-                <script
-                  id="__NEXT_DATA__"
-                  type="application/json"
-                  nonce={this.props.nonce}
-                  crossOrigin={this.props.crossOrigin || crossOrigin}
-                  dangerouslySetInnerHTML={{
-                    __html: NextScript.getInlineScriptSource(this.context),
-                  }}
-                  data-ampdevmode
-                />
+                <>
+                  <script
+                    id="__NEXT_DATA__"
+                    type="application/json"
+                    nonce={this.props.nonce}
+                    crossOrigin={this.props.crossOrigin || crossOrigin}
+                    dangerouslySetInnerHTML={{
+                      __html: NextScript.getInlineScriptSource(this.context),
+                    }}
+                    data-ampdevmode
+                  />
+                  <script
+                    dangerouslySetInnerHTML={{
+                      __html: `(self.__NEXT_BL=self.__NEXT_BL||[]).push({})`,
+                    }}
+                  />
+                </>
               )}
               {ampDevFiles.map((file) => (
                 <script
@@ -906,15 +913,22 @@ export class NextScript extends Component<OriginProps> {
                 ))
               : null}
             {disableRuntimeJS ? null : (
-              <script
-                id="__NEXT_DATA__"
-                type="application/json"
-                nonce={this.props.nonce}
-                crossOrigin={this.props.crossOrigin || crossOrigin}
-                dangerouslySetInnerHTML={{
-                  __html: NextScript.getInlineScriptSource(this.context),
-                }}
-              />
+              <>
+                <script
+                  id="__NEXT_DATA__"
+                  type="application/json"
+                  nonce={this.props.nonce}
+                  crossOrigin={this.props.crossOrigin || crossOrigin}
+                  dangerouslySetInnerHTML={{
+                    __html: NextScript.getInlineScriptSource(this.context),
+                  }}
+                />
+                <script
+                  dangerouslySetInnerHTML={{
+                    __html: `(self.__NEXT_BL=self.__NEXT_BL||[]).push({})`,
+                  }}
+                />
+              </>
             )}
             {disableOptimizedLoading &&
               !disableRuntimeJS &&
