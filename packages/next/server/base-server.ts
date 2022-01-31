@@ -175,7 +175,7 @@ export default abstract class Server {
   protected abstract getBuildId(): string
   protected abstract generatePublicRoutes(): Route[]
   protected abstract generateImageRoutes(): Route[]
-  protected abstract generateStaticRotes(): Route[]
+  protected abstract generateStaticRoutes(): Route[]
   protected abstract generateFsStaticRoutes(): Route[]
   protected abstract generateCatchAllMiddlewareRoute(): Route | undefined
   protected abstract generateRewrites({
@@ -643,7 +643,7 @@ export default abstract class Server {
   } {
     const publicRoutes = this.generatePublicRoutes()
     const imageRoutes = this.generateImageRoutes()
-    const staticFilesRoutes = this.generateStaticRotes()
+    const staticFilesRoutes = this.generateStaticRoutes()
 
     const fsRoutes: Route[] = [
       ...this.generateFsStaticRoutes(),
