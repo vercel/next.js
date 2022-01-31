@@ -1,6 +1,5 @@
 import React, { useRef, useEffect } from 'react'
 import Head from '../shared/lib/head'
-import { toBase64 } from '../shared/lib/to-base-64'
 import {
   ImageConfigComplete,
   imageConfigDefault,
