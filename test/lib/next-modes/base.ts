@@ -40,7 +40,7 @@ export class NextInstance {
     installCommand,
     buildCommand,
     startCommand,
-    packageJson,
+    packageJson = {},
   }: {
     files: {
       [filename: string]: string | FileRef
