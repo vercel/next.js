@@ -35,6 +35,7 @@ import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
 import { trackWebVitalMetric } from './vitals'
 import { RefreshContext } from './rsc/refresh'
+import { getAssetPrefix } from './bootloader'
 
 /// <reference types="react-dom/experimental" />
 
@@ -87,11 +88,6 @@ const {
 
 let { defaultLocale } = data
 
-const prefix: string = assetPrefix || ''
-
-// With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
-// So, this is how we do it in the client side at runtime
-__webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
 // Initialize next/config with the environment configuration
 setConfig({
   serverRuntimeConfig: {},
@@ -153,7 +149,7 @@ if (data.scriptLoader) {
 
 type RegisterFn = (input: [string, () => void]) => void
 
-const pageLoader: PageLoader = new PageLoader(buildId, prefix)
+const pageLoader: PageLoader = new PageLoader(buildId, getAssetPrefix())
 const register: RegisterFn = ([r, f]) =>
   pageLoader.routeLoader.onEntrypoint(r, f)
 if (window.__NEXT_P) {

@@ -1,4 +1,4 @@
-type NextBootloadCommand = {}
+type NextBootloadCommand = [string]
 
 interface NextBootloader {
   push(command: NextBootloadCommand): number
@@ -20,9 +20,14 @@ export function onBoot(callback: () => void) {
 
   let didBoot = false
   const bootloader: NextBootloader = (window.__NEXT_BL = {
-    push(_: NextBootloadCommand) {
+    push(command: NextBootloadCommand) {
       if (!didBoot) {
         didBoot = true
+
+        assetPrefix = command[0] || ''
+        // @ts-ignore
+        __webpack_public_path__ = `${assetPrefix}/_next/` //eslint-disable-line
+
         callback()
       }
       return 0
@@ -30,4 +35,14 @@ export function onBoot(callback: () => void) {
   })
 
   queuedCommands.forEach((command) => bootloader.push(command))
+}
+
+let assetPrefix: string
+export function getAssetPrefix(): string {
+  if (!assetPrefix) {
+    throw new Error(
+      'invariant: getAssetPrefix() called before bootstrap. This is a bug in Next.js'
+    )
+  }
+  return assetPrefix
 }

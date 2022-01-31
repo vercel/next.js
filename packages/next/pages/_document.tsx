@@ -844,6 +844,10 @@ export class NextScript extends Component<OriginProps> {
     // Must nest component to use custom hook
     const DeferrableNextScript = () => {
       const [, content] = useMaybeDeferContent('NEXT_SCRIPT', () => {
+        const bootloaderScript = `(self.__NEXT_BL=self.__NEXT_BL||[]).push(${JSON.stringify(
+          [assetPrefix]
+        )})`
+
         if (inAmpMode) {
           const ampDevFiles = [
             ...buildManifest.devFiles,
@@ -869,7 +873,7 @@ export class NextScript extends Component<OriginProps> {
                     nonce={this.props.nonce}
                     crossOrigin={this.props.crossOrigin || crossOrigin}
                     dangerouslySetInnerHTML={{
-                      __html: `(self.__NEXT_BL=self.__NEXT_BL||[]).push({})`,
+                      __html: bootloaderScript,
                     }}
                     data-ampdevmode
                   />
@@ -930,7 +934,7 @@ export class NextScript extends Component<OriginProps> {
                   nonce={this.props.nonce}
                   crossOrigin={this.props.crossOrigin || crossOrigin}
                   dangerouslySetInnerHTML={{
-                    __html: `(self.__NEXT_BL=self.__NEXT_BL||[]).push({})`,
+                    __html: bootloaderScript,
                   }}
                 />
               </>

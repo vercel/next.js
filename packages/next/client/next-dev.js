@@ -8,15 +8,12 @@ import {
   assign,
   urlQueryToSearchParams,
 } from '../shared/lib/router/utils/querystring'
+import { getAssetPrefix } from './bootloader'
 
-const {
-  __NEXT_DATA__: { assetPrefix },
-} = window
-
-const prefix = assetPrefix || ''
 const webpackHMR = initWebpackHMR()
 
-connectHMR({ assetPrefix: prefix, path: '/_next/webpack-hmr' })
+const assetPrefix = getAssetPrefix()
+connectHMR({ assetPrefix, path: '/_next/webpack-hmr' })
 
 if (!window._nextSetupHydrationWarning) {
   const origConsoleError = window.console.error
@@ -55,7 +52,7 @@ initNext({ webpackHMR })
 
     function devPagesManifestListener(event) {
       if (event.data.indexOf('devPagesManifest') !== -1) {
-        fetch(`${prefix}/_next/static/development/_devPagesManifest.json`)
+        fetch(`${assetPrefix}/_next/static/development/_devPagesManifest.json`)
           .then((res) => res.json())
           .then((manifest) => {
             window.__DEV_PAGES_MANIFEST = manifest
