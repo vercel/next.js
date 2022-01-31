@@ -53,6 +53,7 @@ pub mod next_dynamic;
 pub mod next_ssg;
 pub mod page_config;
 pub mod react_remove_properties;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod relay;
 pub mod remove_console;
 pub mod shake_exports;
@@ -93,6 +94,7 @@ pub struct TransformOptions {
     pub react_remove_properties: Option<react_remove_properties::Config>,
 
     #[serde(default)]
+    #[cfg(not(target_arch = "wasm32"))]
     pub relay: Option<relay::Config>,
 
     #[serde(default)]
@@ -104,6 +106,10 @@ pub fn custom_before_pass(
     file: Arc<SourceFile>,
     opts: &TransformOptions,
 ) -> impl Fold + '_ {
+    #[cfg(target_arch = "wasm32")]
+    let relay_plugin = noop();
+
+    #[cfg(not(target_arch = "wasm32"))]
     let relay_plugin = {
         if let Some(config) = &opts.relay {
             Either::Left(relay::relay(config, file.name.clone()))
