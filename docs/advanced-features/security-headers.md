@@ -113,10 +113,29 @@ This header helps prevent cross-site scripting (XSS), clickjacking and other cod
 
 You can read about the many different CSP options [here](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP).
 
+You can add Content Security Policy directives using a template string.
+
+```jsx
+// Before defining your Security Headers
+// add Content Security Policy directives using a template string.
+
+const ContentSecurityPolicy = `
+  default-src 'self';
+  script-src 'self';
+  child-src example.com;
+  style-src 'self' example.com;
+  font-src 'self';  
+`
+```
+
+When a directive uses a keyword such as `self`, wrap it in single quotes `''`.
+
+In the header's value, replace the new line with an empty string.
+
 ```jsx
 {
   key: 'Content-Security-Policy',
-  value: // Your CSP Policy
+  value: ContentSecurityPolicy.replace(/\n/g, '')
 }
 ```
 
