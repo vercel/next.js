@@ -1532,9 +1532,8 @@ export default abstract class Server {
     delete query._nextBubbleNoFallback
 
     try {
-      // The following guard is necessary to safely cast the URL pathname to a potential predefined page path.
-      // Without the guard, a request to the URL /accounts/[id] will find pages/accounts/[id].js
-      // and interpret it as a predefined route.
+      // Ensure a request to the URL /accounts/[id] will be treated as a dynamic
+      // route correctly and not loaded immediately without parsing params.
       if (!isDynamicRoute(pathname)) {
         const result = await this.findPageComponents(pathname, query)
         if (result) {
