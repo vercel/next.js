@@ -180,6 +180,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
   )
   window.__NEXT_DATA__ = initialData
 
+  defaultLocale = initialData.defaultLocale
   const prefix: string = initialData.assetPrefix || ''
   // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
   // So, this is how we do it in the client side at runtime
