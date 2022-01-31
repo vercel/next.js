@@ -1041,7 +1041,7 @@ function runTests(mode) {
     }
   })
 
-  it('should be vaild W3C HTML', async () => {
+  it('should be valid W3C HTML', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/valid-html-w3c')
