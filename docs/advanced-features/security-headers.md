@@ -135,7 +135,7 @@ In the header's value, replace the new line with an empty string.
 ```jsx
 {
   key: 'Content-Security-Policy',
-  value: ContentSecurityPolicy.replace(/\n/g, '')
+  value: ContentSecurityPolicy.replace(/\s{2,}/g, ' ')
 }
 ```
 
