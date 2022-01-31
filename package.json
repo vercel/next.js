@@ -113,7 +113,7 @@
     "get-port": "5.1.1",
     "glob": "7.1.6",
     "gzip-size": "5.1.1",
-    "html-validator": "5",
+    "html-validator": "5.1.18",
     "image-size": "0.9.3",
     "is-animated": "2.0.0",
     "isomorphic-unfetch": "3.0.0",

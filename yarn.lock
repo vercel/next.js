@@ -11164,7 +11164,7 @@ html-validate@3.5.0:
     json-merge-patch "^1.0.0"
     minimist "^1.2.0"
 
-html-validator@5:
+html-validator@5.1.18:
   version "5.1.18"
   resolved "https://registry.yarnpkg.com/html-validator/-/html-validator-5.1.18.tgz#d964134b4f69531f979bf9d4a728d5ceb8b19940"
   integrity sha512-cK8vfV6o1jBnzLcIWgAS3PDPEHzOsgtaqtP23b6/eFdFrV8hxPhm0DGrXpjomWuubFb0kH0FAa6oUM1URA/0KQ==
