@@ -55,7 +55,7 @@ export default class NextWebServer extends BaseServer {
   protected generateImageRoutes() {
     return []
   }
-  protected generateStaticRotes() {
+  protected generateStaticRoutes() {
     return []
   }
   protected generateFsStaticRoutes() {
