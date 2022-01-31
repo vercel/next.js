@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react'
 import Head from '../shared/lib/head'
+import { toBase64 } from '../shared/lib/to-base-64'
 import {
   ImageConfigComplete,
   imageConfigDefault,
@@ -544,7 +545,7 @@ export default function Image({
     padding: 0,
   }
   let hasSizer = false
-  let sizerSvgUrl: string | undefined
+  let sizerSvg: string | undefined
   const imgStyle: ImgElementStyle = {
     position: 'absolute',
     top: 0,
@@ -605,8 +606,7 @@ export default function Image({
       wrapperStyle.maxWidth = '100%'
       hasSizer = true
       sizerStyle.maxWidth = '100%'
-      // url encoded svg is a little bit shorten than base64 encoding
-      sizerSvgUrl = `data:image/svg+xml,%3csvg+xmlns=%27http://www.w3.org/2000/svg%27+version=%271.1%27+width=%27${widthInt}%27+height=%27${heightInt}%27/%3e`
+      sizerSvg = `<svg width="${widthInt}" height="${heightInt}" xmlns="http://www.w3.org/2000/svg" version="1.1"/>`
     } else if (layout === 'fixed') {
       // <Image src="i.png" width="100" height="100" layout="fixed" />
       wrapperStyle.display = 'inline-block'
@@ -687,7 +687,7 @@ export default function Image({
     <span style={wrapperStyle}>
       {hasSizer ? (
         <span style={sizerStyle}>
-          {sizerSvgUrl ? (
+          {sizerSvg ? (
             <img
               style={{
                 display: 'block',
@@ -702,7 +702,7 @@ export default function Image({
               }}
               alt=""
               aria-hidden={true}
-              src={sizerSvgUrl}
+              src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
             />
           ) : null}
         </span>
