@@ -37,9 +37,9 @@ export function onBoot(callback: () => void) {
   queuedCommands.forEach((command) => bootloader.push(command))
 }
 
-let assetPrefix: string
+let assetPrefix: string | null = null
 export function getAssetPrefix(): string {
-  if (!assetPrefix) {
+  if (assetPrefix == null) {
     throw new Error(
       'invariant: getAssetPrefix() called before bootstrap. This is a bug in Next.js'
     )
