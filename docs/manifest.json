@@ -283,7 +283,20 @@
             },
             {
               "title": "React 18",
-              "path": "/docs/advanced-features/react-18.md"
+              "routes": [
+                {
+                  "title": "Basic",
+                  "path": "/docs/advanced-features/react-18/basic.md"
+                },
+                {
+                  "title": "Streaming SSR",
+                  "path": "/docs/advanced-features/react-18/streaming.md"
+                },
+                {
+                  "title": "React Server Components",
+                  "path": "/docs/advanced-features/react-18/server-components.md"
+                }
+              ]
             }
           ]
         },
