@@ -1010,12 +1010,10 @@ function Root({
   // don't cause any hydration delay:
   React.useEffect(() => {
     measureWebVitals(onPerfEntry)
-  }, [])
 
-  // Flush buffer on mount
-  React.useEffect(() => {
     flushBufferedVitalsMetrics()
   }, [])
+
   return children as React.ReactElement
 }
 
