@@ -91,10 +91,9 @@ The following example shows using JavaScript to validate a form:
 
 ```html
 <form onsubmit="validateFormWithJS()">
-
   <label for="rollNumber">Roll Number:</label>
   <input type="text" name="rollNumber" id="rollNumber" />
-  
+
   <label for="name">Name:</label>
   <input type="text" name="name" id="name" />
 
@@ -127,7 +126,7 @@ This example validates the name and roll number of a user. The `validateFormWith
 #### Form Validation Using Regular Expressions
 
 JavaScript validation with Regular Expressions uses the `pattern` HTML attribute. A regular expression (commonly known as RegEx) is an object that describes a pattern of characters. You can only apply the `pattern` attribute to the `<input>` element. This way, you can validate the input value using Regular Expressions (RegEx) by defining your own rules. Once again, if the value does not match the defined pattern, the input will give an error.
-The below example shows using the `pattern` attribute on an `input` element: 
+The below example shows using the `pattern` attribute on an `input` element:
 
 ```html
 <form action="/action_page.php">
@@ -147,7 +146,6 @@ The below example shows using the `pattern` attribute on an `input` element:
 The password form field must only contain digits (0 to 9) and lowercase alphabets (a to z). No other special characters (#,$,&, etc.) are allowed. The rule in RegEx is written as `[a-z]{1,15}`.
 
 ![form-validate-regex](https://assets.vercel.com/image/upload/c_scale,w_675/v1643009088/nextjs/guides/building-forms/form-validate-regex.jpg)
-
 
 > To learn more about HTML forms, check out the [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Learn/Forms).
 
