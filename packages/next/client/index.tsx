@@ -5,7 +5,7 @@ import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
-import type Router from '../shared/lib/router/router'
+import type Router, { NextRouter } from '../shared/lib/router/router'
 import {
   AppComponent,
   AppProps,
@@ -174,6 +174,7 @@ const appElement: HTMLElement | null = document.getElementById('__next')
 let lastRenderReject: (() => void) | null
 let webpackHMR: any
 export let router: Router
+let publicRouterInstance: NextRouter
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 headManager.getIsSsr = () => {
   return router.isSsr
@@ -413,6 +414,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     domainLocales,
     isPreview,
   })
+  publicRouterInstance = makePublicRouterInstance(router)
 
   const renderCtx: RenderRouteInfo = {
     App: CachedApp,
@@ -620,7 +622,7 @@ function AppContainer({
         )
       }
     >
-      <RouterContext.Provider value={makePublicRouterInstance(router)}>
+      <RouterContext.Provider value={publicRouterInstance}>
         <HeadManagerContext.Provider value={headManager}>
           {children}
         </HeadManagerContext.Provider>
