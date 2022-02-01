@@ -3,10 +3,10 @@ import { NextWebVitalsMetric } from '../pages/_app'
 
 type ReportWebVitalsCallback = (webVitals: NextWebVitalsMetric) => any
 export const webVitalsCallbacks = new Set<ReportWebVitalsCallback>()
-const metrics: NextWebVitalsMetric[] = []
+export const bufferedVitalsMetrics: NextWebVitalsMetric[] = []
 
 export function trackWebVitalMetric(metric: NextWebVitalsMetric) {
-  metrics.push(metric)
+  bufferedVitalsMetrics.push(metric)
   webVitalsCallbacks.forEach((callback) => callback(metric))
 }
 
@@ -17,10 +17,14 @@ export function useWebVitalsReport(callback: ReportWebVitalsCallback) {
     // Flush calculated metrics
     const reportMetric = (metric: NextWebVitalsMetric) => {
       callback(metric)
-      metricIndexRef.current = metrics.length
+      metricIndexRef.current = bufferedVitalsMetrics.length
     }
-    for (let i = metricIndexRef.current; i < metrics.length; i++) {
-      reportMetric(metrics[i])
+    for (
+      let i = metricIndexRef.current;
+      i < bufferedVitalsMetrics.length;
+      i++
+    ) {
+      reportMetric(bufferedVitalsMetrics[i])
     }
 
     webVitalsCallbacks.add(reportMetric)
@@ -28,4 +32,10 @@ export function useWebVitalsReport(callback: ReportWebVitalsCallback) {
       webVitalsCallbacks.delete(reportMetric)
     }
   }, [callback])
+
+  // Flush buffer on mount
+  useEffect(() => {
+    bufferedVitalsMetrics.length = 0
+    metricIndexRef.current = 0
+  }, [])
 }
