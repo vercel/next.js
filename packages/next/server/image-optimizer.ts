@@ -219,7 +219,6 @@ export async function imageOptimizer(
         if (isFresh) {
           return { finished: true }
         } else {
-          await promises.unlink(fsPath)
           staleWhileRevalidate = true
         }
       }
