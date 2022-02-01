@@ -13,7 +13,7 @@ This guide will teach you how to create a serverless web form with Next.js (clie
 
 HTML forms are built using the `<form>` tag. It takes a set of attributes and fields to structure the form for features like text fields, checkboxes, dropdown menus, buttons, radio buttons, etc.
 
-Here's the syntax of a simple HTML form:
+Here's the syntax of a HTML form:
 
 ```html
 <!-- Basic HTML Form -->
@@ -143,7 +143,7 @@ The below example shows using the `pattern` attribute on an `input` element:
 </form>
 ```
 
-The password form field must only contain digits (0 to 9) and lowercase alphabets (a to z). No other special characters (#,$,&, etc.) are allowed. The rule in RegEx is written as `[a-z]{1,15}`.
+The password form field must only contain digits (0 to 9) and lowercase alphabets (a to z). No other characters (#,$,&, etc.) are allowed. The rule in RegEx is written as `[a-z]{1,15}`.
 
 ![form-validate-regex](https://assets.vercel.com/image/upload/c_scale,w_675/v1643009088/nextjs/guides/building-forms/form-validate-regex.jpg)
 
@@ -318,7 +318,7 @@ The form data will be submitted on the server as a request `req` to the form han
 
 Inside `/pages`, you'll create another file called `js-form.js`. This will create a `/js-form` page on your Next.js app.
 
-Now, as soon as the form is submitted, we prevent the form's default behavior of reloading the page. We'll take the form data, convert it to JSON string, and send it to our server, the API endpoint. Finally, our server will respond with the name submitted. All of this with a simple JavaScript `handleSubmit()` function.
+Now, as soon as the form is submitted, we prevent the form's default behavior of reloading the page. We'll take the form data, convert it to JSON string, and send it to our server, the API endpoint. Finally, our server will respond with the name submitted. All of this with a basic JavaScript `handleSubmit()` function.
 
 Here's what this function looks like. It's well documented for you to understand each step:
 
