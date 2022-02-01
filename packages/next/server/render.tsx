@@ -1266,8 +1266,9 @@ export async function renderToHTML(
         // for non-concurrent rendering we need to ensure App is rendered
         // before _document so that updateHead is called/collected before
         // rendering _document's head
-        const result = ReactDOMServer.renderToString(content)
-        bodyResult = (suffix: string) => piperFromArray([result, suffix])
+        const result = await renderToStaticNodeStream(content)
+        bodyResult = (suffix: string) =>
+          chainPipers([result, piperFromArray([suffix])])
       }
 
       return {
@@ -1534,6 +1535,111 @@ function serializeError(
     message: '500 - Internal Server Error.',
     statusCode: 500,
   }
+}
+
+function renderToStaticNodeStream(
+  element: React.ReactElement
+): Promise<NodeWritablePiper> {
+  if (typeof (ReactDOMServer as any).renderToPipeableStream === 'function') {
+    return renderToNodeStreamUnsuffixed(element, true)
+  } else {
+    const result = ReactDOMServer.renderToString(element)
+    return Promise.resolve(piperFromArray([result]))
+  }
+}
+
+function renderToNodeStreamUnsuffixed(
+  element: React.ReactElement,
+  generateStaticHTML: boolean
+): Promise<NodeWritablePiper> {
+  return new Promise((resolve, reject) => {
+    let underlyingStream: WritableType | null = null
+    let queuedCallbacks: Array<(error?: Error | null) => void> = []
+
+    // Based on the suggestion here:
+    // https://github.com/reactwg/react-18/discussions/110
+    class NextWritable extends Writable {
+      _write(
+        chunk: any,
+        encoding: string,
+        callback: (error?: Error | null) => void
+      ) {
+        if (!underlyingStream) {
+          throw new Error(
+            'invariant: write called without an underlying stream. This is a bug in Next.js'
+          )
+        }
+        // The compression module (https://github.com/expressjs/compression) doesn't
+        // support callbacks, so we have to wait for a drain event.
+        if (!underlyingStream.write(chunk, encoding)) {
+          queuedCallbacks.push(callback)
+        } else {
+          callback()
+        }
+      }
+
+      flush() {
+        if (!underlyingStream) {
+          throw new Error(
+            'invariant: flush called without an underlying stream. This is a bug in Next.js'
+          )
+        }
+
+        const anyWritable = underlyingStream as any
+        if (typeof anyWritable.flush === 'function') {
+          anyWritable.flush()
+        }
+      }
+    }
+
+    const stream = new NextWritable()
+    stream.on('drain', () => {
+      const callbacks = queuedCallbacks
+      queuedCallbacks = []
+      callbacks.forEach((callback) => callback())
+    })
+
+    let resolved = false
+    const doResolve = (startWriting: any) => {
+      if (!resolved) {
+        resolved = true
+        resolve((res, next) => {
+          const doNext = (err?: Error) => {
+            underlyingStream = null
+            queuedCallbacks = []
+            next(err)
+          }
+
+          stream.once('error', (err) => doNext(err))
+          stream.once('finish', () => doNext())
+
+          underlyingStream = res
+          startWriting()
+        })
+      }
+    }
+
+    const { abort, pipe } = (ReactDOMServer as any).renderToPipeableStream(
+      element,
+      {
+        onError(error: Error) {
+          if (!resolved) {
+            resolved = true
+            reject(error)
+          }
+          abort()
+        },
+        onCompleteShell() {
+          if (!generateStaticHTML) {
+            doResolve(() => pipe(stream))
+          }
+        },
+        onCompleteAll() {
+          doResolve(() => pipe(stream))
+        },
+      }
+    )
+  })
 }
 
 function renderToNodeStream(
