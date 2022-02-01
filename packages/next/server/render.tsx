@@ -1267,8 +1267,8 @@ export async function renderToHTML(
         // before _document so that updateHead is called/collected before
         // rendering _document's head
         const result = await renderToStaticNodeStream(content)
-        bodyResult = (suffix: string) =>
-          chainPipers([result, piperFromArray([suffix])])
+        const html = await piperToString(result)
+        bodyResult = (suffix: string) => piperFromArray([html, suffix])
       }
 
       return {
