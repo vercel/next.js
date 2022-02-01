@@ -269,7 +269,7 @@ export const emitter: MittEmitter<string> = mitt()
 let CachedComponent: React.ComponentType
 
 export async function initNext(
-  opts: { webpackHMR?: any; beforeRender?: Promise<void> } = {}
+  opts: { webpackHMR?: any; beforeRender?: () => Promise<void> } = {}
 ) {
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
@@ -425,7 +425,7 @@ export async function initNext(
   }
 
   if (opts.beforeRender) {
-    await opts.beforeRender
+    await opts.beforeRender()
   }
 
   render(renderCtx)
