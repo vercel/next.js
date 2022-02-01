@@ -23,7 +23,7 @@ module.exports = {
       },
 
       JSXOpeningElement(node) {
-        if (node.name.name !== 'Link' || node.name.name !== linkImport) {
+        if (node.name.name !== linkImport) {
           return
         }
 

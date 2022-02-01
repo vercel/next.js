@@ -1621,6 +1621,7 @@ export default async function getBaseWebpackConfig(
     removeConsole: config.experimental.removeConsole,
     reactRemoveProperties: config.experimental.reactRemoveProperties,
     styledComponents: config.experimental.styledComponents,
+    relay: config.experimental.relay,
   })
 
   const cache: any = {
