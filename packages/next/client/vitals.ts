@@ -5,15 +5,19 @@ type ReportWebVitalsCallback = (webVitals: NextWebVitalsMetric) => any
 export const webVitalsCallbacks = new Set<ReportWebVitalsCallback>()
 
 let flushed = false
-export const bufferedVitalsMetrics: NextWebVitalsMetric[] = []
+const metrics: NextWebVitalsMetric[] = []
+
+export function getBufferedVitalsMetrics() {
+  return metrics
+}
 
 export function flushBufferedVitalsMetrics() {
   flushed = true
-  bufferedVitalsMetrics.length = 0
+  metrics.length = 0
 }
 
 export function trackWebVitalMetric(metric: NextWebVitalsMetric) {
-  bufferedVitalsMetrics.push(metric)
+  metrics.push(metric)
   webVitalsCallbacks.forEach((callback) => callback(metric))
 }
 
@@ -23,7 +27,7 @@ export function useWebVitalsReport(callback: ReportWebVitalsCallback) {
   if (process.env.NODE_ENV === 'development') {
     if (flushed) {
       console.error(
-        `Web vitals reporting callback is attached too late, please attach it before page is mounted.`
+        'The `useWebVitalsReport` hook was called too late -- did you use it inside of a <Suspense> boundary?'
       )
     }
   }
@@ -32,14 +36,10 @@ export function useWebVitalsReport(callback: ReportWebVitalsCallback) {
     // Flush calculated metrics
     const reportMetric = (metric: NextWebVitalsMetric) => {
       callback(metric)
-      metricIndexRef.current = bufferedVitalsMetrics.length
+      metricIndexRef.current = metrics.length
     }
-    for (
-      let i = metricIndexRef.current;
-      i < bufferedVitalsMetrics.length;
-      i++
-    ) {
-      reportMetric(bufferedVitalsMetrics[i])
+    for (let i = metricIndexRef.current; i < metrics.length; i++) {
+      reportMetric(metrics[i])
     }
 
     webVitalsCallbacks.add(reportMetric)

@@ -1,6 +1,6 @@
 /* global localStorage */
 import { unstable_useWebVitalsReport } from 'next/vitals'
-import { bufferedVitalsMetrics } from 'next/dist/client/vitals'
+import { getBufferedVitalsMetrics } from 'next/dist/client/vitals'
 
 if (typeof navigator !== 'undefined') {
   window.__BEACONS = window.__BEACONS || []
@@ -38,7 +38,7 @@ export default () => {
     <div>
       <h1>Foo!</h1>
       <h2>bar!</h2>
-      <p>{`buffered metrics: ${bufferedVitalsMetrics.length}`}</p>
+      <p>{`buffered metrics: ${getBufferedVitalsMetrics().length}`}</p>
     </div>
   )
 }
