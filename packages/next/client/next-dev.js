@@ -9,14 +9,7 @@ import {
   urlQueryToSearchParams,
 } from '../shared/lib/router/utils/querystring'
 
-const {
-  __NEXT_DATA__: { assetPrefix },
-} = window
-
-const prefix = assetPrefix || ''
 const webpackHMR = initWebpackHMR()
-
-connectHMR({ assetPrefix: prefix, path: '/_next/webpack-hmr' })
 
 if (!window._nextSetupHydrationWarning) {
   const origConsoleError = window.console.error
@@ -49,6 +42,12 @@ window.next = {
 }
 initNext({ webpackHMR })
   .then(({ renderCtx }) => {
+    const {
+      __NEXT_DATA__: { assetPrefix },
+    } = window
+    const prefix = assetPrefix || ''
+
+    connectHMR({ assetPrefix: prefix, path: '/_next/webpack-hmr' })
     initOnDemandEntries()
 
     let buildIndicatorHandler = () => {}
