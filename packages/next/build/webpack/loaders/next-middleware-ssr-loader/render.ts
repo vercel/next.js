@@ -56,6 +56,7 @@ export function getRender({
   buildId: string
 }) {
   const baseLoadComponentResult = {
+    dev,
     buildManifest,
     reactLoadableManifest,
     Document,
@@ -67,7 +68,6 @@ export function getRender({
     minimalMode: true,
     webServerConfig: {
       extendRenderOpts: {
-        dev,
         buildId,
         supportsDynamicHTML: true,
         concurrentFeatures: true,
