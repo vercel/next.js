@@ -107,7 +107,7 @@ initNext({
     }
 
     // delay rendering until after styles have been applied in development
-    await displayContent
+    await displayContent()
   },
 }).catch((err) => {
   console.error('Error was not caught', err)
