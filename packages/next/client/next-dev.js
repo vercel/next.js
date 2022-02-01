@@ -53,7 +53,7 @@ window.next = {
 initialize({ webpackHMR }, (assetPrefix) => {
   connectHMR({ assetPrefix, path: '/_next/webpack-hmr' })
 
-  hydrate({ webpackHMR })
+  hydrate()
     .then(({ renderCtx }) => {
       initOnDemandEntries()
 
