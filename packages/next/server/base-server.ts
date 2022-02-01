@@ -877,7 +877,7 @@ export default abstract class Server {
   ): Promise<boolean> {
     let page = pathname
     let params: Params | false = false
-    let pageFound = await this.hasPage(page)
+    let pageFound = !isDynamicRoute(page) && (await this.hasPage(page))
 
     if (!pageFound && this.dynamicRoutes) {
       for (const dynamicRoute of this.dynamicRoutes) {
