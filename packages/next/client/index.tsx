@@ -169,7 +169,10 @@ class Container extends React.Component<{
   }
 }
 
-export async function initNext(opts: { webpackHMR?: any } = {}) {
+export function initialize(
+  opts: { webpackHMR?: any },
+  callback: (assetPrefix: string) => void
+) {
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = opts.webpackHMR
@@ -266,7 +269,10 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
   }
 
   appElement = document.getElementById('__next')
+  callback(prefix)
+}
 
+export async function hydrate() {
   let initialErr = initialData.err
 
   try {

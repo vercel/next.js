@@ -1,4 +1,12 @@
-import { initNext, version, router, emitter, render, renderError } from './'
+import {
+  initialize,
+  hydrate,
+  version,
+  router,
+  emitter,
+  render,
+  renderError,
+} from './'
 
 window.next = {
   version,
@@ -11,4 +19,4 @@ window.next = {
   renderError,
 }
 
-initNext().catch(console.error)
+initialize({}, () => hydrate().catch(console.error))
