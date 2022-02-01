@@ -468,13 +468,13 @@ export default async function build(
         localeDetection?: false
       }
     } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => ({
-      version: 3,
+      version: 4,
       pages404: true,
       basePath: config.basePath,
       redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
       headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
       dynamicRoutes: getSortedRoutes(pageKeys)
-        .filter((page) => isDynamicRoute(page) && !page.match(MIDDLEWARE_ROUTE))
+        .filter((page) => isDynamicRoute(page))
         .map(pageToRoute),
       staticRoutes: getSortedRoutes(pageKeys)
         .filter(
@@ -2166,6 +2166,13 @@ function isTelemetryPlugin(plugin: unknown): plugin is TelemetryPlugin {
 }
 
 function pageToRoute(page: string) {
+  if (page.match(MIDDLEWARE_ROUTE)) {
+    return {
+      page: page.replace(/\/_middleware$/, '') || '/',
+      isMiddleware: true,
+    }
+  }
+
   const routeRegex = getRouteRegex(page)
   return {
     page,
