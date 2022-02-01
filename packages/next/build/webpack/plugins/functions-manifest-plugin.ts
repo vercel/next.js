@@ -59,6 +59,35 @@ export default class FunctionsManifestPlugin {
   }
 
   apply(compiler: webpack5.Compiler) {
+    const handler = (parser: any) => {
+      parser.hooks.evaluate
+        .for('config')
+        .tap(PLUGIN_NAME, (expression: any) => {
+          console.log('evaluate expression', expression)
+        })
+
+      parser.hooks.exportDeclaration
+        // .for('config')
+        .tap(PLUGIN_NAME, (expression: any) => {
+          console.log('exportDeclaration expression', expression)
+        })
+
+      parser.hooks.export
+        // .for('config')
+        .tap(PLUGIN_NAME, (expression: any) => {
+          console.log('export expression', expression)
+        })
+
+      parser.hooks.exportSpecifier.tap(PLUGIN_NAME, (expression: any) => {
+        console.log('exportSpecifier', expression)
+      })
+    }
+
+    compiler.hooks.normalModuleFactory.tap(PLUGIN_NAME, (factory) => {
+      factory.hooks.parser.for('javascript/auto').tap(PLUGIN_NAME, handler)
+      factory.hooks.parser.for('javascript/esm').tap(PLUGIN_NAME, handler)
+    })
+
     collectAssets(compiler, this.createAssets.bind(this), {
       dev: this.dev,
       pluginName: PLUGIN_NAME,
