@@ -244,6 +244,10 @@ export class NextURL {
   toJSON() {
     return this.href
   }
+
+  clone() {
+    return new NextURL(String(this), this[Internal].options)
+  }
 }
 
 const REGEX_LOCALHOST_HOSTNAME =

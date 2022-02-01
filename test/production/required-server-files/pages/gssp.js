@@ -19,6 +19,8 @@ export async function getServerSideProps({ res }) {
     props: {
       hello: 'world',
       data,
+      // make sure fetch if polyfilled
+      example: await fetch('https://example.com').then((res) => res.text()),
     },
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "12.0.9-canary.0",
+  "version": "12.0.10",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -71,10 +71,10 @@
     ]
   },
   "dependencies": {
-    "@next/env": "12.0.9-canary.0",
+    "@next/env": "12.0.10",
     "caniuse-lite": "^1.0.30001283",
     "postcss": "8.4.5",
-    "styled-jsx": "5.0.0-beta.7",
+    "styled-jsx": "5.0.0",
     "use-subscription": "1.5.1"
   },
   "peerDependencies": {
@@ -119,11 +119,11 @@
     "@hapi/accept": "5.0.2",
     "@napi-rs/cli": "1.2.1",
     "@napi-rs/triples": "1.0.3",
-    "@next/polyfill-module": "12.0.9-canary.0",
-    "@next/polyfill-nomodule": "12.0.9-canary.0",
-    "@next/react-dev-overlay": "12.0.9-canary.0",
-    "@next/react-refresh-utils": "12.0.9-canary.0",
-    "@next/swc": "12.0.9-canary.0",
+    "@next/polyfill-module": "12.0.10",
+    "@next/polyfill-nomodule": "12.0.10",
+    "@next/react-dev-overlay": "12.0.10",
+    "@next/react-refresh-utils": "12.0.10",
+    "@next/swc": "12.0.10",
     "@peculiar/webcrypto": "1.1.7",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
@@ -161,7 +161,7 @@
     "@types/webpack-sources1": "npm:@types/webpack-sources@0.1.5",
     "@types/ws": "8.2.0",
     "@vercel/ncc": "0.33.1",
-    "@vercel/nft": "0.17.2",
+    "@vercel/nft": "0.17.4",
     "acorn": "8.5.0",
     "amphtml-validator": "1.0.33",
     "arg": "4.1.0",
@@ -217,7 +217,7 @@
     "nanoid": "3.1.30",
     "native-url": "0.3.4",
     "neo-async": "2.6.1",
-    "node-fetch": "2.6.1",
+    "node-fetch": "2.6.7",
     "node-html-parser": "1.4.9",
     "ora": "4.0.4",
     "os-browserify": "0.3.0",
@@ -269,7 +269,7 @@
     "webpack-sources1": "npm:webpack-sources@1.4.3",
     "webpack-sources3": "npm:webpack-sources@3.2.3",
     "webpack4": "npm:webpack@4.44.1",
-    "webpack5": "npm:webpack@5.66.0",
+    "webpack5": "npm:webpack@5.67.0",
     "ws": "8.2.3"
   },
   "resolutions": {
