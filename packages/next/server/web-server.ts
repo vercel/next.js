@@ -4,12 +4,24 @@ import type RenderResult from './render-result'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { Params } from './router'
 import type { PayloadOptions } from './send-payload'
+import type { LoadComponentsReturnType } from './load-components'
 
-import BaseServer from './base-server'
+import BaseServer, { Options } from './base-server'
 import { renderToHTML } from './render'
-import { LoadComponentsReturnType } from './load-components'
+
+interface WebServerConfig {
+  loadComponent: (pathname: string) => Promise<LoadComponentsReturnType | null>
+  extendRenderOpts?: Partial<BaseServer['renderOpts']>
+}
 
 export default class NextWebServer extends BaseServer {
+  webServerConfig: WebServerConfig
+
+  constructor(options: Options & { webServerConfig: WebServerConfig }) {
+    super(options)
+    this.webServerConfig = options.webServerConfig
+    Object.assign(this.renderOpts, options.webServerConfig.extendRenderOpts)
+  }
   protected generateRewrites() {
     // @TODO: assuming minimal mode right now
     return {
@@ -78,7 +90,7 @@ export default class NextWebServer extends BaseServer {
   }
   protected getPagesManifest() {
     return {
-      [(globalThis as any).__current_route]: '',
+      [(globalThis as any).__server_context.page]: '',
     }
   }
   protected getFilesystemPaths() {
@@ -158,52 +170,19 @@ export default class NextWebServer extends BaseServer {
     query?: NextParsedUrlQuery,
     params?: Params | null
   ) {
-    if (pathname === (globalThis as any).__current_route) {
-      return {
-        query: {
-          ...(query || {}),
-          ...(params || {}),
-        },
-        components: (globalThis as any)
-          .__server_context as LoadComponentsReturnType,
-      }
+    const result = await this.webServerConfig.loadComponent(pathname)
+    if (!result) return null
+
+    return {
+      query: {
+        ...(query || {}),
+        ...(params || {}),
+      },
+      components: result,
     }
+  }
 
-    const { errorMod, error500Mod } = (globalThis as any).__server_context
-
-    // If there is a custom 500 page.
-    if (pathname === '/500' && error500Mod) {
-      return {
-        query: {
-          ...(query || {}),
-          ...(params || {}),
-        },
-        components: {
-          ...(globalThis as any).__server_context,
-          Component: error500Mod.default,
-          getStaticProps: error500Mod.getStaticProps,
-          getServerSideProps: error500Mod.getServerSideProps,
-          getStaticPaths: error500Mod.getStaticPaths,
-        } as LoadComponentsReturnType,
-      }
-    }
-
-    if (pathname === '/_error') {
-      return {
-        query: {
-          ...(query || {}),
-          ...(params || {}),
-        },
-        components: {
-          ...(globalThis as any).__server_context,
-          Component: errorMod.default,
-          getStaticProps: errorMod.getStaticProps,
-          getServerSideProps: errorMod.getServerSideProps,
-          getStaticPaths: errorMod.getStaticPaths,
-        } as LoadComponentsReturnType,
-      }
-    }
-
-    return null
+  public updateRenderOpts(renderOpts: Partial<BaseServer['renderOpts']>) {
+    Object.assign(this.renderOpts, renderOpts)
   }
 }
