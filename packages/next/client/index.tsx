@@ -268,7 +268,9 @@ class Container extends React.Component<{
 export const emitter: MittEmitter<string> = mitt()
 let CachedComponent: React.ComponentType
 
-export async function initNext(opts: { webpackHMR?: any } = {}) {
+export async function initNext(
+  opts: { webpackHMR?: any; beforeRender?: Promise<void> } = {}
+) {
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = opts.webpackHMR
@@ -422,12 +424,11 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     err: initialErr,
   }
 
-  if (process.env.NODE_ENV === 'production') {
-    render(renderCtx)
-    return emitter
-  } else {
-    return { emitter, renderCtx }
+  if (opts.beforeRender) {
+    await opts.beforeRender
   }
+
+  render(renderCtx)
 }
 
 export async function render(renderingProps: RenderRouteInfo): Promise<void> {
