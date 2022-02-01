@@ -1541,123 +1541,34 @@ function renderToStaticNodeStream(
   element: React.ReactElement
 ): Promise<NodeWritablePiper> {
   if (typeof (ReactDOMServer as any).renderToPipeableStream === 'function') {
-    return renderToNodeStreamUnsuffixed(element, true)
+    return renderToNodeStream(element, null, true)
   } else {
     const result = ReactDOMServer.renderToString(element)
     return Promise.resolve(piperFromArray([result]))
   }
 }
 
-function renderToNodeStreamUnsuffixed(
-  element: React.ReactElement,
-  generateStaticHTML: boolean
-): Promise<NodeWritablePiper> {
-  return new Promise((resolve, reject) => {
-    let underlyingStream: WritableType | null = null
-    let queuedCallbacks: Array<(error?: Error | null) => void> = []
-
-    // Based on the suggestion here:
-    // https://github.com/reactwg/react-18/discussions/110
-    class NextWritable extends Writable {
-      _write(
-        chunk: any,
-        encoding: string,
-        callback: (error?: Error | null) => void
-      ) {
-        if (!underlyingStream) {
-          throw new Error(
-            'invariant: write called without an underlying stream. This is a bug in Next.js'
-          )
-        }
-        // The compression module (https://github.com/expressjs/compression) doesn't
-        // support callbacks, so we have to wait for a drain event.
-        if (!underlyingStream.write(chunk, encoding)) {
-          queuedCallbacks.push(callback)
-        } else {
-          callback()
-        }
-      }
-
-      flush() {
-        if (!underlyingStream) {
-          throw new Error(
-            'invariant: flush called without an underlying stream. This is a bug in Next.js'
-          )
-        }
-
-        const anyWritable = underlyingStream as any
-        if (typeof anyWritable.flush === 'function') {
-          anyWritable.flush()
-        }
-      }
-    }
-
-    const stream = new NextWritable()
-    stream.on('drain', () => {
-      const callbacks = queuedCallbacks
-      queuedCallbacks = []
-      callbacks.forEach((callback) => callback())
-    })
-
-    let resolved = false
-    const doResolve = (startWriting: any) => {
-      if (!resolved) {
-        resolved = true
-        resolve((res, next) => {
-          const doNext = (err?: Error) => {
-            underlyingStream = null
-            queuedCallbacks = []
-            next(err)
-          }
-
-          stream.once('error', (err) => doNext(err))
-          stream.once('finish', () => doNext())
-
-          underlyingStream = res
-          startWriting()
-        })
-      }
-    }
-
-    const { abort, pipe } = (ReactDOMServer as any).renderToPipeableStream(
-      element,
-      {
-        onError(error: Error) {
-          if (!resolved) {
-            resolved = true
-            reject(error)
-          }
-          abort()
-        },
-        onCompleteShell() {
-          if (!generateStaticHTML) {
-            doResolve(() => pipe(stream))
-          }
-        },
-        onCompleteAll() {
-          doResolve(() => pipe(stream))
-        },
-      }
-    )
-  })
-}
-
 function renderToNodeStream(
   element: React.ReactElement,
-  suffix: string,
+  suffix: string | null,
   generateStaticHTML: boolean
 ): Promise<NodeWritablePiper> {
+  const closeTag = '</body></html>'
+
   return new Promise((resolve, reject) => {
     let underlyingStream: WritableType | null = null
     let queuedCallbacks: Array<(error?: Error | null) => void> = []
-    let shellFlushed = false
 
-    const closeTag = '</body></html>'
-    const [suffixUnclosed] = suffix.split(closeTag)
+    const suffixState = suffix
+      ? {
+          shellFlushed: false,
+          suffixFlushed: false,
+          suffixUnclosed: suffix.split(closeTag)[0],
+        }
+      : null
 
     // Based on the suggestion here:
     // https://github.com/reactwg/react-18/discussions/110
-    let suffixFlushed = false
     class NextWritable extends Writable {
       _write(
         chunk: any,
@@ -1677,15 +1588,15 @@ function renderToNodeStream(
           callback()
         }
 
-        if (!shellFlushed) {
-          shellFlushed = true
+        if (suffixState && !suffixState.shellFlushed) {
+          suffixState.shellFlushed = true
           // In the first round of streaming, all chunks will be finished in the micro task.
           // We use setTimeout to guarantee the suffix is flushed after the micro task.
           setTimeout(() => {
             // Flush the suffix if stream is not closed.
             if (underlyingStream) {
-              suffixFlushed = true
-              underlyingStream.write(suffixUnclosed)
+              suffixState.suffixFlushed = true
+              underlyingStream.write(suffixState.suffixUnclosed)
             }
           })
         }
@@ -1718,13 +1629,15 @@ function renderToNodeStream(
         resolved = true
         resolve((res, next) => {
           const doNext = (err?: Error) => {
-            // Some cases when the stream is closed too fast before setTimeout,
-            // have to ensure suffix is flushed anyway.
-            if (!suffixFlushed) {
-              res.write(suffixUnclosed)
-            }
-            if (!err) {
-              res.write(closeTag)
+            if (suffixState) {
+              // Some cases when the stream is closed too fast before setTimeout,
+              // have to ensure suffix is flushed anyway.
+              if (!suffixState.suffixFlushed) {
+                res.write(suffixState.suffixUnclosed)
+              }
+              if (!err) {
+                res.write(closeTag)
+              }
             }
             underlyingStream = null
             queuedCallbacks = []
@@ -1751,7 +1664,9 @@ function renderToNodeStream(
           abort()
         },
         onCompleteShell() {
-          shellFlushed = true
+          if (suffixState) {
+            suffixState.shellFlushed = true
+          }
           if (!generateStaticHTML) {
             doResolve(() => pipe(stream))
           }
