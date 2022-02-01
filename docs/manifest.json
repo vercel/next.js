@@ -17,11 +17,9 @@
               "title": "Data Fetching",
               "routes": [
                 {
-                  "title": "Overview",
-                  "path": "/docs/basic-features/data-fetching/index.md",
+                  "path": "/docs/basic-features/data-fetching",
                   "redirect": {
-                    "destination": "/docs/basic-features/data-fetching/overview.md",
-                    "permanent": true
+                    "destination": "/docs/basic-features/data-fetching/overview"
                   }
                 },
                 {
@@ -135,6 +133,15 @@
             {
               "title": "Response Helpers",
               "path": "/docs/api-routes/response-helpers.md"
+            }
+          ]
+        },
+        {
+          "title": "Guides",
+          "routes": [
+            {
+              "title": "Building Forms",
+              "path": "/docs/guides/building-forms.md"
             }
           ]
         },
