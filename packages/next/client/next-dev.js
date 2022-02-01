@@ -6,7 +6,6 @@ import {
   emitter,
   render,
   renderError,
-  initialize,
 } from './'
 import initOnDemandEntries from './dev/on-demand-entries-client'
 import initWebpackHMR from './dev/webpack-hot-middleware-client'
