@@ -5,7 +5,8 @@ import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
-import type Router, { NextRouter } from '../shared/lib/router/router'
+import type Router from '../shared/lib/router/router'
+import type { NextRouter } from '../shared/lib/router/router'
 import {
   AppComponent,
   AppProps,
