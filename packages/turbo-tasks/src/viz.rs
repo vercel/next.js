@@ -95,7 +95,7 @@ impl Visualizer for GraphViz {
             self.output += &format!(
                 "{} [shape=box, label=\"{}\"]\n",
                 id,
-                escape(&if state == "done" {
+                escape(&if state == "done (1/1)" || state == "done (0/1)" {
                     name.to_string()
                 } else {
                     name.to_string() + "\n" + state

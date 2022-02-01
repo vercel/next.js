@@ -63,6 +63,8 @@ struct TaskState {
     children: Vec<Arc<Task>>,
     output: Option<NodeRef>,
     event: Event,
+    executions: i32,
+    output_changes: i32,
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -151,6 +153,8 @@ impl Task {
                 children: Vec::new(),
                 output: None,
                 event: Event::new(),
+                executions: 0,
+                output_changes: 0,
             }),
             dependencies: RwLock::new(Vec::new()),
         })
@@ -169,6 +173,8 @@ impl Task {
                 children: Vec::new(),
                 output: None,
                 event: Event::new(),
+                executions: 0,
+                output_changes: 0,
             }),
             dependencies: RwLock::new(Vec::new()),
         }
@@ -176,6 +182,7 @@ impl Task {
 
     pub(crate) fn execution_started(&self) {
         let mut state = self.state.lock().unwrap();
+        state.executions += 1;
         match state.state_type {
             Scheduled | InProgressLocallyOutdated => {
                 state.state_type = InProgressLocally;
@@ -212,6 +219,7 @@ impl Task {
                         parent.child_done(turbo_tasks);
                     }
                 } else {
+                    state.output_changes += 1;
                     state.output = result;
                     drop(state);
                     for parent in parents.iter() {
@@ -553,7 +561,7 @@ impl Visualizable for Task {
             self as *const Task,
             self.native_fn
                 .map_or_else(|| "unnamed", |native_fn| &native_fn.name),
-            match state.state_type {
+            &(match state.state_type {
                 Scheduled => "scheduled",
                 InProgressLocally => "in progress (locally)",
                 InProgressLocallyOutdated => "in progress (locally, outdated)",
@@ -561,7 +569,9 @@ impl Visualizable for Task {
                 Dirty => "dirty",
                 SomeChildrenDirty => "some children dirty",
                 SomeChildrenScheduled => "some children scheduled",
-            },
+            }
+            .to_string()
+                + &format!(" ({}/{})", state.output_changes, state.executions)),
         ) {
             let children = state.children.clone();
             let output = state.output.clone();
