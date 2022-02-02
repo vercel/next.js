@@ -959,11 +959,6 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  const nonUserCondition = {
-    include: /node_modules/,
-    exclude: babelIncludeRegexes,
-  }
-
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     externals: targetWeb
@@ -1255,13 +1250,6 @@ export default async function getBaseWebpackConfig(
                 : defaultLoaders.babel,
             },
           ],
-        },
-        {
-          ...nonUserCondition,
-          // Make all non-user modules to be compiled in a single layer
-          // This avoids compiling them mutliple times and avoids module id changes
-          issuerLayer: 'middleware',
-          layer: '',
         },
         ...(!config.images.disableStaticImages
           ? [
@@ -1621,6 +1609,7 @@ export default async function getBaseWebpackConfig(
     removeConsole: config.experimental.removeConsole,
     reactRemoveProperties: config.experimental.reactRemoveProperties,
     styledComponents: config.experimental.styledComponents,
+    relay: config.experimental.relay,
   })
 
   const cache: any = {

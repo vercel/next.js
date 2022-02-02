@@ -158,6 +158,10 @@ export default abstract class Server {
     concurrentFeatures?: boolean
     serverComponents?: boolean
     crossOrigin?: string
+    supportsDynamicHTML?: boolean
+    serverComponentManifest?: any
+    renderServerComponentData?: boolean
+    serverComponentProps?: any
   }
   private incrementalCache: IncrementalCache
   private responseCache: ResponseCache

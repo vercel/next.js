@@ -33,7 +33,7 @@ import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
-import { trackWebVitalMetric } from './vitals'
+import { flushBufferedVitalsMetrics, trackWebVitalMetric } from './vitals'
 import { RefreshContext } from './rsc/refresh'
 
 /// <reference types="react-dom/experimental" />
@@ -1010,7 +1010,10 @@ function Root({
   // don't cause any hydration delay:
   React.useEffect(() => {
     measureWebVitals(onPerfEntry)
+
+    flushBufferedVitalsMetrics()
   }, [])
+
   return children as React.ReactElement
 }
 
