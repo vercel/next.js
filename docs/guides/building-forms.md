@@ -1,6 +1,6 @@
 ---
 title: Building Web Forms with Next.js
-description: This guide is tailored at creating serverless web forms with Next.js. You'll first learn about the basic form element and then some advanced concepts like how forms are catered in React and finally validation with Next.js serverless functions.
+description: This guide is tailored at creating web forms with Next.js. You'll first learn about the basic form element and then some advanced concepts like how forms are catered in React and finally validation with Next.js serverless functions.
 ---
 
 # Building a Web Form with Next.js
