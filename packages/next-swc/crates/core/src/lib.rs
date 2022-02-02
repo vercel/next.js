@@ -112,7 +112,7 @@ pub fn custom_before_pass(
     #[cfg(not(target_arch = "wasm32"))]
     let relay_plugin = {
         if let Some(config) = &opts.relay {
-            Either::Left(relay::relay(config, file.name.clone()))
+            Either::Left(relay::relay(config, file.name.clone(), opts.pages_dir.clone()))
         } else {
             Either::Right(noop())
         }
