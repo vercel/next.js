@@ -48,7 +48,8 @@ export default async function webdriver(
   appPortOrUrl: string | number,
   url: string,
   waitHydration = true,
-  retryWaitHydration = false
+  retryWaitHydration = false,
+  disableCache = false
 ): Promise<BrowserInterface> {
   let CurrentInterface: typeof BrowserInterface
 
@@ -80,7 +81,7 @@ export default async function webdriver(
 
   console.log(`\n> Loading browser with ${fullUrl}\n`)
 
-  await browser.loadPage(fullUrl)
+  await browser.loadPage(fullUrl, { disableCache })
   console.log(`\n> Loaded browser with ${fullUrl}\n`)
 
   // Wait for application to hydrate

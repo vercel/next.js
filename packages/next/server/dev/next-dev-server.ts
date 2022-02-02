@@ -2,7 +2,6 @@ import type { __ApiPreviewProps } from '../api-utils'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
 import type { FetchEventResult } from '../web/types'
 import type { FindComponentsResult } from '../next-server'
-import type { IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from '../load-components'
 import type { Options as ServerOptions } from '../next-server'
 import type { Params } from '../router'
@@ -14,7 +13,7 @@ import type { UrlWithParsedQuery } from 'url'
 import crypto from 'crypto'
 import fs from 'fs'
 import chalk from 'next/dist/compiled/chalk'
-import { Worker } from 'jest-worker'
+import { Worker } from 'next/dist/compiled/jest-worker'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import findUp from 'next/dist/compiled/find-up'
 import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
@@ -59,6 +58,12 @@ import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
 import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware-regex'
 import { isCustomErrorPage, isReservedPage } from '../../build/utils'
+import {
+  BaseNextRequest,
+  BaseNextResponse,
+  NodeNextResponse,
+  NodeNextRequest,
+} from '../base-http'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -90,11 +95,11 @@ export default class DevServer extends Server {
   protected sortedRoutes?: string[]
   private addedUpgradeListener = false
 
-  protected staticPathsWorker?: import('jest-worker').Worker & {
+  protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
   }
 
-  private getStaticPathsWorker(): import('jest-worker').Worker & {
+  private getStaticPathsWorker(): { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
   } {
     if (this.staticPathsWorker) {
@@ -211,7 +216,7 @@ export default class DevServer extends Server {
 
             const mergedQuery = { ...urlQuery, ...query }
 
-            await this.render(req, res, page, mergedQuery, parsedUrl)
+            await this.render(req, res, page, mergedQuery, parsedUrl, true)
             return {
               finished: true,
             }
@@ -443,8 +448,8 @@ export default class DevServer extends Server {
   }
 
   protected async _beforeCatchAllRender(
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
     params: Params,
     parsedUrl: UrlWithParsedQuery
   ): Promise<boolean> {
@@ -477,10 +482,10 @@ export default class DevServer extends Server {
     return false
   }
 
-  private setupWebSocketHandler(server?: HTTPServer, _req?: IncomingMessage) {
+  private setupWebSocketHandler(server?: HTTPServer, _req?: NodeNextRequest) {
     if (!this.addedUpgradeListener) {
       this.addedUpgradeListener = true
-      server = server || (_req?.socket as any)?.server
+      server = server || (_req?.originalRequest.socket as any)?.server
 
       if (!server) {
         // this is very unlikely to happen but show an error in case
@@ -519,8 +524,8 @@ export default class DevServer extends Server {
   }
 
   async runMiddleware(params: {
-    request: IncomingMessage
-    response: ServerResponse
+    request: BaseNextRequest
+    response: BaseNextResponse
     parsedUrl: ParsedNextUrl
     parsed: UrlWithParsedQuery
   }): Promise<FetchEventResult | null> {
@@ -547,8 +552,8 @@ export default class DevServer extends Server {
   }
 
   async run(
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: NodeNextRequest,
+    res: NodeNextResponse,
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
     await this.devReady
@@ -573,8 +578,8 @@ export default class DevServer extends Server {
     }
 
     const { finished = false } = await this.hotReloader!.run(
-      req,
-      res,
+      req.originalRequest,
+      res.originalResponse,
       parsedUrl
     )
 
@@ -599,7 +604,7 @@ export default class DevServer extends Server {
         })
       } catch (internalErr) {
         console.error(internalErr)
-        res.end('Internal Server Error')
+        res.body('Internal Server Error').send()
       }
     }
   }
@@ -752,11 +757,13 @@ export default class DevServer extends Server {
       fn: async (_req, res) => {
         res.statusCode = 200
         res.setHeader('Content-Type', 'application/json; charset=utf-8')
-        res.end(
-          JSON.stringify({
-            pages: this.sortedRoutes,
-          })
-        )
+        res
+          .body(
+            JSON.stringify({
+              pages: this.sortedRoutes,
+            })
+          )
+          .send()
         return {
           finished: true,
         }
@@ -772,14 +779,16 @@ export default class DevServer extends Server {
       fn: async (_req, res) => {
         res.statusCode = 200
         res.setHeader('Content-Type', 'application/json; charset=utf-8')
-        res.end(
-          JSON.stringify(
-            this.middleware?.map((middleware) => [
-              middleware.page,
-              !!middleware.ssr,
-            ]) || []
+        res
+          .body(
+            JSON.stringify(
+              this.middleware?.map((middleware) => [
+                middleware.page,
+                !!middleware.ssr,
+              ]) || []
+            )
           )
-        )
+          .send()
         return {
           finished: true,
         }
@@ -927,13 +936,13 @@ export default class DevServer extends Server {
     return await loadDefaultErrorComponents(this.distDir)
   }
 
-  protected setImmutableAssetCacheControl(res: ServerResponse): void {
+  protected setImmutableAssetCacheControl(res: BaseNextResponse): void {
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
   }
 
   private servePublic(
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
     pathParts: string[]
   ): Promise<void> {
     const p = pathJoin(this.publicDir, ...pathParts)

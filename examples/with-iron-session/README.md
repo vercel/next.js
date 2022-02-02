@@ -10,7 +10,7 @@ It uses current best practices for authentication in the Next.js ecosystem and r
 
 **Features of the example:**
 
-- [API Routes](https://nextjs.org/docs/api-routes/dynamic-api-routes) and [getServerSideProps](https://nextjs.org/docs/basic-features/data-fetching#getserversideprops-server-side-rendering) examples.
+- [API Routes](https://nextjs.org/docs/api-routes/dynamic-api-routes) and [getServerSideProps](https://nextjs.org/docs/basic-features/data-fetching/get-server-side-props) examples.
 - The logged in status is synchronized between browser windows/tabs using **`useUser`** hook and the [`swr`](https://swr.vercel.app/).
 - The layout is based on the user's logged-in/out status.
 - The session data is signed and encrypted in a cookie (this is done automatically by `iron-session`).

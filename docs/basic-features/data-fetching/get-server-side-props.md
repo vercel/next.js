@@ -2,7 +2,7 @@
 description: Fetch data on each request with `getServerSideProps`.
 ---
 
-# `getServerSideProps`
+# getServerSideProps
 
 If you export a function called `getServerSideProps` (Server-Side Rendering) from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`.
 
@@ -14,7 +14,7 @@ export async function getServerSideProps(context) {
 }
 ```
 
-## When does `getServerSideProps` run
+## When does getServerSideProps run
 
 `getServerSideProps` only runs on server-side and never runs on the browser. If a page uses `getServerSideProps`, then:
 
@@ -31,13 +31,13 @@ Note that you must export `getServerSideProps` as a standalone function — it w
 
 The [`getServerSideProps` API reference](/docs/api-reference/data-fetching/get-server-side-props.md) covers all parameters and props that can be used with `getServerSideProps`.
 
-## When should I use `getServerSideProps`?
+## When should I use getServerSideProps
 
-You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. [Time to First Byte (TTFB)](/learn/seo/web-performance) will be higher than [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) because the server must compute the result on every request, and the result can only be cached by a CDN using `cache-control` headers (which could require extra configuration).
+You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. [Time to First Byte (TTFB)](https://web.dev/ttfb/) will be higher than [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) because the server must compute the result on every request, and the result can only be cached by a CDN using `cache-control` headers (which could require extra configuration).
 
 If you do not need to pre-render the data, then you should consider fetching data on the [client side](#fetching-data-on-the-client-side).
 
-### `getServerSideProps` or API Routes
+### getServerSideProps or API Routes
 
 It can be tempting to reach for an [API Route](/docs/api-routes/introduction.md) when you want to fetch data from the server, then call that API route from `getServerSideProps`. This is an unnecessary and inefficient approach, as it will cause an extra request to be made due to both `getServerSideProps` and API Routes running on the server.
 
@@ -45,14 +45,14 @@ Take the following example. An API route is used to fetch some data from a CMS. 
 
 ## Fetching data on the client side
 
-If your page contains frequently updating data, and you don’t need to pre-render the data, you can fetch the data on the [client side](/docs/basic-features/client-side.md). An example of this is user-specific data:
+If your page contains frequently updating data, and you don’t need to pre-render the data, you can fetch the data on the [client side](/docs/basic-features/data-fetching/client-side.md). An example of this is user-specific data:
 
 - First, immediately show the page without data. Parts of the page can be pre-rendered using Static Generation. You can show loading states for missing data.
 - Then, fetch the data on the client side and display it when ready.
 
 This approach works well for user dashboard pages, for example. Because a dashboard is a private, user-specific page, SEO is not relevant and the page doesn’t need to be pre-rendered. The data is frequently updated, which requires request-time data fetching.
 
-## Using `getServerSideProps` to fetch data at request time
+## Using getServerSideProps to fetch data at request time
 
 The following example shows how to fetch data at request time and pre-render the result.
 
@@ -73,3 +73,10 @@ export async function getServerSideProps() {
 
 export default Page
 ```
+
+<div class="card">
+  <a href="/docs/api-reference/data-fetching/get-server-side-props.md">
+    <b>getServerSideProps API Reference</b>
+    <small>Read the API Reference for getServerSideProps</small>
+  </a>
+</div>

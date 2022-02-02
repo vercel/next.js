@@ -2,7 +2,7 @@
 description: API reference for `getServerSideProps`. Learn how to fetch data on each request with Next.js.
 ---
 
-# `getServerSideProps`
+# getServerSideProps
 
 <details>
   <summary><b>Version History</b></summary>
@@ -41,9 +41,9 @@ The `context` parameter is an object containing the following keys:
 - `locales` contains all supported locales (if enabled).
 - `defaultLocale` contains the configured default locale (if enabled).
 
-## `getServerSideProps` return values
+## getServerSideProps return values
 
-The `getServerSideProps` function should return an object with the following **optional** properties:
+The `getServerSideProps` function should return an object with **any one of the following** properties:
 
 ### `props`
 
@@ -102,7 +102,7 @@ export async function getServerSideProps(context) {
 }
 ```
 
-### `getServerSideProps` with TypeScript
+### getServerSideProps with TypeScript
 
 For TypeScript, you can use the `GetServerSideProps` type from `next`:
 
@@ -144,7 +144,7 @@ export default Page
 For more information on what to do next, we recommend the following sections:
 
 <div class="card">
-  <a href="/docs/basic-features/data-fetching/index.md">
+  <a href="/docs/basic-features/data-fetching/overview.md">
     <b>Data Fetching:</b>
     <small>Learn more about data fetching in Next.js.</small>
   </a>
