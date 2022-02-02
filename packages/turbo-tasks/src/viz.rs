@@ -8,12 +8,15 @@ pub trait Visualizable {
 
 pub trait Visualizer {
     fn task(&mut self, task: *const Task, name: &str, state: &str) -> bool;
-    fn node(&mut self, node: *const Node, type_name: &str);
+    fn node(&mut self, node: *const Node, type_name: &str) -> bool;
     fn input(&mut self, task: *const Task, node: *const Node);
     fn output(&mut self, task: *const Task, node: *const Node);
     fn children_start(&mut self, parent_task: *const Task);
     fn child(&mut self, parent_task: *const Task, child_task: *const Task);
     fn children_end(&mut self, parent_task: *const Task);
+    fn nested_start(&mut self, parent_node: *const Node);
+    fn nested(&mut self, parent_node: *const Node, nested_node: *const Node);
+    fn nested_end(&mut self, parent_node: *const Node);
     fn dependency(&mut self, task: *const Task, node: *const Node);
 }
 
@@ -105,11 +108,14 @@ impl Visualizer for GraphViz {
         }
     }
 
-    fn node(&mut self, node: *const Node, type_name: &str) {
+    fn node(&mut self, node: *const Node, type_name: &str) -> bool {
         let id = self.get_id(node);
-        if !self.visited.contains(&id) {
+        if self.visited.contains(&id) {
+            false
+        } else {
             self.visited.insert(id);
             self.output += &format!("{} [label=\"{}\"]\n", id, escape(type_name));
+            true
         }
     }
 
@@ -146,6 +152,12 @@ impl Visualizer for GraphViz {
         );
     }
 
+    fn nested(&mut self, parent_node: *const Node, nested_node: *const Node) {
+        let parent_node = self.get_id(parent_node);
+        let nested_node = self.get_id(nested_node);
+        self.output += &format!("{} -> {} [color=\"#94c8f2\"]\n", parent_node, nested_node);
+    }
+
     fn dependency(&mut self, task: *const Task, node: *const Node) {
         let task = self.get_id(task);
         let node = self.get_id(node);
@@ -161,6 +173,15 @@ impl Visualizer for GraphViz {
     }
 
     fn children_end(&mut self, _parent_task: *const Task) {
+        self.output += &format!("}}\n");
+    }
+
+    fn nested_start(&mut self, parent_node: *const Node) {
+        let parent_node = self.get_id(parent_node);
+        self.output += &format!("subgraph cluster_{} {{\ncolor=\"#c2e4ff\"\n", parent_node);
+    }
+
+    fn nested_end(&mut self, _parent_node: *const Node) {
         self.output += &format!("}}\n");
     }
 }

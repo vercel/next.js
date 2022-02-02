@@ -12,9 +12,10 @@ use syn::{
     punctuated::Punctuated,
     spanned::Spanned,
     token::Paren,
-    Attribute, Error, Expr, FnArg, ImplItem, ImplItemMethod, Item, ItemEnum, ItemFn, ItemImpl,
-    ItemStruct, ItemTrait, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver,
-    Result, ReturnType, Signature, Token, TraitItem, TraitItemMethod, Type, TypePath, TypeTuple,
+    Attribute, Error, Expr, Field, Fields, FieldsNamed, FieldsUnnamed, FnArg, ImplItem,
+    ImplItemMethod, Item, ItemEnum, ItemFn, ItemImpl, ItemStruct, ItemTrait, Pat, PatIdent,
+    PatType, Path, PathArguments, PathSegment, Receiver, Result, ReturnType, Signature, Token,
+    TraitItem, TraitItemMethod, Type, TypePath, TypeTuple,
 };
 
 fn get_ref_ident(ident: &Ident) -> Ident {
@@ -107,6 +108,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         })
         .collect();
     let expanded = quote! {
+        #[derive(turbo_tasks::trace::TraceNodeRefs)]
         #item
 
         lazy_static::lazy_static! {
@@ -152,6 +154,12 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         impl From<#ref_ident> for turbo_tasks::NodeRef {
             fn from(node_ref: #ref_ident) -> Self {
                 node_ref.node
+            }
+        }
+
+        impl turbo_tasks::trace::TraceNodeRefs for #ref_ident {
+            fn trace_node_refs(&self, context: &mut turbo_tasks::trace::TraceNodeRefsContext) {
+                turbo_tasks::trace::TraceNodeRefs::trace_node_refs(&self.node, context);
             }
         }
     };
@@ -263,6 +271,10 @@ impl Parse for Constructor {
 }
 
 fn is_constructor(attr: &Attribute) -> bool {
+    is_attribute(attr, "constructor")
+}
+
+fn is_attribute(attr: &Attribute, name: &str) -> bool {
     let path = &attr.path;
     if path.leading_colon.is_some() {
         return false;
@@ -271,7 +283,7 @@ fn is_constructor(attr: &Attribute) -> bool {
     match iter.next() {
         Some(seg) if seg.arguments.is_empty() && seg.ident.to_string() == "turbo_tasks" => {
             match iter.next() {
-                Some(seg) if seg.arguments.is_empty() && seg.ident.to_string() == "constructor" => {
+                Some(seg) if seg.arguments.is_empty() && seg.ident.to_string() == name => {
                     iter.next().is_none()
                 }
                 _ => false,
@@ -393,6 +405,12 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
         impl From<#ref_ident> for turbo_tasks::NodeRef {
             fn from(node_ref: #ref_ident) -> Self {
                 node_ref.node
+            }
+        }
+
+        impl turbo_tasks::trace::TraceNodeRefs for #ref_ident {
+            fn trace_node_refs(&self, context: &mut turbo_tasks::trace::TraceNodeRefsContext) {
+                turbo_tasks::trace::TraceNodeRefs::trace_node_refs(&self.node, context);
             }
         }
 
@@ -704,11 +722,6 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn constructor(_args: TokenStream, input: TokenStream) -> TokenStream {
-    input
-}
-
-#[proc_macro_attribute]
 pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
     let item = parse_macro_input!(input as ItemFn);
     let ItemFn {
@@ -907,4 +920,112 @@ fn gen_native_function_code(
             });
         }
     }
+}
+
+#[proc_macro_attribute]
+pub fn constructor(_args: TokenStream, input: TokenStream) -> TokenStream {
+    input
+}
+
+#[proc_macro_derive(TraceNodeRefs, attributes(trace_ignore))]
+pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
+    fn ignore_field(field: &Field) -> bool {
+        !field
+            .attrs
+            .iter()
+            .any(|attr| attr.path.is_ident("trace_ignore"))
+    }
+
+    let item = parse_macro_input!(input as Item);
+
+    let (ident, trace_items) = match &item {
+        Item::Enum(ItemEnum {
+            ident, variants, ..
+        }) => (ident, {
+            let variants_code: Vec<_> = variants.iter().map(|variant| {
+                let variant_ident = &variant.ident;
+                match &variant.fields {
+                    Fields::Named(FieldsNamed{ named, ..}) => {
+                        let idents: Vec<_> = named.iter()
+                            .filter(|field| ignore_field(field))
+                            .filter_map(|field| field.ident.clone())
+                            .collect();
+                        quote! {
+                            #ident::#variant_ident{ #(ref #idents),* } => {
+                                #(
+                                    turbo_tasks::trace::TraceNodeRefs::trace_node_refs(#idents, context);
+                                )*
+                            }
+                        }
+                    },
+                    Fields::Unnamed(FieldsUnnamed{ unnamed, .. }) => {
+                        let idents: Vec<_> = unnamed.iter()
+                            .enumerate()
+                            .filter(|(_, field)| ignore_field(field))
+                            .map(|(i, field)| Ident::new(&format!("tuple_item_{}", i), field.span()))
+                            .collect();
+                        quote! {
+                            #ident::#variant_ident( #(ref #idents),* ) => {
+                                #(
+                                    turbo_tasks::trace::TraceNodeRefs::trace_node_refs(#idents, context);
+                                )*
+                            }
+                        }
+                    },
+                    Fields::Unit => quote! {
+                        #ident::#variant_ident => {}
+                    },
+                }
+            }).collect();
+            quote! {
+                match self {
+                    #(#variants_code)*
+                }
+            }
+        }),
+        Item::Struct(ItemStruct { ident, fields, .. }) => (
+            ident,
+            match fields {
+                Fields::Named(FieldsNamed { named, .. }) => {
+                    let idents: Vec<_> = named
+                        .iter()
+                        .filter(|field| ignore_field(field))
+                        .filter_map(|field| field.ident.clone())
+                        .collect();
+                    quote! {
+                        #(
+                            turbo_tasks::trace::TraceNodeRefs::trace_node_refs(&self.#idents, context);
+                        )*
+                    }
+                }
+                Fields::Unnamed(FieldsUnnamed { unnamed, .. }) => {
+                    let indicies: Vec<_> = unnamed
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, field)| ignore_field(field))
+                        .map(|(i, _)| Literal::usize_unsuffixed(i))
+                        .collect();
+                    quote! {
+                        #(
+                            turbo_tasks::trace::TraceNodeRefs::trace_node_refs(&self.#indicies, context);
+                        )*
+                    }
+                }
+                Fields::Unit => quote! {},
+            },
+        ),
+        _ => {
+            item.span().unwrap().error("unsupported syntax").emit();
+
+            return quote! {}.into();
+        }
+    };
+    quote! {
+        impl turbo_tasks::trace::TraceNodeRefs for #ident {
+            fn trace_node_refs(&self, context: &mut turbo_tasks::trace::TraceNodeRefsContext) {
+                #trace_items
+            }
+        }
+    }
+    .into()
 }

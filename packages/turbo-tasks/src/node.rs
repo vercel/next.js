@@ -10,7 +10,7 @@ use std::{
     },
 };
 
-use crate::{viz::Visualizable, NativeFunction, Task, TurboTasks};
+use crate::{trace::TraceNodeRefs, viz::Visualizable, NativeFunction, Task, TurboTasks};
 
 static NEXT_NODE_TYPE_ID: AtomicU32 = AtomicU32::new(1);
 
@@ -111,6 +111,7 @@ pub struct Node {
 pub(crate) struct NodeState {
     // content can change, but must not change it type
     content: Arc<dyn Any + Send + Sync>,
+    nested_nodes: Vec<WeakNodeRef>,
     // TODO use a concurrent set instead
     pub(crate) dependent_tasks: Vec<Weak<Task>>,
 }
@@ -122,11 +123,15 @@ pub struct NodeRef {
 }
 
 impl NodeRef {
-    pub fn new<T: Any + Send + Sync>(node_type: &'static NodeType, content: Arc<T>) -> Self {
+    pub fn new<T: TraceNodeRefs + Send + Sync + 'static>(
+        node_type: &'static NodeType,
+        content: Arc<T>,
+    ) -> Self {
         Self {
             node: Arc::new(Node {
                 node_type,
                 state: RwLock::new(NodeState {
+                    nested_nodes: content.get_node_refs(),
                     content: content as Arc<dyn Any + Send + Sync>,
                     dependent_tasks: Vec::new(),
                 }),
@@ -161,8 +166,10 @@ impl NodeRef {
         Arc::downcast(self.read_content_untracked()).ok()
     }
 
-    pub unsafe fn update<T: Any + Send + Sync>(&self, content: Arc<T>) {
+    pub unsafe fn update<T: TraceNodeRefs + Send + Sync + 'static>(&self, content: Arc<T>) {
+        let nested_nodes = content.get_node_refs();
         let mut state = self.node.state.write().unwrap();
+        state.nested_nodes = nested_nodes;
         state.content = content;
         let dependent_tasks: Vec<_> = state
             .dependent_tasks
@@ -286,6 +293,22 @@ impl fmt::Debug for WeakNodeRef {
 
 impl Visualizable for NodeRef {
     fn visualize(&self, visualizer: &mut impl crate::viz::Visualizer) {
-        visualizer.node(&**self as *const Node, &self.node_type.name);
+        if visualizer.node(&**self as *const Node, &self.node_type.name) {
+            let state = self.state.read().unwrap();
+            let nested_nodes: Vec<_> = state
+                .nested_nodes
+                .iter()
+                .filter_map(|node| node.upgrade())
+                .collect();
+            drop(state);
+            if !nested_nodes.is_empty() {
+                visualizer.nested_start(&**self as *const Node);
+                for child in nested_nodes {
+                    visualizer.nested(&**self as *const Node, &*child as *const Node);
+                    child.visualize(visualizer);
+                }
+                visualizer.nested_end(&**self as *const Node);
+            }
+        }
     }
 }

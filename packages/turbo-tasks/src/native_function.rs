@@ -5,6 +5,7 @@ use std::hash::Hash;
 #[turbo_tasks::value]
 pub struct NativeFunction {
     pub name: String,
+    #[trace_ignore]
     pub bind_fn: Box<dyn (Fn(Vec<NodeRef>) -> Result<NativeTaskFn>) + Send + Sync + 'static>,
 }
 

@@ -2,6 +2,7 @@ pub mod macro_helpers;
 mod native_function;
 pub(crate) mod node;
 mod task;
+pub mod trace;
 mod turbo_tasks;
 pub mod viz;
 
