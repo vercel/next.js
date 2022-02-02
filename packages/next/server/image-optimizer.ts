@@ -1,6 +1,6 @@
 import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import { createHash } from 'crypto'
-import { createReadStream, promises } from 'fs'
+import { promises } from 'fs'
 import { getOrientation, Orientation } from 'next/dist/compiled/get-orientation'
 import imageSizeOf from 'next/dist/compiled/image-size'
 import { IncomingMessage, ServerResponse } from 'http'
