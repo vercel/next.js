@@ -32,6 +32,7 @@ const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const inflightRequests = new Map<string, Promise<void>>()
+const staleRequests = new Map<string, { buffer: Buffer; file: string }>()
 
 let sharp:
   | ((
@@ -180,25 +181,44 @@ export async function imageOptimizer(
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
   const now = Date.now()
+  const staleRequest = staleRequests.get(hashDir)
   let xCache: XCacheHeader = 'MISS'
+
+  // If there are concurrent requests hitting the same STALE resource,
+  // we can serve it from memory to avoid blocking below.
+  if (staleRequest) {
+    xCache = 'STALE'
+    const { maxAge, etag, contentType } = getFileMetadata(staleRequest.file)
+    const result = setResponseHeaders(
+      req,
+      res,
+      url,
+      etag,
+      maxAge,
+      contentType,
+      isStatic,
+      isDev,
+      xCache
+    )
+    if (!result.finished) {
+      res.end(staleRequest.buffer)
+    }
+    return { finished: true }
+  }
 
   // If there're concurrent requests hitting the same resource and it's still
   // being optimized, wait before accessing the cache.
-  if (inflightRequests.has(hash)) {
-    await inflightRequests.get(hash)
+  if (inflightRequests.has(hashDir)) {
+    await inflightRequests.get(hashDir)
   }
   const dedupe = new Deferred<void>()
-  inflightRequests.set(hash, dedupe.promise)
+  inflightRequests.set(hashDir, dedupe.promise)
 
   try {
     if (await fileExists(hashDir, 'directory')) {
       const files = await promises.readdir(hashDir)
       for (let file of files) {
-        const [maxAgeStr, expireAtSt, etag, extension] = file.split('.')
-        const maxAge = Number(maxAgeStr)
-        const expireAt = Number(expireAtSt)
-        const contentType = getContentType(extension)
-        const fsPath = join(hashDir, file)
+        const { maxAge, expireAt, etag, contentType } = getFileMetadata(file)
         xCache = now < expireAt ? 'HIT' : 'STALE'
         const result = setResponseHeaders(
           req,
@@ -212,17 +232,16 @@ export async function imageOptimizer(
           xCache
         )
         if (!result.finished) {
-          await new Promise<void>((resolve, reject) => {
-            createReadStream(fsPath)
-              .on('end', resolve)
-              .on('error', reject)
-              .pipe(res)
-          })
+          const fsPath = join(hashDir, file)
+          const buffer = await promises.readFile(fsPath)
+          if (xCache === 'STALE') {
+            staleRequests.set(hashDir, { buffer, file })
+            await promises.unlink(fsPath)
+          }
+          res.end(buffer)
         }
         if (xCache === 'HIT') {
           return { finished: true }
-        } else {
-          await promises.unlink(fsPath)
         }
       }
     }
@@ -516,7 +535,7 @@ export async function imageOptimizer(
     return { finished: true }
   } finally {
     dedupe.resolve()
-    inflightRequests.delete(hash)
+    inflightRequests.delete(hashDir)
   }
 }
 
@@ -532,6 +551,7 @@ async function writeToCacheDir(
   const etag = getHash([buffer])
   const filename = join(dir, `${maxAge}.${expireAt}.${etag}.${extension}`)
   await promises.writeFile(filename, buffer)
+  staleRequests.delete(dir)
 }
 
 function getFileNameWithExtension(
@@ -781,6 +801,14 @@ export async function getImageSize(
 
   const { width, height } = imageSizeOf(buffer)
   return { width, height }
+}
+
+function getFileMetadata(file: string) {
+  const [maxAgeStr, expireAtSt, etag, extension] = file.split('.')
+  const maxAge = Number(maxAgeStr)
+  const expireAt = Number(expireAtSt)
+  const contentType = getContentType(extension)
+  return { maxAge, expireAt, etag, contentType }
 }
 
 export class Deferred<T> {
