@@ -158,6 +158,10 @@ export default abstract class Server {
     concurrentFeatures?: boolean
     serverComponents?: boolean
     crossOrigin?: string
+    supportsDynamicHTML?: boolean
+    serverComponentManifest?: any
+    renderServerComponentData?: boolean
+    serverComponentProps?: any
   }
   private incrementalCache: IncrementalCache
   private responseCache: ResponseCache
@@ -877,7 +881,7 @@ export default abstract class Server {
   ): Promise<boolean> {
     let page = pathname
     let params: Params | false = false
-    let pageFound = await this.hasPage(page)
+    let pageFound = !isDynamicRoute(page) && (await this.hasPage(page))
 
     if (!pageFound && this.dynamicRoutes) {
       for (const dynamicRoute of this.dynamicRoutes) {
@@ -1532,15 +1536,19 @@ export default abstract class Server {
     delete query._nextBubbleNoFallback
 
     try {
-      const result = await this.findPageComponents(pathname, query)
-      if (result) {
-        try {
-          return await this.renderToResponseWithComponents(ctx, result)
-        } catch (err) {
-          const isNoFallbackError = err instanceof NoFallbackError
+      // Ensure a request to the URL /accounts/[id] will be treated as a dynamic
+      // route correctly and not loaded immediately without parsing params.
+      if (!isDynamicRoute(pathname)) {
+        const result = await this.findPageComponents(pathname, query)
+        if (result) {
+          try {
+            return await this.renderToResponseWithComponents(ctx, result)
+          } catch (err) {
+            const isNoFallbackError = err instanceof NoFallbackError
 
-          if (!isNoFallbackError || (isNoFallbackError && bubbleNoFallback)) {
-            throw err
+            if (!isNoFallbackError || (isNoFallbackError && bubbleNoFallback)) {
+              throw err
+            }
           }
         }
       }
