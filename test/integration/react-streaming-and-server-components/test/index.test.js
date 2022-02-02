@@ -99,8 +99,9 @@ export default function Page404() {
 }
 `
 
-async function nextBuild(dir) {
+async function nextBuild(dir, options) {
   return await _nextBuild(dir, [], {
+    ...options,
     stdout: true,
     stderr: true,
     nodeArgs,
@@ -210,6 +211,38 @@ describe('concurrentFeatures - prod', () => {
   })
 
   runBasicTests(context, 'prod')
+})
+
+describe('Functions manifest', () => {
+  it('should not generate functions manifest when filesystem API is not enabled', async () => {
+    await nextBuild(appDir)
+    const functionsManifestPath = join(
+      distDir,
+      'server',
+      'functions-manifest.json'
+    )
+    expect(fs.existsSync(functionsManifestPath)).toBe(false)
+  })
+  it('should contain rsc paths in functions manifest', async () => {
+    await nextBuild(appDir, { env: { ENABLE_FILE_SYSTEM_API: '1' } })
+    const functionsManifestPath = join(
+      distDir,
+      'server',
+      'functions-manifest.json'
+    )
+    const content = JSON.parse(await fs.readFile(functionsManifestPath, 'utf8'))
+    const { pages } = content
+    const pageNames = Object.keys(pages)
+
+    const paths = ['/', '/next-api/link', '/routes/[dynamic]']
+    paths.forEach((path) => {
+      expect(pageNames).toContain(path)
+      expect(pages[path].runtime).toBe('web')
+      expect(pages[path].files.every((f) => f.startsWith('server/'))).toBe(true)
+    })
+
+    expect(content.version).toBe(1)
+  })
 })
 
 const customAppPageSuite = {

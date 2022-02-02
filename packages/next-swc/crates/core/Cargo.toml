@@ -8,6 +8,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 chrono = "0.4"
+once_cell = "1.8.0"
 easy-error = "1.0.0"
 either = "1"
 fxhash = "0.2.1"
@@ -30,5 +31,3 @@ regex = "1.5"
 swc_ecma_transforms_testing = "0.59.0"
 testing = "0.18.0"
 walkdir = "2.3.2"
-
-
