@@ -13,8 +13,12 @@ type UseIntersection = { disabled?: boolean } & UseIntersectionObserverInit & {
     rootRef?: React.RefObject<HTMLElement> | null
   }
 type ObserveCallback = (isVisible: boolean) => void
+type idKey = {
+  root: Element | Document | null
+  margin: string
+}
 type Observer = {
-  id: string
+  id: idKey
   observer: IntersectionObserver
   elements: Map<Element, ObserveCallback>
 }
@@ -87,10 +91,30 @@ function observe(
   }
 }
 
-const observers = new Map<string, Observer>()
+const observers = new Map<idKey, Observer>()
+
+const idList: idKey[] = []
+function getKeyIndex(x: idKey) {
+  for (let i = 0; i < idList.length; i++) {
+    if (idList[i].root === x.root && idList[i].margin === x.margin) {
+      return i
+    }
+  }
+  return -1
+}
 function createObserver(options: UseIntersectionObserverInit): Observer {
-  const id = options.rootMargin || ''
-  let instance = observers.get(id)
+  const id = {
+    root: options.root || null,
+    margin: options.rootMargin || '',
+  }
+  let index = getKeyIndex(id)
+  let instance
+  if (index > -1) {
+    instance = observers.get(idList[index])
+  } else {
+    instance = observers.get(id)
+    idList.push(id)
+  }
   if (instance) {
     return instance
   }
