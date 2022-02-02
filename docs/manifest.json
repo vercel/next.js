@@ -137,6 +137,15 @@
           ]
         },
         {
+          "title": "Guides",
+          "routes": [
+            {
+              "title": "Building Forms",
+              "path": "/docs/guides/building-forms.md"
+            }
+          ]
+        },
+        {
           "title": "Middleware",
           "path": "/docs/middleware.md"
         },
