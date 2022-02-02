@@ -16,7 +16,7 @@ pub struct DiskFileSystem {
 
 #[turbo_tasks::value_impl]
 impl DiskFileSystem {
-    #[turbo_tasks::constructor(compare)]
+    #[turbo_tasks::constructor(intern)]
     pub fn new(name: String, root: String) -> Self {
         Self {
             name,
@@ -75,7 +75,7 @@ pub struct PathInFileSystem {
 
 #[turbo_tasks::value_impl]
 impl PathInFileSystem {
-    #[turbo_tasks::constructor(compare)]
+    #[turbo_tasks::constructor(intern)]
     pub fn new(path: String) -> Self {
         Self { path }
     }
@@ -89,7 +89,7 @@ pub struct FileSystemPath {
 
 #[turbo_tasks::value_impl]
 impl FileSystemPath {
-    #[turbo_tasks::constructor(compare)]
+    #[turbo_tasks::constructor(intern)]
     pub fn new(fs: FileSystemRef, path: PathInFileSystemRef) -> Self {
         Self { fs, path }
     }
