@@ -1,4 +1,4 @@
-import { getBufferedVitalsMetrics } from 'next/dist/client/vitals'
+import { getBufferedVitalsMetrics } from 'next/dist/client/streaming/vitals'
 
 if (typeof navigator !== 'undefined') {
   window.__BEACONS = window.__BEACONS || []
