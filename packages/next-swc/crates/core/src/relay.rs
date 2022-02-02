@@ -24,6 +24,7 @@ impl Default for RelayLanguageConfig {
 
 struct Relay<'a> {
     root_dir: PathBuf,
+    pages_dir: PathBuf,
     file_name: FileName,
     config: &'a Config,
 }
@@ -88,42 +89,41 @@ enum BuildRequirePathError {
     ArtifactDirectoryExpected { file_name: String },
 }
 
-fn path_for_artifact(
-    root_dir: &Path,
-    config: &Config,
-    real_file_name: &Path,
-    definition_name: &str,
-) -> Result<PathBuf, BuildRequirePathError> {
-    let filename = match &config.language {
-        RelayLanguageConfig::Flow => format!("{}.graphql.js", definition_name),
-        RelayLanguageConfig::TypeScript => {
-            format!("{}.graphql.ts", definition_name)
-        }
-    };
-
-    if let Some(artifact_directory) = &config.artifact_directory {
-        Ok(root_dir.join(artifact_directory).join(filename))
-    } else if real_file_name.starts_with(root_dir.join("./pages")) {
-        Err(BuildRequirePathError::ArtifactDirectoryExpected {
-            file_name: real_file_name.display().to_string(),
-        })
-    } else {
-        Ok(real_file_name
-            .parent()
-            .unwrap()
-            .join("__generated__")
-            .join(filename))
-    }
-}
-
 impl<'a> Relay<'a> {
+    fn path_for_artifact(
+        &self,
+        real_file_name: &Path,
+        definition_name: &str,
+    ) -> Result<PathBuf, BuildRequirePathError> {
+        let filename = match &self.config.language {
+            RelayLanguageConfig::Flow => format!("{}.graphql.js", definition_name),
+            RelayLanguageConfig::TypeScript => {
+                format!("{}.graphql.ts", definition_name)
+            }
+        };
+
+        if let Some(artifact_directory) = &self.config.artifact_directory {
+            Ok(self.root_dir.join(artifact_directory).join(filename))
+        } else if real_file_name.starts_with(&self.pages_dir) {
+            Err(BuildRequirePathError::ArtifactDirectoryExpected {
+                file_name: real_file_name.display().to_string(),
+            })
+        } else {
+            Ok(real_file_name
+                .parent()
+                .unwrap()
+                .join("__generated__")
+                .join(filename))
+        }
+    }
+
     fn build_require_path(
         &mut self,
         operation_name: &str,
     ) -> Result<PathBuf, BuildRequirePathError> {
         match &self.file_name {
             FileName::Real(real_file_name) => {
-                path_for_artifact(&self.root_dir, self.config, real_file_name, operation_name)
+                self.path_for_artifact(real_file_name, operation_name)
             }
             _ => Err(BuildRequirePathError::FileNameNotReal),
         }
@@ -174,10 +174,15 @@ impl<'a> Relay<'a> {
     }
 }
 
-pub fn relay<'a>(config: &'a Config, file_name: FileName) -> impl Fold + '_ {
+pub fn relay<'a>(
+    config: &'a Config,
+    file_name: FileName,
+    pages_dir: Option<PathBuf>,
+) -> impl Fold + '_ {
     Relay {
         root_dir: std::env::current_dir().unwrap(),
         file_name,
+        pages_dir: pages_dir.unwrap_or_else(|| panic!("pages_dir is expected.")),
         config,
     }
 }

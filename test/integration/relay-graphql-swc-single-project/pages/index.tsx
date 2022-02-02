@@ -2,7 +2,6 @@ import {
   Environment,
   FetchFunction,
   fetchQuery,
-  graphql,
   Network,
   RecordSource,
   Store,
