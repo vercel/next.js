@@ -34,7 +34,9 @@ export const config = {
 
 The `api` object includes all configs available for API routes.
 
-`bodyParser` Enables body parsing, you can disable it if you want to consume it as a `Stream`:
+`bodyParser` Enables body parsing. You can disable it if you want to consume it as a `Stream`.
+
+Disabling it will allow you to verify the raw body of a webhook request.
 
 ```js
 export const config = {
