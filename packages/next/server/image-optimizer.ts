@@ -180,7 +180,6 @@ export async function imageOptimizer(
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
   const now = Date.now()
-  const stale = new Deferred<string | null>()
   let xCache: XCacheHeader = 'MISS'
 
   // If there're concurrent requests hitting the same resource and it's still
@@ -213,19 +212,19 @@ export async function imageOptimizer(
           xCache
         )
         if (!result.finished) {
-          createReadStream(fsPath)
-            .on('end', () => stale.resolve(fsPath))
-            .pipe(res)
+          await new Promise((resolve, reject) => {
+            createReadStream(fsPath)
+              .on('end', () => resolve)
+              .on('error', (err) => reject(err))
+              .pipe(res)
+          })
         }
         if (xCache === 'HIT') {
-          stale.resolve(null)
           return { finished: true }
+        } else {
+          await promises.unlink(fsPath)
         }
       }
-    }
-
-    if (xCache === 'MISS') {
-      stale.resolve(null)
     }
 
     let upstreamBuffer: Buffer
@@ -330,8 +329,7 @@ export async function imageOptimizer(
           upstreamType,
           maxAge,
           expireAt,
-          upstreamBuffer,
-          stale
+          upstreamBuffer
         )
         sendResponse(
           req,
@@ -485,8 +483,7 @@ export async function imageOptimizer(
           contentType,
           maxAge,
           expireAt,
-          optimizedBuffer,
-          stale
+          optimizedBuffer
         )
         sendResponse(
           req,
@@ -528,13 +525,8 @@ async function writeToCacheDir(
   contentType: string,
   maxAge: number,
   expireAt: number,
-  buffer: Buffer,
-  stale: Deferred<string | null>
+  buffer: Buffer
 ) {
-  const expiredPath = await stale.promise
-  if (expiredPath) {
-    await promises.unlink(expiredPath)
-  }
   await promises.mkdir(dir, { recursive: true })
   const extension = getExtension(contentType)
   const etag = getHash([buffer])
