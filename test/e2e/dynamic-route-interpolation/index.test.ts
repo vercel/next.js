@@ -52,14 +52,12 @@ describe('Dynamic Route Interpolation', () => {
   })
 
   it('should work with parameter itself in API routes', async () => {
-    const html = await renderViaHTTP(next.url, '/api/dynamic/[slug]')
-    const $ = cheerio.load(html)
-    expect($('#slug').text()).toBe('[slug]')
+    const text = await renderViaHTTP(next.url, '/api/dynamic/[slug]')
+    expect(text).toBe('slug: [slug]')
   })
 
   it('should work with brackets in API routes', async () => {
-    const html = await renderViaHTTP(next.url, '/api/dynamic/[abc]')
-    const $ = cheerio.load(html)
-    expect($('#slug').text()).toBe('[abc]')
+    const text = await renderViaHTTP(next.url, '/api/dynamic/[abc]')
+    expect(text).toBe('slug: [abc]')
   })
 })
