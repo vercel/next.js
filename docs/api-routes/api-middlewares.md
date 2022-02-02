@@ -34,7 +34,7 @@ export const config = {
 
 The `api` object includes all configs available for API routes.
 
-`bodyParser` Enables body parsing. If you want to consume it as a `Stream`, you can disable it.
+`bodyParser` is automatically enabled. If you want to consume the body as a `Stream` or with [`raw-body`](https://www.npmjs.com/package/raw-body), you can set this to `false`.
 
 One use case for disabling the automatic `bodyParsing` is to allow you to verify the raw body of a **webhook** request, for example [from GitHub](https://docs.github.com/en/developers/webhooks-and-events/webhooks/securing-your-webhooks#validating-payloads-from-github).
 
