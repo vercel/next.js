@@ -1,5 +1,5 @@
 import { platform, arch } from 'os'
-import { platformArchTriples } from '@napi-rs/triples'
+import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
 import * as Log from '../output/log'
 
 const ArchName = arch()
@@ -71,6 +71,9 @@ async function loadWasm() {
         },
         minify(src, options) {
           return Promise.resolve(bindings.minifySync(src.toString(), options))
+        },
+        parse(src, options) {
+          return Promise.resolve(bindings.parse(src.toString(), options))
         },
       }
       return wasmBindings
@@ -179,6 +182,10 @@ function loadNative() {
       bundle(options) {
         return bindings.bundle(toBuffer(options))
       },
+
+      parse(src, options) {
+        return bindings.parse(src, toBuffer(options ?? {}))
+      },
     }
     return nativeBindings
   }
@@ -218,4 +225,9 @@ export function minifySync(src, options) {
 export async function bundle(options) {
   let bindings = loadBindingsSync()
   return bindings.bundle(toBuffer(options))
+}
+
+export async function parse(src, options) {
+  let bindings = loadBindingsSync()
+  return bindings.parse(src, options).then((astStr) => JSON.parse(astStr))
 }

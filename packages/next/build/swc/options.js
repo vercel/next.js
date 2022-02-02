@@ -1,10 +1,13 @@
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
-const regeneratorRuntimePath = require.resolve('regenerator-runtime')
+const regeneratorRuntimePath = require.resolve(
+  'next/dist/compiled/regenerator-runtime'
+)
 
-function getBaseSWCOptions({
+export function getBaseSWCOptions({
   filename,
+  jest,
   development,
   hasReactRefresh,
   globalWindow,
@@ -35,6 +38,14 @@ function getBaseSWCOptions({
       },
 
       transform: {
+        // Enables https://github.com/swc-project/swc/blob/0359deb4841be743d73db4536d4a22ac797d7f65/crates/swc_ecma_ext_transforms/src/jest.rs
+        ...(jest
+          ? {
+              hidden: {
+                jest: true,
+              },
+            }
+          : {}),
         legacyDecorator: enableDecorators,
         react: {
           importSource: jsConfig?.compilerOptions?.jsxImportSource || 'react',
@@ -42,21 +53,23 @@ function getBaseSWCOptions({
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
           throwIfNamespace: true,
-          development: development,
+          development: !!development,
           useBuiltins: true,
-          refresh: hasReactRefresh,
+          refresh: !!hasReactRefresh,
         },
         optimizer: {
           simplify: false,
-          globals: {
-            typeofs: {
-              window: globalWindow ? 'object' : 'undefined',
-            },
-            envs: {
-              NODE_ENV: development ? '"development"' : '"production"',
-            },
-            // TODO: handle process.browser to match babel replacing as well
-          },
+          globals: jest
+            ? null
+            : {
+                typeofs: {
+                  window: globalWindow ? 'object' : 'undefined',
+                },
+                envs: {
+                  NODE_ENV: development ? '"development"' : '"production"',
+                },
+                // TODO: handle process.browser to match babel replacing as well
+              },
         },
         regenerator: {
           importPath: regeneratorRuntimePath,
@@ -70,6 +83,7 @@ function getBaseSWCOptions({
       : null,
     removeConsole: nextConfig?.experimental?.removeConsole,
     reactRemoveProperties: nextConfig?.experimental?.reactRemoveProperties,
+    relay: nextConfig?.experimental?.relay,
   }
 }
 
@@ -84,6 +98,7 @@ export function getJestSWCOptions({
 }) {
   let baseOptions = getBaseSWCOptions({
     filename,
+    jest: true,
     development: false,
     hasReactRefresh: false,
     globalWindow: !isServer,
@@ -141,6 +156,7 @@ export function getLoaderSWCOptions({
       disableNextSsg: true,
       disablePageConfig: true,
       isDevelopment: development,
+      isServer,
       pagesDir,
       isPageFile,
       env: {
@@ -165,6 +181,7 @@ export function getLoaderSWCOptions({
         : {}),
       disableNextSsg: !isPageFile,
       isDevelopment: development,
+      isServer,
       pagesDir,
       isPageFile,
     }

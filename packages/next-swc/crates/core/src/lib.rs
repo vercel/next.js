@@ -36,8 +36,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::{path::PathBuf, sync::Arc};
 use swc::config::ModuleConfig;
-use swc_common::SourceFile;
 use swc_common::{self, chain, pass::Optional};
+use swc_common::{SourceFile, SourceMap};
 use swc_ecmascript::ast::EsVersion;
 use swc_ecmascript::transforms::pass::noop;
 use swc_ecmascript::{
@@ -53,6 +53,8 @@ pub mod next_dynamic;
 pub mod next_ssg;
 pub mod page_config;
 pub mod react_remove_properties;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod relay;
 pub mod remove_console;
 pub mod shake_exports;
 pub mod styled_jsx;
@@ -80,6 +82,9 @@ pub struct TransformOptions {
     pub is_development: bool,
 
     #[serde(default)]
+    pub is_server: bool,
+
+    #[serde(default)]
     pub styled_components: Option<styled_components::Config>,
 
     #[serde(default)]
@@ -89,13 +94,33 @@ pub struct TransformOptions {
     pub react_remove_properties: Option<react_remove_properties::Config>,
 
     #[serde(default)]
+    #[cfg(not(target_arch = "wasm32"))]
+    pub relay: Option<relay::Config>,
+
+    #[serde(default)]
     pub shake_exports: Option<shake_exports::Config>,
 }
 
-pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> impl Fold {
+pub fn custom_before_pass(
+    cm: Arc<SourceMap>,
+    file: Arc<SourceFile>,
+    opts: &TransformOptions,
+) -> impl Fold + '_ {
+    #[cfg(target_arch = "wasm32")]
+    let relay_plugin = noop();
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let relay_plugin = {
+        if let Some(config) = &opts.relay {
+            Either::Left(relay::relay(config, file.name.clone()))
+        } else {
+            Either::Right(noop())
+        }
+    };
+
     chain!(
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
-        styled_jsx::styled_jsx(),
+        styled_jsx::styled_jsx(cm.clone()),
         hook_optimizer::hook_optimizer(),
         match &opts.styled_components {
             Some(config) => {
@@ -113,11 +138,17 @@ pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> imp
         },
         Optional::new(next_ssg::next_ssg(), !opts.disable_next_ssg),
         amp_attributes::amp_attributes(),
-        next_dynamic::next_dynamic(file.name.clone(), opts.pages_dir.clone()),
+        next_dynamic::next_dynamic(
+            opts.is_development,
+            opts.is_server,
+            file.name.clone(),
+            opts.pages_dir.clone()
+        ),
         Optional::new(
             page_config::page_config(opts.is_development, opts.is_page_file),
             !opts.disable_page_config
         ),
+        relay_plugin,
         match &opts.remove_console {
             Some(config) if config.truthy() =>
                 Either::Left(remove_console::remove_console(config.clone())),

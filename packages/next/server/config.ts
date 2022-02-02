@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from '../lib/chalk'
 import findUp from 'next/dist/compiled/find-up'
 import { basename, extname, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
@@ -571,7 +571,14 @@ export default async function loadConfig(
       // `import()` expects url-encoded strings, so the path must be properly
       // escaped and (especially on Windows) absolute paths must pe prefixed
       // with the `file://` protocol
-      userConfigModule = await import(pathToFileURL(path).href)
+      if (process.env.__NEXT_TEST_MODE === 'jest') {
+        // dynamic import does not currently work inside of vm which
+        // jest relies on so we fall back to require for this case
+        // https://github.com/nodejs/node/issues/35889
+        userConfigModule = require(path)
+      } else {
+        userConfigModule = await import(pathToFileURL(path).href)
+      }
     } catch (err) {
       Log.error(
         `Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`
@@ -647,12 +654,6 @@ export default async function loadConfig(
   completeConfig.configFileName = configFileName
   setHttpAgentOptions(completeConfig.httpAgentOptions)
   return completeConfig
-}
-
-export function isTargetLikeServerless(target: string) {
-  const isServerless = target === 'serverless'
-  const isServerlessTrace = target === 'experimental-serverless-trace'
-  return isServerless || isServerlessTrace
 }
 
 export function setHttpAgentOptions(
