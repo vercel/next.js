@@ -621,6 +621,7 @@ export default class Router implements BaseRouter {
   locales?: string[]
   defaultLocale?: string
   domainLocales?: DomainLocale[]
+  isReady: boolean
   isLocaleDomain: boolean
 
   private state: Readonly<{
@@ -630,7 +631,6 @@ export default class Router implements BaseRouter {
     asPath: string
     locale: string | undefined
     isFallback: boolean
-    isReady: boolean
     isPreview: boolean
   }>
 
@@ -717,6 +717,14 @@ export default class Router implements BaseRouter {
     // back from external site
     this.isSsr = true
     this.isLocaleDomain = false
+    this.isReady = !!(
+      self.__NEXT_DATA__.gssp ||
+      self.__NEXT_DATA__.gip ||
+      (self.__NEXT_DATA__.appGip && !self.__NEXT_DATA__.gsp) ||
+      (!autoExportDynamic &&
+        !self.location.search &&
+        !process.env.__NEXT_HAS_REWRITES)
+    )
 
     if (process.env.__NEXT_I18N_SUPPORT) {
       this.locales = locales
@@ -736,14 +744,6 @@ export default class Router implements BaseRouter {
       isPreview: !!isPreview,
       locale: process.env.__NEXT_I18N_SUPPORT ? locale : undefined,
       isFallback,
-      isReady: !!(
-        self.__NEXT_DATA__.gssp ||
-        self.__NEXT_DATA__.gip ||
-        (self.__NEXT_DATA__.appGip && !self.__NEXT_DATA__.gsp) ||
-        (!autoExportDynamic &&
-          !self.location.search &&
-          !process.env.__NEXT_HAS_REWRITES)
-      ),
     }
 
     if (typeof window !== 'undefined') {
@@ -925,7 +925,7 @@ export default class Router implements BaseRouter {
     // for static pages with query params in the URL we delay
     // marking the router ready until after the query is updated
     if ((options as any)._h) {
-      nextState.isReady = true
+      this.isReady = true
     }
 
     const prevLocale = nextState.locale
@@ -2054,10 +2054,6 @@ export default class Router implements BaseRouter {
 
   get isFallback(): boolean {
     return this.state.isFallback
-  }
-
-  get isReady(): boolean {
-    return this.state.isReady
   }
 
   get isPreview(): boolean {
