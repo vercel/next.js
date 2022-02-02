@@ -85,12 +85,13 @@ impl<'a> Fold for Relay<'a> {
 #[derive(Debug)]
 enum BuildRequirePathError {
     FileNameNotReal,
-    ArtifactDirectoryExpected,
+    ArtifactDirectoryExpected { file_name: String },
 }
 
 fn path_for_artifact(
     root_dir: &Path,
     config: &Config,
+    real_file_name: &Path,
     definition_name: &str,
 ) -> Result<PathBuf, BuildRequirePathError> {
     let filename = match &config.language {
@@ -99,11 +100,20 @@ fn path_for_artifact(
             format!("{}.graphql.ts", definition_name)
         }
     };
+    dbg!(&real_file_name);
 
     if let Some(artifact_directory) = &config.artifact_directory {
         Ok(root_dir.join(artifact_directory).join(filename))
+    } else if real_file_name.starts_with(root_dir.join("./pages")) {
+        Err(BuildRequirePathError::ArtifactDirectoryExpected {
+            file_name: real_file_name.display().to_string(),
+        })
     } else {
-        Err(BuildRequirePathError::ArtifactDirectoryExpected)
+        Ok(real_file_name
+            .parent()
+            .unwrap()
+            .join("__generated__")
+            .join(filename))
     }
 }
 
@@ -113,8 +123,8 @@ impl<'a> Relay<'a> {
         operation_name: &str,
     ) -> Result<PathBuf, BuildRequirePathError> {
         match &self.file_name {
-            FileName::Real(_real_file_name) => {
-                path_for_artifact(&self.root_dir, self.config, operation_name)
+            FileName::Real(real_file_name) => {
+                path_for_artifact(&self.root_dir, self.config, real_file_name, operation_name)
             }
             _ => Err(BuildRequirePathError::FileNameNotReal),
         }
@@ -140,10 +150,14 @@ impl<'a> Relay<'a> {
                                                                    file. This is likely a bug and \
                                                                    should be reported to Next.js"
                             .to_string(),
-                        BuildRequirePathError::ArtifactDirectoryExpected => {
-                            "The `artifactDirectory` is expected to be set in the Relay config \
-                             file to work correctly with Next.js."
-                                .to_string()
+                        BuildRequirePathError::ArtifactDirectoryExpected { file_name } => {
+                            format!(
+                                "The generated file for `{}` will be created in `pages` \
+                                 directory, which will break production build. Try moving the \
+                                 file outside of `pages` or set the `artifactDirectory` in the \
+                                 Relay config file.",
+                                file_name
+                            )
                         }
                     };
 
