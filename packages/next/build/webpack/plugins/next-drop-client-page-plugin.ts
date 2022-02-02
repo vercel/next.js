@@ -1,4 +1,4 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { webpack, webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { STRING_LITERAL_DROP_BUNDLE } from '../../../shared/lib/constants'
 
 export const ampFirstEntryNamesMap: WeakMap<
@@ -7,6 +7,25 @@ export const ampFirstEntryNamesMap: WeakMap<
 > = new WeakMap()
 
 const PLUGIN_NAME = 'DropAmpFirstPagesPlugin'
+
+export function findEntryModule(
+  compilation: webpack5.Compilation,
+  mod: any
+): webpack.compilation.Module | null {
+  const queue = new Set([mod])
+  for (const module of queue) {
+    // @ts-ignore TODO: webpack 5 types
+    const incomingConnections =
+      compilation.moduleGraph.getIncomingConnections(module)
+
+    for (const incomingConnection of incomingConnections) {
+      if (!incomingConnection.originModule) return module
+      queue.add(incomingConnection.originModule)
+    }
+  }
+
+  return null
+}
 
 // Prevents outputting client pages when they are not needed
 export class DropClientPage implements webpack.Plugin {
@@ -17,25 +36,13 @@ export class DropClientPage implements webpack.Plugin {
       PLUGIN_NAME,
       (compilation: any, { normalModuleFactory }: any) => {
         // Recursively look up the issuer till it ends up at the root
-        function findEntryModule(mod: any): webpack.compilation.Module | null {
-          const queue = new Set([mod])
-          for (const module of queue) {
-            // @ts-ignore TODO: webpack 5 types
-            const incomingConnections =
-              compilation.moduleGraph.getIncomingConnections(module)
-
-            for (const incomingConnection of incomingConnections) {
-              if (!incomingConnection.originModule) return module
-              queue.add(incomingConnection.originModule)
-            }
-          }
-
-          return null
-        }
 
         function handler(parser: any) {
           function markAsAmpFirst() {
-            const entryModule = findEntryModule(parser.state.module)
+            const entryModule = findEntryModule(
+              compilation,
+              parser.state.module
+            )
 
             if (!entryModule) {
               return
