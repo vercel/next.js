@@ -1541,10 +1541,10 @@ function renderToNodeStream(
   suffix: string,
   generateStaticHTML: boolean
 ): Promise<NodeWritablePiper> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let underlyingStream: WritableType | null = null
     let queuedCallbacks: Array<(error?: Error | null) => void> = []
-    let shellFlushed = false
+    let shellCompleted = false
 
     const closeTag = '</body></html>'
     const [suffixUnclosed] = suffix.split(closeTag)
@@ -1571,8 +1571,8 @@ function renderToNodeStream(
           callback()
         }
 
-        if (!shellFlushed) {
-          shellFlushed = true
+        if (!shellCompleted) {
+          shellCompleted = true
           // In the first round of streaming, all chunks will be finished in the micro task.
           // We use setTimeout to guarantee the suffix is flushed after the micro task.
           setTimeout(() => {
@@ -1641,13 +1641,18 @@ function renderToNodeStream(
           abort()
         },
         onCompleteShell() {
-          shellFlushed = true
+          shellCompleted = true
           if (!generateStaticHTML) {
             doResolve(() => pipe(stream))
           }
         },
         onCompleteAll() {
-          doResolve(() => pipe(stream))
+          if (!shellCompleted) {
+            resolved = true
+            reject(new Error('Stream ended without completing the shell'))
+          } else {
+            doResolve(() => pipe(stream))
+          }
         },
       }
     )
@@ -1694,7 +1699,7 @@ function renderToWebStream(
   suffix: string,
   serverComponentsInlinedTransformStream: TransformStream | null
 ): Promise<NodeWritablePiper> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let resolved = false
     const inlinedDataReader = serverComponentsInlinedTransformStream
       ? serverComponentsInlinedTransformStream.readable.getReader()
@@ -1734,6 +1739,12 @@ function renderToWebStream(
               (err) => next(err)
             )
           })
+        }
+      },
+      onCompleteAll() {
+        if (!resolved) {
+          resolved = true
+          reject(new Error('Stream ended without completing the shell'))
         }
       },
     })
