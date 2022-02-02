@@ -178,6 +178,7 @@ export async function imageOptimizer(
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
   const now = Date.now()
+  let staleWhileRevalidate = false
 
   // If there're concurrent requests hitting the same resource and it's still
   // being optimized, wait before accessing the cache.
@@ -199,23 +200,27 @@ export async function imageOptimizer(
         const expireAt = Number(expireAtSt)
         const contentType = getContentType(extension)
         const fsPath = join(hashDir, file)
-        if (now < expireAt) {
-          const result = setResponseHeaders(
-            req,
-            res,
-            url,
-            etag,
-            maxAge,
-            contentType,
-            isStatic,
-            isDev
-          )
-          if (!result.finished) {
-            createReadStream(fsPath).pipe(res)
-          }
+        const isFresh = now < expireAt
+        const xCache = isFresh ? 'HIT' : 'STALE'
+        const result = setResponseHeaders(
+          req,
+          res,
+          url,
+          etag,
+          maxAge,
+          contentType,
+          isStatic,
+          isDev,
+          xCache
+        )
+        if (!result.finished) {
+          createReadStream(fsPath).pipe(res)
+        }
+        if (isFresh) {
           return { finished: true }
         } else {
           await promises.unlink(fsPath)
+          staleWhileRevalidate = true
         }
       }
     }
@@ -253,8 +258,17 @@ export async function imageOptimizer(
         mockRes.write = (chunk: Buffer | string) => {
           resBuffers.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
         }
-        mockRes._write = (chunk: Buffer | string) => {
+        mockRes._write = (
+          chunk: Buffer | string,
+          _encoding: string,
+          callback: () => void
+        ) => {
           mockRes.write(chunk)
+          // According to Node.js documentation, the callback MUST be invoked to signal that
+          // the write completed successfully. If this callback is not invoked, the 'finish' event
+          // will not be emitted.
+          // https://nodejs.org/docs/latest-v16.x/api/stream.html#writable_writechunk-encoding-callback
+          callback()
         }
 
         const mockHeaders: Record<string, string | string[]> = {}
@@ -290,7 +304,6 @@ export async function imageOptimizer(
         await handleRequest(mockReq, mockRes, nodeUrl.parse(href, true))
         await isStreamFinished
         res.statusCode = mockRes.statusCode
-
         upstreamBuffer = Buffer.concat(resBuffers)
         upstreamType =
           detectContentType(upstreamBuffer) || mockRes.getHeader('Content-Type')
@@ -324,11 +337,11 @@ export async function imageOptimizer(
           upstreamType,
           upstreamBuffer,
           isStatic,
-          isDev
+          isDev,
+          staleWhileRevalidate
         )
         return { finished: true }
       }
-
       if (!upstreamType.startsWith('image/')) {
         res.statusCode = 400
         res.end("The requested resource isn't a valid image.")
@@ -478,7 +491,8 @@ export async function imageOptimizer(
           contentType,
           optimizedBuffer,
           isStatic,
-          isDev
+          isDev,
+          staleWhileRevalidate
         )
       } else {
         throw new Error('Unable to optimize buffer')
@@ -492,7 +506,8 @@ export async function imageOptimizer(
         upstreamType,
         upstreamBuffer,
         isStatic,
-        isDev
+        isDev,
+        staleWhileRevalidate
       )
     }
 
@@ -541,7 +556,8 @@ function setResponseHeaders(
   maxAge: number,
   contentType: string | null,
   isStatic: boolean,
-  isDev: boolean
+  isDev: boolean,
+  xCache: 'MISS' | 'HIT' | 'STALE'
 ) {
   res.setHeader('Vary', 'Accept')
   res.setHeader(
@@ -567,6 +583,7 @@ function setResponseHeaders(
   }
 
   res.setHeader('Content-Security-Policy', `script-src 'none'; sandbox;`)
+  res.setHeader('X-Nextjs-Cache', xCache)
 
   return { finished: false }
 }
@@ -579,8 +596,13 @@ function sendResponse(
   contentType: string | null,
   buffer: Buffer,
   isStatic: boolean,
-  isDev: boolean
+  isDev: boolean,
+  staleWhileRevalidate: boolean
 ) {
+  if (staleWhileRevalidate) {
+    return
+  }
+  const xCache = 'MISS'
   const etag = getHash([buffer])
   const result = setResponseHeaders(
     req,
@@ -590,7 +612,8 @@ function sendResponse(
     maxAge,
     contentType,
     isStatic,
-    isDev
+    isDev,
+    xCache
   )
   if (!result.finished) {
     res.end(buffer)

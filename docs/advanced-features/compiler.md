@@ -94,6 +94,26 @@ const customJestConfig = {
 module.exports = createJestConfig(customJestConfig)
 ```
 
+### Relay
+
+To enable [Relay](https://relay.dev/) support:
+
+```js
+// next.config.js
+module.exports = {
+  experimental: {
+    relay: {
+      // This should match relay.config.js
+      src: './',
+      artifactDirectory: './__generated__'
+      language: 'typescript',
+    },
+  },
+}
+```
+
+NOTE: In Next.js all JavaScript files in `pages` directory are considered routes. So, for `relay-compiler` you'll need to specify `artifactDirectory` configuration settings outside of the `pages`, otherwise `relay-compiler` will generate files next to the source file in the `__generated__` directory, and this file will be considered a route, which will break production builds.
+
 ### Remove React Properties
 
 Allows to remove JSX properties. This is often used for testing. Similar to `babel-plugin-react-remove-properties`.
