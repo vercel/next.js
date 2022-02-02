@@ -100,7 +100,6 @@ fn path_for_artifact(
             format!("{}.graphql.ts", definition_name)
         }
     };
-    dbg!(&real_file_name);
 
     if let Some(artifact_directory) = &config.artifact_directory {
         Ok(root_dir.join(artifact_directory).join(filename))
