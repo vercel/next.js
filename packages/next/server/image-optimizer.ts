@@ -212,10 +212,10 @@ export async function imageOptimizer(
           xCache
         )
         if (!result.finished) {
-          await new Promise((resolve, reject) => {
+          await new Promise<void>((resolve, reject) => {
             createReadStream(fsPath)
-              .on('end', () => resolve)
-              .on('error', (err) => reject(err))
+              .on('end', resolve)
+              .on('error', reject)
               .pipe(res)
           })
         }
