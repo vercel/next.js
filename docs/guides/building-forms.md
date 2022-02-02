@@ -7,7 +7,7 @@ description: Learn how to create forms with Next.js, from the form HTML element 
 
 A web form has a **client-server** relationship. They are used to send data handled by a web server for processing and storage. The form itself is the client, and the server is any storage mechanism that can be used to store, retrieve and send data when needed.
 
-This guide will teach you how to create a serverless web form with Next.js (client) and Vercel (server).
+This guide will teach you how to create a web form with Next.js (client) and Vercel (server).
 
 ## Part 1: HTML Form
 
@@ -28,7 +28,7 @@ Here's the syntax of a HTML form:
 
 The front-end looks like this:
 
-![html forms](https://assets.vercel.com/image/upload/c_scale,w_675/v1643009088/nextjs/guides/building-forms/html-forms.png)
+![html forms](https://assets.vercel.com/image/upload/nextjs/guides/building-forms/html-forms.png)
 
 The HTML `<form>` tag acts as a container for different `<input>` elements like `text` field and submit `button`. Let's study each of these elements:
 
@@ -81,7 +81,7 @@ The following example shows using these attributes:
 
 With these validation checks in place, when a user tries to submit an empty field for Name, it gives an error that pops right in the form field. Similarly, a roll number can only be entered if it's 10-20 characters long.
 
-![form validation](https://assets.vercel.com/image/upload/c_scale,w_675/v1643009088/nextjs/guides/building-forms/form-validation.jpg)
+![form validation](https://assets.vercel.com/image/upload/nextjs/guides/building-forms/form-validation.jpg)
 
 ### JavaScript-based Form Validation
 
@@ -121,7 +121,7 @@ The following example shows using JavaScript to validate a form:
 The HTML [script](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script) tag is used to embed any client-side JavaScript. It can either contain inline scripting statements (as shown in the example above) or point to an external script file via the `src` attribute.
 This example validates the name and roll number of a user. The `validateFormWithJS()` function does not allow an empty name field, and the roll number must be at least three digits long. The validation is performed when you hit the Submit button. You are not redirected to the next page until the given values are correct.
 
-![js-validation](https://assets.vercel.com/image/upload/c_scale,w_675/v1643009089/nextjs/guides/building-forms/js-validation.jpg)
+![js-validation](https://assets.vercel.com/image/upload/nextjs/guides/building-forms/js-validation.jpg)
 
 #### Form Validation Using Regular Expressions
 
@@ -145,7 +145,7 @@ The below example shows using the `pattern` attribute on an `input` element:
 
 The password form field must only contain digits (0 to 9) and lowercase alphabets (a to z). No other characters (#,$,&, etc.) are allowed. The rule in RegEx is written as `[a-z]{1,15}`.
 
-![form-validate-regex](https://assets.vercel.com/image/upload/c_scale,w_675/v1643009088/nextjs/guides/building-forms/form-validate-regex.jpg)
+![form-validate-regex](https://assets.vercel.com/image/upload/nextjs/guides/building-forms/form-validate-regex.jpg)
 
 > To learn more about HTML forms, check out the [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Learn/Forms).
 
@@ -188,7 +188,7 @@ Serverless functions perform a significant role in handling tasks like form subm
 - Offer faster deployments with greater flexibility (you don't have to manage any servers).
 - Reduce architecture and management costs.
 
-### Next.js Form Serverless API Endpoint
+### Next.js Form API Endpoint
 
 Both the client and the server will be built using Next.js. For the server part, create a serverless API where you will send the form data.
 
@@ -235,7 +235,7 @@ You can now use `/api/form` relative endpoint inside the `action` attribute of t
 
 If you submit this form, it will submit the data to the forms API endpoint `/api/form`. The server then responds, generally handling the data and loading the URL defined by the action attribute, causing a new page load. So in this case you'll be redirected to `http://localhost:3000/api/form` with the following response from the server.
 
-![form-no-js](https://assets.vercel.com/image/upload/c_scale,w_675/v1643009087/nextjs/guides/building-forms/form-no-js.jpg)
+![form-no-js](https://assets.vercel.com/image/upload/nextjs/guides/building-forms/form-no-js.jpg)
 
 ## Part 3: Forms in Next.js
 
@@ -268,7 +268,7 @@ This completes the basic structure of your Next.js-based form.
 
 > You can view the entire source code of [next-forms](https://github.com/vercel/next.js/tree/canary/examples/next-forms) example repo that we're creating here as a working example. Feel free to clone it and start right away. This demo is built with create-next-app, and you can preview the basic form CSS styles inside `/styles/global.css` file.
 
-![forms with nextjs](https://assets.vercel.com/image/upload/c_scale,w_675/v1643009088/nextjs/guides/building-forms/forms-with-nextjs.png)
+![forms with nextjs](https://assets.vercel.com/image/upload/nextjs/guides/building-forms/forms-with-nextjs.png)
 
 ## Part 4: Form Submission without JavaScript
 
