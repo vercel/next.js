@@ -69,7 +69,7 @@ export function install(
        * install`.
        */
       args = ['install']
-      if(!isOnline) {
+      if (!isOnline) {
         console.log(chalk.yellow('You appear to be offline.'))
         if (useYarn) {
           console.log(chalk.yellow('Falling back to the local Yarn cache.'))
