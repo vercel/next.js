@@ -2,7 +2,7 @@ import NextjsImages from '../../pages/nextjsImages'
 
 export default {
   title: 'Pages',
-  component: NextjsImages
+  component: NextjsImages,
 }
 
 export const NextjsImagesPage = () => <NextjsImages />

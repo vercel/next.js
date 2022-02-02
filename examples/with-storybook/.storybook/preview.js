@@ -6,12 +6,12 @@ export const parameters = {
   controls: {
     matchers: {
       color: /(background|color)$/i,
-      date: /Date$/
-    }
+      date: /Date$/,
+    },
   },
   nextRouter: {
     query: {
-      foo: 'this-is-a-global-override'
-    }
-  }
+      foo: 'this-is-a-global-override',
+    },
+  },
 }

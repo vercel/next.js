@@ -2,7 +2,7 @@ import Typescript from '../../pages/typescript'
 
 export default {
   title: 'Pages',
-  component: Typescript
+  component: Typescript,
 }
 
 export const TypescriptPage = () => <Typescript />
