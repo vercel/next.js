@@ -1555,7 +1555,7 @@ function renderToNodeStream(
 ): Promise<NodeWritablePiper> {
   const closeTag = '</body></html>'
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     let underlyingStream: WritableType | null = null
     let queuedCallbacks: Array<(error?: Error | null) => void> = []
 
@@ -1715,7 +1715,7 @@ function renderToWebStream(
   suffix: string,
   serverComponentsInlinedTransformStream: TransformStream | null
 ): Promise<NodeWritablePiper> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     let resolved = false
     const inlinedDataReader = serverComponentsInlinedTransformStream
       ? serverComponentsInlinedTransformStream.readable.getReader()
