@@ -1,9 +1,9 @@
 ---
-title: Building Serverless Web Forms with Next.js
-description: This guide is tailored at creating serverless web forms with Next.js and Vercel. You'll first learn about the basic form element and then some advanced concepts like how forms are catered in React and finally validation with Next.js serverless functions.
+title: Building Web Forms with Next.js
+description: This guide is tailored at creating serverless web forms with Next.js. You'll first learn about the basic form element and then some advanced concepts like how forms are catered in React and finally validation with Next.js serverless functions.
 ---
 
-# Building a Serverless Web Form with Next.js
+# Building a Web Form with Next.js
 
 A web form has a **client-server** relationship. They are used to send data handled by a web server for processing and storage. The form itself is the client, and the server is any storage mechanism that can be used to store, retrieve and send data when needed.
 
@@ -395,6 +395,6 @@ That's about it. After reading this guide, here's what you'll learn:
 - Validating forms data with and without JavaScript
 - Using Next.js Sereverless Functions to handle `req` and `res` from the client and server
 
-Next.js and Vercel provide you with an all-in solution for hosting web forms and handling submissions with serverless functions. Use Next.js as the client for your JavaScript-based interaction and Vercel for its powerful serverless functions to handle the server.
+Next.js provide you with an all-in solution for hosting web forms and handling submissions with serverless functions. Use Next.js as the client for your JavaScript-based interaction and Vercel for its powerful serverless functions to handle the server.
 
 For more details go through [Next.js Learn Course](https://nextjs.org/learn/basics/create-nextjs-app).
