@@ -33,8 +33,11 @@ import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
-import { flushBufferedVitalsMetrics, trackWebVitalMetric } from './vitals'
-import { RefreshContext } from './rsc/refresh'
+import {
+  flushBufferedVitalsMetrics,
+  trackWebVitalMetric,
+} from './streaming/vitals'
+import { RefreshContext } from './streaming/refresh'
 
 /// <reference types="react-dom/experimental" />
 
