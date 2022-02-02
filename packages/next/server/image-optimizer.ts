@@ -19,6 +19,8 @@ import { getContentType, getExtension } from './serve-static'
 import chalk from 'next/dist/compiled/chalk'
 import { NextUrlWithParsedQuery } from './request-meta'
 
+type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
+
 const AVIF = 'image/avif'
 const WEBP = 'image/webp'
 const PNG = 'image/png'
@@ -29,7 +31,7 @@ const CACHE_VERSION = 3
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
-const inflightRequests = new Map<string, Promise<undefined>>()
+const inflightRequests = new Map<string, Promise<void>>()
 
 let sharp:
   | ((
@@ -178,18 +180,16 @@ export async function imageOptimizer(
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
   const now = Date.now()
-  let staleWhileRevalidate = false
+  const stale = new Deferred<string | null>()
+  let xCache: XCacheHeader = 'MISS'
 
   // If there're concurrent requests hitting the same resource and it's still
   // being optimized, wait before accessing the cache.
   if (inflightRequests.has(hash)) {
     await inflightRequests.get(hash)
   }
-  let dedupeResolver: (val?: PromiseLike<undefined>) => void
-  inflightRequests.set(
-    hash,
-    new Promise((resolve) => (dedupeResolver = resolve))
-  )
+  const dedupe = new Deferred<void>()
+  inflightRequests.set(hash, dedupe.promise)
 
   try {
     if (await fileExists(hashDir, 'directory')) {
@@ -200,8 +200,7 @@ export async function imageOptimizer(
         const expireAt = Number(expireAtSt)
         const contentType = getContentType(extension)
         const fsPath = join(hashDir, file)
-        const isFresh = now < expireAt
-        const xCache = isFresh ? 'HIT' : 'STALE'
+        xCache = now < expireAt ? 'HIT' : 'STALE'
         const result = setResponseHeaders(
           req,
           res,
@@ -214,14 +213,19 @@ export async function imageOptimizer(
           xCache
         )
         if (!result.finished) {
-          createReadStream(fsPath).pipe(res)
+          createReadStream(fsPath)
+            .on('end', () => stale.resolve(fsPath))
+            .pipe(res)
         }
-        if (isFresh) {
+        if (xCache === 'HIT') {
+          stale.resolve(null)
           return { finished: true }
-        } else {
-          staleWhileRevalidate = true
         }
       }
+    }
+
+    if (xCache === 'MISS') {
+      stale.resolve(null)
     }
 
     let upstreamBuffer: Buffer
@@ -326,7 +330,8 @@ export async function imageOptimizer(
           upstreamType,
           maxAge,
           expireAt,
-          upstreamBuffer
+          upstreamBuffer,
+          stale
         )
         sendResponse(
           req,
@@ -337,7 +342,7 @@ export async function imageOptimizer(
           upstreamBuffer,
           isStatic,
           isDev,
-          staleWhileRevalidate
+          xCache
         )
         return { finished: true }
       }
@@ -480,7 +485,8 @@ export async function imageOptimizer(
           contentType,
           maxAge,
           expireAt,
-          optimizedBuffer
+          optimizedBuffer,
+          stale
         )
         sendResponse(
           req,
@@ -491,7 +497,7 @@ export async function imageOptimizer(
           optimizedBuffer,
           isStatic,
           isDev,
-          staleWhileRevalidate
+          xCache
         )
       } else {
         throw new Error('Unable to optimize buffer')
@@ -506,14 +512,13 @@ export async function imageOptimizer(
         upstreamBuffer,
         isStatic,
         isDev,
-        staleWhileRevalidate
+        xCache
       )
     }
 
     return { finished: true }
   } finally {
-    // Make sure to remove the hash in the end.
-    dedupeResolver!()
+    dedupe.resolve()
     inflightRequests.delete(hash)
   }
 }
@@ -523,8 +528,13 @@ async function writeToCacheDir(
   contentType: string,
   maxAge: number,
   expireAt: number,
-  buffer: Buffer
+  buffer: Buffer,
+  stale: Deferred<string | null>
 ) {
+  const expiredPath = await stale.promise
+  if (expiredPath) {
+    await promises.unlink(expiredPath)
+  }
   await promises.mkdir(dir, { recursive: true })
   const extension = getExtension(contentType)
   const etag = getHash([buffer])
@@ -556,7 +566,7 @@ function setResponseHeaders(
   contentType: string | null,
   isStatic: boolean,
   isDev: boolean,
-  xCache: 'MISS' | 'HIT' | 'STALE'
+  xCache: XCacheHeader
 ) {
   res.setHeader('Vary', 'Accept')
   res.setHeader(
@@ -596,12 +606,11 @@ function sendResponse(
   buffer: Buffer,
   isStatic: boolean,
   isDev: boolean,
-  staleWhileRevalidate: boolean
+  xCache: XCacheHeader
 ) {
-  if (staleWhileRevalidate) {
+  if (xCache === 'STALE') {
     return
   }
-  const xCache = 'MISS'
   const etag = getHash([buffer])
   const result = setResponseHeaders(
     req,
@@ -780,4 +789,17 @@ export async function getImageSize(
 
   const { width, height } = imageSizeOf(buffer)
   return { width, height }
+}
+
+export class Deferred<T> {
+  promise: Promise<T>
+  resolve!: (value: T) => void
+  reject!: (error?: Error) => void
+
+  constructor() {
+    this.promise = new Promise((resolve, reject) => {
+      this.resolve = resolve
+      this.reject = reject
+    })
+  }
 }
