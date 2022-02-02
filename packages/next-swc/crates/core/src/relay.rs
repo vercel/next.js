@@ -152,7 +152,7 @@ impl<'a> Relay<'a> {
                         BuildRequirePathError::ArtifactDirectoryExpected { file_name } => {
                             format!(
                                 "The generated file for `{}` will be created in `pages` \
-                                 directory, which will break production build. Try moving the \
+                                 directory, which will break production builds. Try moving the \
                                  file outside of `pages` or set the `artifactDirectory` in the \
                                  Relay config file.",
                                 file_name
