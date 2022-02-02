@@ -314,6 +314,8 @@ export async function ncc_browserslist(task, opts) {
   const nodeFile = join(dirname(browserslistModule), 'node.js')
 
   const content = await fs.readFile(nodeFile, 'utf8')
+  // ensure ncc doesn't attempt to bundle dynamic requires
+  // so that they work at runtime correctly
   await fs.writeFile(
     nodeFile,
     content.replace(
