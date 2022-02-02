@@ -155,7 +155,7 @@ export default abstract class Server {
     defaultLocale?: string
     domainLocales?: DomainLocale[]
     distDir: string
-    concurrentFeatures?: boolean
+    runtime?: 'nodejs' | 'edge'
     serverComponents?: boolean
     crossOrigin?: string
     supportsDynamicHTML?: boolean
@@ -307,7 +307,7 @@ export default abstract class Server {
         this.nextConfig.experimental.disableOptimizedLoading,
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
-      concurrentFeatures: this.nextConfig.experimental.concurrentFeatures,
+      runtime: this.nextConfig.experimental.runtime,
       serverComponents: this.nextConfig.experimental.serverComponents,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin

@@ -495,8 +495,10 @@ export class Head extends Component<
       optimizeCss,
       optimizeFonts,
       optimizeImages,
-      concurrentFeatures,
+      runtime,
     } = this.context
+
+    const concurrentFeatures = runtime === 'edge'
 
     const disableRuntimeJS = unstable_runtimeJS === false
     const disableJsPreload =

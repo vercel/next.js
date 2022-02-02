@@ -381,7 +381,7 @@ export default async function exportApp(
       disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
       // Exported pages do not currently support dynamic HTML.
       supportsDynamicHTML: false,
-      concurrentFeatures: nextConfig.experimental.concurrentFeatures,
+      concurrentFeatures: nextConfig.experimental.runtime === 'edge',
       crossOrigin: nextConfig.crossOrigin,
       optimizeCss: nextConfig.experimental.optimizeCss,
       optimizeFonts: nextConfig.optimizeFonts,

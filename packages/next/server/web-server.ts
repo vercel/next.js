@@ -128,8 +128,8 @@ export default class NextWebServer extends BaseServer {
       {
         ...renderOpts,
         supportsDynamicHTML: true,
-        concurrentFeatures: true,
         disableOptimizedLoading: true,
+        runtime: 'edge',
       }
     )
   }

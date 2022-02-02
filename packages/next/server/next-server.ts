@@ -1152,7 +1152,7 @@ export default class NextNodeServer extends BaseServer {
             url: url,
             page: page,
           },
-          useCache: !this.nextConfig.experimental.concurrentFeatures,
+          useCache: !this.nextConfig.experimental.runtime,
           onWarning: (warning: Error) => {
             if (params.onWarning) {
               warning.message += ` "./${middlewareInfo.name}"`

@@ -366,28 +366,25 @@ export default async function getBaseWebpackConfig(
     // It's fine to only mention React 18 here as we don't recommend people to try experimental.
     Log.warn('You have to use React 18 to use `experimental.reactRoot`.')
   }
-  if (!isServer && config.experimental.concurrentFeatures && !hasReactRoot) {
+  if (!isServer && config.experimental.runtime && !hasReactRoot) {
     throw new Error(
-      '`experimental.concurrentFeatures` requires `experimental.reactRoot` to be enabled along with React 18.'
+      '`experimental.runtime` requires `experimental.reactRoot` to be enabled along with React 18.'
     )
   }
-  if (
-    config.experimental.serverComponents &&
-    !config.experimental.concurrentFeatures
-  ) {
+  if (config.experimental.serverComponents && !config.experimental.runtime) {
     throw new Error(
-      '`experimental.concurrentFeatures` is required to be enabled along with `experimental.serverComponents`.'
+      '`experimental.runtime` is required to be set along with `experimental.serverComponents`.'
     )
   }
   const hasConcurrentFeatures =
-    config.experimental.concurrentFeatures && hasReactRoot
+    config.experimental.runtime === 'edge' && hasReactRoot
   const hasServerComponents =
     hasConcurrentFeatures && !!config.experimental.serverComponents
   const targetWeb = webServerRuntime || !isServer
 
   if (webServerRuntime) {
     Log.warn(
-      'You are using the experimental Edge Runtime with `concurrentFeatures`.'
+      'You are using the experimental Edge Runtime with `experimental.runtime`.'
     )
     if (hasServerComponents) {
       Log.warn(
@@ -1603,7 +1600,7 @@ export default async function getBaseWebpackConfig(
     webpack: !!config.webpack,
     hasRewrites,
     reactRoot: config.experimental.reactRoot,
-    concurrentFeatures: config.experimental.concurrentFeatures,
+    runtime: config.experimental.runtime,
     swcMinify: config.swcMinify,
     swcLoader: useSWCLoader,
     removeConsole: config.experimental.removeConsole,

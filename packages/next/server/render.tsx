@@ -233,7 +233,7 @@ export type RenderOptsPartial = {
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
   supportsDynamicHTML?: boolean
-  concurrentFeatures?: boolean
+  runtime?: 'nodejs' | 'edge'
   serverComponents?: boolean
   customServer?: boolean
   crossOrigin?: string
@@ -446,8 +446,10 @@ export async function renderToHTML(
     basePath,
     devOnlyCacheBusterQueryString,
     supportsDynamicHTML,
-    concurrentFeatures,
+    runtime,
   } = renderOpts
+
+  const concurrentFeatures = runtime === 'edge'
 
   const isServerComponent = !!serverComponentManifest
   const OriginalComponent = renderOpts.Component
@@ -1372,7 +1374,7 @@ export async function renderToHTML(
     optimizeCss: renderOpts.optimizeCss,
     optimizeFonts: renderOpts.optimizeFonts,
     optimizeImages: renderOpts.optimizeImages,
-    concurrentFeatures: renderOpts.concurrentFeatures,
+    runtime,
   }
 
   const document = (

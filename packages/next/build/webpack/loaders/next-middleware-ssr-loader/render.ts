@@ -70,7 +70,7 @@ export function getRender({
       extendRenderOpts: {
         buildId,
         supportsDynamicHTML: true,
-        concurrentFeatures: true,
+        runtime: 'edge',
         disableOptimizedLoading: true,
         serverComponentManifest,
       },
@@ -139,7 +139,7 @@ export function getRender({
     // @TODO: We should move this into server/render.
     if (Document.getInitialProps) {
       const err = new Error(
-        '`getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
+        '`getInitialProps` in Document component is not supported with the Edge Runtime.'
       )
       return sendError(req, err)
     }

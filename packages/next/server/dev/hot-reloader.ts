@@ -148,7 +148,7 @@ export default class HotReloader {
   private pagesDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
   private config: NextConfigComplete
-  private webServerRuntime: boolean
+  private edgeRuntime: boolean
   private hasServerComponents: boolean
   public clientStats: webpack5.Stats | null
   public serverStats: webpack5.Stats | null
@@ -189,10 +189,9 @@ export default class HotReloader {
     this.serverPrevDocumentHash = null
 
     this.config = config
-    this.webServerRuntime = !!config.experimental.concurrentFeatures
+    this.edgeRuntime = config.experimental.runtime === 'edge'
     this.hasServerComponents = !!(
-      config.experimental.concurrentFeatures &&
-      config.experimental.serverComponents
+      config.experimental.runtime && config.experimental.serverComponents
     )
     this.previewProps = previewProps
     this.rewrites = rewrites
@@ -317,7 +316,7 @@ export default class HotReloader {
             this.config.pageExtensions,
             {
               isDev: true,
-              hasConcurrentFeatures: this.webServerRuntime,
+              runtime: this.config.experimental.runtime,
               hasServerComponents: this.hasServerComponents,
             }
           )
@@ -361,7 +360,7 @@ export default class HotReloader {
                 entrypoints: entrypoints.server,
                 runWebpackSpan: this.hotReloaderSpan,
               }),
-              this.webServerRuntime
+              this.edgeRuntime
                 ? getBaseWebpackConfig(this.dir, {
                     dev: true,
                     isServer: true,
@@ -370,7 +369,7 @@ export default class HotReloader {
                     buildId: this.buildId,
                     pagesDir: this.pagesDir,
                     rewrites: this.rewrites,
-                    entrypoints: entrypoints.serverWeb,
+                    entrypoints: entrypoints.edgeServer,
                     runWebpackSpan: this.hotReloaderSpan,
                   })
                 : null,
@@ -440,20 +439,22 @@ export default class HotReloader {
         // @ts-ignore entry is always a function
         const entrypoints = await defaultEntry(...args)
         const isClientCompilation = config.name === 'client'
-        const isServerCompilation = config.name === 'server'
-        const isServerWebCompilation = config.name === 'server-web'
+        const isNodeServerCompilation = config.name === 'server'
+        const isEdgeServerCompilation = config.name === 'edge-server'
 
         await Promise.all(
           Object.keys(entries).map(async (pageKey) => {
             const isClientKey = pageKey.startsWith('client')
-            const isServerWebKey = pageKey.startsWith('server-web')
+            const isEdgeServerKey = pageKey.startsWith('edge-server')
+
             if (isClientKey !== isClientCompilation) return
-            if (isServerWebKey !== isServerWebCompilation) return
+            if (isEdgeServerKey !== isEdgeServerCompilation) return
+
             const page = pageKey.slice(
               isClientKey
                 ? 'client'.length
-                : isServerWebKey
-                ? 'server-web'.length
+                : isEdgeServerKey
+                ? 'edge-server'.length
                 : 'server'.length
             )
             const isMiddleware = !!page.match(MIDDLEWARE_ROUTE)
@@ -483,8 +484,8 @@ export default class HotReloader {
               isFlightPage(this.config, absolutePagePath)
 
             if (
-              isServerCompilation &&
-              this.webServerRuntime &&
+              isNodeServerCompilation &&
+              this.edgeRuntime &&
               !isApiRoute &&
               !isCustomError
             ) {
@@ -513,14 +514,10 @@ export default class HotReloader {
 
               if (isServerComponent) {
                 ssrEntries.set(bundlePath, { requireFlightManifest: true })
-              } else if (
-                this.webServerRuntime &&
-                !isReserved &&
-                !isCustomError
-              ) {
+              } else if (this.edgeRuntime && !isReserved && !isCustomError) {
                 ssrEntries.set(bundlePath, { requireFlightManifest: false })
               }
-            } else if (isServerWebCompilation) {
+            } else if (isEdgeServerCompilation) {
               if (!isReserved) {
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   name: '[name].js',
@@ -537,7 +534,7 @@ export default class HotReloader {
                     buildId: this.buildId,
                   } as any)}!`,
                   isServer: false,
-                  isServerWeb: true,
+                  isEdgeServer: true,
                 })
               }
             } else {

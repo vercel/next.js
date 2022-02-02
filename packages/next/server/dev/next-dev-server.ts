@@ -263,10 +263,10 @@ export default class DevServer extends Server {
         const routedPages = []
         const knownFiles = wp.getTimeInfoEntries()
         const ssrMiddleware = new Set<string>()
-        const isWebServerRuntime =
-          this.nextConfig.experimental.concurrentFeatures
+        const runtime = this.nextConfig.experimental.runtime
+        const isEdgeRuntime = runtime === 'edge'
         const hasServerComponents =
-          isWebServerRuntime && this.nextConfig.experimental.serverComponents
+          runtime && this.nextConfig.experimental.serverComponents
 
         for (const [fileName, { accuracy }] of knownFiles) {
           if (accuracy === undefined || !regexPageExtension.test(fileName)) {
@@ -291,7 +291,7 @@ export default class DevServer extends Server {
             routedMiddleware.push(pageName)
             ssrMiddleware.add(pageName)
           } else if (
-            isWebServerRuntime &&
+            isEdgeRuntime &&
             !(isReservedPage(pageName) || isCustomErrorPage(pageName))
           ) {
             routedMiddleware.push(pageName)

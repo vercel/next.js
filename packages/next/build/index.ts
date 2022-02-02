@@ -151,7 +151,8 @@ export default async function build(
     setGlobal('phase', PHASE_PRODUCTION_BUILD)
     setGlobal('distDir', distDir)
 
-    const hasConcurrentFeatures = !!config.experimental.concurrentFeatures
+    const runtime = config.experimental.runtime
+    const hasConcurrentFeatures = runtime === 'edge'
     const hasServerComponents =
       hasConcurrentFeatures && !!config.experimental.serverComponents
 
@@ -292,7 +293,7 @@ export default async function build(
         createPagesMapping(pagePaths, config.pageExtensions, {
           isDev: false,
           hasServerComponents,
-          hasConcurrentFeatures,
+          runtime,
         })
       )
 
@@ -616,7 +617,7 @@ export default async function build(
                   config,
                   target,
                   pagesDir,
-                  entrypoints: entrypoints.serverWeb,
+                  entrypoints: entrypoints.edgeServer,
                   rewrites,
                   runWebpackSpan,
                 })
@@ -650,7 +651,7 @@ export default async function build(
           }
         } else {
           const serverResult = await runCompiler(configs[1], { runWebpackSpan })
-          const serverWebResult = configs[2]
+          const edgeServerResult = configs[2]
             ? await runCompiler(configs[2], { runWebpackSpan })
             : null
 
@@ -658,12 +659,12 @@ export default async function build(
             warnings: [
               ...clientResult.warnings,
               ...serverResult.warnings,
-              ...(serverWebResult?.warnings || []),
+              ...(edgeServerResult?.warnings || []),
             ],
             errors: [
               ...clientResult.errors,
               ...serverResult.errors,
-              ...(serverWebResult?.errors || []),
+              ...(edgeServerResult?.errors || []),
             ],
           }
         }
@@ -710,7 +711,7 @@ export default async function build(
       const moduleName = getUnresolvedModuleFromError(error)
       if (hasConcurrentFeatures && moduleName) {
         const err = new Error(
-          `Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`${moduleName}\` imported.\n\n`
+          `Native Node.js APIs are not supported in the Edge Runtime. Found \`${moduleName}\` imported.\n\n`
         ) as NextError
         err.code = 'EDGE_RUNTIME_UNSUPPORTED_API'
         throw err

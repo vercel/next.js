@@ -9,7 +9,7 @@ export const base = curry(function base(
   config.mode = ctx.isDevelopment ? 'development' : 'production'
   config.name = ctx.isServer
     ? ctx.webServerRuntime
-      ? 'server-web'
+      ? 'edge-server'
       : 'server'
     : 'client'
 
