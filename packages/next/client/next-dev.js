@@ -47,8 +47,8 @@ window.next = {
   render,
   renderError,
 }
-initNext({ webpackHMR })
-  .then(({ renderCtx }) => {
+initNext({ webpackHMR, beforeRender: displayContent })
+  .then(() => {
     initOnDemandEntries()
 
     let buildIndicatorHandler = () => {}
@@ -104,11 +104,6 @@ initNext({ webpackHMR })
         buildIndicatorHandler = handler
       }, process.env.__NEXT_BUILD_INDICATOR_POSITION)
     }
-
-    // delay rendering until after styles have been applied in development
-    displayContent(() => {
-      render(renderCtx)
-    })
   })
   .catch((err) => {
     console.error('Error was not caught', err)
