@@ -1344,6 +1344,7 @@ export default class Router implements BaseRouter {
           pathname,
           query,
           asPath: cleanedAs,
+          isFallback: false,
         },
         routeInfo,
         forcedScroll ?? resetScroll
