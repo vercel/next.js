@@ -1656,11 +1656,7 @@ function renderToNodeStream(
     const { abort, pipe } = (ReactDOMServer as any).renderToPipeableStream(
       element,
       {
-        onError(error: Error) {
-          if (!resolved) {
-            resolved = true
-            reject(error)
-          }
+        onError(_err: Error) {
           abort()
         },
         onCompleteShell() {
@@ -1727,15 +1723,14 @@ function renderToWebStream(
 
     const closeTag = '</body></html>'
     const [suffixUnclosed] = suffix.split(closeTag)
+    const abortController = new AbortController()
 
     const stream: ReadableStream = (
       ReactDOMServer as any
     ).renderToReadableStream(element, {
-      onError(err: Error) {
-        if (!resolved) {
-          resolved = true
-          reject(err)
-        }
+      signal: abortController.signal,
+      onError(_err: Error) {
+        abortController.abort()
       },
       onCompleteShell() {
         if (!resolved) {
