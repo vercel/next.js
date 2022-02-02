@@ -10,13 +10,13 @@ use std::{
     },
 };
 
-use crate::{viz::Visualizable, NativeFunction, Task};
+use crate::{viz::Visualizable, NativeFunction, Task, TurboTasks};
 
 static NEXT_NODE_TYPE_ID: AtomicU32 = AtomicU32::new(1);
 
 pub struct NodeType {
     pub name: String,
-    id: u32,
+    pub(crate) id: u32,
     traits: HashSet<&'static TraitType>,
     trait_methods: HashMap<TypeId, (&'static NativeFunction, &'static str)>,
 }
@@ -105,14 +105,14 @@ pub trait TraitMethod: Any {}
 
 pub struct Node {
     node_type: &'static NodeType,
-    state: RwLock<NodeState>,
+    pub(crate) state: RwLock<NodeState>,
 }
 
-struct NodeState {
+pub(crate) struct NodeState {
     // content can change, but must not change it type
     content: Arc<dyn Any + Send + Sync>,
     // TODO use a concurrent set instead
-    dependent_tasks: Vec<Weak<Task>>,
+    pub(crate) dependent_tasks: Vec<Weak<Task>>,
 }
 
 #[repr(transparent)]
@@ -149,6 +149,35 @@ impl NodeRef {
     pub fn read<T: Any + Send + Sync>(&self) -> Option<Arc<T>> {
         // TODO support traits here too
         Arc::downcast(self.read_content()).ok()
+    }
+
+    pub unsafe fn read_content_untracked(&self) -> Arc<dyn Any + Send + Sync> {
+        let state = self.state.read().unwrap();
+        return state.content.clone();
+    }
+
+    pub unsafe fn read_untracked<T: Any + Send + Sync>(&self) -> Option<Arc<T>> {
+        // TODO support traits here too
+        Arc::downcast(self.read_content_untracked()).ok()
+    }
+
+    pub unsafe fn update<T: Any + Send + Sync>(&self, content: Arc<T>) {
+        let mut state = self.node.state.write().unwrap();
+        state.content = content;
+        let dependent_tasks: Vec<_> = state
+            .dependent_tasks
+            .iter()
+            .filter_map(|task| task.upgrade())
+            .collect();
+        drop(state);
+        if dependent_tasks.is_empty() {
+            return;
+        }
+        let turbo_tasks =
+            TurboTasks::current().expect("tried to call Node::update outside of turbo tasks");
+        for task in dependent_tasks {
+            task.dependent_node_updated(turbo_tasks)
+        }
     }
 
     pub fn is_node_type(&self, node_type: &'static NodeType) -> bool {

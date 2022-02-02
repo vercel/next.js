@@ -12,7 +12,7 @@ use syn::{
     punctuated::Punctuated,
     spanned::Spanned,
     token::Paren,
-    Attribute, Error, FnArg, ImplItem, ImplItemMethod, Item, ItemEnum, ItemFn, ItemImpl,
+    Attribute, Error, Expr, FnArg, ImplItem, ImplItemMethod, Item, ItemEnum, ItemFn, ItemImpl,
     ItemStruct, ItemTrait, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver,
     Result, ReturnType, Signature, Token, TraitItem, TraitItemMethod, Type, TypePath, TypeTuple,
 };
@@ -159,61 +159,106 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     expanded.into()
 }
 
-#[derive(Eq, PartialEq)]
-enum Allowance {
-    Disabled,
-    Auto,
-    Enforced,
-}
-
-struct Constructor {
-    intern: Allowance,
-    previous: Allowance,
-    update: Allowance,
-    create: Allowance,
+enum Constructor {
+    Default,
+    Intern,
+    Compare(Option<Ident>),
+    CompareEnum(Option<Ident>),
+    KeyAndCompare(Option<Expr>, Option<Ident>),
+    KeyAndCompareEnum(Option<Expr>, Option<Ident>),
+    Key(Option<Expr>),
 }
 
 impl Parse for Constructor {
     fn parse(input: ParseStream) -> Result<Self> {
-        let mut result = Constructor {
-            intern: Allowance::Auto,
-            previous: Allowance::Auto,
-            update: Allowance::Auto,
-            create: Allowance::Auto,
-        };
+        let mut result = Constructor::Default;
         if input.is_empty() {
             return Ok(result);
         }
         let content;
         parenthesized!(content in input);
-        while !content.is_empty() {
-            let not = content.peek(Token![!]);
-            if not {
-                content.parse::<Token![!]>()?;
-            }
-            let allowance = if not {
-                Allowance::Disabled
-            } else {
-                Allowance::Enforced
-            };
+        loop {
             let ident = content.parse::<Ident>()?;
             match ident.to_string().as_str() {
-                "intern" => result.intern = allowance,
-                "previous" => result.previous = allowance,
-                "update" => result.update = allowance,
-                "create" => result.create = allowance,
+                "intern" => match result {
+                    Constructor::Default => {
+                        result = Constructor::Intern;
+                    }
+                    _ => {
+                        return Err(content.error(format!("intern can't be combined")));
+                    }
+                },
+                "compare" => {
+                    let compare_name = if content.peek(Token![:]) {
+                        content.parse::<Token![:]>()?;
+                        Some(content.parse::<Ident>()?)
+                    } else {
+                        None
+                    };
+                    result = match result {
+                        Constructor::Default => Constructor::Compare(compare_name),
+                        Constructor::Key(key_expr) => {
+                            Constructor::KeyAndCompare(key_expr, compare_name)
+                        }
+                        _ => {
+                            return Err(content.error(format!(
+                                "\"compare\" can't be combined with previous values"
+                            )));
+                        }
+                    }
+                }
+                "compare_enum" => {
+                    let compare_name = if content.peek(Token![:]) {
+                        content.parse::<Token![:]>()?;
+                        Some(content.parse::<Ident>()?)
+                    } else {
+                        None
+                    };
+                    result = match result {
+                        Constructor::Default => Constructor::CompareEnum(compare_name),
+                        Constructor::Key(key_expr) => {
+                            Constructor::KeyAndCompareEnum(key_expr, compare_name)
+                        }
+                        _ => {
+                            return Err(content.error(format!(
+                                "\"compare\" can't be combined with previous values"
+                            )));
+                        }
+                    }
+                }
+                "key" => {
+                    let key_expr = if content.peek(Token![:]) {
+                        content.parse::<Token![:]>()?;
+                        Some(content.parse::<Expr>()?)
+                    } else {
+                        None
+                    };
+                    result = match result {
+                        Constructor::Default => Constructor::Key(key_expr),
+                        Constructor::Compare(compare_name) => {
+                            Constructor::KeyAndCompare(key_expr, compare_name)
+                        }
+                        _ => {
+                            return Err(content
+                                .error(format!("\"key\" can't be combined with previous values")));
+                        }
+                    };
+                }
                 _ => {
                     return Err(Error::new_spanned(
                         &ident,
-                        format!(
-                            "Invalid keyword {} in turbo_tasks::constructor",
-                            &ident.to_string()
-                        ),
+                        format!("unexpected {}, expected \"key\", \"intern\", \"compare\", \"compare_enum\" or \"update\"", ident.to_string()),
                     ))
                 }
             }
+            if content.is_empty() {
+                return Ok(result);
+            } else if content.peek(Token![,]) {
+                content.parse::<Token![,]>()?;
+            } else {
+                return Err(content.error("expected \",\" or end of attribute"));
+            }
         }
-        Ok(result)
     }
 }
 
@@ -384,17 +429,27 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                         let fn_name = &sig.ident;
                         let inputs = &sig.inputs;
                         let mut input_names = Vec::new();
+                        let mut old_input_names = Vec::new();
+                        let mut input_names_ref = Vec::new();
                         let index_literal = Literal::i32_unsuffixed(i);
                         let mut inputs_for_intern_key = vec![quote! { #index_literal }];
                         for arg in inputs.iter() {
                             if let FnArg::Typed(PatType { pat, ty, .. }) = arg {
                                 if let Pat::Ident(PatIdent { ident, .. }) = &**pat {
                                     input_names.push(ident.clone());
-                                    inputs_for_intern_key.push(if let Type::Reference(_) = &**ty {
-                                        quote! { std::clone::Clone::clone(#ident) }
+                                    old_input_names.push(Ident::new(
+                                        &(ident.to_string() + "_old"),
+                                        ident.span(),
+                                    ));
+                                    if let Type::Reference(_) = &**ty {
+                                        inputs_for_intern_key
+                                            .push(quote! { std::clone::Clone::clone(#ident) });
+                                        input_names_ref.push(quote! { #ident });
                                     } else {
-                                        quote! { std::clone::Clone::clone(&#ident) }
-                                    });
+                                        inputs_for_intern_key
+                                            .push(quote! { std::clone::Clone::clone(&#ident) });
+                                        input_names_ref.push(quote! { &#ident });
+                                    }
                                 } else {
                                     item.span()
                                         .unwrap()
@@ -407,39 +462,119 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                                 }
                             }
                         }
-                        let get_node = if constructor.create == Allowance::Disabled {
+                        let create_new_content = quote! {
+                            std::sync::Arc::new(#ident::#fn_name(#(#input_names),*))
+                        };
+                        let create_new_node = quote! {
+                            turbo_tasks::NodeRef::new(
+                                &#node_type_ident,
+                                #create_new_content
+                            )
+                        };
+                        let gen_compare_functor = |compare_name| {
+                            let compare = match compare_name {
+                                Some(name) => quote! {
+                                    __self.#name(#(#input_names_ref),*)
+                                },
+                                None => quote! {
+                                    true #(&& (#input_names == __self.#input_names))*
+                                },
+                            };
                             quote! {
-                                panic!(concat!("Creating a new ", stringify!(#ident), " node is not allowed"));
-                            }
-                        } else {
-                            quote! {
-                                turbo_tasks::NodeRef::new(
-                                    &#node_type_ident,
-                                    std::sync::Arc::new(#ident::#fn_name(#(#input_names),*))
-                                )
+                                |__node| match __node {
+                                    None => #create_new_node,
+                                    Some(__node) => {
+                                        let __self = unsafe { __node.read_untracked::<#ident>().unwrap() };
+                                        if !(#compare) {
+                                            unsafe { __node.update(#create_new_content) }
+                                        }
+                                        __node
+                                    }
+                                }
                             }
                         };
-                        // TODO handle previous and update
-                        let get_node2 = quote! { #get_node };
-                        let get_node3 = match constructor.intern {
-                            Allowance::Enforced => quote! {
-                                turbo_tasks::macro_helpers::new_node_intern::<#ident, _, _>(
-                                    (#(#inputs_for_intern_key),*),
-                                    || { #get_node2 }
-                                )
-                            },
-                            Allowance::Auto => quote! {
-                                turbo_tasks::macro_helpers::new_node_auto_intern::<#ident, _, _>(
-                                    (#(#inputs_for_intern_key),*),
-                                    || { #get_node2 }
-                                )
-                            },
-                            Allowance::Disabled => quote! { #get_node },
+                        let gen_compare_enum_functor = |name| {
+                            let compare = if old_input_names.is_empty() {
+                                quote! {
+                                    if *__self == #ident::#name {
+                                        return __node
+                                    }
+                                }
+                            } else {
+                                quote! {
+                                    if let #ident::#name(#(#old_input_names),*) = &*__self {
+                                        if true #(&& (#input_names == *#old_input_names))* {
+                                            return __node
+                                        }
+                                    }
+                                }
+                            };
+                            quote! {
+                                |__node| match __node {
+                                    None => #create_new_node,
+                                    Some(__node) => {
+                                        let __self = unsafe { __node.read_untracked::<#ident>().unwrap() };
+                                        #compare
+                                        unsafe { __node.update(#create_new_content) }
+                                        __node
+                                    }
+                                }
+                            }
+                        };
+                        let get_node = match constructor {
+                            Constructor::Intern => {
+                                quote! {
+                                    turbo_tasks::macro_helpers::new_node_intern::<#ident, _, _>(
+                                        (#(#inputs_for_intern_key),*),
+                                        || { #create_new_node }
+                                    )
+                                }
+                            }
+                            Constructor::Default => {
+                                quote! {
+                                    #create_new_node
+                                }
+                            }
+                            Constructor::Compare(compare_name) => {
+                                let functor = gen_compare_functor(compare_name);
+                                quote! {
+                                    turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
+                                        #functor
+                                    )
+                                }
+                            }
+                            Constructor::KeyAndCompare(key_expr, compare_name) => {
+                                let functor = gen_compare_functor(compare_name);
+                                quote! {
+                                    turbo_tasks::macro_helpers::match_previous_node_by_key::<#ident, _, _>(
+                                        #key_expr,
+                                        #functor
+                                    )
+                                }
+                            }
+                            Constructor::CompareEnum(compare_name) => {
+                                let functor = gen_compare_enum_functor(compare_name);
+                                quote! {
+                                    turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
+                                        #functor
+                                    )
+                                }
+                            }
+                            Constructor::KeyAndCompareEnum(key_expr, compare_name) => {
+                                let functor = gen_compare_enum_functor(compare_name);
+                                quote! {
+                                    turbo_tasks::macro_helpers::match_previous_node_by_key::<#ident, _, _>(
+                                        #key_expr,
+                                        #functor
+                                    )
+                                }
+                            }
+                            Constructor::Key(_) => todo!(),
                         };
                         constructors.push(quote! {
                             #(#attrs)*
                             #vis #defaultness #sig {
-                                let node = #get_node3;
+                                let node = #get_node;
                                 Self {
                                     node
                                 }

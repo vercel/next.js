@@ -24,3 +24,20 @@ pub fn new_node_auto_intern<
     // TODO implement decision if intern or not
     intern::<T, K, F>(key, fallback)
 }
+
+pub fn match_previous_node_by_key<
+    T: Any + ?Sized,
+    K: Hash + PartialEq + Eq + Send + Sync + 'static,
+    F: FnOnce(Option<NodeRef>) -> NodeRef,
+>(
+    key: K,
+    functor: F,
+) -> NodeRef {
+    crate::task::match_previous_node_by_key::<T, K, F>(key, functor)
+}
+
+pub fn match_previous_node_by_type<T: Any + ?Sized, F: FnOnce(Option<NodeRef>) -> NodeRef>(
+    functor: F,
+) -> NodeRef {
+    crate::task::match_previous_node_by_type::<T, F>(functor)
+}

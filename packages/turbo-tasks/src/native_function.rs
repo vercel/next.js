@@ -10,7 +10,7 @@ pub struct NativeFunction {
 
 #[turbo_tasks::value_impl]
 impl NativeFunction {
-    #[turbo_tasks::constructor(!intern !previous)]
+    #[turbo_tasks::constructor]
     pub fn new(
         name: String,
         bind_fn: impl (Fn(Vec<NodeRef>) -> Result<NativeTaskFn>) + Send + Sync + 'static,

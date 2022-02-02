@@ -16,7 +16,7 @@ pub struct DiskFileSystem {
 
 #[turbo_tasks::value_impl]
 impl DiskFileSystem {
-    #[turbo_tasks::constructor]
+    #[turbo_tasks::constructor(compare)]
     pub fn new(name: String, root: String) -> Self {
         Self {
             name,
@@ -75,7 +75,7 @@ pub struct PathInFileSystem {
 
 #[turbo_tasks::value_impl]
 impl PathInFileSystem {
-    #[turbo_tasks::constructor]
+    #[turbo_tasks::constructor(compare)]
     pub fn new(path: String) -> Self {
         Self { path }
     }
@@ -89,7 +89,7 @@ pub struct FileSystemPath {
 
 #[turbo_tasks::value_impl]
 impl FileSystemPath {
-    #[turbo_tasks::constructor]
+    #[turbo_tasks::constructor(compare)]
     pub fn new(fs: FileSystemRef, path: PathInFileSystemRef) -> Self {
         Self { fs, path }
     }
@@ -115,6 +115,7 @@ impl Debug for FileSystemPath {
     }
 }
 
+#[derive(PartialEq, Eq)]
 #[turbo_tasks::value]
 pub enum FileContent {
     Content(Vec<u8>),
@@ -123,17 +124,25 @@ pub enum FileContent {
 
 #[turbo_tasks::value_impl]
 impl FileContent {
-    #[turbo_tasks::constructor(!intern)]
+    #[turbo_tasks::constructor(compare_enum: Content)]
     pub fn new(buffer: Vec<u8>) -> Self {
         FileContent::Content(buffer)
     }
 
-    #[turbo_tasks::constructor]
+    pub fn is_content(&self, buffer: &Vec<u8>) -> bool {
+        match self {
+            FileContent::Content(buf) => buf == buffer,
+            _ => false,
+        }
+    }
+
+    #[turbo_tasks::constructor(compare_enum: NotFound)]
     pub fn not_found() -> Self {
         FileContent::NotFound
     }
 }
 
+#[derive(PartialEq, Eq)]
 #[turbo_tasks::value]
 pub enum DirectoryEntry {
     File(FileSystemPathRef),
@@ -143,20 +152,21 @@ pub enum DirectoryEntry {
 
 #[turbo_tasks::value_impl]
 impl DirectoryEntry {
-    #[turbo_tasks::constructor(!intern)]
+    #[turbo_tasks::constructor(compare_enum: File)]
     pub fn file(file: FileSystemPathRef) -> Self {
         DirectoryEntry::File(file)
     }
-    #[turbo_tasks::constructor(!intern)]
+    #[turbo_tasks::constructor(compare_enum: Directory)]
     pub fn directory(directory: FileSystemPathRef) -> Self {
         DirectoryEntry::Directory(directory)
     }
-    #[turbo_tasks::constructor(!intern)]
+    #[turbo_tasks::constructor(compare_enum: Other)]
     pub fn other(other: FileSystemPathRef) -> Self {
         DirectoryEntry::Other(other)
     }
 }
 
+#[derive(PartialEq, Eq)]
 #[turbo_tasks::value]
 pub enum DirectoryContent {
     Entries(Vec<DirectoryEntryRef>),
@@ -165,12 +175,12 @@ pub enum DirectoryContent {
 
 #[turbo_tasks::value_impl]
 impl DirectoryContent {
-    #[turbo_tasks::constructor(!intern)]
+    #[turbo_tasks::constructor(compare_enum: Entries)]
     pub fn new(entries: Vec<DirectoryEntryRef>) -> Self {
         DirectoryContent::Entries(entries)
     }
 
-    #[turbo_tasks::constructor]
+    #[turbo_tasks::constructor(compare_enum: NotFound)]
     pub fn not_found() -> Self {
         DirectoryContent::NotFound
     }

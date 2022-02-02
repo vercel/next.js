@@ -1,11 +1,15 @@
 use crate::{node::Node, viz::Visualizable, NativeFunction, NodeRef, TurboTasks, WeakNodeRef};
+use any_key::AnyHash;
 use anyhow::{anyhow, Result};
 use async_std::task_local;
 use event_listener::{Event, EventListener};
 use std::{
+    any::{Any, TypeId},
     cell::Cell,
+    collections::{hash_map::Entry, HashMap},
     fmt::{self, Debug, Formatter},
     future::Future,
+    hash::Hash,
     pin::Pin,
     sync::{Arc, Mutex, RwLock, Weak},
 };
@@ -13,8 +17,15 @@ use std::{
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Option<NodeRef>> + Send>>;
 pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 
+#[derive(Default)]
+struct PreviousNodesMap {
+    by_key: HashMap<Box<dyn AnyHash + Sync + Send>, NodeRef>,
+    by_type: HashMap<TypeId, (usize, Vec<NodeRef>)>,
+}
+
 task_local! {
   static CURRENT_TASK: Cell<Option<Arc<Task>>> = Cell::new(None);
+  static PREVIOUS_NODES: Cell<PreviousNodesMap> = Cell::new(Default::default());
 }
 
 pub struct Task {
@@ -24,6 +35,7 @@ pub struct Task {
     state: Mutex<TaskState>,
     // TODO use a concurrent set instead
     dependencies: RwLock<Vec<WeakNodeRef>>,
+    previous_nodes: Mutex<PreviousNodesMap>,
 }
 
 impl Debug for Task {
@@ -51,12 +63,14 @@ impl Debug for Task {
     }
 }
 
+#[derive(Default)]
 struct TaskState {
     // TODO using a Atomic might be possible here
     state_type: TaskStateType,
     dirty_children_count: usize,
     // TODO do we want to keep that or solve it in a different way?
     has_side_effect: bool,
+    child_has_side_effect: bool,
     // TODO use a concurrent set
     parents: Vec<Weak<Task>>,
     // TODO use a concurrent set
@@ -133,6 +147,12 @@ enum TaskStateType {
     SomeChildrenScheduled,
 }
 
+impl Default for TaskStateType {
+    fn default() -> Self {
+        Scheduled
+    }
+}
+
 use TaskStateType::*;
 
 impl Task {
@@ -141,22 +161,14 @@ impl Task {
         native_fn: &'static NativeFunction,
     ) -> Result<Self> {
         let bound_fn = native_fn.bind(inputs.clone())?;
+        println!("New task for {}", native_fn.name);
         Ok(Self {
             inputs,
             native_fn: Some(native_fn),
             bound_fn,
-            state: Mutex::new(TaskState {
-                state_type: TaskStateType::Scheduled,
-                dirty_children_count: 0,
-                has_side_effect: false,
-                parents: Vec::new(),
-                children: Vec::new(),
-                output: None,
-                event: Event::new(),
-                executions: 0,
-                output_changes: 0,
-            }),
-            dependencies: RwLock::new(Vec::new()),
+            state: Default::default(),
+            dependencies: Default::default(),
+            previous_nodes: Default::default(),
         })
     }
 
@@ -165,31 +177,48 @@ impl Task {
             inputs: Vec::new(),
             native_fn: None,
             bound_fn: Box::new(functor),
-            state: Mutex::new(TaskState {
-                state_type: TaskStateType::Scheduled,
-                dirty_children_count: 0,
-                has_side_effect: false,
-                parents: Vec::new(),
-                children: Vec::new(),
-                output: None,
-                event: Event::new(),
-                executions: 0,
-                output_changes: 0,
-            }),
-            dependencies: RwLock::new(Vec::new()),
+            state: Default::default(),
+            dependencies: Default::default(),
+            previous_nodes: Default::default(),
         }
     }
 
-    pub(crate) fn execution_started(&self) {
+    pub(crate) fn execution_started(self: &Arc<Task>) {
         let mut state = self.state.lock().unwrap();
         state.executions += 1;
         match state.state_type {
             Scheduled | InProgressLocallyOutdated => {
                 state.state_type = InProgressLocally;
                 state.has_side_effect = false;
+                state.child_has_side_effect = false;
                 // TODO disconnect other sides too
+                let children = state.children.clone();
                 state.children.clear();
-                self.dependencies.write().unwrap().clear()
+                drop(state);
+
+                let mut deps_guard = self.dependencies.write().unwrap();
+                let dependencies = deps_guard.clone();
+                deps_guard.clear();
+                drop(deps_guard);
+
+                // TODO this is super inefficient
+                // use HashSet instead
+                let weak_self = Arc::downgrade(self);
+                for child in children {
+                    let mut state = child.state.lock().unwrap();
+                    state
+                        .parents
+                        .retain(|parent| !Weak::ptr_eq(parent, &weak_self));
+                }
+
+                for dep in dependencies {
+                    if let Some(node_ref) = dep.upgrade() {
+                        let mut state = node_ref.state.write().unwrap();
+                        state
+                            .dependent_tasks
+                            .retain(|task| !Weak::ptr_eq(task, &weak_self));
+                    }
+                }
             }
             _ => {
                 panic!(
@@ -271,6 +300,16 @@ impl Task {
                     }
                     turbo_tasks.schedule(self.clone());
                     false
+                } else if state.child_has_side_effect {
+                    state.state_type = SomeChildrenScheduled;
+                    state.dirty_children_count = 1;
+                    let parents: Vec<Arc<Task>> =
+                        state.parents.iter().filter_map(|p| p.upgrade()).collect();
+                    drop(state);
+                    for parent in parents.iter() {
+                        let _ignored = parent.child_dirty(turbo_tasks);
+                    }
+                    true
                 } else {
                     // TODO there is a race condition here
                     // we better should introduce an additional state
@@ -357,12 +396,16 @@ impl Task {
         self.make_dirty(turbo_tasks)
     }
 
+    pub(crate) fn dependent_node_updated(self: &Arc<Self>, turbo_tasks: &'static TurboTasks) {
+        self.make_dirty(turbo_tasks)
+    }
+
     fn make_dirty(self: &Arc<Self>, turbo_tasks: &'static TurboTasks) {
         let mut state = self.state.lock().unwrap();
         match state.state_type {
             Dirty | Scheduled => {}
             SomeChildrenDirty => {
-                if state.has_side_effect {
+                if state.has_side_effect || state.child_has_side_effect {
                     state.state_type = Scheduled;
                     drop(state);
                     turbo_tasks.schedule(self.clone());
@@ -375,7 +418,7 @@ impl Task {
                 state.state_type = InProgressLocallyOutdated;
             }
             Done => {
-                let has_side_effect = state.has_side_effect;
+                let has_side_effect = state.has_side_effect || state.child_has_side_effect;
                 if has_side_effect {
                     state.state_type = Scheduled;
                 } else {
@@ -408,6 +451,14 @@ impl Task {
     }
 
     pub(crate) fn set_current(task: Arc<Task>) {
+        PREVIOUS_NODES.with(|cell| {
+            let mut previous_nodes_guard = task.previous_nodes.lock().unwrap();
+            let previous_nodes = &mut *previous_nodes_guard;
+            for list in previous_nodes.by_type.values_mut() {
+                list.0 = 0;
+            }
+            Cell::from_mut(previous_nodes).swap(cell);
+        });
         CURRENT_TASK.with(|c| c.set(Some(task)));
     }
 
@@ -420,6 +471,13 @@ impl Task {
             }
             None
         })
+    }
+
+    pub(crate) fn finalize_execution(&self) {
+        PREVIOUS_NODES.with(|cell| {
+            let mut previous_nodes = self.previous_nodes.lock().unwrap();
+            Cell::from_mut(&mut *previous_nodes).swap(cell);
+        });
     }
 
     pub(crate) fn add_dependency(&self, node: WeakNodeRef) {
@@ -472,6 +530,33 @@ impl Task {
         }
     }
 
+    pub(crate) fn ensure_scheduled(self: &Arc<Self>, turbo_tasks: &'static TurboTasks) {
+        let mut state = self.state.lock().unwrap();
+        match state.state_type {
+            Done
+            | InProgressLocally
+            | InProgressLocallyOutdated
+            | Scheduled
+            | SomeChildrenScheduled => {
+                // already scheduled
+            }
+            Dirty => {
+                state.state_type = Scheduled;
+                drop(state);
+                turbo_tasks.schedule(self.clone());
+            }
+            SomeChildrenDirty => {
+                state.state_type = SomeChildrenScheduled;
+                let children: Vec<Arc<Task>> =
+                    state.children.iter().map(|arc| arc.clone()).collect();
+                drop(state);
+                for child in children.into_iter() {
+                    child.schedule_dirty_children(turbo_tasks);
+                }
+            }
+        }
+    }
+
     pub(crate) async fn into_output(
         self: Arc<Self>,
         turbo_tasks: &'static TurboTasks,
@@ -490,7 +575,7 @@ impl Task {
 
                         state.parents.push(Arc::downgrade(&parent));
                         let arc = state.output.clone();
-                        let has_side_effect = state.has_side_effect;
+                        let has_side_effect = state.has_side_effect || state.child_has_side_effect;
                         drop(state);
 
                         let mut parent_state = parent.state.lock().unwrap();
@@ -498,7 +583,7 @@ impl Task {
 
                         // propagate side effect
                         if has_side_effect {
-                            parent_state.has_side_effect = true;
+                            parent_state.child_has_side_effect = true;
                         }
 
                         Ok(arc)
@@ -552,6 +637,70 @@ impl Invalidator {
             task.invaldate(self.turbo_tasks);
         }
     }
+}
+
+pub(crate) fn match_previous_node_by_key<
+    T: Any + ?Sized,
+    K: Hash + PartialEq + Eq + Send + Sync + 'static,
+    F: FnOnce(Option<NodeRef>) -> NodeRef,
+>(
+    key: K,
+    functor: F,
+) -> NodeRef {
+    PREVIOUS_NODES.with(|cell| {
+        let mut map = PreviousNodesMap::default();
+        cell.swap(Cell::from_mut(&mut map));
+        let entry = map
+            .by_key
+            .entry(Box::new((TypeId::of::<T>(), key)) as Box<dyn AnyHash + Sync + Send + 'static>);
+        let result = match entry {
+            Entry::Occupied(mut e) => {
+                let old_node = e.get_mut();
+                // TODO maybe avoid some cloning
+                *old_node = functor(Some(old_node.clone()));
+                old_node.clone()
+            }
+            Entry::Vacant(e) => {
+                let new_node = functor(None);
+                e.insert(new_node.clone());
+                new_node
+            }
+        };
+        cell.swap(Cell::from_mut(&mut map));
+        result
+    })
+}
+
+pub(crate) fn match_previous_node_by_type<
+    T: Any + ?Sized,
+    F: FnOnce(Option<NodeRef>) -> NodeRef,
+>(
+    functor: F,
+) -> NodeRef {
+    PREVIOUS_NODES.with(|cell| {
+        let mut map = PreviousNodesMap::default();
+        cell.swap(Cell::from_mut(&mut map));
+        let list = map
+            .by_type
+            .entry(TypeId::of::<T>())
+            .or_insert_with(Default::default);
+        let (ref mut index, ref mut list) = list;
+        let result = match list.get_mut(*index) {
+            Some(old_node) => {
+                // TODO maybe avoid some cloning
+                *old_node = functor(Some(old_node.clone()));
+                old_node.clone()
+            }
+            None => {
+                let new_node = functor(None);
+                list.push(new_node.clone());
+                new_node
+            }
+        };
+        *index += 1;
+        cell.swap(Cell::from_mut(&mut map));
+        result
+    })
 }
 
 impl Visualizable for Task {

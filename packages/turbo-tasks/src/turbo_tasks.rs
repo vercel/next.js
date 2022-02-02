@@ -15,7 +15,7 @@ use async_std::{
 };
 use chashmap::CHashMap;
 
-use crate::{task::NativeTaskFuture, NativeFunction, NodeRef, Task};
+use crate::{task::NativeTaskFuture, viz::Visualizable, NativeFunction, NodeRef, Task};
 
 pub struct TurboTasks {
     interning_map: CHashMap<Box<dyn AnyHash + Send + Sync>, NodeRef>,
@@ -23,7 +23,7 @@ pub struct TurboTasks {
 }
 
 task_local! {
-static TURBO_TASKS: Cell<Option<&'static TurboTasks>> = Cell::new(None);
+    static TURBO_TASKS: Cell<Option<&'static TurboTasks>> = Cell::new(None);
 }
 
 impl TurboTasks {
@@ -73,7 +73,9 @@ impl TurboTasks {
                     }
                 },
             });
-        return Ok(Box::pin(result_task?.into_output(self)));
+        let task = result_task?;
+        task.ensure_scheduled(self);
+        return Ok(Box::pin(task.into_output(self)));
     }
 
     pub(crate) fn schedule(&'static self, task: Arc<Task>) -> JoinHandle<()> {
@@ -82,8 +84,9 @@ impl TurboTasks {
             .spawn(async move {
                 Task::set_current(task.clone());
                 TURBO_TASKS.with(|c| c.set(Some(self)));
-                task.as_ref().execution_started();
+                task.execution_started();
                 let result = task.execute().await;
+                task.finalize_execution();
                 task.execution_completed(result, self);
             })
             .unwrap()
@@ -144,4 +147,12 @@ pub(crate) fn intern<
         .ok_or_else(|| anyhow!("tried to call intern outside of turbo tasks"))
         .unwrap();
     tt.intern::<T, K, F>(key, fallback)
+}
+
+impl Visualizable for &'static TurboTasks {
+    fn visualize(&self, visualizer: &mut impl crate::viz::Visualizer) {
+        for (key, task) in self.task_cache.clone().into_iter() {
+            task.visualize(visualizer);
+        }
+    }
 }
