@@ -1541,7 +1541,7 @@ function renderToNodeStream(
   suffix: string,
   generateStaticHTML: boolean
 ): Promise<NodeWritablePiper> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     let underlyingStream: WritableType | null = null
     let queuedCallbacks: Array<(error?: Error | null) => void> = []
     let shellFlushed = false
@@ -1637,11 +1637,7 @@ function renderToNodeStream(
     const { abort, pipe } = (ReactDOMServer as any).renderToPipeableStream(
       element,
       {
-        onError(error: Error) {
-          if (!resolved) {
-            resolved = true
-            reject(error)
-          }
+        onError(_err: Error) {
           abort()
         },
         onCompleteShell() {
@@ -1698,7 +1694,7 @@ function renderToWebStream(
   suffix: string,
   serverComponentsInlinedTransformStream: TransformStream | null
 ): Promise<NodeWritablePiper> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     let resolved = false
     const inlinedDataReader = serverComponentsInlinedTransformStream
       ? serverComponentsInlinedTransformStream.readable.getReader()
@@ -1706,15 +1702,14 @@ function renderToWebStream(
 
     const closeTag = '</body></html>'
     const [suffixUnclosed] = suffix.split(closeTag)
+    const abortController = new AbortController()
 
     const stream: ReadableStream = (
       ReactDOMServer as any
     ).renderToReadableStream(element, {
-      onError(err: Error) {
-        if (!resolved) {
-          resolved = true
-          reject(err)
-        }
+      signal: abortController.signal,
+      onError(_err: Error) {
+        abortController.abort()
       },
       onCompleteShell() {
         if (!resolved) {
