@@ -32,11 +32,13 @@ export async function middleware(request) {
   }
 
   if (url.pathname === '/rewrites/rewrite-me-with-a-colon') {
-    return NextResponse.rewrite('/rewrites/with:colon')
+    url.pathname = '/rewrites/with:colon'
+    return NextResponse.rewrite(url)
   }
 
   if (url.pathname === '/rewrites/colon:here') {
-    return NextResponse.rewrite('/rewrites/no-colon-here')
+    url.pathname = '/rewrites/no-colon-here'
+    return NextResponse.rewrite(url)
   }
 
   if (url.pathname === '/rewrites/rewrite-me-to-vercel') {
