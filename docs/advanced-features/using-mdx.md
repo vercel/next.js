@@ -46,7 +46,7 @@ The following steps outline how to setup `@next/mdx` in your Next.js project:
      options: {
        remarkPlugins: [],
        rehypePlugins: [],
-       // If you use `MDXProvider`, comment in the following line.
+       // If you use `MDXProvider`, uncomment the following line.
        // providerImportSource: "@mdx-js/react",
      },
    })
