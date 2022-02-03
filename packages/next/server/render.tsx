@@ -1,6 +1,5 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
-import type { Writable as WritableType } from 'stream'
 import React from 'react'
 import ReactDOMServer from 'react-dom/server'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
