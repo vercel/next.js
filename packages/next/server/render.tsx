@@ -449,7 +449,7 @@ export async function renderToHTML(
     runtime,
   } = renderOpts
 
-  const concurrentFeatures = runtime === 'edge'
+  const concurrentFeatures = !!runtime
 
   const isServerComponent = !!serverComponentManifest
   const OriginalComponent = renderOpts.Component

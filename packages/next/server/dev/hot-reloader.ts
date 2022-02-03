@@ -148,7 +148,7 @@ export default class HotReloader {
   private pagesDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
   private config: NextConfigComplete
-  private edgeRuntime: boolean
+  private runtime?: 'nodejs' | 'edge'
   private hasServerComponents: boolean
   public clientStats: webpack5.Stats | null
   public serverStats: webpack5.Stats | null
@@ -189,9 +189,9 @@ export default class HotReloader {
     this.serverPrevDocumentHash = null
 
     this.config = config
-    this.edgeRuntime = config.experimental.runtime === 'edge'
+    this.runtime = config.experimental.runtime
     this.hasServerComponents = !!(
-      config.experimental.runtime && config.experimental.serverComponents
+      this.runtime && config.experimental.serverComponents
     )
     this.previewProps = previewProps
     this.rewrites = rewrites
@@ -360,11 +360,13 @@ export default class HotReloader {
                 entrypoints: entrypoints.server,
                 runWebpackSpan: this.hotReloaderSpan,
               }),
-              this.edgeRuntime
+              // For the edge runtime, we need an extra compiler to generate the
+              // web-targeted server bundle for now.
+              this.runtime === 'edge'
                 ? getBaseWebpackConfig(this.dir, {
                     dev: true,
                     isServer: true,
-                    webServerRuntime: true,
+                    isEdgeRuntime: true,
                     config: this.config,
                     buildId: this.buildId,
                     pagesDir: this.pagesDir,
@@ -485,7 +487,7 @@ export default class HotReloader {
 
             if (
               isNodeServerCompilation &&
-              this.edgeRuntime &&
+              this.runtime === 'edge' &&
               !isApiRoute &&
               !isCustomError
             ) {
@@ -514,7 +516,11 @@ export default class HotReloader {
 
               if (isServerComponent) {
                 ssrEntries.set(bundlePath, { requireFlightManifest: true })
-              } else if (this.edgeRuntime && !isReserved && !isCustomError) {
+              } else if (
+                this.runtime === 'edge' &&
+                !isReserved &&
+                !isCustomError
+              ) {
                 ssrEntries.set(bundlePath, { requireFlightManifest: false })
               }
             } else if (isEdgeServerCompilation) {

@@ -19,31 +19,31 @@ export interface FunctionsManifest {
 
 export default class FunctionsManifestPlugin {
   dev: boolean
-  webServerRuntime: boolean
+  isEdgeRuntime: boolean
 
   constructor({
     dev,
-    webServerRuntime,
+    isEdgeRuntime,
   }: {
     dev: boolean
-    webServerRuntime: boolean
+    isEdgeRuntime: boolean
   }) {
     this.dev = dev
-    this.webServerRuntime = webServerRuntime
+    this.isEdgeRuntime = isEdgeRuntime
   }
 
   createAssets(
     compilation: webpack5.Compilation,
     assets: any,
     envPerRoute: Map<string, string[]>,
-    webServerRuntime: boolean
+    isEdgeRuntime: boolean
   ) {
     const functionsManifest: FunctionsManifest = {
       version: 1,
       pages: {},
     }
 
-    const infos = getEntrypointInfo(compilation, envPerRoute, webServerRuntime)
+    const infos = getEntrypointInfo(compilation, envPerRoute, isEdgeRuntime)
     infos.forEach((info) => {
       functionsManifest.pages[info.page] = {
         runtime: 'web',
@@ -51,8 +51,7 @@ export default class FunctionsManifestPlugin {
       }
     })
 
-    const assetPath =
-      (this.webServerRuntime ? '' : 'server/') + FUNCTIONS_MANIFEST
+    const assetPath = (this.isEdgeRuntime ? '' : 'server/') + FUNCTIONS_MANIFEST
     assets[assetPath] = new sources.RawSource(
       JSON.stringify(functionsManifest, null, 2)
     )
@@ -62,7 +61,7 @@ export default class FunctionsManifestPlugin {
     collectAssets(compiler, this.createAssets.bind(this), {
       dev: this.dev,
       pluginName: PLUGIN_NAME,
-      webServerRuntime: this.webServerRuntime,
+      isEdgeRuntime: this.isEdgeRuntime,
     })
   }
 }

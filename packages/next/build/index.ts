@@ -151,8 +151,11 @@ export default async function build(
     setGlobal('phase', PHASE_PRODUCTION_BUILD)
     setGlobal('distDir', distDir)
 
+    // Currently, when the runtime option is set (either `nodejs` or `edge`),
+    // we enable concurrent features (Fizz-related rendering architecture).
     const runtime = config.experimental.runtime
-    const hasConcurrentFeatures = runtime === 'edge'
+    const hasConcurrentFeatures = !!runtime
+
     const hasServerComponents =
       hasConcurrentFeatures && !!config.experimental.serverComponents
 
@@ -608,12 +611,12 @@ export default async function build(
               rewrites,
               runWebpackSpan,
             }),
-            hasConcurrentFeatures
+            runtime === 'edge'
               ? getBaseWebpackConfig(dir, {
                   buildId,
                   reactProductionProfiling,
                   isServer: true,
-                  webServerRuntime: true,
+                  isEdgeRuntime: true,
                   config,
                   target,
                   pagesDir,

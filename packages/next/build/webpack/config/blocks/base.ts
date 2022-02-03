@@ -8,7 +8,7 @@ export const base = curry(function base(
 ) {
   config.mode = ctx.isDevelopment ? 'development' : 'production'
   config.name = ctx.isServer
-    ? ctx.webServerRuntime
+    ? ctx.isEdgeRuntime
       ? 'edge-server'
       : 'server'
     : 'client'
@@ -16,7 +16,7 @@ export const base = curry(function base(
   // @ts-ignore TODO webpack 5 typings
   config.target = !ctx.targetWeb
     ? 'node12.22'
-    : ctx.webServerRuntime
+    : ctx.isEdgeRuntime
     ? ['web', 'es6']
     : ['web', 'es5']
 
@@ -25,7 +25,7 @@ export const base = curry(function base(
     if (process.env.__NEXT_TEST_MODE && !process.env.__NEXT_TEST_WITH_DEVTOOL) {
       config.devtool = false
     } else {
-      if (!ctx.webServerRuntime) {
+      if (!ctx.isEdgeRuntime) {
         // `eval-source-map` provides full-fidelity source maps for the
         // original source, including columns and original variable names.
         // This is desirable so the in-browser debugger can correctly pause

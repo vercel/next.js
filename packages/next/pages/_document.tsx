@@ -498,7 +498,7 @@ export class Head extends Component<
       runtime,
     } = this.context
 
-    const concurrentFeatures = runtime === 'edge'
+    const concurrentFeatures = !!runtime
 
     const disableRuntimeJS = unstable_runtimeJS === false
     const disableJsPreload =

@@ -304,7 +304,7 @@ export default async function getBaseWebpackConfig(
     config,
     dev = false,
     isServer = false,
-    webServerRuntime = false,
+    isEdgeRuntime = false,
     pagesDir,
     target = 'server',
     reactProductionProfiling = false,
@@ -317,7 +317,7 @@ export default async function getBaseWebpackConfig(
     config: NextConfigComplete
     dev?: boolean
     isServer?: boolean
-    webServerRuntime?: boolean
+    isEdgeRuntime?: boolean
     pagesDir: string
     target?: string
     reactProductionProfiling?: boolean
@@ -376,13 +376,14 @@ export default async function getBaseWebpackConfig(
       '`experimental.runtime` is required to be set along with `experimental.serverComponents`.'
     )
   }
-  const hasConcurrentFeatures =
-    config.experimental.runtime === 'edge' && hasReactRoot
+
+  const runtime = config.experimental.runtime
+  const hasConcurrentFeatures = !!runtime && hasReactRoot
   const hasServerComponents =
     hasConcurrentFeatures && !!config.experimental.serverComponents
-  const targetWeb = webServerRuntime || !isServer
+  const targetWeb = isEdgeRuntime || !isServer
 
-  if (webServerRuntime) {
+  if (isEdgeRuntime) {
     Log.warn(
       'You are using the experimental Edge Runtime with `experimental.runtime`.'
     )
@@ -559,7 +560,7 @@ export default async function getBaseWebpackConfig(
         prev.push(path.join(pagesDir, `_document.${ext}`))
         return prev
       }, [] as string[]),
-      `next/dist/pages/_document${webServerRuntime ? '-web' : ''}.js`,
+      `next/dist/pages/_document${isEdgeRuntime ? '-web' : ''}.js`,
     ]
   }
 
@@ -607,7 +608,7 @@ export default async function getBaseWebpackConfig(
           }
         : {}),
 
-      ...(webServerRuntime
+      ...(isEdgeRuntime
         ? {
             'react-dom/server': dev
               ? 'react-dom/cjs/react-dom-server.browser.development'
@@ -964,7 +965,7 @@ export default async function getBaseWebpackConfig(
         // TODO: should we warn/error for this instead?
         [
           'next',
-          ...(webServerRuntime
+          ...(isEdgeRuntime
             ? [
                 {
                   'next/dist/compiled/etag': '{}',
@@ -1040,7 +1041,7 @@ export default async function getBaseWebpackConfig(
         ? dev
           ? false
           : ({
-              filename: webServerRuntime ? 'chunks/[name].js' : '[name].js',
+              filename: isEdgeRuntime ? 'chunks/[name].js' : '[name].js',
               // allow to split entrypoints
               chunks: ({ name }: any) => !name?.match(MIDDLEWARE_ROUTE),
               // size of files is not so relevant for server build
@@ -1101,12 +1102,12 @@ export default async function getBaseWebpackConfig(
       // auto which doesn't work in IE11
       publicPath: `${config.assetPrefix || ''}/_next/`,
       path:
-        isServer && !dev && !webServerRuntime
+        isServer && !dev && !isEdgeRuntime
           ? path.join(outputPath, 'chunks')
           : outputPath,
       // On the server we don't use hashes
       filename: isServer
-        ? !dev && !webServerRuntime
+        ? !dev && !isEdgeRuntime
           ? `../[name].js`
           : `[name].js`
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
@@ -1185,7 +1186,7 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        ...(hasServerComponents && webServerRuntime
+        ...(hasServerComponents && isEdgeRuntime
           ? [
               {
                 ...codeCondition,
@@ -1437,18 +1438,17 @@ export default async function getBaseWebpackConfig(
           resourceRegExp: /react-is/,
           contextRegExp: /next[\\/]dist[\\/]/,
         }),
-      ((isServerless && isServer) || webServerRuntime) &&
-        new ServerlessPlugin(),
+      ((isServerless && isServer) || isEdgeRuntime) && new ServerlessPlugin(),
       isServer &&
-        !webServerRuntime &&
+        !isEdgeRuntime &&
         new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
-      (!isServer || webServerRuntime) &&
-        new MiddlewarePlugin({ dev, webServerRuntime }),
+      (!isServer || isEdgeRuntime) &&
+        new MiddlewarePlugin({ dev, isEdgeRuntime }),
       process.env.ENABLE_FILE_SYSTEM_API === '1' &&
-        webServerRuntime &&
-        new FunctionsManifestPlugin({ dev, webServerRuntime }),
+        isEdgeRuntime &&
+        new FunctionsManifestPlugin({ dev, isEdgeRuntime }),
       isServer && new NextJsSsrImportPlugin(),
       !isServer &&
         new BuildManifestPlugin({
@@ -1461,7 +1461,7 @@ export default async function getBaseWebpackConfig(
       config.optimizeFonts &&
         !dev &&
         isServer &&
-        !webServerRuntime &&
+        !isEdgeRuntime &&
         (function () {
           const { FontStylesheetGatheringPlugin } =
             require('./webpack/plugins/font-stylesheet-gathering-plugin') as {
@@ -1595,7 +1595,7 @@ export default async function getBaseWebpackConfig(
     assetPrefix: config.assetPrefix,
     disableOptimizedLoading: config.experimental.disableOptimizedLoading,
     target,
-    webServerRuntime,
+    isEdgeRuntime,
     reactProductionProfiling,
     webpack: !!config.webpack,
     hasRewrites,
@@ -1693,7 +1693,7 @@ export default async function getBaseWebpackConfig(
     customAppFile: new RegExp(escapeStringRegexp(path.join(pagesDir, `_app`))),
     isDevelopment: dev,
     isServer,
-    webServerRuntime,
+    isEdgeRuntime,
     targetWeb,
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
@@ -2058,7 +2058,7 @@ export default async function getBaseWebpackConfig(
       }
       delete entry['main.js']
 
-      if (!webServerRuntime) {
+      if (!isEdgeRuntime) {
         for (const name of Object.keys(entry)) {
           entry[name] = finalizeEntrypoint({
             value: entry[name],
