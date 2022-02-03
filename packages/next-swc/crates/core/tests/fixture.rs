@@ -160,7 +160,13 @@ fn relay_no_artifact_dir_fixture(input: PathBuf) {
     };
     test_fixture(
         syntax(),
-        &|_tr| relay(&config, FileName::Real(PathBuf::from("input.tsx"))),
+        &|_tr| {
+            relay(
+                &config,
+                FileName::Real(PathBuf::from("input.tsx")),
+                Some(PathBuf::from("src/pages")),
+            )
+        },
         &input,
         &output,
     );
