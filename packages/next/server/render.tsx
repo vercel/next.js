@@ -1110,7 +1110,7 @@ export async function renderToHTML(
     )
     const reader = stream.getReader()
     const piper: NodeWritablePiper = (push, next) => {
-      bufferedReadFromReadableStream(reader, (val) => push(val)).then(
+      bufferedReadFromReadableStream(reader, push).then(
         () => next(),
         (innerErr) => next(innerErr)
       )

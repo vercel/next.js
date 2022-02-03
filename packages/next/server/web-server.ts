@@ -150,6 +150,7 @@ export default class NextWebServer extends BaseServer {
     options.result.pipe({
       write: (str: string) => writer.write(encoder.encode(str)),
       end: () => writer.close(),
+      destroy: (err: Error) => writer.abort(err),
       // Not implemented: cork/uncork/on/removeListener
     } as any)
 
