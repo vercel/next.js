@@ -76,18 +76,6 @@ Middleware runs directly after `redirects` and `headers`, before the first files
 
 Middleware uses a [strict runtime](/docs/api-reference/edge-runtime.md) that supports standard Web APIs like `fetch`. This works out of the box using `next start`, as well as on Edge platforms like Vercel, which use [Edge Functions](http://www.vercel.com/edge).
 
-## Custom Server
-
-When using a custom server with middleware, you must specify the hostname and port when instantiating your `NextApp`.
-
-```ts
-import next from 'next'
-// ...
-const port = process.env.PORT ? +process.env.PORT : 3000
-const dev = process.env.NODE_ENV !== 'production'
-const app = next({ dev, customServer: true, hostname: 'localhost', port })
-```
-
 ## Related
 
 <div class="card">

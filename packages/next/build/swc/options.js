@@ -5,7 +5,7 @@ const regeneratorRuntimePath = require.resolve(
   'next/dist/compiled/regenerator-runtime'
 )
 
-function getBaseSWCOptions({
+export function getBaseSWCOptions({
   filename,
   jest,
   development,
@@ -38,6 +38,14 @@ function getBaseSWCOptions({
       },
 
       transform: {
+        // Enables https://github.com/swc-project/swc/blob/0359deb4841be743d73db4536d4a22ac797d7f65/crates/swc_ecma_ext_transforms/src/jest.rs
+        ...(jest
+          ? {
+              hidden: {
+                jest: true,
+              },
+            }
+          : {}),
         legacyDecorator: enableDecorators,
         react: {
           importSource: jsConfig?.compilerOptions?.jsxImportSource || 'react',
@@ -45,9 +53,9 @@ function getBaseSWCOptions({
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
           throwIfNamespace: true,
-          development: development,
+          development: !!development,
           useBuiltins: true,
-          refresh: hasReactRefresh,
+          refresh: !!hasReactRefresh,
         },
         optimizer: {
           simplify: false,
@@ -76,6 +84,7 @@ function getBaseSWCOptions({
       : null,
     removeConsole: nextConfig?.experimental?.removeConsole,
     reactRemoveProperties: nextConfig?.experimental?.reactRemoveProperties,
+    relay: nextConfig?.experimental?.relay,
   }
 }
 

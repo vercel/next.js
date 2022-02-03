@@ -74,6 +74,7 @@ import { getMiddlewareRegex, getRouteMatcher } from '../shared/lib/router/utils'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { loadEnvConfig } from '@next/env'
 import { getCustomRoute } from './server-route-utils'
+import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 
 export * from './base-server'
 
@@ -179,7 +180,7 @@ export default class NextNodeServer extends BaseServer {
     ]
   }
 
-  protected generateStaticRotes(): Route[] {
+  protected generateStaticRoutes(): Route[] {
     return this.hasStaticDir
       ? [
           {
@@ -1005,12 +1006,21 @@ export default class NextNodeServer extends BaseServer {
         }
 
         if (result.response.headers.has('x-middleware-rewrite')) {
+          const rewritePath = result.response.headers.get(
+            'x-middleware-rewrite'
+          )!
           const { newUrl, parsedDestination } = prepareDestination({
-            appendParamsToQuery: true,
-            destination: result.response.headers.get('x-middleware-rewrite')!,
+            appendParamsToQuery: false,
+            destination: rewritePath,
             params: _params,
-            query: parsedUrl.query,
+            query: {},
           })
+
+          // TODO: remove after next minor version current `v12.0.9`
+          this.warnIfQueryParametersWereDeleted(
+            parsedUrl.query,
+            parsedDestination.query
+          )
 
           if (
             parsedDestination.protocol &&
@@ -1191,5 +1201,25 @@ export default class NextNodeServer extends BaseServer {
 
   protected getRoutesManifest() {
     return require(join(this.distDir, ROUTES_MANIFEST))
+  }
+
+  // TODO: remove after next minor version current `v12.0.9`
+  private warnIfQueryParametersWereDeleted(
+    incoming: ParsedUrlQuery,
+    rewritten: ParsedUrlQuery
+  ): void {
+    const incomingQuery = urlQueryToSearchParams(incoming)
+    const rewrittenQuery = urlQueryToSearchParams(rewritten)
+
+    const missingKeys = [...incomingQuery.keys()].filter((key) => {
+      return !rewrittenQuery.has(key)
+    })
+
+    if (missingKeys.length > 0) {
+      Log.warn(
+        `Query params are no longer automatically merged for rewrites in middleware, see more info here: https://nextjs.org/docs/messages/errors/deleting-query-params-in-middlewares`
+      )
+      this.warnIfQueryParametersWereDeleted = () => {}
+    }
   }
 }
