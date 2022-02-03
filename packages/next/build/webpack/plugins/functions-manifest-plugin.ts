@@ -1,7 +1,7 @@
 import { sources, webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { normalizePagePath } from '../../../server/normalize-page-path'
 import { FUNCTIONS_MANIFEST } from '../../../shared/lib/constants'
-import { getPageKeyFromPath } from '../../entries'
+import { getPageFromPath } from '../../entries'
 import { collectAssets, getEntrypointInfo } from './middleware-plugin'
 
 const PLUGIN_NAME = 'FunctionsManifestPlugin'
@@ -59,10 +59,12 @@ export default class FunctionsManifestPlugin {
     infos.forEach((info) => {
       const { page } = info
       // TODO: use global default runtime instead of 'web'
-      const runtime = this.pagesRuntime.get(page) || 'web'
+      const pageRuntime = this.pagesRuntime.get(page)
+      const isWebRuntime =
+        pageRuntime === 'edge' || (this.webServerRuntime && !pageRuntime)
       functionsManifest.pages[page] = {
         // Not assign if it's nodejs runtime, project configured node version is used instead
-        ...(runtime !== 'nodejs' && { runtime }),
+        ...(isWebRuntime && { runtime: 'web' }),
         ...info,
       }
     })
@@ -112,7 +114,7 @@ export default class FunctionsManifestPlugin {
                 if (runtime) {
                   const normalizedPagePath = normalizePagePath(mod.userRequest)
                   const pagePath = normalizedPagePath.replace(this.pagesDir, '')
-                  const page = getPageKeyFromPath(pagePath, this.pageExtensions)
+                  const page = getPageFromPath(pagePath, this.pageExtensions)
                   this.pagesRuntime.set(page, runtime)
                   break
                 }
