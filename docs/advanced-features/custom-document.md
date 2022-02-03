@@ -90,7 +90,7 @@ class MyDocument extends Document {
 export default MyDocument
 ```
 
-> **Note**: `getInitialProps` in `_document` is not called during client-side transitions, nor when a page is [statically optimized](/docs/advanced-features/automatic-static-optimization.md).
+> **Note**: `getInitialProps` in `_document` is not called during client-side transitions.
 
 ## TypeScript
 
