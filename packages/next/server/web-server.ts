@@ -151,7 +151,9 @@ export default class NextWebServer extends BaseServer {
       write: (str: string) => writer.write(encoder.encode(str)),
       end: () => writer.close(),
       destroy: (err: Error) => writer.abort(err),
-      // Not implemented: cork/uncork/on/removeListener
+      cork: () => {},
+      uncork: () => {},
+      // Not implemented: on/removeListener
     } as any)
 
     // To prevent Safari's bfcache caching the "shell", we have to add the
