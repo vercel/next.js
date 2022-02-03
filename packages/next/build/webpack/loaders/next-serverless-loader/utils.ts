@@ -179,10 +179,11 @@ export function getUtils({
             // Simulate a RegExp match from the \`req.url\` input
             exec: (str: string) => {
               const obj = parseQs(str)
+              const matchesHasLocale =
+                i18n && detectedLocale && obj['1'] === detectedLocale
 
               // favor named matches if available
               const routeKeyNames = Object.keys(routeKeys || {})
-
               const filterLocaleItem = (val: string | string[]) => {
                 if (i18n) {
                   // locale items can be included in route-matches
@@ -228,8 +229,13 @@ export function getUtils({
 
               return Object.keys(obj).reduce((prev, key) => {
                 if (!filterLocaleItem(obj[key])) {
+                  let normalizedKey = key
+
+                  if (matchesHasLocale) {
+                    normalizedKey = parseInt(key, 10) - 1 + ''
+                  }
                   return Object.assign(prev, {
-                    [key]: obj[key],
+                    [normalizedKey]: obj[key],
                   })
                 }
                 return prev
