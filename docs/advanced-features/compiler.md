@@ -105,7 +105,7 @@ module.exports = {
     relay: {
       // This should match relay.config.js
       src: './',
-      artifactDirectory: './__generated__'
+      artifactDirectory: './__generated__',
       language: 'typescript',
     },
   },
