@@ -20,6 +20,7 @@ import chalk from 'next/dist/compiled/chalk'
 import { NextUrlWithParsedQuery } from './request-meta'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
+type Inflight = { buffer: Buffer; file: string }
 
 const AVIF = 'image/avif'
 const WEBP = 'image/webp'
@@ -31,8 +32,7 @@ const CACHE_VERSION = 3
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
-const inflightRequests = new Map<string, Promise<void>>()
-const staleRequests = new Map<string, { buffer: Buffer; file: string }>()
+const inflightRequests = new Map<string, Promise<Inflight | null>>()
 
 let sharp:
   | ((
@@ -180,15 +180,15 @@ export async function imageOptimizer(
   const hash = getHash([CACHE_VERSION, href, width, quality, mimeType])
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
-  const now = Date.now()
-  const staleRequest = staleRequests.get(hashDir)
+  const previousInflight = inflightRequests.get(hashDir)
   let xCache: XCacheHeader = 'MISS'
 
   // If there are concurrent requests hitting the same STALE resource,
   // we can serve it from memory to avoid blocking below.
-  if (staleRequest) {
+  if (previousInflight && (await previousInflight)) {
     xCache = 'STALE'
-    const { maxAge, etag, contentType } = getFileMetadata(staleRequest.file)
+    const { file, buffer } = (await previousInflight)!
+    const { maxAge, etag, contentType } = getFileMetadata(file)
     const result = setResponseHeaders(
       req,
       res,
@@ -201,21 +201,17 @@ export async function imageOptimizer(
       xCache
     )
     if (!result.finished) {
-      res.end(staleRequest.buffer)
+      res.end(buffer)
     }
     return { finished: true }
   }
 
-  // If there're concurrent requests hitting the same resource and it's still
-  // being optimized, wait before accessing the cache.
-  if (inflightRequests.has(hashDir)) {
-    await inflightRequests.get(hashDir)
-  }
-  const dedupe = new Deferred<void>()
-  inflightRequests.set(hashDir, dedupe.promise)
+  const currentInflight = new Deferred<Inflight | null>()
+  inflightRequests.set(hashDir, currentInflight.promise)
 
   try {
     if (await fileExists(hashDir, 'directory')) {
+      const now = Date.now()
       const files = await promises.readdir(hashDir)
       for (let file of files) {
         const { maxAge, expireAt, etag, contentType } = getFileMetadata(file)
@@ -235,8 +231,8 @@ export async function imageOptimizer(
           const fsPath = join(hashDir, file)
           const buffer = await promises.readFile(fsPath)
           if (xCache === 'STALE') {
-            staleRequests.set(hashDir, { buffer, file })
             await promises.unlink(fsPath)
+            currentInflight.resolve({ buffer, file })
           }
           res.end(buffer)
         }
@@ -336,7 +332,7 @@ export async function imageOptimizer(
       }
     }
 
-    const expireAt = Math.max(maxAge, minimumCacheTTL) * 1000 + now
+    const expireAt = Math.max(maxAge, minimumCacheTTL) * 1000 + Date.now()
 
     if (upstreamType) {
       const vector = VECTOR_TYPES.includes(upstreamType)
@@ -534,7 +530,7 @@ export async function imageOptimizer(
 
     return { finished: true }
   } finally {
-    dedupe.resolve()
+    currentInflight.resolve(null)
     inflightRequests.delete(hashDir)
   }
 }
@@ -551,7 +547,7 @@ async function writeToCacheDir(
   const etag = getHash([buffer])
   const filename = join(dir, `${maxAge}.${expireAt}.${etag}.${extension}`)
   await promises.writeFile(filename, buffer)
-  staleRequests.delete(dir)
+  inflightRequests.delete(dir)
 }
 
 function getFileNameWithExtension(

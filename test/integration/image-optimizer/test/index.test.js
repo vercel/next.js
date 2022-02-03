@@ -512,7 +512,8 @@ function runTests({
     it('should use cache and stale-while-revalidate when query is the same for external image', async () => {
       await fs.remove(imagesDir)
 
-      const url = 'https://image-optimization-test.vercel.app/api/slow'
+      const url =
+        'https://image-optimization-test.vercel.app/api/slow?delay=1000'
       const query = { url, w, q: 39 }
       const opts = { headers: { accept: 'image/webp' } }
 
