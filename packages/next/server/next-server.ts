@@ -76,6 +76,7 @@ import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { clonableBodyForRequest } from './body-streams'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 
 export * from './base-server'
 
@@ -1022,197 +1023,241 @@ export default class NextNodeServer extends BaseServer {
     }
   }
 
-  protected generateCatchAllMiddlewareRoute(): Route | undefined {
+  protected generateCatchAllStaticMiddlewareRoute(): Route | undefined {
     if (this.minimalMode) return undefined
 
     return {
       match: route('/:path*'),
       type: 'route',
-      name: 'middleware catchall',
+      name: 'static middleware catchall',
       fn: async (req, res, _params, parsed) => {
-        if (!this.allRoutes?.some((r) => r.isMiddleware)) {
-          return { finished: false }
-        }
-
-        const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
-        const parsedUrl = parseNextUrl({
-          url: initUrl,
-          headers: req.headers,
-          nextConfig: {
-            basePath: this.nextConfig.basePath,
-            i18n: this.nextConfig.i18n,
-            trailingSlash: this.nextConfig.trailingSlash,
-          },
+        return await this.handleMiddlewareRoute({
+          isDynamic: false,
+          req,
+          res,
+          parsed,
         })
-
-        const normalizedPathname = removePathTrailingSlash(parsedUrl.pathname)
-        const middleware: RoutingItem[] = []
-        for (const item of this.allRoutes || []) {
-          if (item.match(normalizedPathname)) {
-            if (!item.isMiddleware) break
-
-            // prevent matching with API requests except `/` and `/api/.*`
-            if (
-              item.page !== '/' &&
-              !isApiRoute(item.page) &&
-              isApiRoute(normalizedPathname)
-            )
-              continue
-
-            middleware.push(item)
-          }
-        }
-
-        if (!middleware.length) {
-          return { finished: false }
-        }
-
-        let result: FetchEventResult | null = null
-
-        try {
-          result = await this.runMiddleware({
-            request: req,
-            response: res,
-            parsedUrl: parsedUrl,
-            parsed: parsed,
-            middleware,
-          })
-        } catch (err) {
-          if (isError(err) && err.code === 'ENOENT') {
-            await this.render404(req, res, parsed)
-            return { finished: true }
-          }
-
-          const error = getProperError(err)
-          console.error(error)
-          res.statusCode = 500
-          this.renderError(error, req, res, parsed.pathname || '')
-          return { finished: true }
-        }
-
-        if (result === null) {
-          return { finished: true }
-        }
-
-        if (result.response.headers.has('x-middleware-rewrite')) {
-          const value = result.response.headers.get('x-middleware-rewrite')!
-          const rel = relativizeURL(value, initUrl)
-          result.response.headers.set('x-middleware-rewrite', rel)
-        }
-
-        if (result.response.headers.has('Location')) {
-          const value = result.response.headers.get('Location')!
-          const rel = relativizeURL(value, initUrl)
-          result.response.headers.set('Location', rel)
-        }
-
-        if (
-          !result.response.headers.has('x-middleware-rewrite') &&
-          !result.response.headers.has('x-middleware-next') &&
-          !result.response.headers.has('Location')
-        ) {
-          result.response.headers.set('x-middleware-refresh', '1')
-        }
-
-        result.response.headers.delete('x-middleware-next')
-
-        for (const [key, value] of Object.entries(
-          toNodeHeaders(result.response.headers)
-        )) {
-          if (key !== 'content-encoding' && value !== undefined) {
-            res.setHeader(key, value)
-          }
-        }
-
-        const preflight =
-          req.method === 'HEAD' && req.headers['x-middleware-preflight']
-
-        if (preflight) {
-          res.statusCode = 200
-          res.send()
-          return {
-            finished: true,
-          }
-        }
-
-        res.statusCode = result.response.status
-        res.statusMessage = result.response.statusText
-
-        const location = result.response.headers.get('Location')
-        if (location) {
-          res.statusCode = result.response.status
-          if (res.statusCode === 308) {
-            res.setHeader('Refresh', `0;url=${location}`)
-          }
-
-          res.body(location).send()
-          return {
-            finished: true,
-          }
-        }
-
-        if (result.response.headers.has('x-middleware-rewrite')) {
-          const rewritePath = result.response.headers.get(
-            'x-middleware-rewrite'
-          )!
-          const parsedDestination = parseUrl(rewritePath)
-          const newUrl = parsedDestination.pathname
-
-          // TODO: remove after next minor version current `v12.0.9`
-          this.warnIfQueryParametersWereDeleted(
-            parsedUrl.query,
-            parsedDestination.query
-          )
-
-          if (
-            parsedDestination.protocol &&
-            (parsedDestination.port
-              ? `${parsedDestination.hostname}:${parsedDestination.port}`
-              : parsedDestination.hostname) !== req.headers.host
-          ) {
-            return this.proxyRequest(
-              req as NodeNextRequest,
-              res as NodeNextResponse,
-              parsedDestination
-            )
-          }
-
-          if (this.nextConfig.i18n) {
-            const localePathResult = normalizeLocalePath(
-              newUrl,
-              this.nextConfig.i18n.locales
-            )
-            if (localePathResult.detectedLocale) {
-              parsedDestination.query.__nextLocale =
-                localePathResult.detectedLocale
-            }
-          }
-
-          addRequestMeta(req, '_nextRewroteUrl', newUrl)
-          addRequestMeta(req, '_nextDidRewrite', newUrl !== req.url)
-
-          return {
-            finished: false,
-            pathname: newUrl,
-            query: parsedDestination.query,
-          }
-        }
-
-        if (result.response.headers.has('x-middleware-refresh')) {
-          res.statusCode = result.response.status
-          for await (const chunk of result.response.body || ([] as any)) {
-            this.streamResponseChunk(res as NodeNextResponse, chunk)
-          }
-          res.send()
-          return {
-            finished: true,
-          }
-        }
-
-        return {
-          finished: false,
-        }
       },
+    }
+  }
+
+  protected generateCatchAllDynamicMiddlewareRoute(): Route | undefined {
+    if (this.minimalMode) return undefined
+
+    return {
+      match: route('/:path*'),
+      type: 'route',
+      name: 'dynamic middleware catchall',
+      fn: async (req, res, _params, parsed) => {
+        return await this.handleMiddlewareRoute({
+          isDynamic: true,
+          req,
+          res,
+          parsed,
+        })
+      },
+    }
+  }
+
+  private async handleMiddlewareRoute({
+    isDynamic,
+    parsed,
+    req,
+    res,
+  }: {
+    isDynamic: boolean
+    parsed: NextUrlWithParsedQuery
+    req: BaseNextRequest
+    res: BaseNextResponse
+  }) {
+    if (
+      !this.allRoutes?.some(
+        (r) => r.isMiddleware && isDynamicRoute(r.page) === isDynamic
+      )
+    ) {
+      return { finished: false }
+    }
+
+    const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
+    const parsedUrl = parseNextUrl({
+      url: initUrl,
+      headers: req.headers,
+      nextConfig: {
+        basePath: this.nextConfig.basePath,
+        i18n: this.nextConfig.i18n,
+        trailingSlash: this.nextConfig.trailingSlash,
+      },
+    })
+    const normalizedPathname = removePathTrailingSlash(parsedUrl.pathname)
+
+    const middleware: RoutingItem[] = []
+    for (const item of this.allRoutes || []) {
+      if (item.match(normalizedPathname)) {
+        if (!item.isMiddleware) break
+
+        // prevent matching with API requests except `/` and `/api/.*`
+        if (
+          item.page !== '/' &&
+          !isApiRoute(item.page) &&
+          isApiRoute(normalizedPathname)
+        )
+          continue
+
+        if (isDynamicRoute(item.page) !== isDynamic) continue
+
+        middleware.push(item)
+      }
+    }
+
+    if (!middleware.length) {
+      return { finished: false }
+    }
+
+    let result: FetchEventResult | null = null
+
+    try {
+      result = await this.runMiddleware({
+        request: req,
+        response: res,
+        parsedUrl: parsedUrl,
+        parsed: parsed,
+        middleware,
+      })
+    } catch (err) {
+      if (isError(err) && err.code === 'ENOENT') {
+        await this.render404(req, res, parsed)
+        return { finished: true }
+      }
+
+      const error = getProperError(err)
+      console.error(error)
+      res.statusCode = 500
+      this.renderError(error, req, res, parsed.pathname || '')
+      return { finished: true }
+    }
+
+    if (result === null) {
+      return { finished: true }
+    }
+
+    if (result.response.headers.has('x-middleware-rewrite')) {
+      const value = result.response.headers.get('x-middleware-rewrite')!
+      const rel = relativizeURL(value, initUrl)
+      result.response.headers.set('x-middleware-rewrite', rel)
+    }
+
+    if (result.response.headers.has('Location')) {
+      const value = result.response.headers.get('Location')!
+      const rel = relativizeURL(value, initUrl)
+      result.response.headers.set('Location', rel)
+    }
+
+    if (
+      !result.response.headers.has('x-middleware-rewrite') &&
+      !result.response.headers.has('x-middleware-next') &&
+      !result.response.headers.has('Location')
+    ) {
+      result.response.headers.set('x-middleware-refresh', '1')
+    }
+
+    result.response.headers.delete('x-middleware-next')
+
+    for (const [key, value] of Object.entries(
+      toNodeHeaders(result.response.headers)
+    )) {
+      if (key !== 'content-encoding' && value !== undefined) {
+        res.setHeader(key, value)
+      }
+    }
+
+    const preflight =
+      req.method === 'HEAD' && req.headers['x-middleware-preflight']
+
+    if (preflight) {
+      res.statusCode = 200
+      res.send()
+      return {
+        finished: true,
+      }
+    }
+
+    res.statusCode = result.response.status
+    res.statusMessage = result.response.statusText
+
+    const location = result.response.headers.get('Location')
+    if (location) {
+      res.statusCode = result.response.status
+      if (res.statusCode === 308) {
+        res.setHeader('Refresh', `0;url=${location}`)
+      }
+
+      res.body(location).send()
+      return {
+        finished: true,
+      }
+    }
+
+    if (result.response.headers.has('x-middleware-rewrite')) {
+      const rewritePath = result.response.headers.get('x-middleware-rewrite')!
+      const { newUrl, parsedDestination } = prepareDestination({
+        appendParamsToQuery: false,
+        destination: rewritePath,
+        params: {},
+        query: {},
+      })
+
+      // TODO: remove after next minor version current `v12.0.9`
+      this.warnIfQueryParametersWereDeleted(
+        parsedUrl.query,
+        parsedDestination.query
+      )
+
+      if (
+        parsedDestination.protocol &&
+        (parsedDestination.port
+          ? `${parsedDestination.hostname}:${parsedDestination.port}`
+          : parsedDestination.hostname) !== req.headers.host
+      ) {
+        return this.proxyRequest(
+          req as NodeNextRequest,
+          res as NodeNextResponse,
+          parsedDestination
+        )
+      }
+
+      if (this.nextConfig.i18n) {
+        const localePathResult = normalizeLocalePath(
+          newUrl,
+          this.nextConfig.i18n.locales
+        )
+        if (localePathResult.detectedLocale) {
+          parsedDestination.query.__nextLocale = localePathResult.detectedLocale
+        }
+      }
+
+      addRequestMeta(req, '_nextRewroteUrl', newUrl)
+      addRequestMeta(req, '_nextDidRewrite', newUrl !== req.url)
+
+      return {
+        finished: false,
+        pathname: newUrl,
+        query: parsedDestination.query,
+      }
+    }
+
+    if (result.response.headers.has('x-middleware-refresh')) {
+      res.statusCode = result.response.status
+      for await (const chunk of result.response.body || ([] as any)) {
+        this.streamResponseChunk(res as NodeNextResponse, chunk)
+      }
+      res.send()
+      return {
+        finished: true,
+      }
+    }
+
+    return {
+      finished: false,
     }
   }
 

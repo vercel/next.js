@@ -182,7 +182,8 @@ export default abstract class Server {
   protected abstract generateImageRoutes(): Route[]
   protected abstract generateStaticRoutes(): Route[]
   protected abstract generateFsStaticRoutes(): Route[]
-  protected abstract generateCatchAllMiddlewareRoute(): Route | undefined
+  protected abstract generateCatchAllStaticMiddlewareRoute(): Route | undefined
+  protected abstract generateCatchAllDynamicMiddlewareRoute(): Route | undefined
   protected abstract generateRewrites({
     restrictedRedirectPaths,
   }: {
@@ -638,9 +639,11 @@ export default abstract class Server {
       fallback: Route[]
     }
     fsRoutes: Route[]
+    internalFsRoutes: Route[]
     redirects: Route[]
     catchAllRoute: Route
-    catchAllMiddleware?: Route
+    catchAllStaticMiddleware?: Route
+    catchAllDynamicMiddleware?: Route
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
@@ -650,7 +653,7 @@ export default abstract class Server {
     const imageRoutes = this.generateImageRoutes()
     const staticFilesRoutes = this.generateStaticRoutes()
 
-    const fsRoutes: Route[] = [
+    const internalFsRoutes: Route[] = [
       ...this.generateFsStaticRoutes(),
       {
         match: route('/_next/data/:path*'),
@@ -740,9 +743,9 @@ export default abstract class Server {
           }
         },
       },
-      ...publicRoutes,
-      ...staticFilesRoutes,
     ]
+
+    const fsRoutes: Route[] = [...publicRoutes, ...staticFilesRoutes]
 
     const restrictedRedirectPaths = this.nextConfig.basePath
       ? [`${this.nextConfig.basePath}/_next`]
@@ -762,7 +765,10 @@ export default abstract class Server {
         )
 
     const rewrites = this.generateRewrites({ restrictedRedirectPaths })
-    const catchAllMiddleware = this.generateCatchAllMiddlewareRoute()
+    const catchAllStaticMiddleware =
+      this.generateCatchAllStaticMiddlewareRoute()
+    const catchAllDynamicMiddleware =
+      this.generateCatchAllDynamicMiddlewareRoute()
 
     const catchAllRoute: Route = {
       match: route('/:path*'),
@@ -833,10 +839,12 @@ export default abstract class Server {
     return {
       headers,
       fsRoutes,
+      internalFsRoutes,
       rewrites,
       redirects,
       catchAllRoute,
-      catchAllMiddleware,
+      catchAllStaticMiddleware,
+      catchAllDynamicMiddleware,
       useFileSystemPublicRoutes,
       dynamicRoutes: this.dynamicRoutes,
       basePath: this.nextConfig.basePath,

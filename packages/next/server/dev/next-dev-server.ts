@@ -742,11 +742,12 @@ export default class DevServer extends Server {
   }
 
   generateRoutes() {
-    const { fsRoutes, ...otherRoutes } = super.generateRoutes()
+    const { fsRoutes, internalFsRoutes, ...otherRoutes } =
+      super.generateRoutes()
 
     // In development we expose all compiled files for react-error-overlay's line show feature
     // We use unshift so that we're sure the routes is defined before Next's default routes
-    fsRoutes.unshift({
+    internalFsRoutes.unshift({
       match: route('/_next/development/:path*'),
       type: 'route',
       name: '_next/development catchall',
@@ -759,7 +760,7 @@ export default class DevServer extends Server {
       },
     })
 
-    fsRoutes.unshift({
+    internalFsRoutes.unshift({
       match: route(
         `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`
       ),
@@ -781,7 +782,7 @@ export default class DevServer extends Server {
       },
     })
 
-    fsRoutes.unshift({
+    internalFsRoutes.unshift({
       match: route(
         `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`
       ),
@@ -830,7 +831,7 @@ export default class DevServer extends Server {
       },
     })
 
-    return { fsRoutes, ...otherRoutes }
+    return { fsRoutes, internalFsRoutes, ...otherRoutes }
   }
 
   // In development public files are not added to the router but handled as a fallback instead

@@ -288,5 +288,20 @@ function runTests(localePath = '') {
       expect(res.headers.get('x-slug-path')).toBeNull()
       expect(res.headers.get('x-slug-id-path')).toBeNull()
     })
+
+    it('should validate request url parameters from a public route', async () => {
+      const res = await fetch('/robots.txt')
+      expect(res.headers.get('req-url-pathname')).toBe('/robots.txt')
+
+      // This does not work as expected now
+      // see: https://github.com/vercel/next.js/issues/31721
+      // expect(res.headers.get('req-url-params')).toBeNull()
+
+      expect(res.headers.get('req-url-query')).toBe('{}')
+      expect(res.headers.get('x-api-path')).toBeNull()
+      expect(res.headers.get('x-dir-path')).toBeNull()
+      expect(res.headers.get('x-slug-path')).toBeNull()
+      expect(res.headers.get('x-slug-id-path')).toBeNull()
+    })
   }
 }
