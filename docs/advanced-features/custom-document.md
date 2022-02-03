@@ -46,7 +46,7 @@ Or add a `className` to the `body` tag:
 
 ## Customizing `renderPage`
 
-> **Note:** This is advanced and only needed for libraries like CSS-in-JS to support server-side rendering. This is not needed for built-in `styled-jsx` support. 
+> **Note:** This is advanced and only needed for libraries like CSS-in-JS to support server-side rendering. This is not needed for built-in `styled-jsx` support.
 
 To prepare for [React 18](/docs/advanced-features/react-18.md), we recommend avoiding customizing `getInitiaProps` and `renderPage`, if possible.
 
