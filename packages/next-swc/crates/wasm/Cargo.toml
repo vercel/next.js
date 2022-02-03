@@ -16,9 +16,9 @@ path-clean = "0.1"
 serde = {version = "1", features = ["derive"]}
 serde_json = "1"
 next-swc = { version = "0.0.0", path = "../core" }
-swc = "0.119.1"
+swc = "0.120.2"
 swc_common = { version = "0.17.0", features = ["concurrent", "sourcemap"] }
-swc_ecmascript = { version = "0.111.5", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
+swc_ecmascript = { version = "0.111.12", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
 tracing = {version = "0.1.28", features = ["release_max_level_off"]}
 wasm-bindgen = {version = "0.2", features = ["serde-serialize"]}
 wasm-bindgen-futures = "0.4.8"
