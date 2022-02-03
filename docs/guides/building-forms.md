@@ -163,30 +163,9 @@ Answer the questions to create your project, and give it a name, this example us
 
 Open the URL printed in the terminal to ensure that your app is running successfully.
 
-## PART 3: Setting up a Serverless Backend
+## PART 3: Setting up a Next.js Form API Endpoint
 
-A serverless architecture, in literal terms, does involve servers. The difference is that the servers are managed and hosted in the cloud.
-
-There are many providers that offer this service such as:
-
-- [Vercel](https://vercel.com/docs/concepts/functions/introduction#serverless-functions)
-- [Amazon Web Services](https://aws.amazon.com/lambda/)
-- [Microsoft Azure](https://docs.microsoft.com/en-us/azure/azure-functions/functions-overview)
-- [Google Cloud Platform](https://cloud.google.com/functions/)
-
-Vercel empowers you to write JavaScript Serverless functions and deploy them at its edge network. This significantly minimizes latency because your web application runs code in a serverless architecture as close to the end-user as possible.
-
-It supports out-the-box deployments of [Serverless Functions](https://vercel.com/docs/concepts/functions/serverless-functions), which you can code in your favorite backend languages (Node.js, Go, Python and Ruby). These functions take an HTTP request and return a response.
-
-Serverless functions perform a significant role in handling tasks like form submission because:
-
-- They are event-based, and every time you submit a form, it triggers a new event.
-- Offer faster deployments with greater flexibility (you don't have to manage any servers).
-- Reduce architecture and management costs.
-
-### Next.js Form API Endpoint
-
-Both the client and the server will be built using Next.js. For the server part, create a serverless API where you will send the form data.
+Both the client and the server will be built using Next.js. For the server part, create an API endpoint where you will send the form data.
 
 Next.js offers a file-based system for routing that's built on the [concept of pages](/docs/basic-features/pages). Any file inside the folder `pages/api` is mapped to `/api/*` and will be treated as an API endpoint instead of a page. This [API endpoint](/docs/api-routes/introduction) is going to be server-side only.
 
@@ -235,7 +214,7 @@ If you submit this form, it will submit the data to the forms API endpoint `/api
 
 ## Part 4: Configuring Forms in Next.js
 
-You have created a back-end server for form submission. Now it's time to configure the client (the form itself) inside Next.js using React. The first step will be extending your knowledge of HTML forms and converting it into React (using [JSX](https://reactjs.org/docs/introducing-jsx.html)).
+You have created a Nextjs API route for form submission. Now it's time to configure the client (the form itself) inside Next.js using React. The first step will be extending your knowledge of HTML forms and converting it into React (using [JSX](https://reactjs.org/docs/introducing-jsx.html)).
 
 Here's the same form in a [React function component](https://reactjs.org/docs/components-and-props.html) written using [JSX](https://reactjs.org/docs/introducing-jsx.html).
 
@@ -382,13 +361,13 @@ The `handleSubmit()` function processes your form data through a series of steps
 
 ## Conclusion
 
-That's about it. After reading this guide, here's what you'll learn:
+This guide has covered the following:
 
 - The basic HTML `form` element
 - Understanding forms with React.js
 - Validating forms data with and without JavaScript
-- Using Next.js to handle `req` and `res` from the client and server
+- Using Next.js API routes to handle `req` and `res` from the client and server
 
-Next.js provides you with an all-in solution for hosting web forms and handling submissions. Self-hosted, Next.js API routes can run on your Node.js server, deployed to Vercel.
+Next.js provides you with an all-in solution for hosting web forms and handling submissions. You can self-host your Nextjs app or deploy it to a cloud provider, such as Vercel.
 
 For more details go through [Next.js Learn Course](https://nextjs.org/learn/basics/create-nextjs-app).
