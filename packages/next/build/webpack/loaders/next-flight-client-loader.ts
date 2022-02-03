@@ -5,29 +5,16 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import * as acorn from 'next/dist/compiled/acorn'
-
-type ResolveContext = {
-  conditions: Array<string>
-  parentURL: string | void
-}
-
-type ResolveFunction = (
-  specifier: string,
-  context: ResolveContext,
-  resolve: ResolveFunction
-) => { url: string } | Promise<{ url: string }>
-
-type TransformSourceFunction = (url: string, callback: () => void) => void
-
-type Source = string | ArrayBuffer | Uint8Array
-
-let stashedResolve: null | ResolveFunction = null
+// TODO: add ts support for next-swc api
+// @ts-ignore
+import { parse } from '../../swc'
+// @ts-ignore
+import { getBaseSWCOptions } from '../../swc/options'
 
 function addExportNames(names: string[], node: any) {
   switch (node.type) {
     case 'Identifier':
-      names.push(node.name)
+      names.push(node.value)
       return
     case 'ObjectPattern':
       for (let i = 0; i < node.properties.length; i++)
@@ -56,50 +43,25 @@ function addExportNames(names: string[], node: any) {
   }
 }
 
-function resolveClientImport(
-  specifier: string,
-  parentURL: string
-): { url: string } | Promise<{ url: string }> {
-  // Resolve an import specifier as if it was loaded by the client. This doesn't use
-  // the overrides that this loader does but instead reverts to the default.
-  // This resolution algorithm will not necessarily have the same configuration
-  // as the actual client loader. It should mostly work and if it doesn't you can
-  // always convert to explicit exported names instead.
-  const conditions = ['node', 'import']
-  if (stashedResolve === null) {
-    throw new Error(
-      'Expected resolve to have been called before transformSource'
-    )
-  }
-  return stashedResolve(specifier, { conditions, parentURL }, stashedResolve)
-}
-
 async function parseExportNamesInto(
+  resourcePath: string,
   transformedSource: string,
-  names: Array<string>,
-  parentURL: string,
-  loadModule: TransformSourceFunction
+  names: Array<string>
 ): Promise<void> {
-  const { body } = acorn.parse(transformedSource, {
-    ecmaVersion: 11,
-    sourceType: 'module',
-  }) as any
+  const opts = getBaseSWCOptions({
+    filename: resourcePath,
+    globalWindow: true,
+  })
+
+  const { body } = await parse(transformedSource, {
+    ...opts.jsc.parser,
+    isModule: true,
+  })
   for (let i = 0; i < body.length; i++) {
     const node = body[i]
     switch (node.type) {
-      case 'ExportAllDeclaration':
-        if (node.exported) {
-          addExportNames(names, node.exported)
-          continue
-        } else {
-          const { url } = await resolveClientImport(
-            node.source.value,
-            parentURL
-          )
-          const source = ''
-          parseExportNamesInto(source, names, url, loadModule)
-          continue
-        }
+      // TODO: support export * from module path
+      // case 'ExportAllDeclaration':
       case 'ExportDefaultDeclaration':
         names.push('default')
         continue
@@ -129,8 +91,8 @@ async function parseExportNamesInto(
 
 export default async function transformSource(
   this: any,
-  source: Source
-): Promise<Source> {
+  source: string
+): Promise<string> {
   const { resourcePath, resourceQuery } = this
 
   if (resourceQuery !== '?flight') return source
@@ -142,12 +104,7 @@ export default async function transformSource(
   }
 
   const names: string[] = []
-  await parseExportNamesInto(
-    transformedSource as string,
-    names,
-    url + resourceQuery,
-    this.loadModule
-  )
+  await parseExportNamesInto(resourcePath, transformedSource, names)
 
   // next.js/packages/next/<component>.js
   if (/[\\/]next[\\/](link|image)\.js$/.test(url)) {

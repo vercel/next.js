@@ -310,10 +310,26 @@ export async function ncc_chalk(task, opts) {
 // eslint-disable-next-line camelcase
 externals['browserslist'] = 'next/dist/compiled/browserslist'
 export async function ncc_browserslist(task, opts) {
+  const browserslistModule = require.resolve('browserslist')
+  const nodeFile = join(dirname(browserslistModule), 'node.js')
+
+  const content = await fs.readFile(nodeFile, 'utf8')
+  // ensure ncc doesn't attempt to bundle dynamic requires
+  // so that they work at runtime correctly
+  await fs.writeFile(
+    nodeFile,
+    content.replace(
+      /require\(require\.resolve\(/g,
+      `__non_webpack_require__(__non_webpack_require__.resolve(`
+    )
+  )
+
   await task
     .source(opts.src || relative(__dirname, require.resolve('browserslist')))
     .ncc({ packageName: 'browserslist', externals })
     .target('compiled/browserslist')
+
+  await fs.writeFile(nodeFile, content)
 }
 
 // eslint-disable-next-line camelcase
@@ -1577,7 +1593,6 @@ export async function ncc(task, opts) {
         'ncc_node_html_parser',
         'ncc_watchpack',
         'ncc_chalk',
-        'ncc_browserslist',
         'ncc_napirs_triples',
         'ncc_etag',
         'ncc_p_limit',
@@ -1686,6 +1701,7 @@ export async function ncc(task, opts) {
   await task.parallel(['ncc_babel_bundle_packages'], opts)
   await task.serial(
     [
+      'ncc_browserslist',
       'ncc_next__react_dev_overlay',
       'copy_regenerator_runtime',
       'copy_babel_runtime',
