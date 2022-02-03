@@ -76,6 +76,7 @@ export function getBaseSWCOptions({
         },
       },
     },
+    sourceMaps: jest ? 'inline' : undefined,
     styledComponents: nextConfig?.experimental?.styledComponents
       ? {
           displayName: Boolean(development),
