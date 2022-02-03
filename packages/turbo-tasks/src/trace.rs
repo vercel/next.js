@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     sync::{atomic::*, Arc},
     time::Duration,
 };
@@ -43,7 +44,7 @@ macro_rules! ignore {
 
 ignore!(i8, u8, i16, u16, i32, u32, i64, u64);
 ignore!(AtomicI8, AtomicU8, AtomicI16, AtomicU16, AtomicI32, AtomicU32, AtomicI64, AtomicU64);
-ignore!(String, Duration);
+ignore!(String, Duration, HashMap);
 
 impl<T: TraceNodeRefs> TraceNodeRefs for Vec<T> {
     fn trace_node_refs(&self, context: &mut TraceNodeRefsContext) {

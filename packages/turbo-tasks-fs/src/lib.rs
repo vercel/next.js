@@ -1,6 +1,7 @@
 #![feature(trivial_bounds)]
 
 use std::{
+    collections::HashMap,
     fmt::Debug,
     fs,
     future::Future,
@@ -25,6 +26,7 @@ pub trait FileSystem {
 pub struct DiskFileSystem {
     pub name: String,
     pub root: String,
+    pub invalidators: HashMap<String, String>,
 }
 
 #[turbo_tasks::value_impl]
@@ -34,6 +36,7 @@ impl DiskFileSystem {
         Self {
             name,
             root: root.into(),
+            invalidators: HashMap::new(),
         }
     }
 }
