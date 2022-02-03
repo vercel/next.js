@@ -96,22 +96,26 @@ export default class FunctionsManifestPlugin {
 
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
-      (compilation: any, { normalModuleFactory: factory }: any) => {
+      (
+        compilation: webpack5.Compilation,
+        { normalModuleFactory: factory }: any
+      ) => {
         factory.hooks.parser.for('javascript/auto').tap(PLUGIN_NAME, handler)
         factory.hooks.parser.for('javascript/esm').tap(PLUGIN_NAME, handler)
 
         compilation.hooks.seal.tap(PLUGIN_NAME, () => {
-          for (const [_name, entryData] of compilation.entries) {
-            let runtime
+          for (const entryData of compilation.entries.values()) {
             for (const dependency of entryData.dependencies) {
               // @ts-ignore TODO: webpack 5 types
               const module = compilation.moduleGraph.getModule(dependency)
               const outgoingConnections =
                 compilation.moduleGraph.getOutgoingConnectionsByModule(module)
+              if (!outgoingConnections) return
               const entryModules = outgoingConnections.keys()
               for (const mod of entryModules) {
-                runtime = mod?.buildInfo?.NEXT_runtime
+                const runtime = mod?.buildInfo?.NEXT_runtime
                 if (runtime) {
+                  // @ts-ignore: TODO: webpack 5 types
                   const normalizedPagePath = normalizePagePath(mod.userRequest)
                   const pagePath = normalizedPagePath.replace(this.pagesDir, '')
                   const page = getPageFromPath(pagePath, this.pageExtensions)
