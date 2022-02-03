@@ -1169,7 +1169,7 @@ export async function renderToHTML(
    */
   const generateStaticHTML = supportsDynamicHTML !== true
   const renderDocument = async () => {
-    if (!process.browser && Document.getInitialProps) {
+    if (!runtime && Document.getInitialProps) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
       ): RenderPageResult | Promise<RenderPageResult> => {
@@ -1274,7 +1274,7 @@ export async function renderToHTML(
 
       return {
         bodyResult,
-        documentElement: () => (Document as any)(),
+        documentElement: () => <Document {...({} as any)} />,
         head,
         headTags: [],
         styles: jsxStyleRegistry.styles(),

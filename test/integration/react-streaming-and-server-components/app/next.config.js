@@ -8,7 +8,7 @@ module.exports = withReact18({
   experimental: {
     reactRoot: true,
     // concurrentFeatures: true,
-    serverComponents: true,
-    runtime: 'edge',
+    // serverComponents: true,
+    runtime: 'nodejs',
   },
 })
