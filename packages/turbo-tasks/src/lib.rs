@@ -1,3 +1,5 @@
+#![feature(trivial_bounds)]
+
 pub mod macro_helpers;
 mod native_function;
 pub(crate) mod node;

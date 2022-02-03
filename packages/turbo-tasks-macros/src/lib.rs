@@ -107,6 +107,8 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             }
         })
         .collect();
+    let token_stream: TokenStream = "#[cfg(feature = \"trivial_bounds\")]".parse().unwrap();
+    let feature_trivial_bounds = parse_macro_input!(token_stream with Attribute::parse_outer);
     let expanded = quote! {
         #[derive(turbo_tasks::trace::TraceNodeRefs)]
         #item
@@ -154,6 +156,43 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         impl From<#ref_ident> for turbo_tasks::NodeRef {
             fn from(node_ref: #ref_ident) -> Self {
                 node_ref.node
+            }
+        }
+
+        // #[cfg(feature = "trivial_bounds")]
+        impl From<#ident> for #ref_ident where #ident: std::cmp::PartialEq<#ident> {
+            fn from(content: #ident) -> Self {
+                Self { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
+                    |__node| match __node {
+                        None => turbo_tasks::NodeRef::new(
+                            &#node_type_ident,
+                            std::sync::Arc::new(content)
+                        ),
+                        Some(__node) => {
+                            let __self = unsafe { __node.read_untracked::<#ident>().unwrap() };
+                            if std::cmp::PartialEq::ne(&*__self, &content) {
+                                unsafe { __node.update(std::sync::Arc::new(content)) }
+                            }
+                            __node
+                        }
+                    }
+                ) }
+            }
+        }
+
+        // #[cfg(feature = "trivial_bounds")]
+        impl #ref_ident where #ident: std::cmp::Eq + std::hash::Hash + Send + Sync + 'static {
+            pub fn intern(this: #ident) -> #ref_ident {
+                let arc = std::sync::Arc::new(this);
+                Self { node: turbo_tasks::macro_helpers::new_node_intern::<#ident, _, _>(
+                    arc.clone(),
+                    || {
+                        turbo_tasks::NodeRef::new(
+                            &#node_type_ident,
+                            arc
+                        )
+                    }
+                ) }
             }
         }
 
@@ -327,27 +366,26 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
                     (std::any::TypeId::of::<TraitFunction>(), std::any::type_name::<TraitFunction>())
                 }
             });
-            if let ReturnType::Type(_, ty) = output {
-                let args = inputs.iter().filter_map(|arg| match arg {
-                    FnArg::Receiver(_) => None,
-                    FnArg::Typed(PatType { pat, .. }) => Some(quote! {
-                        #pat.into()
-                    }),
-                });
-                let method_args: Vec<_> = inputs.iter().collect();
-                let convert_result_code = if is_empty_type(&ty) {
-                    quote! { result.await; }
-                } else {
-                    quote! { #ty::from_node(result.await.unwrap()).unwrap() }
-                };
-                trait_fns.push(quote! {
-                    pub fn #method_ident(#(#method_args),*) -> impl std::future::Future<Output = #ty> {
-                        let trait_method = self.node.get_trait_method(#ident.#method_ident());
-                        let result = turbo_tasks::dynamic_call(trait_method, vec![self.clone().into(), #(#args),*]).unwrap();
-                        async { #convert_result_code }
-                    }
-                })
-            }
+            let output_type = get_return_type(&output);
+            let args = inputs.iter().filter_map(|arg| match arg {
+                FnArg::Receiver(_) => None,
+                FnArg::Typed(PatType { pat, .. }) => Some(quote! {
+                    #pat.into()
+                }),
+            });
+            let method_args: Vec<_> = inputs.iter().collect();
+            let convert_result_code = if is_empty_type(&output_type) {
+                quote! { result.await; }
+            } else {
+                quote! { #output_type::from_node(result.await.unwrap()).unwrap() }
+            };
+            trait_fns.push(quote! {
+                pub fn #method_ident(#(#method_args),*) -> impl std::future::Future<Output = #output_type> {
+                    let trait_method = self.node.get_trait_method(#ident.#method_ident());
+                    let result = turbo_tasks::dynamic_call(trait_method, vec![self.clone().into(), #(#args),*]).unwrap();
+                    async { #convert_result_code }
+                }
+            })
         }
     }
 
@@ -438,12 +476,6 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                         attrs.iter().find(|attr| is_constructor(attr))
                     {
                         let constructor: Constructor = parse_quote! { #tokens };
-                        // let constructor = Constructor {
-                        //     intern: Allowance::Auto,
-                        //     previous: Allowance::Auto,
-                        //     update: Allowance::Auto,
-                        //     create: Allowance::Auto,
-                        // };
                         let fn_name = &sig.ident;
                         let inputs = &sig.inputs;
                         let mut input_names = Vec::new();
@@ -633,13 +665,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                         },
                     ..
                 }) => {
-                    let output_type = match output {
-                        ReturnType::Default => Type::Tuple(TypeTuple {
-                            paren_token: Paren::default(),
-                            elems: Punctuated::new(),
-                        }),
-                        ReturnType::Type(_, ref output_type) => (**output_type).clone(),
-                    };
+                    let output_type = get_return_type(output);
                     let function_ident = get_trait_impl_function_ident(struct_ident, ident);
                     trait_registers.push(quote! {
                         node_type.register_trait_method(#trait_ident.#ident(), &*#function_ident);
@@ -721,6 +747,16 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
     .into()
 }
 
+fn get_return_type(output: &ReturnType) -> Type {
+    match output {
+        ReturnType::Default => Type::Tuple(TypeTuple {
+            paren_token: Paren::default(),
+            elems: Punctuated::new(),
+        }),
+        ReturnType::Type(_, ref output_type) => (**output_type).clone(),
+    }
+}
+
 #[proc_macro_attribute]
 pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
     let item = parse_macro_input!(input as ItemFn);
@@ -730,13 +766,7 @@ pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
         sig,
         block,
     } = &item;
-    let output_type = match sig.output {
-        ReturnType::Default => Type::Tuple(TypeTuple {
-            paren_token: Paren::default(),
-            elems: Punctuated::new(),
-        }),
-        ReturnType::Type(_, ref output_type) => (**output_type).clone(),
-    };
+    let output_type = get_return_type(&sig.output);
     let ident = &sig.ident;
     let function_ident = get_function_ident(ident);
     let inline_ident = get_internal_function_ident(ident);

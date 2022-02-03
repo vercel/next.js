@@ -1,10 +1,23 @@
-use std::{fmt::Debug, fs, io, path::Path};
+#![feature(trivial_bounds)]
+
+use std::{
+    fmt::Debug,
+    fs,
+    future::Future,
+    io::{self, ErrorKind},
+    ops::Add,
+    path::Path,
+};
+
+use anyhow::Context;
+use turbo_tasks::Task;
 
 #[turbo_tasks::value_trait]
 #[async_trait::async_trait]
 pub trait FileSystem {
-    async fn read(&self, path: PathInFileSystemRef) -> FileContentRef;
-    async fn read_dir(&self, fs: FileSystemRef, path: PathInFileSystemRef) -> DirectoryContentRef;
+    async fn read(&self, fs_path: FileSystemPathRef) -> FileContentRef;
+    async fn read_dir(&self, fs_path: FileSystemPathRef) -> DirectoryContentRef;
+    async fn write(&self, from: FileSystemPathRef, content: FileContentRef);
 }
 
 #[derive(Debug)]
@@ -28,29 +41,28 @@ impl DiskFileSystem {
 #[turbo_tasks::value_impl]
 #[async_trait::async_trait]
 impl FileSystem for DiskFileSystem {
-    async fn read(&self, path: PathInFileSystemRef) -> FileContentRef {
-        let full_path = Path::new(&self.root).join(&path.get().path);
+    async fn read(&self, fs_path: FileSystemPathRef) -> FileContentRef {
+        let full_path = Path::new(&self.root).join(&fs_path.get().path);
         match fs::read(&full_path) {
             Ok(content) => FileContentRef::new(content),
             Err(_) => FileContentRef::not_found(),
         }
     }
-    async fn read_dir(&self, fs: FileSystemRef, path: PathInFileSystemRef) -> DirectoryContentRef {
-        let full_path = Path::new(&self.root).join(&path.get().path);
+    async fn read_dir(&self, fs_path: FileSystemPathRef) -> DirectoryContentRef {
+        let fs_path = fs_path.get();
+        let full_path = Path::new(&self.root).join(&fs_path.path);
         let result = fs::read_dir(&full_path)
             .unwrap()
             .map(|res| {
                 res.map(|e| {
                     let fs_path = FileSystemPathRef::new(
-                        fs.clone(),
-                        PathInFileSystemRef::new(
-                            e.path()
-                                .strip_prefix(&self.root)
-                                .unwrap()
-                                .to_str()
-                                .unwrap()
-                                .to_string(),
-                        ),
+                        fs_path.fs.clone(),
+                        e.path()
+                            .strip_prefix(&self.root)
+                            .unwrap()
+                            .to_str()
+                            .unwrap()
+                            .to_string(),
                     );
                     let file_type = e.file_type().unwrap();
                     if file_type.is_file() {
@@ -66,52 +78,75 @@ impl FileSystem for DiskFileSystem {
             .unwrap();
         DirectoryContentRef::new(result)
     }
-}
-
-#[turbo_tasks::value]
-pub struct PathInFileSystem {
-    pub path: String,
-}
-
-#[turbo_tasks::value_impl]
-impl PathInFileSystem {
-    #[turbo_tasks::constructor(intern)]
-    pub fn new(path: String) -> Self {
-        Self { path }
+    async fn write(&self, fs_path: FileSystemPathRef, content: FileContentRef) {
+        let full_path = Path::new(&self.root).join(&fs_path.get().path);
+        match &*content.get() {
+            FileContent::Content(buffer) => {
+                fs::write(full_path, buffer)
+                    .with_context(|| format!("failed to write to {}", fs_path.get().path))
+                    .unwrap();
+            }
+            FileContent::NotFound => match fs::remove_file(full_path) {
+                Ok(_) => {}
+                Err(err) if err.kind() == ErrorKind::NotFound => {}
+                Err(err) => {
+                    panic!("{}", err);
+                }
+            },
+        }
+        Task::side_effect();
     }
 }
 
 #[turbo_tasks::value]
+#[derive(Debug)]
 pub struct FileSystemPath {
     pub fs: FileSystemRef,
-    pub path: PathInFileSystemRef,
+    pub path: String,
 }
 
 #[turbo_tasks::value_impl]
 impl FileSystemPath {
     #[turbo_tasks::constructor(intern)]
-    pub fn new(fs: FileSystemRef, path: PathInFileSystemRef) -> Self {
+    pub fn new(fs: FileSystemRef, path: String) -> Self {
         Self { fs, path }
     }
 }
 
-impl FileSystemPathRef {
-    pub async fn read(&self) -> FileContentRef {
-        let this = &*self.get();
-        this.fs.read(this.path.clone()).await
-    }
-    pub async fn read_dir(&self) -> DirectoryContentRef {
-        let this = &*self.get();
-        this.fs.read_dir(this.fs.clone(), this.path.clone()).await
-    }
+#[turbo_tasks::function]
+pub async fn rebase(
+    fs_path: FileSystemPathRef,
+    old_base: FileSystemPathRef,
+    new_base: FileSystemPathRef,
+) -> FileSystemPathRef {
+    let fs_path = &*fs_path.get();
+    let old_base = &*old_base.get();
+    let new_base = &*new_base.get();
+    FileSystemPathRef::new(
+        fs_path.fs.clone(),
+        [new_base.path.as_str(), &fs_path.path[old_base.path.len()..]].concat(),
+    )
 }
 
-impl Debug for FileSystemPath {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("FileSystemPath")
-            .field("fs", &self.fs)
-            .field("path", &self.path.get().path)
-            .finish()
+impl FileSystemPathRef {
+    pub fn read(self) -> impl Future<Output = FileContentRef> {
+        let this = self.get();
+        this.fs.read(self)
+    }
+    pub fn read_dir(self) -> impl Future<Output = DirectoryContentRef> {
+        let this = self.get();
+        this.fs.read_dir(self)
+    }
+    pub fn write(self, content: FileContentRef) -> impl Future<Output = ()> {
+        let this = self.get();
+        this.fs.write(self, content)
+    }
+    pub fn rebase(
+        fs_path: FileSystemPathRef,
+        old_base: FileSystemPathRef,
+        new_base: FileSystemPathRef,
+    ) -> impl Future<Output = FileSystemPathRef> {
+        rebase(fs_path, old_base, new_base)
     }
 }
 
