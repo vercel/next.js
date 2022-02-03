@@ -29,5 +29,5 @@ export function getServerSideProps({ req }) {
 }
 
 export const config = {
-  runtime: 'web',
+  runtime: 'nodejs',
 }

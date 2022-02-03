@@ -1,6 +1,10 @@
 import { sources, webpack5 } from 'next/dist/compiled/webpack/webpack'
-import { collectAssets, getEntrypointInfo } from './middleware-plugin'
 import { FUNCTIONS_MANIFEST } from '../../../shared/lib/constants'
+import {
+  collectAssets,
+  getEntrypointInfo,
+  getPageFromPath,
+} from './middleware-plugin'
 import { findEntryModule } from './next-drop-client-page-plugin'
 
 const PLUGIN_NAME = 'FunctionsManifestPlugin'
@@ -8,7 +12,7 @@ export interface FunctionsManifest {
   version: 1
   pages: {
     [page: string]: {
-      runtime: string
+      runtime?: string
       env: string[]
       files: string[]
       name: string
@@ -49,11 +53,13 @@ export default class FunctionsManifestPlugin {
     const infos = getEntrypointInfo(compilation, envPerRoute, webServerRuntime)
     infos.forEach((info) => {
       const { page } = info
-      // TODO: use web for pages configured runtime: "web";
-      // Not assign if it's nodejs runtime, project configured node version is used instead
+      // TODO: use global default runtime instead of 'web'
+      // console.log(Array.from(this.pagesRuntime.entries()))
       const runtime = this.pagesRuntime.get(page) || 'web'
+      // console.log('page:runtime', page, runtime)
       functionsManifest.pages[page] = {
-        runtime,
+        // Not assign if it's nodejs runtime, project configured node version is used instead
+        ...(runtime !== 'nodejs' && { runtime }),
         ...info,
       }
     })
@@ -99,12 +105,23 @@ export default class FunctionsManifestPlugin {
 
         compilation.hooks.seal.tap(PLUGIN_NAME, () => {
           for (const [name, entryData] of compilation.entries) {
+            let runtime
             for (const dependency of entryData.dependencies) {
               // @ts-ignore TODO: webpack 5 types
               const module = compilation.moduleGraph.getModule(dependency)
-              const runtime = module?.buildInfo?.NEXT_runtime
-              this.pagesRuntime.set(name, runtime)
+              const parentModule =
+                compilation.moduleGraph.getParentModule(dependency)
+              runtime = module?.buildInfo?.NEXT_runtime
+              console.log(
+                'module?.buildInfo',
+                name,
+                module?.buildInfo?.NEXT_runtime,
+                parentModule?.buildInfo?.NEXT_runtime
+              )
+              if (runtime) break
             }
+            const page = getPageFromPath(name)
+            if (page && runtime) this.pagesRuntime.set(name, runtime)
           }
         })
       }

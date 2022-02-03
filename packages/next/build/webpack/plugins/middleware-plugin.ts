@@ -38,13 +38,13 @@ const middlewareManifest: MiddlewareManifest = {
   version: 1,
 }
 
-function getPageFromEntrypoint(entrypoint: any) {
-  const ssrEntryInfo = ssrEntries.get(entrypoint.name)
-  const result = MIDDLEWARE_FULL_ROUTE_REGEX.exec(entrypoint.name)
+export function getPageFromPath(pagePath: string) {
+  const ssrEntryInfo = ssrEntries.get(pagePath)
+  const result = MIDDLEWARE_FULL_ROUTE_REGEX.exec(pagePath)
   const page = result
     ? `/${result[1]}`
     : ssrEntryInfo
-    ? entrypoint.name.slice('pages'.length).replace(/\/index$/, '') || '/'
+    ? pagePath.slice('pages'.length).replace(/\/index$/, '') || '/'
     : null
   return page
 }
@@ -64,7 +64,7 @@ export function getEntrypointInfo(
     if (ssrEntryInfo && !webServerRuntime) continue
     if (!ssrEntryInfo && webServerRuntime) continue
 
-    const page = getPageFromEntrypoint(entrypoint)
+    const page = getPageFromPath(entrypoint.name)
 
     if (!page) {
       continue
