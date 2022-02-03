@@ -64,8 +64,6 @@ import RenderResult, { NodeWritablePiper } from './render-result'
 import isError from '../lib/is-error'
 import { readableStreamTee } from './web/utils'
 
-let Writable: typeof import('stream').Writable
-let Buffer: typeof import('buffer').Buffer
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
 let tryGetPreviewData: typeof import('./api-utils').tryGetPreviewData
@@ -75,8 +73,7 @@ let postProcess: typeof import('../shared/lib/post-process').default
 const DOCTYPE = '<!DOCTYPE html>'
 
 if (!process.browser) {
-  Writable = require('stream').Writable
-  Buffer = require('buffer').Buffer
+  require('./node-polyfill-readable-stream')
   optimizeAmp = require('./optimize-amp').default
   getFontDefinitionFromManifest =
     require('./font-utils').getFontDefinitionFromManifest
@@ -1112,8 +1109,8 @@ export async function renderToHTML(
       serverComponentManifest
     )
     const reader = stream.getReader()
-    const piper: NodeWritablePiper = (innerRes, next) => {
-      bufferedReadFromReadableStream(reader, (val) => innerRes.write(val)).then(
+    const piper: NodeWritablePiper = (push, next) => {
+      bufferedReadFromReadableStream(reader, (val) => push(val)).then(
         () => next(),
         (innerErr) => next(innerErr)
       )
@@ -1253,13 +1250,12 @@ export async function renderToHTML(
           // up to date when getWrappedApp is called
 
           const content = renderContent()
-          return process.browser
-            ? await renderToWebStream(
-                content,
-                suffix,
-                serverComponentsInlinedTransformStream
-              )
-            : await renderToNodeStream(content, suffix, generateStaticHTML)
+          return await renderToWebStream(
+            content,
+            suffix,
+            serverComponentsInlinedTransformStream,
+            generateStaticHTML
+          )
         }
       } else {
         const content = renderContent()
@@ -1536,142 +1532,19 @@ function serializeError(
   }
 }
 
-function renderToNodeStream(
-  element: React.ReactElement,
-  suffix: string,
-  generateStaticHTML: boolean
-): Promise<NodeWritablePiper> {
-  return new Promise((resolve, reject) => {
-    let underlyingStream: WritableType | null = null
-    let queuedCallbacks: Array<(error?: Error | null) => void> = []
-    let shellFlushed = false
-
-    const closeTag = '</body></html>'
-    const [suffixUnclosed] = suffix.split(closeTag)
-
-    // Based on the suggestion here:
-    // https://github.com/reactwg/react-18/discussions/110
-    let suffixFlushed = false
-    class NextWritable extends Writable {
-      _write(
-        chunk: any,
-        encoding: string,
-        callback: (error?: Error | null) => void
-      ) {
-        if (!underlyingStream) {
-          throw new Error(
-            'invariant: write called without an underlying stream. This is a bug in Next.js'
-          )
-        }
-        // The compression module (https://github.com/expressjs/compression) doesn't
-        // support callbacks, so we have to wait for a drain event.
-        if (!underlyingStream.write(chunk, encoding)) {
-          queuedCallbacks.push(callback)
-        } else {
-          callback()
-        }
-
-        if (!shellFlushed) {
-          shellFlushed = true
-          // In the first round of streaming, all chunks will be finished in the micro task.
-          // We use setTimeout to guarantee the suffix is flushed after the micro task.
-          setTimeout(() => {
-            // Flush the suffix if stream is not closed.
-            if (underlyingStream) {
-              suffixFlushed = true
-              underlyingStream.write(suffixUnclosed)
-            }
-          })
-        }
-      }
-
-      flush() {
-        if (!underlyingStream) {
-          throw new Error(
-            'invariant: flush called without an underlying stream. This is a bug in Next.js'
-          )
-        }
-
-        const anyWritable = underlyingStream as any
-        if (typeof anyWritable.flush === 'function') {
-          anyWritable.flush()
-        }
-      }
-    }
-
-    const stream = new NextWritable()
-    stream.on('drain', () => {
-      const callbacks = queuedCallbacks
-      queuedCallbacks = []
-      callbacks.forEach((callback) => callback())
-    })
-
-    let resolved = false
-    const doResolve = (startWriting: any) => {
-      if (!resolved) {
-        resolved = true
-        resolve((res, next) => {
-          const doNext = (err?: Error) => {
-            // Some cases when the stream is closed too fast before setTimeout,
-            // have to ensure suffix is flushed anyway.
-            if (!suffixFlushed) {
-              res.write(suffixUnclosed)
-            }
-            if (!err) {
-              res.write(closeTag)
-            }
-            underlyingStream = null
-            queuedCallbacks = []
-            next(err)
-          }
-
-          stream.once('error', (err) => doNext(err))
-          stream.once('finish', () => doNext())
-
-          underlyingStream = res
-          startWriting()
-        })
-      }
-    }
-
-    const { abort, pipe } = (ReactDOMServer as any).renderToPipeableStream(
-      element,
-      {
-        onError(error: Error) {
-          if (!resolved) {
-            resolved = true
-            reject(error)
-          }
-          abort()
-        },
-        onCompleteShell() {
-          shellFlushed = true
-          if (!generateStaticHTML) {
-            doResolve(() => pipe(stream))
-          }
-        },
-        onCompleteAll() {
-          doResolve(() => pipe(stream))
-        },
-      }
-    )
-  })
-}
-
 async function bufferedReadFromReadableStream(
   reader: ReadableStreamDefaultReader,
-  writeFn: (val: string) => void
+  writeFn: (chunks: Uint8Array[]) => void
 ): Promise<void> {
-  const decoder = new TextDecoder()
-  let bufferedString = ''
+  let bufferedChunks: Uint8Array[] = []
   let pendingFlush: Promise<void> | null = null
 
   const flushBuffer = () => {
     if (!pendingFlush) {
       pendingFlush = new Promise((resolve) =>
         setTimeout(() => {
-          writeFn(bufferedString)
-          bufferedString = ''
+          writeFn(bufferedChunks)
+          bufferedChunks = []
           pendingFlush = null
           resolve()
         }, 0)
@@ -1685,7 +1558,7 @@ async function bufferedReadFromReadableStream(
       break
     }
 
-    bufferedString += typeof value === 'string' ? value : decoder.decode(value)
+    bufferedChunks.push(value)
     flushBuffer()
   }
 
@@ -1696,7 +1569,8 @@ async function bufferedReadFromReadableStream(
 function renderToWebStream(
   element: React.ReactElement,
   suffix: string,
-  serverComponentsInlinedTransformStream: TransformStream | null
+  serverComponentsInlinedTransformStream: TransformStream | null,
+  generateStaticHTML: boolean
 ): Promise<NodeWritablePiper> {
   return new Promise((resolve, reject) => {
     let resolved = false
@@ -1704,8 +1578,36 @@ function renderToWebStream(
       ? serverComponentsInlinedTransformStream.readable.getReader()
       : null
 
-    const closeTag = '</body></html>'
-    const [suffixUnclosed] = suffix.split(closeTag)
+    const closeTagString = '</body></html>'
+    const encoder = new TextEncoder()
+    const closeTag = encoder.encode(closeTagString)
+    const suffixUnclosed = encoder.encode(suffix.split(closeTagString)[0])
+
+    const doResolve = () => {
+      if (!resolved) {
+        resolved = true
+        resolve((push, next) => {
+          let shellFlushed = false
+          Promise.all([
+            bufferedReadFromReadableStream(reader, (val) => {
+              push(val)
+              if (!shellFlushed) {
+                shellFlushed = true
+                push([suffixUnclosed])
+              }
+            }),
+            inlinedDataReader &&
+              bufferedReadFromReadableStream(inlinedDataReader, push),
+          ]).then(
+            () => {
+              push([closeTag])
+              next()
+            },
+            (err) => next(err)
+          )
+        })
+      }
+    }
 
     const stream: ReadableStream = (
       ReactDOMServer as any
@@ -1717,29 +1619,12 @@ function renderToWebStream(
         }
       },
       onCompleteShell() {
-        if (!resolved) {
-          resolved = true
-          resolve((res, next) => {
-            let shellFlushed = false
-            Promise.all([
-              bufferedReadFromReadableStream(reader, (val) => {
-                if (!shellFlushed) {
-                  shellFlushed = true
-                  val += suffixUnclosed
-                }
-                res.write(val)
-              }),
-              inlinedDataReader &&
-                bufferedReadFromReadableStream(inlinedDataReader, res.write),
-            ]).then(
-              () => {
-                res.write(closeTag)
-                next()
-              },
-              (err) => next(err)
-            )
-          })
+        if (!generateStaticHTML) {
+          doResolve()
         }
+      },
+      onCompleteAll() {
+        doResolve()
       },
     })
     const reader = stream.getReader()
@@ -1748,45 +1633,42 @@ function renderToWebStream(
 
 function chainPipers(pipers: NodeWritablePiper[]): NodeWritablePiper {
   return pipers.reduceRight(
-    (lhs, rhs) => (res, next) => {
-      rhs(res, (err) => (err ? next(err) : lhs(res, next)))
+    (lhs, rhs) => (push, next) => {
+      rhs(push, (err) => (err ? next(err) : lhs(push, next)))
     },
-    (res, next) => {
-      res.end()
+    (_, next) => {
       next()
     }
   )
 }
 
-function piperFromArray(chunks: string[]): NodeWritablePiper {
-  return (res, next) => {
-    if (typeof (res as any).cork === 'function') {
-      res.cork()
-    }
-    chunks.forEach((chunk) => res.write(chunk))
-    if (typeof (res as any).uncork === 'function') {
-      res.uncork()
-    }
+function piperFromArray(strings: string[]): NodeWritablePiper {
+  const encoder = new TextEncoder()
+  const chunks = Array.from(strings.map((str) => encoder.encode(str)))
+  return (push, next) => {
+    push(chunks)
     next()
   }
 }
 
 function piperToString(input: NodeWritablePiper): Promise<string> {
   return new Promise((resolve, reject) => {
-    const bufferedChunks: Buffer[] = []
-    const stream = new Writable({
-      writev(chunks, callback) {
-        chunks.forEach((chunk) => bufferedChunks.push(chunk.chunk))
-        callback()
-      },
-    })
-    input(stream, (err) => {
-      if (err) {
-        reject(err)
-      } else {
-        resolve(Buffer.concat(bufferedChunks).toString())
+    const textDecoder = new TextDecoder()
+    let bufferedString = ''
+
+    input(
+      (chunks) =>
+        chunks.forEach(
+          (chunk) => (bufferedString += textDecoder.decode(chunk))
+        ),
+      (err) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(bufferedString)
+        }
       }
-    })
+    )
   })
 }
 
