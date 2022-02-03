@@ -38,7 +38,7 @@ const middlewareManifest: MiddlewareManifest = {
   version: 1,
 }
 
-function getPageFromPath(pagePath: string) {
+function getPageFromEntrypointName(pagePath: string) {
   const ssrEntryInfo = ssrEntries.get(pagePath)
   const result = MIDDLEWARE_FULL_ROUTE_REGEX.exec(pagePath)
   const page = result
@@ -64,7 +64,7 @@ export function getEntrypointInfo(
     if (ssrEntryInfo && !webServerRuntime) continue
     if (!ssrEntryInfo && webServerRuntime) continue
 
-    const page = getPageFromPath(entrypoint.name)
+    const page = getPageFromEntrypointName(entrypoint.name)
 
     if (!page) {
       continue

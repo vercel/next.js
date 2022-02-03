@@ -163,5 +163,6 @@ export default async function transformSource(
     : ''
 
   const transformed = transformedSource + '\n' + noop + '\n' + defaultExportNoop
+
   return transformed
 }

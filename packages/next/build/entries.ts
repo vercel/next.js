@@ -25,7 +25,7 @@ export type PagesMapping = {
   [page: string]: string
 }
 
-export function getPageKeyFromPath(pagePath: string, extensions: string[]) {
+export function getPageFromPath(pagePath: string, extensions: string[]) {
   let page = pagePath.replace(new RegExp(`\\.+(${extensions.join('|')})$`), '')
   page = page.replace(/\\/g, '/').replace(/\/index$/, '')
   return page === '' ? '/' : page
@@ -53,7 +53,7 @@ export function createPagesMapping(
 
   const pages: PagesMapping = pagePaths.reduce(
     (result: PagesMapping, pagePath): PagesMapping => {
-      const pageKey = getPageKeyFromPath(pagePath, extensions)
+      const pageKey = getPageFromPath(pagePath, extensions)
 
       if (hasServerComponents && /\.client$/.test(pageKey)) {
         // Assume that if there's a Client Component, that there is
