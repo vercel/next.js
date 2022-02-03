@@ -94,7 +94,7 @@ function runTests({
   w,
   isDev,
   domains = [],
-  ttl,
+  minimumCacheTTL,
   isSharp,
   isOutdatedSharp,
   avifEnabled,
@@ -536,9 +536,9 @@ function runTests({
       const json2 = await fsToJson(imagesDir)
       expect(json2).toStrictEqual(json1)
 
-      if (ttl) {
+      if (minimumCacheTTL) {
         // Wait until expired so we can confirm image is regenerated
-        await waitFor(ttl * 1000)
+        await waitFor(minimumCacheTTL * 1000)
 
         const [three, four] = await Promise.all([
           fetchWithDuration(appPort, '/_next/image', query, opts),
@@ -548,8 +548,8 @@ function runTests({
         expect(three.duration).toBeLessThan(one.duration)
         expect(three.res.status).toBe(200)
         expect(three.res.headers.get('X-Nextjs-Cache')).toBe('STALE')
-        expect(three.headers.get('Content-Type')).toBe('image/webp')
-        expect(three.headers.get('Content-Disposition')).toBe(
+        expect(three.res.headers.get('Content-Type')).toBe('image/webp')
+        expect(three.res.headers.get('Content-Disposition')).toBe(
           `inline; filename="slow.webp"`
         )
         const json3 = await fsToJson(imagesDir)
@@ -559,8 +559,8 @@ function runTests({
         expect(four.duration).toBeLessThan(one.duration)
         expect(four.res.status).toBe(200)
         expect(four.res.headers.get('X-Nextjs-Cache')).toBe('STALE')
-        expect(four.headers.get('Content-Type')).toBe('image/webp')
-        expect(four.headers.get('Content-Disposition')).toBe(
+        expect(four.res.headers.get('Content-Type')).toBe('image/webp')
+        expect(four.res.headers.get('Content-Disposition')).toBe(
           `inline; filename="slow.webp"`
         )
         const json4 = await fsToJson(imagesDir)
@@ -626,9 +626,9 @@ function runTests({
     const json2 = await fsToJson(imagesDir)
     expect(json2).toStrictEqual(json1)
 
-    if (ttl) {
+    if (minimumCacheTTL) {
       // Wait until expired so we can confirm image is regenerated
-      await waitFor(ttl * 1000)
+      await waitFor(minimumCacheTTL * 1000)
       const res3 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res3.status).toBe(200)
       expect(res3.headers.get('X-Nextjs-Cache')).toBe('STALE')
@@ -1137,13 +1137,17 @@ describe('Image Optimizer', () => {
     'image-optimization-test.vercel.app',
   ]
 
+  // Reduce to 5 seconds so tests dont dont need to
+  // wait too long before testing stale responses.
+  const minimumCacheTTL = 5
+
   describe('Server support for minimumCacheTTL in next.config.js', () => {
     const size = 96 // defaults defined in server/config.ts
-    const ttl = 5 // super low ttl in seconds
     beforeAll(async () => {
       const json = JSON.stringify({
         images: {
-          minimumCacheTTL: ttl,
+          domains,
+          minimumCacheTTL,
         },
       })
       nextOutput = ''
@@ -1162,7 +1166,7 @@ describe('Image Optimizer', () => {
       await fs.remove(imagesDir)
     })
 
-    runTests({ w: size, isDev: false, ttl })
+    runTests({ w: size, isDev: false, domains, minimumCacheTTL })
   })
 
   describe('Server support for headers in next.config.js', () => {
