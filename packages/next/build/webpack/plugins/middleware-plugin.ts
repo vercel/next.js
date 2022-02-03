@@ -38,7 +38,7 @@ const middlewareManifest: MiddlewareManifest = {
   version: 1,
 }
 
-export function getPageFromPath(pagePath: string) {
+function getPageFromPath(pagePath: string) {
   const ssrEntryInfo = ssrEntries.get(pagePath)
   const result = MIDDLEWARE_FULL_ROUTE_REGEX.exec(pagePath)
   const page = result

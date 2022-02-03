@@ -1,11 +1,8 @@
 import { sources, webpack5 } from 'next/dist/compiled/webpack/webpack'
+import { normalizePagePath } from '../../../server/normalize-page-path'
 import { FUNCTIONS_MANIFEST } from '../../../shared/lib/constants'
-import {
-  collectAssets,
-  getEntrypointInfo,
-  getPageFromPath,
-} from './middleware-plugin'
-import { findEntryModule } from './next-drop-client-page-plugin'
+import { getPageKeyFromPath } from '../../entries'
+import { collectAssets, getEntrypointInfo } from './middleware-plugin'
 
 const PLUGIN_NAME = 'FunctionsManifestPlugin'
 export interface FunctionsManifest {
@@ -24,18 +21,26 @@ export interface FunctionsManifest {
 
 export default class FunctionsManifestPlugin {
   dev: boolean
+  pagesDir: string
+  pageExtensions: string[]
   webServerRuntime: boolean
   pagesRuntime: Map<string, string>
 
   constructor({
     dev,
+    pagesDir,
+    pageExtensions,
     webServerRuntime,
   }: {
     dev: boolean
+    pagesDir: string
+    pageExtensions: string[]
     webServerRuntime: boolean
   }) {
     this.dev = dev
+    this.pagesDir = pagesDir
     this.webServerRuntime = webServerRuntime
+    this.pageExtensions = pageExtensions
     this.pagesRuntime = new Map()
   }
 
@@ -54,9 +59,7 @@ export default class FunctionsManifestPlugin {
     infos.forEach((info) => {
       const { page } = info
       // TODO: use global default runtime instead of 'web'
-      // console.log(Array.from(this.pagesRuntime.entries()))
       const runtime = this.pagesRuntime.get(page) || 'web'
-      // console.log('page:runtime', page, runtime)
       functionsManifest.pages[page] = {
         // Not assign if it's nodejs runtime, project configured node version is used instead
         ...(runtime !== 'nodejs' && { runtime }),
@@ -76,14 +79,6 @@ export default class FunctionsManifestPlugin {
       parser.hooks.exportSpecifier.tap(
         PLUGIN_NAME,
         (statement: any, _identifierName: string, exportName: string) => {
-          const entryModule = findEntryModule(
-            parser.state.compilation,
-            parser.state.module
-          )
-          if (!entryModule) {
-            return
-          }
-
           const { declaration } = statement
           if (exportName === 'config') {
             const varDecl = declaration.declarations[0]
@@ -91,7 +86,7 @@ export default class FunctionsManifestPlugin {
             const runtime = init.value.value
 
             // @ts-ignore buildInfo exists on Module
-            entryModule.buildInfo.NEXT_runtime = runtime
+            parser.state.module.buildInfo.NEXT_runtime = runtime
           }
         }
       )
@@ -104,24 +99,25 @@ export default class FunctionsManifestPlugin {
         factory.hooks.parser.for('javascript/esm').tap(PLUGIN_NAME, handler)
 
         compilation.hooks.seal.tap(PLUGIN_NAME, () => {
-          for (const [name, entryData] of compilation.entries) {
+          for (const [_name, entryData] of compilation.entries) {
             let runtime
             for (const dependency of entryData.dependencies) {
               // @ts-ignore TODO: webpack 5 types
               const module = compilation.moduleGraph.getModule(dependency)
-              const parentModule =
-                compilation.moduleGraph.getParentModule(dependency)
-              runtime = module?.buildInfo?.NEXT_runtime
-              console.log(
-                'module?.buildInfo',
-                name,
-                module?.buildInfo?.NEXT_runtime,
-                parentModule?.buildInfo?.NEXT_runtime
-              )
-              if (runtime) break
+              const outgoingConnections =
+                compilation.moduleGraph.getOutgoingConnectionsByModule(module)
+              const entryModules = outgoingConnections.keys()
+              for (const mod of entryModules) {
+                runtime = mod?.buildInfo?.NEXT_runtime
+                if (runtime) {
+                  const normalizedPagePath = normalizePagePath(mod.userRequest)
+                  const pagePath = normalizedPagePath.replace(this.pagesDir, '')
+                  const page = getPageKeyFromPath(pagePath, this.pageExtensions)
+                  this.pagesRuntime.set(page, runtime)
+                  break
+                }
+              }
             }
-            const page = getPageFromPath(name)
-            if (page && runtime) this.pagesRuntime.set(name, runtime)
           }
         })
       }

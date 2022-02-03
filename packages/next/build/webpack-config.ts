@@ -1451,7 +1451,12 @@ export default async function getBaseWebpackConfig(
         new MiddlewarePlugin({ dev, webServerRuntime }),
       process.env.ENABLE_FILE_SYSTEM_API === '1' &&
         webServerRuntime &&
-        new FunctionsManifestPlugin({ dev, webServerRuntime }),
+        new FunctionsManifestPlugin({
+          dev,
+          pagesDir,
+          webServerRuntime,
+          pageExtensions: config.pageExtensions,
+        }),
       isServer && new NextJsSsrImportPlugin(),
       !isServer &&
         new BuildManifestPlugin({

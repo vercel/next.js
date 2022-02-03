@@ -238,8 +238,8 @@ describe('Functions manifest', () => {
     paths.forEach((path) => {
       const { runtime, files } = pages[path]
       expect(pageNames).toContain(path)
-      console.log(path, runtime)
-      // expect(runtime).toBe(path === '/' ? undefined : 'web')
+      // Runtime of page `/` is undefined since it's configured as nodejs.
+      expect(runtime).toBe(path === '/' ? undefined : 'web')
       expect(files.every((f) => f.startsWith('server/'))).toBe(true)
     })
 
