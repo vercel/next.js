@@ -1,3 +1,4 @@
+import './node-polyfill-readable-stream'
 import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import React from 'react'
@@ -72,7 +73,6 @@ let postProcess: typeof import('../shared/lib/post-process').default
 const DOCTYPE = '<!DOCTYPE html>'
 
 if (!process.browser) {
-  require('./node-polyfill-readable-stream')
   optimizeAmp = require('./optimize-amp').default
   getFontDefinitionFromManifest =
     require('./font-utils').getFontDefinitionFromManifest
