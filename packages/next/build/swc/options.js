@@ -38,6 +38,14 @@ export function getBaseSWCOptions({
       },
 
       transform: {
+        // Enables https://github.com/swc-project/swc/blob/0359deb4841be743d73db4536d4a22ac797d7f65/crates/swc_ecma_ext_transforms/src/jest.rs
+        ...(jest
+          ? {
+              hidden: {
+                jest: true,
+              },
+            }
+          : {}),
         legacyDecorator: enableDecorators,
         react: {
           importSource: jsConfig?.compilerOptions?.jsxImportSource || 'react',
@@ -68,6 +76,7 @@ export function getBaseSWCOptions({
         },
       },
     },
+    sourceMaps: jest ? 'inline' : undefined,
     styledComponents: nextConfig?.experimental?.styledComponents
       ? {
           displayName: Boolean(development),
@@ -75,6 +84,7 @@ export function getBaseSWCOptions({
       : null,
     removeConsole: nextConfig?.experimental?.removeConsole,
     reactRemoveProperties: nextConfig?.experimental?.reactRemoveProperties,
+    relay: nextConfig?.experimental?.relay,
   }
 }
 

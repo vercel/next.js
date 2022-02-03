@@ -180,7 +180,7 @@ export default class NextNodeServer extends BaseServer {
     ]
   }
 
-  protected generateStaticRotes(): Route[] {
+  protected generateStaticRoutes(): Route[] {
     return this.hasStaticDir
       ? [
           {
