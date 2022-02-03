@@ -221,6 +221,7 @@ describe('Functions manifest', () => {
       'server',
       'functions-manifest.json'
     )
+    await fs.remove(join(appDir, '.next'))
     expect(fs.existsSync(functionsManifestPath)).toBe(false)
   })
   it('should contain rsc paths in functions manifest', async () => {
@@ -230,7 +231,7 @@ describe('Functions manifest', () => {
       'server',
       'functions-manifest.json'
     )
-    const content = JSON.parse(await fs.readFile(functionsManifestPath, 'utf8'))
+    const content = JSON.parse(fs.readFileSync(functionsManifestPath, 'utf8'))
     const { pages } = content
     const pageNames = Object.keys(pages)
 
