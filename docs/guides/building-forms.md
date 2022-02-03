@@ -7,7 +7,7 @@ description: Learn how to create forms with Next.js, from the form HTML element 
 
 A web form has a **client-server** relationship. They are used to send data handled by a web server for processing and storage. The form itself is the client, and the server is any storage mechanism that can be used to store, retrieve and send data when needed.
 
-This guide will teach you how to create a web form with Next.js (client) and Vercel (server).
+This guide will teach you how to create a web form with Next.js.
 
 ## Part 1: HTML Form
 
@@ -149,20 +149,7 @@ The password form field must only contain digits (0 to 9) and lowercase alphabet
 
 > To learn more about HTML forms, check out the [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Learn/Forms).
 
-## Part 2: Serverless Forms with Next.js and Vercel
-
-A serverless architecture, in literal terms, does involve servers. The difference is that the servers are managed and hosted in the cloud.
-
-There are many providers that offer this service such as:
-
-- [Vercel](https://vercel.com/docs/concepts/functions/introduction#serverless-functions)
-- [Amazon Web Services](https://aws.amazon.com/lambda/)
-- [Microsoft Azure](https://docs.microsoft.com/en-us/azure/azure-functions/functions-overview)
-- [Google Cloud Platform](https://cloud.google.com/functions/)
-
-This part of the guide will focus on using Vercel.
-
-Vercel empowers you to write JavaScript Serverless functions and deploy them at its edge network. This significantly minimizes latency because your web application runs code in a serverless architecture as close to the end-user as possible.
+## Part 2: Project Setup
 
 In the following section you will be creating forms in React using Next.js.
 
@@ -176,15 +163,24 @@ Answer the questions to create your project, and give it a name, this example us
 
 Open the URL printed in the terminal to ensure that your app is running successfully.
 
-## Setting up the Serverless Environment
+## PART 3: Setting up a Serverless Backend
 
-At the beginning of this guide, you learned that web forms have a client-server relationship. Now you will set up the server environment using Vercel.
+A serverless architecture, in literal terms, does involve servers. The difference is that the servers are managed and hosted in the cloud.
 
-Vercel supports out-the-box deployments of [Serverless Functions](https://vercel.com/docs/concepts/functions/serverless-functions), which you can code in your favorite backend languages (Node.js, Go, Python and Ruby). These functions take an HTTP request and return a response.
+There are many providers that offer this service such as:
+
+- [Vercel](https://vercel.com/docs/concepts/functions/introduction#serverless-functions)
+- [Amazon Web Services](https://aws.amazon.com/lambda/)
+- [Microsoft Azure](https://docs.microsoft.com/en-us/azure/azure-functions/functions-overview)
+- [Google Cloud Platform](https://cloud.google.com/functions/)
+
+Vercel empowers you to write JavaScript Serverless functions and deploy them at its edge network. This significantly minimizes latency because your web application runs code in a serverless architecture as close to the end-user as possible.
+
+It supports out-the-box deployments of [Serverless Functions](https://vercel.com/docs/concepts/functions/serverless-functions), which you can code in your favorite backend languages (Node.js, Go, Python and Ruby). These functions take an HTTP request and return a response.
 
 Serverless functions perform a significant role in handling tasks like form submission because:
 
-- Serverless functions are event-based, and every time you submit a form, it triggers a new event.
+- They are event-based, and every time you submit a form, it triggers a new event.
 - Offer faster deployments with greater flexibility (you don't have to manage any servers).
 - Reduce architecture and management costs.
 
@@ -215,13 +211,13 @@ export default function handler(req, res) {
 }
 ```
 
-This serverless form `handler` function will receive the request `req` from the client (i.e. submitted form data). And in return, it'll send a response `res` as JSON that will have both the first and the last name. You can access this API endpoint at `http://localhost:3000/api/form` or replace the localhost URL with an actual Vercel deployment when you deploy.
+This form `handler` function will receive the request `req` from the client (i.e. submitted form data). And in return, it'll send a response `res` as JSON that will have both the first and the last name. You can access this API endpoint at `http://localhost:3000/api/form` or replace the localhost URL with an actual Vercel deployment when you deploy.
 
 > Moreover, you can also attach this API to a database like MongoDB or Google Sheets. This way, your submitted form data will be securely stored for later use. For this guide, no database is used. Instead, the same data is returned to the user to demo how it's done.
 
 ### Form Submission without JavaScript
 
-You can now use `/api/form` relative endpoint inside the `action` attribute of the form. You are sending form data to the server (serverless API at Vercel) when the form is submitted via `POST` HTTP method (which is used to send data).
+You can now use `/api/form` relative endpoint inside the `action` attribute of the form. You are sending form data to the server when the form is submitted via `POST` HTTP method (which is used to send data).
 
 ```html
 <form action="/api/form" method="post">
@@ -237,9 +233,9 @@ If you submit this form, it will submit the data to the forms API endpoint `/api
 
 ![form-no-js](https://assets.vercel.com/image/upload/dpr_auto,q_auto,f_auto/nextjs/guides/building-forms/form-no-js.jpg)
 
-## Part 3: Forms in Next.js
+## Part 4: Configuring Forms in Next.js
 
-You have created a server with Vercel via Serverless Functions. Now it's time to configure the client (the form itself) inside Next.js using React. The first step will be extending your knowledge of HTML forms and converting it into React (using [JSX](https://reactjs.org/docs/introducing-jsx.html)).
+You have created a back-end server for form submission. Now it's time to configure the client (the form itself) inside Next.js using React. The first step will be extending your knowledge of HTML forms and converting it into React (using [JSX](https://reactjs.org/docs/introducing-jsx.html)).
 
 Here's the same form in a [React function component](https://reactjs.org/docs/components-and-props.html) written using [JSX](https://reactjs.org/docs/introducing-jsx.html).
 
@@ -262,7 +258,7 @@ export default function Form() {
 Here's what changed:
 
 - The `for` attribute is changed to `htmlFor`. (Since `for` is a keyword associated with the "for" loop in JavaScript, React elements use `htmlFor` instead.)
-- The `action` attribute now has a relative URL, the form API endpoint deployed at Vercel.
+- The `action` attribute now has a relative URL which is the form API endpoint.
 
 This completes the basic structure of your Next.js-based form.
 
@@ -270,7 +266,7 @@ This completes the basic structure of your Next.js-based form.
 
 ![forms with nextjs](https://assets.vercel.com/image/upload/dpr_auto,q_auto,f_auto/nextjs/guides/building-forms/forms-with-nextjs.png)
 
-## Part 4: Form Submission without JavaScript
+## Part 5: Form Submission without JavaScript
 
 JavaScript brings interactivity to our web applications, but sometimes you need to control the JavaScript bundle from being too large, or your sites visitors might have JavaScript disabled.
 
@@ -281,8 +277,6 @@ There are several reasons why users disable JavaScript:
 - For privacy so they won’t be tracked with analytical scripts
 
 Regardless of the reason, disabling JavaScript will impact site functionality partially, if not completely.
-
-But with Vercel serverless functions, we can still use the forms without JavaScript, as seen in the **Form Submission without JavaScript** [section](#form-submission-without-javascript) above.
 
 Next open the `next-forms` directory. Inside the `/pages` directory, create a file `no-js-form.js`.
 
@@ -314,7 +308,7 @@ The form data will be submitted on the server as a request `req` to the form han
 
 > To improve the experience here, as a response you can redirect the user to a page and thank them for submitting the form.
 
-## Part 5: Form Submission with JavaScript Enabled
+## Part 6: Form Submission with JavaScript Enabled
 
 Inside `/pages`, you'll create another file called `js-form.js`. This will create a `/js-form` page on your Next.js app.
 
@@ -393,8 +387,8 @@ That's about it. After reading this guide, here's what you'll learn:
 - The basic HTML `form` element
 - Understanding forms with React.js
 - Validating forms data with and without JavaScript
-- Using Next.js Sereverless Functions to handle `req` and `res` from the client and server
+- Using Next.js to handle `req` and `res` from the client and server
 
-Next.js provide you with an all-in solution for hosting web forms and handling submissions with serverless functions. Use Next.js as the client for your JavaScript-based interaction and Vercel for its powerful serverless functions to handle the server.
+Next.js provides you with an all-in solution for hosting web forms and handling submissions. Self-hosted, Next.js API routes can run on your Node.js server, deployed to Vercel.
 
 For more details go through [Next.js Learn Course](https://nextjs.org/learn/basics/create-nextjs-app).
