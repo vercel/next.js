@@ -157,7 +157,6 @@ export function createEntrypoints(
     const isFlight = isFlightPage(config, absolutePagePath)
 
     const webServerRuntime = !!config.experimental.concurrentFeatures
-    const hasServerComponents = !!config.experimental.serverComponents
 
     if (page.match(MIDDLEWARE_ROUTE)) {
       const loaderOpts: MiddlewareLoaderOptions = {
@@ -176,11 +175,12 @@ export function createEntrypoints(
       serverWeb[serverBundlePath] = finalizeEntrypoint({
         name: '[name].js',
         value: `next-middleware-ssr-loader?${stringify({
+          dev: false,
           page,
+          stringifiedConfig: JSON.stringify(config),
           absolute500Path: pages['/500'] || '',
           absolutePagePath,
           isServerComponent: isFlight,
-          serverComponents: hasServerComponents,
           ...defaultServerlessOptions,
         } as any)}!`,
         isServer: false,
