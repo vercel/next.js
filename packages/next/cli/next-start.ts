@@ -8,7 +8,7 @@ import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 
-const nextStart: cliCommand = (argv) => {
+const nextStart: cliCommand = async (argv) => {
   const validArgs: arg.Spec = {
     // Types
     '--help': Boolean,
@@ -58,6 +58,11 @@ const nextStart: cliCommand = (argv) => {
     port = 0
   }
 
+  if (!existsSync(`${process.cwd()}/.next/BUILD_ID`)) {
+    const { nextBuild }  = await import("./next-build");
+    await nextBuild(args)
+  }
+
   startServer({
     dir,
     hostname: host,
@@ -68,7 +73,7 @@ const nextStart: cliCommand = (argv) => {
       Log.ready(`started server on ${host}:${app.port}, url: ${appUrl}`)
       await app.prepare()
     })
-    .catch((err) => {
+    .catch(async (err) => {
       console.error(err)
       process.exit(1)
     })
