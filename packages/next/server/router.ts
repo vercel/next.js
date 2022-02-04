@@ -326,7 +326,7 @@ export default class Router {
       // e.g. /api/hello shouldn't match /en/api/hello as a page
       // rewrites/redirects can match though
       if (
-        isPageChecker &&
+        !isCustomRoute &&
         localePathResult.detectedLocale &&
         localePathResult.pathname.match(API_ROUTE)
       ) {
