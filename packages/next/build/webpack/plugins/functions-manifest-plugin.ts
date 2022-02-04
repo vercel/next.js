@@ -1,3 +1,4 @@
+import { relative } from 'path'
 import { sources, webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { normalizePagePath } from '../../../server/normalize-page-path'
 import { FUNCTIONS_MANIFEST } from '../../../shared/lib/constants'
@@ -19,6 +20,10 @@ export interface FunctionsManifest {
   }
 }
 
+function containsPath(outer: string, inner: string) {
+  const rel = relative(outer, inner)
+  return !rel.startsWith('../') && rel !== '..'
+}
 export default class FunctionsManifestPlugin {
   dev: boolean
   pagesDir: string
@@ -81,11 +86,16 @@ export default class FunctionsManifestPlugin {
       parser.hooks.exportSpecifier.tap(
         PLUGIN_NAME,
         (statement: any, _identifierName: string, exportName: string) => {
+          const { resource } = parser.state.module
+          const isPagePath = containsPath(this.pagesDir, resource)
+          // Only parse exported config in pages
+          if (!isPagePath) {
+            return
+          }
           const { declaration } = statement
           if (exportName === 'config') {
             const varDecl = declaration.declarations[0]
             const { properties } = varDecl.init
-            if (!properties) return
             const prop = properties.find(
               (prop: any) => prop.key.name === 'runtime'
             )
