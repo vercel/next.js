@@ -88,7 +88,7 @@
     "@zeit/next-typescript": "1.1.2-canary.0",
     "abort-controller": "3.0.0",
     "alex": "9.1.0",
-    "amphtml-validator": "1.0.33",
+    "amphtml-validator": "1.0.35",
     "async-sema": "3.0.1",
     "browserslist": "4.18.1",
     "cheerio": "0.22.0",
