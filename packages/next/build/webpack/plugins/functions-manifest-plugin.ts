@@ -84,8 +84,17 @@ export default class FunctionsManifestPlugin {
           const { declaration } = statement
           if (exportName === 'config') {
             const varDecl = declaration.declarations[0]
-            const init = varDecl.init.properties[0]
-            const runtime = init.value.value
+            const { properties } = varDecl.init
+            if (!properties) return
+            const prop = properties.find(
+              (prop: any) => prop.key.name === 'runtime'
+            )
+            if (!prop) return
+            const runtime = prop.value.value
+            if (!['nodejs', 'edge'].includes(runtime))
+              throw new Error(
+                `The runtime option can only be 'nodejs' or 'edge'`
+              )
 
             // @ts-ignore buildInfo exists on Module
             parser.state.module.buildInfo.NEXT_runtime = runtime

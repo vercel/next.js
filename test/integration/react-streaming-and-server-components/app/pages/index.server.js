@@ -29,5 +29,7 @@ export function getServerSideProps({ req }) {
 }
 
 export const config = {
+  amp: false,
+  unstable_runtimeJS: false,
   runtime: 'nodejs',
 }
