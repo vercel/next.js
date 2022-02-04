@@ -47,7 +47,7 @@ class Playwright extends BrowserInterface {
     return page.goto(url) as any
   }
 
-  async loadPage(url: string) {
+  async loadPage(url: string, opts?: { disableCache: boolean }) {
     if (this.activeTrace) {
       const traceDir = path.join(__dirname, '../../traces')
       const traceOutputPath = path.join(
@@ -84,6 +84,12 @@ class Playwright extends BrowserInterface {
     page.on('pageerror', (error) => {
       console.error('page error', error)
     })
+
+    if (opts?.disableCache) {
+      // TODO: this doesn't seem to work (dev tools does not check the box as expected)
+      const session = await context.newCDPSession(page)
+      session.send('Network.setCacheDisabled', { cacheDisabled: true })
+    }
 
     page.on('websocket', (ws) => {
       if (tracePlaywright) {

@@ -400,4 +400,47 @@ describe('CLI Usage', () => {
       expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
     })
   })
+
+  describe('info', () => {
+    test('--help', async () => {
+      const help = await runNextCommand(['info', '--help'], {
+        stdout: true,
+      })
+      expect(help.stdout).toMatch(
+        /Prints relevant details about the current system which can be used to report Next\.js bugs/
+      )
+    })
+
+    test('-h', async () => {
+      const help = await runNextCommand(['info', '-h'], {
+        stdout: true,
+      })
+      expect(help.stdout).toMatch(
+        /Prints relevant details about the current system which can be used to report Next\.js bugs/
+      )
+    })
+
+    test('should print output', async () => {
+      const info = await runNextCommand(['info'], {
+        stdout: true,
+      })
+      expect(info.stdout).toMatch(
+        new RegExp(`
+    Operating System:
+      Platform: .*
+      Arch: .*
+      Version: .*
+    Binaries:
+      Node: .*
+      npm: .*
+      Yarn: .*
+      pnpm: .*
+    Relevant packages:
+      next: .*
+      react: .*
+      react-dom: .*
+`)
+      )
+    })
+  })
 })

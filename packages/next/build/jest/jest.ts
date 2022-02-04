@@ -95,7 +95,7 @@ export default function nextJest(options: { dir?: string } = {}) {
         testPathIgnorePatterns: [
           // Don't look for tests in node_modules
           '/node_modules/',
-          // Don't look for tests in the the Next.js build output
+          // Don't look for tests in the Next.js build output
           '/.next/',
           // Custom config can append to testPathIgnorePatterns but not modify it
           // This is to ensure `.next` and `node_modules` are always excluded
@@ -126,6 +126,11 @@ export default function nextJest(options: { dir?: string } = {}) {
           // Custom config can append to transformIgnorePatterns but not modify it
           // This is to ensure `node_modules` and .module.css/sass/scss are always excluded
           ...(resolvedJestConfig.transformIgnorePatterns || []),
+        ],
+        watchPathIgnorePatterns: [
+          // Don't re-run tests when the Next.js build output changes
+          '/.next/',
+          ...(resolvedJestConfig.watchPathIgnorePatterns || []),
         ],
       }
     }

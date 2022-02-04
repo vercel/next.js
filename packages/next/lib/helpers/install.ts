@@ -1,5 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies */
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import spawn from 'next/dist/compiled/cross-spawn'
 
 interface InstallArgs {
@@ -69,16 +69,13 @@ export function install(
        * install`.
        */
       args = ['install']
-      if (useYarn) {
-        if (!isOnline) {
-          console.log(chalk.yellow('You appear to be offline.'))
+      if (!isOnline) {
+        console.log(chalk.yellow('You appear to be offline.'))
+        if (useYarn) {
           console.log(chalk.yellow('Falling back to the local Yarn cache.'))
           console.log()
           args.push('--offline')
-        }
-      } else {
-        if (!isOnline) {
-          console.log(chalk.yellow('You appear to be offline.'))
+        } else {
           console.log()
         }
       }

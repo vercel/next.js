@@ -42,7 +42,6 @@ fn test(input: &Path, minify: bool) {
                             },
                             syntax: Some(Syntax::Typescript(TsConfig {
                                 tsx: true,
-                                dynamic_import: true,
                                 ..Default::default()
                             })),
                             ..Default::default()
@@ -56,9 +55,12 @@ fn test(input: &Path, minify: bool) {
                 pages_dir: None,
                 is_page_file: false,
                 is_development: true,
+                is_server: false,
                 styled_components: Some(assert_json("{}")),
                 remove_console: None,
                 react_remove_properties: None,
+                relay: None,
+                shake_exports: None,
             };
 
             let options = options.patch(&fm);
@@ -68,7 +70,7 @@ fn test(input: &Path, minify: bool) {
                 None,
                 &handler,
                 &options.swc,
-                |_| custom_before_pass(fm.clone(), &options),
+                |_| custom_before_pass(cm.clone(), fm.clone(), &options),
                 |_| noop(),
             ) {
                 Ok(v) => {
