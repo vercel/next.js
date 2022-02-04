@@ -8,6 +8,7 @@ import { RouteHas } from '../lib/load-custom-routes'
 import { matchHas } from '../shared/lib/router/utils/prepare-destination'
 import { getRequestMeta } from './request-meta'
 import { BaseNextRequest, BaseNextResponse } from './base-http'
+import { API_ROUTE } from '../lib/constants'
 
 export const route = pathMatch()
 
@@ -303,6 +304,7 @@ export default class Router {
       const keepBasePath =
         isCustomRoute || isPublicFolderCatchall || isMiddlewareCatchall
       const keepLocale = isCustomRoute
+      const isPageChecker = testRoute.name.includes('page check')
 
       const currentPathnameNoBasePath = replaceBasePath(
         currentPathname,
@@ -317,7 +319,19 @@ export default class Router {
         currentPathnameNoBasePath,
         this.locales
       )
+
       const activeBasePath = keepBasePath ? this.basePath : ''
+
+      // don't match API routes when they are locale prefixed
+      // e.g. /api/hello shouldn't match /en/api/hello as a page
+      // rewrites/redirects can match though
+      if (
+        isPageChecker &&
+        localePathResult.detectedLocale &&
+        localePathResult.pathname.match(API_ROUTE)
+      ) {
+        continue
+      }
 
       if (keepLocale) {
         if (

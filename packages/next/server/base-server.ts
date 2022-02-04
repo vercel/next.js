@@ -543,14 +543,6 @@ export default abstract class Server {
         addRequestMeta(req, '__nextIsLocaleDomain', true)
       }
 
-      if (url.locale?.path.detectedLocale) {
-        req.url = formatUrl(url)
-        addRequestMeta(req, '__nextStrippedLocale', true)
-        if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
-          return this.render404(req, res, parsedUrl)
-        }
-      }
-
       if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
         if (url?.locale?.locale) {
           parsedUrl.query.__nextLocale = url.locale.locale
