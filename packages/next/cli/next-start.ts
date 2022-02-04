@@ -61,7 +61,7 @@ const nextStart: cliCommand = async (argv) => {
 
   if (!existsSync(`${process.cwd()}/.next/BUILD_ID`)) {
     const { nextBuild }  = await import("./next-build");
-    await nextBuild(args)
+    await nextBuild(args as string[])
   }
 
   startServer({
