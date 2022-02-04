@@ -90,6 +90,9 @@ stages:
             displayName: Cache Build
 
           - script: |
+              npx playwright install chromium
+
+          - script: |
               node run-tests.js -c 1 test/integration/production/test/index.test.js test/integration/css-client-nav/test/index.test.js test/integration/rewrites-has-condition/test/index.test.js
             displayName: 'Run tests'
 
