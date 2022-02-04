@@ -7,7 +7,7 @@ import { cliCommand } from '../bin/next'
 import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
-
+import { existsSync } from 'fs'
 const nextStart: cliCommand = async (argv) => {
   const validArgs: arg.Spec = {
     // Types
