@@ -91,7 +91,7 @@ function observe(
   }
 }
 
-const observers = new Map<idKey, Observer>()
+const observers = new Map<Identifier, Observer>()
 
 const idList: idKey[] = []
 function getKeyIndex(x: idKey) {
