@@ -1,7 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import React from 'react'
-import ReactDOMServer from 'react-dom/server'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
@@ -1148,6 +1147,10 @@ export async function renderToHTML(
     return inAmpMode ? children : <div id="__next">{children}</div>
   }
 
+  const ReactDOMServer = concurrentFeatures
+    ? require('react-dom/server')
+    : require('react-dom/server.browser')
+
   /**
    * Rules of Static & Dynamic HTML:
    *
@@ -1250,6 +1253,7 @@ export async function renderToHTML(
 
           const content = renderContent()
           return await renderToWebStream(
+            ReactDOMServer,
             content,
             suffix,
             serverComponentsInlinedTransformStream,
@@ -1379,7 +1383,7 @@ export async function renderToHTML(
   )
 
   let documentHTML: string
-  if (process.browser) {
+  if (concurrentFeatures) {
     // There is no `renderToStaticMarkup` exposed in the web environment, use
     // blocking `renderToReadableStream` to get the similar result.
     let result = ''
@@ -1551,6 +1555,7 @@ async function bufferedReadFromReadableStream(
     }
   }
 
+  const encoder = new TextEncoder()
   while (true) {
     const { done, value } = await reader.read()
     if (done) {
@@ -1566,6 +1571,7 @@ async function bufferedReadFromReadableStream(
 }
 
 function renderToWebStream(
+  ReactDOMServer: typeof import('react-dom/server'),
   element: React.ReactElement,
   suffix: string,
   serverComponentsInlinedTransformStream: TransformStream | null,
