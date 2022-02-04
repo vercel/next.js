@@ -366,6 +366,10 @@
           "path": "/docs/api-reference/next/server.md"
         },
         {
+          "title": "next/streaming",
+          "path": "/docs/api-reference/next/streaming.md"
+        },
+        {
           "title": "Edge Runtime",
           "path": "/docs/api-reference/edge-runtime.md"
         },
