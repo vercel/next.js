@@ -668,8 +668,10 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     trait_registers.push(quote! {
                         node_type.register_trait_method(#trait_ident.#ident(), &*#function_ident);
                     });
+                    let name =
+                        Literal::string(&(struct_ident.to_string() + "::" + &ident.to_string()));
                     let native_function_code = gen_native_function_code(
-                        quote! { stringify!(#trait_ident::#ident) },
+                        quote! { #name },
                         quote! { #trait_ident::#ident },
                         &function_ident,
                         inputs,
