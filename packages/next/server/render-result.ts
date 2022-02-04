@@ -1,14 +1,14 @@
 import type { ServerResponse } from 'http'
 
-export type NodeWritablePiper = (
+export type ResultPiper = (
   push: (chunks: Uint8Array[]) => void,
   next: (err?: Error) => void
 ) => void
 
 export default class RenderResult {
-  _result: string | NodeWritablePiper
+  _result: string | ResultPiper
 
-  constructor(response: string | NodeWritablePiper) {
+  constructor(response: string | ResultPiper) {
     this._result = response
   }
 

@@ -58,7 +58,7 @@ import {
   Redirect,
 } from '../lib/load-custom-routes'
 import { DomainLocale } from './config'
-import RenderResult, { NodeWritablePiper } from './render-result'
+import RenderResult, { ResultPiper } from './render-result'
 import isError from '../lib/is-error'
 import { readableStreamTee } from './web/utils'
 
@@ -1107,7 +1107,7 @@ export async function renderToHTML(
       serverComponentManifest
     )
     const reader = stream.getReader()
-    const piper: NodeWritablePiper = (push, next) => {
+    const piper: ResultPiper = (push, next) => {
       bufferedReadFromReadableStream(reader, push).then(
         () => next(),
         (innerErr) => next(innerErr)
@@ -1442,7 +1442,7 @@ export async function renderToHTML(
     prefix.push('<!-- __NEXT_DATA__ -->')
   }
 
-  let pipers: Array<NodeWritablePiper> = [
+  let pipers: Array<ResultPiper> = [
     piperFromArray(prefix),
     await documentResult.bodyResult(renderTargetSuffix),
   ]
@@ -1575,7 +1575,7 @@ function renderToWebStream(
   suffix: string,
   serverComponentsInlinedTransformStream: TransformStream | null,
   generateStaticHTML: boolean
-): Promise<NodeWritablePiper> {
+): Promise<ResultPiper> {
   return new Promise((resolve, reject) => {
     let resolved = false
     const inlinedDataReader = serverComponentsInlinedTransformStream
@@ -1635,7 +1635,7 @@ function renderToWebStream(
   })
 }
 
-function chainPipers(pipers: NodeWritablePiper[]): NodeWritablePiper {
+function chainPipers(pipers: ResultPiper[]): ResultPiper {
   return pipers.reduceRight(
     (lhs, rhs) => (push, next) => {
       rhs(push, (err) => (err ? next(err) : lhs(push, next)))
@@ -1646,7 +1646,7 @@ function chainPipers(pipers: NodeWritablePiper[]): NodeWritablePiper {
   )
 }
 
-function piperFromArray(strings: string[]): NodeWritablePiper {
+function piperFromArray(strings: string[]): ResultPiper {
   const encoder = new TextEncoder()
   const chunks = Array.from(strings.map((str) => encoder.encode(str)))
   return (push, next) => {
@@ -1655,7 +1655,7 @@ function piperFromArray(strings: string[]): NodeWritablePiper {
   }
 }
 
-function piperToString(input: NodeWritablePiper): Promise<string> {
+function piperToString(input: ResultPiper): Promise<string> {
   return new Promise((resolve, reject) => {
     const textDecoder = new TextDecoder()
     let bufferedString = ''
