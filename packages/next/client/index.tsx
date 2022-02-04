@@ -534,8 +534,6 @@ function renderReactElement(
     performance.mark('beforeRender')
   }
 
-  console.log('Client started')
-
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
   if (process.env.__NEXT_REACT_ROOT) {
     if (!reactRoot) {
