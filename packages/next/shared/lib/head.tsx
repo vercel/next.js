@@ -161,6 +161,12 @@ function reduceComponents(
           return React.cloneElement(c, newProps)
         }
       }
+      // TODO(kara): warn for stylesheets as well as scripts
+      if (process.env.NODE_ENV === 'development' && c.type === 'script') {
+        console.warn(
+          `Do not add <script> tags using next/head. Use next/script instead. \nSee more info here: https://nextjs.org/docs/messages/no-script-tags-in-head-component`
+        )
+      }
       return React.cloneElement(c, { key })
     })
 }
