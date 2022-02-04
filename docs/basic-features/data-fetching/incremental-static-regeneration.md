@@ -80,7 +80,7 @@ When a request is made to a page that was pre-rendered at build time, it will in
 
 - Any requests to the page after the initial request and before 10 seconds are also cached and instantaneous.
 - After the 10-second window, the next request will still show the cached (stale) page
-- Next.js triggers a regeneration of the page in the background.
+- Next.js triggers a regeneration of the page in the background. (May not work depending on your OS for background handling - works when deploying on Vercel)
 - Once the page has been successfully generated, Next.js will invalidate the cache and show the updated page. If the background regeneration fails, the old page would still be unaltered.
 
 When a request is made to a path that hasn’t been generated, Next.js will server-render the page on the first request. Future requests will serve the static file from the cache.
