@@ -163,7 +163,7 @@ Answer the questions to create your project, and give it a name, this example us
 
 Open the URL printed in the terminal to ensure that your app is running successfully.
 
-## PART 3: Setting up a Next.js Form API Endpoint
+## Part 3: Setting up a Next.js Form API Route
 
 Both the client and the server will be built using Next.js. For the server part, create an API endpoint where you will send the form data.
 
