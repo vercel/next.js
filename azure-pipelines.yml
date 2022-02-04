@@ -43,8 +43,6 @@ stages:
         pool:
           vmImage: 'windows-2019'
         steps:
-          - checkout: self
-            fetchDepth: 1 # Fetch only one commit
           - script: echo $(Agent.BuildDirectory)
           - script: dir
           - script: dir $(System.DefaultWorkingDirectory)
