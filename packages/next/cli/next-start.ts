@@ -9,7 +9,7 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { existsSync } from 'fs'
 
-const nextStart: cliCommand = async (argv) => {
+const nextStart: cliCommand = async (argv: unknown) => {
   const validArgs: arg.Spec = {
     // Types
     '--help': Boolean,
