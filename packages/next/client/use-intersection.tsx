@@ -94,20 +94,15 @@ function observe(
 const observers = new Map<Identifier, Observer>()
 
 const idList: Identifier[] = []
-function getKeyIndex(x: Identifier) {
-  for (let i = 0; i < idList.length; i++) {
-    if (idList[i].root === x.root && idList[i].margin === x.margin) {
-      return i
-    }
-  }
-  return -1
-}
+
 function createObserver(options: UseIntersectionObserverInit): Observer {
   const id = {
     root: options.root || null,
     margin: options.rootMargin || '',
   }
-  let existing = idList.find(obj => obj.root === id.root && obj.margin === id.margin)
+  let existing = idList.find(
+    (obj) => obj.root === id.root && obj.margin === id.margin
+  )
   let instance
   if (existing) {
     instance = observers.get(existing)
