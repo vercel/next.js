@@ -73,7 +73,7 @@ const nextStart: cliCommand = async (argv) => {
       Log.ready(`started server on ${host}:${app.port}, url: ${appUrl}`)
       await app.prepare()
     })
-    .catch(async (err) => {
+    .catch((err) => {
       console.error(err)
       process.exit(1)
     })
