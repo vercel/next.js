@@ -18,6 +18,11 @@ export type NextConfigComplete = Required<NextConfig> & {
 export interface I18NConfig {
   defaultLocale: string
   domains?: DomainLocale[]
+  /**
+   * When `localeDetection` is set to `false` Next.js will no longer automatically redirect
+   * based on the user's preferred locale and will only provide locale information
+   * detected from either the locale based domain or locale path as described above.
+   */
   localeDetection?: false
   locales: string[]
 }
@@ -72,26 +77,92 @@ export interface NextJsWebpackConfig {
   ): any
 }
 
-export type NextConfig = { [key: string]: any } & {
+export interface ExperimentalConfig {
+  disablePostcssPresetEnv?: boolean
+  removeConsole?:
+    | boolean
+    | {
+        exclude?: string[]
+      }
+  reactRemoveProperties?:
+    | boolean
+    | {
+        properties?: string[]
+      }
+  styledComponents?: boolean
+  swcMinify?: boolean
+  swcFileReading?: boolean
+  cpus?: number
+  sharedPool?: boolean
+  plugins?: boolean
+  profiling?: boolean
+  isrFlushToDisk?: boolean
+  reactMode?: 'legacy' | 'concurrent' | 'blocking'
+  workerThreads?: boolean
+  pageEnv?: boolean
+  optimizeImages?: boolean
+  optimizeCss?: boolean
+  scrollRestoration?: boolean
+  externalDir?: boolean
+  conformance?: boolean
+  amp?: {
+    optimizer?: any
+    validator?: string
+    skipValidation?: boolean
+  }
+  reactRoot?: boolean
+  disableOptimizedLoading?: boolean
+  gzipSize?: boolean
+  craCompat?: boolean
+  esmExternals?: boolean | 'loose'
+  isrMemoryCacheSize?: number
+  concurrentFeatures?: boolean
+  serverComponents?: boolean
+  fullySpecified?: boolean
+  urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
+  outputFileTracingRoot?: string
+  outputStandalone?: boolean
+  relay?: {
+    src: string
+    artifactDirectory?: string
+    language?: 'typescript' | 'flow'
+  }
+}
+
+/**
+ * Next configuration object
+ * @see [configuration documentations](https://nextjs.org/docs/api-reference/next.config.js/introduction)
+ */
+export interface NextConfig extends Record<string, any> {
+  /**
+   * Internationalization configurations
+   *
+   * @see [Internationalization docs](https://nextjs.org/docs/advanced-features/i18n-routing)
+   */
   i18n?: I18NConfig | null
 
+  /**
+   * @since version 11
+   * @see [ESLint configuration](https://nextjs.org/docs/basic-features/eslint)
+   */
   eslint?: ESLintConfig
+
+  /**
+   * @see [Next.js TypeScript documentation](https://nextjs.org/docs/basic-features/typescript)
+   */
   typescript?: TypeScriptConfig
 
   /**
    * Headers allow you to set custom HTTP headers for an incoming request path.
    *
-   * Refer to complete [Headers configuration documentations](https://nextjs.org/docs/api-reference/next.config.js/headers)
+   * @see [Headers configuration documentations](https://nextjs.org/docs/api-reference/next.config.js/headers)
    */
   headers?: () => Promise<Header[]>
 
   /**
    * Rewrites allow you to map an incoming request path to a different destination path.
    *
-   * Rewrites act as a URL proxy and mask the destination path, making it appear the user hasn't changed their location on the site.
-   * In contrast, redirects will reroute to a new page and show the URL changes
-   *
-   * Refer to complete [Rewrites configuration documentations](https://nextjs.org/docs/api-reference/next.config.js/rewrites)
+   * @see [Rewrites configuration documentations](https://nextjs.org/docs/api-reference/next.config.js/rewrites)
    */
   rewrites?: () => Promise<
     | Rewrite[]
@@ -105,184 +176,211 @@ export type NextConfig = { [key: string]: any } & {
   /**
    * Redirects allow you to redirect an incoming request path to a different destination path.
    *
-   * Redirects are only available on the Node.js environment and do not affect client-side routing.
-   *
-   * Refer to complete [Redirects configuration documentations](https://nextjs.org/docs/api-reference/next.config.js/redirects)
+   * @see [Redirects configuration documentations](https://nextjs.org/docs/api-reference/next.config.js/redirects)
    */
   redirects?: () => Promise<Redirect[]>
 
   /**
    * @deprecated This option has been removed as webpack 5 is now default
-   * Webpack 5 is now the default for all Next.js applications. If you did not have custom webpack configuration your application is already using webpack 5.
-   * If you do have custom webpack configuration you can refer to the [Next.js webpack 5 documentation](https://nextjs.org/docs/messages/webpack5) for upgrading guidance.
+   * @see [Next.js webpack 5 documentation](https://nextjs.org/docs/messages/webpack5) for upgrading guidance.
    */
   webpack5?: false
 
   /**
-   * Moment.js includes translations for a lot of locales by default. Next.js now automatically excludes these locales by default
-   * to optimize bundle size for applications using Moment.js.
-   *
-   * To load a specific locale use this snippet:
-   *
-   * ```js
-   * import moment from 'moment'
-   * import 'moment/locale/ja'
-   *
-   * moment.locale('ja')
-   * ```
-   *
-   * You can opt-out of this new default by adding `excludeDefaultMomentLocales: false` to `next.config.js` if you do not want the new behavior,
-   * do note it's highly recommended to not disable this new optimization as it significantly reduces the size of Moment.js.
+   * @see [Moment.js locales excluded by default](https://nextjs.org/docs/upgrading#momentjs-locales-excluded-by-default)
    */
   excludeDefaultMomentLocales?: boolean
 
   /**
    * Before continuing to add custom webpack configuration to your application make sure Next.js doesn't already support your use-case
    *
-   * Refer to complete [Custom Webpack Config documentation](https://nextjs.org/docs/api-reference/next.config.js/custom-webpack-config)
-   *
+   * @see [Custom Webpack Config documentation](https://nextjs.org/docs/api-reference/next.config.js/custom-webpack-config)
    */
   webpack?: NextJsWebpackConfig | null
 
   /**
    * By default Next.js will redirect urls with trailing slashes to their counterpart without a trailing slash.
-   * For example /about/ will redirect to /about. You can configure this behavior to act the opposite way,
-   * where urls without trailing slashes are redirected to their counterparts with trailing slashes.
    *
-   * Refer to complete [Trailing Slash Configuration](https://nextjs.org/docs/api-reference/next.config.js/trailing-slash)
+   * @see [Trailing Slash Configuration](https://nextjs.org/docs/api-reference/next.config.js/trailing-slash)
    */
   trailingSlash?: boolean
 
   /**
-   * Next.js comes with built-in support for environment variables, which allows you to do the following:
+   * Next.js comes with built-in support for environment variables
    *
-   *  - [Use `.env.local` to load environment variables](#loading-environment-variables)
-   *  - [Expose environment variables to the browser by prefixing with `NEXT_PUBLIC_`](#exposing-environment-variables-to-the-browser)
-   *
-   * Refer to complete [Environment Variables documentation](https://nextjs.org/docs/api-reference/next.config.js/environment-variables)
+   * @see [Environment Variables documentation](https://nextjs.org/docs/api-reference/next.config.js/environment-variables)
    */
-  env?: { [key: string]: string }
+  env?: Record<string, string>
+
   /**
    * Detonation directory
    */
   distDir?: string
+
   /**
    * The build output directory (defaults to `.next`) is now cleared by default except for the Next.js caches.
    */
   cleanDistDir?: boolean
+
   /**
    * To set up a CDN, you can set up an asset prefix and configure your CDN's origin to resolve to the domain that Next.js is hosted on.
    *
-   * See [CDN Support with Asset Prefix](https://nextjs.org/docs/api-reference/next.config.js/cdn-support-with-asset-prefix)
+   * @see [CDN Support with Asset Prefix](https://nextjs.org/docs/api-reference/next.config.js/cdn-support-with-asset-prefix)
    */
   assetPrefix?: string
+
   /**
    * By default, `Next` will serve each file in the `pages` folder under a pathname matching the filename.
-   * If your project uses a custom server, this behavior may result in the same content being served from multiple paths,
-   * which can present problems with SEO and UX.
    *
-   * To disable this behavior set this option to `false`.
+   * @see [Disabling file-system routing](https://nextjs.org/docs/advanced-features/custom-server#disabling-file-system-routing)
    */
   useFileSystemPublicRoutes?: boolean
 
   /**
-   * Next.js uses a constant id generated at build time to identify which version of your application is being served.
-   * This can cause problems in multi-server deployments when `next build` is ran on every server.
-   * In order to keep a static build id between builds you can provide your own build id.
-   *
-   * Use this option to provide your own build id.
+   * @see [Configuring the build ID](https://nextjs.org/docs/api-reference/next.config.js/configuring-the-build-id)
    */
   generateBuildId?: () => string | null | Promise<string | null>
 
+  /** @see [Disabling ETag Configuration](https://nextjs.org/docs/api-reference/next.config.js/disabling-etag-generation) */
   generateEtags?: boolean
+
+  /** @see [Including non-page files in the pages directory](https://nextjs.org/docs/api-reference/next.config.js/custom-page-extensions#including-non-page-files-in-the-pages-directory) */
   pageExtensions?: string[]
+
+  /** @see [Compression documentations](https://nextjs.org/docs/api-reference/next.config.js/compression) */
   compress?: boolean
+
+  /** @see [Disabling x-powered-by](https://nextjs.org/docs/api-reference/next.config.js/disabling-x-powered-by) */
   poweredByHeader?: boolean
+
+  /** @see [Using the Image Component](https://nextjs.org/docs/basic-features/image-optimization#using-the-image-component) */
   images?: ImageConfig
+
+  /** Configure indicators in development environment */
   devIndicators?: {
+    /** Show "building..."" indicator in development */
     buildActivity?: boolean
+    /** Position of "building..." indicator in browser */
     buildActivityPosition?:
       | 'bottom-right'
       | 'bottom-left'
       | 'top-right'
       | 'top-left'
   }
+
+  /**
+   * Next.js exposes some options that give you some control over how the server will dispose or keep in memory built pages in development.
+   *
+   * @see [Configuring `onDemandEntries`](https://nextjs.org/docs/api-reference/next.config.js/configuring-onDemandEntries)
+   */
   onDemandEntries?: {
+    /** period (in ms) where the server will keep pages in the buffer */
     maxInactiveAge?: number
+    /** number of pages that should be kept simultaneously without being disposed */
     pagesBufferLength?: number
   }
+
+  /** @see [`next/amp`](https://nextjs.org/docs/api-reference/next/amp) */
   amp?: {
     canonicalBase?: string
   }
+
+  /**
+   * Deploy a Next.js application under a sub-path of a domain
+   *
+   * @see [Base path conguration](https://nextjs.org/docs/api-reference/next.config.js/basepath)
+   */
   basePath?: string
+
+  /** @see [Customizing sass options](https://nextjs.org/docs/basic-features/built-in-css-support#customizing-sass-options) */
   sassOptions?: { [key: string]: any }
+
+  /**
+   * Enable browser source map generation during the production build
+   *
+   * @see [Source Maps](https://nextjs.org/docs/advanced-features/source-maps)
+   */
   productionBrowserSourceMaps?: boolean
+
+  /**
+   * By default, Next.js will automatically inline font CSS at build time
+   *
+   * @since version 10.2
+   * @see [Font Optimization](https://nextjs.org/docs/basic-features/font-optimization)
+   */
   optimizeFonts?: boolean
+
+  /**
+   * The Next.js runtime is Strict Mode-compliant.
+   *
+   * @see [React Strict Mode](https://nextjs.org/docs/api-reference/next.config.js/react-strict-mode)
+   */
   reactStrictMode?: boolean
+
+  /**
+   * Add public (in browser) runtime configuration to your app
+   *
+   * @see [Runtime configuration](https://nextjs.org/docs/api-reference/next.config.js/runtime-configuration)
+   */
   publicRuntimeConfig?: { [key: string]: any }
+
+  /**
+   * Add server runtime configuration to your app
+   *
+   * @see [Runtime configuration](https://nextjs.org/docs/api-reference/next.config.js/runtime-configuration)
+   */
   serverRuntimeConfig?: { [key: string]: any }
+
+  /**
+   * Next.js automatically polyfills node-fetch and enables HTTP Keep-Alive by default.
+   * You may want to disable HTTP Keep-Alive for certain `fetch()` calls or globally.
+   *
+   * @see [Disabling HTTP Keep-Alive](https://nextjs.org/docs/api-reference/next.config.js/disabling-http-keep-alive)
+   */
   httpAgentOptions?: { keepAlive?: boolean }
+
+  /** @deprecated Use `experimental` property for new expriments */
   future?: {
     /**
      * @deprecated This option has been removed as webpack 5 is now default
      */
     webpack5?: false
   }
+
+  /**
+   * During a build, Next.js will automatically trace each page and its dependencies to determine all of the files
+   * that are needed for deploying a production version of your application.
+   *
+   * @see [Output File Tracing](https://nextjs.org/docs/advanced-features/output-file-tracing)
+   */
   outputFileTracing?: boolean
+
+  /**
+   * Timeout after waiting to generate static pages in seconds
+   *
+   * @default 60
+   */
   staticPageGenerationTimeout?: number
+
+  /**
+   * Add `"crossorigin"` attribute to generated `<script>` elements generated by `<Head />` or `<NextScript />` components
+   *
+   *
+   * @see [`crossorigin` attribute documentations](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/crossorigin)
+   */
   crossOrigin?: false | 'anonymous' | 'use-credentials'
+
+  /**
+   * Use [SWC compiler](https://swc.rs) to minify the generated JavaScript
+   *
+   * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
+   */
   swcMinify?: boolean
-  experimental?: {
-    disablePostcssPresetEnv?: boolean
-    removeConsole?:
-      | boolean
-      | {
-          exclude?: string[]
-        }
-    reactRemoveProperties?:
-      | boolean
-      | {
-          properties?: string[]
-        }
-    styledComponents?: boolean
-    swcMinify?: boolean
-    swcFileReading?: boolean
-    cpus?: number
-    sharedPool?: boolean
-    plugins?: boolean
-    profiling?: boolean
-    isrFlushToDisk?: boolean
-    reactMode?: 'legacy' | 'concurrent' | 'blocking'
-    workerThreads?: boolean
-    pageEnv?: boolean
-    optimizeImages?: boolean
-    optimizeCss?: boolean
-    scrollRestoration?: boolean
-    externalDir?: boolean
-    conformance?: boolean
-    amp?: {
-      optimizer?: any
-      validator?: string
-      skipValidation?: boolean
-    }
-    reactRoot?: boolean
-    disableOptimizedLoading?: boolean
-    gzipSize?: boolean
-    craCompat?: boolean
-    esmExternals?: boolean | 'loose'
-    isrMemoryCacheSize?: number
-    concurrentFeatures?: boolean
-    serverComponents?: boolean
-    fullySpecified?: boolean
-    urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
-    outputFileTracingRoot?: string
-    outputStandalone?: boolean
-    relay?: {
-      src: string
-      artifactDirectory?: string
-      language?: 'typescript' | 'flow'
-    }
-  }
+
+  /**
+   * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
+   */
+  experimental?: ExperimentalConfig
 }
 
 export const defaultConfig: NextConfig = {
