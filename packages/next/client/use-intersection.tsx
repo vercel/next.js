@@ -13,7 +13,7 @@ type UseIntersection = { disabled?: boolean } & UseIntersectionObserverInit & {
     rootRef?: React.RefObject<HTMLElement> | null
   }
 type ObserveCallback = (isVisible: boolean) => void
-type idKey = {
+type Identifier = {
   root: Element | Document | null
   margin: string
 }
