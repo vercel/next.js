@@ -107,10 +107,10 @@ function createObserver(options: UseIntersectionObserverInit): Observer {
     root: options.root || null,
     margin: options.rootMargin || '',
   }
-  let index = getKeyIndex(id)
+  let existing = idList.find(obj => obj.root === id.root && obj.margin === id.margin)
   let instance
-  if (index > -1) {
-    instance = observers.get(idList[index])
+  if (existing) {
+    instance = observers.get(existing)
   } else {
     instance = observers.get(id)
     idList.push(id)
