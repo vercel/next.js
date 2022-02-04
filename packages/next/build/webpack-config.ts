@@ -613,14 +613,6 @@ export default async function getBaseWebpackConfig(
           }
         : {}),
 
-      ...(isEdgeRuntime
-        ? {
-            'react-dom/server': dev
-              ? 'react-dom/cjs/react-dom-server.browser.development'
-              : 'react-dom/cjs/react-dom-server.browser.production.min',
-          }
-        : {}),
-
       setimmediate: 'next/dist/compiled/setimmediate',
     },
     ...(targetWeb

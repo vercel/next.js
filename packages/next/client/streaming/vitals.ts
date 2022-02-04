@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { NextWebVitalsMetric } from '../pages/_app'
+import { NextWebVitalsMetric } from '../../pages/_app'
 
 type ReportWebVitalsCallback = (webVitals: NextWebVitalsMetric) => any
 export const webVitalsCallbacks = new Set<ReportWebVitalsCallback>()
