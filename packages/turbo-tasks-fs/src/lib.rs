@@ -5,7 +5,6 @@ use std::{
     fs,
     future::Future,
     io::{self, ErrorKind},
-    ops::Add,
     path::Path,
 };
 
@@ -82,17 +81,21 @@ impl FileSystem for DiskFileSystem {
         let full_path = Path::new(&self.root).join(&fs_path.get().path);
         match &*content.get() {
             FileContent::Content(buffer) => {
-                fs::write(full_path, buffer)
-                    .with_context(|| format!("failed to write to {}", fs_path.get().path))
+                println!("write {} bytes to {}", buffer.len(), full_path.display());
+                fs::write(full_path.clone(), buffer)
+                    .with_context(|| format!("failed to write to {}", full_path.display()))
                     .unwrap();
             }
-            FileContent::NotFound => match fs::remove_file(full_path) {
-                Ok(_) => {}
-                Err(err) if err.kind() == ErrorKind::NotFound => {}
-                Err(err) => {
-                    panic!("{}", err);
+            FileContent::NotFound => {
+                println!("remove {}", full_path.display());
+                match fs::remove_file(full_path) {
+                    Ok(_) => {}
+                    Err(err) if err.kind() == ErrorKind::NotFound => {}
+                    Err(err) => {
+                        panic!("{}", err);
+                    }
                 }
-            },
+            }
         }
         Task::side_effect();
     }

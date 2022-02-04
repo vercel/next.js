@@ -161,7 +161,6 @@ impl Task {
         native_fn: &'static NativeFunction,
     ) -> Result<Self> {
         let bound_fn = native_fn.bind(inputs.clone())?;
-        println!("New task for {}", native_fn.name);
         Ok(Self {
             inputs,
             native_fn: Some(native_fn),
@@ -201,22 +200,25 @@ impl Task {
                 deps_guard.clear();
                 drop(deps_guard);
 
-                // TODO this is super inefficient
+                // TODO this is inefficient
                 // use HashSet instead
+                fn remove_all(vec: &mut Vec<Weak<Task>>, item: &Weak<Task>) {
+                    for i in 0..vec.len() {
+                        while i < vec.len() && Weak::ptr_eq(&vec[i], item) {
+                            vec.swap_remove(i);
+                        }
+                    }
+                }
                 let weak_self = Arc::downgrade(self);
                 for child in children {
                     let mut state = child.state.lock().unwrap();
-                    state
-                        .parents
-                        .retain(|parent| !Weak::ptr_eq(parent, &weak_self));
+                    remove_all(&mut state.parents, &weak_self);
                 }
 
                 for dep in dependencies {
                     if let Some(node_ref) = dep.upgrade() {
                         let mut state = node_ref.state.write().unwrap();
-                        state
-                            .dependent_tasks
-                            .retain(|task| !Weak::ptr_eq(task, &weak_self));
+                        remove_all(&mut state.dependent_tasks, &weak_self);
                     }
                 }
             }
@@ -706,21 +708,27 @@ pub(crate) fn match_previous_node_by_type<
 impl Visualizable for Task {
     fn visualize(&self, visualizer: &mut impl crate::viz::Visualizer) {
         let state = self.state.lock().unwrap();
+        let state_str =
+            if state.state_type == Done && state.output_changes <= 1 && state.executions <= 1 {
+                "".to_string()
+            } else {
+                match state.state_type {
+                    Scheduled => "scheduled",
+                    InProgressLocally => "in progress (locally)",
+                    InProgressLocallyOutdated => "in progress (locally, outdated)",
+                    Done => "done",
+                    Dirty => "dirty",
+                    SomeChildrenDirty => "some children dirty",
+                    SomeChildrenScheduled => "some children scheduled",
+                }
+                .to_string()
+                    + &format!(" ({}x executed)", state.executions)
+            };
         if visualizer.task(
             self as *const Task,
             self.native_fn
                 .map_or_else(|| "unnamed", |native_fn| &native_fn.name),
-            &(match state.state_type {
-                Scheduled => "scheduled",
-                InProgressLocally => "in progress (locally)",
-                InProgressLocallyOutdated => "in progress (locally, outdated)",
-                Done => "done",
-                Dirty => "dirty",
-                SomeChildrenDirty => "some children dirty",
-                SomeChildrenScheduled => "some children scheduled",
-            }
-            .to_string()
-                + &format!(" ({}/{})", state.output_changes, state.executions)),
+            &state_str,
         ) {
             let children = state.children.clone();
             let output = state.output.clone();
@@ -740,6 +748,19 @@ impl Visualizable for Task {
             if let Some(output) = output {
                 output.visualize(visualizer);
                 visualizer.output(self as *const Task, &*output as *const Node);
+            }
+            {
+                let previous_nodes = self.previous_nodes.lock().unwrap();
+                for (_, nodes) in previous_nodes.by_type.values() {
+                    for node in nodes {
+                        node.visualize(visualizer);
+                        visualizer.created(self as *const Task, &**node as *const Node);
+                    }
+                }
+                for node in previous_nodes.by_key.values() {
+                    node.visualize(visualizer);
+                    visualizer.created(self as *const Task, &**node as *const Node);
+                }
             }
             let deps = self.dependencies.read().unwrap();
             if !deps.is_empty() {

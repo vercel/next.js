@@ -1,4 +1,5 @@
 use std::{
+    collections::{HashMap, HashSet},
     sync::{atomic::*, Arc},
     time::Duration,
 };
@@ -49,6 +50,23 @@ impl<T: TraceNodeRefs> TraceNodeRefs for Vec<T> {
     fn trace_node_refs(&self, context: &mut TraceNodeRefsContext) {
         for item in self.iter() {
             TraceNodeRefs::trace_node_refs(item, context);
+        }
+    }
+}
+
+impl<T: TraceNodeRefs> TraceNodeRefs for HashSet<T> {
+    fn trace_node_refs(&self, context: &mut TraceNodeRefsContext) {
+        for item in self.iter() {
+            TraceNodeRefs::trace_node_refs(item, context);
+        }
+    }
+}
+
+impl<K: TraceNodeRefs, V: TraceNodeRefs> TraceNodeRefs for HashMap<K, V> {
+    fn trace_node_refs(&self, context: &mut TraceNodeRefsContext) {
+        for (key, value) in self.iter() {
+            TraceNodeRefs::trace_node_refs(key, context);
+            TraceNodeRefs::trace_node_refs(value, context);
         }
     }
 }

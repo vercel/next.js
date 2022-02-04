@@ -111,6 +111,7 @@ pub struct Node {
 pub(crate) struct NodeState {
     // content can change, but must not change it type
     content: Arc<dyn Any + Send + Sync>,
+    updates: i32,
     nested_nodes: Vec<WeakNodeRef>,
     // TODO use a concurrent set instead
     pub(crate) dependent_tasks: Vec<Weak<Task>>,
@@ -133,6 +134,7 @@ impl NodeRef {
                 state: RwLock::new(NodeState {
                     nested_nodes: content.get_node_refs(),
                     content: content as Arc<dyn Any + Send + Sync>,
+                    updates: 0,
                     dependent_tasks: Vec::new(),
                 }),
             }),
@@ -171,6 +173,7 @@ impl NodeRef {
         let mut state = self.node.state.write().unwrap();
         state.nested_nodes = nested_nodes;
         state.content = content;
+        state.updates += 1;
         let dependent_tasks: Vec<_> = state
             .dependent_tasks
             .iter()
@@ -293,8 +296,13 @@ impl fmt::Debug for WeakNodeRef {
 
 impl Visualizable for NodeRef {
     fn visualize(&self, visualizer: &mut impl crate::viz::Visualizer) {
-        if visualizer.node(&**self as *const Node, &self.node_type.name) {
-            let state = self.state.read().unwrap();
+        let state = self.state.read().unwrap();
+        let state_str = if state.updates > 0 {
+            format!("{}x updated", state.updates)
+        } else {
+            "".to_string()
+        };
+        if visualizer.node(&**self as *const Node, &self.node_type.name, &state_str) {
             let nested_nodes: Vec<_> = state
                 .nested_nodes
                 .iter()
@@ -304,8 +312,8 @@ impl Visualizable for NodeRef {
             if !nested_nodes.is_empty() {
                 visualizer.nested_start(&**self as *const Node);
                 for child in nested_nodes {
-                    visualizer.nested(&**self as *const Node, &*child as *const Node);
                     child.visualize(visualizer);
+                    visualizer.nested(&**self as *const Node, &*child as *const Node);
                 }
                 visualizer.nested_end(&**self as *const Node);
             }

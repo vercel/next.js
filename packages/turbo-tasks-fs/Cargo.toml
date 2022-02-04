@@ -10,3 +10,4 @@ lazy_static = "1.4.0"
 anyhow = "1.0.47"
 async-trait = "0.1.52"
 "turbo-tasks" = { path = "../turbo-tasks" }
+async-std = "1.10.0"
