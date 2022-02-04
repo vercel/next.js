@@ -511,14 +511,14 @@ function runTests({
 
     it('should use cache and stale-while-revalidate when query is the same for external image', async () => {
       await fs.remove(imagesDir)
+      const delay = 1000
 
-      const url =
-        'https://image-optimization-test.vercel.app/api/slow?delay=1000'
+      const url = `https://image-optimization-test.vercel.app/api/slow?delay=${1000}`
       const query = { url, w, q: 39 }
       const opts = { headers: { accept: 'image/webp' } }
 
       const one = await fetchWithDuration(appPort, '/_next/image', query, opts)
-      expect(one.duration).toBeGreaterThan(900)
+      expect(one.duration).toBeGreaterThan(delay)
       expect(one.res.status).toBe(200)
       expect(one.res.headers.get('X-Nextjs-Cache')).toBe('MISS')
       expect(one.res.headers.get('Content-Type')).toBe('image/webp')
@@ -540,7 +540,7 @@ function runTests({
 
       if (minimumCacheTTL) {
         // Wait until expired so we can confirm image is regenerated
-        await waitFor(minimumCacheTTL * 1000)
+        await waitFor(minimumCacheTTL * 1000 - delay)
 
         const [three, four] = await Promise.all([
           fetchWithDuration(appPort, '/_next/image', query, opts),
@@ -577,7 +577,7 @@ function runTests({
         )
         expect(five.duration).toBeLessThan(one.duration)
         expect(five.res.status).toBe(200)
-        expect(five.res.headers.get('X-Nextjs-Cache')).toBe('STALE')
+        expect(five.res.headers.get('X-Nextjs-Cache')).toBe('HIT')
         expect(five.res.headers.get('Content-Type')).toBe('image/webp')
         expect(five.res.headers.get('Content-Disposition')).toBe(
           `inline; filename="slow.webp"`

@@ -220,25 +220,30 @@ export async function imageOptimizer(
     const now = Date.now()
     const freshFiles = []
     const staleFiles = []
-    let metadata: FileMetadata | undefined
+    let cachedFile: FileMetadata | undefined
     const files = (await promises.readdir(hashDir).catch(() => {})) || []
+
     for (let filename of files) {
-      const metadata = getFileMetadata(filename)
-      if (now < metadata.expireAt) {
-        freshFiles.push(metadata)
+      const meta = getFileMetadata(filename)
+      if (now < meta.expireAt) {
+        freshFiles.push(meta)
       } else {
-        staleFiles.push(metadata)
+        staleFiles.push(meta)
       }
     }
+
     if (freshFiles.length > 0) {
-      metadata = freshFiles[0]
+      cachedFile = freshFiles[0]
       xCache = 'HIT'
     } else if (staleFiles.length > 0) {
-      metadata = staleFiles[0]
+      cachedFile = staleFiles[0]
       xCache = 'STALE'
+    } else {
+      xCache = 'MISS'
     }
-    if (metadata) {
-      const { filename, maxAge, etag, contentType } = metadata
+
+    if (cachedFile) {
+      const { filename, maxAge, etag, contentType } = cachedFile
       const buffer = await promises.readFile(join(hashDir, filename))
       await sendResponse(
         sendDedupe,
