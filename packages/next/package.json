@@ -161,7 +161,7 @@
     "@vercel/ncc": "0.33.1",
     "@vercel/nft": "0.17.4",
     "acorn": "8.5.0",
-    "amphtml-validator": "1.0.33",
+    "amphtml-validator": "1.0.35",
     "arg": "4.1.0",
     "assert": "2.0.0",
     "async-retry": "1.2.3",
