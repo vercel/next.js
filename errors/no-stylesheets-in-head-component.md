@@ -14,30 +14,28 @@ We don't recommend this pattern because it will potentially break when used with
 
 #### Document
 
-Add the stylesheet in a custom `Document` component:
+Add the stylesheet in a custom `Document` component.
 
 ```jsx
 // pages/_document.js
 import Document, { Html, Head, Main, NextScript } from 'next/document'
 
-class MyDocument extends Document {
-  render() {
-    return (
-      <Html>
-        <Head>
-          <link rel="stylesheet" href="..." />
-        </Head>
-        <body>
-          <Main />
-          <NextScript />
-        </body>
-      </Html>
-    )
-  }
+export default function Document() {
+  return (
+    <Html>
+      <Head>
+        <link rel="stylesheet" href="..." />
+      </Head>
+      <body>
+        <Main />
+        <NextScript />
+      </body>
+    </Html>
+  )
 }
-
-export default MyDocument
 ```
+
+Note that the functional syntax for `Document` above is preferred over the `class` syntax, so that it will be compatible with React Server Components down the line.
 
 ### Useful Links
 
