@@ -146,11 +146,13 @@ export default class NextWebServer extends BaseServer {
   ): Promise<void> {
     // @TODO
     const writer = res.transformStream.writable.getWriter()
-    const encoder = new TextEncoder()
     options.result.pipe({
-      write: (str: string) => writer.write(encoder.encode(str)),
+      write: (chunk: Uint8Array) => writer.write(chunk),
       end: () => writer.close(),
-      // Not implemented: cork/uncork/on/removeListener
+      destroy: (err: Error) => writer.abort(err),
+      cork: () => {},
+      uncork: () => {},
+      // Not implemented: on/removeListener
     } as any)
 
     // To prevent Safari's bfcache caching the "shell", we have to add the
