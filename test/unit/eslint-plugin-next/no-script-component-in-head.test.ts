@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-script-in-head'
+import rule from '@next/eslint-plugin-next/lib/rules/no-script-component-in-head'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {
@@ -44,7 +44,7 @@ ruleTester.run('no-script-in-head', rule, {
       errors: [
         {
           message:
-            "next/script shouldn't be used inside next/head. See: https://nextjs.org/docs/messages/no-script-in-head-component",
+            "next/script shouldn't be used inside next/head. See: https://nextjs.org/docs/messages/no-script-component-in-head-component",
         },
       ],
     },

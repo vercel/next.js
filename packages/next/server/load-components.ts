@@ -19,7 +19,7 @@ export type ManifestItem = {
   files: string[]
 }
 
-type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
+export type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 
 export type LoadComponentsReturnType = {
   Component: React.ComponentType

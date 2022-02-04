@@ -46,6 +46,8 @@ The following steps outline how to setup `@next/mdx` in your Next.js project:
      options: {
        remarkPlugins: [],
        rehypePlugins: [],
+       // If you use `MDXProvider`, uncomment the following line.
+       // providerImportSource: "@mdx-js/react",
      },
    })
    module.exports = withMDX({
@@ -153,7 +155,7 @@ The above generates the following `HTML`:
 </ul>
 ```
 
-When you want to style your own elements to give a custom feel to your website or application, you can pass in shortcodes. These are your own custom components that map to `HTML` elements. To do this you use the `MDXProvider` and pass a components object as a prop. Each object key in the components object maps to a `HTML` element name.
+When you want to style your own elements to give a custom feel to your website or application, you can pass in shortcodes. These are your own custom components that map to `HTML` elements. To do this you use the `MDXProvider` and pass a components object as a prop. Each object key in the components object maps to a `HTML` element name. You also need to specify `providerImportSource: "@mdx-js/react"` in `next.config.js`.
 
 ```jsx
 // pages/index.js
