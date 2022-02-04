@@ -1414,6 +1414,29 @@ describe('Client Navigation', () => {
       }
     })
 
+    it('should warn when stylesheets are in head', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head')
+
+        await browser.waitForElementByCss('h1')
+        await waitFor(2000)
+        const browserLogs = await browser.log('browser')
+        let found = false
+        browserLogs.forEach((log) => {
+          console.log('log.message', log.message)
+          if (log.message.includes('Do not add stylesheets using next/head')) {
+            found = true
+          }
+        })
+        expect(found).toEqual(true)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
     it('should update head during client routing', async () => {
       let browser
       try {
