@@ -1546,7 +1546,7 @@ function renderToNodeStream(
   return new Promise((resolve, reject) => {
     let underlyingStream: WritableType | null = null
     let queuedCallbacks: Array<(error?: Error | null) => void> = []
-    let shellFlushed = false
+    let shellCompleted = false
 
     const closeTag = '</body></html>'
     const [suffixUnclosed] = suffix.split(closeTag)
@@ -1554,6 +1554,8 @@ function renderToNodeStream(
     // Based on the suggestion here:
     // https://github.com/reactwg/react-18/discussions/110
     let suffixFlushed = false
+    let suffixFlushing = false
+
     class NextWritable extends Writable {
       _write(
         chunk: any,
@@ -1573,14 +1575,17 @@ function renderToNodeStream(
           callback()
         }
 
-        if (!shellFlushed) {
-          shellFlushed = true
+        if (shellCompleted && !suffixFlushed && !suffixFlushing) {
+          suffixFlushing = true
+
           // In the first round of streaming, all chunks will be finished in the micro task.
           // We use setTimeout to guarantee the suffix is flushed after the micro task.
           setTimeout(() => {
+            suffixFlushing = false
+            suffixFlushed = true
+
             // Flush the suffix if stream is not closed.
             if (underlyingStream) {
-              suffixFlushed = true
               underlyingStream.write(suffixUnclosed)
             }
           })
@@ -1647,7 +1652,7 @@ function renderToNodeStream(
           abort()
         },
         onCompleteShell() {
-          shellFlushed = true
+          shellCompleted = true
           if (!generateStaticHTML) {
             doResolve(() => pipe(stream))
           }

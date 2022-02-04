@@ -377,11 +377,14 @@ export default async function getBaseWebpackConfig(
     )
   }
 
+  const targetWeb = isEdgeRuntime || !isServer
   const runtime = config.experimental.runtime
   const hasConcurrentFeatures = !!runtime && hasReactRoot
   const hasServerComponents =
     hasConcurrentFeatures && !!config.experimental.serverComponents
-  const targetWeb = isEdgeRuntime || !isServer
+  const disableOptimizedLoading = hasConcurrentFeatures
+    ? true
+    : config.experimental.disableOptimizedLoading
 
   if (isEdgeRuntime) {
     Log.warn(
@@ -1595,7 +1598,7 @@ export default async function getBaseWebpackConfig(
     pageEnv: config.experimental.pageEnv,
     excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
     assetPrefix: config.assetPrefix,
-    disableOptimizedLoading: config.experimental.disableOptimizedLoading,
+    disableOptimizedLoading,
     target,
     isEdgeRuntime,
     reactProductionProfiling,

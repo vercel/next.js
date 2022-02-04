@@ -69,8 +69,8 @@ export function getRender({
     webServerConfig: {
       extendRenderOpts: {
         buildId,
-        supportsDynamicHTML: true,
         runtime: 'edge',
+        supportsDynamicHTML: true,
         disableOptimizedLoading: true,
         serverComponentManifest,
       },
