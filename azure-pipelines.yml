@@ -45,7 +45,6 @@ stages:
         steps:
           - checkout: self
             fetchDepth: 1 # Fetch only one commit
-            path: $(System.DefaultWorkingDirectory)
           - script: echo $(Agent.BuildDirectory)
           - script: dir
           - script: dir $(System.DefaultWorkingDirectory)
