@@ -1555,7 +1555,6 @@ async function bufferedReadFromReadableStream(
     }
   }
 
-  const encoder = new TextEncoder()
   while (true) {
     const { done, value } = await reader.read()
     if (done) {
