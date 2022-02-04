@@ -58,7 +58,7 @@ import {
   Redirect,
 } from '../lib/load-custom-routes'
 import { DomainLocale } from './config'
-import RenderResult, { ResultPiper } from './render-result'
+import RenderResult from './render-result'
 import isError from '../lib/is-error'
 import { readableStreamTee } from './web/utils'
 
@@ -1106,14 +1106,7 @@ export async function renderToHTML(
       }),
       serverComponentManifest
     )
-    const reader = stream.getReader()
-    const piper: ResultPiper = (push, next) => {
-      bufferedReadFromReadableStream(reader, push).then(
-        () => next(),
-        (innerErr) => next(innerErr)
-      )
-    }
-    return new RenderResult(chainPipers([piper]))
+    return new RenderResult(stream.pipeThrough(createBufferedTransformStream()))
   }
 
   // we preload the buildManifest for auto-export dynamic pages
@@ -1217,7 +1210,8 @@ export async function renderToHTML(
       }
 
       return {
-        bodyResult: (suffix: string) => piperFromArray([docProps.html, suffix]),
+        bodyResult: (suffix: string) =>
+          streamFromArray([docProps.html, suffix]),
         documentElement: (htmlProps: HtmlProps) => (
           <Document {...htmlProps} {...docProps} />
         ),
@@ -1252,11 +1246,11 @@ export async function renderToHTML(
           // up to date when getWrappedApp is called
 
           const content = renderContent()
-          return await renderToWebStream(
+          return await renderToStream(
             ReactDOMServer,
             content,
             suffix,
-            serverComponentsInlinedTransformStream,
+            serverComponentsInlinedTransformStream?.readable ?? null,
             generateStaticHTML
           )
         }
@@ -1266,7 +1260,7 @@ export async function renderToHTML(
         // before _document so that updateHead is called/collected before
         // rendering _document's head
         const result = ReactDOMServer.renderToString(content)
-        bodyResult = (suffix: string) => piperFromArray([result, suffix])
+        bodyResult = (suffix: string) => streamFromArray([result, suffix])
       }
 
       return {
@@ -1442,8 +1436,8 @@ export async function renderToHTML(
     prefix.push('<!-- __NEXT_DATA__ -->')
   }
 
-  let pipers: Array<ResultPiper> = [
-    piperFromArray(prefix),
+  let streams: Array<ReadableStream> = [
+    streamFromArray(prefix),
     await documentResult.bodyResult(renderTargetSuffix),
   ]
 
@@ -1499,7 +1493,7 @@ export async function renderToHTML(
   ).filter(Boolean)
 
   if (generateStaticHTML || postProcessors.length > 0) {
-    let html = await piperToString(chainPipers(pipers))
+    let html = await streamToString(chainStreams(streams))
     for (const postProcessor of postProcessors) {
       if (postProcessor) {
         html = await postProcessor(html)
@@ -1508,7 +1502,7 @@ export async function renderToHTML(
     return new RenderResult(html)
   }
 
-  return new RenderResult(chainPipers(pipers))
+  return new RenderResult(chainStreams(streams))
 }
 
 function errorToJSON(err: Error) {
@@ -1569,18 +1563,110 @@ async function bufferedReadFromReadableStream(
   await pendingFlush
 }
 
-function renderToWebStream(
+function createTransformStream({
+  flush,
+  transform,
+  start,
+}: {
+  flush: () => Promise<void> | void
+  transform: (chunk: Uint8Array) => void
+  start: (controller: TransformStreamDefaultController) => void
+}): TransformStream {
+  const source = new TransformStream()
+  const sink = new TransformStream()
+  const reader = source.readable.getReader()
+  const writer = sink.writable.getWriter()
+
+  start({
+    enqueue(chunk) {
+      writer.write(chunk)
+    },
+
+    error(reason) {
+      writer.abort(reason)
+    },
+
+    terminate() {
+      writer.close()
+    },
+
+    get desiredSize() {
+      return writer.desiredSize
+    },
+  })
+  ;(async () => {
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+
+        if (done) {
+          await flush()
+          writer.close()
+          return
+        }
+
+        transform(value)
+      }
+    } catch (err) {
+      writer.abort(err)
+    }
+  })()
+
+  return {
+    readable: sink.readable,
+    writable: source.writable,
+  }
+}
+
+function createBufferedTransformStream(): TransformStream {
+  const decoder = new TextDecoder()
+  const encoder = new TextEncoder()
+
+  let bufferedString = ''
+  let pendingFlush: Promise<void> | null = null
+  let controller: TransformStreamDefaultController
+
+  const flushBuffer = () => {
+    if (!pendingFlush) {
+      pendingFlush = new Promise((resolve) => {
+        setTimeout(() => {
+          controller.enqueue(encoder.encode(bufferedString))
+          bufferedString = ''
+          pendingFlush = null
+          resolve()
+        }, 0)
+      })
+    }
+    return pendingFlush
+  }
+
+  return createTransformStream({
+    start(transformController) {
+      controller = transformController
+    },
+
+    transform(chunk) {
+      bufferedString += decoder.decode(chunk)
+      flushBuffer()
+    },
+
+    flush() {
+      if (pendingFlush) {
+        return pendingFlush
+      }
+    },
+  })
+}
+
+function renderToStream(
   ReactDOMServer: typeof import('react-dom/server'),
   element: React.ReactElement,
   suffix: string,
-  serverComponentsInlinedTransformStream: TransformStream | null,
+  dataStream: ReadableStream | null,
   generateStaticHTML: boolean
-): Promise<ResultPiper> {
+): Promise<ReadableStream> {
   return new Promise((resolve, reject) => {
     let resolved = false
-    const inlinedDataReader = serverComponentsInlinedTransformStream
-      ? serverComponentsInlinedTransformStream.readable.getReader()
-      : null
 
     const closeTagString = '</body></html>'
     const encoder = new TextEncoder()
@@ -1590,26 +1676,54 @@ function renderToWebStream(
     const doResolve = () => {
       if (!resolved) {
         resolved = true
-        resolve((push, next) => {
-          let shellFlushed = false
-          Promise.all([
-            bufferedReadFromReadableStream(reader, (val) => {
-              push(val)
-              if (!shellFlushed) {
-                shellFlushed = true
-                push([suffixUnclosed])
-              }
-            }),
-            inlinedDataReader &&
-              bufferedReadFromReadableStream(inlinedDataReader, push),
-          ]).then(
-            () => {
-              push([closeTag])
-              next()
-            },
-            (err) => next(err)
+
+        let controller: TransformStreamDefaultController
+        let dataStreamFinished: Promise<void> | null = null
+        let shellFlushed = false
+
+        resolve(
+          stream.pipeThrough(createBufferedTransformStream()).pipeThrough(
+            createTransformStream({
+              start(transformController) {
+                controller = transformController
+              },
+              transform(chunk) {
+                controller.enqueue(chunk)
+
+                if (!shellFlushed) {
+                  shellFlushed = true
+                  controller.enqueue(suffixUnclosed)
+                }
+
+                if (!dataStreamFinished && dataStream) {
+                  const dataStreamReader = dataStream.getReader()
+                  dataStreamFinished = (async () => {
+                    try {
+                      while (true) {
+                        const { done, value } = await dataStreamReader.read()
+                        if (done) {
+                          return
+                        }
+                        controller.enqueue(value)
+                      }
+                    } catch (err) {
+                      controller.error(err)
+                    }
+                  })()
+                }
+              },
+              flush() {
+                const flushCloseTag = () => {
+                  controller.enqueue(closeTag)
+                }
+                if (dataStreamFinished) {
+                  return dataStreamFinished.then(flushCloseTag)
+                }
+                flushCloseTag()
+              },
+            })
           )
-        })
+        )
       }
     }
 
@@ -1635,45 +1749,48 @@ function renderToWebStream(
   })
 }
 
-function chainPipers(pipers: ResultPiper[]): ResultPiper {
-  return pipers.reduceRight(
-    (lhs, rhs) => (push, next) => {
-      rhs(push, (err) => (err ? next(err) : lhs(push, next)))
-    },
-    (_, next) => {
-      next()
-    }
-  )
+function chainStreams(streams: ReadableStream[]): ReadableStream {
+  const { readable, writable } = new TransformStream()
+
+  let promise = Promise.resolve()
+  for (let i = 0; i < streams.length; ++i) {
+    promise = promise.then(() =>
+      streams[i].pipeTo(writable, {
+        preventClose: i < streams.length,
+      })
+    )
+  }
+
+  return readable
 }
 
-function piperFromArray(strings: string[]): ResultPiper {
+function streamFromArray(strings: string[]): ReadableStream {
   const encoder = new TextEncoder()
   const chunks = Array.from(strings.map((str) => encoder.encode(str)))
-  return (push, next) => {
-    push(chunks)
-    next()
-  }
+
+  return new ReadableStream({
+    start(controller) {
+      chunks.forEach((chunk) => controller.enqueue(chunk))
+      controller.close()
+    },
+  })
 }
 
-function piperToString(input: ResultPiper): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const textDecoder = new TextDecoder()
-    let bufferedString = ''
+async function streamToString(stream: ReadableStream): Promise<string> {
+  const reader = stream.getReader()
+  const decoder = new TextDecoder()
 
-    input(
-      (chunks) =>
-        chunks.forEach(
-          (chunk) => (bufferedString += textDecoder.decode(chunk))
-        ),
-      (err) => {
-        if (err) {
-          reject(err)
-        } else {
-          resolve(bufferedString)
-        }
-      }
-    )
-  })
+  let bufferedString = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+
+    if (done) {
+      return bufferedString
+    }
+
+    bufferedString += decoder.decode(value)
+  }
 }
 
 export function useMaybeDeferContent(
