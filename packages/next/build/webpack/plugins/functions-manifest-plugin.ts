@@ -96,9 +96,7 @@ export default class FunctionsManifestPlugin {
           if (exportName === 'config') {
             const varDecl = declaration.declarations[0]
             const { properties } = varDecl.init
-            const prop = properties.find(
-              (prop: any) => prop.key.name === 'runtime'
-            )
+            const prop = properties.find((p: any) => p.key.name === 'runtime')
             if (!prop) return
             const runtime = prop.value.value
             if (!['nodejs', 'edge'].includes(runtime))
