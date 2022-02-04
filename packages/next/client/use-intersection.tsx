@@ -93,8 +93,8 @@ function observe(
 
 const observers = new Map<Identifier, Observer>()
 
-const idList: idKey[] = []
-function getKeyIndex(x: idKey) {
+const idList: Identifier[] = []
+function getKeyIndex(x: Identifier) {
   for (let i = 0; i < idList.length; i++) {
     if (idList[i].root === x.root && idList[i].margin === x.margin) {
       return i
