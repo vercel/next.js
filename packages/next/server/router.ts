@@ -8,7 +8,6 @@ import { RouteHas } from '../lib/load-custom-routes'
 import { matchHas } from '../shared/lib/router/utils/prepare-destination'
 import { getRequestMeta } from './request-meta'
 import { BaseNextRequest, BaseNextResponse } from './base-http'
-import { API_ROUTE } from '../lib/constants'
 
 export const route = pathMatch()
 
@@ -304,7 +303,6 @@ export default class Router {
       const keepBasePath =
         isCustomRoute || isPublicFolderCatchall || isMiddlewareCatchall
       const keepLocale = isCustomRoute
-      const isPageChecker = testRoute.name.includes('page check')
 
       const currentPathnameNoBasePath = replaceBasePath(
         currentPathname,
@@ -328,7 +326,7 @@ export default class Router {
       if (
         !isCustomRoute &&
         localePathResult.detectedLocale &&
-        localePathResult.pathname.match(API_ROUTE)
+        localePathResult.pathname.match(/^\/api(?:\/|$)/)
       ) {
         continue
       }
