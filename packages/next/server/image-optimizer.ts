@@ -11,7 +11,6 @@ import { join } from 'path'
 import Stream from 'stream'
 import nodeUrl, { UrlWithParsedQuery } from 'url'
 import { NextConfig } from './config-shared'
-import { fileExists } from '../lib/file-exists'
 import { ImageConfig, imageConfigDefault } from './image-config'
 import { processBuffer, decodeBuffer, Operation } from './lib/squoosh/main'
 import { sendEtagResponse } from './send-payload'
@@ -20,7 +19,14 @@ import chalk from 'next/dist/compiled/chalk'
 import { NextUrlWithParsedQuery } from './request-meta'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
-type Inflight = { buffer: Buffer; file: string }
+type Inflight = { buffer: Buffer; filename: string }
+type FileMetadata = {
+  filename: string
+  maxAge: number
+  expireAt: number
+  etag: string
+  contentType: string | null
+}
 
 const AVIF = 'image/avif'
 const WEBP = 'image/webp'
@@ -182,27 +188,28 @@ export async function imageOptimizer(
   const hashDir = join(imagesDir, hash)
   const previousInflight = inflightRequests.get(hashDir)
   let xCache: XCacheHeader = 'MISS'
+  let sendDedupe = { sent: false }
 
   // If there are concurrent requests hitting the same STALE resource,
   // we can serve it from memory to avoid blocking below.
   if (previousInflight && (await previousInflight)) {
-    xCache = 'STALE'
-    const { file, buffer } = (await previousInflight)!
-    const { maxAge, etag, contentType } = getFileMetadata(file)
-    const result = setResponseHeaders(
+    const now = Date.now()
+    const { filename, buffer } = (await previousInflight)!
+    const { maxAge, expireAt, etag, contentType } = getFileMetadata(filename)
+    xCache = now < expireAt ? 'HIT' : 'STALE'
+    await sendResponse(
+      sendDedupe,
       req,
       res,
       url,
-      etag,
       maxAge,
       contentType,
+      buffer,
       isStatic,
       isDev,
-      xCache
+      xCache,
+      etag
     )
-    if (!result.finished) {
-      res.end(buffer)
-    }
     return { finished: true }
   }
 
@@ -210,35 +217,48 @@ export async function imageOptimizer(
   inflightRequests.set(hashDir, currentInflight.promise)
 
   try {
-    if (await fileExists(hashDir, 'directory')) {
-      const now = Date.now()
-      const files = await promises.readdir(hashDir)
-      for (let file of files) {
-        const { maxAge, expireAt, etag, contentType } = getFileMetadata(file)
-        xCache = now < expireAt ? 'HIT' : 'STALE'
-        const result = setResponseHeaders(
-          req,
-          res,
-          url,
-          etag,
-          maxAge,
-          contentType,
-          isStatic,
-          isDev,
-          xCache
-        )
-        if (!result.finished) {
-          const fsPath = join(hashDir, file)
-          const buffer = await promises.readFile(fsPath)
-          if (xCache === 'STALE') {
-            await promises.unlink(fsPath)
-            currentInflight.resolve({ buffer, file })
-          }
-          res.end(buffer)
-        }
-        if (xCache === 'HIT') {
-          return { finished: true }
-        }
+    const now = Date.now()
+    const freshFiles = []
+    const staleFiles = []
+    let metadata: FileMetadata | undefined
+    const files = (await promises.readdir(hashDir).catch(() => {})) || []
+    for (let filename of files) {
+      const metadata = getFileMetadata(filename)
+      if (now < metadata.expireAt) {
+        freshFiles.push(metadata)
+      } else {
+        staleFiles.push(metadata)
+      }
+    }
+    if (freshFiles.length > 0) {
+      metadata = freshFiles[0]
+      xCache = 'HIT'
+    } else if (staleFiles.length > 0) {
+      metadata = staleFiles[0]
+      xCache = 'STALE'
+    }
+    if (metadata) {
+      const { filename, maxAge, etag, contentType } = metadata
+      const buffer = await promises.readFile(join(hashDir, filename))
+      await sendResponse(
+        sendDedupe,
+        req,
+        res,
+        url,
+        maxAge,
+        contentType,
+        buffer,
+        isStatic,
+        isDev,
+        xCache,
+        etag
+      )
+      for (let stale of staleFiles) {
+        await promises.unlink(join(hashDir, stale.filename))
+      }
+      currentInflight.resolve({ filename, buffer })
+      if (xCache === 'HIT') {
+        return { finished: true }
       }
     }
 
@@ -346,7 +366,8 @@ export async function imageOptimizer(
           expireAt,
           upstreamBuffer
         )
-        sendResponse(
+        await sendResponse(
+          sendDedupe,
           req,
           res,
           url,
@@ -500,7 +521,8 @@ export async function imageOptimizer(
           expireAt,
           optimizedBuffer
         )
-        sendResponse(
+        await sendResponse(
+          sendDedupe,
           req,
           res,
           url,
@@ -515,7 +537,8 @@ export async function imageOptimizer(
         throw new Error('Unable to optimize buffer')
       }
     } catch (error) {
-      sendResponse(
+      await sendResponse(
+        sendDedupe,
         req,
         res,
         url,
@@ -606,6 +629,7 @@ function setResponseHeaders(
 }
 
 function sendResponse(
+  sendDedupe: { sent: boolean },
   req: IncomingMessage,
   res: ServerResponse,
   url: string,
@@ -614,26 +638,35 @@ function sendResponse(
   buffer: Buffer,
   isStatic: boolean,
   isDev: boolean,
-  xCache: XCacheHeader
-) {
-  if (xCache === 'STALE') {
-    return
-  }
-  const etag = getHash([buffer])
-  const result = setResponseHeaders(
-    req,
-    res,
-    url,
-    etag,
-    maxAge,
-    contentType,
-    isStatic,
-    isDev,
-    xCache
-  )
-  if (!result.finished) {
-    res.end(buffer)
-  }
+  xCache: XCacheHeader,
+  etag?: string
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (sendDedupe.sent) {
+      return
+    } else {
+      sendDedupe.sent = true
+    }
+    const result = setResponseHeaders(
+      req,
+      res,
+      url,
+      etag || getHash([buffer]),
+      maxAge,
+      contentType,
+      isStatic,
+      isDev,
+      xCache
+    )
+    if (result.finished) {
+      resolve()
+    } else {
+      res.on('finish', () => resolve())
+      res.on('end', () => resolve())
+      res.on('error', () => reject())
+      res.end(buffer, () => resolve())
+    }
+  })
 }
 
 function getSupportedMimeType(options: string[], accept = ''): string {
@@ -799,12 +832,12 @@ export async function getImageSize(
   return { width, height }
 }
 
-function getFileMetadata(file: string) {
-  const [maxAgeStr, expireAtSt, etag, extension] = file.split('.')
+function getFileMetadata(filename: string): FileMetadata {
+  const [maxAgeStr, expireAtSt, etag, extension] = filename.split('.')
   const maxAge = Number(maxAgeStr)
   const expireAt = Number(expireAtSt)
   const contentType = getContentType(extension)
-  return { maxAge, expireAt, etag, contentType }
+  return { filename, maxAge, expireAt, etag, contentType }
 }
 
 export class Deferred<T> {
