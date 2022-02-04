@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    sync::{atomic::*, Arc},
+    sync::{atomic::*, Arc, Mutex, MutexGuard},
     time::Duration,
 };
 
@@ -44,7 +44,16 @@ macro_rules! ignore {
 
 ignore!(i8, u8, i16, u16, i32, u32, i64, u64);
 ignore!(AtomicI8, AtomicU8, AtomicI16, AtomicU16, AtomicI32, AtomicU32, AtomicI64, AtomicU64);
-ignore!(String, Duration, HashMap);
+ignore!(String, Duration);
+
+impl<K: TraceNodeRefs, V: TraceNodeRefs> TraceNodeRefs for HashMap<K, V> {
+    fn trace_node_refs(&self, context: &mut TraceNodeRefsContext) {
+        for (key, val) in self.iter() {
+            TraceNodeRefs::trace_node_refs(key, context);
+            TraceNodeRefs::trace_node_refs(val, context)
+        }
+    }
+}
 
 impl<T: TraceNodeRefs> TraceNodeRefs for Vec<T> {
     fn trace_node_refs(&self, context: &mut TraceNodeRefsContext) {

@@ -2,16 +2,16 @@
 
 use std::{
     collections::HashMap,
-    fmt::Debug,
+    fmt::{self, Debug},
     fs,
     future::Future,
     io::{self, ErrorKind},
-    ops::Add,
     path::Path,
+    sync::Mutex,
 };
 
 use anyhow::Context;
-use turbo_tasks::Task;
+use turbo_tasks::{Invalidator, Task};
 
 #[turbo_tasks::value_trait]
 #[async_trait::async_trait]
@@ -21,12 +21,12 @@ pub trait FileSystem {
     async fn write(&self, from: FileSystemPathRef, content: FileContentRef);
 }
 
-#[derive(Debug)]
 #[turbo_tasks::value(FileSystem)]
 pub struct DiskFileSystem {
     pub name: String,
     pub root: String,
-    pub invalidators: HashMap<String, String>,
+    #[trace_ignore]
+    pub invalidators: Mutex<HashMap<String, Invalidator>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -36,8 +36,14 @@ impl DiskFileSystem {
         Self {
             name,
             root: root.into(),
-            invalidators: HashMap::new(),
+            invalidators: Mutex::new(HashMap::new()),
         }
+    }
+}
+
+impl fmt::Debug for DiskFileSystem {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "name: {}, root: {}", self.name, self.root)
     }
 }
 
@@ -46,6 +52,9 @@ impl DiskFileSystem {
 impl FileSystem for DiskFileSystem {
     async fn read(&self, fs_path: FileSystemPathRef) -> FileContentRef {
         let full_path = Path::new(&self.root).join(&fs_path.get().path);
+        let invalidator = Task::get_invalidator();
+        let mut invalidators = self.invalidators.lock().unwrap();
+        invalidators.insert(String::from(&fs_path.get().path), invalidator);
         match fs::read(&full_path) {
             Ok(content) => FileContentRef::new(content),
             Err(_) => FileContentRef::not_found(),
