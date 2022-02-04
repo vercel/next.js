@@ -18,7 +18,7 @@ type Identifier = {
   margin: string
 }
 type Observer = {
-  id: idKey
+  id: Identifier
   observer: IntersectionObserver
   elements: Map<Element, ObserveCallback>
 }
