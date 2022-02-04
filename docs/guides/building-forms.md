@@ -368,6 +368,5 @@ This guide has covered the following:
 - Validating forms data with and without JavaScript
 - Using Next.js API Routes to handle `req` and `res` from the client and server
 
-Next.js provides you with an all-in solution for hosting web forms and handling submissions. You can self-host your Next.js app or deploy it to a cloud provider, such as Vercel.
 
 For more details go through [Next.js Learn Course](https://nextjs.org/learn/basics/create-nextjs-app).
