@@ -1148,8 +1148,8 @@ export async function renderToHTML(
   }
 
   const ReactDOMServer = concurrentFeatures
-    ? require('react-dom/server')
-    : require('react-dom/server.browser')
+    ? require('react-dom/server.browser')
+    : require('react-dom/server')
 
   /**
    * Rules of Static & Dynamic HTML:
