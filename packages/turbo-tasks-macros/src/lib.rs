@@ -107,8 +107,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             }
         })
         .collect();
-    let token_stream: TokenStream = "#[cfg(feature = \"trivial_bounds\")]".parse().unwrap();
-    let feature_trivial_bounds = parse_macro_input!(token_stream with Attribute::parse_outer);
     let expanded = quote! {
         #[derive(turbo_tasks::trace::TraceNodeRefs)]
         #item
