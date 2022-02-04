@@ -4,9 +4,9 @@ import {
   imageConfigDefault,
 } from '../../server/image-config'
 
-export const RuntimeImageConfigContext =
+export const ImageConfigContext =
   React.createContext<ImageConfigComplete>(imageConfigDefault)
 
 if (process.env.NODE_ENV !== 'production') {
-  RuntimeImageConfigContext.displayName = 'RuntimeImageConfigContext'
+  ImageConfigContext.displayName = 'ImageConfigContext'
 }

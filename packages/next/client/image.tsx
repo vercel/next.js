@@ -7,7 +7,7 @@ import {
   VALID_LOADERS,
 } from '../server/image-config'
 import { useIntersection } from './use-intersection'
-import { RuntimeImageConfigContext } from '../shared/lib/runtime-image-config-context'
+import { ImageConfigContext } from '../shared/lib/runtime-image-config-context'
 
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
@@ -401,7 +401,7 @@ export default function Image({
     isLazy = false
   }
 
-  setRuntimeImageConfig(useContext(RuntimeImageConfigContext))
+  setRuntimeImageConfig(useContext(ImageConfigContext))
 
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
