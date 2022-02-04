@@ -1,6 +1,6 @@
 import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
 
-export class ReadableStream<T> {
+class ReadableStream<T> {
   constructor(opts: UnderlyingSource = {}) {
     let closed = false
     let pullPromise: any
@@ -66,3 +66,5 @@ export class ReadableStream<T> {
     return readable
   }
 }
+
+export { TransformStream, ReadableStream }

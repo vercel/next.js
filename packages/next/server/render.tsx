@@ -71,7 +71,7 @@ let postProcess: typeof import('../shared/lib/post-process').default
 const DOCTYPE = '<!DOCTYPE html>'
 
 if (!process.browser) {
-  require('./node-polyfill-readable-stream')
+  require('./node-polyfill-web-streams')
   optimizeAmp = require('./optimize-amp').default
   getFontDefinitionFromManifest =
     require('./font-utils').getFontDefinitionFromManifest
@@ -1529,40 +1529,6 @@ function serializeError(
   }
 }
 
-async function bufferedReadFromReadableStream(
-  reader: ReadableStreamDefaultReader,
-  writeFn: (chunks: Uint8Array[]) => void
-): Promise<void> {
-  let bufferedChunks: Uint8Array[] = []
-  let pendingFlush: Promise<void> | null = null
-
-  const flushBuffer = () => {
-    if (!pendingFlush) {
-      pendingFlush = new Promise((resolve) =>
-        setTimeout(() => {
-          writeFn(bufferedChunks)
-          bufferedChunks = []
-          pendingFlush = null
-          resolve()
-        }, 0)
-      )
-    }
-  }
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) {
-      break
-    }
-
-    bufferedChunks.push(value)
-    flushBuffer()
-  }
-
-  // Make sure the promise resolves after any pending flushes
-  await pendingFlush
-}
-
 function createTransformStream({
   flush,
   transform,
@@ -1584,10 +1550,12 @@ function createTransformStream({
 
     error(reason) {
       writer.abort(reason)
+      reader.cancel()
     },
 
     terminate() {
       writer.close()
+      reader.cancel()
     },
 
     get desiredSize() {
@@ -1672,17 +1640,17 @@ function renderToStream(
     const encoder = new TextEncoder()
     const closeTag = encoder.encode(closeTagString)
     const suffixUnclosed = encoder.encode(suffix.split(closeTagString)[0])
+    const { readable, writable } = new TransformStream()
 
     const doResolve = () => {
       if (!resolved) {
         resolved = true
-
         let controller: TransformStreamDefaultController
         let dataStreamFinished: Promise<void> | null = null
         let shellFlushed = false
 
         resolve(
-          stream.pipeThrough(createBufferedTransformStream()).pipeThrough(
+          readable.pipeThrough(createBufferedTransformStream()).pipeThrough(
             createTransformStream({
               start(transformController) {
                 controller = transformController
@@ -1727,25 +1695,24 @@ function renderToStream(
       }
     }
 
-    const stream: ReadableStream = (
-      ReactDOMServer as any
-    ).renderToReadableStream(element, {
-      onError(err: Error) {
-        if (!resolved) {
-          resolved = true
-          reject(err)
-        }
-      },
-      onCompleteShell() {
-        if (!generateStaticHTML) {
+    ;(ReactDOMServer as any)
+      .renderToReadableStream(element, {
+        onError(err: Error) {
+          if (!resolved) {
+            resolved = true
+            reject(err)
+          }
+        },
+        onCompleteShell() {
+          if (!generateStaticHTML) {
+            doResolve()
+          }
+        },
+        onCompleteAll() {
           doResolve()
-        }
-      },
-      onCompleteAll() {
-        doResolve()
-      },
-    })
-    const reader = stream.getReader()
+        },
+      })
+      .pipeTo(writable)
   })
 }
 
@@ -1756,7 +1723,7 @@ function chainStreams(streams: ReadableStream[]): ReadableStream {
   for (let i = 0; i < streams.length; ++i) {
     promise = promise.then(() =>
       streams[i].pipeTo(writable, {
-        preventClose: i < streams.length,
+        preventClose: i + 1 < streams.length,
       })
     )
   }
