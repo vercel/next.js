@@ -1564,14 +1564,14 @@ function createTransformStream({
           if (maybePromise) {
             await maybePromise
           }
-          await writer.close()
+          writer.close()
           return
         }
 
         transform(value, controller)
       }
     } catch (err) {
-      await writer.abort(err)
+      writer.abort(err)
     }
   })()
 
@@ -1634,79 +1634,94 @@ function renderToStream(
           suffixUnclosed: encoder.encode(suffix.split(closeTagString)[0]),
         }
       : null
-    const { readable, writable } = new TransformStream()
 
     const doResolve = () => {
       if (!resolved) {
         resolved = true
+
         let dataStreamFinished: Promise<void> | null = null
         let shellFlushed = false
 
-        resolve(
-          readable.pipeThrough(createBufferedTransformStream()).pipeThrough(
-            createTransformStream({
-              transform(chunk, controller) {
-                controller.enqueue(chunk)
+        const suffixStream = () =>
+          createTransformStream({
+            transform(chunk, controller) {
+              controller.enqueue(chunk)
+            },
 
-                if (!shellFlushed) {
-                  shellFlushed = true
-                  if (suffixState) {
-                    controller.enqueue(suffixState.suffixUnclosed)
-                  }
+            flush(controller) {
+              if (suffixState) {
+                controller.enqueue(suffixState.closeTag)
+              }
+            },
+          })
+
+        const inlineDataStream = () =>
+          createTransformStream({
+            transform(chunk, controller) {
+              controller.enqueue(chunk)
+
+              if (!shellFlushed) {
+                shellFlushed = true
+                if (suffixState) {
+                  controller.enqueue(suffixState.suffixUnclosed)
                 }
+              }
 
-                if (!dataStreamFinished && dataStream) {
-                  const dataStreamReader = dataStream.getReader()
-                  dataStreamFinished = (async () => {
-                    try {
-                      while (true) {
-                        const { done, value } = await dataStreamReader.read()
-                        if (done) {
-                          return
-                        }
-                        controller.enqueue(value)
+              if (!dataStreamFinished && dataStream) {
+                const dataStreamReader = dataStream.getReader()
+                dataStreamFinished = (async () => {
+                  try {
+                    while (true) {
+                      const { done, value } = await dataStreamReader.read()
+                      if (done) {
+                        return
                       }
-                    } catch (err) {
-                      controller.error(err)
+                      controller.enqueue(value)
                     }
-                  })()
-                }
-              },
-              flush(controller) {
-                const flushClosingTag = () => {
-                  if (suffixState) {
-                    controller.enqueue(suffixState.closeTag)
+                  } catch (err) {
+                    controller.error(err)
                   }
-                }
-                if (dataStreamFinished) {
-                  return dataStreamFinished.then(flushClosingTag)
-                }
-                flushClosingTag()
-              },
-            })
+                })()
+              }
+            },
+            flush() {
+              if (dataStreamFinished) {
+                return dataStreamFinished
+              }
+            },
+          })
+
+        // React will call our callbacks synchronously, so we need to
+        // defer to a microtask to ensure `stream` is set.
+        Promise.resolve().then(() =>
+          resolve(
+            stream
+              .pipeThrough(createBufferedTransformStream())
+              .pipeThrough(inlineDataStream())
+              .pipeThrough(suffixStream())
           )
         )
       }
     }
 
-    ;(ReactDOMServer as any)
-      .renderToReadableStream(element, {
-        onError(err: Error) {
-          if (!resolved) {
-            resolved = true
-            reject(err)
-          }
-        },
-        onCompleteShell() {
-          if (!generateStaticHTML) {
-            doResolve()
-          }
-        },
-        onCompleteAll() {
+    const stream: ReadableStream = (
+      ReactDOMServer as any
+    ).renderToReadableStream(element, {
+      onError(err: Error) {
+        if (!resolved) {
+          resolved = true
+          reject(err)
+        }
+      },
+      onCompleteShell() {
+        if (!generateStaticHTML) {
           doResolve()
-        },
-      })
-      .pipeTo(writable)
+        }
+      },
+      onCompleteAll() {
+        doResolve()
+      },
+    })
   })
 }
 
