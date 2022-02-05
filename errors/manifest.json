@@ -489,6 +489,10 @@
           "path": "/errors/no-script-tags-in-head-component.md"
         },
         {
+          "title": "stylesheets-in-head-component",
+          "path": "/errors/no-stylesheets-in-head-component.md"
+        },
+        {
           "title": "max-custom-routes-reached",
           "path": "/errors/max-custom-routes-reached.md"
         },
