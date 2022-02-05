@@ -1250,7 +1250,8 @@ export async function renderToHTML(
             ReactDOMServer,
             content,
             suffix,
-            serverComponentsInlinedTransformStream?.readable ?? null,
+            serverComponentsInlinedTransformStream?.readable ??
+              streamFromArray([]),
             generateStaticHTML
           )
         }
@@ -1382,7 +1383,7 @@ export async function renderToHTML(
       ReactDOMServer,
       document,
       null,
-      null,
+      streamFromArray([]),
       true
     )
     documentHTML = await streamToString(documentStream)
@@ -1523,8 +1524,8 @@ function createTransformStream({
   flush,
   transform,
 }: {
-  flush: (controller: TransformStreamDefaultController) => Promise<void> | void
-  transform: (
+  flush?: (controller: TransformStreamDefaultController) => Promise<void> | void
+  transform?: (
     chunk: Uint8Array,
     controller: TransformStreamDefaultController
   ) => void
@@ -1560,7 +1561,7 @@ function createTransformStream({
         const { done, value } = await reader.read()
 
         if (done) {
-          const maybePromise = flush(controller)
+          const maybePromise = flush?.(controller)
           if (maybePromise) {
             await maybePromise
           }
@@ -1568,7 +1569,11 @@ function createTransformStream({
           return
         }
 
-        transform(value, controller)
+        if (transform) {
+          transform(value, controller)
+        } else {
+          controller.enqueue(value)
+        }
       }
     } catch (err) {
       writer.abort(err)
@@ -1620,7 +1625,7 @@ function renderToStream(
   ReactDOMServer: typeof import('react-dom/server'),
   element: React.ReactElement,
   suffix: string | null,
-  dataStream: ReadableStream | null,
+  dataStream: ReadableStream,
   generateStaticHTML: boolean
 ): Promise<ReadableStream> {
   return new Promise((resolve, reject) => {
@@ -1639,66 +1644,20 @@ function renderToStream(
       if (!resolved) {
         resolved = true
 
-        let dataStreamFinished: Promise<void> | null = null
-        let shellFlushed = false
-
-        const suffixStream = () =>
-          createTransformStream({
-            transform(chunk, controller) {
-              controller.enqueue(chunk)
-            },
-
-            flush(controller) {
-              if (suffixState) {
-                controller.enqueue(suffixState.closeTag)
-              }
-            },
-          })
-
-        const inlineDataStream = () =>
-          createTransformStream({
-            transform(chunk, controller) {
-              controller.enqueue(chunk)
-
-              if (!shellFlushed) {
-                shellFlushed = true
-                if (suffixState) {
-                  controller.enqueue(suffixState.suffixUnclosed)
-                }
-              }
-
-              if (!dataStreamFinished && dataStream) {
-                const dataStreamReader = dataStream.getReader()
-                dataStreamFinished = (async () => {
-                  try {
-                    while (true) {
-                      const { done, value } = await dataStreamReader.read()
-                      if (done) {
-                        return
-                      }
-                      controller.enqueue(value)
-                    }
-                  } catch (err) {
-                    controller.error(err)
-                  }
-                })()
-              }
-            },
-            flush() {
-              if (dataStreamFinished) {
-                return dataStreamFinished
-              }
-            },
-          })
-
         // React will call our callbacks synchronously, so we need to
         // defer to a microtask to ensure `stream` is set.
         Promise.resolve().then(() =>
           resolve(
             stream
               .pipeThrough(createBufferedTransformStream())
-              .pipeThrough(inlineDataStream())
-              .pipeThrough(suffixStream())
+              .pipeThrough(
+                createInlineDataStream(
+                  dataStream.pipeThrough(
+                    createPrefixStream(suffixState?.suffixUnclosed ?? null)
+                  )
+                )
+              )
+              .pipeThrough(createSuffixStream(suffixState?.closeTag ?? null))
           )
         )
       }
@@ -1722,6 +1681,68 @@ function renderToStream(
         doResolve()
       },
     })
+  })
+}
+
+function createSuffixStream(suffix: Uint8Array | null) {
+  return createTransformStream({
+    flush(controller) {
+      if (suffix) {
+        controller.enqueue(suffix)
+      }
+    },
+  })
+}
+
+function createPrefixStream(prefix: Uint8Array | null) {
+  let prefixFlushed = false
+  return createTransformStream({
+    transform(chunk, controller) {
+      if (!prefixFlushed && prefix) {
+        prefixFlushed = true
+        controller.enqueue(prefix)
+      }
+      controller.enqueue(chunk)
+    },
+    flush(controller) {
+      if (!prefixFlushed && prefix) {
+        prefixFlushed = true
+        controller.enqueue(prefix)
+      }
+    },
+  })
+}
+
+function createInlineDataStream(
+  dataStream: ReadableStream | null
+): TransformStream {
+  let dataStreamFinished: Promise<void> | null = null
+  return createTransformStream({
+    transform(chunk, controller) {
+      controller.enqueue(chunk)
+
+      if (!dataStreamFinished && dataStream) {
+        const dataStreamReader = dataStream.getReader()
+        dataStreamFinished = (async () => {
+          try {
+            while (true) {
+              const { done, value } = await dataStreamReader.read()
+              if (done) {
+                return
+              }
+              controller.enqueue(value)
+            }
+          } catch (err) {
+            controller.error(err)
+          }
+        })()
+      }
+    },
+    flush() {
+      if (dataStreamFinished) {
+        return dataStreamFinished
+      }
+    },
   })
 }
 
