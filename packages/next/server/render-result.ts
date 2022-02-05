@@ -1,15 +1,14 @@
 import type { ServerResponse } from 'http'
-import type { Writable } from 'stream'
 
-export type NodeWritablePiper = (
-  res: Writable,
+export type ResultPiper = (
+  push: (chunks: Uint8Array[]) => void,
   next: (err?: Error) => void
 ) => void
 
 export default class RenderResult {
-  _result: string | NodeWritablePiper
+  _result: string | ResultPiper
 
-  constructor(response: string | NodeWritablePiper) {
+  constructor(response: string | ResultPiper) {
     this._result = response
   }
 
@@ -29,8 +28,35 @@ export default class RenderResult {
       )
     }
     const response = this._result
+    const flush =
+      typeof (res as any).flush === 'function'
+        ? () => (res as any).flush()
+        : () => {}
+
     return new Promise((resolve, reject) => {
-      response(res, (err) => (err ? reject(err) : resolve()))
+      let fatalError = false
+      response(
+        (chunks) => {
+          // The state of the stream is non-deterministic after
+          // writing, so any error becomes fatal.
+          fatalError = true
+          res.cork()
+          chunks.forEach((chunk) => res.write(chunk))
+          res.uncork()
+          flush()
+        },
+        (err) => {
+          if (err) {
+            if (fatalError) {
+              res.destroy(err)
+            }
+            reject(err)
+          } else {
+            res.end()
+            resolve()
+          }
+        }
+      )
     })
   }
 

@@ -486,9 +486,8 @@ function runTests({
     })
 
     it('should automatically detect image type when content-type is octet-stream', async () => {
-      const url =
-        'https://image-optimization-test.vercel.app/png-as-octet-stream'
-      const resOrig = await fetch(url)
+      const url = '/png-as-octet-stream'
+      const resOrig = await fetchViaHTTP(appPort, url)
       expect(resOrig.status).toBe(200)
       expect(resOrig.headers.get('Content-Type')).toBe(
         'application/octet-stream'
