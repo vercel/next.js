@@ -1,23 +1,25 @@
 // tslint:disable:no-console
-import { ParsedUrlQuery } from 'querystring'
-import { ComponentType } from 'react'
-import { UrlObject } from 'url'
+import type { ComponentType } from 'react'
+import type { DomainLocale } from '../../../server/config'
+import type { MittEmitter } from '../mitt'
+import type { ParsedUrlQuery } from 'querystring'
+import type { RouterEvent } from '../../../client/router'
+import type { StyleSheetTuple } from '../../../client/page-loader'
+import type { UrlObject } from 'url'
+import type PageLoader from '../../../client/page-loader'
 import {
   normalizePathTrailingSlash,
   removePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
-import { GoodPageCache, StyleSheetTuple } from '../../../client/page-loader'
 import {
   getClientBuildManifest,
   isAssetError,
   markAssetError,
 } from '../../../client/route-loader'
-import { RouterEvent } from '../../../client/router'
-import isError from '../../../lib/is-error'
-import type { DomainLocale } from '../../../server/config'
+import isError, { getProperError } from '../../../lib/is-error'
 import { denormalizePagePath } from '../../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
-import mitt, { MittEmitter } from '../mitt'
+import mitt from '../mitt'
 import {
   AppContextType,
   formatWithValidation,
@@ -61,6 +63,7 @@ interface NextHistoryState {
 }
 
 interface PreflightData {
+  cache?: string | null
   redirect?: string | null
   refresh?: boolean
   rewrite?: string | null
@@ -612,7 +615,7 @@ export default class Router implements BaseRouter {
 
   sub: Subscription
   clc: ComponentLoadCancel
-  pageLoader: any
+  pageLoader: PageLoader
   _bps: BeforePopStateCallback | undefined
   events: MittEmitter<RouterEvent>
   _wrapApp: (App: AppComponent) => any
@@ -822,7 +825,11 @@ export default class Router implements BaseRouter {
 
     // Make sure we don't re-render on initial load,
     // can be caused by navigating back from an external site
-    if (this.isSsr && as === this.asPath && pathname === this.pathname) {
+    if (
+      this.isSsr &&
+      as === addBasePath(this.asPath) &&
+      pathname === addBasePath(this.pathname)
+    ) {
       return
     }
 
@@ -1097,6 +1104,11 @@ export default class Router implements BaseRouter {
           (p: string) => resolveDynamicRoute(p, pages),
           this.locales
         )
+
+        if (rewritesResult.externalDest) {
+          location.href = as
+          return true
+        }
         resolvedAs = rewritesResult.asPath
 
         if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
@@ -1131,28 +1143,38 @@ export default class Router implements BaseRouter {
 
     resolvedAs = delLocale(delBasePath(resolvedAs), this.locale)
 
-    const effect = await this._preflightRequest({
-      as,
-      cache: process.env.NODE_ENV === 'production',
-      pages,
-      pathname,
-      query,
-    })
+    /**
+     * If the route update was triggered for client-side hydration and
+     * the rendered route is not dynamic do not check the preflight
+     * request as it is not necessary.
+     */
+    if (
+      (options as any)._h !== 1 ||
+      isDynamicRoute(removePathTrailingSlash(pathname))
+    ) {
+      const effect = await this._preflightRequest({
+        as,
+        cache: process.env.NODE_ENV === 'production',
+        pages,
+        pathname,
+        query,
+      })
 
-    if (effect.type === 'rewrite') {
-      query = { ...query, ...effect.parsedAs.query }
-      resolvedAs = effect.asPath
-      pathname = effect.resolvedHref
-      parsed.pathname = effect.resolvedHref
-      url = formatWithValidation(parsed)
-    } else if (effect.type === 'redirect' && effect.newAs) {
-      return this.change(method, effect.newUrl, effect.newAs, options)
-    } else if (effect.type === 'redirect' && effect.destination) {
-      window.location.href = effect.destination
-      return new Promise(() => {})
-    } else if (effect.type === 'refresh') {
-      window.location.href = as
-      return new Promise(() => {})
+      if (effect.type === 'rewrite') {
+        query = { ...query, ...effect.parsedAs.query }
+        resolvedAs = effect.asPath
+        pathname = effect.resolvedHref
+        parsed.pathname = effect.resolvedHref
+        url = formatWithValidation(parsed)
+      } else if (effect.type === 'redirect' && effect.newAs) {
+        return this.change(method, effect.newUrl, effect.newAs, options)
+      } else if (effect.type === 'redirect' && effect.destination) {
+        window.location.href = effect.destination
+        return new Promise(() => {})
+      } else if (effect.type === 'refresh' && as !== window.location.pathname) {
+        window.location.href = as
+        return new Promise(() => {})
+      }
     }
 
     const route = removePathTrailingSlash(pathname)
@@ -1484,7 +1506,7 @@ export default class Router implements BaseRouter {
       const { Component, __N_SSG, __N_SSP, __N_RSC } = routeInfo
 
       if (process.env.NODE_ENV !== 'production') {
-        const { isValidElementType } = require('react-is')
+        const { isValidElementType } = require('next/dist/compiled/react-is')
         if (!isValidElementType(Component)) {
           throw new Error(
             `The default export is not a React Component in page: "${pathname}"`
@@ -1542,7 +1564,7 @@ export default class Router implements BaseRouter {
       return routeInfo
     } catch (err) {
       return this.handleRouteInfoError(
-        isError(err) ? err : new Error(err + ''),
+        getProperError(err),
         pathname,
         query,
         as,
@@ -1599,7 +1621,7 @@ export default class Router implements BaseRouter {
   }
 
   scrollToHash(as: string): void {
-    const [, hash] = as.split('#')
+    const [, hash = ''] = as.split('#')
     // Scroll to top if the hash is just `#` with no value or `#top`
     // To mirror browsers
     if (hash === '' || hash === 'top') {
@@ -1672,6 +1694,10 @@ export default class Router implements BaseRouter {
         (p: string) => resolveDynamicRoute(p, pages),
         this.locales
       )
+
+      if (rewritesResult.externalDest) {
+        return
+      }
       resolvedAs = delLocale(delBasePath(rewritesResult.asPath), this.locale)
 
       if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
@@ -1738,7 +1764,7 @@ export default class Router implements BaseRouter {
     ])
   }
 
-  async fetchComponent(route: string): Promise<GoodPageCache> {
+  async fetchComponent(route: string) {
     let cancelled = false
     const cancel = (this.clc = () => {
       cancelled = true
@@ -1793,15 +1819,9 @@ export default class Router implements BaseRouter {
   }
 
   _getFlightData(dataHref: string): Promise<object> {
-    const { href: cacheKey } = new URL(dataHref, window.location.href)
-
-    if (!this.isPreview && this.sdc[cacheKey]) {
-      return Promise.resolve({ fresh: false, data: this.sdc[cacheKey] })
-    }
-
+    // Do not cache RSC flight response since it's not a static resource
     return fetchNextData(dataHref, true, true, this.sdc, false).then(
       (serialized) => {
-        this.sdc[cacheKey] = serialized
         return { fresh: true, data: serialized }
       }
     )
@@ -1819,7 +1839,7 @@ export default class Router implements BaseRouter {
       this.locale
     )
 
-    const fns: [string, boolean][] = await this.pageLoader.getMiddlewareList()
+    const fns = await this.pageLoader.getMiddlewareList()
     const requiresPreflight = fns.some(([middleware, isSSR]) => {
       return getRouteMatcher(getMiddlewareRegex(middleware, !isSSR))(cleanedAs)
     })
@@ -1833,7 +1853,15 @@ export default class Router implements BaseRouter {
       shouldCache: options.cache,
     })
 
-    if (preflight.rewrite?.startsWith('/')) {
+    if (preflight.rewrite) {
+      // for external rewrites we need to do a hard navigation
+      // to the resource
+      if (!preflight.rewrite.startsWith('/')) {
+        return {
+          type: 'redirect',
+          destination: options.as,
+        }
+      }
       const parsed = parseRelativeUrl(
         normalizeLocalePath(
           hasBasePath(preflight.rewrite)
@@ -1940,6 +1968,7 @@ export default class Router implements BaseRouter {
         }
 
         return {
+          cache: res.headers.get('x-middleware-cache'),
           redirect: res.headers.get('Location'),
           refresh: res.headers.has('x-middleware-refresh'),
           rewrite: res.headers.get('x-middleware-rewrite'),
@@ -1947,7 +1976,7 @@ export default class Router implements BaseRouter {
         }
       })
       .then((data) => {
-        if (shouldCache) {
+        if (shouldCache && data.cache !== 'no-cache') {
           this.sde[cacheKey] = data
         }
 

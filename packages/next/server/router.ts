@@ -1,6 +1,5 @@
-import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
-import type { NextUrlWithParsedQuery } from './request-meta'
+import { getNextInternalQuery, NextUrlWithParsedQuery } from './request-meta'
 
 import pathMatch from '../shared/lib/router/utils/path-match'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
@@ -8,6 +7,7 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { RouteHas } from '../lib/load-custom-routes'
 import { matchHas } from '../shared/lib/router/utils/prepare-destination'
 import { getRequestMeta } from './request-meta'
+import { BaseNextRequest, BaseNextResponse } from './base-http'
 
 export const route = pathMatch()
 
@@ -31,8 +31,8 @@ export type Route = {
   requireBasePath?: false
   internal?: true
   fn: (
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
     params: Params,
     parsedUrl: NextUrlWithParsedQuery
   ) => Promise<RouteResult> | RouteResult
@@ -44,9 +44,22 @@ export type PageChecker = (pathname: string) => Promise<boolean>
 
 const customRouteTypes = new Set(['rewrite', 'redirect', 'header'])
 
-function replaceBasePath(basePath: string, pathname: string) {
-  // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
-  return pathname!.replace(basePath, '') || '/'
+export function hasBasePath(pathname: string, basePath: string): boolean {
+  return (
+    typeof pathname === 'string' &&
+    (pathname === basePath || pathname.startsWith(basePath + '/'))
+  )
+}
+
+export function replaceBasePath(pathname: string, basePath: string): string {
+  // ensure basePath is only stripped if it matches exactly
+  // and doesn't contain extra chars e.g. basePath /docs
+  // should replace for /docs, /docs/, /docs/a but not /docsss
+  if (hasBasePath(pathname, basePath)) {
+    pathname = pathname.substr(basePath.length)
+    if (!pathname.startsWith('/')) pathname = `/${pathname}`
+  }
+  return pathname
 }
 
 export default class Router {
@@ -65,6 +78,7 @@ export default class Router {
   dynamicRoutes: DynamicRoutes
   useFileSystemPublicRoutes: boolean
   locales: string[]
+  seenRequests: Set<any>
 
   constructor({
     basePath = '',
@@ -110,6 +124,7 @@ export default class Router {
     this.dynamicRoutes = dynamicRoutes
     this.useFileSystemPublicRoutes = useFileSystemPublicRoutes
     this.locales = locales
+    this.seenRequests = new Set()
   }
 
   setDynamicRoutes(routes: DynamicRoutes = []) {
@@ -121,10 +136,17 @@ export default class Router {
   }
 
   async execute(
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
     parsedUrl: NextUrlWithParsedQuery
   ): Promise<boolean> {
+    if (this.seenRequests.has(req)) {
+      throw new Error(
+        `Invariant: request has already been processed: ${req.url}, this is an internal error please open an issue.`
+      )
+    }
+    this.seenRequests.add(req)
+
     // memoize page check calls so we don't duplicate checks for pages
     const pageChecks: { [name: string]: Promise<boolean> } = {}
     const memoizedPageChecker = async (p: string): Promise<boolean> => {
@@ -142,7 +164,7 @@ export default class Router {
 
     const applyCheckTrue = async (checkParsedUrl: NextUrlWithParsedQuery) => {
       const originalFsPathname = checkParsedUrl.pathname
-      const fsPathname = replaceBasePath(this.basePath, originalFsPathname!)
+      const fsPathname = replaceBasePath(originalFsPathname!, this.basePath)
 
       for (const fsRoute of this.fsRoutes) {
         const fsParams = fsRoute.match(fsPathname)
@@ -283,8 +305,8 @@ export default class Router {
       const keepLocale = isCustomRoute
 
       const currentPathnameNoBasePath = replaceBasePath(
-        this.basePath,
-        currentPathname
+        currentPathname,
+        this.basePath
       )
 
       if (!keepBasePath) {
@@ -347,6 +369,7 @@ export default class Router {
           ) {
             if (requireBasePath) {
               // consider this a non-match so the 404 renders
+              this.seenRequests.delete(req)
               return false
             }
             // page checker occurs before rewrites so we need to continue
@@ -361,6 +384,7 @@ export default class Router {
 
         // The response was handled
         if (result.finished) {
+          this.seenRequests.delete(req)
           return true
         }
 
@@ -376,7 +400,7 @@ export default class Router {
 
         if (result.query) {
           parsedUrlUpdated.query = {
-            ...parsedUrlUpdated.query,
+            ...getNextInternalQuery(parsedUrlUpdated.query),
             ...result.query,
           }
         }
@@ -384,11 +408,13 @@ export default class Router {
         // check filesystem
         if (testRoute.check === true) {
           if (await applyCheckTrue(parsedUrlUpdated)) {
+            this.seenRequests.delete(req)
             return true
           }
         }
       }
     }
+    this.seenRequests.delete(req)
     return false
   }
 }

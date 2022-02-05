@@ -23,7 +23,7 @@ module.exports = {
       },
 
       JSXOpeningElement(node) {
-        if (node.name.name !== 'Link' || node.name.name !== linkImport) {
+        if (node.name.name !== linkImport) {
           return
         }
 
@@ -55,7 +55,7 @@ module.exports = {
               attributes.value('passHref') !== true
                 ? 'must be set to true'
                 : 'is missing'
-            }. See https://nextjs.org/docs/messages/link-passhref`,
+            }. See: https://nextjs.org/docs/messages/link-passhref`,
           })
         }
       },

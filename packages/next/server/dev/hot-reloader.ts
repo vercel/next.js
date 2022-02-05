@@ -1,4 +1,4 @@
-import { getOverlayMiddleware } from '@next/react-dev-overlay/lib/middleware'
+import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/middleware'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute } from 'path'
@@ -39,7 +39,7 @@ import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
-import isError from '../../lib/is-error'
+import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -249,10 +249,7 @@ export default class HotReloader {
         try {
           await this.ensurePage(page, true)
         } catch (error) {
-          await renderScriptError(
-            pageBundleRes,
-            isError(error) ? error : new Error(error + '')
-          )
+          await renderScriptError(pageBundleRes, getProperError(error))
           return { finished: true }
         }
 
@@ -318,8 +315,11 @@ export default class HotReloader {
           createPagesMapping(
             pagePaths.filter((i) => i !== null) as string[],
             this.config.pageExtensions,
-            true,
-            this.hasServerComponents
+            {
+              isDev: true,
+              hasConcurrentFeatures: this.webServerRuntime,
+              hasServerComponents: this.hasServerComponents,
+            }
           )
         )
 
@@ -525,14 +525,16 @@ export default class HotReloader {
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   name: '[name].js',
                   value: `next-middleware-ssr-loader?${stringify({
+                    dev: true,
                     page,
+                    stringifiedConfig: JSON.stringify(this.config),
                     absoluteAppPath: this.pagesMapping['/_app'],
                     absoluteDocumentPath: this.pagesMapping['/_document'],
+                    absoluteErrorPath: this.pagesMapping['/_error'],
+                    absolute404Path: this.pagesMapping['/404'] || '',
                     absolutePagePath,
                     isServerComponent,
                     buildId: this.buildId,
-                    basePath: this.config.basePath,
-                    assetPrefix: this.config.assetPrefix,
                   } as any)}!`,
                   isServer: false,
                   isServerWeb: true,

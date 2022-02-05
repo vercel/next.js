@@ -26,7 +26,7 @@ module.exports = function (context) {
         context.report({
           node,
           message:
-            'Do not include stylesheets manually. See: https://nextjs.org/docs/messages/no-css-tags.',
+            'Do not include stylesheets manually. See: https://nextjs.org/docs/messages/no-css-tags',
         })
       }
     },

@@ -1,10 +1,10 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { __ApiPreviewProps } from '../server/api-utils'
-import { isTargetLikeServerless } from '../server/config'
+import { isTargetLikeServerless } from '../server/utils'
 import { normalizePagePath } from '../server/normalize-page-path'
 import { warn } from './output/log'
 import { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
@@ -15,7 +15,10 @@ import { NextConfigComplete } from '../server/config-shared'
 import { isCustomErrorPage, isFlightPage, isReservedPage } from './utils'
 import { ssrEntries } from './webpack/plugins/middleware-plugin'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
-import { MIDDLEWARE_SSR_RUNTIME_WEBPACK } from '../shared/lib/constants'
+import {
+  MIDDLEWARE_RUNTIME_WEBPACK,
+  MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+} from '../shared/lib/constants'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 export type PagesMapping = {
@@ -25,10 +28,23 @@ export type PagesMapping = {
 export function createPagesMapping(
   pagePaths: string[],
   extensions: string[],
-  isDev: boolean,
-  hasServerComponents: boolean
+  {
+    isDev,
+    hasServerComponents,
+    hasConcurrentFeatures,
+  }: {
+    isDev: boolean
+    hasServerComponents: boolean
+    hasConcurrentFeatures: boolean
+  }
 ): PagesMapping {
   const previousPages: PagesMapping = {}
+
+  // Do not process .d.ts files inside the `pages` folder
+  pagePaths = extensions.includes('ts')
+    ? pagePaths.filter((pagePath) => !pagePath.endsWith('.d.ts'))
+    : pagePaths
+
   const pages: PagesMapping = pagePaths.reduce(
     (result: PagesMapping, pagePath): PagesMapping => {
       let page = pagePath.replace(
@@ -65,7 +81,7 @@ export function createPagesMapping(
   // we alias these in development and allow webpack to
   // allow falling back to the correct source file so
   // that HMR can work properly when a file is added/removed
-  const documentPage = `_document${hasServerComponents ? '-web' : ''}`
+  const documentPage = `_document${hasConcurrentFeatures ? '-web' : ''}`
   if (isDev) {
     pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
     pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
@@ -159,14 +175,13 @@ export function createEntrypoints(
       serverWeb[serverBundlePath] = finalizeEntrypoint({
         name: '[name].js',
         value: `next-middleware-ssr-loader?${stringify({
+          dev: false,
           page,
-          absoluteAppPath: pages['/_app'],
-          absoluteDocumentPath: pages['/_document'],
+          stringifiedConfig: JSON.stringify(config),
+          absolute500Path: pages['/500'] || '',
           absolutePagePath,
           isServerComponent: isFlight,
-          buildId,
-          basePath: config.basePath,
-          assetPrefix: config.assetPrefix,
+          ...defaultServerlessOptions,
         } as any)}!`,
         isServer: false,
         isServerWeb: true,
@@ -281,6 +296,8 @@ export function finalizeEntrypoint({
         name: ['_ENTRIES', `middleware_[name]`],
         type: 'assign',
       },
+      runtime: MIDDLEWARE_RUNTIME_WEBPACK,
+      asyncChunks: false,
       ...entry,
     }
     return middlewareEntry

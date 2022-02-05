@@ -30,14 +30,15 @@
   },
   "overrides": [
     {
-      "files": ["test/**/*.test.js"],
+      "files": ["test/**/*.js", "test/**/*.ts", "**/*.test.ts"],
       "extends": ["plugin:jest/recommended"],
       "rules": {
         "jest/expect-expect": "off",
         "jest/no-disabled-tests": "off",
         "jest/no-conditional-expect": "off",
         "jest/valid-title": "off",
-        "jest/no-interpolation-in-snapshots": "off"
+        "jest/no-interpolation-in-snapshots": "off",
+        "jest/no-export": "off"
       }
     },
     { "files": ["**/__tests__/**"], "env": { "jest": true } },

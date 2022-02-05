@@ -177,7 +177,11 @@ export default (
           regenerator: true,
           useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
           absoluteRuntime: isBabelLoader
-            ? dirname(require.resolve('@babel/runtime/package.json'))
+            ? dirname(
+                require.resolve(
+                  'next/dist/compiled/@babel/runtime/package.json'
+                )
+              )
             : undefined,
           ...options['transform-runtime'],
         },

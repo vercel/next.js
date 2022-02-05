@@ -40,7 +40,7 @@ module.exports = {
           context.report({
             node: titleTag,
             message:
-              'Titles should be defined at the page-level using next/head. See https://nextjs.org/docs/messages/no-title-in-document-head.',
+              'Titles should be defined at the page-level using next/head. See: https://nextjs.org/docs/messages/no-title-in-document-head',
           })
         }
       },
