@@ -3,7 +3,7 @@ module.exports = {
     docs: {
       description: 'Disallow using next/script inside the next/head component',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/no-script-in-head-component',
+      url: 'https://nextjs.org/docs/messages/no-script-component-in-head-component',
     },
   },
   create: function (context) {
@@ -43,7 +43,7 @@ module.exports = {
           context.report({
             node,
             message:
-              "next/script shouldn't be used inside next/head. See: https://nextjs.org/docs/messages/no-script-in-head-component",
+              "next/script shouldn't be used inside next/head. See: https://nextjs.org/docs/messages/no-script-component-in-head-component",
           })
         }
       },

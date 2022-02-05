@@ -24,6 +24,14 @@ export default function Home() {
       <Link href="/rewrites/rewrite-me-without-hard-navigation?message=refreshed">
         <a id="link-with-rewritten-url">Rewrite me without a hard navigation</a>
       </Link>
+      <div />
+      <Link href="/rewrites/about?override=external">
+        <a id="override-with-external-rewrite">Rewrite me to external site</a>
+      </Link>
+      <div />
+      <Link href="/rewrites/about?override=internal">
+        <a id="override-with-internal-rewrite">Rewrite me to internal path</a>
+      </Link>
     </div>
   )
 }
