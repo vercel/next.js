@@ -1,25 +1,27 @@
 # React 18
 
-[React 18](https://reactjs.org/blog/2021/06/08/the-plan-for-react-18.html) adds new features including, Suspense, automatic batching of updates, APIs like `startTransition`, and a new streaming API for server rendering with support for `React.lazy`.
+[React 18](https://reactjs.org/blog/2021/06/08/the-plan-for-react-18.html) adds new features including Suspense, automatic batching of updates, APIs like `startTransition`, and a new streaming API for server rendering with support for `React.lazy`.
 
-React 18 is in RC now. Read more about React 18's [release plan](https://github.com/reactwg/react-18/discussions) and discussions from the [working group](https://reactjs.org/blog/2021/06/08/the-plan-for-react-18.html).
+React 18 is in RC now. Read more about React 18's [release plan](https://reactjs.org/blog/2021/06/08/the-plan-for-react-18.html) and discussions from the [working group](https://github.com/reactwg/react-18/discussions).
 
-## React 18 Usage in Next.js
+## Using React 18 with Next.js
 
-Ensure you have the `rc` npm tag of React installed:
+Install the Release Candidate version of React 18:
 
 ```jsx
 npm install next@latest react@rc react-dom@rc
 ```
 
-That's all! You can now start using React 18's new APIs like `startTransition` and `Suspense` in Next.js.
+You can now start using React 18's new APIs like `startTransition` and `Suspense` in Next.js.
 
 ## Streaming SSR (Alpha)
 
-This is an experimental feature in Next.js 12, but once enabled, SSR will use the same [Edge Runtime](/docs/api-reference/edge-runtime.md) as [Middleware](/docs/middleware.md). Checkout [React 18 - Streaming](/docs/react-18/streaming.md) for more details.
+Streaming server-rendering (SSR) is an experimental feature in Next.js 12. When enabled, SSR will use the same [Edge Runtime](/docs/api-reference/edge-runtime.md) as [Middleware](/docs/middleware.md).
+
+[Learn how to enable streaming in Next.js.](/docs/react-18/streaming.md)
 
 ## React Server Components (Alpha)
 
-React Server Components is a new feature in React experimental release, which lets you reduce your code bundle size by separating server and client side code as different kinds of components and streaming the server rendered result to client.
+Server Components are a new feature in React that lets you reduce your JavaScript bundle size by separating server and client-side code. Server Components allow developers to build apps that span the server and client, combining the rich interactivity of client-side apps with the improved performance of traditional server rendering.
 
-It is still in research and development in React and Next.js provides it as an experimental feature in v12. Checkout [React 18 - Server Components](/docs/react-18/server-components.md) section for details.
+Server Components are still in research and development. [Learn how to try Server Components](/docs/react-18/server-components.md) as an experimental feature in Next.js.
