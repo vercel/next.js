@@ -87,6 +87,12 @@ function observe(
     if (elements.size === 0) {
       observer.disconnect()
       observers.delete(id)
+      let index = idList.findIndex(
+        (obj) => obj.root === id.root && obj.margin === id.margin
+      )
+      if (index > -1) {
+        idList.splice(index, 1)
+      }
     }
   }
 }

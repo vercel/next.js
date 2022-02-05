@@ -1010,7 +1010,7 @@ function runTests(mode) {
     }
   })
 
-  it('should load the image when the lazyRoot prop is used', async () => {
+  it('should initially load only two of four images using lazyroot', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/lazy-withref')
