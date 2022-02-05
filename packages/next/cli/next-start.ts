@@ -1,13 +1,14 @@
 #!/usr/bin/env node
-
+import { existsSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
+
 import { startServer } from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
-import { existsSync } from 'fs'
+import { nextBuild } from './next-build'
 
 const nextStart: cliCommand = async (argv) => {
   const validArgs: arg.Spec = {
@@ -60,9 +61,8 @@ const nextStart: cliCommand = async (argv) => {
   }
 
   if (!existsSync(`${process.cwd()}/.next/BUILD_ID`)) {
-    const { nextBuild } = await import('./next-build')
     // @ts-ignore
-    await nextBuild(args)
+    await nextBuild(arg)
   }
 
   startServer({
