@@ -12,6 +12,8 @@ For this reason, accessing the object after this time is disallowed.
 
 You can fix this error by moving any access of the `res` object into `getServerSideProps()` itself or any functions that run before `getServerSideProps()` returns.
 
+If you’re using a custom server and running into this problem due to session middleware like `next-session` or `express-session`, try installing the middleware in the server instead of `getServerSideProps()`.
+
 ### Useful Links
 
 - [Data Fetching Docs](https://nextjs.org/docs/basic-features/data-fetching)

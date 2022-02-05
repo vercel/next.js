@@ -2,7 +2,8 @@ import { StackFrame } from 'stacktrace-parser'
 
 export const TYPE_BUILD_OK = 'build-ok'
 export const TYPE_BUILD_ERROR = 'build-error'
-export const TYPE_REFFRESH = 'fast-refresh'
+export const TYPE_FULL_REFRESH_NEEDED = 'full-refresh-needed'
+export const TYPE_REFRESH = 'fast-refresh'
 export const TYPE_UNHANDLED_ERROR = 'unhandled-error'
 export const TYPE_UNHANDLED_REJECTION = 'unhandled-rejection'
 
@@ -11,7 +12,11 @@ export type BuildError = {
   type: typeof TYPE_BUILD_ERROR
   message: string
 }
-export type FastRefresh = { type: typeof TYPE_REFFRESH }
+export type FastRefresh = { type: typeof TYPE_REFRESH }
+export type FullRefreshNeeded = {
+  type: typeof TYPE_FULL_REFRESH_NEEDED
+  reason: string | null
+}
 export type UnhandledError = {
   type: typeof TYPE_UNHANDLED_ERROR
   reason: Error
@@ -26,6 +31,7 @@ export type BusEvent =
   | BuildOk
   | BuildError
   | FastRefresh
+  | FullRefreshNeeded
   | UnhandledError
   | UnhandledRejection
 

@@ -699,7 +699,7 @@ describe('CSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{color:red;background-image:url\(\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:blue\}$/
+        /^\.red-text\{color:red;background-image:url\(\/_next\/static\/media\/dark\.[a-f0-9]{8}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-f0-9]{8}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/_next\/static\/media\/light\.[a-f0-9]{8}\.svg\);color:blue\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -707,7 +707,7 @@ describe('CSS Support', () => {
       expect(
         mediaFiles
           .map((fileName) =>
-            /^(.+?)\..{32}\.(.+?)$/.exec(fileName).slice(1).join('.')
+            /^(.+?)\..{8}\.(.+?)$/.exec(fileName).slice(1).join('.')
           )
           .sort()
       ).toMatchInlineSnapshot(`
@@ -745,7 +745,7 @@ describe('CSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:blue\}$/
+        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-f0-9]{8}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-f0-9]{8}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-f0-9]{8}\.svg\);color:blue\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -753,7 +753,7 @@ describe('CSS Support', () => {
       expect(
         mediaFiles
           .map((fileName) =>
-            /^(.+?)\..{32}\.(.+?)$/.exec(fileName).slice(1).join('.')
+            /^(.+?)\..{8}\.(.+?)$/.exec(fileName).slice(1).join('.')
           )
           .sort()
       ).toMatchInlineSnapshot(`
@@ -791,7 +791,7 @@ describe('CSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:blue\}$/
+        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-f0-9]{8}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-f0-9]{8}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-f0-9]{8}\.svg\);color:blue\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -799,7 +799,7 @@ describe('CSS Support', () => {
       expect(
         mediaFiles
           .map((fileName) =>
-            /^(.+?)\..{32}\.(.+?)$/.exec(fileName).slice(1).join('.')
+            /^(.+?)\..{8}\.(.+?)$/.exec(fileName).slice(1).join('.')
           )
           .sort()
       ).toMatchInlineSnapshot(`

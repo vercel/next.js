@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import path from 'path'
 import {
   hasNecessaryDependencies,
@@ -49,8 +49,8 @@ export async function verifyTypeScriptSetup(
     }
 
     // Load TypeScript after we're sure it exists:
-    const ts = (await import(
-      deps.resolved.get('typescript')!
+    const ts = (await Promise.resolve(
+      require(deps.resolved.get('typescript')!)
     )) as typeof import('typescript')
 
     if (semver.lt(ts.version, '4.3.2')) {

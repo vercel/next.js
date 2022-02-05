@@ -30,7 +30,7 @@ describe('typeof window replace', () => {
       path.join(appDir, '.next', pageFile),
       'utf8'
     )
-    expect(content).toMatch(/Hello.*?,.*?("|')object("|')/)
+    expect(content).toMatch(/Hello.*?,.*?\n?.*?("|')object("|')/)
   })
 
   it('Replaces `typeof window` with undefined for server code', async () => {
@@ -41,7 +41,7 @@ describe('typeof window replace', () => {
       'utf8'
     )
 
-    expect(content).toMatch(/Hello.*?,.*?("|')undefined("|')/)
+    expect(content).toMatch(/Hello.*?,.*?\n?.*?("|')undefined("|')/)
   })
 
   it('Does not replace `typeof window` for `node_modules` code', async () => {

@@ -31,5 +31,5 @@ export const imageConfigDefault: ImageConfigComplete = {
   domains: [],
   disableStaticImages: false,
   minimumCacheTTL: 60,
-  formats: ['image/avif', 'image/webp'],
+  formats: ['image/webp'],
 }

@@ -2,6 +2,10 @@ import { getFullUrl } from 'next-test-utils'
 import os from 'os'
 import { BrowserInterface } from './browsers/base'
 
+if (!process.env.TEST_FILE_PATH) {
+  process.env.TEST_FILE_PATH = module.parent.filename
+}
+
 let deviceIP: string
 const isBrowserStack = !!process.env.BROWSERSTACK
 ;(global as any).browserName = process.env.BROWSER_NAME || 'chrome'
@@ -44,7 +48,8 @@ export default async function webdriver(
   appPortOrUrl: string | number,
   url: string,
   waitHydration = true,
-  retryWaitHydration = false
+  retryWaitHydration = false,
+  disableCache = false
 ): Promise<BrowserInterface> {
   let CurrentInterface: typeof BrowserInterface
 
@@ -76,7 +81,7 @@ export default async function webdriver(
 
   console.log(`\n> Loading browser with ${fullUrl}\n`)
 
-  await browser.loadPage(fullUrl)
+  await browser.loadPage(fullUrl, { disableCache })
   console.log(`\n> Loaded browser with ${fullUrl}\n`)
 
   // Wait for application to hydrate
@@ -95,6 +100,8 @@ export default async function webdriver(
           callback()
         }
 
+        // TODO: should we also ensure router.isReady is true
+        // by default before resolving?
         if ((window as any).__NEXT_HYDRATED) {
           console.log('Next.js page already hydrated')
           callback()

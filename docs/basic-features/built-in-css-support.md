@@ -198,7 +198,7 @@ $primary-color: #64FF00
 
 ```js
 // pages/_app.js
-import variables from '../styles/variables.module.css'
+import variables from '../styles/variables.module.scss'
 
 export default function MyApp({ Component, pageProps }) {
   return (
@@ -220,7 +220,6 @@ export default function MyApp({ Component, pageProps }) {
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-linaria">Linaria</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-tailwindcss-emotion">Tailwind CSS + Emotion</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-styletron">Styletron</a></li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-glamor">Glamor</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-cxs">Cxs</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-aphrodite">Aphrodite</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-fela">Fela</a></li>

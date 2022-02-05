@@ -53,7 +53,8 @@ function getChunkGroupFromBlock(
 function buildManifest(
   _compiler: webpack.Compiler,
   compilation: webpack.compilation.Compilation,
-  pagesDir: string
+  pagesDir: string,
+  dev: boolean
 ) {
   let manifest: { [k: string]: { id: string | number; files: string[] } } = {}
 
@@ -125,7 +126,7 @@ function buildManifest(
         // next/dynamic so they are loaded by the same technique
 
         // add the id and files to the manifest
-        const id = getModuleId(compilation, module)
+        const id = dev ? key : getModuleId(compilation, module)
         manifest[key] = { id, files: Array.from(files) }
       }
     }
@@ -145,18 +146,37 @@ function buildManifest(
 export class ReactLoadablePlugin {
   private filename: string
   private pagesDir: string
+  private runtimeAsset?: string
+  private dev: boolean
 
-  constructor(opts: { filename: string; pagesDir: string }) {
+  constructor(opts: {
+    filename: string
+    pagesDir: string
+    runtimeAsset?: string
+    dev: boolean
+  }) {
     this.filename = opts.filename
     this.pagesDir = opts.pagesDir
+    this.runtimeAsset = opts.runtimeAsset
+    this.dev = opts.dev
   }
 
   createAssets(compiler: any, compilation: any, assets: any) {
-    const manifest = buildManifest(compiler, compilation, this.pagesDir)
+    const manifest = buildManifest(
+      compiler,
+      compilation,
+      this.pagesDir,
+      this.dev
+    )
     // @ts-ignore: TODO: remove when webpack 5 is stable
     assets[this.filename] = new sources.RawSource(
       JSON.stringify(manifest, null, 2)
     )
+    if (this.runtimeAsset) {
+      assets[this.runtimeAsset] = new sources.RawSource(
+        `self.__REACT_LOADABLE_MANIFEST=${JSON.stringify(manifest)}`
+      )
+    }
     return assets
   }
 

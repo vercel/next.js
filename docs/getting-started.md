@@ -14,7 +14,7 @@ If you have questions about anything related to Next.js, you're always welcome t
 
 #### System Requirements
 
-- [Node.js 12.0](https://nodejs.org/) or later
+- [Node.js 12.22.0](https://nodejs.org/) or later
 - MacOS, Windows (including WSL), and Linux are supported
 
 ## Setup
@@ -35,7 +35,11 @@ npx create-next-app@latest --typescript
 yarn create next-app --typescript
 ```
 
-After the installation is complete, follow the instructions to start the development server. Try editing `pages/index.js` and see the result on your browser.
+After the installation is complete:
+
+- Run `npm run dev` or `yarn dev` to start the development server on `http://localhost:3000`.
+- Visit `http://localhost:3000` to view your application.
+- Edit `pages/index.js` and see the updated result in your browser.
 
 For more information on how to use `create-next-app`, you can review the [`create-next-app` documentation](/docs/api-reference/create-next-app.md)
 
@@ -83,15 +87,11 @@ function HomePage() {
 export default HomePage
 ```
 
-To start developing your application run `npm run dev` or `yarn dev`. This starts the development server on `http://localhost:3000`.
-
-Visit `http://localhost:3000` to view your application.
-
 So far, we get:
 
 - Automatic compilation and bundling (with webpack and babel)
 - [React Fast Refresh](https://nextjs.org/blog/next-9-4#fast-refresh)
-- [Static generation and server-side rendering](/docs/basic-features/data-fetching.md) of [`./pages/`](/docs/basic-features/pages.md)
+- [Static generation and server-side rendering](/docs/basic-features/data-fetching/overview.md) of [`./pages/`](/docs/basic-features/pages.md)
 - [Static file serving](/docs/basic-features/static-file-serving.md). `./public/` is mapped to `/`
 
 In addition, any Next.js application is ready for production from the start, read more in our [Deployment documentation](/docs/deployment.md).

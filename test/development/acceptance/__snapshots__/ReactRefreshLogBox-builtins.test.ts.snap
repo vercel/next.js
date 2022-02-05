@@ -1,5 +1,16 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`ReactRefreshLogBox Module not found (empty import trace) 1`] = `
+"./pages/index.js:1:0
+Module not found: Can't resolve 'b'
+> 1 | import Comp from 'b'
+  2 |       export default function Oops() {
+  3 |         return (
+  4 |           <div>
+
+https://nextjs.org/docs/messages/module-not-found"
+`;
+
 exports[`ReactRefreshLogBox Module not found 1`] = `
 "./index.js:1:0
 Module not found: Can't resolve 'b'

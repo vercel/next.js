@@ -118,6 +118,15 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
         // in case of noisy environment slowing down initial repo build
         await exec(buildCommand, false, { timeout: 5 * 60 * 1000 })
       }
+      await fs.copy(
+        path.join(__dirname, '../native'),
+        path.join(dir, 'packages/next-swc/native')
+      )
+      // TODO: remove after next stable release (current v12.0.4)
+      await fs.copy(
+        path.join(__dirname, '../native'),
+        path.join(dir, 'packages/next/native')
+      )
 
       logger(`Linking packages in ${dir}`)
       const pkgPaths = await linkPackages(dir)
