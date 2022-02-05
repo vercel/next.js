@@ -57,6 +57,7 @@ export interface WebpackConfigContext {
   isServer: boolean
   /**  The build id, used as a unique identifier between builds */
   buildId: string
+  /** The next.config.js merged with default values */
   config: NextConfigComplete
   /** Default loaders used internally by Next.js */
   defaultLoaders: {
@@ -201,6 +202,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * By default Next.js will redirect urls with trailing slashes to their counterpart without a trailing slash.
    *
+   * @default false
    * @see [Trailing Slash Configuration](https://nextjs.org/docs/api-reference/next.config.js/trailing-slash)
    */
   trailingSlash?: boolean
@@ -231,7 +233,9 @@ export interface NextConfig extends Record<string, any> {
 
   /**
    * By default, `Next` will serve each file in the `pages` folder under a pathname matching the filename.
+   * To disable this behavior and prevent routing based set this to `true`.
    *
+   * @default true
    * @see [Disabling file-system routing](https://nextjs.org/docs/advanced-features/custom-server#disabling-file-system-routing)
    */
   useFileSystemPublicRoutes?: boolean
@@ -305,6 +309,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * By default, Next.js will automatically inline font CSS at build time
    *
+   * @default true
    * @since version 10.2
    * @see [Font Optimization](https://nextjs.org/docs/basic-features/font-optimization)
    */
