@@ -48,6 +48,7 @@ import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
+import FunctionsManifestPlugin from './webpack/plugins/functions-manifest-plugin'
 import type { Span } from '../trace'
 import { getRawPageExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
@@ -609,14 +610,6 @@ export default async function getBaseWebpackConfig(
           }
         : {}),
 
-      ...(webServerRuntime
-        ? {
-            'react-dom/server': dev
-              ? 'react-dom/cjs/react-dom-server.browser.development'
-              : 'react-dom/cjs/react-dom-server.browser.production.min',
-          }
-        : {}),
-
       setimmediate: 'next/dist/compiled/setimmediate',
     },
     ...(targetWeb
@@ -958,11 +951,6 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  const nonUserCondition = {
-    include: /node_modules/,
-    exclude: babelIncludeRegexes,
-  }
-
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     externals: targetWeb
@@ -1255,13 +1243,6 @@ export default async function getBaseWebpackConfig(
             },
           ],
         },
-        {
-          ...nonUserCondition,
-          // Make all non-user modules to be compiled in a single layer
-          // This avoids compiling them mutliple times and avoids module id changes
-          issuerLayer: 'middleware',
-          layer: '',
-        },
         ...(!config.images.disableStaticImages
           ? [
               {
@@ -1460,6 +1441,9 @@ export default async function getBaseWebpackConfig(
       // replacement is done before its process.env.* handling
       (!isServer || webServerRuntime) &&
         new MiddlewarePlugin({ dev, webServerRuntime }),
+      process.env.ENABLE_FILE_SYSTEM_API === '1' &&
+        webServerRuntime &&
+        new FunctionsManifestPlugin({ dev, webServerRuntime }),
       isServer && new NextJsSsrImportPlugin(),
       !isServer &&
         new BuildManifestPlugin({
@@ -1617,6 +1601,7 @@ export default async function getBaseWebpackConfig(
     removeConsole: config.experimental.removeConsole,
     reactRemoveProperties: config.experimental.reactRemoveProperties,
     styledComponents: config.experimental.styledComponents,
+    relay: config.experimental.relay,
   })
 
   const cache: any = {

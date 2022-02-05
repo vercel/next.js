@@ -251,7 +251,7 @@ export async function ncc_jest_worker(task, opts) {
             )
           )
       )
-      .ncc({ packageName: 'jest-worker', externals })
+      .ncc({ externals })
       .target('compiled/jest-worker/out')
 
     await fs.move(
@@ -269,13 +269,13 @@ export async function ncc_react_refresh_utils(task, opts) {
   await fs.remove(join(__dirname, 'compiled/react-refresh'))
   await fs.copy(
     dirname(require.resolve('react-refresh/package.json')),
-    join(__dirname, 'compiled/react-refresh')
+    join(__dirname, 'dist/compiled/react-refresh')
   )
 
   const srcDir = dirname(
     require.resolve('@next/react-refresh-utils/package.json')
   )
-  const destDir = join(__dirname, 'compiled/@next/react-refresh-utils')
+  const destDir = join(__dirname, 'dist/compiled/@next/react-refresh-utils')
   await fs.remove(destDir)
   await fs.ensureDir(destDir)
 
@@ -310,10 +310,26 @@ export async function ncc_chalk(task, opts) {
 // eslint-disable-next-line camelcase
 externals['browserslist'] = 'next/dist/compiled/browserslist'
 export async function ncc_browserslist(task, opts) {
+  const browserslistModule = require.resolve('browserslist')
+  const nodeFile = join(dirname(browserslistModule), 'node.js')
+
+  const content = await fs.readFile(nodeFile, 'utf8')
+  // ensure ncc doesn't attempt to bundle dynamic requires
+  // so that they work at runtime correctly
+  await fs.writeFile(
+    nodeFile,
+    content.replace(
+      /require\(require\.resolve\(/g,
+      `__non_webpack_require__(__non_webpack_require__.resolve(`
+    )
+  )
+
   await task
     .source(opts.src || relative(__dirname, require.resolve('browserslist')))
     .ncc({ packageName: 'browserslist', externals })
     .target('compiled/browserslist')
+
+  await fs.writeFile(nodeFile, content)
 }
 
 // eslint-disable-next-line camelcase
@@ -1577,7 +1593,6 @@ export async function ncc(task, opts) {
         'ncc_node_html_parser',
         'ncc_watchpack',
         'ncc_chalk',
-        'ncc_browserslist',
         'ncc_napirs_triples',
         'ncc_etag',
         'ncc_p_limit',
@@ -1686,8 +1701,8 @@ export async function ncc(task, opts) {
   await task.parallel(['ncc_babel_bundle_packages'], opts)
   await task.serial(
     [
+      'ncc_browserslist',
       'ncc_next__react_dev_overlay',
-      'ncc_react_refresh_utils',
       'copy_regenerator_runtime',
       'copy_babel_runtime',
       'copy_constants_browserify',
@@ -1720,6 +1735,7 @@ export async function compile(task, opts) {
     ],
     opts
   )
+  await task.serial(['ncc_react_refresh_utils'])
 }
 
 export async function bin(task, opts) {

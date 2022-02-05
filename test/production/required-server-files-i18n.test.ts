@@ -601,11 +601,12 @@ describe('should set-up next', () => {
   it('should normalize optional values correctly for SSG page', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      '/optional-ssg',
-      { rest: '', another: 'value' },
+      '/en/optional-ssg/[[...rest]]',
+      undefined,
       {
         headers: {
-          'x-matched-path': '/optional-ssg/[[...rest]]',
+          'x-matched-path': '/en/optional-ssg/[[...rest]]',
+          'x-now-route-matches': 'nextLocale=en&1=en',
         },
       }
     )
@@ -614,6 +615,28 @@ describe('should set-up next', () => {
     const $ = cheerio.load(html)
     const props = JSON.parse($('#props').text())
     expect(props.params).toEqual({})
+  })
+
+  it('should normalize optional values correctly for nested optional SSG page', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/en/[slug]/social/[[...rest]]',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/en/[slug]/social/[[...rest]]',
+          'x-now-route-matches': 'nextLocale=en&1=en&2=user-123&slug=user-123',
+        },
+      }
+    )
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    const props = JSON.parse($('#props').text())
+    expect(props.params).toEqual({
+      slug: 'user-123',
+    })
+    expect($('#page').text()).toBe('/[slug]/social/[[...rest]]')
   })
 
   it('should normalize optional values correctly for SSG page with encoded slash', async () => {

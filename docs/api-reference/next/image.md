@@ -16,6 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                           |
 | --------- | ------------------------------------------------------------------------------------------------- |
+| `v12.0.9` | `lazyRoot` prop added                                                                             |
 | `v12.0.0` | `formats` configuration added.<br/>AVIF support added.<br/>Wrapper `<div>` changed to `<span>`.   |
 | `v11.1.0` | `onLoadingComplete` and `lazyBoundary` props added.                                               |
 | `v11.0.0` | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added. |
@@ -221,6 +222,12 @@ A string (with similar syntax to the margin property) that acts as the bounding 
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/rootMargin)
 
+### lazyRoot
+
+A React [Ref](https://reactjs.org/docs/refs-and-the-dom.html) pointing to the Element which the [lazyBoundary](#lazyBoundary) calculates for the Intersection detection. Defaults to `null`, referring to the document viewport.
+
+[Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/root)
+
 ### unoptimized
 
 When true, the source image will be served as-is instead of changing quality,
@@ -278,7 +285,7 @@ The following Image Optimization cloud providers are included:
 
 If you need a different provider, you can use the [`loader`](#loader) prop with `next/image`.
 
-> The `next/image` component's default loader is not supported when using [`next export`](/docs/advanced-features/static-html-export.md). However, other loader options will work.
+> Images can not be optimized at build time using [`next export`](/docs/advanced-features/static-html-export.md), only on-demand. To use `next/image` with `next export`, you will need to use a different loader than the default. [Read more in the discussion.](https://github.com/vercel/next.js/discussions/19065)
 
 > The `next/image` component's default loader uses [`squoosh`](https://www.npmjs.com/package/@squoosh/lib) because it is quick to install and suitable for a development environment. When using `next start` in your production environment, it is strongly recommended that you install [`sharp`](https://www.npmjs.com/package/sharp) by running `yarn add sharp` in your project directory. This is not necessary for Vercel deployments, as `sharp` is installed automatically.
 

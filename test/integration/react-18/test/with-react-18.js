@@ -13,6 +13,7 @@ module.exports = function withReact18(config) {
     alias['react'] = 'react-18'
     alias['react-dom'] = 'react-dom-18'
     alias['react-dom/server'] = 'react-dom-18/server'
+    alias['react-dom/server.browser'] = 'react-dom-18/server.browser'
 
     return webpackConfig
   }

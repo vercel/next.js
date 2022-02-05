@@ -56,6 +56,6 @@ export async function middleware(request) {
 
   if (url.pathname === '/redirects/infinite-loop-1') {
     url.pathname = '/redirects/infinite-loop'
-    return Response.redirect(url.pathname)
+    return Response.redirect(url)
   }
 }
