@@ -51,7 +51,7 @@ export interface TypeScriptConfig {
 export interface WebpackConfigContext {
   /** Next.js root directory */
   dir: string
-  /** Indicates if the compilation will be done in development */
+  /** It's `true` for `next dev` compilation and `false` for `next build` compilation */
   dev: boolean
   /** It's `true` for server-side compilation, and `false` for client-side compilation */
   isServer: boolean
