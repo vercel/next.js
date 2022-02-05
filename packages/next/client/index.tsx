@@ -38,6 +38,9 @@ import {
   trackWebVitalMetric,
 } from './streaming/vitals'
 import { RefreshContext } from './streaming/refresh'
+import { ImageConfigContext } from '../shared/lib/runtime-image-config-context'
+import { StyleRegistry } from 'styled-jsx'
+import { ImageConfigComplete } from '../server/image-config'
 
 /// <reference types="react-dom/experimental" />
 
@@ -626,7 +629,11 @@ function AppContainer({
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
         <HeadManagerContext.Provider value={headManager}>
-          {children}
+          <ImageConfigContext.Provider
+            value={process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete}
+          >
+            {children}
+          </ImageConfigContext.Provider>
         </HeadManagerContext.Provider>
       </RouterContext.Provider>
     </Container>
