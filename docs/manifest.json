@@ -15,11 +15,16 @@
             },
             {
               "title": "Data Fetching",
-              "path": "/docs/basic-features/data-fetching/index.md",
               "routes": [
                 {
+                  "path": "/docs/basic-features/data-fetching",
+                  "redirect": {
+                    "destination": "/docs/basic-features/data-fetching/overview"
+                  }
+                },
+                {
                   "title": "Overview",
-                  "path": "/docs/basic-features/data-fetching/index.md"
+                  "path": "/docs/basic-features/data-fetching/overview.md"
                 },
                 {
                   "title": "getServerSideProps",
@@ -150,6 +155,15 @@
         {
           "title": "Testing",
           "path": "/docs/testing.md"
+        },
+        {
+          "title": "Guides",
+          "routes": [
+            {
+              "title": "Building Forms",
+              "path": "/docs/guides/building-forms.md"
+            }
+          ]
         },
         {
           "title": "Advanced Features",

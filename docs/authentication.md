@@ -8,7 +8,7 @@ Authentication verifies who a user is, while authorization controls what a user 
 
 ## Authentication Patterns
 
-The first step to identifying which authentication pattern you need is understanding the [data-fetching strategy](/docs/basic-features/data-fetching/index.md) you want. We can then determine which authentication providers support this strategy. There are two main patterns:
+The first step to identifying which authentication pattern you need is understanding the [data-fetching strategy](/docs/basic-features/data-fetching/overview.md) you want. We can then determine which authentication providers support this strategy. There are two main patterns:
 
 - Use [static generation](/docs/basic-features/pages.md#static-generation-recommended) to server-render a loading state, followed by fetching user data client-side.
 - Fetch user data [server-side](/docs/basic-features/pages.md#server-side-rendering) to eliminate a flash of unauthenticated content.
@@ -62,7 +62,7 @@ export async function getServerSideProps(context) {
 }
 ```
 
-Let's transform the profile example to use [server-side rendering](/docs/basic-features/pages#server-side-rendering). If there's a session, return `user` as a prop to the `Profile` component in the page. Notice there is not a loading skeleton in [this example](https://next-with-iron-session.vercel.app/).
+Let's transform the profile example to use [server-side rendering](/docs/basic-features/pages#server-side-rendering). If there's a session, return `user` as a prop to the `Profile` component in the page. Notice there is not a loading skeleton in [this example](https://iron-session-example.vercel.app/).
 
 ```jsx
 // pages/profile.js
@@ -71,7 +71,9 @@ import withSession from '../lib/session'
 import Layout from '../components/Layout'
 
 export const getServerSideProps = withSession(async function ({ req, res }) {
-  if (!req.session.user) {
+  const { user } = req.session
+
+  if (!user) {
     return {
       redirect: {
         destination: '/login',
@@ -154,7 +156,7 @@ For more information on what to do next, we recommend the following sections:
 </div>
 
 <div class="card">
-  <a href="/docs/basic-features/data-fetching/index.md">
+  <a href="/docs/basic-features/data-fetching/overview.md">
     <b>Data Fetching:</b>
     <small>Learn more about data fetching in Next.js.</small>
   </a>
