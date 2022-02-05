@@ -1378,24 +1378,14 @@ export async function renderToHTML(
 
   let documentHTML: string
   if (concurrentFeatures) {
-    // There is no `renderToStaticMarkup` exposed in the web environment, use
-    // blocking `renderToReadableStream` to get the similar result.
-    let result = ''
-    const readable = (ReactDOMServer as any).renderToReadableStream(document, {
-      onError: (e: any) => {
-        throw e
-      },
-    })
-    const reader = readable.getReader()
-    const decoder = new TextDecoder()
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) {
-        break
-      }
-      result += typeof value === 'string' ? value : decoder.decode(value)
-    }
-    documentHTML = result
+    const documentStream = await renderToStream(
+      ReactDOMServer,
+      document,
+      null,
+      null,
+      true
+    )
+    documentHTML = await streamToString(documentStream)
   } else {
     documentHTML = ReactDOMServer.renderToStaticMarkup(document)
   }
@@ -1532,23 +1522,24 @@ function serializeError(
 function createTransformStream({
   flush,
   transform,
-  start,
 }: {
-  flush: () => Promise<void> | void
-  transform: (chunk: Uint8Array) => void
-  start: (controller: TransformStreamDefaultController) => void
+  flush: (controller: TransformStreamDefaultController) => Promise<void> | void
+  transform: (
+    chunk: Uint8Array,
+    controller: TransformStreamDefaultController
+  ) => void
 }): TransformStream {
   const source = new TransformStream()
   const sink = new TransformStream()
   const reader = source.readable.getReader()
   const writer = sink.writable.getWriter()
 
-  start({
-    enqueue(chunk) {
+  const controller = {
+    enqueue(chunk: Uint8Array) {
       writer.write(chunk)
     },
 
-    error(reason) {
+    error(reason: Error) {
       writer.abort(reason)
       reader.cancel()
     },
@@ -1561,19 +1552,23 @@ function createTransformStream({
     get desiredSize() {
       return writer.desiredSize
     },
-  })
+  }
+
   ;(async () => {
     try {
       while (true) {
         const { done, value } = await reader.read()
 
         if (done) {
-          await flush()
+          const maybePromise = flush(controller)
+          if (maybePromise) {
+            await maybePromise
+          }
           writer.close()
           return
         }
 
-        transform(value)
+        transform(value, controller)
       }
     } catch (err) {
       writer.abort(err)
@@ -1592,9 +1587,8 @@ function createBufferedTransformStream(): TransformStream {
 
   let bufferedString = ''
   let pendingFlush: Promise<void> | null = null
-  let controller: TransformStreamDefaultController
 
-  const flushBuffer = () => {
+  const flushBuffer = (controller: TransformStreamDefaultController) => {
     if (!pendingFlush) {
       pendingFlush = new Promise((resolve) => {
         setTimeout(() => {
@@ -1609,13 +1603,9 @@ function createBufferedTransformStream(): TransformStream {
   }
 
   return createTransformStream({
-    start(transformController) {
-      controller = transformController
-    },
-
-    transform(chunk) {
+    transform(chunk, controller) {
       bufferedString += decoder.decode(chunk)
-      flushBuffer()
+      flushBuffer(controller)
     },
 
     flush() {
@@ -1629,7 +1619,7 @@ function createBufferedTransformStream(): TransformStream {
 function renderToStream(
   ReactDOMServer: typeof import('react-dom/server'),
   element: React.ReactElement,
-  suffix: string,
+  suffix: string | null,
   dataStream: ReadableStream | null,
   generateStaticHTML: boolean
 ): Promise<ReadableStream> {
@@ -1638,29 +1628,42 @@ function renderToStream(
 
     const closeTagString = '</body></html>'
     const encoder = new TextEncoder()
-    const closeTag = encoder.encode(closeTagString)
-    const suffixUnclosed = encoder.encode(suffix.split(closeTagString)[0])
-    const { readable, writable } = new TransformStream()
+    const suffixState = suffix
+      ? {
+          closeTag: encoder.encode(closeTagString),
+          suffixUnclosed: encoder.encode(suffix.split(closeTagString)[0]),
+        }
+      : null
+
+    const { readable, writable } = createTransformStream({
+      transform(chunk, controller) {
+        controller.enqueue(chunk)
+      },
+
+      flush(controller) {
+        if (suffixState) {
+          controller.enqueue(suffixState.closeTag)
+        }
+      },
+    })
 
     const doResolve = () => {
       if (!resolved) {
         resolved = true
-        let controller: TransformStreamDefaultController
         let dataStreamFinished: Promise<void> | null = null
         let shellFlushed = false
 
         resolve(
           readable.pipeThrough(createBufferedTransformStream()).pipeThrough(
             createTransformStream({
-              start(transformController) {
-                controller = transformController
-              },
-              transform(chunk) {
+              transform(chunk, controller) {
                 controller.enqueue(chunk)
 
                 if (!shellFlushed) {
                   shellFlushed = true
-                  controller.enqueue(suffixUnclosed)
+                  if (suffixState) {
+                    controller.enqueue(suffixState.suffixUnclosed)
+                  }
                 }
 
                 if (!dataStreamFinished && dataStream) {
@@ -1681,13 +1684,9 @@ function renderToStream(
                 }
               },
               flush() {
-                const flushCloseTag = () => {
-                  controller.enqueue(closeTag)
-                }
                 if (dataStreamFinished) {
-                  return dataStreamFinished.then(flushCloseTag)
+                  return dataStreamFinished
                 }
-                flushCloseTag()
               },
             })
           )
