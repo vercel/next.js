@@ -7,7 +7,7 @@ import {
   VALID_LOADERS,
 } from '../server/image-config'
 import { useIntersection } from './use-intersection'
-import { ImageConfigContext } from '../shared/lib/runtime-image-config-context'
+import { ImageConfigContext } from '../shared/lib/image-config-context'
 
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<

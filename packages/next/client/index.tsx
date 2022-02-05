@@ -38,8 +38,7 @@ import {
   trackWebVitalMetric,
 } from './streaming/vitals'
 import { RefreshContext } from './streaming/refresh'
-import { ImageConfigContext } from '../shared/lib/runtime-image-config-context'
-import { StyleRegistry } from 'styled-jsx'
+import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../server/image-config'
 
 /// <reference types="react-dom/experimental" />
