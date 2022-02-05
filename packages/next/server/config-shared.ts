@@ -18,11 +18,6 @@ export type NextConfigComplete = Required<NextConfig> & {
 export interface I18NConfig {
   defaultLocale: string
   domains?: DomainLocale[]
-  /**
-   * When `localeDetection` is set to `false` Next.js will no longer automatically redirect
-   * based on the user's preferred locale and will only provide locale information
-   * detected from either the locale based domain or locale path as described above.
-   */
   localeDetection?: false
   locales: string[]
 }
@@ -136,7 +131,7 @@ export interface ExperimentalConfig {
  */
 export interface NextConfig extends Record<string, any> {
   /**
-   * Internationalization configurations
+   * Internationalization configuration
    *
    * @see [Internationalization docs](https://nextjs.org/docs/advanced-features/i18n-routing)
    */
@@ -215,7 +210,7 @@ export interface NextConfig extends Record<string, any> {
   env?: Record<string, string>
 
   /**
-   * Detonation directory
+   * Destination directory (defaults to `.next`)
    */
   distDir?: string
 
@@ -248,7 +243,7 @@ export interface NextConfig extends Record<string, any> {
   /** @see [Disabling ETag Configuration](https://nextjs.org/docs/api-reference/next.config.js/disabling-etag-generation) */
   generateEtags?: boolean
 
-  /** @see [Including non-page files in the pages directory](https://nextjs.org/docs/api-reference/next.config.js/custom-page-extensions#including-non-page-files-in-the-pages-directory) */
+  /** @see [Including non-page files in the pages directory](https://nextjs.org/docs/api-reference/next.config.js/custom-page-extensions) */
   pageExtensions?: string[]
 
   /** @see [Compression documentation](https://nextjs.org/docs/api-reference/next.config.js/compression) */
@@ -292,7 +287,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * Deploy a Next.js application under a sub-path of a domain
    *
-   * @see [Base path conguration](https://nextjs.org/docs/api-reference/next.config.js/basepath)
+   * @see [Base path configuration](https://nextjs.org/docs/api-reference/next.config.js/basepath)
    */
   basePath?: string
 
@@ -344,7 +339,6 @@ export interface NextConfig extends Record<string, any> {
    */
   httpAgentOptions?: { keepAlive?: boolean }
 
-  /** @deprecated Use `experimental` property for new expriments */
   future?: {
     /**
      * @deprecated This option has been removed as webpack 5 is now default
