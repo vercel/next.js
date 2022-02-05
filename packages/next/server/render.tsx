@@ -1564,14 +1564,14 @@ function createTransformStream({
           if (maybePromise) {
             await maybePromise
           }
-          writer.close()
+          await writer.close()
           return
         }
 
         transform(value, controller)
       }
     } catch (err) {
-      writer.abort(err)
+      await writer.abort(err)
     }
   })()
 
@@ -1634,18 +1634,7 @@ function renderToStream(
           suffixUnclosed: encoder.encode(suffix.split(closeTagString)[0]),
         }
       : null
-
-    const { readable, writable } = createTransformStream({
-      transform(chunk, controller) {
-        controller.enqueue(chunk)
-      },
-
-      flush(controller) {
-        if (suffixState) {
-          controller.enqueue(suffixState.closeTag)
-        }
-      },
-    })
+    const { readable, writable } = new TransformStream()
 
     const doResolve = () => {
       if (!resolved) {
@@ -1683,10 +1672,16 @@ function renderToStream(
                   })()
                 }
               },
-              flush() {
-                if (dataStreamFinished) {
-                  return dataStreamFinished
+              flush(controller) {
+                const flushClosingTag = () => {
+                  if (suffixState) {
+                    controller.enqueue(suffixState.closeTag)
+                  }
                 }
+                if (dataStreamFinished) {
+                  return dataStreamFinished.then(flushClosingTag)
+                }
+                flushClosingTag()
               },
             })
           )
