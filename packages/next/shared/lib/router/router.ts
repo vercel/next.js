@@ -1853,7 +1853,15 @@ export default class Router implements BaseRouter {
       shouldCache: options.cache,
     })
 
-    if (preflight.rewrite?.startsWith('/')) {
+    if (preflight.rewrite) {
+      // for external rewrites we need to do a hard navigation
+      // to the resource
+      if (!preflight.rewrite.startsWith('/')) {
+        return {
+          type: 'redirect',
+          destination: options.as,
+        }
+      }
       const parsed = parseRelativeUrl(
         normalizeLocalePath(
           hasBasePath(preflight.rewrite)
