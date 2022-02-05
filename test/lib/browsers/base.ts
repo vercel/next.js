@@ -59,7 +59,7 @@ export class BrowserInterface {
   deleteCookies(): BrowserInterface {
     return this
   }
-  async loadPage(url: string): Promise<any> {}
+  async loadPage(url: string, { disableCache: boolean }): Promise<any> {}
   async get(url: string): Promise<void> {}
 
   async getValue(): Promise<any> {}
@@ -76,6 +76,9 @@ export class BrowserInterface {
     return false
   }
   async log(): Promise<any[]> {
+    return []
+  }
+  async websocketFrames(): Promise<any[]> {
     return []
   }
   async url(): Promise<string> {

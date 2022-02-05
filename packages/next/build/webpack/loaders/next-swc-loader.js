@@ -26,91 +26,9 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-import { transform } from '../../swc'
-
-const nextDistPath =
-  /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
-
-function getSWCOptions({
-  filename,
-  isServer,
-  development,
-  isPageFile,
-  pagesDir,
-  isNextDist,
-  hasReactRefresh,
-}) {
-  const isTSFile = filename.endsWith('.ts')
-  const isTypeScript = isTSFile || filename.endsWith('.tsx')
-
-  const jsc = {
-    parser: {
-      syntax: isTypeScript ? 'typescript' : 'ecmascript',
-      dynamicImport: true,
-      // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
-      [isTypeScript ? 'tsx' : 'jsx']: isTSFile ? false : true,
-    },
-
-    transform: {
-      react: {
-        runtime: 'automatic',
-        pragma: 'React.createElement',
-        pragmaFrag: 'React.Fragment',
-        throwIfNamespace: true,
-        development: development,
-        useBuiltins: true,
-        refresh: hasReactRefresh,
-      },
-      optimizer: {
-        simplify: false,
-        globals: {
-          typeofs: {
-            window: isServer ? 'undefined' : 'object',
-          },
-        },
-      },
-      regenerator: {
-        importPath: require.resolve('regenerator-runtime'),
-      },
-    },
-  }
-
-  if (isServer) {
-    return {
-      jsc,
-      // Disables getStaticProps/getServerSideProps tree shaking on the server compilation for pages
-      disableNextSsg: true,
-      disablePageConfig: true,
-      isDevelopment: development,
-      pagesDir,
-      isPageFile,
-      env: {
-        targets: {
-          // Targets the current version of Node.js
-          node: process.versions.node,
-        },
-      },
-    }
-  } else {
-    // Matches default @babel/preset-env behavior
-    jsc.target = 'es5'
-    return {
-      // Ensure Next.js internals are output as commonjs modules
-      ...(isNextDist
-        ? {
-            module: {
-              type: 'commonjs',
-            },
-          }
-        : {}),
-      disableNextSsg: !isPageFile,
-      isDevelopment: development,
-      pagesDir,
-      isPageFile,
-      jsc,
-    }
-  }
-}
+import { isWasm, transform } from '../../swc'
+import { getLoaderSWCOptions } from '../../swc/options'
+import { isAbsolute } from 'path'
 
 async function loaderTransform(parentTrace, source, inputSourceMap) {
   // Make the loader async
@@ -118,19 +36,19 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
 
   let loaderOptions = this.getOptions() || {}
 
-  const { isServer, pagesDir, hasReactRefresh } = loaderOptions
+  const { isServer, pagesDir, hasReactRefresh, nextConfig, jsConfig } =
+    loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
 
-  const isNextDist = nextDistPath.test(filename)
-
-  const swcOptions = getSWCOptions({
+  const swcOptions = getLoaderSWCOptions({
     pagesDir,
     filename,
     isServer: isServer,
     isPageFile,
     development: this.mode === 'development',
-    isNextDist,
     hasReactRefresh,
+    nextConfig,
+    jsConfig,
   })
 
   const programmaticOptions = {
@@ -173,6 +91,34 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
       return [output.code, output.map ? JSON.parse(output.map) : undefined]
     })
   )
+}
+
+const EXCLUDED_PATHS =
+  /[\\/](cache[\\/][^\\/]+\.zip[\\/]node_modules|__virtual__)[\\/]/g
+
+export function pitch() {
+  const callback = this.async()
+  ;(async () => {
+    let loaderOptions = this.getOptions() || {}
+    if (
+      // TODO: investigate swc file reading in PnP mode?
+      !process.versions.pnp &&
+      loaderOptions.fileReading &&
+      !EXCLUDED_PATHS.test(this.resourcePath) &&
+      this.loaders.length - 1 === this.loaderIndex &&
+      isAbsolute(this.resourcePath) &&
+      !(await isWasm())
+    ) {
+      const loaderSpan = this.currentTraceSpan.traceChild('next-swc-loader')
+      this.addDependency(this.resourcePath)
+      return loaderSpan.traceAsyncFn(() =>
+        loaderTransform.call(this, loaderSpan)
+      )
+    }
+  })().then((r) => {
+    if (r) return callback(null, ...r)
+    callback()
+  }, callback)
 }
 
 export default function swcLoader(inputSource, inputSourceMap) {

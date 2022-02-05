@@ -15,6 +15,7 @@ let page: Page
 let browser: Browser
 let context: BrowserContext
 let pageLogs: Array<{ source: string; message: string }> = []
+let websocketFrames: Array<{ payload: string | Buffer }> = []
 
 const tracePlaywright = process.env.TRACE_PLAYWRIGHT
 
@@ -46,7 +47,7 @@ class Playwright extends BrowserInterface {
     return page.goto(url) as any
   }
 
-  async loadPage(url: string) {
+  async loadPage(url: string, opts?: { disableCache: boolean }) {
     if (this.activeTrace) {
       const traceDir = path.join(__dirname, '../../traces')
       const traceOutputPath = path.join(
@@ -71,6 +72,7 @@ class Playwright extends BrowserInterface {
     }
     page = await context.newPage()
     pageLogs = []
+    websocketFrames = []
 
     page.on('console', (msg) => {
       console.log('browser log:', msg)
@@ -83,25 +85,36 @@ class Playwright extends BrowserInterface {
       console.error('page error', error)
     })
 
-    if (tracePlaywright) {
-      page.on('websocket', (ws) => {
+    if (opts?.disableCache) {
+      // TODO: this doesn't seem to work (dev tools does not check the box as expected)
+      const session = await context.newCDPSession(page)
+      session.send('Network.setCacheDisabled', { cacheDisabled: true })
+    }
+
+    page.on('websocket', (ws) => {
+      if (tracePlaywright) {
         page
           .evaluate(`console.log('connected to ws at ${ws.url()}')`)
           .catch(() => {})
+
         ws.on('close', () =>
           page
             .evaluate(`console.log('closed websocket ${ws.url()}')`)
             .catch(() => {})
         )
-        ws.on('framereceived', (frame) => {
+      }
+      ws.on('framereceived', (frame) => {
+        websocketFrames.push({ payload: frame.payload })
+
+        if (tracePlaywright) {
           if (!frame.payload.includes('pong')) {
             page
               .evaluate(`console.log('received ws message ${frame.payload}')`)
               .catch(() => {})
           }
-        })
+        }
       })
-    }
+    })
 
     if (tracePlaywright) {
       await context.tracing.start({
@@ -308,6 +321,10 @@ class Playwright extends BrowserInterface {
 
   async log() {
     return this.chain(() => pageLogs) as any
+  }
+
+  async websocketFrames() {
+    return this.chain(() => websocketFrames) as any
   }
 
   async url() {

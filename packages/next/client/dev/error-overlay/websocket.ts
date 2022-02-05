@@ -2,6 +2,17 @@ let source: WebSocket
 const eventCallbacks: ((event: any) => void)[] = []
 let lastActivity = Date.now()
 
+function getSocketProtocol(assetPrefix: string): string {
+  let protocol = location.protocol
+
+  try {
+    // assetPrefix is a url
+    protocol = new URL(assetPrefix).protocol
+  } catch (_) {}
+
+  return protocol === 'http:' ? 'ws' : 'wss'
+}
+
 export function addMessageListener(cb: (event: any) => void) {
   eventCallbacks.push(cb)
 }
@@ -32,7 +43,7 @@ export function connectHMR(options: {
   function init() {
     if (source) source.close()
     const { hostname, port } = location
-    const protocol = location.protocol === 'http:' ? 'ws' : 'wss'
+    const protocol = getSocketProtocol(options.assetPrefix || '')
     const assetPrefix = options.assetPrefix.replace(/^\/+/, '')
 
     let url = `${protocol}://${hostname}:${port}${

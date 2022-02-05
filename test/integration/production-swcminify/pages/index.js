@@ -1,6 +1,10 @@
-import Link from 'next/link'
+import Link from 'next/link?loaderQuery'
 
 if (typeof window === 'undefined') {
+  try {
+    let file = 'clear.js'
+    require('es5-ext/array/#/' + file)
+  } catch (_) {}
   import('nanoid').then((mod) => console.log(mod.nanoid()))
 }
 
