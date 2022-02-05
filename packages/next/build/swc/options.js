@@ -117,6 +117,13 @@ export function getJestSWCOptions({
         // Targets the current version of Node.js
         node: process.versions.node,
       },
+      // we always transpile optional chaining and nullish coalescing
+      // since it can cause issues with webpack even if the node target
+      // supports them
+      include: [
+        'proposal-optional-chaining',
+        'proposal-nullish-coalescing-operator',
+      ],
     },
     module: {
       type: esm && !isNextDist ? 'es6' : 'commonjs',
@@ -165,6 +172,13 @@ export function getLoaderSWCOptions({
           // Targets the current version of Node.js
           node: process.versions.node,
         },
+        // we always transpile optional chaining and nullish coalescing
+        // since it can cause issues with webpack even if the node target
+        // supports them
+        include: [
+          'proposal-optional-chaining',
+          'proposal-nullish-coalescing-operator',
+        ],
       },
     }
   } else {
