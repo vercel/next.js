@@ -162,7 +162,8 @@ function reduceComponents(
         }
       }
       if (process.env.NODE_ENV === 'development') {
-        if (c.type === 'script') {
+        // omit JSON-LD structured data snippets from the warning
+        if (c.type === 'script' && c.props['type'] !== 'application/ld+json') {
           const srcMessage = c.props['src']
             ? `<script> tag with src="${c.props['src']}"`
             : `inline <script>`
