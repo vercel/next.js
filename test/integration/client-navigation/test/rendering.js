@@ -425,7 +425,7 @@ export default function (render, fetch, ctx) {
       const text = await getRedboxHeader(browser)
 
       expect(text).toContain(
-        'An undefined error was thrown sometime during render...'
+        'An undefined error was thrown, see here for more info:'
       )
     })
   })

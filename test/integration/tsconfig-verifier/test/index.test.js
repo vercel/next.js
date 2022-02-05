@@ -315,4 +315,61 @@ describe('tsconfig.json verifier', () => {
       `"{ \\"extends\\": \\"./tsconfig.base.json\\" }"`
     )
   })
+
+  it('creates compilerOptions when you extend another config', async () => {
+    expect(await exists(tsConfig)).toBe(false)
+    expect(await exists(tsConfigBase)).toBe(false)
+
+    await writeFile(
+      tsConfigBase,
+      `
+      {
+        "compilerOptions": {
+          "target": "es5",
+          "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
+          ],
+          "allowJs": true,
+          "skipLibCheck": true,
+          "strict": false,
+          "forceConsistentCasingInFileNames": true,
+          "noEmit": true,
+          "esModuleInterop": true,
+          "module": "esnext",
+          "moduleResolution": "node",
+          "resolveJsonModule": true,
+          "isolatedModules": true,
+          "jsx": "preserve"
+        },
+        "include": [
+          "next-env.d.ts",
+          "**/*.ts",
+          "**/*.tsx"
+        ],
+        "exclude": [
+          "node_modules"
+        ]
+      }
+      `
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    await writeFile(tsConfig, `{ "extends": "./tsconfig.base.json" }`)
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    const { code } = await nextBuild(appDir)
+    expect(code).toBe(0)
+
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        \\"extends\\": \\"./tsconfig.base.json\\",
+        \\"compilerOptions\\": {
+          \\"incremental\\": true
+        }
+      }
+      "
+    `)
+  })
 })

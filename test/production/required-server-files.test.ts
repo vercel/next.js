@@ -1,10 +1,11 @@
 import glob from 'glob'
-import _fs from 'fs-extra'
+import fs from 'fs-extra'
 import cheerio from 'cheerio'
-import { join, dirname } from 'path'
+import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import {
+  check,
   fetchViaHTTP,
   findPort,
   initNextServerScript,
@@ -29,11 +30,11 @@ describe('should set-up next', () => {
         ),
       },
       nextConfig: {
-        experimental: {
-          outputFileTracing: true,
-        },
         eslint: {
           ignoreDuringBuilds: true,
+        },
+        experimental: {
+          outputStandalone: true,
         },
         async rewrites() {
           return [
@@ -41,92 +42,54 @@ describe('should set-up next', () => {
               source: '/some-catch-all/:path*',
               destination: '/',
             },
+            {
+              source: '/to-dynamic/:path',
+              destination: '/dynamic/:path',
+            },
           ]
         },
       },
     })
     await next.stop()
-    const keptFiles = new Set<string>()
-    const nextServerTrace = require('next/dist/server/next-server.js.nft.json')
 
     requiredFilesManifest = JSON.parse(
       await next.readFile('.next/required-server-files.json')
     )
-    requiredFilesManifest.files.forEach((file) => keptFiles.add(file))
-
-    const pageTraceFiles = glob.sync('**/*.nft.json', {
-      cwd: join(next.testDir, '.next/server/pages'),
-    })
-    for (const traceFile of pageTraceFiles) {
-      const pageDir = dirname(join('.next/server/pages', traceFile))
-      const trace = await _fs.readJSON(
-        join(next.testDir, '.next/server/pages', traceFile)
-      )
-      keptFiles.add(
-        join('.next/server/pages', traceFile.replace('.nft.json', ''))
-      )
-
-      for (const file of trace.files) {
-        keptFiles.add(join(pageDir, file))
+    await fs.move(
+      join(next.testDir, '.next/standalone'),
+      join(next.testDir, 'standalone')
+    )
+    for (const file of await fs.readdir(next.testDir)) {
+      if (file !== 'standalone') {
+        await fs.remove(join(next.testDir, file))
+        console.log('removed', file)
       }
     }
-
-    const allFiles = glob.sync('**/*', {
-      cwd: next.testDir,
+    const files = glob.sync('**/*', {
+      cwd: join(next.testDir, 'standalone/.next/server/pages'),
       dot: true,
     })
 
-    for (const file of allFiles) {
-      const filePath = join(next.testDir, file)
-      if (
-        !keptFiles.has(file) &&
-        !(await _fs.stat(filePath).catch(() => null))?.isDirectory() &&
-        !nextServerTrace.files.includes(file) &&
-        !file.match(/node_modules\/(react|react-dom)\//) &&
-        file !== 'node_modules/next/dist/server/next-server.js'
-      ) {
-        await _fs.remove(filePath)
+    for (const file of files) {
+      if (file.endsWith('.json') || file.endsWith('.html')) {
+        await fs.remove(join(next.testDir, '.next/server', file))
       }
     }
-    appPort = await findPort()
 
-    const testServer = join(next.testDir, 'server.js')
-    await _fs.writeFile(
+    const testServer = join(next.testDir, 'standalone/server.js')
+    await fs.writeFile(
       testServer,
-      `
-      const http = require('http')
-      const NextServer = require('next/dist/server/next-server').default
-      const appPort = ${appPort}
-
-      const nextApp = new NextServer({
-        conf: ${JSON.stringify(requiredFilesManifest.config)},
-        dir: "${next.testDir}",
-        quiet: false,
-        minimalMode: true,
-      })
-
-      server = http.createServer(async (req, res) => {
-        try {
-          await nextApp.getRequestHandler()(req, res)
-        } catch (err) {
-          console.error('top-level', err)
-          res.statusCode = 500
-          res.end('error')
-        }
-      })
-      server.listen(appPort, (err) => {
-        if (err) throw err
-        console.log(\`Listening at ::${appPort}\`)
-      })
-    `
+      (await fs.readFile(testServer, 'utf8'))
+        .replace('console.error(err)', `console.error('top-level', err)`)
+        .replace('conf:', 'minimalMode: true,conf:')
     )
-
+    appPort = await findPort()
     server = await initNextServerScript(
       testServer,
-      /Listening at/,
+      /Listening on/,
       {
         ...process.env,
-        NODE_ENV: 'production',
+        PORT: appPort,
       },
       undefined,
       {
@@ -144,6 +107,33 @@ describe('should set-up next', () => {
     if (server) await killApp(server)
   })
 
+  it('`compress` should be `true` by default', async () => {
+    expect(
+      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
+    ).toContain('"compress":true')
+  })
+
+  it('should output middleware correctly', async () => {
+    expect(
+      await fs.pathExists(
+        join(next.testDir, 'standalone/.next/server/middleware-runtime.js')
+      )
+    ).toBe(true)
+    expect(
+      await fs.pathExists(
+        join(
+          next.testDir,
+          'standalone/.next/server/pages/middleware/_middleware.js'
+        )
+      )
+    ).toBe(true)
+    expect(
+      await fs.pathExists(
+        join(next.testDir, 'standalone/.next/server/pages/_middleware.js')
+      )
+    ).toBe(true)
+  })
+
   it('should output required-server-files manifest correctly', async () => {
     expect(requiredFilesManifest.version).toBe(1)
     expect(Array.isArray(requiredFilesManifest.files)).toBe(true)
@@ -156,7 +146,7 @@ describe('should set-up next', () => {
   })
 
   it('should set correct SWR headers with notFound gsp', async () => {
-    await next.patchFile('data.txt', 'show')
+    await next.patchFile('standalone/data.txt', 'show')
 
     const res = await fetchViaHTTP(appPort, '/gsp', undefined, {
       redirect: 'manual ',
@@ -166,7 +156,7 @@ describe('should set-up next', () => {
       's-maxage=1, stale-while-revalidate'
     )
 
-    await next.patchFile('data.txt', 'hide')
+    await next.patchFile('standalone/data.txt', 'hide')
 
     const res2 = await fetchViaHTTP(appPort, '/gsp', undefined, {
       redirect: 'manual ',
@@ -178,7 +168,7 @@ describe('should set-up next', () => {
   })
 
   it('should set correct SWR headers with notFound gssp', async () => {
-    await next.patchFile('data.txt', 'show')
+    await next.patchFile('standalone/data.txt', 'show')
 
     const res = await fetchViaHTTP(appPort, '/gssp', undefined, {
       redirect: 'manual ',
@@ -188,7 +178,7 @@ describe('should set-up next', () => {
       's-maxage=1, stale-while-revalidate'
     )
 
-    await next.patchFile('data.txt', 'hide')
+    await next.patchFile('standalone/data.txt', 'hide')
 
     const res2 = await fetchViaHTTP(appPort, '/gssp', undefined, {
       redirect: 'manual ',
@@ -548,40 +538,67 @@ describe('should set-up next', () => {
     })
   })
 
+  it('should handle bad request correctly with rewrite', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/to-dynamic/%c0.%c0.',
+      '?path=%c0.%c0.',
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
+    expect(res.status).toBe(400)
+    expect(await res.text()).toContain('Bad Request')
+  })
+
   it('should bubble error correctly for gip page', async () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('error')
-    expect(errors.length).toBe(1)
-    expect(errors[0]).toContain('gip hit an oops')
+    expect(await res.text()).toBe('internal server error')
+
+    await check(
+      () => (errors[0].includes('gip hit an oops') ? 'success' : errors[0]),
+      'success'
+    )
   })
 
   it('should bubble error correctly for gssp page', async () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('error')
-    expect(errors.length).toBe(1)
-    expect(errors[0]).toContain('gssp hit an oops')
+    expect(await res.text()).toBe('internal server error')
+    await check(
+      () => (errors[0].includes('gssp hit an oops') ? 'success' : errors[0]),
+      'success'
+    )
   })
 
   it('should bubble error correctly for gsp page', async () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('error')
-    expect(errors.length).toBe(1)
-    expect(errors[0]).toContain('gsp hit an oops')
+    expect(await res.text()).toBe('internal server error')
+    await check(
+      () => (errors[0].includes('gsp hit an oops') ? 'success' : errors[0]),
+      'success'
+    )
   })
 
   it('should bubble error correctly for API page', async () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/api/error')
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('error')
-    expect(errors.length).toBe(1)
-    expect(errors[0]).toContain('some error from /api/error')
+    expect(await res.text()).toBe('internal server error')
+    await check(
+      () =>
+        errors[0].includes('some error from /api/error')
+          ? 'success'
+          : errors[0],
+      'success'
+    )
   })
 
   it('should normalize optional values correctly for SSP page', async () => {
@@ -658,6 +675,23 @@ describe('should set-up next', () => {
     const json = await res.json()
     expect(json.query).toEqual({ another: 'value' })
     expect(json.url).toBe('/api/optional?another=value')
+  })
+
+  it('should normalize index optional values correctly for API page', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/api/optional/index',
+      { rest: 'index', another: 'value' },
+      {
+        headers: {
+          'x-matched-path': '/api/optional/[[...rest]]',
+        },
+      }
+    )
+
+    const json = await res.json()
+    expect(json.query).toEqual({ another: 'value', rest: ['index'] })
+    expect(json.url).toBe('/api/optional/index?another=value')
   })
 
   it('should match the index page correctly', async () => {

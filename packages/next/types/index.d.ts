@@ -25,9 +25,7 @@ import {
 import next from '../dist/server/next'
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
-import { NextConfig as NextConfigType } from '../dist/server/config'
-
-export type NextConfig = NextConfigType
+export { NextConfig } from '../dist/server/config'
 
 // Extend the React types with missing properties
 declare module 'react' {
@@ -182,5 +180,28 @@ export type InferGetServerSidePropsType<T> = T extends GetServerSideProps<
     ) => Promise<GetServerSidePropsResult<infer P>>
   ? P
   : never
+
+declare global {
+  interface Crypto {
+    readonly subtle: SubtleCrypto
+    getRandomValues<
+      T extends
+        | Int8Array
+        | Int16Array
+        | Int32Array
+        | Uint8Array
+        | Uint16Array
+        | Uint32Array
+        | Uint8ClampedArray
+        | Float32Array
+        | Float64Array
+        | DataView
+        | null
+    >(
+      array: T
+    ): T
+    randomUUID?(): string
+  }
+}
 
 export default next

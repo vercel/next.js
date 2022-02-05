@@ -1,4 +1,5 @@
 import { BrowserInterface } from './base'
+import fs from 'fs-extra'
 import {
   chromium,
   webkit,
@@ -8,11 +9,15 @@ import {
   Page,
   ElementHandle,
 } from 'playwright-chromium'
+import path from 'path'
 
 let page: Page
 let browser: Browser
 let context: BrowserContext
 let pageLogs: Array<{ source: string; message: string }> = []
+let websocketFrames: Array<{ payload: string | Buffer }> = []
+
+const tracePlaywright = process.env.TRACE_PLAYWRIGHT
 
 export async function quit() {
   await context?.close()
@@ -22,11 +27,10 @@ export async function quit() {
 }
 
 class Playwright extends BrowserInterface {
-  private browserName: string
+  private activeTrace?: string
 
   async setup(browserName: string) {
     if (browser) return
-    this.browserName = browserName
     const headless = !!process.env.HEADLESS
 
     if (browserName === 'safari') {
@@ -43,13 +47,32 @@ class Playwright extends BrowserInterface {
     return page.goto(url) as any
   }
 
-  async loadPage(url: string) {
+  async loadPage(url: string, opts?: { disableCache: boolean }) {
+    if (this.activeTrace) {
+      const traceDir = path.join(__dirname, '../../traces')
+      const traceOutputPath = path.join(
+        traceDir,
+        `${path
+          .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH)
+          .replace(/\//g, '-')}`,
+        `playwright-${this.activeTrace}-${Date.now()}.zip`
+      )
+
+      await fs.remove(traceOutputPath)
+      await context.tracing
+        .stop({
+          path: traceOutputPath,
+        })
+        .catch((err) => console.error('failed to write playwright trace', err))
+    }
+
     // clean-up existing pages
     for (const oldPage of context.pages()) {
       await oldPage.close()
     }
     page = await context.newPage()
     pageLogs = []
+    websocketFrames = []
 
     page.on('console', (msg) => {
       console.log('browser log:', msg)
@@ -61,6 +84,45 @@ class Playwright extends BrowserInterface {
     page.on('pageerror', (error) => {
       console.error('page error', error)
     })
+
+    if (opts?.disableCache) {
+      // TODO: this doesn't seem to work (dev tools does not check the box as expected)
+      const session = await context.newCDPSession(page)
+      session.send('Network.setCacheDisabled', { cacheDisabled: true })
+    }
+
+    page.on('websocket', (ws) => {
+      if (tracePlaywright) {
+        page
+          .evaluate(`console.log('connected to ws at ${ws.url()}')`)
+          .catch(() => {})
+
+        ws.on('close', () =>
+          page
+            .evaluate(`console.log('closed websocket ${ws.url()}')`)
+            .catch(() => {})
+        )
+      }
+      ws.on('framereceived', (frame) => {
+        websocketFrames.push({ payload: frame.payload })
+
+        if (tracePlaywright) {
+          if (!frame.payload.includes('pong')) {
+            page
+              .evaluate(`console.log('received ws message ${frame.payload}')`)
+              .catch(() => {})
+          }
+        }
+      })
+    })
+
+    if (tracePlaywright) {
+      await context.tracing.start({
+        screenshots: true,
+        snapshots: true,
+      })
+      this.activeTrace = encodeURIComponent(url)
+    }
     await page.goto(url, { waitUntil: 'load' })
   }
 
@@ -259,6 +321,10 @@ class Playwright extends BrowserInterface {
 
   async log() {
     return this.chain(() => pageLogs) as any
+  }
+
+  async websocketFrames() {
+    return this.chain(() => websocketFrames) as any
   }
 
   async url() {
