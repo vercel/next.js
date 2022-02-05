@@ -13,7 +13,7 @@ Use the Script component with the right loading strategy to defer loading of the
 ```jsx
 import Script from 'next/script'
 
-const Home = () => {
+function Home() {
   return (
     <div class="container">
       <Script src="https://third-party-script.js"></Script>
