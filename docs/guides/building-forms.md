@@ -368,5 +368,4 @@ This guide has covered the following:
 - Validating forms data with and without JavaScript
 - Using Next.js API Routes to handle `req` and `res` from the client and server
 
-
 For more details go through [Next.js Learn Course](https://nextjs.org/learn/basics/create-nextjs-app).
