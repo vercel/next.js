@@ -85,9 +85,9 @@ async function expectAvifSmallerThanWebp(w, q) {
 async function fetchWithDuration(...args) {
   const start = Date.now()
   const res = await fetchViaHTTP(...args)
-  await res.blob()
+  const buffer = await res.buffer()
   const duration = Date.now() - start
-  return { duration, res }
+  return { duration, buffer, res }
 }
 
 function runTests({
@@ -511,9 +511,9 @@ function runTests({
 
     it('should use cache and stale-while-revalidate when query is the same for external image', async () => {
       await fs.remove(imagesDir)
-      const delay = 1000
+      const delay = 500
 
-      const url = `https://image-optimization-test.vercel.app/api/slow?delay=${1000}`
+      const url = `https://image-optimization-test.vercel.app/api/slow?delay=${delay}`
       const query = { url, w, q: 39 }
       const opts = { headers: { accept: 'image/webp' } }
 
@@ -540,7 +540,7 @@ function runTests({
 
       if (minimumCacheTTL) {
         // Wait until expired so we can confirm image is regenerated
-        await waitFor(minimumCacheTTL * 1000 - delay)
+        await waitFor(minimumCacheTTL * 1000)
 
         const [three, four] = await Promise.all([
           fetchWithDuration(appPort, '/_next/image', query, opts),
