@@ -9,6 +9,7 @@ import {
   waitFor,
   initNextServerScript,
   nextBuild,
+  nextStart,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -131,6 +132,49 @@ describe('Non-Standard NODE_ENV', () => {
         },
       }
     )
+    await waitFor(2000)
+    await killApp(app)
+    expect(output).toContain(warningText)
+  })
+
+  it('should show the warning with NODE_ENV set to production with next dev', async () => {
+    let output = ''
+
+    app = await launchApp(appDir, await findPort(), {
+      env: {
+        NODE_ENV: 'production',
+      },
+      onStderr(msg) {
+        output += msg || ''
+      },
+    })
+    await waitFor(2000)
+    await killApp(app)
+    expect(output).toContain(warningText)
+  })
+
+  it('should show the warning with NODE_ENV set to development with next build', async () => {
+    const { stderr } = await nextBuild(appDir, [], {
+      env: {
+        NODE_ENV: 'development',
+      },
+      stderr: true,
+    })
+    expect(stderr).toContain(warningText)
+  })
+
+  it('should show the warning with NODE_ENV set to development with next start', async () => {
+    let output = ''
+
+    await nextBuild(appDir)
+    app = await nextStart(appDir, await findPort(), {
+      env: {
+        NODE_ENV: 'development',
+      },
+      onStderr(msg) {
+        output += msg || ''
+      },
+    })
     await waitFor(2000)
     await killApp(app)
     expect(output).toContain(warningText)

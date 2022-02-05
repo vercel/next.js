@@ -4,8 +4,14 @@ import {
   cancelIdleCallback,
 } from './request-idle-callback'
 
-type UseIntersectionObserverInit = Pick<IntersectionObserverInit, 'rootMargin'>
-type UseIntersection = { disabled?: boolean } & UseIntersectionObserverInit
+type UseIntersectionObserverInit = Pick<
+  IntersectionObserverInit,
+  'rootMargin' | 'root'
+>
+
+type UseIntersection = { disabled?: boolean } & UseIntersectionObserverInit & {
+    rootRef?: React.RefObject<HTMLElement> | null
+  }
 type ObserveCallback = (isVisible: boolean) => void
 type Observer = {
   id: string
@@ -16,6 +22,7 @@ type Observer = {
 const hasIntersectionObserver = typeof IntersectionObserver !== 'undefined'
 
 export function useIntersection<T extends Element>({
+  rootRef,
   rootMargin,
   disabled,
 }: UseIntersection): [(element: T | null) => void, boolean] {
@@ -23,7 +30,7 @@ export function useIntersection<T extends Element>({
 
   const unobserve = useRef<Function>()
   const [visible, setVisible] = useState(false)
-
+  const [root, setRoot] = useState(rootRef ? rootRef.current : null)
   const setRef = useCallback(
     (el: T | null) => {
       if (unobserve.current) {
@@ -37,11 +44,11 @@ export function useIntersection<T extends Element>({
         unobserve.current = observe(
           el,
           (isVisible) => isVisible && setVisible(isVisible),
-          { rootMargin }
+          { root, rootMargin }
         )
       }
     },
-    [isDisabled, rootMargin, visible]
+    [isDisabled, root, rootMargin, visible]
   )
 
   useEffect(() => {
@@ -53,6 +60,9 @@ export function useIntersection<T extends Element>({
     }
   }, [visible])
 
+  useEffect(() => {
+    if (rootRef) setRoot(rootRef.current)
+  }, [rootRef])
   return [setRef, visible]
 }
 

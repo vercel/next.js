@@ -68,19 +68,18 @@ pub fn compute_class_names(
     let dynamic_class_name = match dynamic_styles.len() {
         0 => None,
         _ => Some(Expr::Call(CallExpr {
-            callee: ExprOrSuper::Expr(Box::new(Expr::Member(MemberExpr {
-                obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident {
+            callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+                obj: Box::new(Expr::Ident(Ident {
                     sym: style_import_name.into(),
                     span: DUMMY_SP,
                     optional: false,
-                }))),
-                prop: Box::new(Expr::Ident(Ident {
+                })),
+                prop: MemberProp::Ident(Ident {
                     sym: "dynamic".into(),
                     span: DUMMY_SP,
                     optional: false,
-                })),
+                }),
                 span: DUMMY_SP,
-                computed: false,
             }))),
             args: vec![ExprOrSpread {
                 expr: Box::new(Expr::Array(ArrayLit {

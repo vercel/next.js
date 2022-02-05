@@ -4,7 +4,7 @@ export default function IndexPage() {
 
       should be blue.
 
-      <_JSXStyle id={"b6abd0684ba81871"}>{"div {color:blue}"}</_JSXStyle>
+      <_JSXStyle id={"b6abd0684ba81871"}>{"div{color:blue}"}</_JSXStyle>
 
     </div>;
 };

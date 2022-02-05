@@ -5,6 +5,10 @@ import { requireDependencies } from './require'
 import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
 import cookie from 'next/dist/compiled/cookie'
 import * as polyfills from './polyfills'
+import {
+  AbortController,
+  AbortSignal,
+} from 'next/dist/compiled/abort-controller'
 import vm from 'vm'
 
 const WEBPACK_HASH_REGEX =
@@ -52,6 +56,7 @@ export function getModuleContext(options: {
   module: string
   onWarning: (warn: Error) => void
   useCache: boolean
+  env: string[]
 }) {
   let moduleCache = options.useCache
     ? caches.get(options.module)
@@ -93,12 +98,13 @@ export function getModuleContext(options: {
 function createModuleContext(options: {
   onWarning: (warn: Error) => void
   module: string
+  env: string[]
 }) {
   const requireCache = new Map([
     [require.resolve('next/dist/compiled/cookie'), { exports: cookie }],
   ])
 
-  const context = createContext()
+  const context = createContext(options)
 
   requireDependencies({
     requireCache: requireCache,
@@ -167,7 +173,10 @@ function createModuleContext(options: {
  * Create a base context with all required globals for the runtime that
  * won't depend on any externally provided dependency.
  */
-function createContext() {
+function createContext(options: {
+  /** Environment variables to be provided to the context */
+  env: string[]
+}) {
   const context: { [key: string]: unknown } = {
     _ENTRIES: {},
     atob: polyfills.atob,
@@ -185,12 +194,16 @@ function createContext() {
       timeLog: console.timeLog.bind(console),
       warn: console.warn.bind(console),
     },
+    AbortController: AbortController,
+    AbortSignal: AbortSignal,
     CryptoKey: polyfills.CryptoKey,
     Crypto: polyfills.Crypto,
     crypto: new polyfills.Crypto(),
     File,
     FormData,
-    process: { env: { ...process.env } },
+    process: {
+      env: buildEnvironmentVariablesFrom(options.env),
+    },
     ReadableStream: polyfills.ReadableStream,
     setInterval,
     setTimeout,
@@ -238,4 +251,11 @@ function createContext() {
           }
         : undefined,
   })
+}
+
+function buildEnvironmentVariablesFrom(
+  keys: string[]
+): Record<string, string | undefined> {
+  const pairs = keys.map((key) => [key, process.env[key]])
+  return Object.fromEntries(pairs)
 }

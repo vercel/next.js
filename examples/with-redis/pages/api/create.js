@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid'
 
 import redis from '../../lib/redis'
 
-export default async function upvote(req, res) {
+export default async function create(req, res) {
   const { title } = req.body
 
   if (!title) {

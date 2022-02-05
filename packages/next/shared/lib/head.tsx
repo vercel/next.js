@@ -161,6 +161,20 @@ function reduceComponents(
           return React.cloneElement(c, newProps)
         }
       }
+      if (process.env.NODE_ENV === 'development') {
+        if (c.type === 'script') {
+          const srcMessage = c.props['src']
+            ? `<script> tag with src="${c.props['src']}"`
+            : `inline <script>`
+          console.warn(
+            `Do not add <script> tags using next/head (see ${srcMessage}). Use next/script instead. \nSee more info here: https://nextjs.org/docs/messages/no-script-tags-in-head-component`
+          )
+        } else if (c.type === 'link' && c.props['rel'] === 'stylesheet') {
+          console.warn(
+            `Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="${c.props['href']}"). Use Document instead. \nSee more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component`
+          )
+        }
+      }
       return React.cloneElement(c, { key })
     })
 }

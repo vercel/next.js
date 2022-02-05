@@ -110,25 +110,35 @@ describe('TypeScript Features', () => {
         singleAliasTrace.files.some((file) =>
           file.includes('components/hello.js')
         )
-      ).toBe(true)
+      ).toBe(false)
       expect(
         wildcardAliasTrace.files.some((file) =>
           file.includes('mypackage/myfile.js')
         )
       ).toBe(true)
       expect(
+        wildcardAliasTrace.files.some((file) =>
+          file.includes('mypackage/data.js')
+        )
+      ).toBe(false)
+      expect(
         resolveOrderTrace.files.some((file) => file.includes('lib/a/api.js'))
+      ).toBe(false)
+      expect(
+        resolveOrderTrace.files.some((file) =>
+          file.includes('mypackage/data.js')
+        )
       ).toBe(true)
       expect(
         resolveFallbackTrace.files.some((file) =>
           file.includes('lib/b/b-only.js')
         )
-      ).toBe(true)
+      ).toBe(false)
       expect(
         basicAliasTrace.files.some((file) =>
           file.includes('components/world.js')
         )
-      ).toBe(true)
+      ).toBe(false)
     })
   })
 })

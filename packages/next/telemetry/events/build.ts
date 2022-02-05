@@ -134,6 +134,7 @@ export type EventBuildFeatureUsage = {
     | 'optimizeFonts'
     | 'swcLoader'
     | 'swcMinify'
+    | 'build-lint'
   invocationCount: number
 }
 export function eventBuildFeatureUsage(

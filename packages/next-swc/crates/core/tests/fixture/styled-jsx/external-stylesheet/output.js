@@ -14,7 +14,7 @@ export default (()=><div className={"jsx-bee92b62eadf8a14 " + `jsx-${styles.__ha
 
     <div className={"jsx-bee92b62eadf8a14 " + `jsx-${styles.__hash} jsx-${styles3.__hash}`}>woot</div>
 
-    <_JSXStyle id={"bee92b62eadf8a14"}>{"p.jsx-bee92b62eadf8a14 {color:red}\ndiv.jsx-bee92b62eadf8a14 {color:green}"}</_JSXStyle>
+    <_JSXStyle id={"bee92b62eadf8a14"}>{"p.jsx-bee92b62eadf8a14{color:red}\ndiv.jsx-bee92b62eadf8a14{color:green}"}</_JSXStyle>
 
     <_JSXStyle id={styles.__hash}>{styles}</_JSXStyle>
 
@@ -30,7 +30,7 @@ export const Test = ()=><div className={"jsx-bee92b62eadf8a14 " + `jsx-${styles3
 
     <div className={"jsx-bee92b62eadf8a14 " + `jsx-${styles3.__hash}`}>woot</div>
 
-    <_JSXStyle id={"bee92b62eadf8a14"}>{"p.jsx-bee92b62eadf8a14 {color:red}\ndiv.jsx-bee92b62eadf8a14 {color:green}"}</_JSXStyle>
+    <_JSXStyle id={"bee92b62eadf8a14"}>{"p.jsx-bee92b62eadf8a14{color:red}\ndiv.jsx-bee92b62eadf8a14{color:green}"}</_JSXStyle>
 
   </div>
 ;

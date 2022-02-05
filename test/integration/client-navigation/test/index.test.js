@@ -118,6 +118,21 @@ describe('Client Navigation', () => {
       )
     })
 
+    it('should call mouse handlers with an absolute url', async () => {
+      const browser = await webdriver(
+        context.appPort,
+        `/absolute-url?port=${context.appPort}`
+      )
+
+      await browser.elementByCss('#absolute-link-mouse-events').moveTo()
+
+      expect(
+        await browser
+          .waitForElementByCss('#absolute-link-mouse-events')
+          .getAttribute('data-hover')
+      ).toBe('true')
+    })
+
     it('should navigate an absolute local url', async () => {
       const browser = await webdriver(
         context.appPort,
@@ -1369,6 +1384,52 @@ describe('Client Navigation', () => {
         expect(
           Number(await browser.eval('window.__test_defer_executions'))
         ).toBe(1)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should warn when scripts are in head', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head')
+
+        await browser.waitForElementByCss('h1')
+        await waitFor(2000)
+        const browserLogs = await browser.log('browser')
+        let found = false
+        browserLogs.forEach((log) => {
+          console.log('log.message', log.message)
+          if (log.message.includes('Use next/script instead')) {
+            found = true
+          }
+        })
+        expect(found).toEqual(true)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should warn when stylesheets are in head', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head')
+
+        await browser.waitForElementByCss('h1')
+        await waitFor(2000)
+        const browserLogs = await browser.log('browser')
+        let found = false
+        browserLogs.forEach((log) => {
+          console.log('log.message', log.message)
+          if (log.message.includes('Do not add stylesheets using next/head')) {
+            found = true
+          }
+        })
+        expect(found).toEqual(true)
       } finally {
         if (browser) {
           await browser.close()
