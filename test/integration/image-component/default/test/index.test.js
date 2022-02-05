@@ -1014,6 +1014,29 @@ function runTests(mode) {
     let browser
     try {
       browser = await webdriver(appPort, '/lazy-withref')
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('myImage1').naturalWidth`
+        )
+
+        if (result >= 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('myImage4').naturalWidth`
+        )
+
+        if (result >= 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
 
       await check(async () => {
         const result = await browser.eval(
