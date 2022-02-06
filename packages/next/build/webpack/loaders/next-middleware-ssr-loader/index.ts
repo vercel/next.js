@@ -44,37 +44,25 @@ export default async function middlewareSSRLoader(this: any) {
     }
 
     // Set server context
-    self.__current_route = ${JSON.stringify(page)}
     self.__server_context = {
-      Component: pageMod.default,
-      pageConfig: pageMod.config || {},
-      buildManifest,
-      reactLoadableManifest,
-      Document,
-      App,
-      getStaticProps: pageMod.getStaticProps,
-      getServerSideProps: pageMod.getServerSideProps,
-      getStaticPaths: pageMod.getStaticPaths,
-      ComponentMod: undefined,
-      serverComponentManifest: ${isServerComponent} ? rscManifest : null,
-
-      // components
-      errorMod,
-      error500Mod,
-
-      // renderOpts
+      page: ${JSON.stringify(page)},
       buildId: ${JSON.stringify(buildId)},
-      dev: ${dev},
-      env: process.env,
-      supportsDynamicHTML: true,
-      concurrentFeatures: true,
-      disableOptimizedLoading: true,
     }
   
     const render = getRender({
+      dev: ${dev},
+      page: ${JSON.stringify(page)},
+      pageMod,
+      errorMod,
+      error500Mod,
+      App,
       Document,
+      buildManifest,
+      reactLoadableManifest,
+      serverComponentManifest: ${isServerComponent} ? rscManifest : null,
       isServerComponent: ${isServerComponent},
       config: ${stringifiedConfig},
+      buildId: ${JSON.stringify(buildId)},
     })
 
     export default function rscMiddleware(opts) {

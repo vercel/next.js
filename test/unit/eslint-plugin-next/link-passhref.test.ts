@@ -14,17 +14,23 @@ const ruleTester = new RuleTester()
 
 ruleTester.run('link-passhref', rule, {
   valid: [
-    `export const Home = () => (
+    `
+    import Link from 'next/link'
+    export const Home = () => (
       <Link href="/test"></Link>
     )`,
 
-    `export const Home = () => (
+    `
+    import Link from 'next/link'
+    export const Home = () => (
       <Link href="/test">
         <a>Test</a>
       </Link>
     )`,
 
-    `export const Home = () => (
+    `
+    import Link from 'next/link'
+    export const Home = () => (
       <Link href="/test" passHref>
         <StyledLink>Test</StyledLink>
       </Link>
@@ -37,6 +43,14 @@ ruleTester.run('link-passhref', rule, {
         <MyButton />
       </Link>
      )`,
+
+    `
+    import NextLink from 'next/link'
+    export const Home = () => (
+      <NextLink href="/test" passHref>
+        <StyledLink>Test</StyledLink>
+      </NextLink>
+    )`,
   ],
 
   invalid: [
@@ -48,6 +62,23 @@ ruleTester.run('link-passhref', rule, {
         <Link href="/test">
           <StyledLink>Test</StyledLink>
         </Link>
+      )`,
+      errors: [
+        {
+          message:
+            'passHref is missing. See: https://nextjs.org/docs/messages/link-passhref',
+          type: 'JSXOpeningElement',
+        },
+      ],
+    },
+    {
+      code: `
+      import NextLink from 'next/link'
+
+      export const Home = () => (
+        <NextLink href="/test">
+          <StyledLink>Test</StyledLink>
+        </NextLink>
       )`,
       errors: [
         {
