@@ -30,7 +30,7 @@ function Profile() {
   }, [])
 
   if (isLoading) return <p>Loading...</p>
-  if (!profileData) return <p>No profile data</p>
+  if (!data) return <p>No profile data</p>
 
   return (
     <div>
