@@ -80,7 +80,7 @@ Using GitHub's [actions/cache](https://github.com/actions/cache), add the follow
 ```yaml
 uses: actions/cache@v2
 with:
-  # See here for caching with `yarn` https://github.com/actions/cache/blob/main/examples.md#node---yarn
+  # See here for caching with `yarn` https://github.com/actions/cache/blob/main/examples.md#node---yarn or you can leverage caching with actions/setup-node https://github.com/actions/setup-node
   path: |
     ~/.npm
     ${{ github.workspace }}/.next/cache
