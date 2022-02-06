@@ -16,3 +16,11 @@ export default function Home() {
 
   return <p id="message">{message}</p>
 }
+
+export function getServerSideProps() {
+  return {
+    props: {
+      now: Date.now(),
+    },
+  }
+}

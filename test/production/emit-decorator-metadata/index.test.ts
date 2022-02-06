@@ -3,6 +3,7 @@ import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { BrowserInterface } from 'test/lib/browsers/base'
+import { fetchViaHTTP } from 'next-test-utils'
 
 describe('emitDecoratorMetadata SWC option', () => {
   let next: NextInstance
@@ -10,13 +11,13 @@ describe('emitDecoratorMetadata SWC option', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'jsconfig.json': new FileRef(
-          join(__dirname, 'emit-decorator-metadata/jsconfig.json')
-        ),
-        pages: new FileRef(join(__dirname, 'emit-decorator-metadata/pages')),
+        'jsconfig.json': new FileRef(join(__dirname, 'app/jsconfig.json')),
+        pages: new FileRef(join(__dirname, 'app/pages')),
       },
       dependencies: {
+        '@storyofams/next-api-decorators': '1.6.0',
         'reflect-metadata': '0.1.13',
+        'path-to-regexp': '6.2.0',
         tsyringe: '4.6.0',
       },
     })
@@ -36,5 +37,11 @@ describe('emitDecoratorMetadata SWC option', () => {
         await browser.close()
       }
     }
+  })
+
+  it('should compile with emitDecoratorMetadata enabled for API', async () => {
+    const res = await fetchViaHTTP(next.url, '/api/something')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ myParam: 'something' })
   })
 })
