@@ -13,7 +13,6 @@ import {
   check,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import { Key } from 'selenium-webdriver'
 import { join } from 'path'
 import renderingSuite from './rendering'
 
@@ -198,14 +197,15 @@ describe('Client Navigation', () => {
     it('should not navigate if the click-event is modified', async () => {
       const browser = await webdriver(context.appPort, '/nav')
 
-      await browser
-        .elementByCss('#increase')
-        .click()
-        .elementByCss('#about-link')
-        .click({ modifierKey: Key.COMMAND })
-        .elementByCss('#in-svg-link')
-        .click({ modifierKey: Key.COMMAND })
+      await browser.elementByCss('#increase').click()
 
+      const key = process.platform === 'darwin' ? 'Meta' : 'Control'
+
+      await browser.keydown(key)
+
+      await browser.elementByCss('#in-svg-link').click()
+
+      await browser.keyup(key)
       await waitFor(1000)
 
       const counterText = await browser.elementByCss('#counter').text()

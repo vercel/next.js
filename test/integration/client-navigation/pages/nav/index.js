@@ -87,10 +87,20 @@ export default class extends Component {
           </a>
         </Link>
 
-        <svg>
+        <svg
+          width={24}
+          height={24}
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
           <Link href="/nav/about">
-            <a id="in-svg-link">
-              <text>An element in SVG</text>
+            <a id="in-svg-link" style={{ display: 'block' }}>
+              <path
+                fillRule="evenodd"
+                clipRule="evenodd"
+                d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0Zm4.5 18a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
+                fill="#335BF1"
+              />
             </a>
           </Link>
         </svg>
