@@ -114,13 +114,13 @@ If you're using `eslint-plugin-next` in a project where Next.js isn't installed 
   "extends": "next",
   "settings": {
     "next": {
-      "rootDir": "/packages/my-app/"
+      "rootDir": "packages/my-app/"
     }
   }
 }
 ```
 
-`rootDir` can be a path (relative or absolute), a glob (i.e. `"/packages/*/"`), or an array of paths and/or globs.
+`rootDir` can be a path (relative or absolute), a glob (i.e. `"packages/*/"`), or an array of paths and/or globs.
 
 ## Linting Custom Directories and Files
 

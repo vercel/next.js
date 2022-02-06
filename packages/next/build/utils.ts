@@ -4,7 +4,7 @@ import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { promises as fs } from 'fs'
-import { isValidElementType } from 'react-is'
+import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
   Redirect,
@@ -1101,19 +1101,6 @@ export function detectConflictingPaths(
     )
     process.exit(1)
   }
-}
-
-export function getCssFilePaths(buildManifest: BuildManifest): string[] {
-  const cssFiles = new Set<string>()
-  Object.values(buildManifest.pages).forEach((files) => {
-    files.forEach((file) => {
-      if (file.endsWith('.css')) {
-        cssFiles.add(file)
-      }
-    })
-  })
-
-  return [...cssFiles]
 }
 
 export function getRawPageExtensions(pageExtensions: string[]): string[] {

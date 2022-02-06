@@ -227,8 +227,7 @@ impl Fold for StyledJSXTransformer {
                     }
                 }
                 Expr::Member(MemberExpr {
-                    obj: ExprOrSuper::Expr(boxed_ident),
-                    ..
+                    obj: boxed_ident, ..
                 }) => {
                     if let Expr::Ident(identifier) = &**boxed_ident {
                         if self.external_bindings.contains(&identifier.to_id()) {
@@ -284,7 +283,7 @@ impl Fold for StyledJSXTransformer {
         for stmt in block.stmts {
             new_stmts.push(stmt.fold_children_with(self));
             if let Some(add_hash) = self.add_hash.take() {
-                new_stmts.push(add_hash_statment(add_hash));
+                new_stmts.push(add_hash_statement(add_hash));
             }
         }
 
@@ -317,14 +316,14 @@ impl Fold for StyledJSXTransformer {
                 }))));
                 self.add_default_decl = None;
                 if let Some(add_hash) = self.add_hash.take() {
-                    new_items.push(ModuleItem::Stmt(add_hash_statment(add_hash)));
+                    new_items.push(ModuleItem::Stmt(add_hash_statement(add_hash)));
                 }
             }
             if !is_styled_css_import(&new_item) {
                 new_items.push(new_item);
             }
             if let Some(add_hash) = self.add_hash.take() {
-                new_items.push(ModuleItem::Stmt(add_hash_statment(add_hash)));
+                new_items.push(ModuleItem::Stmt(add_hash_statement(add_hash)));
             }
         }
 
@@ -489,13 +488,12 @@ impl StyledJSXTransformer {
             StyleExpr::Ident(ident) => {
                 return JSXStyle::External(ExternalStyle {
                     expr: Expr::Member(MemberExpr {
-                        obj: ExprOrSuper::Expr(Box::new(Expr::Ident(ident.clone()))),
-                        prop: Box::new(Expr::Ident(Ident {
+                        obj: Box::new(Expr::Ident(ident.clone())),
+                        prop: MemberProp::Ident(Ident {
                             sym: "__hash".into(),
                             span: DUMMY_SP,
                             optional: false,
-                        })),
-                        computed: false,
+                        }),
                         span: DUMMY_SP,
                     }),
                     identifier: ident.clone(),
@@ -571,13 +569,10 @@ impl StyledJSXTransformer {
             compute_class_names(&styles, &self.style_import_name.as_ref().unwrap());
         let tag = match &*tagged_tpl.tag {
             Expr::Ident(Ident { sym, .. }) => sym.to_string(),
-            Expr::Member(MemberExpr { prop, .. }) => {
-                if let Expr::Ident(Ident { sym, .. }) = &**prop {
-                    sym.to_string()
-                } else {
-                    String::from("not_styled_jsx_tag")
-                }
-            }
+            Expr::Member(MemberExpr {
+                prop: MemberProp::Ident(Ident { sym, .. }),
+                ..
+            }) => sym.to_string(),
             _ => String::from("not_styled_jsx_tag"),
         };
         let style = if let JSXStyle::Local(style) = &styles[0] {
@@ -809,10 +804,9 @@ fn get_existing_class_name(el: &JSXOpeningElement) -> (Option<Expr>, Option<usiz
 
                 if valid_spread {
                     let member_dot_name = Expr::Member(MemberExpr {
-                        obj: ExprOrSuper::Expr(Box::new(*expr.clone())),
-                        prop: Box::new(Expr::Ident(ident("className"))),
+                        obj: Box::new(*expr.clone()),
+                        prop: MemberProp::Ident(ident("className")),
                         span: DUMMY_SP,
-                        computed: false,
                     });
                     // `${name} && ${name}.className != null && ${name}.className`
                     spreads.push(and(
@@ -869,22 +863,21 @@ fn join_spreads(spreads: Vec<Expr>) -> Expr {
     new_expr
 }
 
-fn add_hash_statment((id, hash): (Id, String)) -> Stmt {
+fn add_hash_statement((id, hash): (Id, String)) -> Stmt {
     Stmt::Expr(ExprStmt {
         expr: Box::new(Expr::Assign(AssignExpr {
             left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
-                obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident {
+                obj: Box::new(Expr::Ident(Ident {
                     sym: id.0,
                     span: DUMMY_SP.with_ctxt(id.1),
                     optional: false,
-                }))),
-                prop: Box::new(Expr::Ident(Ident {
+                })),
+                prop: MemberProp::Ident(Ident {
                     sym: "__hash".into(),
                     span: DUMMY_SP,
                     optional: false,
-                })),
+                }),
                 span: DUMMY_SP,
-                computed: false,
             }))),
             right: Box::new(string_literal_expr(&hash)),
             op: op!("="),
