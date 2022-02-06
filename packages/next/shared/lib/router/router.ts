@@ -1104,6 +1104,11 @@ export default class Router implements BaseRouter {
           (p: string) => resolveDynamicRoute(p, pages),
           this.locales
         )
+
+        if (rewritesResult.externalDest) {
+          location.href = as
+          return true
+        }
         resolvedAs = rewritesResult.asPath
 
         if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
@@ -1689,6 +1694,10 @@ export default class Router implements BaseRouter {
         (p: string) => resolveDynamicRoute(p, pages),
         this.locales
       )
+
+      if (rewritesResult.externalDest) {
+        return
+      }
       resolvedAs = delLocale(delBasePath(rewritesResult.asPath), this.locale)
 
       if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
@@ -1844,7 +1853,15 @@ export default class Router implements BaseRouter {
       shouldCache: options.cache,
     })
 
-    if (preflight.rewrite?.startsWith('/')) {
+    if (preflight.rewrite) {
+      // for external rewrites we need to do a hard navigation
+      // to the resource
+      if (!preflight.rewrite.startsWith('/')) {
+        return {
+          type: 'redirect',
+          destination: options.as,
+        }
+      }
       const parsed = parseRelativeUrl(
         normalizeLocalePath(
           hasBasePath(preflight.rewrite)

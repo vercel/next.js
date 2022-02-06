@@ -610,14 +610,6 @@ export default async function getBaseWebpackConfig(
           }
         : {}),
 
-      ...(webServerRuntime
-        ? {
-            'react-dom/server': dev
-              ? 'react-dom/cjs/react-dom-server.browser.development'
-              : 'react-dom/cjs/react-dom-server.browser.production.min',
-          }
-        : {}),
-
       setimmediate: 'next/dist/compiled/setimmediate',
     },
     ...(targetWeb
@@ -1451,7 +1443,12 @@ export default async function getBaseWebpackConfig(
         new MiddlewarePlugin({ dev, webServerRuntime }),
       process.env.ENABLE_FILE_SYSTEM_API === '1' &&
         webServerRuntime &&
-        new FunctionsManifestPlugin({ dev, webServerRuntime }),
+        new FunctionsManifestPlugin({
+          dev,
+          pagesDir,
+          webServerRuntime,
+          pageExtensions: config.pageExtensions,
+        }),
       isServer && new NextJsSsrImportPlugin(),
       !isServer &&
         new BuildManifestPlugin({

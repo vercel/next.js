@@ -1,6 +1,6 @@
 /* global localStorage */
-import { unstable_useWebVitalsReport } from 'next/vitals'
-import { getBufferedVitalsMetrics } from 'next/dist/client/vitals'
+import { unstable_useWebVitalsReport } from 'next/streaming'
+import { getBufferedVitalsMetrics } from 'next/dist/client/streaming/vitals'
 
 if (typeof navigator !== 'undefined') {
   window.__BEACONS = window.__BEACONS || []
