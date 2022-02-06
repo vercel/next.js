@@ -104,4 +104,11 @@ export default function (context) {
       'count: 1'
     )
   })
+
+  it('should flush the suffix at the very end', async () => {
+    await fetchViaHTTP(context.appPort, '/').then(async (response) => {
+      const result = await resolveStreamResponse(response)
+      expect(result).toMatch(/<\/body><\/html>/)
+    })
+  })
 }
