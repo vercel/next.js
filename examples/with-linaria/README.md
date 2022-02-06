@@ -4,6 +4,12 @@ This example features how to use [linaria](https://linaria.dev/) as the styling 
 
 We are creating three `div` elements with custom styles being shared across the elements. The styles includes the use of pseudo-selector and CSS animations.
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-linaria)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):

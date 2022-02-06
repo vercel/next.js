@@ -1,6 +1,6 @@
 import React from 'react'
-import Head from '../next-server/lib/head'
-import { NextPageContext } from '../next-server/lib/utils'
+import Head from '../shared/lib/head'
+import { NextPageContext } from '../shared/lib/utils'
 
 const statusCodes: { [code: number]: string } = {
   400: 'Bad Request',
@@ -41,16 +41,31 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
 
     return (
       <div style={styles.error}>
-        <Head>
-          <title>
-            {statusCode}: {title}
-          </title>
-        </Head>
+        {/* TODO: remove this once RSC supports next/head */}
+        {!process.env.__NEXT_RSC && (
+          <Head>
+            <title>
+              {statusCode
+                ? `${statusCode}: ${title}`
+                : 'Application error: a client-side exception has occurred'}
+            </title>
+          </Head>
+        )}
         <div>
           <style dangerouslySetInnerHTML={{ __html: 'body { margin: 0 }' }} />
           {statusCode ? <h1 style={styles.h1}>{statusCode}</h1> : null}
           <div style={styles.desc}>
-            <h2 style={styles.h2}>{title}.</h2>
+            <h2 style={styles.h2}>
+              {this.props.title || statusCode ? (
+                title
+              ) : (
+                <>
+                  Application error: a client-side exception has occurred (see
+                  the browser console for more information)
+                </>
+              )}
+              .
+            </h2>
           </div>
         </div>
       </div>

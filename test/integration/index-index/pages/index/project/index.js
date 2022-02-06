@@ -1,3 +1,3 @@
 export default function Index() {
-  return <div id="page">index &gt; project</div>
+  return <div id="page">index > project</div>
 }

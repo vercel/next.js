@@ -12,7 +12,7 @@ Make sure to return the following shape from `getStaticProps`:
 export async function getStaticProps(ctx: {
   params?: ParsedUrlQuery
   preview?: boolean
-  previewData?: any
+  previewData?: PreviewData
 }) {
   return {
     props: { [key: string]: any }

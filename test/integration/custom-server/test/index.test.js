@@ -4,7 +4,6 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 import getPort from 'get-port'
 import cheerio from 'cheerio'
-import clone from 'clone'
 import {
   initNextServerScript,
   killApp,
@@ -20,7 +19,6 @@ const indexPg = new File(join(appDir, 'pages/index.js'))
 
 let appPort
 let server
-jest.setTimeout(1000 * 60 * 2)
 
 const context = {}
 
@@ -28,9 +26,8 @@ const startServer = async (optEnv = {}, opts) => {
   const scriptPath = join(appDir, 'server.js')
   context.appPort = appPort = await getPort()
   const env = Object.assign(
-    {},
-    clone(process.env),
-    { PORT: `${appPort}` },
+    { ...process.env },
+    { PORT: `${appPort}`, __NEXT_TEST_MODE: 'true' },
     optEnv
   )
 
@@ -181,6 +178,29 @@ describe('Custom Server', () => {
       const html = await renderViaHTTP(appPort, '/no-slash')
       expect(html).toContain('made it to dashboard')
       expect(stderr).toContain('Cannot render page with path "dashboard"')
+    })
+  })
+
+  describe('compression handling', function () {
+    beforeAll(() => startServer())
+    afterAll(() => killApp(server))
+
+    it.each(['/', '/no-query'])(
+      'should handle compression for route %s',
+      async (route) => {
+        const response = await fetchViaHTTP(appPort, route)
+        expect(response.headers.get('Content-Encoding')).toBe('gzip')
+      }
+    )
+  })
+
+  describe('with a custom fetch polyfill', () => {
+    beforeAll(() => startServer({ POLYFILL_FETCH: 'true' }))
+    afterAll(() => killApp(server))
+
+    it('should serve internal file from render', async () => {
+      const data = await renderViaHTTP(appPort, '/static/hello.txt')
+      expect(data).toMatch(/hello world/)
     })
   })
 })

@@ -41,7 +41,6 @@ describe('i18n Support basePath', () => {
       isDev: true,
     }
     beforeAll(async () => {
-      nextConfig.replace('// basePath', 'basePath')
       nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
       await fs.remove(join(appDir, '.next'))
       curCtx.appPort = await findPort()
@@ -57,7 +56,6 @@ describe('i18n Support basePath', () => {
 
   describe('production mode', () => {
     beforeAll(async () => {
-      nextConfig.replace('// basePath', 'basePath')
       nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
       await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir)
@@ -78,7 +76,6 @@ describe('i18n Support basePath', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       nextConfig.replace('// target', 'target')
-      nextConfig.replace('// basePath', 'basePath')
       nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
 
       await nextBuild(appDir)
@@ -194,7 +191,6 @@ describe('i18n Support basePath', () => {
   describe('with localeDetection disabled', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
-      nextConfig.replace('// basePath', 'basePath')
       nextConfig.replace('// localeDetection', 'localeDetection')
 
       await nextBuild(appDir)

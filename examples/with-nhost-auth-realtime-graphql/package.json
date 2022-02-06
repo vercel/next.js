@@ -1,6 +1,4 @@
 {
-  "name": "with-nhost-auth-realtime-graphql",
-  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -14,7 +12,7 @@
     "graphql": "15.5.0",
     "next": "10.0.7",
     "nhost-js-sdk": "3.0.0-16",
-    "react": "17.0.1",
-    "react-dom": "17.0.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   }
 }

@@ -7,13 +7,15 @@ import {
   launchApp,
   nextBuild,
   renderViaHTTP,
+  nextStart,
+  check,
 } from 'next-test-utils'
 import { join } from 'path'
 import {
   GSP_NO_RETURNED_VALUE,
   GSSP_NO_RETURNED_VALUE,
 } from '../../../../packages/next/dist/lib/constants'
-jest.setTimeout(1000 * 60 * 2)
+import { PHASE_PRODUCTION_BUILD } from '../../../../packages/next/shared/lib/constants'
 
 const appDir = join(__dirname, '..')
 const indexPage = join(appDir, 'pages/index.js')
@@ -131,7 +133,49 @@ describe('GS(S)P Page Errors', () => {
     runTests(true)
   })
 
-  describe('production mode', () => {
+  describe('build mode', () => {
     runTests()
+  })
+
+  describe('start mode', () => {
+    it('Error stack printed to stderr', async () => {
+      try {
+        await fs.writeFile(
+          indexPage,
+          `export default function Page() {
+            return <div/>
+          }
+            export function getStaticProps() {
+              // Make it pass on the build phase
+              if(process.env.NEXT_PHASE === "${PHASE_PRODUCTION_BUILD}") {
+                return { props: { foo: 'bar' }, revalidate: 1 }
+              }
+    
+              throw new Error("Oops")
+            }
+            `
+        )
+
+        await nextBuild(appDir)
+
+        appPort = await findPort()
+
+        let stderr = ''
+        app = await nextStart(appDir, appPort, {
+          onStderr: (msg) => {
+            stderr += msg || ''
+          },
+        })
+        await check(async () => {
+          await renderViaHTTP(appPort, '/')
+          return stderr
+        }, /error: oops/i)
+
+        expect(stderr).toContain('Error: Oops')
+        expect(stderr).toContain(`\n    at getStaticProps`)
+      } finally {
+        await killApp(app)
+      }
+    })
   })
 })

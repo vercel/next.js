@@ -2,7 +2,13 @@
 
 This example shows how to create internationalized pages using Next.js and the i18n routing feature. It shows a normal page, a non-dynamic `getStaticProps` page, a dynamic `getStaticProps` page, and a `getServerSideProps` page.
 
-For further documentation on this feature see the documentation [here](https://nextjs.org/docs/advanced-features/i18n-routing)
+For further documentation on this feature see the [Internationalized Routing docs](https://nextjs.org/docs/advanced-features/i18n-routing).
+
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/i18n-routing)
 
 ## Deploy your own
 

@@ -1,0 +1,237 @@
+.container {
+  min-height: calc(100vh - 64px);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 90vw;
+  margin: auto;
+}
+
+.main {
+  max-width: 540px;
+  padding-top: 2rem;
+  flex: 1;
+}
+
+.footer {
+  max-width: 540px;
+  color: #808080;
+  margin: 4em 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.footer img {
+  margin: 0 0.5rem;
+}
+
+.footer a {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.title a {
+  color: #0070f3;
+  text-decoration: none;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  line-height: 35px;
+}
+
+.description {
+  margin-top: 0.5rem;
+  color: #808080;
+}
+
+.title,
+.description {
+  text-align: center;
+}
+
+.arrow {
+  display: none;
+}
+
+.cards {
+  margin: 2rem;
+}
+
+.card {
+  min-height: 135px;
+  border: 2px solid #fff;
+  border-radius: 0.5em;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.card:empty {
+  padding: 2em;
+  background-image: radial-gradient(
+      circle 14px at 46px 46px,
+      #f2f2f2 99%,
+      transparent 0
+    ),
+    linear-gradient(
+      100deg,
+      rgba(255, 255, 255, 0),
+      rgba(255, 255, 255, 0.5) 50%,
+      rgba(255, 255, 255, 0) 80%
+    ),
+    linear-gradient(#f2f2f2 16px, transparent 0),
+    linear-gradient(#f2f2f2 16px, transparent 0),
+    linear-gradient(#f2f2f2 16px, transparent 0);
+
+  background-repeat: repeat-y;
+
+  background-size: 100px 200px, /* circle */ 50px 200px,
+    /* highlight */ 150px 200px, 350px 200px, 200px 200px;
+
+  background-position: 0 0, /* circle */ 0 0, /* highlight */ 70px 36px,
+    70px 58px, 70px 80px;
+
+  animation: shine 1s infinite;
+}
+
+@keyframes shine {
+  to {
+    background-position: 0 0, 100% 0, 70px 36px, 70px 58px, 70px 80px;
+  }
+}
+
+.card h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.card p {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.25;
+  color: #808080;
+}
+
+.cardContent {
+  background: transparent;
+  border: none;
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 1em;
+  padding: 1.5em 1em;
+  text-align: left;
+  color: inherit;
+  text-decoration: none;
+}
+
+.cardContent img {
+  margin-top: 0.2rem;
+}
+
+.logo {
+  height: 1.5rem;
+}
+
+.links {
+  display: flex;
+  flex-direction: column;
+  height: 3.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.link {
+  color: #335bf1;
+  font-weight: 600;
+}
+
+@media screen and (min-width: 768px) {
+  .main {
+    padding-top: 4.5rem;
+  }
+
+  .title {
+    line-height: 50px;
+    font-size: 2.5rem;
+  }
+
+  .description {
+    font-size: 1.25rem;
+  }
+
+  .title a:hover,
+  .title a:focus,
+  .title a:active {
+    text-decoration: underline;
+  }
+
+  .cards {
+    margin: 4rem 0;
+  }
+
+  .card {
+    margin-bottom: 1rem;
+  }
+
+  .card:hover,
+  .card:focus,
+  .card:active {
+    border-color: #f2f2f2;
+  }
+
+  .card:hover .arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+  }
+
+  .cardContent {
+    grid-template-columns: 24px 1fr 42px;
+    padding: 2em;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .links {
+    padding-left: 28px;
+    flex-direction: row;
+    height: inherit;
+  }
+
+  .link {
+    padding-right: 28px;
+  }
+
+  .link:hover {
+    background: url(/icons/external-link.svg) no-repeat right;
+    background-size: 20px 20px;
+  }
+
+  .linkText:hover {
+    border-bottom: 2px solid #335bf1;
+  }
+}
+
+.backend {
+  margin-bottom: 4rem;
+}
+.backend h2 {
+  text-align: center;
+}
+.backend h4 {
+  margin-bottom: 0;
+}
+.backend h4 em {
+  font-weight: normal;
+  margin-left: 0.5rem;
+}
+.backend pre {
+  font-size: 80%;
+  border-radius: 0.5rem;
+}

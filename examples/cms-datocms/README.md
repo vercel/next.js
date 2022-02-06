@@ -4,7 +4,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-[https://next-blog-datocms.now.sh/](https://next-blog-datocms.now.sh/)
+[https://next-blog-datocms.vercel.app/](https://next-blog-datocms.vercel.app/)
 
 ### Related examples
 
@@ -21,7 +21,9 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
+- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## Deploy your own
 

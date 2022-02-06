@@ -13,7 +13,7 @@ description: Extend the babel preset added by Next.js with your own configs.
 
 Next.js includes the `next/babel` preset to your app, which includes everything needed to compile React applications and server-side code. But if you want to extend the default Babel configs, it's also possible.
 
-To start, you only need to define a `.babelrc` file at the top of your app. If such a file is found, it will be considered as the _source of truth_, and therefore it needs to define what Next.js needs as well, which is the `next/babel` preset.
+To start, you only need to define a `.babelrc` file (or `babel.config.js`) at the top of your app. If such a file is found, it will be considered as the _source of truth_, and therefore it needs to define what Next.js needs as well, which is the `next/babel` preset.
 
 Here's an example `.babelrc` file:
 

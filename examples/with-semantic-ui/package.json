@@ -1,22 +1,15 @@
 {
-  "name": "with-semantic-ui",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "next": "^9.1.8-canary.11",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
+    "next": "latest",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "semantic-ui-css": "^2.4.1",
-    "semantic-ui-react": "^0.84.0"
-  },
-  "devDependencies": {
-    "file-loader": "^3.0.1",
-    "url-loader": "^1.1.2",
-    "webpack": "^4.29.0"
-  },
-  "license": "MIT"
+    "semantic-ui-react": "^2.0.4"
+  }
 }

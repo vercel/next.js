@@ -4,7 +4,14 @@ description: Learn more about setting a base path in Next.js
 
 # Base Path
 
-> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version  | Changes          |
+| -------- | ---------------- |
+| `v9.5.0` | Base Path added. |
+
+</details>
 
 To deploy a Next.js application under a sub-path of a domain you can use the `basePath` config option.
 
