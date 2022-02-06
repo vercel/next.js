@@ -38,6 +38,17 @@ const middlewareManifest: MiddlewareManifest = {
   version: 1,
 }
 
+function getPageFromEntrypointName(pagePath: string) {
+  const ssrEntryInfo = ssrEntries.get(pagePath)
+  const result = MIDDLEWARE_FULL_ROUTE_REGEX.exec(pagePath)
+  const page = result
+    ? `/${result[1]}`
+    : ssrEntryInfo
+    ? pagePath.slice('pages'.length).replace(/\/index$/, '') || '/'
+    : null
+  return page
+}
+
 export function getEntrypointInfo(
   compilation: webpack5.Compilation,
   envPerRoute: Map<string, string[]>,
@@ -47,19 +58,15 @@ export function getEntrypointInfo(
   const infos = []
   for (const entrypoint of entrypoints.values()) {
     if (!entrypoint.name) continue
-    const result = MIDDLEWARE_FULL_ROUTE_REGEX.exec(entrypoint.name)
+
     const ssrEntryInfo = ssrEntries.get(entrypoint.name)
 
     if (ssrEntryInfo && !webServerRuntime) continue
     if (!ssrEntryInfo && webServerRuntime) continue
 
-    const location = result
-      ? `/${result[1]}`
-      : ssrEntryInfo
-      ? entrypoint.name.slice('pages'.length).replace(/\/index$/, '') || '/'
-      : null
+    const page = getPageFromEntrypointName(entrypoint.name)
 
-    if (!location) {
+    if (!page) {
       continue
     }
 
@@ -82,8 +89,8 @@ export function getEntrypointInfo(
       env: envPerRoute.get(entrypoint.name) || [],
       files,
       name: entrypoint.name,
-      page: location,
-      regexp: getMiddlewareRegex(location, !ssrEntryInfo).namedRegex!,
+      page,
+      regexp: getMiddlewareRegex(page, !ssrEntryInfo).namedRegex!,
     })
   }
   return infos
