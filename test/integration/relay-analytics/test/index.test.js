@@ -67,6 +67,7 @@ function runTest() {
     await browser.waitForElementByCss('h1')
 
     const h1Text = await browser.elementByCss('h1').text()
+    const pText = await browser.elementByCss('p').text()
     const data = parseFloat(
       await browser.eval('localStorage.getItem("Next.js-hydration")')
     )
@@ -81,6 +82,7 @@ function runTest() {
     )
     let cls = await browser.eval('localStorage.getItem("CLS")')
     expect(h1Text).toMatch(/Foo!/)
+    expect(pText).toMatch('buffered metrics: 0')
     expect(data).not.toBeNaN()
     expect(data).toBeGreaterThan(0)
     expect(firstByte).not.toBeNaN()
