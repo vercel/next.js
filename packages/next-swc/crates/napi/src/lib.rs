@@ -44,7 +44,7 @@ mod bundle;
 mod minify;
 mod transform;
 mod util;
-
+mod parse;
 
 static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
@@ -68,6 +68,8 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
 
     exports.create_named_method("minify", minify::minify)?;
     exports.create_named_method("minifySync", minify::minify_sync)?;
+    
+    exports.create_named_method("parse", parse::parse)?;
 
     Ok(())
 }

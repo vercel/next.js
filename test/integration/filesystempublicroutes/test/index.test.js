@@ -8,7 +8,6 @@ import {
   killApp,
   getPageFileFromBuildManifest,
 } from 'next-test-utils'
-import clone from 'clone'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -19,12 +18,7 @@ const context = {}
 const startServer = async (optEnv = {}) => {
   const scriptPath = join(appDir, 'server.js')
   context.appPort = appPort = await getPort()
-  const env = Object.assign(
-    {},
-    clone(process.env),
-    { PORT: `${appPort}` },
-    optEnv
-  )
+  const env = Object.assign({ ...process.env }, { PORT: `${appPort}` }, optEnv)
 
   server = await initNextServerScript(scriptPath, /ready on/i, env)
 }

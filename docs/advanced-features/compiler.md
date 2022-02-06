@@ -94,6 +94,54 @@ const customJestConfig = {
 module.exports = createJestConfig(customJestConfig)
 ```
 
+### Relay
+
+To enable [Relay](https://relay.dev/) support:
+
+```js
+// next.config.js
+module.exports = {
+  experimental: {
+    relay: {
+      // This should match relay.config.js
+      src: './',
+      artifactDirectory: './__generated__',
+      language: 'typescript',
+    },
+  },
+}
+```
+
+NOTE: In Next.js all JavaScript files in `pages` directory are considered routes. So, for `relay-compiler` you'll need to specify `artifactDirectory` configuration settings outside of the `pages`, otherwise `relay-compiler` will generate files next to the source file in the `__generated__` directory, and this file will be considered a route, which will break production builds.
+
+### Remove React Properties
+
+Allows to remove JSX properties. This is often used for testing. Similar to `babel-plugin-react-remove-properties`.
+
+To remove properties matching the default regex `^data-test`:
+
+```js
+// next.config.js
+module.exports = {
+  experimental: {
+    reactRemoveProperties: true,
+  },
+}
+```
+
+To remove custom properties:
+
+```js
+// next.config.js
+module.exports = {
+  experimental: {
+    // The regexes defined here are processed in Rust so the syntax is different from
+    // JavaScript `RegExp`s. See https://docs.rs/regex.
+    reactRemoveProperties: { properties: ['^data-custom$'] },
+  },
+}
+```
+
 ### Legacy Decorators
 
 Next.js will automatically detect `experimentalDecorators` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with older versions of libraries like `mobx`.
@@ -107,6 +155,34 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
   "compilerOptions": {
     "experimentalDecorators": true
   }
+}
+```
+
+### Remove Console
+
+This transform allows for removing all `console.*` calls in application code (not `node_modules`). Similar to `babel-plugin-transform-remove-console`.
+
+Remove all `console.*` calls:
+
+```js
+// next.config.js
+module.exports = {
+  experimental: {
+    removeConsole: true,
+  },
+}
+```
+
+Remove `console.*` output except `console.error`:
+
+```js
+// next.config.js
+module.exports = {
+  experimental: {
+    removeConsole: {
+      exclude: ['error'],
+    },
+  },
 }
 ```
 

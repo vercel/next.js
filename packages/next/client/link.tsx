@@ -86,7 +86,10 @@ function linkClicked(
 ): void {
   const { nodeName } = e.currentTarget
 
-  if (nodeName === 'A' && (isModifiedEvent(e) || !isLocalURL(href))) {
+  // anchors inside an svg have a lowercase nodeName
+  const isAnchorNodeName = nodeName.toUpperCase() === 'A'
+
+  if (isAnchorNodeName && (isModifiedEvent(e) || !isLocalURL(href))) {
     // ignore click for browser’s default behavior
     return
   }
@@ -291,11 +294,12 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   }
 
   childProps.onMouseEnter = (e: React.MouseEvent) => {
-    if (!isLocalURL(href)) return
     if (child.props && typeof child.props.onMouseEnter === 'function') {
       child.props.onMouseEnter(e)
     }
-    prefetch(router, href, as, { priority: true })
+    if (isLocalURL(href)) {
+      prefetch(router, href, as, { priority: true })
+    }
   }
 
   // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is

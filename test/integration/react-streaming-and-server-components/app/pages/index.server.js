@@ -19,11 +19,17 @@ export default function Index({ header, router }) {
 
 export function getServerSideProps({ req }) {
   const { headers } = req
-  const header = headers[headerKey]
+  const header = headers[headerKey] || ''
 
   return {
     props: {
       header,
     },
   }
+}
+
+export const config = {
+  amp: false,
+  unstable_runtimeJS: false,
+  runtime: 'nodejs',
 }

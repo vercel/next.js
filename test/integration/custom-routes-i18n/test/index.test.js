@@ -39,6 +39,8 @@ const runTests = () => {
       expect(res.status).toBe(dest ? 307 : 404)
 
       if (dest) {
+        const text = await res.text()
+        expect(text).toEqual(dest)
         if (dest.startsWith('/')) {
           const parsed = url.parse(res.headers.get('location'))
           expect(parsed.pathname).toBe(dest)
