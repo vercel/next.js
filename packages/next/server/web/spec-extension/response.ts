@@ -1,8 +1,8 @@
 import type { I18NConfig } from '../../config-shared'
-import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import { NextURL } from '../next-url'
-import { toNodeHeaders } from '../utils'
+import { toNodeHeaders, validateURL } from '../utils'
 import cookie from 'next/dist/compiled/cookie'
+import { CookieSerializeOptions } from '../types'
 
 const INTERNALS = Symbol('internal response')
 const REDIRECTS = new Set([301, 302, 303, 307, 308])
@@ -46,16 +46,20 @@ export class NextResponse extends Response {
     const val =
       typeof value === 'object' ? 'j:' + JSON.stringify(value) : String(value)
 
-    if (opts.maxAge) {
-      opts.expires = new Date(Date.now() + opts.maxAge)
-      opts.maxAge /= 1000
+    const options = { ...opts }
+    if (options.maxAge) {
+      options.expires = new Date(Date.now() + options.maxAge)
+      options.maxAge /= 1000
     }
 
-    if (opts.path == null) {
-      opts.path = '/'
+    if (options.path == null) {
+      options.path = '/'
     }
 
-    this.headers.append('Set-Cookie', cookie.serialize(name, String(val), opts))
+    this.headers.append(
+      'Set-Cookie',
+      cookie.serialize(name, String(val), options)
+    )
     return this
   }
 
@@ -63,15 +67,22 @@ export class NextResponse extends Response {
     return this.cookie(name, '', { expires: new Date(1), path: '/', ...opts })
   }
 
-  static redirect(url: string | NextURL, status = 302) {
+  static json(body: any) {
+    return new NextResponse(JSON.stringify(body), {
+      headers: { 'content-type': 'application/json' },
+    })
+  }
+
+  static redirect(url: string | NextURL | URL, status = 307) {
     if (!REDIRECTS.has(status)) {
       throw new RangeError(
         'Failed to execute "redirect" on "response": Invalid status code'
       )
     }
 
-    return new NextResponse(null, {
-      headers: { Location: typeof url === 'string' ? url : url.toString() },
+    const destination = validateURL(url)
+    return new NextResponse(destination, {
+      headers: { Location: destination },
       status,
     })
   }
@@ -79,10 +90,7 @@ export class NextResponse extends Response {
   static rewrite(destination: string | NextURL) {
     return new NextResponse(null, {
       headers: {
-        'x-middleware-rewrite':
-          typeof destination === 'string'
-            ? destination
-            : destination.toString(),
+        'x-middleware-rewrite': validateURL(destination),
       },
     })
   }

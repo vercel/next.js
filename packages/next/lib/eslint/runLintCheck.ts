@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import path from 'path'
 
 import findUp from 'next/dist/compiled/find-up'
@@ -18,7 +18,7 @@ import { isYarn } from '../is-yarn'
 
 import * as Log from '../../build/output/log'
 import { EventLintCheckCompleted } from '../../telemetry/events/build'
-import isError from '../is-error'
+import isError, { getProperError } from '../is-error'
 
 type Config = {
   plugins: string[]
@@ -94,8 +94,8 @@ async function lint(
           lintDuringBuild ? ' in order to run during builds:' : ':'
         } ${chalk.bold.cyan(
           (await isYarn(baseDir))
-            ? 'yarn add --dev eslint@"<8.0.0"' // TODO: Remove @"<8.0.0" when ESLint v8 is supported https://github.com/vercel/next.js/pull/29865
-            : 'npm install --save-dev eslint@"<8.0.0"' // TODO: Remove @"<8.0.0" when ESLint v8 is supported https://github.com/vercel/next.js/pull/29865
+            ? 'yarn add --dev eslint'
+            : 'npm install --save-dev eslint'
         )}`
       )
       return null
@@ -111,16 +111,7 @@ async function lint(
         'error'
       )} - Your project has an older version of ESLint installed${
         eslintVersion ? ' (' + eslintVersion + ')' : ''
-      }. Please upgrade to ESLint version 7`
-    } else if (semver.gte(eslintVersion, '8.0.0')) {
-      // TODO: Remove this check when ESLint v8 is supported https://github.com/vercel/next.js/pull/29865
-      return `${chalk.red('error')} - ESLint version ${
-        eslintVersion ? eslintVersion : '8'
-      } is not yet supported. Please downgrade to version 7 for the meantime: ${chalk.bold.cyan(
-        (await isYarn(baseDir))
-          ? 'yarn remove eslint && yarn add --dev eslint@"<8.0.0"'
-          : 'npm uninstall eslint && npm install --save-dev eslint@"<8.0.0"'
-      )}`
+      }. Please upgrade to ESLint version 7 or above`
     }
 
     let options: any = {
@@ -209,12 +200,13 @@ async function lint(
         eslintVersion: eslintVersion,
         lintedFilesCount: results.length,
         lintFix: !!options.fix,
-        nextEslintPluginVersion: nextEslintPluginIsEnabled
-          ? require(path.join(
-              path.dirname(deps.resolved.get('eslint-config-next')!),
-              'package.json'
-            )).version
-          : null,
+        nextEslintPluginVersion:
+          nextEslintPluginIsEnabled && deps.resolved.has('eslint-config-next')
+            ? require(path.join(
+                path.dirname(deps.resolved.get('eslint-config-next')!),
+                'package.json'
+              )).version
+            : null,
         nextEslintPluginErrorsCount: formattedResult.totalNextPluginErrorCount,
         nextEslintPluginWarningsCount:
           formattedResult.totalNextPluginWarningCount,
@@ -229,7 +221,7 @@ async function lint(
       )
       return null
     } else {
-      throw new Error(err + '')
+      throw getProperError(err)
     }
   }
 }

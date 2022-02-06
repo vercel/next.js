@@ -378,7 +378,8 @@ describe('Prefetching Links in viewport', () => {
     })()`)
 
     console.log({ linkHrefs, scriptSrcs })
-    expect(linkHrefs.some((href) => scriptSrcs.includes(href))).toBe(false)
+    expect(scriptSrcs.some((src) => src.includes('pages/index-'))).toBe(true)
+    expect(linkHrefs.some((href) => href.includes('pages/index-'))).toBe(false)
   })
 
   it('should not duplicate prefetches', async () => {

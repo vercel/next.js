@@ -1,10 +1,12 @@
-import { customAlphabet } from 'next/dist/compiled/nanoid/index.cjs'
 import { SpanId } from './shared'
 import { reporter } from './report'
 
 const NUM_OF_MICROSEC_IN_SEC = BigInt('1000')
-const nanoid = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 8)
-const getId = () => Buffer.from(nanoid(), 'utf8').toString('hex')
+let count = 0
+const getId = () => {
+  count++
+  return count
+}
 
 // eslint typescript has a bug with TS enums
 /* eslint-disable no-shadow */
@@ -100,7 +102,11 @@ export class Span {
   }
 }
 
-export const trace = (name: string, parentId?: SpanId, attrs?: Object) => {
+export const trace = (
+  name: string,
+  parentId?: SpanId,
+  attrs?: { [key: string]: string }
+) => {
   return new Span({ name, parentId, attrs })
 }
 
