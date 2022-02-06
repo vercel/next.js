@@ -13,6 +13,7 @@ import {
   FONT_MANIFEST,
   OPTIMIZED_FONT_PROVIDERS,
 } from '../../../shared/lib/constants'
+import * as Log from '../../output/log'
 
 function minifyCss(css: string): Promise<string> {
   return postcss([
@@ -26,7 +27,7 @@ function minifyCss(css: string): Promise<string> {
     ),
   ])
     .process(css, { from: undefined })
-    .then((res) => res.css, (rej) => console.log(rej))
+    .then((res) => res.css)
 }
 
 export class FontStylesheetGatheringPlugin {
@@ -197,11 +198,18 @@ export class FontStylesheetGatheringPlugin {
             const css = await fontDefinitionPromises[promiseIndex]
 
             if (css) {
-              const content = await minifyCss(css)
-              this.manifestContent.push({
-                url: fontStylesheets[promiseIndex],
-                content,
-              })
+              try {
+                const content = await minifyCss(css)
+                this.manifestContent.push({
+                  url: fontStylesheets[promiseIndex],
+                  content,
+                })
+              } catch (err) {
+                Log.warn(
+                  `Failed to minify the stylesheet for ${fontStylesheets[promiseIndex]}. Skipped optimizing this font.`
+                )
+                console.error(err)
+              }
             }
           }
 
