@@ -1,4 +1,4 @@
-import { getOverlayMiddleware } from '@next/react-dev-overlay/lib/middleware'
+import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/middleware'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute } from 'path'
@@ -9,6 +9,7 @@ import {
   createEntrypoints,
   createPagesMapping,
   finalizeEntrypoint,
+  PagesMapping,
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
 import getBaseWebpackConfig from '../../build/webpack-config'
@@ -24,16 +25,21 @@ import onDemandEntryHandler, {
 } from './on-demand-entry-handler'
 import { denormalizePagePath, normalizePathSep } from '../normalize-page-path'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
-import { isWriteable } from '../../build/is-writeable'
+import { fileExists } from '../../lib/file-exists'
 import { ClientPagesLoaderOptions } from '../../build/webpack/loaders/next-client-pages-loader'
 import { ssrEntries } from '../../build/webpack/plugins/middleware-plugin'
 import { stringify } from 'querystring'
-import { difference, isFlightPage } from '../../build/utils'
+import {
+  difference,
+  isCustomErrorPage,
+  isFlightPage,
+  isReservedPage,
+} from '../../build/utils'
 import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
-import isError from '../../lib/is-error'
+import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -156,6 +162,7 @@ export default class HotReloader {
   private rewrites: CustomRoutes['rewrites']
   private fallbackWatcher: any
   private hotReloaderSpan: Span
+  private pagesMapping: PagesMapping = {}
 
   constructor(
     dir: string,
@@ -189,7 +196,9 @@ export default class HotReloader {
     )
     this.previewProps = previewProps
     this.rewrites = rewrites
-    this.hotReloaderSpan = trace('hot-reloader')
+    this.hotReloaderSpan = trace('hot-reloader', undefined, {
+      version: process.env.__NEXT_VERSION as string,
+    })
     // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
     // of the current `next dev` invocation.
     this.hotReloaderSpan.stop()
@@ -240,10 +249,7 @@ export default class HotReloader {
         try {
           await this.ensurePage(page, true)
         } catch (error) {
-          await renderScriptError(
-            pageBundleRes,
-            isError(error) ? error : new Error(error + '')
-          )
+          await renderScriptError(pageBundleRes, getProperError(error))
           return { finished: true }
         }
 
@@ -303,21 +309,25 @@ export default class HotReloader {
           ])
         )
 
-      const pages = webpackConfigSpan
+      this.pagesMapping = webpackConfigSpan
         .traceChild('create-pages-mapping')
         .traceFn(() =>
           createPagesMapping(
             pagePaths.filter((i) => i !== null) as string[],
             this.config.pageExtensions,
-            true,
-            this.hasServerComponents
+            {
+              isDev: true,
+              hasConcurrentFeatures: this.webServerRuntime,
+              hasServerComponents: this.hasServerComponents,
+            }
           )
         )
+
       const entrypoints = webpackConfigSpan
         .traceChild('create-entrypoints')
         .traceFn(() =>
           createEntrypoints(
-            pages,
+            this.pagesMapping,
             'server',
             this.buildId,
             this.previewProps,
@@ -436,11 +446,18 @@ export default class HotReloader {
         await Promise.all(
           Object.keys(entries).map(async (pageKey) => {
             const isClientKey = pageKey.startsWith('client')
+            const isServerWebKey = pageKey.startsWith('server-web')
             if (isClientKey !== isClientCompilation) return
+            if (isServerWebKey !== isServerWebCompilation) return
             const page = pageKey.slice(
-              isClientKey ? 'client'.length : 'server'.length
+              isClientKey
+                ? 'client'.length
+                : isServerWebKey
+                ? 'server-web'.length
+                : 'server'.length
             )
-            const isMiddleware = page.match(MIDDLEWARE_ROUTE)
+            const isMiddleware = !!page.match(MIDDLEWARE_ROUTE)
+
             if (isClientCompilation && page.match(API_ROUTE) && !isMiddleware) {
               return
             }
@@ -452,18 +469,25 @@ export default class HotReloader {
             }
 
             const { bundlePath, absolutePagePath, dispose } = entries[pageKey]
-            const pageExists = !dispose && (await isWriteable(absolutePagePath))
+            const pageExists = !dispose && (await fileExists(absolutePagePath))
             if (!pageExists) {
               // page was removed or disposed
               delete entries[pageKey]
               return
             }
 
+            const isCustomError = isCustomErrorPage(page)
+            const isReserved = isReservedPage(page)
             const isServerComponent =
               this.hasServerComponents &&
               isFlightPage(this.config, absolutePagePath)
 
-            if (isServerCompilation && this.webServerRuntime && !isApiRoute) {
+            if (
+              isServerCompilation &&
+              this.webServerRuntime &&
+              !isApiRoute &&
+              !isCustomError
+            ) {
               return
             }
 
@@ -491,31 +515,26 @@ export default class HotReloader {
                 ssrEntries.set(bundlePath, { requireFlightManifest: true })
               } else if (
                 this.webServerRuntime &&
-                !(
-                  page === '/_app' ||
-                  page === '/_error' ||
-                  page === '/_document'
-                )
+                !isReserved &&
+                !isCustomError
               ) {
                 ssrEntries.set(bundlePath, { requireFlightManifest: false })
               }
             } else if (isServerWebCompilation) {
-              if (
-                !(
-                  page === '/_app' ||
-                  page === '/_error' ||
-                  page === '/_document'
-                )
-              ) {
+              if (!isReserved) {
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   name: '[name].js',
                   value: `next-middleware-ssr-loader?${stringify({
+                    dev: true,
                     page,
+                    stringifiedConfig: JSON.stringify(this.config),
+                    absoluteAppPath: this.pagesMapping['/_app'],
+                    absoluteDocumentPath: this.pagesMapping['/_document'],
+                    absoluteErrorPath: this.pagesMapping['/_error'],
+                    absolute404Path: this.pagesMapping['/404'] || '',
                     absolutePagePath,
                     isServerComponent,
                     buildId: this.buildId,
-                    basePath: this.config.basePath,
-                    assetPrefix: this.config.assetPrefix,
                   } as any)}!`,
                   isServer: false,
                   isServerWeb: true,

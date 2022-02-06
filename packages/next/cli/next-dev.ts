@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import arg from 'next/dist/compiled/arg/index.js'
 import { existsSync } from 'fs'
-import startServer from '../server/lib/start-server'
+import { startServer } from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { startedDevelopmentServer } from '../build/output'
@@ -73,7 +73,7 @@ const nextDev: cliCommand = (argv) => {
       )
     }
   }
-
+  const allowRetry = !args['--port']
   let port: number =
     args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
 
@@ -88,12 +88,17 @@ const nextDev: cliCommand = (argv) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
 
-  startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
-    .then(async ({ app, actualPort }) => {
-      const appUrl = `http://${
-        !host || host === '0.0.0.0' ? 'localhost' : host
-      }:${actualPort}`
-      startedDevelopmentServer(appUrl, `${host || '0.0.0.0'}:${actualPort}`)
+  startServer({
+    allowRetry,
+    dev: true,
+    dir,
+    hostname: host,
+    isNextDevCommand: true,
+    port,
+  })
+    .then(async (app) => {
+      const appUrl = `http://${app.hostname}:${app.port}`
+      startedDevelopmentServer(appUrl, `${host || '0.0.0.0'}:${app.port}`)
       // Start preflight after server is listening and ignore errors:
       preflight().catch(() => {})
       // Finalize server bootup:

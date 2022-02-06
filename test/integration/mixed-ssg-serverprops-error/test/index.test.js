@@ -11,11 +11,22 @@ const indexPageBak = `${indexPage}.bak`
 
 describe('Mixed getStaticProps and getServerSideProps error', () => {
   it('should error when exporting both getStaticProps and getServerSideProps', async () => {
+    // TODO: remove after investigating why dev swc build fails here
+    await fs.writeFile(
+      join(appDir, '.babelrc'),
+      '{ "presets": ["next/babel"] }'
+    )
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
+    await fs.remove(join(appDir, '.babelrc'))
     expect(stderr).toContain(SERVER_PROPS_SSG_CONFLICT)
   })
 
   it('should error when exporting both getStaticPaths and getServerSideProps', async () => {
+    // TODO: remove after investigating why dev swc build fails here
+    await fs.writeFile(
+      join(appDir, '.babelrc'),
+      '{ "presets": ["next/babel"] }'
+    )
     await fs.move(indexPage, indexPageBak)
     await fs.writeFile(
       indexPage,
@@ -36,7 +47,7 @@ describe('Mixed getStaticProps and getServerSideProps error', () => {
     `
     )
     const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-
+    await fs.remove(join(appDir, '.babelrc'))
     await fs.remove(indexPage)
     await fs.move(indexPageBak, indexPage)
     expect(code).toBe(1)

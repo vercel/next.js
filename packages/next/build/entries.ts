@@ -1,10 +1,10 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { __ApiPreviewProps } from '../server/api-utils'
-import { isTargetLikeServerless } from '../server/config'
+import { isTargetLikeServerless } from '../server/utils'
 import { normalizePagePath } from '../server/normalize-page-path'
 import { warn } from './output/log'
 import { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
@@ -12,38 +12,54 @@ import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-lo
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
 import { NextConfigComplete } from '../server/config-shared'
-import { isFlightPage } from './utils'
+import { isCustomErrorPage, isFlightPage, isReservedPage } from './utils'
 import { ssrEntries } from './webpack/plugins/middleware-plugin'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
-import { MIDDLEWARE_SSR_RUNTIME_WEBPACK } from '../shared/lib/constants'
+import {
+  MIDDLEWARE_RUNTIME_WEBPACK,
+  MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+} from '../shared/lib/constants'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
-type PagesMapping = {
+export type PagesMapping = {
   [page: string]: string
+}
+
+export function getPageFromPath(pagePath: string, extensions: string[]) {
+  let page = pagePath.replace(new RegExp(`\\.+(${extensions.join('|')})$`), '')
+  page = page.replace(/\\/g, '/').replace(/\/index$/, '')
+  return page === '' ? '/' : page
 }
 
 export function createPagesMapping(
   pagePaths: string[],
   extensions: string[],
-  isDev: boolean,
-  hasServerComponents: boolean
+  {
+    isDev,
+    hasServerComponents,
+    hasConcurrentFeatures,
+  }: {
+    isDev: boolean
+    hasServerComponents: boolean
+    hasConcurrentFeatures: boolean
+  }
 ): PagesMapping {
   const previousPages: PagesMapping = {}
+
+  // Do not process .d.ts files inside the `pages` folder
+  pagePaths = extensions.includes('ts')
+    ? pagePaths.filter((pagePath) => !pagePath.endsWith('.d.ts'))
+    : pagePaths
+
   const pages: PagesMapping = pagePaths.reduce(
     (result: PagesMapping, pagePath): PagesMapping => {
-      let page = pagePath.replace(
-        new RegExp(`\\.+(${extensions.join('|')})$`),
-        ''
-      )
-      if (hasServerComponents && /\.client$/.test(page)) {
+      const pageKey = getPageFromPath(pagePath, extensions)
+
+      if (hasServerComponents && /\.client$/.test(pageKey)) {
         // Assume that if there's a Client Component, that there is
         // a matching Server Component that will map to the page.
         return result
       }
-
-      page = page.replace(/\\/g, '/').replace(/\/index$/, '')
-
-      const pageKey = page === '' ? '/' : page
 
       if (pageKey in result) {
         warn(
@@ -65,6 +81,7 @@ export function createPagesMapping(
   // we alias these in development and allow webpack to
   // allow falling back to the correct source file so
   // that HMR can work properly when a file is added/removed
+  const documentPage = `_document${hasConcurrentFeatures ? '-web' : ''}`
   if (isDev) {
     pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
     pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
@@ -72,7 +89,8 @@ export function createPagesMapping(
   } else {
     pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
     pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
-    pages['/_document'] = pages['/_document'] || 'next/dist/pages/_document'
+    pages['/_document'] =
+      pages['/_document'] || `next/dist/pages/${documentPage}`
   }
   return pages
 }
@@ -134,7 +152,10 @@ export function createEntrypoints(
     const serverBundlePath = posix.join('pages', bundleFile)
 
     const isLikeServerless = isTargetLikeServerless(target)
+    const isReserved = isReservedPage(page)
+    const isCustomError = isCustomErrorPage(page)
     const isFlight = isFlightPage(config, absolutePagePath)
+
     const webServerRuntime = !!config.experimental.concurrentFeatures
 
     if (page.match(MIDDLEWARE_ROUTE)) {
@@ -149,21 +170,18 @@ export function createEntrypoints(
       return
     }
 
-    if (
-      webServerRuntime &&
-      !(page === '/_app' || page === '/_error' || page === '/_document') &&
-      !isApiRoute
-    ) {
+    if (webServerRuntime && !isReserved && !isCustomError && !isApiRoute) {
       ssrEntries.set(clientBundlePath, { requireFlightManifest: isFlight })
       serverWeb[serverBundlePath] = finalizeEntrypoint({
         name: '[name].js',
         value: `next-middleware-ssr-loader?${stringify({
+          dev: false,
           page,
+          stringifiedConfig: JSON.stringify(config),
+          absolute500Path: pages['/500'] || '',
           absolutePagePath,
           isServerComponent: isFlight,
-          buildId,
-          basePath: config.basePath,
-          assetPrefix: config.assetPrefix,
+          ...defaultServerlessOptions,
         } as any)}!`,
         isServer: false,
         isServerWeb: true,
@@ -180,12 +198,7 @@ export function createEntrypoints(
         serverlessLoaderOptions
       )}!`
     } else if (isApiRoute || target === 'server') {
-      if (
-        !webServerRuntime ||
-        page === '/_document' ||
-        page === '/_app' ||
-        page === '/_error'
-      ) {
+      if (!webServerRuntime || isReserved || isCustomError) {
         server[serverBundlePath] = [absolutePagePath]
       }
     } else if (
@@ -270,6 +283,7 @@ export function finalizeEntrypoint({
         type: 'assign',
       },
       runtime: MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+      asyncChunks: false,
       ...entry,
     }
     return ssrMiddlewareEntry
@@ -282,6 +296,8 @@ export function finalizeEntrypoint({
         name: ['_ENTRIES', `middleware_[name]`],
         type: 'assign',
       },
+      runtime: MIDDLEWARE_RUNTIME_WEBPACK,
+      asyncChunks: false,
       ...entry,
     }
     return middlewareEntry

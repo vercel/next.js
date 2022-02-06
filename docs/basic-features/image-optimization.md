@@ -187,7 +187,7 @@ The recommended way to style the inner `<img>` is to set the `className` prop on
 
 Alternatively, you can import a [global stylesheet](/docs/basic-features/built-in-css-support#adding-a-global-stylesheet) and manually set the `className` prop to the same name used in the global stylesheet.
 
-You cannot use [styled-jsx](/basic-features/built-in-css-support.md#css-in-js) because its scoped to the current component.
+You cannot use [styled-jsx](/docs/basic-features/built-in-css-support.md#css-in-js) because it's scoped to the current component.
 
 You cannot use the `style` prop because the `<Image>` component does not pass it through to the underlying `<img>`.
 

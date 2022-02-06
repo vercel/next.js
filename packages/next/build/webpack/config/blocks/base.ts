@@ -14,7 +14,11 @@ export const base = curry(function base(
     : 'client'
 
   // @ts-ignore TODO webpack 5 typings
-  config.target = !ctx.targetWeb ? 'node12.22' : ['web', 'es5']
+  config.target = !ctx.targetWeb
+    ? 'node12.22'
+    : ctx.webServerRuntime
+    ? ['web', 'es6']
+    : ['web', 'es5']
 
   // https://webpack.js.org/configuration/devtool/#development
   if (ctx.isDevelopment) {

@@ -1,77 +1,233 @@
-const { loadBinding } = require('@node-rs/helper')
-const path = require('path')
-const Log = require('../output/log')
+import { platform, arch } from 'os'
+import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
+import * as Log from '../output/log'
 
-/**
- * __dirname means load native addon from current dir
- * 'next-swc' is the name of native addon
- * the second arguments was decided by `napi.name` field in `package.json`
- * the third arguments was decided by `name` field in `package.json`
- * `loadBinding` helper will load `next-swc.[PLATFORM].node` from `__dirname` first
- * If failed to load addon, it will fallback to load from `next-swc-[PLATFORM]`
- */
-let bindings
+const ArchName = arch()
+const PlatformName = platform()
+const triples = platformArchTriples[PlatformName][ArchName] || []
 
-try {
-  bindings = loadBinding(
-    path.join(__dirname, '../../../native'),
-    'next-swc',
-    '@next/swc'
-  )
-} catch (err) {
-  // only log the original error message as the stack is not
-  // helpful to the user
-  console.error(err.message)
+let nativeBindings
+let wasmBindings
+
+async function loadBindings() {
+  let attempts = []
+  try {
+    return loadNative()
+  } catch (a) {
+    attempts = attempts.concat(a)
+  }
+
+  try {
+    let bindings = await loadWasm()
+    return bindings
+  } catch (a) {
+    attempts = attempts.concat(a)
+  }
+
+  logLoadFailure(attempts)
+}
+
+function loadBindingsSync() {
+  let attempts = []
+  try {
+    return loadNative()
+  } catch (a) {
+    attempts = attempts.concat(a)
+  }
+
+  logLoadFailure(attempts)
+}
+
+function logLoadFailure(attempts) {
+  for (let attempt of attempts) {
+    Log.info(attempt)
+  }
 
   Log.error(
-    `failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
+    `Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
   )
   process.exit(1)
 }
 
-async function transform(src, options) {
-  const isModule = typeof src !== 'string'
-  options = options || {}
-
-  if (options?.jsc?.parser) {
-    options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript'
+async function loadWasm() {
+  if (wasmBindings) {
+    return wasmBindings
   }
 
-  return bindings.transform(
-    isModule ? JSON.stringify(src) : src,
-    isModule,
-    toBuffer(options)
-  )
+  let attempts = []
+  for (let pkg of ['@next/swc-wasm-nodejs', '@next/swc-wasm-web']) {
+    try {
+      let bindings = await import(pkg)
+      if (pkg === '@next/swc-wasm-web') {
+        bindings = await bindings.default()
+      }
+      Log.info('Using experimental wasm build of next-swc')
+      wasmBindings = {
+        isWasm: true,
+        transform(src, options) {
+          return Promise.resolve(
+            bindings.transformSync(src.toString(), options)
+          )
+        },
+        minify(src, options) {
+          return Promise.resolve(bindings.minifySync(src.toString(), options))
+        },
+        parse(src, options) {
+          return Promise.resolve(bindings.parse(src.toString(), options))
+        },
+      }
+      return wasmBindings
+    } catch (e) {
+      // Do not report attempts to load wasm when it is still experimental
+      // if (e?.code === 'ERR_MODULE_NOT_FOUND') {
+      //   attempts.push(`Attempted to load ${pkg}, but it was not installed`)
+      // } else {
+      //   attempts.push(
+      //     `Attempted to load ${pkg}, but an error occurred: ${e.message ?? e}`
+      //   )
+      // }
+    }
+  }
+
+  throw attempts
 }
 
-function transformSync(src, options) {
-  const isModule = typeof src !== 'string'
-  options = options || {}
-
-  if (options?.jsc?.parser) {
-    options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript'
+function loadNative() {
+  if (nativeBindings) {
+    return nativeBindings
   }
 
-  return bindings.transformSync(
-    isModule ? JSON.stringify(src) : src,
-    isModule,
-    toBuffer(options)
-  )
+  let bindings
+  let attempts = []
+
+  for (const triple of triples) {
+    try {
+      bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
+      Log.info('Using locally built binary of @next/swc')
+      break
+    } catch (e) {}
+  }
+
+  if (!bindings) {
+    for (const triple of triples) {
+      let pkg = `@next/swc-${triple.platformArchABI}`
+      try {
+        bindings = require(pkg)
+        break
+      } catch (e) {
+        if (e?.code === 'MODULE_NOT_FOUND') {
+          attempts.push(`Attempted to load ${pkg}, but it was not installed`)
+        } else {
+          attempts.push(
+            `Attempted to load ${pkg}, but an error occurred: ${e.message ?? e}`
+          )
+        }
+      }
+    }
+  }
+
+  if (bindings) {
+    nativeBindings = {
+      isWasm: false,
+      transform(src, options) {
+        const isModule =
+          typeof src !== undefined &&
+          typeof src !== 'string' &&
+          !Buffer.isBuffer(src)
+        options = options || {}
+
+        if (options?.jsc?.parser) {
+          options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript'
+        }
+
+        return bindings.transform(
+          isModule ? JSON.stringify(src) : src,
+          isModule,
+          toBuffer(options)
+        )
+      },
+
+      transformSync(src, options) {
+        if (typeof src === undefined) {
+          throw new Error(
+            "transformSync doesn't implement reading the file from filesystem"
+          )
+        } else if (Buffer.isBuffer(src)) {
+          throw new Error(
+            "transformSync doesn't implement taking the source code as Buffer"
+          )
+        }
+        const isModule = typeof src !== 'string'
+        options = options || {}
+
+        if (options?.jsc?.parser) {
+          options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript'
+        }
+
+        return bindings.transformSync(
+          isModule ? JSON.stringify(src) : src,
+          isModule,
+          toBuffer(options)
+        )
+      },
+
+      minify(src, options) {
+        return bindings.minify(toBuffer(src), toBuffer(options ?? {}))
+      },
+
+      minifySync(src, options) {
+        return bindings.minifySync(toBuffer(src), toBuffer(options ?? {}))
+      },
+
+      bundle(options) {
+        return bindings.bundle(toBuffer(options))
+      },
+
+      parse(src, options) {
+        return bindings.parse(src, toBuffer(options ?? {}))
+      },
+    }
+    return nativeBindings
+  }
+
+  throw attempts
 }
 
 function toBuffer(t) {
   return Buffer.from(JSON.stringify(t))
 }
 
-export async function minify(src, opts) {
-  return bindings.minify(toBuffer(src), toBuffer(opts ?? {}))
+export async function isWasm() {
+  let bindings = await loadBindings()
+  return bindings.isWasm
 }
 
-export function minifySync(src, opts) {
-  return bindings.minifySync(toBuffer(src), toBuffer(opts ?? {}))
+export async function transform(src, options) {
+  let bindings = await loadBindings()
+  return bindings.transform(src, options)
 }
 
-module.exports.transform = transform
-module.exports.transformSync = transformSync
-module.exports.minify = minify
-module.exports.minifySync = minifySync
+export function transformSync(src, options) {
+  let bindings = loadBindingsSync()
+  return bindings.transformSync(src, options)
+}
+
+export async function minify(src, options) {
+  let bindings = await loadBindings()
+  return bindings.minify(src, options)
+}
+
+export function minifySync(src, options) {
+  let bindings = loadBindingsSync()
+  return bindings.minifySync(src, options)
+}
+
+export async function bundle(options) {
+  let bindings = loadBindingsSync()
+  return bindings.bundle(toBuffer(options))
+}
+
+export async function parse(src, options) {
+  let bindings = loadBindingsSync()
+  return bindings.parse(src, options).then((astStr) => JSON.parse(astStr))
+}

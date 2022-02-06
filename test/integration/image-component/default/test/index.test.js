@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
+import validateHTML from 'html-validator'
 import {
   check,
   findPort,
@@ -193,47 +194,84 @@ function runTests(mode) {
     try {
       browser = await webdriver(appPort, '/on-loading-complete')
 
-      await browser.eval(`document.getElementById("footer").scrollIntoView()`)
+      await browser.eval(
+        `document.getElementById("footer").scrollIntoView({behavior: "smooth"})`
+      )
 
       await check(
-        () => browser.eval(`document.getElementById("img1").src`),
+        () => browser.eval(`document.getElementById("img1").currentSrc`),
         /test(.*)jpg/
       )
       await check(
-        () => browser.eval(`document.getElementById("img2").src`),
+        () => browser.eval(`document.getElementById("img2").currentSrc`),
         /test(.*).png/
       )
       await check(
-        () => browser.eval(`document.getElementById("img3").src`),
+        () => browser.eval(`document.getElementById("img3").currentSrc`),
         /test(.*)svg/
       )
       await check(
-        () => browser.eval(`document.getElementById("img4").src`),
+        () => browser.eval(`document.getElementById("img4").currentSrc`),
         /test(.*)ico/
       )
       await check(
         () => browser.eval(`document.getElementById("msg1").textContent`),
-        'loaded img1 with dimensions 128x128'
+        'loaded 1 img1 with dimensions 128x128'
       )
       await check(
         () => browser.eval(`document.getElementById("msg2").textContent`),
-        'loaded img2 with dimensions 400x400'
+        'loaded 1 img2 with dimensions 400x400'
       )
       await check(
         () => browser.eval(`document.getElementById("msg3").textContent`),
-        'loaded img3 with dimensions 266x266'
+        'loaded 1 img3 with dimensions 266x266'
       )
       await check(
         () => browser.eval(`document.getElementById("msg4").textContent`),
-        'loaded img4 with dimensions 21x21'
+        'loaded 1 img4 with dimensions 21x21'
       )
       await check(
         () => browser.eval(`document.getElementById("msg5").textContent`),
-        'loaded img5 with dimensions 3x5'
+        'loaded 1 img5 with dimensions 3x5'
       )
       await check(
         () => browser.eval(`document.getElementById("msg6").textContent`),
-        'loaded img6 with dimensions 3x5'
+        'loaded 1 img6 with dimensions 3x5'
+      )
+      await check(
+        () => browser.eval(`document.getElementById("msg7").textContent`),
+        'loaded 1 img7 with dimensions 400x400'
+      )
+      await check(
+        () => browser.eval(`document.getElementById("msg8").textContent`),
+        'loaded 1 img8 with dimensions 640x373'
+      )
+      await check(
+        () =>
+          browser.eval(
+            `document.getElementById("img8").getAttribute("data-nimg")`
+          ),
+        'intrinsic'
+      )
+      await check(
+        () => browser.eval(`document.getElementById("img8").currentSrc`),
+        /wide.png/
+      )
+      await browser.eval('document.getElementById("toggle").click()')
+      await check(
+        () => browser.eval(`document.getElementById("msg8").textContent`),
+        'loaded 2 img8 with dimensions 400x300'
+      )
+      await check(
+        () =>
+          browser.eval(
+            `document.getElementById("img8").getAttribute("data-nimg")`
+          ),
+        'fixed'
+      )
+      await check(
+        () => browser.eval(`document.getElementById("img8").currentSrc`),
+        /test-rect.jpg/
       )
     } finally {
       if (browser) {
@@ -702,6 +740,51 @@ function runTests(mode) {
         }
       }
     })
+
+    it('should warn when loader is missing width', async () => {
+      const browser = await webdriver(appPort, '/invalid-loader')
+      await browser.eval(`document.querySelector("footer").scrollIntoView()`)
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)png(.*) has a "loader" property that does not implement width/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)jpg(.*) has a "loader" property that does not implement width/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)webp(.*) has a "loader" property that does not implement width/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)gif(.*) has a "loader" property that does not implement width/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)tiff(.*) has a "loader" property that does not implement width/gm
+      )
+    })
+
+    it('should warn when using sizes with incorrect layout', async () => {
+      const browser = await webdriver(appPort, '/invalid-sizes')
+      await browser.eval(`document.querySelector("footer").scrollIntoView()`)
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)png(.*) has "sizes" property but it will be ignored/gm
+      )
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) has "sizes" property but it will be ignored/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)webp(.*) has "sizes" property but it will be ignored/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)gif(.*) has "sizes" property but it will be ignored/gm
+      )
+    })
   } else {
     //server-only tests
     it('should not create an image folder in server/chunks', async () => {
@@ -783,6 +866,39 @@ function runTests(mode) {
     }
   })
 
+  it('should apply filter style after image loads', async () => {
+    const browser = await webdriver(appPort, '/style-filter')
+    await check(() => getSrc(browser, 'img-plain'), /^\/_next\/image/)
+    await check(() => getSrc(browser, 'img-blur'), /^\/_next\/image/)
+    await waitFor(1000)
+
+    expect(await getComputedStyle(browser, 'img-plain', 'filter')).toBe(
+      'opacity(0.5)'
+    )
+    expect(
+      await getComputedStyle(browser, 'img-plain', 'background-size')
+    ).toBe('30%')
+    expect(
+      await getComputedStyle(browser, 'img-plain', 'background-image')
+    ).toMatch('iVBORw0KGgo=')
+    expect(
+      await getComputedStyle(browser, 'img-plain', 'background-position')
+    ).toBe('1px 2px')
+
+    expect(await getComputedStyle(browser, 'img-blur', 'filter')).toBe(
+      'opacity(0.5)'
+    )
+    expect(await getComputedStyle(browser, 'img-blur', 'background-size')).toBe(
+      '30%'
+    )
+    expect(
+      await getComputedStyle(browser, 'img-blur', 'background-image')
+    ).toMatch('iVBORw0KGgo=')
+    expect(
+      await getComputedStyle(browser, 'img-blur', 'background-position')
+    ).toBe('1px 2px')
+  })
+
   // Tests that use the `unsized` attribute:
   if (mode !== 'dev') {
     it('should correctly rotate image', async () => {
@@ -817,6 +933,133 @@ function runTests(mode) {
       }
     })
   }
+
+  it('should have blurry placeholder when enabled', async () => {
+    const html = await renderViaHTTP(appPort, '/blurry-placeholder')
+    const $html = cheerio.load(html)
+
+    $html('noscript > img').attr('id', 'unused')
+
+    expect($html('#blurry-placeholder')[0].attribs.style).toContain(
+      `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
+    )
+
+    expect($html('#blurry-placeholder')[0].attribs.style).toContain(
+      `background-position:0% 0%`
+    )
+
+    expect(
+      $html('#blurry-placeholder-tall-centered')[0].attribs.style
+    ).toContain(`background-position:center`)
+
+    expect($html('#blurry-placeholder-with-lazy')[0].attribs.style).toContain(
+      `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
+    )
+  })
+
+  it('should not use blurry placeholder for <noscript> image', async () => {
+    const html = await renderViaHTTP(appPort, '/blurry-placeholder')
+    const $html = cheerio.load(html)
+    const style = $html('noscript > img')[0].attribs.style
+
+    expect(style).not.toContain(`background-position`)
+    expect(style).not.toContain(`background-size`)
+    expect(style).not.toContain(
+      `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
+    )
+  })
+
+  it('should remove blurry placeholder after image loads', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/blurry-placeholder')
+      await check(
+        async () =>
+          await getComputedStyle(
+            browser,
+            'blurry-placeholder',
+            'background-image'
+          ),
+        'none'
+      )
+      expect(
+        await getComputedStyle(
+          browser,
+          'blurry-placeholder-with-lazy',
+          'background-image'
+        )
+      ).toBe(
+        `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
+      )
+
+      await browser.eval('document.getElementById("spacer").remove()')
+
+      await check(
+        async () =>
+          await getComputedStyle(
+            browser,
+            'blurry-placeholder-with-lazy',
+            'background-image'
+          ),
+        'none'
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should load the image when the lazyRoot prop is used', async () => {
+    let browser
+    try {
+      //trying on '/lazy-noref' it fails
+      browser = await webdriver(appPort, '/lazy-withref')
+
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('myImage').naturalWidth`
+        )
+
+        if (result < 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      expect(
+        await hasImageMatchingUrl(
+          browser,
+          `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=828&q=75`
+        )
+      ).toBe(true)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should be valid W3C HTML', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/valid-html-w3c')
+      await waitFor(1000)
+      expect(await browser.hasElementByCssSelector('img')).toBeTruthy()
+      const url = await browser.url()
+      const result = await validateHTML({
+        url,
+        format: 'json',
+        isLocal: true,
+      })
+      expect(result.messages).toEqual([])
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
 }
 
 describe('Image Component Tests', () => {
@@ -853,82 +1096,6 @@ describe('Image Component Tests', () => {
     })
     afterAll(async () => {
       await killApp(app)
-    })
-
-    it('should have blurry placeholder when enabled', async () => {
-      const html = await renderViaHTTP(appPort, '/blurry-placeholder')
-      const $html = cheerio.load(html)
-
-      $html('noscript > img').attr('id', 'unused')
-
-      expect($html('#blurry-placeholder')[0].attribs.style).toContain(
-        `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
-      )
-
-      expect($html('#blurry-placeholder')[0].attribs.style).toContain(
-        `background-position:0% 0%`
-      )
-
-      expect(
-        $html('#blurry-placeholder-tall-centered')[0].attribs.style
-      ).toContain(`background-position:center`)
-
-      expect($html('#blurry-placeholder-with-lazy')[0].attribs.style).toContain(
-        `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
-      )
-    })
-
-    it('should not use blurry placeholder for <noscript> image', async () => {
-      const html = await renderViaHTTP(appPort, '/blurry-placeholder')
-      const $html = cheerio.load(html)
-      const style = $html('noscript > img')[0].attribs.style
-
-      expect(style).not.toContain(`background-position`)
-      expect(style).not.toContain(`background-size`)
-      expect(style).not.toContain(
-        `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
-      )
-    })
-
-    it('should remove blurry placeholder after image loads', async () => {
-      let browser
-      try {
-        browser = await webdriver(appPort, '/blurry-placeholder')
-        await check(
-          async () =>
-            await getComputedStyle(
-              browser,
-              'blurry-placeholder',
-              'background-image'
-            ),
-          'none'
-        )
-        expect(
-          await getComputedStyle(
-            browser,
-            'blurry-placeholder-with-lazy',
-            'background-image'
-          )
-        ).toBe(
-          `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
-        )
-
-        await browser.eval('document.getElementById("spacer").remove()')
-
-        await check(
-          async () =>
-            await getComputedStyle(
-              browser,
-              'blurry-placeholder-with-lazy',
-              'background-image'
-            ),
-          'none'
-        )
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
     })
 
     runTests('serverless')
