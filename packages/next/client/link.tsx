@@ -284,9 +284,11 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   } = {
     ref: setRef,
     onClick: (e: React.MouseEvent) => {
-      if (!e) {
-        if (process.env.NODE_ENV !== 'production') {
-          throw new Error(`Component rendered inside Link has to pass click event to "onClick" prop.`)
+      if (process.env.NODE_ENV !== 'production') {
+        if (!e) {
+          throw new Error(
+            `Component rendered inside next/link has to pass click event to "onClick" prop.`
+          )
         }
       }
       if (child.props && typeof child.props.onClick === 'function') {

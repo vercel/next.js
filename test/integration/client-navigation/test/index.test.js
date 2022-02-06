@@ -87,6 +87,13 @@ describe('Client Navigation', () => {
       expect(text).toMatch(/this is the about page/i)
     })
 
+    it('should error when calling onClick without event', async () => {
+      const browser = await webdriver(context.appPort, '/link-invalid-onclick')
+      expect(await browser.elementByCss('#errors').text()).toBe('0')
+      await browser.elementByCss('#custom-button').click()
+      expect(await browser.elementByCss('#errors').text()).toBe('1')
+    })
+
     it('should navigate via the client side', async () => {
       const browser = await webdriver(context.appPort, '/nav')
 
