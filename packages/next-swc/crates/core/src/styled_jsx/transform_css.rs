@@ -1,15 +1,19 @@
 use easy_error::{bail, Error};
 use std::panic;
+use std::sync::Arc;
 use swc_common::util::take::Take;
+use swc_common::SourceMap;
 use swc_common::{source_map::Pos, BytePos, Span, SyntaxContext, DUMMY_SP};
 use swc_css::ast::*;
 use swc_css::codegen::{
     writer::basic::{BasicCssWriter, BasicCssWriterConfig},
     CodeGenerator, CodegenConfig, Emit,
 };
+use swc_css::parser::parser::input::ParserInput;
 use swc_css::parser::{parse_str, parse_tokens, parser::ParserConfig};
 use swc_css::visit::{VisitMut, VisitMutWith};
 use swc_ecmascript::ast::{Expr, Str, StrKind, Tpl, TplElement};
+use swc_ecmascript::parser::StringInput;
 use swc_ecmascript::utils::HANDLER;
 use swc_stylis::prefixer::prefixer;
 use tracing::{debug, trace};
@@ -17,6 +21,7 @@ use tracing::{debug, trace};
 use super::{hash_string, string_literal_expr, LocalStyle};
 
 pub fn transform_css(
+    cm: Arc<SourceMap>,
     style_info: &LocalStyle,
     is_global: bool,
     class_name: &Option<String>,
@@ -57,7 +62,7 @@ pub fn transform_css(
     };
     // ? Do we need to support optionally prefixing?
     ss.visit_mut_with(&mut prefixer());
-    ss.visit_mut_with(&mut CssPlaceholderFixer);
+    ss.visit_mut_with(&mut CssPlaceholderFixer { cm });
     ss.visit_mut_with(&mut Namespacer {
         class_name: match class_name {
             Some(s) => s.clone(),
@@ -129,7 +134,9 @@ fn read_number(s: &str) -> (usize, usize) {
 /// This fixes invalid css which is created from interpolated expressions.
 ///
 /// `__styled-jsx-placeholder-` is handled at here.
-struct CssPlaceholderFixer;
+struct CssPlaceholderFixer {
+    cm: Arc<SourceMap>,
+}
 
 impl VisitMut for CssPlaceholderFixer {
     fn visit_mut_media_query(&mut self, q: &mut MediaQuery) {
@@ -137,10 +144,28 @@ impl VisitMut for CssPlaceholderFixer {
 
         match q {
             MediaQuery::Ident(q) => {
-                if q.raw.starts_with("__styled-jsx-placeholder-") {
-                    // TODO(kdy1): Remove this once we have CST for media query.
-                    // We need good error recovery for media queries to handle this.
-                    q.raw = format!("({})", &q.value).into();
+                if !q.raw.starts_with("__styled-jsx-placeholder-") {
+                    return;
+                }
+                // We need to support both of @media ($breakPoint) {} and @media $queryString {}
+                // This is complex because @media (__styled-jsx-placeholder-0__) {} is valid
+                // while @media __styled-jsx-placeholder-0__ {} is not
+                //
+                // So we check original source code to determine if we should inject
+                // parenthesis.
+
+                // TODO(kdy1): Avoid allocation.
+                // To remove allocation, we should patch swc_common to provide a way to get
+                // source code without allocation.
+                //
+                //
+                // We need
+                //
+                // fn with_source_code (self: &mut Self, f: impl FnOnce(&str) -> Ret) -> _ {}
+                if let Ok(source) = self.cm.span_to_snippet(q.span) {
+                    if source.starts_with('(') {
+                        q.raw = format!("({})", &q.value).into();
+                    }
                 }
             }
             _ => {}
@@ -230,12 +255,16 @@ impl Namespacer {
             span: node.span,
             tokens: vec![],
         };
+        let mut arg_tokens;
 
         for (i, selector) in node.subclass_selectors.iter().enumerate() {
             let (name, args) = match selector {
                 SubclassSelector::PseudoClass(PseudoClassSelector { name, children, .. }) => {
                     match children {
-                        Some(PseudoSelectorChildren::Nth(_)) => todo!("nth"),
+                        Some(PseudoSelectorChildren::Nth(v)) => {
+                            arg_tokens = nth_to_tokens(&v);
+                            (name, &arg_tokens)
+                        }
                         Some(PseudoSelectorChildren::Tokens(v)) => (name, v),
                         None => (name, &empty_tokens),
                     }
@@ -479,4 +508,34 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
             token: Token::WhiteSpace { value: " ".into() },
         },
     ]
+}
+
+fn nth_to_tokens(nth: &Nth) -> Tokens {
+    let mut s = String::new();
+    {
+        let mut wr = BasicCssWriter::new(&mut s, BasicCssWriterConfig { indent: "  " });
+        let mut gen = CodeGenerator::new(&mut wr, CodegenConfig { minify: true });
+
+        gen.emit(&nth).unwrap();
+    }
+
+    let mut lexer = swc_css::parser::lexer::Lexer::new(
+        StringInput::new(&s, nth.span.lo, nth.span.hi),
+        ParserConfig {
+            parse_values: false,
+            allow_wrong_line_comments: true,
+            ..Default::default()
+        },
+    );
+
+    let mut tokens = vec![];
+
+    while let Ok(t) = lexer.next() {
+        tokens.push(t);
+    }
+
+    Tokens {
+        span: Span::new(nth.span.lo, nth.span.hi, Default::default()),
+        tokens,
+    }
 }

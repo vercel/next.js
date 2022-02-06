@@ -30,9 +30,9 @@ use crate::{
     complete_output, get_compiler,
     util::{deserialize_json, CtxtExt, MapErr},
 };
-use next_swc::{custom_before_pass, TransformOptions};
 use anyhow::{anyhow, bail, Context as _, Error};
 use napi::{CallContext, Env, JsBoolean, JsBuffer, JsObject, JsString, JsUnknown, Status, Task};
+use next_swc::{custom_before_pass, TransformOptions};
 use std::fs::read_to_string;
 use std::{
     convert::TryFrom,
@@ -94,7 +94,7 @@ impl Task for TransformTask {
                     };
                     let options = options.patch(&fm);
 
-                    let before_pass = custom_before_pass(fm.clone(), &options);
+                    let before_pass = custom_before_pass(self.c.cm.clone(), fm.clone(), &options);
                     self.c.process_js_with_custom_pass(
                         fm.clone(),
                         None,

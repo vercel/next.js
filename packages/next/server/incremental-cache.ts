@@ -1,8 +1,8 @@
-import { promises, readFileSync } from 'fs'
+import type { CacheFs } from '../shared/lib/utils'
+
 import LRUCache from 'next/dist/compiled/lru-cache'
 import path from 'path'
 import { PrerenderManifest } from '../build'
-import { PRERENDER_MANIFEST } from '../shared/lib/constants'
 import { normalizePagePath } from './normalize-page-path'
 
 function toRoute(pathname: string): string {
@@ -41,22 +41,28 @@ export class IncrementalCache {
   prerenderManifest: PrerenderManifest
   cache?: LRUCache<string, IncrementalCacheEntry>
   locales?: string[]
+  fs: CacheFs
 
   constructor({
+    fs,
     max,
     dev,
     distDir,
     pagesDir,
     flushToDisk,
     locales,
+    getPrerenderManifest,
   }: {
+    fs: CacheFs
     dev: boolean
     max?: number
     distDir: string
     pagesDir: string
     flushToDisk?: boolean
     locales?: string[]
+    getPrerenderManifest: () => PrerenderManifest
   }) {
+    this.fs = fs
     this.incrementalOptions = {
       dev,
       distDir,
@@ -65,20 +71,7 @@ export class IncrementalCache {
         !dev && (typeof flushToDisk !== 'undefined' ? flushToDisk : true),
     }
     this.locales = locales
-
-    if (dev) {
-      this.prerenderManifest = {
-        version: -1 as any, // letting us know this doesn't conform to spec
-        routes: {},
-        dynamicRoutes: {},
-        notFoundRoutes: [],
-        preview: null as any, // `preview` is special case read in next-dev-server
-      }
-    } else {
-      this.prerenderManifest = JSON.parse(
-        readFileSync(path.join(distDir, PRERENDER_MANIFEST), 'utf8')
-      )
-    }
+    this.prerenderManifest = getPrerenderManifest()
 
     if (process.env.__NEXT_TEST_MAX_ISR_CACHE) {
       // Allow cache size to be overridden for testing purposes
@@ -126,7 +119,7 @@ export class IncrementalCache {
 
   getFallback(page: string): Promise<string> {
     page = normalizePagePath(page)
-    return promises.readFile(this.getSeedPath(page, 'html'), 'utf8')
+    return this.fs.readFile(this.getSeedPath(page, 'html'))
   }
 
   // get data from cache if available
@@ -149,11 +142,10 @@ export class IncrementalCache {
 
       try {
         const htmlPath = this.getSeedPath(pathname, 'html')
-        const html = await promises.readFile(htmlPath, 'utf8')
-        const { mtime } = await promises.stat(htmlPath)
-        const pageData = JSON.parse(
-          await promises.readFile(this.getSeedPath(pathname, 'json'), 'utf8')
-        )
+        const jsonPath = this.getSeedPath(pathname, 'json')
+        const html = await this.fs.readFile(htmlPath)
+        const pageData = JSON.parse(await this.fs.readFile(jsonPath))
+        const { mtime } = await this.fs.stat(htmlPath)
 
         data = {
           revalidateAfter: this.calculateRevalidate(pathname, mtime.getTime()),
@@ -226,14 +218,11 @@ export class IncrementalCache {
     // `next build` output's manifest.
     if (this.incrementalOptions.flushToDisk && data?.kind === 'PAGE') {
       try {
-        const seedPath = this.getSeedPath(pathname, 'html')
-        await promises.mkdir(path.dirname(seedPath), { recursive: true })
-        await promises.writeFile(seedPath, data.html, 'utf8')
-        await promises.writeFile(
-          this.getSeedPath(pathname, 'json'),
-          JSON.stringify(data.pageData),
-          'utf8'
-        )
+        const seedHtmlPath = this.getSeedPath(pathname, 'html')
+        const seedJsonPath = this.getSeedPath(pathname, 'json')
+        await this.fs.mkdir(path.dirname(seedHtmlPath))
+        await this.fs.writeFile(seedHtmlPath, data.html)
+        await this.fs.writeFile(seedJsonPath, JSON.stringify(data.pageData))
       } catch (error) {
         // failed to flush to disk
         console.warn('Failed to update prerender files for', pathname, error)

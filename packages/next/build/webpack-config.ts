@@ -1,12 +1,12 @@
-import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
-import chalk from 'chalk'
+import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/ReactRefreshWebpackPlugin'
+import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { stringify } from 'querystring'
 import semver from 'next/dist/compiled/semver'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import path, { join as pathJoin, relative as relativePath } from 'path'
-import escapeRegExp from 'next/dist/compiled/escape-string-regexp'
+import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -48,9 +48,10 @@ import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
+import FunctionsManifestPlugin from './webpack/plugins/functions-manifest-plugin'
 import type { Span } from '../trace'
 import { getRawPageExtensions } from './utils'
-import browserslist from 'browserslist'
+import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 
 const watchOptions = Object.freeze({
@@ -132,7 +133,8 @@ export function attachReactRefresh(
   targetLoader: webpack.RuleSetUseItem
 ) {
   let injections = 0
-  const reactRefreshLoaderName = '@next/react-refresh-utils/loader'
+  const reactRefreshLoaderName =
+    'next/dist/compiled/@next/react-refresh-utils/loader'
   const reactRefreshLoader = require.resolve(reactRefreshLoaderName)
   webpackConfig.module?.rules.forEach((rule) => {
     const curr = rule.use
@@ -346,12 +348,14 @@ export default async function getBaseWebpackConfig(
     Boolean(reactDomVersion) &&
     (semver.gte(reactDomVersion!, '18.0.0') ||
       semver.coerce(reactDomVersion)?.version === '18.0.0')
-  const hasReactPrerelease =
-    (Boolean(reactDomVersion) && semver.prerelease(reactDomVersion!) != null) ||
-    isReactExperimental
 
   const hasReactRoot: boolean =
     config.experimental.reactRoot || hasReact18 || isReactExperimental
+
+  // Make sure reactRoot is enabled when react 18 is detected
+  if (hasReactRoot) {
+    config.experimental.reactRoot = true
+  }
 
   // Only inform during one of the builds
   if (
@@ -380,19 +384,6 @@ export default async function getBaseWebpackConfig(
   const hasServerComponents =
     hasConcurrentFeatures && !!config.experimental.serverComponents
   const targetWeb = webServerRuntime || !isServer
-
-  // Only inform during one of the builds
-  if (!isServer) {
-    if (hasReactRoot) {
-      Log.info('Using the createRoot API for React')
-    }
-    if (hasReactPrerelease) {
-      Log.warn(
-        `You are using an unsupported prerelease of 'react-dom' which may cause ` +
-          `unexpected or broken application behavior. Continue at your own risk.`
-      )
-    }
-  }
 
   if (webServerRuntime) {
     Log.warn(
@@ -507,7 +498,7 @@ export default async function getBaseWebpackConfig(
         ...(dev
           ? {
               [CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]: require.resolve(
-                `@next/react-refresh-utils/runtime`
+                `next/dist/compiled/@next/react-refresh-utils/runtime`
               ),
               [CLIENT_STATIC_FILES_RUNTIME_AMP]:
                 `./` +
@@ -619,43 +610,42 @@ export default async function getBaseWebpackConfig(
           }
         : {}),
 
-      ...(webServerRuntime
-        ? {
-            'react-dom/server': dev
-              ? 'react-dom/cjs/react-dom-server.browser.development'
-              : 'react-dom/cjs/react-dom-server.browser.production.min',
-          }
-        : {}),
+      setimmediate: 'next/dist/compiled/setimmediate',
     },
     ...(targetWeb
       ? {
           // Full list of old polyfills is accessible here:
           // https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42
           fallback: {
-            assert: require.resolve('assert/'),
-            buffer: require.resolve('buffer/'),
-            constants: require.resolve('constants-browserify'),
-            crypto: require.resolve('crypto-browserify'),
-            domain: require.resolve('domain-browser'),
-            http: require.resolve('stream-http'),
-            https: require.resolve('https-browserify'),
-            os: require.resolve('os-browserify/browser'),
-            path: require.resolve('path-browserify'),
-            punycode: require.resolve('punycode'),
-            process: require.resolve('process/browser'),
+            assert: require.resolve('next/dist/compiled/assert'),
+            buffer: require.resolve('next/dist/compiled/buffer/'),
+            constants: require.resolve(
+              'next/dist/compiled/constants-browserify'
+            ),
+            crypto: require.resolve('next/dist/compiled/crypto-browserify'),
+            domain: require.resolve('next/dist/compiled/domain-browser'),
+            http: require.resolve('next/dist/compiled/stream-http'),
+            https: require.resolve('next/dist/compiled/https-browserify'),
+            os: require.resolve('next/dist/compiled/os-browserify'),
+            path: require.resolve('next/dist/compiled/path-browserify'),
+            punycode: require.resolve('next/dist/compiled/punycode'),
+            process: require.resolve('./polyfills/process'),
             // Handled in separate alias
-            querystring: require.resolve('querystring-es3'),
-            stream: require.resolve('stream-browserify'),
-            string_decoder: require.resolve('string_decoder'),
-            sys: require.resolve('util/'),
-            timers: require.resolve('timers-browserify'),
-            tty: require.resolve('tty-browserify'),
+            querystring: require.resolve('next/dist/compiled/querystring-es3'),
+            stream: require.resolve('next/dist/compiled/stream-browserify'),
+            string_decoder: require.resolve(
+              'next/dist/compiled/string_decoder'
+            ),
+            sys: require.resolve('next/dist/compiled/util/'),
+            timers: require.resolve('next/dist/compiled/timers-browserify'),
+            tty: require.resolve('next/dist/compiled/tty-browserify'),
             // Handled in separate alias
             // url: require.resolve('url/'),
-            util: require.resolve('util/'),
-            vm: require.resolve('vm-browserify'),
-            zlib: require.resolve('browserify-zlib'),
-            events: require.resolve('events'),
+            util: require.resolve('next/dist/compiled/util/'),
+            vm: require.resolve('next/dist/compiled/vm-browserify'),
+            zlib: require.resolve('next/dist/compiled/browserify-zlib'),
+            events: require.resolve('next/dist/compiled/events/'),
+            setImmediate: require.resolve('next/dist/compiled/setimmediate'),
           },
         }
       : undefined),
@@ -915,7 +905,8 @@ export default async function getBaseWebpackConfig(
     const externalType = isEsm ? 'module' : 'commonjs'
 
     if (
-      res.match(/next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/)
+      res.match(/next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/) ||
+      res.match(/next[/\\]dist[/\\]compiled[/\\].*\.[mc]?js$/)
     ) {
       return `${externalType} ${request}`
     }
@@ -960,11 +951,6 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  const nonUserCondition = {
-    include: /node_modules/,
-    exclude: babelIncludeRegexes,
-  }
-
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     externals: targetWeb
@@ -974,7 +960,13 @@ export default async function getBaseWebpackConfig(
         [
           'next',
           ...(webServerRuntime
-            ? [{ etag: '{}', chalk: '{}', 'react-dom': '{}' }]
+            ? [
+                {
+                  'next/dist/compiled/etag': '{}',
+                  'next/dist/compiled/chalk': '{}',
+                  'react-dom': '{}',
+                },
+              ]
             : []),
         ]
       : !isServerless
@@ -1242,19 +1234,14 @@ export default async function getBaseWebpackConfig(
               ...codeCondition,
               use: hasReactRefresh
                 ? [
-                    require.resolve('@next/react-refresh-utils/loader'),
+                    require.resolve(
+                      'next/dist/compiled/@next/react-refresh-utils/loader'
+                    ),
                     defaultLoaders.babel,
                   ]
                 : defaultLoaders.babel,
             },
           ],
-        },
-        {
-          ...nonUserCondition,
-          // Make all non-user modules to be compiled in a single layer
-          // This avoids compiling them mutliple times and avoids module id changes
-          issuerLayer: 'middleware',
-          layer: '',
         },
         ...(!config.images.disableStaticImages
           ? [
@@ -1402,6 +1389,7 @@ export default async function getBaseWebpackConfig(
           runtimeAsset: hasConcurrentFeatures
             ? `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
             : undefined,
+          dev,
         }),
       targetWeb && new DropClientPage(),
       config.outputFileTracing &&
@@ -1453,6 +1441,14 @@ export default async function getBaseWebpackConfig(
       // replacement is done before its process.env.* handling
       (!isServer || webServerRuntime) &&
         new MiddlewarePlugin({ dev, webServerRuntime }),
+      process.env.ENABLE_FILE_SYSTEM_API === '1' &&
+        webServerRuntime &&
+        new FunctionsManifestPlugin({
+          dev,
+          pagesDir,
+          webServerRuntime,
+          pageExtensions: config.pageExtensions,
+        }),
       isServer && new NextJsSsrImportPlugin(),
       !isServer &&
         new BuildManifestPlugin({
@@ -1607,6 +1603,10 @@ export default async function getBaseWebpackConfig(
     concurrentFeatures: config.experimental.concurrentFeatures,
     swcMinify: config.swcMinify,
     swcLoader: useSWCLoader,
+    removeConsole: config.experimental.removeConsole,
+    reactRemoveProperties: config.experimental.reactRemoveProperties,
+    styledComponents: config.experimental.styledComponents,
+    relay: config.experimental.relay,
   })
 
   const cache: any = {
@@ -1690,7 +1690,7 @@ export default async function getBaseWebpackConfig(
   webpackConfig = await buildConfiguration(webpackConfig, {
     supportedBrowsers,
     rootDirectory: dir,
-    customAppFile: new RegExp(escapeRegExp(path.join(pagesDir, `_app`))),
+    customAppFile: new RegExp(escapeStringRegexp(path.join(pagesDir, `_app`))),
     isDevelopment: dev,
     isServer,
     webServerRuntime,
@@ -1731,6 +1731,21 @@ export default async function getBaseWebpackConfig(
     if (dev && originalDevtool !== webpackConfig.devtool) {
       webpackConfig.devtool = originalDevtool
       devtoolRevertWarning(originalDevtool)
+    }
+
+    // eslint-disable-next-line no-shadow
+    const webpack5Config = webpackConfig as webpack5.Configuration
+
+    // disable lazy compilation of entries as next.js has it's own method here
+    if (webpack5Config.experiments?.lazyCompilation === true) {
+      webpack5Config.experiments.lazyCompilation = {
+        entries: false,
+      }
+    } else if (
+      typeof webpack5Config.experiments?.lazyCompilation === 'object' &&
+      webpack5Config.experiments.lazyCompilation.entries !== false
+    ) {
+      webpack5Config.experiments.lazyCompilation.entries = false
     }
 
     if (typeof (webpackConfig as any).then === 'function') {

@@ -376,7 +376,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
             res.statusCode = statusCode
             res.setHeader('Location', redirect.destination)
-            res.end()
+            res.end(redirect.destination)
             return null
           } else {
             sendRenderResult({
