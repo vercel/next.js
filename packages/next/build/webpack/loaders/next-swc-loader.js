@@ -26,8 +26,9 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-import { transform } from '../../swc'
+import { isWasm, transform } from '../../swc'
 import { getLoaderSWCOptions } from '../../swc/options'
+import { isAbsolute } from 'path'
 
 async function loaderTransform(parentTrace, source, inputSourceMap) {
   // Make the loader async
@@ -35,7 +36,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
 
   let loaderOptions = this.getOptions() || {}
 
-  const { isServer, pagesDir, hasReactRefresh, styledComponents } =
+  const { isServer, pagesDir, hasReactRefresh, nextConfig, jsConfig } =
     loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
 
@@ -46,7 +47,8 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
     isPageFile,
     development: this.mode === 'development',
     hasReactRefresh,
-    styledComponents,
+    nextConfig,
+    jsConfig,
   })
 
   const programmaticOptions = {
@@ -89,6 +91,34 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
       return [output.code, output.map ? JSON.parse(output.map) : undefined]
     })
   )
+}
+
+const EXCLUDED_PATHS =
+  /[\\/](cache[\\/][^\\/]+\.zip[\\/]node_modules|__virtual__)[\\/]/g
+
+export function pitch() {
+  const callback = this.async()
+  ;(async () => {
+    let loaderOptions = this.getOptions() || {}
+    if (
+      // TODO: investigate swc file reading in PnP mode?
+      !process.versions.pnp &&
+      loaderOptions.fileReading &&
+      !EXCLUDED_PATHS.test(this.resourcePath) &&
+      this.loaders.length - 1 === this.loaderIndex &&
+      isAbsolute(this.resourcePath) &&
+      !(await isWasm())
+    ) {
+      const loaderSpan = this.currentTraceSpan.traceChild('next-swc-loader')
+      this.addDependency(this.resourcePath)
+      return loaderSpan.traceAsyncFn(() =>
+        loaderTransform.call(this, loaderSpan)
+      )
+    }
+  })().then((r) => {
+    if (r) return callback(null, ...r)
+    callback()
+  }, callback)
 }
 
 export default function swcLoader(inputSource, inputSourceMap) {

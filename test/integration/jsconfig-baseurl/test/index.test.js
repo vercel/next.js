@@ -79,7 +79,7 @@ describe('TypeScript Features', () => {
       ).toBe(true)
       expect(
         helloTrace.files.some((file) => file.includes('components/world.js'))
-      ).toBe(true)
+      ).toBe(false)
       expect(
         helloTrace.files.some((file) => file.includes('react/index.js'))
       ).toBe(true)

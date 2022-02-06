@@ -44,7 +44,7 @@ Create a file named `.vscode/launch.json` at the root of your project with the f
 }
 ```
 
-`npm run dev` can be replaced with `yarn dev` if you're using Yarn. If you're [changing the port number](<(/docs/api-reference/cli#development)>) your application starts on, replace the `3000` in `http://localhost:3000` with the port you're using instead.
+`npm run dev` can be replaced with `yarn dev` if you're using Yarn. If you're [changing the port number](/docs/api-reference/cli#development) your application starts on, replace the `3000` in `http://localhost:3000` with the port you're using instead.
 
 Now go to the Debug panel (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> on Windows/Linux, <kbd>⇧</kbd>+<kbd>⌘</kbd>+<kbd>D</kbd> on macOS), select a launch configuration, then press <kbd>F5</kbd> or select **Debug: Start Debugging** from the Command Palette to start your debugging session.
 
@@ -86,7 +86,7 @@ Debugging server-side code here works much like debugging client-side code with 
 
 ### Debugging on Windows
 
-Windows users may run into an issue when using `NODE_OPTIONS='--inspect'` as that syntax is not supported on Windows platforms. To get around this, install the [`cross-env`](https://www.npmjs.com/package/cross-env) package as a development dependency (`--dev` with Yarn or `-D` for NPM) and replace the `dev` script with the following.
+Windows users may run into an issue when using `NODE_OPTIONS='--inspect'` as that syntax is not supported on Windows platforms. To get around this, install the [`cross-env`](https://www.npmjs.com/package/cross-env) package as a development dependency (`--dev` with NPM or `-D` for Yarn) and replace the `dev` script with the following.
 
 ```json
 "dev": "cross-env NODE_OPTIONS='--inspect' next dev",

@@ -45,7 +45,7 @@ Middleware can be used for anything that shares logic for a set of pages, includ
 
 ## Execution Order
 
-If your Middleware is created in `/pages/_middleware.js`, it will run on all routes within the `/pages` directory. The below example assumes you have `about.tsx` and `teams.tsx` routes.
+If your Middleware is created in `/pages/_middleware.ts`, it will run on all routes within the `/pages` directory. The below example assumes you have `about.tsx` and `teams.tsx` routes.
 
 ```bash
 - package.json

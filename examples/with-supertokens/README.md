@@ -18,4 +18,5 @@ yarn create next-app --example with-supertokens with-supertokens-app
 
 ## Notes
 
-Take a look at [SuperTokens documentation](https://supertokens.io/docs/community/introduction).
+- Take a look at [SuperTokens documentation](https://supertokens.io/docs/community/introduction).
+- We have provided development OAuth keys for the various in build third party providers in the `.env` file. Feel free to use them for development purposes, but **please create your own keys for production use**.

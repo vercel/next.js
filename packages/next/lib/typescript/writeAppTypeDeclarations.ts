@@ -30,8 +30,6 @@ export async function writeAppTypeDeclarations(
   const content =
     '/// <reference types="next" />' +
     eol +
-    '/// <reference types="next/types/global" />' +
-    eol +
     (imageImportsEnabled
       ? '/// <reference types="next/image-types/global" />' + eol
       : '') +

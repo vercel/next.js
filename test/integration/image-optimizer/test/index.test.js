@@ -48,6 +48,40 @@ async function expectWidth(res, w) {
   expect(d.width).toBe(w)
 }
 
+async function expectAvifSmallerThanWebp(w, q) {
+  const query = { url: '/mountains.jpg', w, q }
+  const res1 = await fetchViaHTTP(appPort, '/_next/image', query, {
+    headers: {
+      accept: 'image/avif',
+    },
+  })
+  expect(res1.status).toBe(200)
+  expect(res1.headers.get('Content-Type')).toBe('image/avif')
+
+  const res2 = await fetchViaHTTP(appPort, '/_next/image', query, {
+    headers: {
+      accept: 'image/webp',
+    },
+  })
+  expect(res2.status).toBe(200)
+  expect(res2.headers.get('Content-Type')).toBe('image/webp')
+
+  const res3 = await fetchViaHTTP(appPort, '/_next/image', query, {
+    headers: {
+      accept: 'image/jpeg',
+    },
+  })
+  expect(res3.status).toBe(200)
+  expect(res3.headers.get('Content-Type')).toBe('image/jpeg')
+
+  const avif = (await res1.buffer()).byteLength
+  const webp = (await res2.buffer()).byteLength
+  const jpeg = (await res3.buffer()).byteLength
+
+  expect(webp).toBeLessThan(jpeg)
+  expect(avif).toBeLessThanOrEqual(webp)
+}
+
 function runTests({
   w,
   isDev,
@@ -410,6 +444,18 @@ function runTests({
       // See https://github.com/image-size/image-size/issues/348
       //await expectWidth(res, w)
     })
+
+    it('should compress avif smaller than webp at q=100', async () => {
+      await expectAvifSmallerThanWebp(w, 100)
+    })
+
+    it('should compress avif smaller than webp at q=75', async () => {
+      await expectAvifSmallerThanWebp(w, 75)
+    })
+
+    it('should compress avif smaller than webp at q=50', async () => {
+      await expectAvifSmallerThanWebp(w, 50)
+    })
   }
 
   if (domains.includes('localhost')) {
@@ -432,9 +478,8 @@ function runTests({
     })
 
     it('should automatically detect image type when content-type is octet-stream', async () => {
-      const url =
-        'https://image-optimization-test.vercel.app/png-as-octet-stream'
-      const resOrig = await fetch(url)
+      const url = '/png-as-octet-stream'
+      const resOrig = await fetchViaHTTP(appPort, url)
       expect(resOrig.status).toBe(200)
       expect(resOrig.headers.get('Content-Type')).toBe(
         'application/octet-stream'
@@ -453,6 +498,49 @@ function runTests({
         `inline; filename="png-as-octet-stream.webp"`
       )
       await expectWidth(res, w)
+    })
+
+    it('should use cache and stale-while-revalidate when query is the same for external image', async () => {
+      await fs.remove(imagesDir)
+
+      const url = 'https://image-optimization-test.vercel.app/test.jpg'
+      const query = { url, w, q: 39 }
+      const opts = { headers: { accept: 'image/webp' } }
+
+      const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res1.status).toBe(200)
+      expect(res1.headers.get('X-Nextjs-Cache')).toBe('MISS')
+      expect(res1.headers.get('Content-Type')).toBe('image/webp')
+      expect(res1.headers.get('Content-Disposition')).toBe(
+        `inline; filename="test.webp"`
+      )
+      const json1 = await fsToJson(imagesDir)
+      expect(Object.keys(json1).length).toBe(1)
+
+      const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res2.status).toBe(200)
+      expect(res2.headers.get('X-Nextjs-Cache')).toBe('HIT')
+      expect(res2.headers.get('Content-Type')).toBe('image/webp')
+      expect(res2.headers.get('Content-Disposition')).toBe(
+        `inline; filename="test.webp"`
+      )
+      const json2 = await fsToJson(imagesDir)
+      expect(json2).toStrictEqual(json1)
+
+      if (ttl) {
+        // Wait until expired so we can confirm image is regenerated
+        await waitFor(ttl * 1000)
+        const res3 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+        expect(res3.status).toBe(200)
+        expect(res3.headers.get('X-Nextjs-Cache')).toBe('STALE')
+        expect(res3.headers.get('Content-Type')).toBe('image/webp')
+        expect(res3.headers.get('Content-Disposition')).toBe(
+          `inline; filename="test.webp"`
+        )
+        const json3 = await fsToJson(imagesDir)
+        expect(json3).not.toStrictEqual(json1)
+        expect(Object.keys(json3).length).toBe(1)
+      }
     })
   }
 
@@ -486,7 +574,7 @@ function runTests({
     })
   }
 
-  it('should use cached image file when parameters are the same', async () => {
+  it('should use cache and stale-while-revalidate when query is the same for internal image', async () => {
     await fs.remove(imagesDir)
 
     const query = { url: '/test.png', w, q: 80 }
@@ -494,6 +582,7 @@ function runTests({
 
     const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res1.status).toBe(200)
+    expect(res1.headers.get('X-Nextjs-Cache')).toBe('MISS')
     expect(res1.headers.get('Content-Type')).toBe('image/webp')
     expect(res1.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.webp"`
@@ -503,6 +592,7 @@ function runTests({
 
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
+    expect(res2.headers.get('X-Nextjs-Cache')).toBe('HIT')
     expect(res2.headers.get('Content-Type')).toBe('image/webp')
     expect(res2.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.webp"`
@@ -515,6 +605,7 @@ function runTests({
       await waitFor(ttl * 1000)
       const res3 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res3.status).toBe(200)
+      expect(res3.headers.get('X-Nextjs-Cache')).toBe('STALE')
       expect(res3.headers.get('Content-Type')).toBe('image/webp')
       expect(res3.headers.get('Content-Disposition')).toBe(
         `inline; filename="test.webp"`
@@ -533,6 +624,7 @@ function runTests({
 
     const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res1.status).toBe(200)
+    expect(res1.headers.get('X-Nextjs-Cache')).toBe('MISS')
     expect(res1.headers.get('Content-Type')).toBe('image/svg+xml')
     expect(res1.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.svg"`
@@ -542,6 +634,7 @@ function runTests({
 
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
+    expect(res2.headers.get('X-Nextjs-Cache')).toBe('HIT')
     expect(res2.headers.get('Content-Type')).toBe('image/svg+xml')
     expect(res2.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.svg"`
@@ -558,6 +651,7 @@ function runTests({
 
     const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res1.status).toBe(200)
+    expect(res1.headers.get('X-Nextjs-Cache')).toBe('MISS')
     expect(res1.headers.get('Content-Type')).toBe('image/gif')
     expect(res1.headers.get('Content-Disposition')).toBe(
       `inline; filename="animated.gif"`
@@ -567,6 +661,7 @@ function runTests({
 
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
+    expect(res2.headers.get('X-Nextjs-Cache')).toBe('HIT')
     expect(res2.headers.get('Content-Type')).toBe('image/gif')
     expect(res2.headers.get('Content-Disposition')).toBe(
       `inline; filename="animated.gif"`
@@ -733,6 +828,14 @@ function runTests({
     expect(await res.text()).toBe("The requested resource isn't a valid image.")
   })
 
+  it('should error if the image file does not exist', async () => {
+    const query = { url: '/does_not_exist.jpg', w, q: 80 }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(400)
+    expect(await res.text()).toBe("The requested resource isn't a valid image.")
+  })
+
   it('should handle concurrent requests', async () => {
     await fs.remove(imagesDir)
     const query = { url: '/test.png', w, q: 80 }
@@ -756,6 +859,16 @@ function runTests({
 
     const json1 = await fsToJson(imagesDir)
     expect(Object.keys(json1).length).toBe(1)
+
+    const xCache1 = res1.headers.get('X-Nextjs-Cache')
+    const xCache2 = res2.headers.get('X-Nextjs-Cache')
+    if (xCache1 === 'HIT') {
+      expect(xCache1).toBe('HIT')
+      expect(xCache2).toBe('MISS')
+    } else {
+      expect(xCache1).toBe('MISS')
+      expect(xCache2).toBe('HIT')
+    }
   })
 
   if (isDev || isSharp) {
@@ -1205,7 +1318,7 @@ describe('Image Optimizer', () => {
     })
 
     describe('dev support with next.config.js', () => {
-      const size = 64
+      const size = 400
       beforeAll(async () => {
         const json = JSON.stringify({
           images: {
@@ -1273,7 +1386,7 @@ describe('Image Optimizer', () => {
     })
 
     describe('Server support with next.config.js', () => {
-      const size = 128
+      const size = 399
       beforeAll(async () => {
         const json = JSON.stringify({
           images: {

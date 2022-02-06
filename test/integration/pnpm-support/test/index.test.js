@@ -106,8 +106,8 @@ async function usingPnpmCreateNextApp(appDir, fn) {
     await runPnpm(tempAppDir, 'add', `next@${nextTarballPath}`)
 
     await fs.copy(
-      path.join(__dirname, '../../../../packages/next/native'),
-      path.join(tempAppDir, 'node_modules/next/native')
+      path.join(__dirname, '../../../../packages/next-swc/native'),
+      path.join(tempAppDir, 'node_modules/next-swc/native')
     )
 
     await fn(tempAppDir)

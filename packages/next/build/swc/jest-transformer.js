@@ -48,9 +48,9 @@ module.exports = {
         isServer:
           jestConfig.testEnvironment && jestConfig.testEnvironment === 'node',
         filename,
-        styledComponents: inputOptions.styledComponents,
-        paths: inputOptions.paths,
-        baseUrl: inputOptions.resolvedBaseUrl,
+        nextConfig: inputOptions.nextConfig,
+        jsConfig: inputOptions.jsConfig,
+        resolvedBaseUrl: inputOptions.resolvedBaseUrl,
         esm:
           isSupportEsm &&
           isEsm(Boolean(inputOptions.isEsmProject), filename, jestConfig),

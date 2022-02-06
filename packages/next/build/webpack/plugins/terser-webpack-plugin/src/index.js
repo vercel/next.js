@@ -5,8 +5,8 @@ import {
   ModuleFilenameHelpers,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
-import pLimit from 'p-limit'
-import { Worker } from 'jest-worker'
+import pLimit from 'next/dist/compiled/p-limit'
+import { Worker } from 'next/dist/compiled/jest-worker'
 import { spans } from '../../profiling-plugin'
 
 function getEcmaVersion(environment) {
@@ -47,13 +47,14 @@ function buildError(error, file) {
   return new Error(`${file} from Terser\n${error.message}`)
 }
 
+const debugMinify = process.env.NEXT_DEBUG_MINIFY
+
 export class TerserPlugin {
   constructor(options = {}) {
-    const { cacheDir, terserOptions = {}, parallel, swcMinify } = options
+    const { terserOptions = {}, parallel, swcMinify } = options
 
     this.options = {
       swcMinify,
-      cacheDir,
       parallel,
       terserOptions,
     }
@@ -74,8 +75,6 @@ export class TerserPlugin {
     terserSpan.setAttribute('compilationName', compilation.name)
 
     return terserSpan.traceAsyncFn(async () => {
-      let webpackAsset = ''
-      let hasMiddleware = false
       let numberOfAssetsForMinify = 0
       const assetsList = Object.keys(assets)
 
@@ -98,15 +97,14 @@ export class TerserPlugin {
               return false
             }
 
-            // remove below if we start minifying middleware chunks
-            if (name.startsWith('static/chunks/webpack-')) {
-              webpackAsset = name
-            }
-
             // don't minify _middleware as it can break in some cases
             // and doesn't provide too much of a benefit as it's server-side
-            if (name.match(/(middleware-chunks|_middleware\.js$)/)) {
-              hasMiddleware = true
+            if (
+              name.match(
+                /(middleware-runtime\.js|middleware-chunks|_middleware\.js$)/
+              )
+            ) {
+              return false
             }
 
             const { info } = res
@@ -128,20 +126,21 @@ export class TerserPlugin {
               numberOfAssetsForMinify += 1
             }
 
+            if (debugMinify && debugMinify === '1') {
+              console.dir(
+                {
+                  name,
+                  source: source.source().toString(),
+                },
+                {
+                  breakLength: Infinity,
+                  maxStringLength: Infinity,
+                }
+              )
+            }
             return { name, info, inputSource: source, output, eTag }
           })
       )
-
-      if (hasMiddleware && webpackAsset) {
-        // emit a separate version of the webpack
-        // runtime for the middleware
-        const asset = compilation.getAsset(webpackAsset)
-        compilation.emitAsset(
-          webpackAsset.replace('webpack-', 'webpack-middleware-'),
-          asset.source,
-          {}
-        )
-      }
 
       const numberOfWorkers = Math.min(
         numberOfAssetsForMinify,
