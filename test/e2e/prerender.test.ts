@@ -1832,8 +1832,9 @@ describe('Prerender', () => {
               /node_modules\/react\/index\.js/,
               /node_modules\/react\/package\.json/,
               /node_modules\/react\/cjs\/react\.production\.min\.js/,
+              /node_modules\/next/,
             ],
-            notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+            notTests: [],
           },
           {
             page: '/another',
@@ -1843,10 +1844,10 @@ describe('Prerender', () => {
               /node_modules\/react\/index\.js/,
               /node_modules\/react\/package\.json/,
               /node_modules\/react\/cjs\/react\.production\.min\.js/,
+              /node_modules\/next/,
               /\/world.txt/,
             ],
             notTests: [
-              /node_modules\/react\/cjs\/react\.development\.js/,
               /node_modules\/@firebase\/firestore\/.*?\.js/,
               /\/server\.js/,
             ],
@@ -1859,12 +1860,12 @@ describe('Prerender', () => {
               /node_modules\/react\/index\.js/,
               /node_modules\/react\/package\.json/,
               /node_modules\/react\/cjs\/react\.production\.min\.js/,
+              /node_modules\/next/,
+              /next\/router\.js/,
+              /next\/dist\/client\/router\.js/,
               /node_modules\/@firebase\/firestore\/.*?\.js/,
             ],
-            notTests: [
-              /node_modules\/react\/cjs\/react\.development\.js/,
-              /\/world.txt/,
-            ],
+            notTests: [/\/world.txt/],
           },
         ]
 

@@ -1,8 +1,5 @@
 import React, { Component, ReactElement, ReactNode, useContext } from 'react'
-import {
-  BODY_RENDER_TARGET,
-  OPTIMIZED_FONT_PROVIDERS,
-} from '../shared/lib/constants'
+import { OPTIMIZED_FONT_PROVIDERS } from '../shared/lib/constants'
 import {
   DocumentContext,
   DocumentInitialProps,
@@ -54,6 +51,7 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
     buildManifest,
     devOnlyCacheBusterQueryString,
     disableOptimizedLoading,
+    crossOrigin,
   } = context
 
   return buildManifest.polyfillFiles
@@ -65,7 +63,7 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
         key={polyfill}
         defer={!disableOptimizedLoading}
         nonce={props.nonce}
-        crossOrigin={props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
+        crossOrigin={props.crossOrigin || crossOrigin}
         noModule={true}
         src={`${assetPrefix}/_next/${polyfill}${devOnlyCacheBusterQueryString}`}
       />
@@ -73,7 +71,7 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
 }
 
 function getPreNextScripts(context: HtmlProps, props: OriginProps) {
-  const { scriptLoader, disableOptimizedLoading } = context
+  const { scriptLoader, disableOptimizedLoading, crossOrigin } = context
 
   return (scriptLoader.beforeInteractive || []).map(
     (file: ScriptProps, index: number) => {
@@ -85,7 +83,7 @@ function getPreNextScripts(context: HtmlProps, props: OriginProps) {
           defer={!disableOptimizedLoading}
           nonce={props.nonce}
           data-nscript="beforeInteractive"
-          crossOrigin={props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
+          crossOrigin={props.crossOrigin || crossOrigin}
         />
       )
     }
@@ -103,6 +101,7 @@ function getDynamicChunks(
     isDevelopment,
     devOnlyCacheBusterQueryString,
     disableOptimizedLoading,
+    crossOrigin,
   } = context
 
   return dynamicImports.map((file) => {
@@ -117,7 +116,7 @@ function getDynamicChunks(
           file
         )}${devOnlyCacheBusterQueryString}`}
         nonce={props.nonce}
-        crossOrigin={props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
+        crossOrigin={props.crossOrigin || crossOrigin}
       />
     )
   })
@@ -134,6 +133,7 @@ function getScripts(
     isDevelopment,
     devOnlyCacheBusterQueryString,
     disableOptimizedLoading,
+    crossOrigin,
   } = context
 
   const normalScripts = files.allFiles.filter((file) => file.endsWith('.js'))
@@ -151,7 +151,7 @@ function getScripts(
         nonce={props.nonce}
         async={!isDevelopment && disableOptimizedLoading}
         defer={!disableOptimizedLoading}
-        crossOrigin={props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
+        crossOrigin={props.crossOrigin || crossOrigin}
       />
     )
   })
@@ -261,8 +261,14 @@ export class Head extends Component<
   context!: React.ContextType<typeof HtmlContext>
 
   getCssLinks(files: DocumentFiles): JSX.Element[] | null {
-    const { assetPrefix, devOnlyCacheBusterQueryString, dynamicImports } =
-      this.context
+    const {
+      assetPrefix,
+      devOnlyCacheBusterQueryString,
+      dynamicImports,
+      crossOrigin,
+      optimizeCss,
+      optimizeFonts,
+    } = this.context
     const cssFiles = files.allFiles.filter((f) => f.endsWith('.css'))
     const sharedFiles: Set<string> = new Set(files.sharedFiles)
 
@@ -285,7 +291,7 @@ export class Head extends Component<
     cssFiles.forEach((file) => {
       const isSharedFile = sharedFiles.has(file)
 
-      if (!process.env.__NEXT_OPTIMIZE_CSS) {
+      if (!optimizeCss) {
         cssLinkElements.push(
           <link
             key={`${file}-preload`}
@@ -295,9 +301,7 @@ export class Head extends Component<
               file
             )}${devOnlyCacheBusterQueryString}`}
             as="style"
-            crossOrigin={
-              this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-            }
+            crossOrigin={this.props.crossOrigin || crossOrigin}
           />
         )
       }
@@ -311,19 +315,14 @@ export class Head extends Component<
           href={`${assetPrefix}/_next/${encodeURI(
             file
           )}${devOnlyCacheBusterQueryString}`}
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
+          crossOrigin={this.props.crossOrigin || crossOrigin}
           data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
           data-n-p={isUnmanagedFile ? undefined : isSharedFile ? undefined : ''}
         />
       )
     })
 
-    if (
-      process.env.NODE_ENV !== 'development' &&
-      process.env.__NEXT_OPTIMIZE_FONTS
-    ) {
+    if (process.env.NODE_ENV !== 'development' && optimizeFonts) {
       cssLinkElements = this.makeStylesheetInert(
         cssLinkElements
       ) as ReactElement[]
@@ -333,8 +332,12 @@ export class Head extends Component<
   }
 
   getPreloadDynamicChunks() {
-    const { dynamicImports, assetPrefix, devOnlyCacheBusterQueryString } =
-      this.context
+    const {
+      dynamicImports,
+      assetPrefix,
+      devOnlyCacheBusterQueryString,
+      crossOrigin,
+    } = this.context
 
     return (
       dynamicImports
@@ -352,9 +355,7 @@ export class Head extends Component<
               )}${devOnlyCacheBusterQueryString}`}
               as="script"
               nonce={this.props.nonce}
-              crossOrigin={
-                this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-              }
+              crossOrigin={this.props.crossOrigin || crossOrigin}
             />
           )
         })
@@ -364,8 +365,12 @@ export class Head extends Component<
   }
 
   getPreloadMainLinks(files: DocumentFiles): JSX.Element[] | null {
-    const { assetPrefix, devOnlyCacheBusterQueryString, scriptLoader } =
-      this.context
+    const {
+      assetPrefix,
+      devOnlyCacheBusterQueryString,
+      scriptLoader,
+      crossOrigin,
+    } = this.context
     const preloadFiles = files.allFiles.filter((file: string) => {
       return file.endsWith('.js')
     })
@@ -378,9 +383,7 @@ export class Head extends Component<
           rel="preload"
           href={file.src}
           as="script"
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
+          crossOrigin={this.props.crossOrigin || crossOrigin}
         />
       )),
       ...preloadFiles.map((file: string) => (
@@ -392,9 +395,7 @@ export class Head extends Component<
             file
           )}${devOnlyCacheBusterQueryString}`}
           as="script"
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
+          crossOrigin={this.props.crossOrigin || crossOrigin}
         />
       )),
     ]
@@ -451,21 +452,30 @@ export class Head extends Component<
   makeStylesheetInert(node: ReactNode): ReactNode[] {
     return React.Children.map(node, (c: any) => {
       if (
-        c.type === 'link' &&
-        c.props['href'] &&
+        c?.type === 'link' &&
+        c?.props?.href &&
         OPTIMIZED_FONT_PROVIDERS.some(({ url }) =>
-          c.props['href'].startsWith(url)
+          c?.props?.href?.startsWith(url)
         )
       ) {
-        const newProps = { ...(c.props || {}) }
-        newProps['data-href'] = newProps['href']
-        newProps['href'] = undefined
+        const newProps = {
+          ...(c.props || {}),
+          'data-href': c.props.href,
+          href: undefined,
+        }
+
         return React.cloneElement(c, newProps)
-      } else if (c.props && c.props['children']) {
-        c.props['children'] = this.makeStylesheetInert(c.props['children'])
+      } else if (c?.props?.children) {
+        const newProps = {
+          ...(c.props || {}),
+          children: this.makeStylesheetInert(c.props.children),
+        }
+
+        return React.cloneElement(c, newProps)
       }
+
       return c
-    })
+    }).filter(Boolean)
   }
 
   render() {
@@ -482,6 +492,10 @@ export class Head extends Component<
       unstable_JsPreload,
       disableOptimizedLoading,
       useMaybeDeferContent,
+      optimizeCss,
+      optimizeFonts,
+      optimizeImages,
+      concurrentFeatures,
     } = this.context
 
     const disableRuntimeJS = unstable_runtimeJS === false
@@ -535,11 +549,7 @@ export class Head extends Component<
         )
     }
 
-    if (
-      process.env.NODE_ENV !== 'development' &&
-      process.env.__NEXT_OPTIMIZE_FONTS &&
-      !inAmpMode
-    ) {
+    if (process.env.NODE_ENV !== 'development' && optimizeFonts && !inAmpMode) {
       children = this.makeStylesheetInert(children)
     }
 
@@ -653,7 +663,7 @@ export class Head extends Component<
 
       return (
         <head {...this.props}>
-          {this.context.isDevelopment && (
+          {!concurrentFeatures && this.context.isDevelopment && (
             <>
               <style
                 data-next-hide-fouc
@@ -675,9 +685,7 @@ export class Head extends Component<
             </>
           )}
           {children}
-          {process.env.__NEXT_OPTIMIZE_FONTS && (
-            <meta name="next-font-preconnect" />
-          )}
+          {optimizeFonts && <meta name="next-font-preconnect" />}
 
           {!isDeferred && getDynamicHeadContent()}
 
@@ -725,13 +733,9 @@ export class Head extends Component<
                   href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
                 />
               )}
-              {!process.env.__NEXT_OPTIMIZE_CSS && this.getCssLinks(files)}
-              {!process.env.__NEXT_OPTIMIZE_CSS && (
-                <noscript data-n-css={this.props.nonce ?? ''} />
-              )}
-              {process.env.__NEXT_OPTIMIZE_IMAGES && (
-                <meta name="next-image-preload" />
-              )}
+              {!optimizeCss && this.getCssLinks(files)}
+              {!optimizeCss && <noscript data-n-css={this.props.nonce ?? ''} />}
+              {optimizeImages && <meta name="next-image-preload" />}
 
               {!isDeferred && getDynamicScriptPreloads()}
 
@@ -741,10 +745,8 @@ export class Head extends Component<
 
               {!isDeferred && getDynamicScriptContent()}
 
-              {process.env.__NEXT_OPTIMIZE_CSS && this.getCssLinks(files)}
-              {process.env.__NEXT_OPTIMIZE_CSS && (
-                <noscript data-n-css={this.props.nonce ?? ''} />
-              )}
+              {optimizeCss && this.getCssLinks(files)}
+              {optimizeCss && <noscript data-n-css={this.props.nonce ?? ''} />}
               {this.context.isDevelopment && (
                 // this element is used to mount development styles so the
                 // ordering matches production
@@ -764,12 +766,10 @@ export class Head extends Component<
 }
 
 export function Main() {
-  const { inAmpMode, docComponentsRendered } = useContext(HtmlContext)
-
+  const { docComponentsRendered } = useContext(HtmlContext)
   docComponentsRendered.Main = true
-
-  if (inAmpMode) return <>{BODY_RENDER_TARGET}</>
-  return <div id="__next">{BODY_RENDER_TARGET}</div>
+  // @ts-ignore
+  return <next-js-internal-body-render-target />
 }
 
 export class NextScript extends Component<OriginProps> {
@@ -835,6 +835,7 @@ export class NextScript extends Component<OriginProps> {
       devOnlyCacheBusterQueryString,
       disableOptimizedLoading,
       useMaybeDeferContent,
+      crossOrigin,
     } = this.context
     const disableRuntimeJS = unstable_runtimeJS === false
 
@@ -857,9 +858,7 @@ export class NextScript extends Component<OriginProps> {
                   id="__NEXT_DATA__"
                   type="application/json"
                   nonce={this.props.nonce}
-                  crossOrigin={
-                    this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-                  }
+                  crossOrigin={this.props.crossOrigin || crossOrigin}
                   dangerouslySetInnerHTML={{
                     __html: NextScript.getInlineScriptSource(this.context),
                   }}
@@ -871,9 +870,7 @@ export class NextScript extends Component<OriginProps> {
                   key={file}
                   src={`${assetPrefix}/_next/${file}${devOnlyCacheBusterQueryString}`}
                   nonce={this.props.nonce}
-                  crossOrigin={
-                    this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-                  }
+                  crossOrigin={this.props.crossOrigin || crossOrigin}
                   data-ampdevmode
                 />
               ))}
@@ -904,9 +901,7 @@ export class NextScript extends Component<OriginProps> {
                       file
                     )}${devOnlyCacheBusterQueryString}`}
                     nonce={this.props.nonce}
-                    crossOrigin={
-                      this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-                    }
+                    crossOrigin={this.props.crossOrigin || crossOrigin}
                   />
                 ))
               : null}
@@ -915,9 +910,7 @@ export class NextScript extends Component<OriginProps> {
                 id="__NEXT_DATA__"
                 type="application/json"
                 nonce={this.props.nonce}
-                crossOrigin={
-                  this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-                }
+                crossOrigin={this.props.crossOrigin || crossOrigin}
                 dangerouslySetInnerHTML={{
                   __html: NextScript.getInlineScriptSource(this.context),
                 }}

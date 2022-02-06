@@ -10,7 +10,6 @@ import { TRACE_OUTPUT_VERSION } from '../../../shared/lib/constants'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import {
-  nextImageLoaderRegex,
   NODE_ESM_RESOLVE_OPTIONS,
   NODE_RESOLVE_OPTIONS,
   resolveExternal,
@@ -19,12 +18,9 @@ import { NextConfigComplete } from '../../../server/config-shared'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 const TRACE_IGNORES = [
-  '**/*/node_modules/react/**/*.development.js',
-  '**/*/node_modules/react-dom/**/*.development.js',
   '**/*/next/dist/server/next.js',
   '**/*/next/dist/bin/next',
 ]
-const root = nodePath.parse(process.cwd()).root
 
 function getModuleFromDependency(
   compilation: any,
@@ -35,7 +31,8 @@ function getModuleFromDependency(
 
 function getFilesMapFromReasons(
   fileList: Set<string>,
-  reasons: NodeFileTraceReasons
+  reasons: NodeFileTraceReasons,
+  ignoreFn?: (file: string, parent?: string) => Boolean
 ) {
   // this uses the reasons tree to collect files specific to a
   // certain parent allowing us to not have to trace each parent
@@ -56,7 +53,10 @@ function getFilesMapFromReasons(
           parentFiles = new Set()
           parentFilesMap.set(parent, parentFiles)
         }
-        parentFiles.add(file)
+
+        if (!ignoreFn?.(file, parent)) {
+          parentFiles.add(file)
+        }
         const parentReason = reasons.get(parent)
 
         if (parentReason?.parents) {
@@ -83,6 +83,7 @@ function getFilesMapFromReasons(
 
 export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
   private appDir: string
+  private tracingRoot: string
   private entryTraces: Map<string, Set<string>>
   private excludeFiles: string[]
   private esmExternals?: NextConfigComplete['experimental']['esmExternals']
@@ -93,10 +94,12 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
     excludeFiles,
     esmExternals,
     staticImageImports,
+    outputFileTracingRoot,
   }: {
     appDir: string
     excludeFiles?: string[]
     staticImageImports: boolean
+    outputFileTracingRoot?: string
     esmExternals?: NextConfigComplete['experimental']['esmExternals']
   }) {
     this.appDir = appDir
@@ -104,6 +107,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
     this.esmExternals = esmExternals
     this.excludeFiles = excludeFiles || []
     this.staticImageImports = staticImageImports
+    this.tracingRoot = outputFileTracingRoot || appDir
   }
 
   // Here we output all traced assets and webpack chunks to a
@@ -113,8 +117,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
     assets: any,
     span: Span,
     readlink: any,
-    stat: any,
-    doResolve: any
+    stat: any
   ) {
     const outputPath = compilation.outputOptions.path
 
@@ -143,7 +146,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
       }
 
       const result = await nodeFileTrace([...chunksToTrace], {
-        base: root,
+        base: this.tracingRoot,
         processCwd: this.appDir,
         readFile: async (path) => {
           if (chunksToTrace.has(path)) {
@@ -172,11 +175,6 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
         },
         readlink,
         stat,
-        resolve: doResolve
-          ? (id, parent, job, isCjs) => {
-              return doResolve(id, parent, job, !isCjs)
-            }
-          : undefined,
         ignore: [...TRACE_IGNORES, ...this.excludeFiles],
         mixedModules: true,
       })
@@ -195,9 +193,9 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
 
         entryFiles.forEach((file) => {
           parentFilesMap
-            .get(nodePath.relative(root, file))
+            .get(nodePath.relative(this.tracingRoot, file))
             ?.forEach((child) => {
-              allEntryFiles.add(nodePath.join(root, child))
+              allEntryFiles.add(nodePath.join(this.tracingRoot, child))
             })
         })
         // don't include the entry itself in the trace
@@ -207,9 +205,11 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
           JSON.stringify({
             version: TRACE_OUTPUT_VERSION,
             files: [
-              ...entryFiles,
-              ...allEntryFiles,
-              ...(this.entryTraces.get(entrypoint.name) || []),
+              ...new Set([
+                ...entryFiles,
+                ...allEntryFiles,
+                ...(this.entryTraces.get(entrypoint.name) || []),
+              ]),
             ].map((file) => {
               return nodePath
                 .relative(traceOutputPath, file)
@@ -328,7 +328,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
               })
               .traceAsyncFn(async () => {
                 const result = await nodeFileTrace(entriesToTrace, {
-                  base: root,
+                  base: this.tracingRoot,
                   processCwd: this.appDir,
                   readFile,
                   readlink,
@@ -354,28 +354,43 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
             await finishModulesSpan
               .traceChild('collect-traced-files')
               .traceAsyncFn(() => {
-                const parentFilesMap = getFilesMapFromReasons(fileList, reasons)
+                const parentFilesMap = getFilesMapFromReasons(
+                  fileList,
+                  reasons,
+                  (file) => {
+                    file = nodePath.join(this.tracingRoot, file)
+                    const depMod = depModMap.get(file)
+
+                    return (
+                      Array.isArray(depMod?.loaders) &&
+                      depMod.loaders.length > 0
+                    )
+                  }
+                )
                 entryPaths.forEach((entry) => {
                   const entryName = entryNameMap.get(entry)!
-                  const normalizedEntry = nodePath.relative(root, entry)
+                  const normalizedEntry = nodePath.relative(
+                    this.tracingRoot,
+                    entry
+                  )
                   const curExtraEntries = additionalEntries.get(entryName)
                   const finalDeps = new Set<string>()
 
                   parentFilesMap.get(normalizedEntry)?.forEach((dep) => {
-                    finalDeps.add(nodePath.join(root, dep))
+                    finalDeps.add(nodePath.join(this.tracingRoot, dep))
                   })
 
                   if (curExtraEntries) {
                     for (const extraEntry of curExtraEntries.keys()) {
                       const normalizedExtraEntry = nodePath.relative(
-                        root,
+                        this.tracingRoot,
                         extraEntry
                       )
                       finalDeps.add(extraEntry)
                       parentFilesMap
                         .get(normalizedExtraEntry)
                         ?.forEach((dep) => {
-                          finalDeps.add(nodePath.join(root, dep))
+                          finalDeps.add(nodePath.join(this.tracingRoot, dep))
                         })
                     }
                   }
@@ -451,13 +466,13 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
               assets,
               traceEntrypointsPluginSpan,
               readlink,
-              stat,
-              doResolve
+              stat
             )
               .then(() => callback())
               .catch((err) => callback(err))
           }
         )
+
         let resolver = compilation.resolverFactory.get('normal')
 
         function getPkgName(name: string) {
@@ -492,6 +507,12 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
 
                   if (!result) {
                     return reject(new Error('module not found'))
+                  }
+
+                  // webpack resolver doesn't strip loader query info
+                  // from the result so use path instead
+                  if (result.includes('?') || result.includes('!')) {
+                    result = resContext?.path || result
                   }
 
                   try {
@@ -573,11 +594,6 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
           job: import('@vercel/nft/out/node-file-trace').Job,
           isEsmRequested: boolean
         ): Promise<string> => {
-          if (this.staticImageImports && nextImageLoaderRegex.test(request)) {
-            throw new Error(
-              `not resolving ${request} as this is handled by next-image-loader`
-            )
-          }
           const context = nodePath.dirname(parent)
           // When in esm externals mode, and using import, we resolve with
           // ESM resolving options.

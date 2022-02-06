@@ -15,6 +15,8 @@ import type webpack from 'webpack'
 import { getRawSourceMap } from './internal/helpers/getRawSourceMap'
 import { launchEditor } from './internal/helpers/launchEditor'
 
+export { parseStack } from './internal/helpers/parseStack'
+
 export type OverlayMiddlewareOptions = {
   rootDirectory: string
   stats(): webpack.Stats | null

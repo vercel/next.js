@@ -4,6 +4,8 @@ import initOnDemandEntries from './on-demand-entries-client'
 import { addMessageListener, connectHMR } from './error-overlay/websocket'
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
+window.__NEXT_DATA__ = data
+
 let { assetPrefix, page } = data
 assetPrefix = assetPrefix || ''
 let mostRecentHash = null
@@ -89,6 +91,10 @@ addMessageListener((event) => {
   }
 })
 
-connectHMR({ path: `${assetPrefix}/_next/webpack-hmr` })
+connectHMR({
+  assetPrefix,
+  path: '/_next/webpack-hmr',
+})
 displayContent()
-initOnDemandEntries()
+
+initOnDemandEntries(data.page)

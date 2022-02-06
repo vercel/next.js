@@ -1,4 +1,3 @@
-import { formatUrl } from './router/utils/format-url'
 import type { BuildManifest } from '../../server/get-page-files'
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../server/config'
@@ -9,6 +8,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
 import type { UrlObject } from 'url'
 import { createContext } from 'react'
+import { formatUrl } from './router/utils/format-url'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -221,6 +221,11 @@ export type HtmlProps = {
   styles?: React.ReactElement[] | React.ReactFragment
   head?: Array<JSX.Element | null>
   useMaybeDeferContent: MaybeDeferContentHook
+  crossOrigin?: string
+  optimizeCss?: boolean
+  optimizeFonts?: boolean
+  optimizeImages?: boolean
+  concurrentFeatures?: boolean
 }
 
 /**
@@ -445,4 +450,12 @@ export class DecodeError extends Error {}
 export const HtmlContext = createContext<HtmlProps>(null as any)
 if (process.env.NODE_ENV !== 'production') {
   HtmlContext.displayName = 'HtmlContext'
+}
+
+export interface CacheFs {
+  readFile(f: string): Promise<string>
+  readFileSync(f: string): string
+  writeFile(f: string, d: any): Promise<void>
+  mkdir(dir: string): Promise<void | string>
+  stat(f: string): Promise<{ mtime: Date }>
 }

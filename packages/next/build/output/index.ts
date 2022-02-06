@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import textTable from 'next/dist/compiled/text-table'
 import createStore from 'next/dist/compiled/unistore'
@@ -107,10 +107,7 @@ let serverWebWasLoading = false
 buildStore.subscribe((state) => {
   const { amp, client, server, serverWeb, trigger } = state
 
-  const { bootstrap: bootstrapping, appUrl } = consoleStore.getState()
-  if (bootstrapping && (client.loading || server.loading)) {
-    return
-  }
+  const { appUrl } = consoleStore.getState()
 
   if (client.loading || server.loading || serverWeb?.loading) {
     consoleStore.setState(
@@ -139,17 +136,14 @@ buildStore.subscribe((state) => {
     loading: false,
     typeChecking: false,
     partial:
-      clientWasLoading && !serverWasLoading && !serverWebWasLoading
-        ? 'client'
-        : serverWasLoading && !clientWasLoading && !serverWebWasLoading
-        ? 'server'
-        : serverWebWasLoading && !clientWasLoading && !serverWasLoading
-        ? 'serverWeb'
+      clientWasLoading && (serverWasLoading || serverWebWasLoading)
+        ? 'client and server'
         : undefined,
     modules:
       (clientWasLoading ? client.modules : 0) +
       (serverWasLoading ? server.modules : 0) +
       (serverWebWasLoading ? serverWeb?.modules || 0 : 0),
+    hasServerWeb: !!serverWeb,
   }
   if (client.errors) {
     // Show only client errors
@@ -187,8 +181,7 @@ buildStore.subscribe((state) => {
       ...(client.warnings || []),
       ...(server.warnings || []),
       ...((serverWeb && serverWeb.warnings) || []),
-      ...((Object.keys(amp).length > 0 && formatAmpMessages(amp)) || []),
-    ]
+    ].concat(formatAmpMessages(amp) || [])
 
     consoleStore.setState(
       {
@@ -261,7 +254,7 @@ export function watchCompilers(
 
       const { errors, warnings } = formatWebpackMessages(
         stats.toJson({
-          preset: 'error-warnings',
+          preset: 'errors-warnings',
           moduleTrace: true,
         })
       )

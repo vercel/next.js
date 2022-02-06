@@ -24,7 +24,7 @@
 /// <reference types="node" />
 
 declare module 'mini-css-extract-plugin'
-declare module 'next/dist/compiled/loader-utils'
+declare module 'next/dist/compiled/loader-utils3'
 
 declare module 'next/dist/compiled/webpack/webpack' {
   import webpackSources from 'webpack-sources1'

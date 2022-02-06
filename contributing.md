@@ -6,10 +6,9 @@ examples](#adding-examples)** below.
 
 ## Developing
 
-The development branch is `canary`, and this is the branch that all pull
-requests should be made against. After publishing a stable release, the changes
-in the `canary` branch are rebased into `master`. The changes on the `canary`
-branch are published to the `@canary` dist-tag daily.
+The development branch is `canary`. This is the branch that all pull
+requests should be made against. The changes on the `canary`
+branch are published to the `@canary` tag on npm regularly.
 
 To develop locally:
 
@@ -51,7 +50,7 @@ yarn build
 yarn prepublish
 ```
 
-By default the latest canary of the next-swc binaries will be installed and used. If you are actively working on Rust code or you need to test out the most recent Rust code that hasn't been published as a canary yet you can [install Rust](https://www.rust-lang.org/tools/install) and run `yarn --cwd packages/next build-native`.
+By default the latest canary of the next-swc binaries will be installed and used. If you are actively working on Rust code or you need to test out the most recent Rust code that hasn't been published as a canary yet you can [install Rust](https://www.rust-lang.org/tools/install) and run `yarn --cwd packages/next-swc build-native`.
 
 If you need to clean the project for any reason, use `yarn clean`.
 
@@ -164,7 +163,24 @@ There are two options to develop with your local version of the codebase:
    yarn install --force
    ```
 
-or
+#### Troubleshooting
+
+- If you see the below error while running `yarn dev` with next:
+
+```
+Failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loading-swc
+```
+
+Try to add the below section to your `package.json`, then run again
+
+```json
+"optionalDependencies": {
+  "@next/swc-linux-x64-gnu": "canary",
+  "@next/swc-win32-x64-msvc": "canary",
+  "@next/swc-darwin-x64": "canary",
+  "@next/swc-darwin-arm64": "canary"
+},
+```
 
 ### Develop inside the monorepo
 
@@ -186,15 +202,8 @@ In general, all warnings and errors added should have these links attached.
 
 Below are the steps to add a new link:
 
-1. Create a new markdown file under the `errors` directory based on
-   `errors/template.md`:
-
-   ```shell
-   cp errors/template.md errors/<error-file-name>.md
-   ```
-
-2. Add the newly added file to `errors/manifest.json`
-3. Add the following url to your warning/error:
+1. Run `yarn new-error` which will create the error document and update the manifest automatically.
+2. Add the following url to your warning/error:
    `https://nextjs.org/docs/messages/<file-path-without-dotmd>`.
 
    For example, to link to `errors/api-routes-static-export.md` you use the url:
@@ -206,21 +215,18 @@ When you add an example to the [examples](examples) directory, don’t forget to
 
 - Replace `DIRECTORY_NAME` with the directory name you’re adding.
 - Fill in `Example Name` and `Description`.
+- Examples should be TypeScript first, if possible.
+- You don’t need to add `name` or `version` in your `package.json`.
+- Ensure all your dependencies are up to date.
+- Ensure you’re using [`next/image`](https://nextjs.org/docs/api-reference/next/image).
 - To add additional installation instructions, please add it where appropriate.
 - To add additional notes, add `## Notes` section at the end.
 - Remove the `Deploy your own` section if your example can’t be immediately deployed to Vercel.
-- Remove the `Preview` section if the example doesn't work on [StackBlitz](http://stackblitz.com/) and file an issue [here](https://github.com/stackblitz/webcontainer-core).
 
 ````markdown
 # Example Name
 
 Description
-
-## Preview
-
-Preview the example live on [StackBlitz](http://stackblitz.com/):
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/DIRECTORY_NAME)
 
 ## Deploy your own
 
