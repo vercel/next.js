@@ -109,7 +109,7 @@ const FullRefreshWarningReason = ({
         component, which disables Fast Refresh. Fast Refresh requires at least
         one parent function component in your React tree.
       </p>
-      <p>You can find more information in the related Webpack error below:</p>
+      <p>You can find more information in the related error below:</p>
       <Terminal content={reason} />
     </>
   )

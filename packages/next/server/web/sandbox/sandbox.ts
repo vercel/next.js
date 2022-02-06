@@ -3,6 +3,7 @@ import { getModuleContext } from './context'
 
 export async function run(params: {
   name: string
+  env: string[]
   onWarning: (warn: Error) => void
   paths: string[]
   request: RequestData
@@ -12,6 +13,7 @@ export async function run(params: {
     module: params.name,
     onWarning: params.onWarning,
     useCache: params.useCache !== false,
+    env: params.env,
   })
 
   for (const paramPath of params.paths) {
