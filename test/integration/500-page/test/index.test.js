@@ -17,8 +17,6 @@ import {
   updatePagesManifest,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
 const pages500 = join(appDir, 'pages/500.js')
 const pagesApp = join(appDir, 'pages/_app.js')

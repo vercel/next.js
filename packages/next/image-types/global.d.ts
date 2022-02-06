@@ -49,6 +49,12 @@ declare module '*.webp' {
   export default content
 }
 
+declare module '*.avif' {
+  const content: StaticImageData
+
+  export default content
+}
+
 declare module '*.ico' {
   const content: StaticImageData
 

@@ -8,7 +8,7 @@ const glob = promisify(globOrig)
 
 function collectPaths(routes, paths = []) {
   for (const route of routes) {
-    if (route.path) {
+    if (route.path && !route.redirect) {
       paths.push(route.path)
     }
 
@@ -64,4 +64,7 @@ async function main() {
 
 main()
   .then(() => console.log('success'))
-  .catch(console.error)
+  .catch((err) => {
+    console.error(err)
+    process.exit(1)
+  })

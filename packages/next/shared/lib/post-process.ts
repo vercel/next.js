@@ -1,5 +1,5 @@
-import escapeRegexp from 'next/dist/compiled/escape-string-regexp'
-import { parse, HTMLElement } from 'node-html-parser'
+import { escapeStringRegexp } from './escape-regexp'
+import { parse, HTMLElement } from 'next/dist/compiled/node-html-parser'
 import { OPTIMIZED_FONT_PROVIDERS } from './constants'
 
 // const MIDDLEWARE_TIME_BUDGET = parseInt(process.env.__POST_PROCESS_MIDDLEWARE_TIME_BUDGET || '', 10) || 10
@@ -46,6 +46,7 @@ async function processHTML(
   }
   const root: HTMLElement = parse(html)
   let document = html
+
   // Calls the middleware, with some instrumentation and logging
   async function callMiddleWare(middleware: PostProcessMiddleware) {
     // let timer = Date.now()
@@ -135,6 +136,15 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
           `<style data-href="${url}"${nonceStr}>${fontContent}</style></head>`
         )
 
+        // Remove inert font tag
+        const escapedUrl = url
+          .replace(/&/g, '&amp;')
+          .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const fontRegex = new RegExp(
+          `<link[^>]*data-href="${escapedUrl}"[^>]*/>`
+        )
+        result = result.replace(fontRegex, '')
+
         const provider = OPTIMIZED_FONT_PROVIDERS.find((p) =>
           url.startsWith(p.url)
         )
@@ -206,7 +216,7 @@ function isImgEligible(imgElement: HTMLElement): boolean {
 }
 
 function preloadTagAlreadyExists(html: string, href: string) {
-  const escapedHref = escapeRegexp(href)
+  const escapedHref = escapeStringRegexp(href)
   const regex = new RegExp(`<link[^>]*href[^>]*${escapedHref}`)
   return html.match(regex)
 }

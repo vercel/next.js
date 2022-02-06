@@ -9,7 +9,7 @@ const SUPPORTED_HTML_CONTENT_URLS = [
   'www.googletagmanager.com/gtm.js',
 ]
 const ERROR_MSG =
-  'Use the `next/script` component for loading third party scripts. See: https://nextjs.org/docs/messages/next-script-for-ga.'
+  'Use the `next/script` component for loading third party scripts. See: https://nextjs.org/docs/messages/next-script-for-ga'
 
 // Check if one of the items in the list is a substring of the passed string
 const containsStr = (str, strList) => {
@@ -22,6 +22,7 @@ module.exports = {
       description:
         'Prefer next script component when using the inline script for Google Analytics',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/next-script-for-ga',
     },
   },
   create: function (context) {
@@ -52,8 +53,8 @@ module.exports = {
         // https://developers.google.com/analytics/devguides/collection/analyticsjs#the_google_analytics_tag
         // https://developers.google.com/tag-manager/quickstart
         if (
-          attributes.has('dangerouslySetInnerHTML') &&
-          attributes.value('dangerouslySetInnerHTML')[0]
+          attributes.value('dangerouslySetInnerHTML') &&
+          attributes.value('dangerouslySetInnerHTML').length > 0
         ) {
           const htmlContent =
             attributes.value('dangerouslySetInnerHTML')[0].value.quasis &&

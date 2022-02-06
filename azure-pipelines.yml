@@ -10,14 +10,14 @@ trigger:
       - docs
       - errors
       - examples
-  # Do not run Azure on `canary`, `master`, or release tags. This unnecessarily
+  # Do not run Azure on `canary`, `main`, or release tags. This unnecessarily
   # increases the backlog, and the change was already tested on the PR.
   branches:
     include:
       - '*'
     exclude:
       - canary
-      - master
+      - main
       - refs/tags/*
 
 pr:
@@ -34,7 +34,7 @@ pr:
 variables:
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
   NEXT_TELEMETRY_DISABLED: '1'
-  node_version: ^12.0.0
+  node_version: ^12.22.0
 
 stages:
   - stage: Build
@@ -69,11 +69,9 @@ stages:
   - stage: Test
     dependsOn: Build
     jobs:
-      - job: test_ie11
+      - job: test_integration
         pool:
           vmImage: 'windows-2019'
-        variables:
-          BROWSER_NAME: internet explorer
         steps:
           - checkout: none
           - task: NodeTool@0
@@ -87,6 +85,10 @@ stages:
               key: $(Build.SourceVersion)
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
+
+          - script: |
+              npx playwright install chromium
+
           - script: |
               node run-tests.js -c 1 test/integration/production/test/index.test.js test/integration/css-client-nav/test/index.test.js test/integration/rewrites-has-condition/test/index.test.js
             displayName: 'Run tests'
@@ -111,7 +113,7 @@ stages:
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
           - script: |
-              node run-tests.js -g 1/1 --timings --azure --type unit
+              node run-tests.js --type unit
             displayName: 'Run tests'
       # TODO: investigate re-enabling when stability matches running in
       # tests in ubuntu environment

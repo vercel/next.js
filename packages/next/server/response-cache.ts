@@ -1,6 +1,5 @@
-import Observable from 'next/dist/compiled/zen-observable'
 import { IncrementalCache } from './incremental-cache'
-import { RenderResult, resultsToString } from './utils'
+import RenderResult from './render-result'
 
 interface CachedRedirectValue {
   kind: 'REDIRECT'
@@ -79,7 +78,7 @@ export default class ResponseCache {
               cachedResponse.value?.kind === 'PAGE'
                 ? {
                     kind: 'PAGE',
-                    html: Observable.of(cachedResponse.value.html),
+                    html: RenderResult.fromStatic(cachedResponse.value.html),
                     pageData: cachedResponse.value.pageData,
                   }
                 : cachedResponse.value,
@@ -100,7 +99,7 @@ export default class ResponseCache {
             cacheEntry.value?.kind === 'PAGE'
               ? {
                   kind: 'PAGE',
-                  html: await resultsToString([cacheEntry.value.html]),
+                  html: cacheEntry.value.html.toUnchunkedString(),
                   pageData: cacheEntry.value.pageData,
                 }
               : cacheEntry.value,
@@ -108,7 +107,13 @@ export default class ResponseCache {
           )
         }
       } catch (err) {
-        rejecter(err)
+        // while revalidating in the background we can't reject as
+        // we already resolved the cache entry so log the error here
+        if (resolved) {
+          console.error(err)
+        } else {
+          rejecter(err as Error)
+        }
       } finally {
         if (key) {
           this.pendingResponses.delete(key)

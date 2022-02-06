@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import path from 'path'
 
 import findUp from 'next/dist/compiled/find-up'
@@ -18,6 +18,7 @@ import { isYarn } from '../is-yarn'
 
 import * as Log from '../../build/output/log'
 import { EventLintCheckCompleted } from '../../telemetry/events/build'
+import isError, { getProperError } from '../is-error'
 
 type Config = {
   plugins: string[]
@@ -25,7 +26,7 @@ type Config = {
 }
 
 const requiredPackages = [
-  { file: 'eslint/lib/api.js', pkg: 'eslint' },
+  { file: 'eslint', pkg: 'eslint' },
   { file: 'eslint-config-next', pkg: 'eslint-config-next' },
 ]
 
@@ -39,7 +40,9 @@ async function cliPrompt() {
   )
 
   try {
-    const cliSelect = (await import('next/dist/compiled/cli-select')).default
+    const cliSelect = (
+      await Promise.resolve(require('next/dist/compiled/cli-select'))
+    ).default
     const { value } = await cliSelect({
       values: ESLINT_PROMPT_VALUES,
       valueRenderer: (
@@ -90,7 +93,7 @@ async function lint(
         `ESLint must be installed${
           lintDuringBuild ? ' in order to run during builds:' : ':'
         } ${chalk.bold.cyan(
-          isYarn(baseDir)
+          (await isYarn(baseDir))
             ? 'yarn add --dev eslint'
             : 'npm install --save-dev eslint'
         )}`
@@ -98,7 +101,7 @@ async function lint(
       return null
     }
 
-    const mod = await import(deps.resolved.get('eslint')!)
+    const mod = await Promise.resolve(require(deps.resolved.get('eslint')!))
 
     const { ESLint } = mod
     let eslintVersion = ESLint?.version ?? mod?.CLIEngine?.version
@@ -108,7 +111,7 @@ async function lint(
         'error'
       )} - Your project has an older version of ESLint installed${
         eslintVersion ? ' (' + eslintVersion + ')' : ''
-      }. Please upgrade to ESLint version 7 or later`
+      }. Please upgrade to ESLint version 7 or above`
     }
 
     let options: any = {
@@ -116,6 +119,7 @@ async function lint(
       baseConfig: {},
       errorOnUnmatchedPattern: false,
       extensions: ['.js', '.jsx', '.ts', '.tsx'],
+      cache: true,
       ...eslintOptions,
     }
 
@@ -196,12 +200,13 @@ async function lint(
         eslintVersion: eslintVersion,
         lintedFilesCount: results.length,
         lintFix: !!options.fix,
-        nextEslintPluginVersion: nextEslintPluginIsEnabled
-          ? require(path.join(
-              path.dirname(deps.resolved.get('eslint-config-next')!),
-              'package.json'
-            )).version
-          : null,
+        nextEslintPluginVersion:
+          nextEslintPluginIsEnabled && deps.resolved.has('eslint-config-next')
+            ? require(path.join(
+                path.dirname(deps.resolved.get('eslint-config-next')!),
+                'package.json'
+              )).version
+            : null,
         nextEslintPluginErrorsCount: formattedResult.totalNextPluginErrorCount,
         nextEslintPluginWarningsCount:
           formattedResult.totalNextPluginWarningCount,
@@ -210,11 +215,13 @@ async function lint(
   } catch (err) {
     if (lintDuringBuild) {
       Log.error(
-        `ESLint: ${err.message ? err.message.replace(/\n/g, ' ') : err}`
+        `ESLint: ${
+          isError(err) && err.message ? err.message.replace(/\n/g, ' ') : err
+        }`
       )
       return null
     } else {
-      throw new Error(err)
+      throw getProperError(err)
     }
   }
 }

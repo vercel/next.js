@@ -17,7 +17,6 @@ import { join } from 'path'
 import renderingSuite from './rendering'
 
 const context = {}
-jest.setTimeout(1000 * 60 * 5)
 
 describe('Client Navigation', () => {
   beforeAll(async () => {
@@ -117,6 +116,21 @@ describe('Client Navigation', () => {
         () => browser.eval(() => window.location.origin),
         'https://vercel.com'
       )
+    })
+
+    it('should call mouse handlers with an absolute url', async () => {
+      const browser = await webdriver(
+        context.appPort,
+        `/absolute-url?port=${context.appPort}`
+      )
+
+      await browser.elementByCss('#absolute-link-mouse-events').moveTo()
+
+      expect(
+        await browser
+          .waitForElementByCss('#absolute-link-mouse-events')
+          .getAttribute('data-hover')
+      ).toBe('true')
     })
 
     it('should navigate an absolute local url', async () => {
@@ -542,34 +556,38 @@ describe('Client Navigation', () => {
           browser = await webdriver(context.appPort, '/nav/hash-changes')
 
           // Scrolls to item 400 on the page
-          const scrollPositionBeforeEmptyHash = await browser
-            .elementByCss('#scroll-to-item-400')
-            .click()
-            .eval('window.pageYOffset')
+          await browser.elementByCss('#scroll-to-item-400').click()
+
+          const scrollPositionBeforeEmptyHash = await browser.eval(
+            'window.pageYOffset'
+          )
 
           expect(scrollPositionBeforeEmptyHash).toBe(7258)
 
           // Scrolls back to top when scrolling to `#` with no value.
-          const scrollPositionAfterEmptyHash = await browser
-            .elementByCss('#via-empty-hash')
-            .click()
-            .eval('window.pageYOffset')
+          await browser.elementByCss('#via-empty-hash').click()
+
+          const scrollPositionAfterEmptyHash = await browser.eval(
+            'window.pageYOffset'
+          )
 
           expect(scrollPositionAfterEmptyHash).toBe(0)
 
           // Scrolls to item 400 on the page
-          const scrollPositionBeforeTopHash = await browser
-            .elementByCss('#scroll-to-item-400')
-            .click()
-            .eval('window.pageYOffset')
+          await browser.elementByCss('#scroll-to-item-400').click()
+
+          const scrollPositionBeforeTopHash = await browser.eval(
+            'window.pageYOffset'
+          )
 
           expect(scrollPositionBeforeTopHash).toBe(7258)
 
           // Scrolls back to top when clicking link with href `#top`.
-          const scrollPositionAfterTopHash = await browser
-            .elementByCss('#via-top-hash')
-            .click()
-            .eval('window.pageYOffset')
+          await browser.elementByCss('#via-top-hash').click()
+
+          const scrollPositionAfterTopHash = await browser.eval(
+            'window.pageYOffset'
+          )
 
           expect(scrollPositionAfterTopHash).toBe(0)
         } finally {
@@ -585,18 +603,18 @@ describe('Client Navigation', () => {
           browser = await webdriver(context.appPort, '/nav/hash-changes')
 
           // Scrolls to item 400 with name="name-item-400" on the page
-          const scrollPosition = await browser
-            .elementByCss('#scroll-to-name-item-400')
-            .click()
-            .eval('window.pageYOffset')
+          await browser.elementByCss('#scroll-to-name-item-400').click()
+
+          const scrollPosition = await browser.eval('window.pageYOffset')
 
           expect(scrollPosition).toBe(16258)
 
           // Scrolls back to top when scrolling to `#` with no value.
-          const scrollPositionAfterEmptyHash = await browser
-            .elementByCss('#via-empty-hash')
-            .click()
-            .eval('window.pageYOffset')
+          await browser.elementByCss('#via-empty-hash').click()
+
+          const scrollPositionAfterEmptyHash = await browser.eval(
+            'window.pageYOffset'
+          )
 
           expect(scrollPositionAfterEmptyHash).toBe(0)
         } finally {
@@ -730,7 +748,8 @@ describe('Client Navigation', () => {
 
         const counter = await browser.elementByCss('p').text()
 
-        expect(counter).toBe('COUNT: 2')
+        // getInitialProps should not be called with only hash changes
+        expect(counter).toBe('COUNT: 0')
 
         await browser.close()
       })
@@ -1365,6 +1384,75 @@ describe('Client Navigation', () => {
         expect(
           Number(await browser.eval('window.__test_defer_executions'))
         ).toBe(1)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should warn when scripts are in head', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head')
+
+        await browser.waitForElementByCss('h1')
+        await waitFor(2000)
+        const browserLogs = await browser.log('browser')
+        let found = false
+        browserLogs.forEach((log) => {
+          console.log('log.message', log.message)
+          if (log.message.includes('Use next/script instead')) {
+            found = true
+          }
+        })
+        expect(found).toEqual(true)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should not warn when application/ld+json scripts are in head', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head-with-json-ld-snippet')
+
+        await browser.waitForElementByCss('h1')
+        await waitFor(2000)
+        const browserLogs = await browser.log('browser')
+        let found = false
+        browserLogs.forEach((log) => {
+          console.log('log.message', log.message)
+          if (log.message.includes('Use next/script instead')) {
+            found = true
+          }
+        })
+        expect(found).toEqual(false)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should warn when stylesheets are in head', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head')
+
+        await browser.waitForElementByCss('h1')
+        await waitFor(2000)
+        const browserLogs = await browser.log('browser')
+        let found = false
+        browserLogs.forEach((log) => {
+          console.log('log.message', log.message)
+          if (log.message.includes('Do not add stylesheets using next/head')) {
+            found = true
+          }
+        })
+        expect(found).toEqual(true)
       } finally {
         if (browser) {
           await browser.close()

@@ -3,12 +3,11 @@ import Script from 'next/script'
 const Page = () => {
   return (
     <div class="container">
-      <Script>
-        {`(window.onload = function () {
-            const newDiv = document.createElement('div')
-            newDiv.id = 'onload-div'
-            document.querySelector('body').appendChild(newDiv)
-          })`}
+      <Script id="inline-script">
+        {`const newDiv = document.createElement('div')
+          newDiv.id = 'onload-div'
+          document.querySelector('body').appendChild(newDiv)
+        `}
       </Script>
       <Script
         id="scriptLazyOnload"

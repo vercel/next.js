@@ -35,6 +35,7 @@ const loadScript = (props: ScriptProps): void => {
     onLoad = () => {},
     dangerouslySetInnerHTML,
     children = '',
+    strategy = 'afterInteractive',
     onError,
   } = props
 
@@ -98,6 +99,8 @@ const loadScript = (props: ScriptProps): void => {
     el.setAttribute(attr, value)
   }
 
+  el.setAttribute('data-nscript', strategy)
+
   document.body.appendChild(el)
 }
 
@@ -137,7 +140,7 @@ function Script(props: ScriptProps): JSX.Element | null {
   } = props
 
   // Context is available only during SSR
-  const { updateScripts, scripts } = useContext(HeadManagerContext)
+  const { updateScripts, scripts, getIsSsr } = useContext(HeadManagerContext)
 
   useEffect(() => {
     if (strategy === 'afterInteractive') {
@@ -158,7 +161,10 @@ function Script(props: ScriptProps): JSX.Element | null {
         },
       ])
       updateScripts(scripts)
-    } else {
+    } else if (getIsSsr && getIsSsr()) {
+      // Script has already loaded during SSR
+      LoadCache.add(restProps.id || src)
+    } else if (getIsSsr && !getIsSsr()) {
       loadScript(props)
     }
   }

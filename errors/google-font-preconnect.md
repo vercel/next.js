@@ -12,6 +12,9 @@ Add `rel="preconnect"` to the Google Font domain `<link>` tag:
 <link rel="preconnect" href="https://fonts.gstatic.com" />
 ```
 
+Note: a **separate** link with `dns-prefetch` can be used as a fallback for browsers that don't support `preconnect` although this is not required.
+
 ### Useful Links
 
 - [Preconnect to required origins](https://web.dev/uses-rel-preconnect/)
+- [Preconnect and dns-prefetch](https://web.dev/preconnect-and-dns-prefetch/#resolve-domain-name-early-with-reldns-prefetch)
