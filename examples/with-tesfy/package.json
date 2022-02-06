@@ -13,6 +13,5 @@
     "react-tesfy": "latest",
     "tesfy": "latest",
     "uuid": "8.1.0"
-  },
-  "license": "MIT"
+  }
 }

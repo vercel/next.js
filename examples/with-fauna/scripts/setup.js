@@ -6,8 +6,6 @@ const request = require('request')
 const { Client, query: Q } = require('faunadb')
 const streamToPromise = require('stream-to-promise')
 
-const FAUNA_ADMIN_KEY = process.env.FAUNA_ADMIN_KEY
-
 const MakeLatestEntriesIndex = () =>
   Q.CreateIndex({
     name: 'latestEntries',
@@ -88,15 +86,29 @@ const MakeGuestbookKey = () =>
     role: Q.Role('GuestbookRole'),
   })
 
-const askAdminKey = () => {
+const isDatabasePrepared = ({ client }) =>
+  client.query(Q.Exists(Q.Index('latestEntries')))
+
+const resolveAdminKey = () => {
+  if (process.env.FAUNA_ADMIN_KEY) {
+    return Promise.resolve(process.env.FAUNA_ADMIN_KEY)
+  }
+
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   })
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     rl.question('Please provide the Fauna admin key:\n', (res) => {
       rl.close()
+
+      if (!res) {
+        return reject(
+          new Error('You need to provide a key, closing. Try again')
+        )
+      }
+
       resolve(res)
     })
   })
@@ -117,8 +129,6 @@ const importSchema = (adminKey) =>
 
 const findImportError = (msg) => {
   switch (true) {
-    case msg.startsWith('Invalid authorization header'):
-      return 'You need to provide a secret, closing. Try again'
     case msg.startsWith('Invalid database secret'):
       return 'The secret you have provided is not valid, closing. Try again'
     case !msg.includes('success'):
@@ -129,7 +139,16 @@ const findImportError = (msg) => {
 }
 
 const main = async () => {
-  const adminKey = FAUNA_ADMIN_KEY || (await askAdminKey())
+  const adminKey = await resolveAdminKey()
+  const client = new Client({ secret: adminKey })
+
+  if (await isDatabasePrepared({ client })) {
+    return console.info(
+      'Fauna resources have already been prepared. ' +
+        'If you want to install it once again, please, create a fresh database and re-run the script with the other key'
+    )
+  }
+
   const importMsg = await importSchema(adminKey)
   const importErrorMsg = findImportError(importMsg)
 
@@ -137,9 +156,7 @@ const main = async () => {
     return Promise.reject(new Error(importErrorMsg))
   }
 
-  console.log('1. Successfully imported schema')
-
-  const client = new Client({ secret: adminKey })
+  console.log('- Successfully imported schema')
 
   for (const Make of [
     MakeLatestEntriesIndex,
@@ -149,13 +166,18 @@ const main = async () => {
     await client.query(Make())
   }
 
+  console.log('- Created Fauna resources')
+
+  if (process.env.FAUNA_ADMIN_KEY) {
+    // Assume it's a Vercel environment, no need for .env.local file
+    return
+  }
+
   const { secret } = await client.query(MakeGuestbookKey())
 
-  console.log('2. Created Fauna resources')
+  await fs.promises.writeFile('.env.local', `FAUNA_CLIENT_SECRET=${secret}\n`)
 
-  await fs.promises.writeFile('.env.local', `FAUNADB_CLIENT_SECRET=${secret}\n`)
-
-  console.log('3. Created .env.local file with secret')
+  console.log('- Created .env.local file with secret')
 }
 
 main().catch((err) => {

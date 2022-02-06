@@ -2,14 +2,17 @@ import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { NextConfigComplete } from '../../../server/config-shared'
 
 export type ConfigurationContext = {
+  supportedBrowsers: string[] | undefined
   rootDirectory: string
-  customAppFile: string | null
+  customAppFile: RegExp
 
   isDevelopment: boolean
   isProduction: boolean
 
   isServer: boolean
   isClient: boolean
+  webServerRuntime: boolean
+  targetWeb: boolean
 
   assetPrefix: string
 
@@ -17,15 +20,17 @@ export type ConfigurationContext = {
   productionBrowserSourceMaps: boolean
 
   future: NextConfigComplete['future']
-
-  isCraCompat?: boolean
+  experimental: NextConfigComplete['experimental']
 }
 
 export type ConfigurationFn = (
   a: webpack.Configuration
 ) => webpack.Configuration
 
-export const pipe = <R>(...fns: Array<(a: R) => R | Promise<R>>) => (
-  param: R
-) =>
-  fns.reduce(async (result: R | Promise<R>, next) => next(await result), param)
+export const pipe =
+  <R>(...fns: Array<(a: R) => R | Promise<R>>) =>
+  (param: R) =>
+    fns.reduce(
+      async (result: R | Promise<R>, next) => next(await result),
+      param
+    )

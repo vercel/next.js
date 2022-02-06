@@ -69,10 +69,10 @@ const withMDX = require('@next/mdx')({
   extension: /\.mdx?$/,
 })
 module.exports = withMDX({
-  pageExtensions: ['js', 'jsx', 'md', 'mdx'],
+  pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'md', 'mdx'],
 })
 ```
 
-## Typescript
+## TypeScript
 
 Follow [this guide](https://mdxjs.com/advanced/typescript) from the MDX docs.

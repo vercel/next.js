@@ -5,7 +5,6 @@ import fs from 'fs'
 import { fetchViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 
 const context = {}
-jest.setTimeout(1000 * 60 * 5)
 
 describe('Empty Project', () => {
   beforeAll(async () => {

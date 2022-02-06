@@ -8,7 +8,8 @@ import { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
 import { consumeIterator } from './util'
 import * as Log from '../../output/log'
 
-const nextDistPath = /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
+const nextDistPath =
+  /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
 /**
  * The properties defined here are the conditions with which subsets of inputs
@@ -66,12 +67,8 @@ function getPlugins(
   loaderOptions: NextBabelLoaderOptions,
   cacheCharacteristics: CharacteristicsGermaneToCaching
 ) {
-  const {
-    isServer,
-    isPageFile,
-    isNextDist,
-    hasModuleExports,
-  } = cacheCharacteristics
+  const { isServer, isPageFile, isNextDist, hasModuleExports } =
+    cacheCharacteristics
 
   const { hasReactRefresh, development } = loaderOptions
 
@@ -80,17 +77,13 @@ function getPlugins(
     : null
   const reactRefreshItem = hasReactRefresh
     ? createConfigItem(
-        [require('react-refresh/babel'), { skipEnvCheck: true }],
+        [
+          require('next/dist/compiled/react-refresh/babel'),
+          { skipEnvCheck: true },
+        ],
         { type: 'plugin' }
       )
     : null
-  const noAnonymousDefaultExportItem =
-    hasReactRefresh && !isServer
-      ? createConfigItem(
-          [require('../plugins/no-anonymous-default-export'), {}],
-          { type: 'plugin' }
-        )
-      : null
   const pageConfigItem =
     !isServer && isPageFile
       ? createConfigItem([require('../plugins/next-page-config')], {
@@ -130,7 +123,6 @@ function getPlugins(
     : null
 
   return [
-    noAnonymousDefaultExportItem,
     reactRefreshItem,
     pageConfigItem,
     disallowExportAllItem,
@@ -174,13 +166,8 @@ function getFreshConfig(
   filename: string,
   inputSourceMap?: object | null
 ) {
-  let {
-    isServer,
-    pagesDir,
-    development,
-    hasJsxRuntime,
-    configFile,
-  } = loaderOptions
+  let { isServer, pagesDir, development, hasJsxRuntime, configFile } =
+    loaderOptions
 
   let customConfig: any = configFile
     ? getCustomBabelConfig(configFile)
@@ -282,13 +269,8 @@ function getFreshConfig(
  * file attributes and Next.js compiler states: `CharacteristicsGermaneToCaching`.
  */
 function getCacheKey(cacheCharacteristics: CharacteristicsGermaneToCaching) {
-  const {
-    isServer,
-    isPageFile,
-    isNextDist,
-    hasModuleExports,
-    fileExt,
-  } = cacheCharacteristics
+  const { isServer, isPageFile, isNextDist, hasModuleExports, fileExt } =
+    cacheCharacteristics
 
   const flags =
     0 |
@@ -302,6 +284,7 @@ function getCacheKey(cacheCharacteristics: CharacteristicsGermaneToCaching) {
 
 type BabelConfig = any
 const configCache: Map<any, BabelConfig> = new Map()
+const configFiles: Set<string> = new Set()
 
 export default function getConfig(
   this: NextJsLoaderContext,
@@ -346,7 +329,8 @@ export default function getConfig(
     }
   }
 
-  if (loaderOptions.configFile) {
+  if (loaderOptions.configFile && !configFiles.has(loaderOptions.configFile)) {
+    configFiles.add(loaderOptions.configFile)
     Log.info(
       `Using external babel configuration from ${loaderOptions.configFile}`
     )

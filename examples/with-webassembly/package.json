@@ -10,6 +10,5 @@
     "build": "next build",
     "build-rust": "rustc --target wasm32-unknown-unknown -O --crate-type=cdylib src/add.rs -o add.wasm",
     "start": "next start"
-  },
-  "license": "MIT"
+  }
 }

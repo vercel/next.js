@@ -34,6 +34,78 @@ const hookPropertyMap = new Map(
       'next/dist/compiled/webpack/NodeTargetPlugin',
     ],
     [
+      'webpack/lib/node/NodeTemplatePlugin',
+      'next/dist/compiled/webpack/NodeTemplatePlugin',
+    ],
+    [
+      'webpack/lib/node/NodeTemplatePlugin.js',
+      'next/dist/compiled/webpack/NodeTemplatePlugin',
+    ],
+    [
+      'webpack/lib/LibraryTemplatePlugin',
+      'next/dist/compiled/webpack/LibraryTemplatePlugin',
+    ],
+    [
+      'webpack/lib/LibraryTemplatePlugin.js',
+      'next/dist/compiled/webpack/LibraryTemplatePlugin',
+    ],
+    [
+      'webpack/lib/SingleEntryPlugin',
+      'next/dist/compiled/webpack/SingleEntryPlugin',
+    ],
+    [
+      'webpack/lib/SingleEntryPlugin.js',
+      'next/dist/compiled/webpack/SingleEntryPlugin',
+    ],
+    [
+      'webpack/lib/optimize/LimitChunkCountPlugin',
+      'next/dist/compiled/webpack/LimitChunkCountPlugin',
+    ],
+    [
+      'webpack/lib/optimize/LimitChunkCountPlugin.js',
+      'next/dist/compiled/webpack/LimitChunkCountPlugin',
+    ],
+    [
+      'webpack/lib/webworker/WebWorkerTemplatePlugin',
+      'next/dist/compiled/webpack/WebWorkerTemplatePlugin',
+    ],
+    [
+      'webpack/lib/webworker/WebWorkerTemplatePlugin.js',
+      'next/dist/compiled/webpack/WebWorkerTemplatePlugin',
+    ],
+    [
+      'webpack/lib/ExternalsPlugin',
+      'next/dist/compiled/webpack/ExternalsPlugin',
+    ],
+    [
+      'webpack/lib/ExternalsPlugin.js',
+      'next/dist/compiled/webpack/ExternalsPlugin',
+    ],
+    [
+      'webpack/lib/web/FetchCompileWasmTemplatePlugin',
+      'next/dist/compiled/webpack/FetchCompileWasmTemplatePlugin',
+    ],
+    [
+      'webpack/lib/web/FetchCompileWasmTemplatePlugin.js',
+      'next/dist/compiled/webpack/FetchCompileWasmTemplatePlugin',
+    ],
+    [
+      'webpack/lib/web/FetchCompileWasmPlugin',
+      'next/dist/compiled/webpack/FetchCompileWasmPlugin',
+    ],
+    [
+      'webpack/lib/web/FetchCompileWasmPlugin.js',
+      'next/dist/compiled/webpack/FetchCompileWasmPlugin',
+    ],
+    [
+      'webpack/lib/web/FetchCompileAsyncWasmPlugin',
+      'next/dist/compiled/webpack/FetchCompileAsyncWasmPlugin',
+    ],
+    [
+      'webpack/lib/web/FetchCompileAsyncWasmPlugin.js',
+      'next/dist/compiled/webpack/FetchCompileAsyncWasmPlugin',
+    ],
+    [
       'webpack/lib/ModuleFilenameHelpers',
       'next/dist/compiled/webpack/ModuleFilenameHelpers',
     ],
@@ -48,6 +120,12 @@ const hookPropertyMap = new Map(
     ['webpack-sources/lib', 'next/dist/compiled/webpack/sources'],
     ['webpack-sources/lib/index', 'next/dist/compiled/webpack/sources'],
     ['webpack-sources/lib/index.js', 'next/dist/compiled/webpack/sources'],
+    ['@babel/runtime', 'next/dist/compiled/@babel/runtime/package.json'],
+    [
+      '@babel/runtime/package.json',
+      'next/dist/compiled/@babel/runtime/package.json',
+    ],
+    ['node-fetch', 'next/dist/compiled/node-fetch'],
   ].map(([request, replacement]) => [request, require.resolve(replacement)])
 )
 
@@ -63,3 +141,6 @@ mod._resolveFilename = function (
   if (hookResolved) request = hookResolved
   return resolveFilename.call(mod, request, parent, isMain, options)
 }
+
+// Flag as module for typescript
+export {}

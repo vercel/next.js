@@ -18,6 +18,5 @@
     "@types/react": "^16.9.55",
     "copy-webpack-plugin": "6.2.1",
     "typescript": "^4.0.5"
-  },
-  "license": "MIT"
+  }
 }

@@ -1,4 +1,3 @@
-import { formatUrl } from './router/utils/format-url'
 import type { BuildManifest } from '../../server/get-page-files'
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../server/config'
@@ -8,6 +7,8 @@ import type { NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
 import type { UrlObject } from 'url'
+import { createContext } from 'react'
+import { formatUrl } from './router/utils/format-url'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -26,12 +27,7 @@ export type DocumentType = NextComponentType<
   DocumentContext,
   DocumentInitialProps,
   DocumentProps
-> & {
-  renderDocument(
-    Document: DocumentType,
-    props: DocumentProps
-  ): React.ReactElement
-}
+>
 
 export type AppType = NextComponentType<
   AppContextType,
@@ -81,7 +77,7 @@ export type RenderPageResult = {
 
 export type RenderPage = (
   options?: ComponentsEnhancer
-) => RenderPageResult | Promise<RenderPageResult>
+) => DocumentInitialProps | Promise<DocumentInitialProps>
 
 export type BaseContext = {
   res?: ServerResponse
@@ -111,6 +107,7 @@ export type NEXT_DATA = {
   domainLocales?: DomainLocale[]
   scriptLoader?: any[]
   isPreview?: boolean
+  rsc?: boolean
 }
 
 /**
@@ -178,17 +175,26 @@ export type AppPropsType<
   router: R
   __N_SSG?: boolean
   __N_SSP?: boolean
+  __N_RSC?: boolean
 }
 
 export type DocumentContext = NextPageContext & {
   renderPage: RenderPage
+  defaultGetInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps>
 }
 
 export type DocumentInitialProps = RenderPageResult & {
   styles?: React.ReactElement[] | React.ReactFragment
 }
 
-export type DocumentProps = DocumentInitialProps & {
+export type DocumentProps = DocumentInitialProps & HtmlProps
+
+export type MaybeDeferContentHook = (
+  name: string,
+  contentFn: () => JSX.Element
+) => [boolean, JSX.Element]
+
+export type HtmlProps = {
   __NEXT_DATA__: NEXT_DATA
   dangerousAsPath: string
   docComponentsRendered: {
@@ -212,6 +218,14 @@ export type DocumentProps = DocumentInitialProps & {
   scriptLoader: { afterInteractive?: string[]; beforeInteractive?: any[] }
   locale?: string
   disableOptimizedLoading?: boolean
+  styles?: React.ReactElement[] | React.ReactFragment
+  head?: Array<JSX.Element | null>
+  useMaybeDeferContent: MaybeDeferContentHook
+  crossOrigin?: string
+  optimizeCss?: boolean
+  optimizeFonts?: boolean
+  optimizeImages?: boolean
+  concurrentFeatures?: boolean
 }
 
 /**
@@ -328,6 +342,20 @@ export function isResSent(res: ServerResponse) {
   return res.finished || res.headersSent
 }
 
+export function normalizeRepeatedSlashes(url: string) {
+  const urlParts = url.split('?')
+  const urlNoQuery = urlParts[0]
+
+  return (
+    urlNoQuery
+      // first we replace any non-encoded backslashes with forward
+      // then normalize repeated forward slashes
+      .replace(/\\/g, '/')
+      .replace(/\/\/+/g, '/') +
+    (urlParts[1] ? `?${urlParts.slice(1).join('?')}` : '')
+  )
+}
+
 export async function loadGetInitialProps<
   C extends BaseContext,
   IP = {},
@@ -418,3 +446,16 @@ export const ST =
   typeof performance.measure === 'function'
 
 export class DecodeError extends Error {}
+
+export const HtmlContext = createContext<HtmlProps>(null as any)
+if (process.env.NODE_ENV !== 'production') {
+  HtmlContext.displayName = 'HtmlContext'
+}
+
+export interface CacheFs {
+  readFile(f: string): Promise<string>
+  readFileSync(f: string): string
+  writeFile(f: string, d: any): Promise<void>
+  mkdir(dir: string): Promise<void | string>
+  stat(f: string): Promise<{ mtime: Date }>
+}

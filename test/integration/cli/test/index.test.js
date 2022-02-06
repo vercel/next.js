@@ -12,8 +12,6 @@ import { join } from 'path'
 import pkg from 'next/package'
 import http from 'http'
 
-jest.setTimeout(1000 * 60 * 5)
-
 const dir = join(__dirname, '..')
 const dirDuplicateSass = join(__dirname, '../duplicate-sass')
 
@@ -400,6 +398,49 @@ describe('CLI Usage', () => {
         stderr: true,
       })
       expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+    })
+  })
+
+  describe('info', () => {
+    test('--help', async () => {
+      const help = await runNextCommand(['info', '--help'], {
+        stdout: true,
+      })
+      expect(help.stdout).toMatch(
+        /Prints relevant details about the current system which can be used to report Next\.js bugs/
+      )
+    })
+
+    test('-h', async () => {
+      const help = await runNextCommand(['info', '-h'], {
+        stdout: true,
+      })
+      expect(help.stdout).toMatch(
+        /Prints relevant details about the current system which can be used to report Next\.js bugs/
+      )
+    })
+
+    test('should print output', async () => {
+      const info = await runNextCommand(['info'], {
+        stdout: true,
+      })
+      expect(info.stdout).toMatch(
+        new RegExp(`
+    Operating System:
+      Platform: .*
+      Arch: .*
+      Version: .*
+    Binaries:
+      Node: .*
+      npm: .*
+      Yarn: .*
+      pnpm: .*
+    Relevant packages:
+      next: .*
+      react: .*
+      react-dom: .*
+`)
+      )
     })
   })
 })

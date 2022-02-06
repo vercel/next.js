@@ -86,7 +86,10 @@ function linkClicked(
 ): void {
   const { nodeName } = e.currentTarget
 
-  if (nodeName === 'A' && (isModifiedEvent(e) || !isLocalURL(href))) {
+  // anchors inside an svg have a lowercase nodeName
+  const isAnchorNodeName = nodeName.toUpperCase() === 'A'
+
+  if (isAnchorNodeName && (isModifiedEvent(e) || !isLocalURL(href))) {
     // ignore click for browser’s default behavior
     return
   }
@@ -223,7 +226,6 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
 
   let { children, replace, shallow, scroll, locale } = props
 
-  // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
   if (typeof children === 'string') {
     children = <a>{children}</a>
   }
@@ -237,7 +239,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       throw new Error(
         `Multiple children were passed to <Link> with \`href\` of \`${props.href}\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children` +
           (typeof window !== 'undefined'
-            ? "\nOpen your browser's console to view the Component stack trace."
+            ? " \nOpen your browser's console to view the Component stack trace."
             : '')
       )
     }
@@ -297,11 +299,12 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   }
 
   childProps.onMouseEnter = (e: React.MouseEvent) => {
-    if (!isLocalURL(href)) return
     if (child.props && typeof child.props.onMouseEnter === 'function') {
       child.props.onMouseEnter(e)
     }
-    prefetch(router, href, as, { priority: true })
+    if (isLocalURL(href)) {
+      prefetch(router, href, as, { priority: true })
+    }
   }
 
   // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is

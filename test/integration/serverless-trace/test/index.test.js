@@ -20,7 +20,6 @@ const serverlessDir = join(appDir, '.next/serverless/pages')
 const chunksDir = join(appDir, '.next/static/chunks')
 let appPort
 let app
-jest.setTimeout(1000 * 60 * 5)
 
 describe('Serverless Trace', () => {
   beforeAll(async () => {

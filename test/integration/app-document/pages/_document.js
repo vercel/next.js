@@ -11,18 +11,20 @@ export default class MyDocument extends Document {
   static async getInitialProps(ctx) {
     let options
 
-    const enhanceComponent = (Component) => (props) => (
-      <div>
-        <span id="render-page-enhance-component">RENDERED</span>
-        <Component {...props} />
-      </div>
-    )
-    const enhanceApp = (Component) => (props) => (
-      <div>
-        <span id="render-page-enhance-app">RENDERED</span>
-        <Component {...props} />
-      </div>
-    )
+    const enhanceComponent = (Component) => (props) =>
+      (
+        <div>
+          <span id="render-page-enhance-component">RENDERED</span>
+          <Component {...props} />
+        </div>
+      )
+    const enhanceApp = (Component) => (props) =>
+      (
+        <div>
+          <span id="render-page-enhance-app">RENDERED</span>
+          <Component {...props} />
+        </div>
+      )
 
     if (ctx.query.withEnhancer) {
       options = enhanceComponent

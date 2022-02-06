@@ -3,8 +3,6 @@
 import { join } from 'path'
 import { nextBuild, nextExport } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const nextdir = join(__dirname, '../app')
 const outdir = join(nextdir, 'out')
 const appdir = join(outdir, 'main.js')

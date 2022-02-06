@@ -1,11 +1,8 @@
 {
-  "name": "with-fauna",
-  "version": "1.0.0",
-  "license": "MIT",
-  "description": "Guestbook example with Next.js and Fauna.",
+  "private": true,
   "scripts": {
     "dev": "next",
-    "build": "next build",
+    "build": "yarn setup && next build",
     "start": "next start",
     "setup": "node ./scripts/setup.js"
   },
@@ -25,7 +22,7 @@
     "autoprefixer": "10.3.1",
     "postcss": "8.3.6",
     "prettier": "2.3.2",
-    "tailwindcss": "2.2.7",
-    "stream-to-promise": "3.0.0"
+    "stream-to-promise": "3.0.0",
+    "tailwindcss": "2.2.7"
   }
 }

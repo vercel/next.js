@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import findUp from 'next/dist/compiled/find-up'
 import {
   promises,
@@ -20,7 +20,6 @@ import {
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
-  CONFIG_FILE,
   EXPORT_DETAIL,
   EXPORT_MARKER,
   PAGES_MANIFEST,
@@ -29,7 +28,8 @@ import {
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
 } from '../shared/lib/constants'
-import loadConfig, { isTargetLikeServerless } from '../server/config'
+import loadConfig from '../server/config'
+import { isTargetLikeServerless } from '../server/utils'
 import { NextConfigComplete } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
@@ -42,7 +42,7 @@ import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { getPagePath } from '../server/require'
-import { trace } from '../telemetry/trace'
+import { Span } from '../trace'
 
 const exists = promisify(existsOrig)
 
@@ -137,14 +137,17 @@ interface ExportOptions {
   pages?: string[]
   buildExport?: boolean
   statusMessage?: string
+  exportPageWorker?: typeof import('./worker').default
+  endWorker?: () => Promise<void>
 }
 
 export default async function exportApp(
   dir: string,
   options: ExportOptions,
+  span: Span,
   configuration?: NextConfigComplete
 ): Promise<void> {
-  const nextExportSpan = trace('next-export')
+  const nextExportSpan = span.traceChild('next-export')
 
   return nextExportSpan.traceAsyncFn(async () => {
     dir = resolve(dir)
@@ -166,7 +169,7 @@ export default async function exportApp(
 
     if (telemetry) {
       telemetry.record(
-        eventCliSession(PHASE_EXPORT, distDir, {
+        eventCliSession(distDir, nextConfig, {
           webpackVersion: null,
           cliCommand: 'export',
           isSrcDir: null,
@@ -314,7 +317,7 @@ export default async function exportApp(
     if (typeof nextConfig.exportPathMap !== 'function') {
       if (!options.silent) {
         Log.info(
-          `No "exportPathMap" found in "${CONFIG_FILE}". Generating map from "./pages"`
+          `No "exportPathMap" found in "${nextConfig.configFile}". Generating map from "./pages"`
         )
       }
       nextConfig.exportPathMap = async (defaultMap: ExportPathMap) => {
@@ -376,8 +379,13 @@ export default async function exportApp(
       domainLocales: i18n?.domains,
       trailingSlash: nextConfig.trailingSlash,
       disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
-      // TODO: We should support dynamic HTML too
-      requireStaticHTML: true,
+      // Exported pages do not currently support dynamic HTML.
+      supportsDynamicHTML: false,
+      concurrentFeatures: nextConfig.experimental.concurrentFeatures,
+      crossOrigin: nextConfig.crossOrigin,
+      optimizeCss: nextConfig.experimental.optimizeCss,
+      optimizeFonts: nextConfig.optimizeFonts,
+      optimizeImages: nextConfig.experimental.optimizeImages,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -441,14 +449,12 @@ export default async function exportApp(
     if (prerenderManifest && !options.buildExport) {
       const fallbackEnabledPages = new Set()
 
-      for (const key of Object.keys(prerenderManifest.dynamicRoutes)) {
-        // only error if page is included in path map
-        if (!exportPathMap[key] && !excludedPrerenderRoutes.has(key)) {
-          continue
-        }
+      for (const path of Object.keys(exportPathMap)) {
+        const page = exportPathMap[path].page
+        const prerenderInfo = prerenderManifest.dynamicRoutes[page]
 
-        if (prerenderManifest.dynamicRoutes[key].fallback !== false) {
-          fallbackEnabledPages.add(key)
+        if (prerenderInfo && prerenderInfo.fallback !== false) {
+          fallbackEnabledPages.add(page)
         }
       }
 
@@ -517,31 +523,42 @@ export default async function exportApp(
         )
     }
 
-    const timeout = configuration?.experimental.staticPageGenerationTimeout || 0
+    const timeout = configuration?.staticPageGenerationTimeout || 0
     let infoPrinted = false
-    const worker = new Worker(require.resolve('./worker'), {
-      timeout: timeout * 1000,
-      onRestart: (_method, [{ path }], attempts) => {
-        if (attempts >= 3) {
-          throw new Error(
-            `Static page generation for ${path} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
-          )
-        }
-        Log.warn(
-          `Restarted static page genertion for ${path} because it took more than ${timeout} seconds`
-        )
-        if (!infoPrinted) {
+    let exportPage: typeof import('./worker').default
+    let endWorker: () => Promise<void>
+    if (options.exportPageWorker) {
+      exportPage = options.exportPageWorker
+      endWorker = options.endWorker || (() => Promise.resolve())
+    } else {
+      const worker = new Worker(require.resolve('./worker'), {
+        timeout: timeout * 1000,
+        onRestart: (_method, [{ path }], attempts) => {
+          if (attempts >= 3) {
+            throw new Error(
+              `Static page generation for ${path} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
+            )
+          }
           Log.warn(
-            'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
+            `Restarted static page generation for ${path} because it took more than ${timeout} seconds`
           )
-          infoPrinted = true
-        }
-      },
-      maxRetries: 0,
-      numWorkers: threads,
-      enableWorkerThreads: nextConfig.experimental.workerThreads,
-      exposedMethods: ['default'],
-    }) as Worker & typeof import('./worker')
+          if (!infoPrinted) {
+            Log.warn(
+              'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
+            )
+            infoPrinted = true
+          }
+        },
+        maxRetries: 0,
+        numWorkers: threads,
+        enableWorkerThreads: nextConfig.experimental.workerThreads,
+        exposedMethods: ['default'],
+      }) as Worker & typeof import('./worker')
+      exportPage = worker.default.bind(worker)
+      endWorker = async () => {
+        await worker.end()
+      }
+    }
 
     let renderError = false
     const errorPaths: string[] = []
@@ -553,7 +570,7 @@ export default async function exportApp(
 
         return pageExportSpan.traceAsyncFn(async () => {
           const pathMap = exportPathMap[path]
-          const result = await worker.default({
+          const result = await exportPage({
             path,
             pathMap,
             distDir,
@@ -582,7 +599,10 @@ export default async function exportApp(
                 ampValidationResult.errors.length > 0)
           }
           renderError = renderError || !!result.error
-          if (!!result.error) errorPaths.push(path)
+          if (!!result.error) {
+            const { page } = pathMap
+            errorPaths.push(page !== path ? `${page}: ${path}` : path)
+          }
 
           if (options.buildExport && configuration) {
             if (typeof result.fromBuildExportRevalidate !== 'undefined') {
@@ -604,7 +624,7 @@ export default async function exportApp(
       })
     )
 
-    worker.end()
+    const endWorkerPromise = endWorker()
 
     // copy prerendered routes to outDir
     if (!options.buildExport && prerenderManifest) {
@@ -612,6 +632,14 @@ export default async function exportApp(
         Object.keys(prerenderManifest.routes).map(async (route) => {
           const { srcRoute } = prerenderManifest!.routes[route]
           const pageName = srcRoute || route
+          route = normalizePagePath(route)
+
+          // returning notFound: true from getStaticProps will not
+          // output html/json files during the build
+          if (prerenderManifest!.notFoundRoutes.includes(route)) {
+            return
+          }
+
           const pagePath = getPagePath(pageName, distDir, isLikeServerless)
           const distPagesDir = join(
             pagePath,
@@ -623,7 +651,6 @@ export default async function exportApp(
               .map(() => '..')
               .join('/')
           )
-          route = normalizePagePath(route)
 
           const orig = join(distPagesDir, route)
           const htmlDest = join(
@@ -640,8 +667,12 @@ export default async function exportApp(
 
           await promises.mkdir(dirname(htmlDest), { recursive: true })
           await promises.mkdir(dirname(jsonDest), { recursive: true })
-          await promises.copyFile(`${orig}.html`, htmlDest)
-          await promises.copyFile(`${orig}.json`, jsonDest)
+
+          const htmlSrc = `${orig}.html`
+          const jsonSrc = `${orig}.json`
+
+          await promises.copyFile(htmlSrc, htmlDest)
+          await promises.copyFile(jsonSrc, jsonDest)
 
           if (await exists(`${orig}.amp.html`)) {
             await promises.mkdir(dirname(ampHtmlDest), { recursive: true })
@@ -681,5 +712,7 @@ export default async function exportApp(
     if (telemetry) {
       await telemetry.flush()
     }
+
+    await endWorkerPromise
   })
 }

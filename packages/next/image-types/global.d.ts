@@ -5,7 +5,7 @@ interface StaticImageData {
   src: string
   height: number
   width: number
-  placeholder?: string
+  blurDataURL?: string
 }
 
 declare module '*.png' {
@@ -44,6 +44,12 @@ declare module '*.gif' {
 }
 
 declare module '*.webp' {
+  const content: StaticImageData
+
+  export default content
+}
+
+declare module '*.avif' {
   const content: StaticImageData
 
   export default content

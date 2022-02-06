@@ -12,6 +12,5 @@
     "slate": "^0.58.4",
     "slate-history": "0.58.4",
     "slate-react": "^0.58.4"
-  },
-  "license": "MIT"
+  }
 }
