@@ -5,7 +5,7 @@
 import { fileURLToPath } from 'url'
 import path from 'path'
 
-import { urlToRequest } from 'next/dist/compiled/loader-utils'
+import { urlToRequest } from 'next/dist/compiled/loader-utils3'
 import modulesValues from 'next/dist/compiled/postcss-modules-values'
 import localByDefault from 'next/dist/compiled/postcss-modules-local-by-default'
 import extractImports from 'next/dist/compiled/postcss-modules-extract-imports'
@@ -43,6 +43,10 @@ function normalizePath(file) {
   return path.sep === '\\' ? file.replace(/\\/g, '/') : file
 }
 
+function fixedEncodeURIComponent(str) {
+  return str.replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16)}`)
+}
+
 function normalizeUrl(url, isStringValue) {
   let normalizedUrl = url
 
@@ -51,15 +55,37 @@ function normalizeUrl(url, isStringValue) {
   }
 
   if (matchNativeWin32Path.test(url)) {
-    return decodeURIComponent(normalizedUrl)
+    try {
+      normalizedUrl = decodeURIComponent(normalizedUrl)
+    } catch (error) {
+      // Ignores invalid and broken URLs and try to resolve them as is
+    }
+
+    return normalizedUrl
   }
 
-  return decodeURIComponent(unescape(normalizedUrl))
+  normalizedUrl = unescape(normalizedUrl)
+
+  if (isDataUrl(url)) {
+    return fixedEncodeURIComponent(normalizedUrl)
+  }
+
+  try {
+    normalizedUrl = decodeURI(normalizedUrl)
+  } catch (error) {
+    // Ignores invalid and broken URLs and try to resolve them as is
+  }
+
+  return normalizedUrl
 }
 
 function requestify(url, rootContext) {
   if (/^file:/i.test(url)) {
     return fileURLToPath(url)
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:/i.test(url)) {
+    return url
   }
 
   return url.charAt(0) === '/'
@@ -74,130 +100,6 @@ function getFilter(filter, resourcePath) {
     }
 
     return true
-  }
-}
-
-const moduleRegExp = /\.module\.\w+$/i
-
-function getModulesOptions(rawOptions, loaderContext) {
-  const { resourcePath } = loaderContext
-
-  if (typeof rawOptions.modules === 'undefined') {
-    const isModules = moduleRegExp.test(resourcePath)
-
-    if (!isModules) {
-      return false
-    }
-  } else if (
-    typeof rawOptions.modules === 'boolean' &&
-    rawOptions.modules === false
-  ) {
-    return false
-  }
-
-  let modulesOptions = {
-    compileType: rawOptions.icss ? 'icss' : 'module',
-    auto: true,
-    mode: 'local',
-    exportGlobals: false,
-    localIdentName: '[hash:base64]',
-    localIdentContext: loaderContext.rootContext,
-    localIdentHashPrefix: '',
-    // eslint-disable-next-line no-undefined
-    localIdentRegExp: undefined,
-    namedExport: false,
-    exportLocalsConvention: 'asIs',
-    exportOnlyLocals: false,
-  }
-
-  if (
-    typeof rawOptions.modules === 'boolean' ||
-    typeof rawOptions.modules === 'string'
-  ) {
-    modulesOptions.mode =
-      typeof rawOptions.modules === 'string' ? rawOptions.modules : 'local'
-  } else {
-    if (rawOptions.modules) {
-      if (typeof rawOptions.modules.auto === 'boolean') {
-        const isModules =
-          rawOptions.modules.auto && moduleRegExp.test(resourcePath)
-
-        if (!isModules) {
-          return false
-        }
-      } else if (rawOptions.modules.auto instanceof RegExp) {
-        const isModules = rawOptions.modules.auto.test(resourcePath)
-
-        if (!isModules) {
-          return false
-        }
-      } else if (typeof rawOptions.modules.auto === 'function') {
-        const isModule = rawOptions.modules.auto(resourcePath)
-
-        if (!isModule) {
-          return false
-        }
-      }
-
-      if (
-        rawOptions.modules.namedExport === true &&
-        typeof rawOptions.modules.exportLocalsConvention === 'undefined'
-      ) {
-        modulesOptions.exportLocalsConvention = 'camelCaseOnly'
-      }
-    }
-
-    modulesOptions = { ...modulesOptions, ...(rawOptions.modules || {}) }
-  }
-
-  if (typeof modulesOptions.mode === 'function') {
-    modulesOptions.mode = modulesOptions.mode(loaderContext.resourcePath)
-  }
-
-  if (modulesOptions.namedExport === true) {
-    if (rawOptions.esModule === false) {
-      throw new Error(
-        'The "modules.namedExport" option requires the "esModules" option to be enabled'
-      )
-    }
-
-    if (modulesOptions.exportLocalsConvention !== 'camelCaseOnly') {
-      throw new Error(
-        'The "modules.namedExport" option requires the "modules.exportLocalsConvention" option to be "camelCaseOnly"'
-      )
-    }
-  }
-
-  return modulesOptions
-}
-
-function normalizeOptions(rawOptions, loaderContext) {
-  if (rawOptions.icss) {
-    loaderContext.emitWarning(
-      new Error(
-        'The "icss" option is deprecated, use "modules.compileType: "icss"" instead'
-      )
-    )
-  }
-
-  const modulesOptions = getModulesOptions(rawOptions, loaderContext)
-
-  return {
-    url: typeof rawOptions.url === 'undefined' ? true : rawOptions.url,
-    import: typeof rawOptions.import === 'undefined' ? true : rawOptions.import,
-    modules: modulesOptions,
-    // TODO remove in the next major release
-    icss: typeof rawOptions.icss === 'undefined' ? false : rawOptions.icss,
-    sourceMap:
-      typeof rawOptions.sourceMap === 'boolean'
-        ? rawOptions.sourceMap
-        : loaderContext.sourceMap,
-    importLoaders:
-      typeof rawOptions.importLoaders === 'string'
-        ? parseInt(rawOptions.importLoaders, 10)
-        : rawOptions.importLoaders,
-    esModule:
-      typeof rawOptions.esModule === 'undefined' ? true : rawOptions.esModule,
   }
 }
 
@@ -602,8 +504,8 @@ function isUrlRequestable(url) {
   }
 
   // Absolute URLs
-  if (/^[a-z][a-z0-9+.-]*:/i.test(url) && !matchNativeWin32Path.test(url)) {
-    return false
+  if (/^[a-z][a-z0-9+.-]*:/i.test(url)) {
+    return true
   }
 
   // `#` URLs
@@ -628,7 +530,6 @@ function isDataUrl(url) {
 
 export {
   isDataUrl,
-  normalizeOptions,
   shouldUseModulesPlugins,
   shouldUseImportPlugin,
   shouldUseURLPlugin,
@@ -636,7 +537,6 @@ export {
   normalizeUrl,
   requestify,
   getFilter,
-  getModulesOptions,
   getModulesPlugins,
   normalizeSourceMap,
   getPreRequester,

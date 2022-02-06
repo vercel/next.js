@@ -3,13 +3,10 @@ import * as path from 'path'
 import {
   webpack,
   ModuleFilenameHelpers,
-  isWebpack5,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
-import pLimit from 'p-limit'
-import { Worker } from 'jest-worker'
-import crypto from 'crypto'
-import cacache from 'next/dist/compiled/cacache'
+import pLimit from 'next/dist/compiled/p-limit'
+import { Worker } from 'next/dist/compiled/jest-worker'
 import { spans } from '../../profiling-plugin'
 
 function getEcmaVersion(environment) {
@@ -50,65 +47,14 @@ function buildError(error, file) {
   return new Error(`${file} from Terser\n${error.message}`)
 }
 
-class Webpack4Cache {
-  constructor(cacheDir, { SourceMapSource, RawSource }) {
-    this.cacheDir = cacheDir
-    this.sources = { SourceMapSource, RawSource }
-  }
-  getLazyHashedEtag(obj) {
-    let str
-    if (obj.source) {
-      str = obj.source()
-    }
-    const hash = crypto.createHash('md4')
-    hash.update(str ? str : obj)
-    return hash.digest('base64')
-  }
-
-  async getPromise(identifier, etag) {
-    let cachedResult
-
-    try {
-      cachedResult = await cacache.get(this.cacheDir, etag)
-    } catch (ignoreError) {
-      // eslint-disable-next-line no-undefined
-      return undefined
-    }
-
-    cachedResult = JSON.parse(cachedResult.data)
-
-    const { code, name, map, input, inputSourceMap } = cachedResult
-
-    let source
-
-    if (map) {
-      source = new this.sources.SourceMapSource(
-        code,
-        name,
-        map,
-        input,
-        inputSourceMap,
-        true
-      )
-    } else {
-      source = new this.sources.RawSource(code)
-    }
-
-    return { source }
-  }
-
-  async storePromise(identifier, etag, data) {
-    await cacache.put(this.cacheDir, etag, JSON.stringify(data))
-  }
-}
+const debugMinify = process.env.NEXT_DEBUG_MINIFY
 
 export class TerserPlugin {
   constructor(options = {}) {
-    const { cacheDir, terserOptions = {}, parallel, swcMinify } = options
+    const { terserOptions = {}, parallel, swcMinify } = options
 
     this.options = {
       swcMinify,
-      cacheDir,
       parallel,
       terserOptions,
     }
@@ -126,19 +72,11 @@ export class TerserPlugin {
     const terserSpan = compilationSpan.traceChild(
       'terser-webpack-plugin-optimize'
     )
-    terserSpan.setAttribute('webpackVersion', isWebpack5 ? 5 : 4)
     terserSpan.setAttribute('compilationName', compilation.name)
 
     return terserSpan.traceAsyncFn(async () => {
       let numberOfAssetsForMinify = 0
-      const assetsList = isWebpack5
-        ? Object.keys(assets)
-        : [
-            ...Array.from(compilation.additionalChunkAssets || []),
-            ...Array.from(assets).reduce((acc, chunk) => {
-              return acc.concat(Array.from(chunk.files || []))
-            }, []),
-          ]
+      const assetsList = Object.keys(assets)
 
       const assetsForMinify = await Promise.all(
         assetsList
@@ -156,6 +94,16 @@ export class TerserPlugin {
             const res = compilation.getAsset(name)
             if (!res) {
               console.log(name)
+              return false
+            }
+
+            // don't minify _middleware as it can break in some cases
+            // and doesn't provide too much of a benefit as it's server-side
+            if (
+              name.match(
+                /(middleware-runtime\.js|middleware-chunks|_middleware\.js$)/
+              )
+            ) {
               return false
             }
 
@@ -178,6 +126,18 @@ export class TerserPlugin {
               numberOfAssetsForMinify += 1
             }
 
+            if (debugMinify && debugMinify === '1') {
+              console.dir(
+                {
+                  name,
+                  source: source.source().toString(),
+                },
+                {
+                  breakLength: Infinity,
+                  maxStringLength: Infinity,
+                }
+              )
+            }
             return { name, info, inputSource: source, output, eTag }
           })
       )
@@ -197,6 +157,13 @@ export class TerserPlugin {
               const result = await require('../../../../swc').minify(
                 options.input,
                 {
+                  ...(options.inputSourceMap
+                    ? {
+                        sourceMap: {
+                          content: JSON.stringify(options.inputSourceMap),
+                        },
+                      }
+                    : {}),
                   compress: true,
                   mangle: true,
                 }
@@ -292,19 +259,9 @@ export class TerserPlugin {
                   output.source = new RawSource(output.code)
                 }
 
-                if (isWebpack5) {
-                  await cache.storePromise(name, eTag, {
-                    source: output.source,
-                  })
-                } else {
-                  await cache.storePromise(name, eTag, {
-                    code: output.code,
-                    map: output.map,
-                    name,
-                    input,
-                    inputSourceMap,
-                  })
-                }
+                await cache.storePromise(name, eTag, {
+                  source: output.source,
+                })
               }
 
               /** @type {AssetInfo} */
@@ -340,86 +297,49 @@ export class TerserPlugin {
     const pluginName = this.constructor.name
     const availableNumberOfCores = this.options.parallel
 
-    compiler.hooks.compilation.tap(pluginName, (compilation) => {
-      // Don't run minifier against mini-css-extract-plugin
-      if (compilation.name !== 'client' && compilation.name !== 'server') {
-        return
-      }
-
-      const cache = isWebpack5
-        ? compilation.getCache('TerserWebpackPlugin')
-        : new Webpack4Cache(this.options.cacheDir, {
-            SourceMapSource,
-            RawSource,
-          })
+    compiler.hooks.thisCompilation.tap(pluginName, (compilation) => {
+      const cache = compilation.getCache('TerserWebpackPlugin')
 
       const handleHashForChunk = (hash, chunk) => {
         // increment 'c' to invalidate cache
         hash.update('c')
       }
 
-      if (isWebpack5) {
-        const JSModulesHooks =
-          webpack.javascript.JavascriptModulesPlugin.getCompilationHooks(
-            compilation
+      const JSModulesHooks =
+        webpack.javascript.JavascriptModulesPlugin.getCompilationHooks(
+          compilation
+        )
+      JSModulesHooks.chunkHash.tap(pluginName, (chunk, hash) => {
+        if (!chunk.hasRuntime()) return
+        return handleHashForChunk(hash, chunk)
+      })
+
+      compilation.hooks.processAssets.tapPromise(
+        {
+          name: pluginName,
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
+        },
+        (assets) =>
+          this.optimize(
+            compiler,
+            compilation,
+            assets,
+            {
+              availableNumberOfCores,
+            },
+            cache,
+            { SourceMapSource, RawSource }
           )
-        JSModulesHooks.chunkHash.tap(pluginName, (chunk, hash) => {
-          if (!chunk.hasRuntime()) return
-          return handleHashForChunk(hash, chunk)
-        })
+      )
 
-        compilation.hooks.processAssets.tapPromise(
-          {
-            name: pluginName,
-            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
-          },
-          (assets) =>
-            this.optimize(
-              compiler,
-              compilation,
-              assets,
-              {
-                availableNumberOfCores,
-              },
-              cache,
-              { SourceMapSource, RawSource }
-            )
-        )
-
-        compilation.hooks.statsPrinter.tap(pluginName, (stats) => {
-          stats.hooks.print
-            .for('asset.info.minimized')
-            .tap('terser-webpack-plugin', (minimized, { green, formatFlag }) =>
-              // eslint-disable-next-line no-undefined
-              minimized ? green(formatFlag('minimized')) : undefined
-            )
-        })
-      } else {
-        compilation.mainTemplate.hooks.hashForChunk.tap(
-          pluginName,
-          handleHashForChunk
-        )
-        compilation.chunkTemplate.hooks.hashForChunk.tap(
-          pluginName,
-          handleHashForChunk
-        )
-
-        compilation.hooks.optimizeChunkAssets.tapPromise(
-          pluginName,
-          async (assets) => {
-            return await this.optimize(
-              compiler,
-              compilation,
-              assets,
-              {
-                availableNumberOfCores,
-              },
-              cache,
-              { SourceMapSource, RawSource }
-            )
-          }
-        )
-      }
+      compilation.hooks.statsPrinter.tap(pluginName, (stats) => {
+        stats.hooks.print
+          .for('asset.info.minimized')
+          .tap('terser-webpack-plugin', (minimized, { green, formatFlag }) =>
+            // eslint-disable-next-line no-undefined
+            minimized ? green(formatFlag('minimized')) : undefined
+          )
+      })
     })
   }
 }

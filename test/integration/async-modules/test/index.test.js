@@ -105,10 +105,6 @@ function runTests(dev = false) {
 }
 
 describe('Async modules', () => {
-  if (process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
-    it.skip("webpack 4 doesn't support top level await", () => {})
-    return
-  }
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()

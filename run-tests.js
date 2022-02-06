@@ -36,6 +36,7 @@ const cleanUpAndExit = async (code) => {
   if (process.env.NEXT_TEST_STARTER) {
     await fs.remove(process.env.NEXT_TEST_STARTER)
   }
+  console.log(`exiting with code ${code}`)
   process.exit(code)
 }
 
@@ -156,10 +157,6 @@ async function main() {
     const groupParts = groupArg.split('/')
     const groupPos = parseInt(groupParts[0], 10)
     const groupTotal = parseInt(groupParts[1], 10)
-    const numPerGroup = Math.ceil(testNames.length / groupTotal)
-    let offset = groupPos === 1 ? 0 : (groupPos - 1) * numPerGroup - 1
-    // if there's an odd number of suites give the first group the extra
-    if (testNames.length % 2 !== 0 && groupPos !== 1) offset++
 
     if (prevTimings) {
       const groups = [[]]
@@ -194,7 +191,9 @@ async function main() {
         Math.round(groupTimes[curGroupIdx]) + 's'
       )
     } else {
-      testNames = testNames.splice(offset, numPerGroup)
+      const numPerGroup = Math.ceil(testNames.length / groupTotal)
+      let offset = (groupPos - 1) * numPerGroup
+      testNames = testNames.slice(offset, offset + numPerGroup)
     }
   }
 
@@ -230,7 +229,7 @@ async function main() {
   )
   const children = new Set()
 
-  const runTest = (test = '', usePolling, isFinalRun) =>
+  const runTest = (test = '', isFinalRun) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
@@ -252,13 +251,14 @@ async function main() {
             ...process.env,
             // run tests in headless mode by default
             HEADLESS: 'true',
-            ...(usePolling
+            TRACE_PLAYWRIGHT: 'true',
+            ...(isFinalRun
               ? {
                   // Events can be finicky in CI. This switches to a more
                   // reliable polling method.
-                  CHOKIDAR_USEPOLLING: 'true',
-                  CHOKIDAR_INTERVAL: 500,
-                  WATCHPACK_POLLING: 500,
+                  // CHOKIDAR_USEPOLLING: 'true',
+                  // CHOKIDAR_INTERVAL: 500,
+                  // WATCHPACK_POLLING: 500,
                 }
               : {}),
           },
@@ -276,9 +276,9 @@ async function main() {
 
       children.add(child)
 
-      child.on('exit', (code) => {
+      child.on('exit', async (code, signal) => {
         children.delete(child)
-        if (code) {
+        if (code !== 0 || signal !== null) {
           if (isFinalRun && hideOutput) {
             // limit out to last 64kb so that we don't
             // run out of log room in CI
@@ -299,21 +299,45 @@ async function main() {
             }
             trimmedOutput.forEach((chunk) => process.stdout.write(chunk))
           }
-          reject(new Error(`failed with code: ${code}`))
+          return reject(
+            new Error(
+              code
+                ? `failed with code: ${code}`
+                : `failed with signal: ${signal}`
+            )
+          )
         }
+        await fs
+          .remove(
+            path.join(
+              __dirname,
+              'test/traces',
+              path
+                .relative(path.join(__dirname, 'test'), test)
+                .replace(/\//g, '-')
+            )
+          )
+          .catch(() => {})
         resolve(new Date().getTime() - start)
       })
     })
 
+  const directorySemas = new Map()
+
   await Promise.all(
     testNames.map(async (test) => {
+      const dirName = path.dirname(test)
+      let dirSema = directorySemas.get(dirName)
+      if (dirSema === undefined)
+        directorySemas.set(dirName, (dirSema = new Sema(1)))
+      await dirSema.acquire()
       await sema.acquire()
       let passed = false
 
       for (let i = 0; i < numRetries + 1; i++) {
         try {
           console.log(`Starting ${test} retry ${i}/${numRetries}`)
-          const time = await runTest(test, i > 0, i === numRetries)
+          const time = await runTest(test, i === numRetries)
           timings.push({
             file: test,
             time,
@@ -331,6 +355,8 @@ async function main() {
               await exec(`git clean -fdx "${testDir}"`)
               await exec(`git checkout "${testDir}"`)
             } catch (err) {}
+          } else {
+            console.error(`${test} failed due to ${err}`)
           }
         }
       }
@@ -356,6 +382,7 @@ async function main() {
         cleanUpAndExit(1)
       }
       sema.release()
+      dirSema.release()
     })
   )
 

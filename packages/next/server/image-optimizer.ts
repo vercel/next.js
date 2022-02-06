@@ -1,34 +1,37 @@
-import { mediaType } from '@hapi/accept'
+import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import { createHash } from 'crypto'
 import { createReadStream, promises } from 'fs'
-import { getOrientation, Orientation } from 'get-orientation'
+import { getOrientation, Orientation } from 'next/dist/compiled/get-orientation'
+import imageSizeOf from 'next/dist/compiled/image-size'
 import { IncomingMessage, ServerResponse } from 'http'
 // @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
+import contentDisposition from 'next/dist/compiled/content-disposition'
 import { join } from 'path'
 import Stream from 'stream'
 import nodeUrl, { UrlWithParsedQuery } from 'url'
 import { NextConfig } from './config-shared'
 import { fileExists } from '../lib/file-exists'
 import { ImageConfig, imageConfigDefault } from './image-config'
-import { processBuffer, Operation } from './lib/squoosh/main'
-import Server from './next-server'
+import { processBuffer, decodeBuffer, Operation } from './lib/squoosh/main'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
+import { NextUrlWithParsedQuery } from './request-meta'
 
-//const AVIF = 'image/avif'
+type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
+
+const AVIF = 'image/avif'
 const WEBP = 'image/webp'
 const PNG = 'image/png'
 const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
 const CACHE_VERSION = 3
-const MODERN_TYPES = [/* AVIF, */ WEBP]
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
-const inflightRequests = new Map<string, Promise<undefined>>()
+const inflightRequests = new Map<string, Promise<void>>()
 
 let sharp:
   | ((
@@ -43,15 +46,20 @@ try {
   // Sharp not present on the server, Squoosh fallback will be used
 }
 
-let shouldShowSharpWarning = process.env.NODE_ENV === 'production'
+let showSharpMissingWarning = process.env.NODE_ENV === 'production'
 
 export async function imageOptimizer(
-  server: Server,
   req: IncomingMessage,
   res: ServerResponse,
   parsedUrl: UrlWithParsedQuery,
   nextConfig: NextConfig,
   distDir: string,
+  render404: () => Promise<void>,
+  handleRequest: (
+    newReq: IncomingMessage,
+    newRes: ServerResponse,
+    newParsedUrl?: NextUrlWithParsedQuery
+  ) => Promise<void>,
   isDev = false
 ) {
   const imageData: ImageConfig = nextConfig.images || imageConfigDefault
@@ -61,16 +69,17 @@ export async function imageOptimizer(
     domains = [],
     loader,
     minimumCacheTTL = 60,
+    formats = ['image/webp'],
   } = imageData
 
   if (loader !== 'default') {
-    await server.render404(req, res, parsedUrl)
+    await render404()
     return { finished: true }
   }
 
   const { headers } = req
   const { url, w, q } = parsedUrl.query
-  const mimeType = getSupportedMimeType(MODERN_TYPES, headers.accept)
+  const mimeType = getSupportedMimeType(formats, headers.accept)
   let href: string
 
   if (!url) {
@@ -136,7 +145,7 @@ export async function imageOptimizer(
 
   // Should match output from next-image-loader
   const isStatic = url.startsWith(
-    `${nextConfig.basePath || ''}/_next/static/image`
+    `${nextConfig.basePath || ''}/_next/static/media`
   )
 
   const width = parseInt(w, 10)
@@ -171,17 +180,15 @@ export async function imageOptimizer(
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
   const now = Date.now()
+  let xCache: XCacheHeader = 'MISS'
 
   // If there're concurrent requests hitting the same resource and it's still
   // being optimized, wait before accessing the cache.
   if (inflightRequests.has(hash)) {
     await inflightRequests.get(hash)
   }
-  let dedupeResolver: (val?: PromiseLike<undefined>) => void
-  inflightRequests.set(
-    hash,
-    new Promise((resolve) => (dedupeResolver = resolve))
-  )
+  const dedupe = new Deferred<void>()
+  inflightRequests.set(hash, dedupe.promise)
 
   try {
     if (await fileExists(hashDir, 'directory')) {
@@ -192,20 +199,27 @@ export async function imageOptimizer(
         const expireAt = Number(expireAtSt)
         const contentType = getContentType(extension)
         const fsPath = join(hashDir, file)
-        if (now < expireAt) {
-          const result = setResponseHeaders(
-            req,
-            res,
-            url,
-            etag,
-            maxAge,
-            contentType,
-            isStatic,
-            isDev
-          )
-          if (!result.finished) {
-            createReadStream(fsPath).pipe(res)
-          }
+        xCache = now < expireAt ? 'HIT' : 'STALE'
+        const result = setResponseHeaders(
+          req,
+          res,
+          url,
+          etag,
+          maxAge,
+          contentType,
+          isStatic,
+          isDev,
+          xCache
+        )
+        if (!result.finished) {
+          await new Promise<void>((resolve, reject) => {
+            createReadStream(fsPath)
+              .on('end', resolve)
+              .on('error', reject)
+              .pipe(res)
+          })
+        }
+        if (xCache === 'HIT') {
           return { finished: true }
         } else {
           await promises.unlink(fsPath)
@@ -246,8 +260,17 @@ export async function imageOptimizer(
         mockRes.write = (chunk: Buffer | string) => {
           resBuffers.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
         }
-        mockRes._write = (chunk: Buffer | string) => {
+        mockRes._write = (
+          chunk: Buffer | string,
+          _encoding: string,
+          callback: () => void
+        ) => {
           mockRes.write(chunk)
+          // According to Node.js documentation, the callback MUST be invoked to signal that
+          // the write completed successfully. If this callback is not invoked, the 'finish' event
+          // will not be emitted.
+          // https://nodejs.org/docs/latest-v16.x/api/stream.html#writable_writechunk-encoding-callback
+          callback()
         }
 
         const mockHeaders: Record<string, string | string[]> = {}
@@ -280,14 +303,9 @@ export async function imageOptimizer(
         mockReq.url = href
         mockReq.connection = req.connection
 
-        await server.getRequestHandler()(
-          mockReq,
-          mockRes,
-          nodeUrl.parse(href, true)
-        )
+        await handleRequest(mockReq, mockRes, nodeUrl.parse(href, true))
         await isStreamFinished
         res.statusCode = mockRes.statusCode
-
         upstreamBuffer = Buffer.concat(resBuffers)
         upstreamType =
           detectContentType(upstreamBuffer) || mockRes.getHeader('Content-Type')
@@ -321,11 +339,11 @@ export async function imageOptimizer(
           upstreamType,
           upstreamBuffer,
           isStatic,
-          isDev
+          isDev,
+          xCache
         )
         return { finished: true }
       }
-
       if (!upstreamType.startsWith('image/')) {
         res.statusCode = 400
         res.end("The requested resource isn't a valid image.")
@@ -359,7 +377,22 @@ export async function imageOptimizer(
           transformer.resize(width)
         }
 
-        if (contentType === WEBP) {
+        if (contentType === AVIF) {
+          if (transformer.avif) {
+            const avifQuality = quality - 15
+            transformer.avif({
+              quality: Math.max(avifQuality, 0),
+              chromaSubsampling: '4:2:0', // same as webp
+            })
+          } else {
+            console.warn(
+              chalk.yellow.bold('Warning: ') +
+                `Your installed version of the 'sharp' package does not support AVIF images. Run 'yarn add sharp@latest' to upgrade to the latest version.\n` +
+                'Read more: https://nextjs.org/docs/messages/sharp-version-avif'
+            )
+            transformer.webp({ quality })
+          }
+        } else if (contentType === WEBP) {
           transformer.webp({ quality })
         } else if (contentType === PNG) {
           transformer.png({ quality })
@@ -370,14 +403,27 @@ export async function imageOptimizer(
         optimizedBuffer = await transformer.toBuffer()
         // End sharp transformation logic
       } else {
+        if (
+          showSharpMissingWarning &&
+          nextConfig.experimental?.outputStandalone
+        ) {
+          // TODO: should we ensure squoosh also works even though we don't
+          // recommend it be used in production and this is a production feature
+          console.error(
+            `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly`
+          )
+          req.statusCode = 500
+          res.end('internal server error')
+          return { finished: true }
+        }
         // Show sharp warning in production once
-        if (shouldShowSharpWarning) {
+        if (showSharpMissingWarning) {
           console.warn(
             chalk.yellow.bold('Warning: ') +
               `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'yarn add sharp', and Next.js will use it automatically for Image Optimization.\n` +
               'Read more: https://nextjs.org/docs/messages/sharp-missing-in-production'
           )
-          shouldShowSharpWarning = false
+          showSharpMissingWarning = false
         }
 
         // Begin Squoosh transformation logic
@@ -399,9 +445,14 @@ export async function imageOptimizer(
 
         operations.push({ type: 'resize', width })
 
-        //if (contentType === AVIF) {
-        //} else
-        if (contentType === WEBP) {
+        if (contentType === AVIF) {
+          optimizedBuffer = await processBuffer(
+            upstreamBuffer,
+            operations,
+            'avif',
+            quality
+          )
+        } else if (contentType === WEBP) {
           optimizedBuffer = await processBuffer(
             upstreamBuffer,
             operations,
@@ -442,7 +493,8 @@ export async function imageOptimizer(
           contentType,
           optimizedBuffer,
           isStatic,
-          isDev
+          isDev,
+          xCache
         )
       } else {
         throw new Error('Unable to optimize buffer')
@@ -456,14 +508,14 @@ export async function imageOptimizer(
         upstreamType,
         upstreamBuffer,
         isStatic,
-        isDev
+        isDev,
+        xCache
       )
     }
 
     return { finished: true }
   } finally {
-    // Make sure to remove the hash in the end.
-    dedupeResolver!()
+    dedupe.resolve()
     inflightRequests.delete(hash)
   }
 }
@@ -505,7 +557,8 @@ function setResponseHeaders(
   maxAge: number,
   contentType: string | null,
   isStatic: boolean,
-  isDev: boolean
+  isDev: boolean,
+  xCache: XCacheHeader
 ) {
   res.setHeader('Vary', 'Accept')
   res.setHeader(
@@ -524,10 +577,14 @@ function setResponseHeaders(
 
   const fileName = getFileNameWithExtension(url, contentType)
   if (fileName) {
-    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`)
+    res.setHeader(
+      'Content-Disposition',
+      contentDisposition(fileName, { type: 'inline' })
+    )
   }
 
   res.setHeader('Content-Security-Policy', `script-src 'none'; sandbox;`)
+  res.setHeader('X-Nextjs-Cache', xCache)
 
   return { finished: false }
 }
@@ -540,8 +597,12 @@ function sendResponse(
   contentType: string | null,
   buffer: Buffer,
   isStatic: boolean,
-  isDev: boolean
+  isDev: boolean,
+  xCache: XCacheHeader
 ) {
+  if (xCache === 'STALE') {
+    return
+  }
   const etag = getHash([buffer])
   const result = setResponseHeaders(
     req,
@@ -551,7 +612,8 @@ function sendResponse(
     maxAge,
     contentType,
     isStatic,
-    isDev
+    isDev,
+    xCache
   )
   if (!result.finished) {
     res.end(buffer)
@@ -620,6 +682,13 @@ export function detectContentType(buffer: Buffer) {
   if ([0x3c, 0x3f, 0x78, 0x6d, 0x6c].every((b, i) => buffer[i] === b)) {
     return SVG
   }
+  if (
+    [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66].every(
+      (b, i) => !b || buffer[i] === b
+    )
+  ) {
+    return AVIF
+  }
   return null
 }
 
@@ -642,13 +711,25 @@ export async function resizeImage(
   content: Buffer,
   dimension: 'width' | 'height',
   size: number,
-  extension: 'webp' | 'png' | 'jpeg',
+  // Should match VALID_BLUR_EXT
+  extension: 'avif' | 'webp' | 'png' | 'jpeg',
   quality: number
 ): Promise<Buffer> {
   if (sharp) {
     const transformer = sharp(content)
 
-    if (extension === 'webp') {
+    if (extension === 'avif') {
+      if (transformer.avif) {
+        transformer.avif({ quality })
+      } else {
+        console.warn(
+          chalk.yellow.bold('Warning: ') +
+            `Your installed version of the 'sharp' package does not support AVIF images. Run 'yarn add sharp@latest' to upgrade to the latest version.\n` +
+            'Read more: https://nextjs.org/docs/messages/sharp-version-avif'
+        )
+        transformer.webp({ quality })
+      }
+    } else if (extension === 'webp') {
       transformer.webp({ quality })
     } else if (extension === 'png') {
       transformer.png({ quality })
@@ -674,5 +755,43 @@ export async function resizeImage(
       quality
     )
     return buf
+  }
+}
+
+export async function getImageSize(
+  buffer: Buffer,
+  // Should match VALID_BLUR_EXT
+  extension: 'avif' | 'webp' | 'png' | 'jpeg'
+): Promise<{
+  width?: number
+  height?: number
+}> {
+  // TODO: upgrade "image-size" package to support AVIF
+  // See https://github.com/image-size/image-size/issues/348
+  if (extension === 'avif') {
+    if (sharp) {
+      const transformer = sharp(buffer)
+      const { width, height } = await transformer.metadata()
+      return { width, height }
+    } else {
+      const { width, height } = await decodeBuffer(buffer)
+      return { width, height }
+    }
+  }
+
+  const { width, height } = imageSizeOf(buffer)
+  return { width, height }
+}
+
+export class Deferred<T> {
+  promise: Promise<T>
+  resolve!: (value: T) => void
+  reject!: (error?: Error) => void
+
+  constructor() {
+    this.promise = new Promise((resolve, reject) => {
+      this.resolve = resolve
+      this.reject = reject
+    })
   }
 }

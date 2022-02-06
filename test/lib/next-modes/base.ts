@@ -8,25 +8,39 @@ import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
+export type InstallCommand =
+  | string
+  | ((ctx: { dependencies: { [key: string]: string } }) => string)
 
+export type PackageJson = {
+  [key: string]: unknown
+}
 export class NextInstance {
   protected files: {
     [filename: string]: string | FileRef
   }
   protected nextConfig?: NextConfig
+  protected installCommand?: InstallCommand
+  protected buildCommand?: string
+  protected startCommand?: string
   protected dependencies?: { [name: string]: string }
   protected events: { [eventName: string]: Set<any> }
-  protected testDir: string
+  public testDir: string
   protected isStopping: boolean
   protected isDestroyed: boolean
   protected childProcess: ChildProcess
   protected _url: string
   protected _parsedUrl: URL
+  protected packageJson: PackageJson
 
   constructor({
     files,
     dependencies,
     nextConfig,
+    installCommand,
+    buildCommand,
+    startCommand,
+    packageJson = {},
   }: {
     files: {
       [filename: string]: string | FileRef
@@ -34,11 +48,19 @@ export class NextInstance {
     dependencies?: {
       [name: string]: string
     }
+    packageJson?: PackageJson
     nextConfig?: NextConfig
+    installCommand?: InstallCommand
+    buildCommand?: string
+    startCommand?: string
   }) {
     this.files = files
     this.dependencies = dependencies
     this.nextConfig = nextConfig
+    this.installCommand = installCommand
+    this.buildCommand = buildCommand
+    this.startCommand = startCommand
+    this.packageJson = packageJson
     this.events = {}
     this.isDestroyed = false
     this.isStopping = false
@@ -54,17 +76,30 @@ export class NextInstance {
     const tmpDir = skipIsolatedNext
       ? path.join(__dirname, '../../tmp')
       : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
-    this.testDir = path.join(tmpDir, `next-test-${Date.now()}`)
+    this.testDir = path.join(
+      tmpDir,
+      `next-test-${Date.now()}-${(Math.random() * 1000) | 0}`
+    )
 
-    if (process.env.NEXT_TEST_STARTER && !this.dependencies) {
+    if (
+      process.env.NEXT_TEST_STARTER &&
+      !this.dependencies &&
+      !this.installCommand
+    ) {
       await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
     } else if (!skipIsolatedNext) {
-      this.testDir = await createNextInstall({
-        react: 'latest',
-        'react-dom': 'latest',
-        ...this.dependencies,
-      })
+      this.testDir = await createNextInstall(
+        {
+          react: 'latest',
+          'react-dom': 'latest',
+          ...this.dependencies,
+          ...((this.packageJson.dependencies as object | undefined) || {}),
+        },
+        this.installCommand,
+        this.packageJson
+      )
     }
+    console.log('created next.js install, writing test files')
 
     for (const filename of Object.keys(this.files)) {
       const item = this.files[filename]
@@ -122,6 +157,9 @@ export class NextInstance {
     }
   }
 
+  public async export(): Promise<{ exitCode?: number; cliOutput?: string }> {
+    return {}
+  }
   public async setup(): Promise<void> {}
   public async start(): Promise<void> {}
   public async stop(): Promise<void> {
@@ -156,7 +194,30 @@ export class NextInstance {
     this.isDestroyed = true
     this.emit('destroy', [])
     await this.stop()
-    await fs.remove(this.testDir)
+
+    if (process.env.TRACE_PLAYWRIGHT) {
+      await fs
+        .copy(
+          path.join(this.testDir, '.next/trace'),
+          path.join(
+            __dirname,
+            '../../traces',
+            `${path
+              .relative(
+                path.join(__dirname, '../../'),
+                process.env.TEST_FILE_PATH
+              )
+              .replace(/\//g, '-')}`,
+            `next-trace`
+          )
+        )
+        .catch(() => {})
+    }
+
+    if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
+      await fs.remove(this.testDir)
+    }
+    console.log(`destroyed next instance`)
   }
 
   public get url() {

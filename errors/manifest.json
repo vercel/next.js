@@ -5,8 +5,28 @@
       "heading": true,
       "routes": [
         {
+          "title": "react-hydration-error",
+          "path": "/errors/react-hydration-error.md"
+        },
+        {
+          "title": "beta-middleware",
+          "path": "/errors/beta-middleware.md"
+        },
+        {
+          "title": "failed-loading-swc",
+          "path": "/errors/failed-loading-swc.md"
+        },
+        {
+          "title": "deprecated-target-config",
+          "path": "/errors/deprecated-target-config.md"
+        },
+        {
           "title": "custom-document-image-import",
           "path": "/errors/custom-document-image-import.md"
+        },
+        {
+          "title": "large-page-data",
+          "path": "/errors/large-page-data.md"
         },
         {
           "title": "404-get-initial-props",
@@ -324,6 +344,10 @@
           "path": "/errors/no-router-instance.md"
         },
         {
+          "title": "no-server-import-in-page",
+          "path": "/errors/no-server-import-in-page.md"
+        },
+        {
           "title": "no-sync-scripts",
           "path": "/errors/no-sync-scripts.md"
         },
@@ -423,6 +447,7 @@
           "path": "/errors/link-multiple-children.md"
         },
         { "title": "no-img-element", "path": "/errors/no-img-element.md" },
+        { "title": "no-head-element", "path": "/errors/no-head-element.md" },
         {
           "title": "non-dynamic-getstaticpaths-usage",
           "path": "/errors/non-dynamic-getstaticpaths-usage.md"
@@ -448,12 +473,24 @@
           "path": "/errors/sharp-missing-in-production.md"
         },
         {
+          "title": "sharp-version-avif",
+          "path": "/errors/sharp-version-avif.md"
+        },
+        {
           "title": "script-in-document-page",
           "path": "/errors/no-script-in-document-page.md"
         },
         {
-          "title": "script-in-head-component",
-          "path": "/errors/no-script-in-head-component.md"
+          "title": "script-component-in-head-component",
+          "path": "/errors/no-script-component-in-head-component.md"
+        },
+        {
+          "title": "script-tags-in-head-component",
+          "path": "/errors/no-script-tags-in-head-component.md"
+        },
+        {
+          "title": "stylesheets-in-head-component",
+          "path": "/errors/no-stylesheets-in-head-component.md"
         },
         {
           "title": "max-custom-routes-reached",
@@ -474,6 +511,38 @@
         {
           "title": "invalid-project-dir-casing",
           "path": "/errors/invalid-project-dir-casing.md"
+        },
+        {
+          "title": "swc-disabled",
+          "path": "/errors/swc-disabled.md"
+        },
+        {
+          "title": "swc-minify-enabled",
+          "path": "/errors/swc-minify-enabled.md"
+        },
+        {
+          "title": "middleware-new-signature",
+          "path": "/errors/middleware-new-signature.md"
+        },
+        {
+          "title": "experimental-jest-transformer",
+          "path": "/errors/experimental-jest-transformer.md"
+        },
+        {
+          "title": "invalid-dynamic-options-type",
+          "path": "/errors/invalid-dynamic-options-type.md"
+        },
+        {
+          "title": "invalid-styled-jsx-children",
+          "path": "/errors/invalid-styled-jsx-children.md"
+        },
+        {
+          "title": "middleware-relative-urls",
+          "path": "/errors/middleware-relative-urls.md"
+        },
+        {
+          "title": "deleting-query-params-in-middlewares",
+          "path": "/errors/deleting-query-params-in-middlewares.md"
         }
       ]
     }

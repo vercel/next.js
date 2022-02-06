@@ -1,3 +1,9 @@
+import type { ComponentType } from 'react'
+import type { FontManifest } from '../server/font-utils'
+import type { GetStaticProps } from '../types'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { NextConfigComplete } from '../server/config-shared'
+import type { NextParsedUrlQuery } from '../server/request-meta'
 import url from 'url'
 import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from '../server/render'
@@ -10,15 +16,10 @@ import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { normalizePagePath } from '../server/normalize-page-path'
 import { SERVER_PROPS_EXPORT_ERROR } from '../lib/constants'
 import '../server/node-polyfill-fetch'
-import { IncomingMessage, ServerResponse } from 'http'
-import { ComponentType } from 'react'
-import { GetStaticProps } from '../types'
 import { requireFontManifest } from '../server/require'
-import { FontManifest } from '../server/font-utils'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
 import { isInAmpMode } from '../shared/lib/amp'
-import { NextConfigComplete } from '../server/config-shared'
 import { setHttpAgentOptions } from '../server/config'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
@@ -39,7 +40,7 @@ interface AmpValidation {
 
 interface PathMap {
   page: string
-  query?: { [key: string]: string | string[] }
+  query?: NextParsedUrlQuery
 }
 
 interface ExportPageInput {
@@ -128,7 +129,7 @@ export default async function exportPage({
       let query = { ...originalQuery }
       let params: { [key: string]: string | string[] } | undefined
 
-      let updatedPath = (query.__nextSsgPath as string) || path
+      let updatedPath = query.__nextSsgPath || path
       let locale = query.__nextLocale || renderOpts.locale
       delete query.__nextLocale
       delete query.__nextSsgPath
@@ -214,8 +215,10 @@ export default async function exportPage({
         subFolders ? `${_path}${sep}index.html` : `${_path}.html`
       let htmlFilename = getHtmlFilename(filePath)
 
-      const pageExt = extname(page)
-      const pathExt = extname(path)
+      // dynamic routes can provide invalid extensions e.g. /blog/[...slug] returns an
+      // extension of `.slug]`
+      const pageExt = isDynamic ? '' : extname(page)
+      const pathExt = isDynamic ? '' : extname(path)
       // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
       if (pageExt !== pathExt && pathExt !== '') {
         const isBuiltinPaths = ['/500', '/404'].some(
@@ -500,7 +503,7 @@ export default async function exportPage({
     } catch (error) {
       console.error(
         `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
-          (isError(error) ? error.stack : error)
+          (isError(error) && error.stack ? error.stack : error)
       )
       results.error = true
     }

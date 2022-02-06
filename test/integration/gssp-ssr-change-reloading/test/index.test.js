@@ -31,6 +31,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
   it('should not reload page when client-side is changed too GSP', async () => {
     const browser = await webdriver(appPort, '/gsp-blog/first')
+    await check(() => browser.elementByCss('#change').text(), 'change me')
     await browser.eval(() => (window.beforeChange = 'hi'))
 
     const props = JSON.parse(await browser.elementByCss('#props').text())
@@ -145,6 +146,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
   it('should not reload page when client-side is changed too GSSP', async () => {
     const browser = await webdriver(appPort, '/gssp-blog/first')
+    await check(() => browser.elementByCss('#change').text(), 'change me')
     await browser.eval(() => (window.beforeChange = 'hi'))
 
     const props = JSON.parse(await browser.elementByCss('#props').text())
@@ -165,6 +167,11 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
   it('should update page when getServerSideProps is changed only', async () => {
     const browser = await webdriver(appPort, '/gssp-blog/first')
+    await check(
+      async () =>
+        JSON.parse(await browser.elementByCss('#props').text()).count + '',
+      '1'
+    )
     await browser.eval(() => (window.beforeChange = 'hi'))
 
     const props = JSON.parse(await browser.elementByCss('#props').text())

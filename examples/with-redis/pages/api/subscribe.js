@@ -1,6 +1,6 @@
 import redis from '../../lib/redis'
 
-export default async function upvote(req, res) {
+export default async function subscribe(req, res) {
   const { email } = req.body
 
   if (email && validateEmail(email)) {
