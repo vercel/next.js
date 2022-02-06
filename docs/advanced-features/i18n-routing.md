@@ -183,7 +183,9 @@ export function middleware(request: NextRequest) {
 
   return shouldHandleLocale
     ? NextResponse.redirect(
-        `/en${stripDefaultLocale(request.nextUrl.pathname)}`
+        `/en${stripDefaultLocale(request.nextUrl.pathname)}${
+          request.nextUrl.search
+        }`
       )
     : undefined
 }
