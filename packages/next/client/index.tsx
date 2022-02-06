@@ -32,9 +32,12 @@ import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
-import isError from '../lib/is-error'
-import { trackWebVitalMetric } from './vitals'
-import { RefreshContext } from './rsc/refresh'
+import { getProperError } from '../lib/is-error'
+import {
+  flushBufferedVitalsMetrics,
+  trackWebVitalMetric,
+} from './streaming/vitals'
+import { RefreshContext } from './streaming/refresh'
 
 /// <reference types="react-dom/experimental" />
 
@@ -268,7 +271,9 @@ class Container extends React.Component<{
 export const emitter: MittEmitter<string> = mitt()
 let CachedComponent: React.ComponentType
 
-export async function initNext(opts: { webpackHMR?: any } = {}) {
+export async function initNext(
+  opts: { webpackHMR?: any; beforeRender?: () => Promise<void> } = {}
+) {
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = opts.webpackHMR
@@ -330,7 +335,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     CachedComponent = pageEntrypoint.component
 
     if (process.env.NODE_ENV !== 'production') {
-      const { isValidElementType } = require('react-is')
+      const { isValidElementType } = require('next/dist/compiled/react-is')
       if (!isValidElementType(CachedComponent)) {
         throw new Error(
           `The default export is not a React Component in page: "${page}"`
@@ -339,7 +344,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     }
   } catch (error) {
     // This catches errors like throwing in the top level of a module
-    initialErr = isError(error) ? error : new Error(error + '')
+    initialErr = getProperError(error)
   }
 
   if (process.env.NODE_ENV === 'development') {
@@ -422,12 +427,11 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     err: initialErr,
   }
 
-  if (process.env.NODE_ENV === 'production') {
-    render(renderCtx)
-    return emitter
-  } else {
-    return { emitter, renderCtx }
+  if (opts.beforeRender) {
+    await opts.beforeRender()
   }
+
+  render(renderCtx)
 }
 
 export async function render(renderingProps: RenderRouteInfo): Promise<void> {
@@ -439,7 +443,7 @@ export async function render(renderingProps: RenderRouteInfo): Promise<void> {
   try {
     await doRender(renderingProps)
   } catch (err) {
-    const renderErr = err instanceof Error ? err : new Error(err + '')
+    const renderErr = getProperError(err)
     // bubble up cancelation errors
     if ((renderErr as Error & { cancelled?: boolean }).cancelled) {
       throw renderErr
@@ -629,6 +633,15 @@ function AppContainer({
   )
 }
 
+function renderApp(App: AppComponent, appProps: AppProps) {
+  if (process.env.__NEXT_RSC && (App as any).__next_rsc__) {
+    const { Component, err: _, router: __, ...props } = appProps
+    return <Component {...props} />
+  } else {
+    return <App {...appProps} />
+  }
+}
+
 const wrapApp =
   (App: AppComponent) =>
   (wrappedAppProps: Record<string, any>): JSX.Element => {
@@ -638,11 +651,7 @@ const wrapApp =
       err: hydrateErr,
       router,
     }
-    return (
-      <AppContainer>
-        <App {...appProps} />
-      </AppContainer>
-    )
+    return <AppContainer>{renderApp(App, appProps)}</AppContainer>
   }
 
 let RSCComponent: (props: any) => JSX.Element
@@ -957,7 +966,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     <>
       <Head callback={onHeadCommit} />
       <AppContainer>
-        <App {...appProps} />
+        {renderApp(App, appProps)}
         <Portal type="next-route-announcer">
           <RouteAnnouncer />
         </Portal>
@@ -1005,7 +1014,10 @@ function Root({
   // don't cause any hydration delay:
   React.useEffect(() => {
     measureWebVitals(onPerfEntry)
+
+    flushBufferedVitalsMetrics()
   }, [])
+
   return children as React.ReactElement
 }
 

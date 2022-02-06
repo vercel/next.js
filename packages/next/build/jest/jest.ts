@@ -46,7 +46,7 @@ module.exports = createJestConfig(customJestConfig)
 */
 export default function nextJest(options: { dir?: string } = {}) {
   // createJestConfig
-  return (customJestConfig: any) => {
+  return (customJestConfig?: any) => {
     // Function that is provided as the module.exports of jest.config.js
     // Will be called and awaited by Jest
     return async () => {
@@ -68,9 +68,9 @@ export default function nextJest(options: { dir?: string } = {}) {
       }
       // Ensure provided async config is supported
       const resolvedJestConfig =
-        typeof customJestConfig === 'function'
+        (typeof customJestConfig === 'function'
           ? await customJestConfig()
-          : customJestConfig
+          : customJestConfig) ?? {}
 
       return {
         ...resolvedJestConfig,

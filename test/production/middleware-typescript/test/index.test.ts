@@ -19,6 +19,7 @@ describe('should set-up next', () => {
       },
       dependencies: {
         typescript: 'latest',
+        '@types/node': 'latest',
         '@types/react': 'latest',
         '@types/react-dom': 'latest',
       },

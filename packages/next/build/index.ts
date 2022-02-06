@@ -5,11 +5,11 @@ import { isMatch } from 'next/dist/compiled/micromatch'
 import { promises, writeFileSync } from 'fs'
 import { Worker } from '../lib/worker'
 import devalue from 'next/dist/compiled/devalue'
-import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
+import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import path from 'path'
+import path, { join } from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
@@ -57,9 +57,9 @@ import {
   isDynamicRoute,
 } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
-import loadConfig, { isTargetLikeServerless } from '../server/config'
+import loadConfig from '../server/config'
+import { isTargetLikeServerless } from '../server/utils'
 import { BuildManifest } from '../server/get-page-files'
-import '../server/node-polyfill-fetch'
 import { normalizePagePath } from '../server/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -89,7 +89,6 @@ import {
   PageInfo,
   printCustomRoutes,
   printTreeView,
-  getCssFilePaths,
   getUnresolvedModuleFromError,
   copyTracedFiles,
   isReservedPage,
@@ -551,11 +550,7 @@ export default async function build(
       .traceChild('generate-required-server-files')
       .traceFn(() => ({
         version: 1,
-        config: {
-          ...config,
-          compress: false,
-          configFile: undefined,
-        },
+        config: { ...config, configFile: undefined },
         appDir: dir,
         files: [
           ROUTES_MANIFEST,
@@ -1033,7 +1028,7 @@ export default async function build(
                   )
                 }
               } catch (err) {
-                if (isError(err) && err.message !== 'INVALID_DEFAULT_EXPORT')
+                if (!isError(err) || err.message !== 'INVALID_DEFAULT_EXPORT')
                   throw err
                 invalidPages.add(page)
               }
@@ -1368,10 +1363,22 @@ export default async function build(
     await writeBuildId(distDir, buildId)
 
     if (config.experimental.optimizeCss) {
-      const cssFilePaths = getCssFilePaths(buildManifest)
+      const globOrig =
+        require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+
+      const cssFilePaths = await new Promise<string[]>((resolve, reject) => {
+        globOrig('**/*.css', { cwd: join(distDir, 'static') }, (err, files) => {
+          if (err) {
+            return reject(err)
+          }
+          resolve(files)
+        })
+      })
 
       requiredServerFiles.files.push(
-        ...cssFilePaths.map((filePath) => path.join(config.distDir, filePath))
+        ...cssFilePaths.map((filePath) =>
+          path.join(config.distDir, 'static', filePath)
+        )
       )
     }
 
@@ -1400,6 +1407,13 @@ export default async function build(
       'utf8'
     )
 
+    const middlewareManifest: MiddlewareManifest = JSON.parse(
+      await promises.readFile(
+        path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+        'utf8'
+      )
+    )
+
     const outputFileTracingRoot =
       config.experimental.outputFileTracingRoot || dir
 
@@ -1412,7 +1426,8 @@ export default async function build(
             distDir,
             pageKeys,
             outputFileTracingRoot,
-            requiredServerFiles.config
+            requiredServerFiles.config,
+            middlewareManifest
           )
         })
     }
@@ -1961,13 +1976,6 @@ export default async function build(
       )
     }
 
-    const middlewareManifest: MiddlewareManifest = JSON.parse(
-      await promises.readFile(
-        path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
-        'utf8'
-      )
-    )
-
     await promises.writeFile(
       path.join(
         distDir,
@@ -2032,7 +2040,8 @@ export default async function build(
           path.relative(outputFileTracingRoot, distDir),
           SERVER_DIRECTORY,
           'pages'
-        )
+        ),
+        { overwrite: true }
       )
     }
 

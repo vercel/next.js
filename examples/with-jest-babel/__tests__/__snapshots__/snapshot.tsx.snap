@@ -9,7 +9,7 @@ exports[`renders homepage unchanged 1`] = `
       <h1
         class="title"
       >
-        Welcome to 
+        Welcome to
         <a
           href="https://nextjs.org"
         >
@@ -19,7 +19,7 @@ exports[`renders homepage unchanged 1`] = `
       <p
         class="description"
       >
-        Get started by editing 
+        Get started by editing
         <code>
           pages/index.js
         </code>
@@ -51,7 +51,7 @@ exports[`renders homepage unchanged 1`] = `
         </a>
         <a
           class="card"
-          href="https://github.com/vercel/next.js/tree/master/examples"
+          href="https://github.com/vercel/next.js/tree/canary/examples"
         >
           <h3>
             Examples →
@@ -82,7 +82,7 @@ exports[`renders homepage unchanged 1`] = `
         target="_blank"
       >
         Powered by
-         
+
         <span
           class="logo"
         >
