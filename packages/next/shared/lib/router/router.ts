@@ -1045,7 +1045,10 @@ export default class Router implements BaseRouter {
       this.asPath = cleanedAs
       Router.events.emit('hashChangeStart', as, routeProps)
       // TODO: do we need the resolved href when only a hash change?
-      this.changeState(method, url, as, options)
+      this.changeState(method, url, as, {
+        ...options,
+        scroll: false,
+      })
       if (scroll) {
         this.scrollToHash(cleanedAs)
       }

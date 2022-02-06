@@ -96,11 +96,6 @@ function linkClicked(
 
   e.preventDefault()
 
-  //  avoid scroll for urls with anchor refs
-  if (scroll == null && as.indexOf('#') >= 0) {
-    scroll = false
-  }
-
   // replace state instead of push if prop is present
   router[replace ? 'replace' : 'push'](href, as, {
     shallow,

@@ -618,6 +618,17 @@ describe('Client Navigation', () => {
         }
       })
 
+      it('should not scroll to hash when scroll={false} is set', async () => {
+        const browser = await webdriver(context.appPort, '/nav/hash-changes')
+        const curScroll = await browser.eval(
+          'document.documentElement.scrollTop'
+        )
+        await browser.elementByCss('#scroll-to-name-item-400-no-scroll').click()
+        expect(curScroll).toBe(
+          await browser.eval('document.documentElement.scrollTop')
+        )
+      })
+
       it('should scroll to the specified position on the same page with a name property', async () => {
         let browser
         try {
