@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
+import validateHTML from 'html-validator'
 import {
   check,
   findPort,
@@ -1033,6 +1034,26 @@ function runTests(mode) {
           `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=828&q=75`
         )
       ).toBe(true)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should be valid W3C HTML', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/valid-html-w3c')
+      await waitFor(1000)
+      expect(await browser.hasElementByCssSelector('img')).toBeTruthy()
+      const url = await browser.url()
+      const result = await validateHTML({
+        url,
+        format: 'json',
+        isLocal: true,
+      })
+      expect(result.messages).toEqual([])
     } finally {
       if (browser) {
         await browser.close()
