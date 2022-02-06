@@ -12,6 +12,9 @@ export type InstallCommand =
   | string
   | ((ctx: { dependencies: { [key: string]: string } }) => string)
 
+export type PackageJson = {
+  [key: string]: unknown
+}
 export class NextInstance {
   protected files: {
     [filename: string]: string | FileRef
@@ -28,6 +31,7 @@ export class NextInstance {
   protected childProcess: ChildProcess
   protected _url: string
   protected _parsedUrl: URL
+  protected packageJson: PackageJson
 
   constructor({
     files,
@@ -36,6 +40,7 @@ export class NextInstance {
     installCommand,
     buildCommand,
     startCommand,
+    packageJson = {},
   }: {
     files: {
       [filename: string]: string | FileRef
@@ -43,6 +48,7 @@ export class NextInstance {
     dependencies?: {
       [name: string]: string
     }
+    packageJson?: PackageJson
     nextConfig?: NextConfig
     installCommand?: InstallCommand
     buildCommand?: string
@@ -54,6 +60,7 @@ export class NextInstance {
     this.installCommand = installCommand
     this.buildCommand = buildCommand
     this.startCommand = startCommand
+    this.packageJson = packageJson
     this.events = {}
     this.isDestroyed = false
     this.isStopping = false
@@ -86,8 +93,10 @@ export class NextInstance {
           react: 'latest',
           'react-dom': 'latest',
           ...this.dependencies,
+          ...((this.packageJson.dependencies as object | undefined) || {}),
         },
-        this.installCommand
+        this.installCommand,
+        this.packageJson
       )
     }
     console.log('created next.js install, writing test files')

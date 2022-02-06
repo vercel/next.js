@@ -132,7 +132,7 @@ type Resolver = Arc<CachingResolver<NodeModulesResolver>>;
 fn make_resolver() -> Resolver {
     static CACHE: Lazy<Resolver> = Lazy::new(|| {
         // TODO: Make target env and alias configurable
-        let r = NodeModulesResolver::new(TargetEnv::Node, Default::default());
+        let r = NodeModulesResolver::new(TargetEnv::Node, Default::default(), true);
         let r = CachingResolver::new(256, r);
         Arc::new(r)
     });
