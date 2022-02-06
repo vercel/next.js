@@ -688,7 +688,7 @@ export default async function getBaseWebpackConfig(
   // Packages which will be split into the 'framework' chunk.
   // Only top-level packages are included, e.g. nested copies like
   // 'node_modules/meow/node_modules/object-assign' are not included.
-  const topLevelFrameworkPaths = new Set<string>()
+  const topLevelFrameworkPaths: string[] = []
   const visitedFrameworkPackages = new Set<string>()
 
   // Adds package-paths of dependencies recursively
@@ -711,8 +711,8 @@ export default async function getBaseWebpackConfig(
       const directory = path.join(packageJsonPath, '../')
 
       // Returning from the function in case the directory has already been added and traversed
-      if (topLevelFrameworkPaths.has(directory)) return
-      topLevelFrameworkPaths.add(directory)
+      if (topLevelFrameworkPaths.includes(directory)) return
+      topLevelFrameworkPaths.push(directory)
 
       const dependencies = require(packageJsonPath).dependencies || {}
       for (const name of Object.keys(dependencies)) {
@@ -749,8 +749,8 @@ export default async function getBaseWebpackConfig(
               if (!resource) {
                 return false
               }
-              return Array.from(topLevelFrameworkPaths).some(
-                (packagePath: string) => resource.startsWith(packagePath)
+              return topLevelFrameworkPaths.some((packagePath) =>
+                resource.startsWith(packagePath)
               )
             },
             priority: 40,
