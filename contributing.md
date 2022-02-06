@@ -6,10 +6,9 @@ examples](#adding-examples)** below.
 
 ## Developing
 
-The development branch is `canary`, and this is the branch that all pull
-requests should be made against. After publishing a stable release, the changes
-in the `canary` branch are rebased into `master`. The changes on the `canary`
-branch are published to the `@canary` dist-tag daily.
+The development branch is `canary`. This is the branch that all pull
+requests should be made against. The changes on the `canary`
+branch are published to the `@canary` tag on npm regularly.
 
 To develop locally:
 

@@ -16,7 +16,7 @@ import {
   isAssetError,
   markAssetError,
 } from '../../../client/route-loader'
-import isError from '../../../lib/is-error'
+import isError, { getProperError } from '../../../lib/is-error'
 import { denormalizePagePath } from '../../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt from '../mitt'
@@ -1104,6 +1104,11 @@ export default class Router implements BaseRouter {
           (p: string) => resolveDynamicRoute(p, pages),
           this.locales
         )
+
+        if (rewritesResult.externalDest) {
+          location.href = as
+          return true
+        }
         resolvedAs = rewritesResult.asPath
 
         if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
@@ -1501,7 +1506,7 @@ export default class Router implements BaseRouter {
       const { Component, __N_SSG, __N_SSP, __N_RSC } = routeInfo
 
       if (process.env.NODE_ENV !== 'production') {
-        const { isValidElementType } = require('react-is')
+        const { isValidElementType } = require('next/dist/compiled/react-is')
         if (!isValidElementType(Component)) {
           throw new Error(
             `The default export is not a React Component in page: "${pathname}"`
@@ -1559,7 +1564,7 @@ export default class Router implements BaseRouter {
       return routeInfo
     } catch (err) {
       return this.handleRouteInfoError(
-        isError(err) ? err : new Error(err + ''),
+        getProperError(err),
         pathname,
         query,
         as,
@@ -1689,6 +1694,10 @@ export default class Router implements BaseRouter {
         (p: string) => resolveDynamicRoute(p, pages),
         this.locales
       )
+
+      if (rewritesResult.externalDest) {
+        return
+      }
       resolvedAs = delLocale(delBasePath(rewritesResult.asPath), this.locale)
 
       if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
@@ -1844,7 +1853,15 @@ export default class Router implements BaseRouter {
       shouldCache: options.cache,
     })
 
-    if (preflight.rewrite?.startsWith('/')) {
+    if (preflight.rewrite) {
+      // for external rewrites we need to do a hard navigation
+      // to the resource
+      if (!preflight.rewrite.startsWith('/')) {
+        return {
+          type: 'redirect',
+          destination: options.as,
+        }
+      }
       const parsed = parseRelativeUrl(
         normalizeLocalePath(
           hasBasePath(preflight.rewrite)
