@@ -29,7 +29,16 @@ export class BrowserInterface {
   elementById(selector: string): BrowserInterface {
     return this
   }
-  click(): BrowserInterface {
+  click(opts?: { modifierKey?: boolean }): BrowserInterface {
+    return this
+  }
+  keydown(key: string): BrowserInterface {
+    return this
+  }
+  keyup(key: string): BrowserInterface {
+    return this
+  }
+  focusPage(): BrowserInterface {
     return this
   }
   type(text: string): BrowserInterface {
