@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import cheerio from 'cheerio'
 import { join } from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
@@ -14,10 +13,11 @@ import {
   nextBuild as _nextBuild,
   nextStart as _nextStart,
   renderViaHTTP,
-  check,
 } from 'next-test-utils'
 
 import css from './css'
+import rsc from './rsc'
+import streaming from './streaming'
 
 const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
 const appDir = join(__dirname, '../app')
@@ -25,7 +25,9 @@ const nativeModuleTestAppDir = join(__dirname, '../unsupported-native-module')
 const distDir = join(__dirname, '../app/.next')
 const documentPage = new File(join(appDir, 'pages/_document.jsx'))
 const appPage = new File(join(appDir, 'pages/_app.js'))
+const appServerPage = new File(join(appDir, 'pages/_app.server.js'))
 const error500Page = new File(join(appDir, 'pages/500.js'))
+const error404Page = new File(join(appDir, 'pages/404.js'))
 
 const documentWithGip = `
 import { Html, Head, Main, NextScript } from 'next/document'
@@ -47,6 +49,13 @@ Document.getInitialProps = (ctx) => {
 }
 `
 
+const rscAppPage = `
+import Container from '../components/container.server'
+export default function App({children}) {
+  return <Container>{children}</Container>
+}
+`
+
 const appWithGlobalCss = `
 import '../styles.css'
 
@@ -63,8 +72,36 @@ export default function Page500() {
 }
 `
 
-async function nextBuild(dir) {
+const suspense404 = `
+import { Suspense } from 'react'
+
+let result
+let promise
+function Data() {
+  if (result) return result
+  if (!promise)
+    promise = new Promise((res) => {
+      setTimeout(() => {
+        result = 'next_streaming_data'
+        res()
+      }, 500)
+    })
+  throw promise
+}
+
+export default function Page404() {
+  return (
+    <Suspense fallback={null}>
+      custom-404-page
+      <Data />
+    </Suspense>
+  )
+}
+`
+
+async function nextBuild(dir, options) {
   return await _nextBuild(dir, [], {
+    ...options,
     stdout: true,
     stderr: true,
     nodeArgs,
@@ -87,20 +124,6 @@ async function nextDev(dir, port) {
   })
 }
 
-async function resolveStreamResponse(response, onData) {
-  let result = ''
-  onData = onData || (() => {})
-  await new Promise((resolve) => {
-    response.body.on('data', (chunk) => {
-      result += chunk.toString()
-      onData(chunk.toString(), result)
-    })
-
-    response.body.on('end', resolve)
-  })
-  return result
-}
-
 describe('concurrentFeatures - basic', () => {
   it('should warn user for experimental risk with server components', async () => {
     const edgeRuntimeWarning =
@@ -110,11 +133,26 @@ describe('concurrentFeatures - basic', () => {
     expect(stderr).toContain(edgeRuntimeWarning)
     expect(stderr).toContain(rscWarning)
   })
+
   it('should warn user that native node APIs are not supported', async () => {
     const fsImportedErrorMessage =
       'Native Node.js APIs are not supported in the Edge Runtime with `concurrentFeatures` enabled. Found `dns` imported.'
     const { stderr } = await nextBuild(nativeModuleTestAppDir)
     expect(stderr).toContain(fsImportedErrorMessage)
+  })
+
+  it('should handle suspense error page correctly (node stream)', async () => {
+    error404Page.write(suspense404)
+    const appPort = await findPort()
+    await nextBuild(appDir)
+    await nextStart(appDir, appPort)
+    const browser = await webdriver(appPort, '/404')
+    const hydrationContent = await browser.eval(
+      `document.querySelector('#__next').textContent`
+    )
+    expect(hydrationContent).toBe('custom-404-pagenext_streaming_data')
+
+    error404Page.restore()
   })
 })
 
@@ -175,6 +213,57 @@ describe('concurrentFeatures - prod', () => {
   runBasicTests(context, 'prod')
 })
 
+describe('Functions manifest', () => {
+  it('should not generate functions manifest when filesystem API is not enabled', async () => {
+    await nextBuild(appDir)
+    const functionsManifestPath = join(
+      distDir,
+      'server',
+      'functions-manifest.json'
+    )
+    await fs.remove(join(appDir, '.next'))
+    expect(fs.existsSync(functionsManifestPath)).toBe(false)
+  })
+  it('should contain rsc paths in functions manifest', async () => {
+    await nextBuild(appDir, { env: { ENABLE_FILE_SYSTEM_API: '1' } })
+    const functionsManifestPath = join(
+      distDir,
+      'server',
+      'functions-manifest.json'
+    )
+    const content = JSON.parse(fs.readFileSync(functionsManifestPath, 'utf8'))
+    const { pages } = content
+    const pageNames = Object.keys(pages)
+
+    const paths = ['/', '/next-api/link', '/routes/[dynamic]']
+    paths.forEach((path) => {
+      const { runtime, files } = pages[path]
+      expect(pageNames).toContain(path)
+      // Runtime of page `/` is undefined since it's configured as nodejs.
+      expect(runtime).toBe(path === '/' ? undefined : 'web')
+      expect(files.every((f) => f.startsWith('server/'))).toBe(true)
+    })
+
+    expect(content.version).toBe(1)
+  })
+})
+
+const customAppPageSuite = {
+  runTests: (context) => {
+    it('should render container in app', async () => {
+      const indexHtml = await renderViaHTTP(context.appPort, '/')
+      const indexFlight = await renderViaHTTP(context.appPort, '/?__flight__=1')
+      expect(indexHtml).toContain('container-server')
+      expect(indexFlight).toContain('container-server')
+    })
+  },
+  beforeAll: () => appServerPage.write(rscAppPage),
+  afterAll: () => appServerPage.delete(),
+}
+
+runSuite('Custom App', 'dev', customAppPageSuite)
+runSuite('Custom App', 'prod', customAppPageSuite)
+
 describe('concurrentFeatures - dev', () => {
   const context = { appDir }
 
@@ -214,8 +303,8 @@ describe('concurrentFeatures - dev', () => {
 
 const cssSuite = {
   runTests: css,
-  before: () => appPage.write(appWithGlobalCss),
-  after: () => appPage.delete(),
+  beforeAll: () => appPage.write(appWithGlobalCss),
+  afterAll: () => appPage.delete(),
 }
 
 runSuite('CSS', 'dev', cssSuite)
@@ -229,156 +318,80 @@ const documentSuite = {
 
       expect(res.status).toBe(500)
       expect(html).toContain(
-        'Error: `getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
+        '`getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
       )
     })
   },
-  before: () => documentPage.write(documentWithGip),
-  after: () => documentPage.delete(),
+  beforeAll: () => documentPage.write(documentWithGip),
+  afterAll: () => documentPage.delete(),
 }
 
 runSuite('document', 'dev', documentSuite)
 runSuite('document', 'prod', documentSuite)
 
 async function runBasicTests(context, env) {
-  const isDev = env === 'dev'
-  it('should render the correct html', async () => {
-    const homeHTML = await renderViaHTTP(context.appPort, '/', null, {
-      headers: {
-        'x-next-test-client': 'test-util',
-      },
-    })
+  it('should render 500 error correctly', async () => {
+    const path500HTML = await renderViaHTTP(context.appPort, '/err')
 
-    // should have only 1 DOCTYPE
-    expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
+    // In dev mode it should show the error popup.
+    const isDev = env === 'dev'
+    expect(path500HTML).toContain(isDev ? 'Error: oops' : 'custom-500-page')
+  })
 
-    // dynamic routes
-    const dynamicRouteHTML1 = await renderViaHTTP(
+  it('should render 404 error correctly', async () => {
+    const path404HTML = await renderViaHTTP(context.appPort, '/404')
+    const pathNotFoundHTML = await renderViaHTTP(context.appPort, '/not-found')
+
+    expect(path404HTML).toContain('custom-404-page')
+    expect(pathNotFoundHTML).toContain('custom-404-page')
+  })
+
+  it('should render dynamic routes correctly', async () => {
+    const dynamicRoute1HTML = await renderViaHTTP(
       context.appPort,
       '/routes/dynamic1'
     )
-    const dynamicRouteHTML2 = await renderViaHTTP(
+    const dynamicRoute2HTML = await renderViaHTTP(
       context.appPort,
       '/routes/dynamic2'
     )
 
-    const path404HTML = await renderViaHTTP(context.appPort, '/404')
-    const path500HTML = await renderViaHTTP(context.appPort, '/err')
-    const pathNotFoundHTML = await renderViaHTTP(
-      context.appPort,
-      '/this-is-not-found'
-    )
-
-    expect(homeHTML).toContain('component:index.server')
-    expect(homeHTML).toContain('env:env_var_test')
-    expect(homeHTML).toContain('header:test-util')
-    expect(homeHTML).toContain('path:/')
-    expect(homeHTML).toContain('foo.client')
-
-    expect(dynamicRouteHTML1).toContain('[pid]')
-    expect(dynamicRouteHTML2).toContain('[pid]')
-
-    expect(path404HTML).toContain('custom-404-page')
-    // in dev mode: custom error page is still using default _error
-    expect(path500HTML).toContain(
-      isDev ? 'Internal Server Error' : 'custom-500-page'
-    )
-    expect(pathNotFoundHTML).toContain('custom-404-page')
-  })
-
-  it('should support next/link', async () => {
-    const linkHTML = await renderViaHTTP(context.appPort, '/next-api/link')
-    const $ = cheerio.load(linkHTML)
-    const linkText = $('div[hidden] > a[href="/"]').text()
-
-    expect(linkText).toContain('go home')
-
-    const browser = await webdriver(context.appPort, '/next-api/link')
-    await browser.eval('window.beforeNav = 1')
-    await browser.elementByCss('#next_id').click()
-    await browser.elementByCss('#next_id').click()
-    await check(() => browser.waitForElementByCss('#query').text(), /query:2/)
-    expect(await browser.eval('window.beforeNav')).toBe(1)
-  })
-
-  it('should suspense next/image on server side', async () => {
-    const imageHTML = await renderViaHTTP(context.appPort, '/next-api/image')
-    const $ = cheerio.load(imageHTML)
-    const imageTag = $('div[hidden] > span > span > img')
-
-    expect(imageTag.attr('src')).toContain('data:image')
-  })
-
-  it('should support multi-level server component imports', async () => {
-    const html = await renderViaHTTP(context.appPort, '/multi')
-    expect(html).toContain('bar.server.js:')
-    expect(html).toContain('foo.client')
-  })
-
-  it('should support streaming', async () => {
-    await fetchViaHTTP(context.appPort, '/streaming', null, {}).then(
-      async (response) => {
-        let gotFallback = false
-        let gotData = false
-
-        await resolveStreamResponse(response, (_, result) => {
-          gotData = result.includes('next_streaming_data')
-          if (!gotFallback) {
-            gotFallback = result.includes('next_streaming_fallback')
-            if (gotFallback) {
-              expect(gotData).toBe(false)
-            }
-          }
-        })
-
-        expect(gotFallback).toBe(true)
-        expect(gotData).toBe(true)
-      }
-    )
-
-    // Should end up with "next_streaming_data".
-    const browser = await webdriver(context.appPort, '/streaming')
-    const content = await browser.eval(`window.document.body.innerText`)
-    expect(content).toMatchInlineSnapshot('"next_streaming_data"')
-  })
-
-  it('should support streaming flight request', async () => {
-    await fetchViaHTTP(context.appPort, '/?__flight__=1').then(
-      async (response) => {
-        const result = await resolveStreamResponse(response)
-        expect(result).toContain('component:index.server')
-      }
-    )
+    expect(dynamicRoute1HTML).toContain('query: dynamic1')
+    expect(dynamicRoute2HTML).toContain('query: dynamic2')
   })
 
   it('should support api routes', async () => {
     const res = await renderViaHTTP(context.appPort, '/api/ping')
     expect(res).toContain('pong')
   })
+
+  rsc(context)
+  streaming(context)
 }
 
-function runSuite(suiteName, env, { runTests, before, after }) {
+function runSuite(suiteName, env, options) {
   const context = { appDir }
   describe(`${suiteName} ${env}`, () => {
     if (env === 'prod') {
       beforeAll(async () => {
-        before?.()
+        options.beforeAll?.()
         context.appPort = await findPort()
-        context.server = await nextDev(context.appDir, context.appPort)
+        await nextBuild(context.appDir)
+        context.server = await nextStart(context.appDir, context.appPort)
       })
     }
     if (env === 'dev') {
       beforeAll(async () => {
-        before?.()
+        options.beforeAll?.()
         context.appPort = await findPort()
         context.server = await nextDev(context.appDir, context.appPort)
       })
     }
     afterAll(async () => {
-      after?.()
+      options.afterAll?.()
       await killApp(context.server)
     })
 
-    runTests(context, env)
+    options.runTests(context, env)
   })
 }

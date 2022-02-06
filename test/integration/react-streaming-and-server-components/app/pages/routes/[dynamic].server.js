@@ -1,3 +1,3 @@
-export default function Pid() {
-  return '[pid]' // TODO: display based on query
+export default function Pid({ router }) {
+  return <div>{`query: ${router.query.dynamic}`}</div>
 }

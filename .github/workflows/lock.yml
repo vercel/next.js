@@ -1,0 +1,25 @@
+name: 'Lock Threads'
+
+on:
+  schedule:
+    # This runs every hour: https://crontab.guru/every-1-hour
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: lock
+
+jobs:
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dessant/lock-threads@v3
+        with:
+          github-token: ${{ secrets.LOCK_TOKEN }}
+          issue-inactive-days: 30
+          issue-comment: 'This issue has been automatically locked due to no recent activity. If you are running into a similar issue, please create a new issue with the steps to reproduce. Thank you.'
+          pr-inactive-days: 30

@@ -54,9 +54,35 @@ export async function middleware(request) {
   }
 
   if (url.pathname.endsWith('/root-subrequest')) {
-    return fetch(
-      `http://${request.headers.get('host')}/interface/root-subrequest`
-    )
+    return fetch(url)
+  }
+
+  if (url.pathname.endsWith('/abort-controller')) {
+    const controller = new AbortController()
+    const signal = controller.signal
+
+    controller.abort()
+    const response = {}
+
+    try {
+      await fetch('https://example.com', { signal })
+    } catch (err) {
+      response.error = {
+        name: err.name,
+        message: err.message,
+      }
+    } finally {
+      return new NextResponse(JSON.stringify(response), {
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+        },
+      })
+    }
+  }
+
+  if (url.pathname.endsWith('/dynamic-replace')) {
+    url.pathname = '/_interface/dynamic-path'
+    return NextResponse.rewrite(url)
   }
 
   return new Response(null, {

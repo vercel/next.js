@@ -22,7 +22,7 @@ After
 
 ```js
 export default function handler(req, res) {
-  res.status(204).send()
+  res.status(204).end()
 }
 ```
 
