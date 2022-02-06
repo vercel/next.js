@@ -170,6 +170,11 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const PUBLIC_FILE = /\.(.*)$/
 
+const stripDefaultLocale = (str: string): string => {
+  const stripped = str.replace('/default', '')
+  return stripped
+}
+
 export function middleware(request: NextRequest) {
   const shouldHandleLocale =
     !PUBLIC_FILE.test(request.nextUrl.pathname) &&
@@ -177,7 +182,11 @@ export function middleware(request: NextRequest) {
     request.nextUrl.locale === 'default'
 
   return shouldHandleLocale
-    ? NextResponse.redirect(`/en${request.nextUrl.href}`)
+    ? NextResponse.redirect(
+        `/en${stripDefaultLocale(request.nextUrl.pathname)}${
+          request.nextUrl.search
+        }`
+      )
     : undefined
 }
 ```
@@ -207,7 +216,7 @@ You can access the locale information via the Next.js router. For example, using
 - `locales` contains all configured locales.
 - `defaultLocale` contains the configured default locale.
 
-When [pre-rendering](/docs/basic-features/pages.md#static-generation-recommended) pages with `getStaticProps` or `getServerSideProps`, the locale information is provided in [the context](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) provided to the function.
+When [pre-rendering](/docs/basic-features/pages.md#static-generation-recommended) pages with `getStaticProps` or `getServerSideProps`, the locale information is provided in [the context](/docs/basic-features/data-fetching/get-static-props.md) provided to the function.
 
 When leveraging `getStaticPaths`, the configured locales are provided in the context parameter of the function under `locales` and the configured defaultLocale under `defaultLocale`.
 
@@ -293,7 +302,7 @@ Next.js doesn't know about variants of a page so it's up to you to add the `href
 
 ### Dynamic Routes and `getStaticProps` Pages
 
-For pages using `getStaticProps` with [Dynamic Routes](/docs/routing/dynamic-routes.md), all locale variants of the page desired to be prerendered need to be returned from [`getStaticPaths`](/docs/basic-features/data-fetching.md#getstaticpaths-static-generation). Along with the `params` object returned for `paths`, you can also return a `locale` field specifying which locale you want to render. For example:
+For pages using `getStaticProps` with [Dynamic Routes](/docs/routing/dynamic-routes.md), all locale variants of the page desired to be prerendered need to be returned from [`getStaticPaths`](/docs/basic-features/data-fetching/get-static-paths.md). Along with the `params` object returned for `paths`, you can also return a `locale` field specifying which locale you want to render. For example:
 
 ```js
 // pages/blog/[slug].js
@@ -313,7 +322,7 @@ For [Automatically Statically Optimized](/docs/advanced-features/automatic-stati
 
 For example, if you have 50 locales configured with 10 non-dynamic pages using `getStaticProps`, this means `getStaticProps` will be called 500 times. 50 versions of the 10 pages will be generated during each build.
 
-To decrease the build time of dynamic pages with `getStaticProps`, use a [`fallback` mode](https://nextjs.org/docs/basic-features/data-fetching#fallback-true). This allows you to return only the most popular paths and locales from `getStaticPaths` for prerendering during the build. Then, Next.js will build the remaining pages at runtime as they are requested.
+To decrease the build time of dynamic pages with `getStaticProps`, use a [`fallback` mode](/docs/api-reference/data-fetching/get-static-paths#fallback-true). This allows you to return only the most popular paths and locales from `getStaticPaths` for prerendering during the build. Then, Next.js will build the remaining pages at runtime as they are requested.
 
 ### Automatically Statically Optimized Pages
 

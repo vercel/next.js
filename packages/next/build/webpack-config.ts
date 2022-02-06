@@ -1,4 +1,4 @@
-import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
+import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { stringify } from 'querystring'
@@ -6,7 +6,7 @@ import semver from 'next/dist/compiled/semver'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import path, { join as pathJoin, relative as relativePath } from 'path'
-import escapeRegExp from 'next/dist/compiled/escape-string-regexp'
+import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -48,6 +48,7 @@ import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
+import FunctionsManifestPlugin from './webpack/plugins/functions-manifest-plugin'
 import type { Span } from '../trace'
 import { getRawPageExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
@@ -132,7 +133,8 @@ export function attachReactRefresh(
   targetLoader: webpack.RuleSetUseItem
 ) {
   let injections = 0
-  const reactRefreshLoaderName = '@next/react-refresh-utils/loader'
+  const reactRefreshLoaderName =
+    'next/dist/compiled/@next/react-refresh-utils/loader'
   const reactRefreshLoader = require.resolve(reactRefreshLoaderName)
   webpackConfig.module?.rules.forEach((rule) => {
     const curr = rule.use
@@ -496,7 +498,7 @@ export default async function getBaseWebpackConfig(
         ...(dev
           ? {
               [CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]: require.resolve(
-                `@next/react-refresh-utils/runtime`
+                `next/dist/compiled/@next/react-refresh-utils/runtime`
               ),
               [CLIENT_STATIC_FILES_RUNTIME_AMP]:
                 `./` +
@@ -608,13 +610,7 @@ export default async function getBaseWebpackConfig(
           }
         : {}),
 
-      ...(webServerRuntime
-        ? {
-            'react-dom/server': dev
-              ? 'react-dom/cjs/react-dom-server.browser.development'
-              : 'react-dom/cjs/react-dom-server.browser.production.min',
-          }
-        : {}),
+      setimmediate: 'next/dist/compiled/setimmediate',
     },
     ...(targetWeb
       ? {
@@ -632,12 +628,11 @@ export default async function getBaseWebpackConfig(
             https: require.resolve('next/dist/compiled/https-browserify'),
             os: require.resolve('next/dist/compiled/os-browserify'),
             path: require.resolve('next/dist/compiled/path-browserify'),
-            punycode: require.resolve('punycode'),
-            process: require.resolve('next/dist/compiled/process'),
+            punycode: require.resolve('next/dist/compiled/punycode'),
+            process: require.resolve('./polyfills/process'),
             // Handled in separate alias
             querystring: require.resolve('next/dist/compiled/querystring-es3'),
-            // TODO: investigate ncc'ing stream-browserify
-            stream: require.resolve('stream-browserify'),
+            stream: require.resolve('next/dist/compiled/stream-browserify'),
             string_decoder: require.resolve(
               'next/dist/compiled/string_decoder'
             ),
@@ -650,6 +645,7 @@ export default async function getBaseWebpackConfig(
             vm: require.resolve('next/dist/compiled/vm-browserify'),
             zlib: require.resolve('next/dist/compiled/browserify-zlib'),
             events: require.resolve('next/dist/compiled/events/'),
+            setImmediate: require.resolve('next/dist/compiled/setimmediate'),
           },
         }
       : undefined),
@@ -909,7 +905,8 @@ export default async function getBaseWebpackConfig(
     const externalType = isEsm ? 'module' : 'commonjs'
 
     if (
-      res.match(/next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/)
+      res.match(/next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/) ||
+      res.match(/next[/\\]dist[/\\]compiled[/\\].*\.[mc]?js$/)
     ) {
       return `${externalType} ${request}`
     }
@@ -952,11 +949,6 @@ export default async function getBaseWebpackConfig(
       }
       return /node_modules/.test(excludePath)
     },
-  }
-
-  const nonUserCondition = {
-    include: /node_modules/,
-    exclude: babelIncludeRegexes,
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -1242,19 +1234,14 @@ export default async function getBaseWebpackConfig(
               ...codeCondition,
               use: hasReactRefresh
                 ? [
-                    require.resolve('@next/react-refresh-utils/loader'),
+                    require.resolve(
+                      'next/dist/compiled/@next/react-refresh-utils/loader'
+                    ),
                     defaultLoaders.babel,
                   ]
                 : defaultLoaders.babel,
             },
           ],
-        },
-        {
-          ...nonUserCondition,
-          // Make all non-user modules to be compiled in a single layer
-          // This avoids compiling them mutliple times and avoids module id changes
-          issuerLayer: 'middleware',
-          layer: '',
         },
         ...(!config.images.disableStaticImages
           ? [
@@ -1454,6 +1441,14 @@ export default async function getBaseWebpackConfig(
       // replacement is done before its process.env.* handling
       (!isServer || webServerRuntime) &&
         new MiddlewarePlugin({ dev, webServerRuntime }),
+      process.env.ENABLE_FILE_SYSTEM_API === '1' &&
+        webServerRuntime &&
+        new FunctionsManifestPlugin({
+          dev,
+          pagesDir,
+          webServerRuntime,
+          pageExtensions: config.pageExtensions,
+        }),
       isServer && new NextJsSsrImportPlugin(),
       !isServer &&
         new BuildManifestPlugin({
@@ -1611,6 +1606,7 @@ export default async function getBaseWebpackConfig(
     removeConsole: config.experimental.removeConsole,
     reactRemoveProperties: config.experimental.reactRemoveProperties,
     styledComponents: config.experimental.styledComponents,
+    relay: config.experimental.relay,
   })
 
   const cache: any = {
@@ -1694,7 +1690,7 @@ export default async function getBaseWebpackConfig(
   webpackConfig = await buildConfiguration(webpackConfig, {
     supportedBrowsers,
     rootDirectory: dir,
-    customAppFile: new RegExp(escapeRegExp(path.join(pagesDir, `_app`))),
+    customAppFile: new RegExp(escapeStringRegexp(path.join(pagesDir, `_app`))),
     isDevelopment: dev,
     isServer,
     webServerRuntime,
