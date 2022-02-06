@@ -689,11 +689,16 @@ export default async function getBaseWebpackConfig(
   // Only top-level packages are included, e.g. nested copies like
   // 'node_modules/meow/node_modules/object-assign' are not included.
   const topLevelFrameworkPaths = new Set<string>()
-  const unresolvedPackages = new Set<{ package: string; path: string }>()
+  const visitedFrameworkPackages = new Set<string>()
 
   // Adds package-paths of dependencies recursively
   const addPackagePath = (packageName: string, relativeToPath: string) => {
     try {
+      if (visitedFrameworkPackages.has(packageName)) {
+        return
+      }
+      visitedFrameworkPackages.add(packageName)
+
       const packageJsonPath = require.resolve(`${packageName}/package.json`, {
         paths: [relativeToPath],
       })
@@ -707,33 +712,18 @@ export default async function getBaseWebpackConfig(
 
       // Returning from the function in case the directory has already been added and traversed
       if (topLevelFrameworkPaths.has(directory)) return
-
       topLevelFrameworkPaths.add(directory)
 
       const dependencies = require(packageJsonPath).dependencies || {}
       for (const name of Object.keys(dependencies)) {
-        // Avoiding attempts to resolve packages that couldn't be resolved relative to a path
-        if (
-          unresolvedPackages.has({
-            package: name,
-            path: directory,
-          })
-        ) {
-          continue
-        }
-
         addPackagePath(name, directory)
       }
-    } catch {
-      // Remembering the packages that can't be resolved, to avoid future resolution attempts.
-      unresolvedPackages.add({
-        package: packageName,
-        path: relativeToPath,
-      })
+    } catch (_) {
+      // don't error on failing to resolve framework packages
     }
   }
 
-  for (const packageName of ['react', 'react-dom', 'next']) {
+  for (const packageName of ['react', 'react-dom']) {
     addPackagePath(packageName, dir)
   }
 
