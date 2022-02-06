@@ -1,7 +1,5 @@
 {
-  "name": "with-babel-macros",
-  "version": "1.0.0",
-  "description": "using next.js with babel-macros",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -9,11 +7,9 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
-  "author": "Kent C. Dodds <kent@doddsfamily.us> (http://kentcdodds.com/)",
-  "license": "MIT",
   "devDependencies": {
     "babel-plugin-macros": "^2.4.2",
     "preval.macro": "^3.0.0"

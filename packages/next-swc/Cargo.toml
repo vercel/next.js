@@ -1,0 +1,10 @@
+[workspace]
+
+members = [
+  "crates/core",
+  "crates/napi",
+  "crates/wasm"
+]
+
+[profile.release]
+lto = true

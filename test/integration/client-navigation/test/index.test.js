@@ -17,7 +17,6 @@ import { join } from 'path'
 import renderingSuite from './rendering'
 
 const context = {}
-jest.setTimeout(1000 * 60 * 5)
 
 describe('Client Navigation', () => {
   beforeAll(async () => {
@@ -25,47 +24,27 @@ describe('Client Navigation', () => {
     context.server = await launchApp(join(__dirname, '../'), context.appPort, {
       env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
     })
-
-    const prerender = [
-      '/async-props',
-      '/default-head',
-      '/empty-get-initial-props',
-      '/error',
-      '/finish-response',
-      '/head',
-      '/json',
-      '/link',
-      '/stateless',
-      '/fragment-syntax',
-      '/custom-extension',
-      '/styled-jsx',
-      '/styled-jsx-external',
-      '/with-cdm',
-      '/url-prop',
-      '/url-prop-override',
-
-      '/dynamic/ssr',
-      '/dynamic/[slug]/route',
-
-      '/nav',
-      '/nav/about',
-      '/nav/on-click',
-      '/nav/querystring',
-      '/nav/self-reload',
-      '/nav/hash-changes',
-      '/nav/shallow-routing',
-      '/nav/redirect',
-      '/nav/as-path',
-      '/nav/as-path-using-router',
-      '/nav/url-prop-change',
-
-      '/nested-cdm',
-    ]
-    await Promise.all(
-      prerender.map((route) => renderViaHTTP(context.appPort, route))
-    )
   })
   afterAll(() => killApp(context.server))
+
+  it('should not reload when visiting /_error directly', async () => {
+    const { status } = await fetchViaHTTP(context.appPort, '/_error')
+    const browser = await webdriver(context.appPort, '/_error')
+
+    await browser.eval('window.hello = true')
+
+    // wait on-demand-entries timeout since it can trigger
+    // reloading non-stop
+    for (let i = 0; i < 15; i++) {
+      expect(await browser.eval('window.hello')).toBe(true)
+      await waitFor(1000)
+    }
+    const html = await browser.eval('document.documentElement.innerHTML')
+
+    expect(status).toBe(404)
+    expect(html).toContain('This page could not be found')
+    expect(html).toContain('404')
+  })
 
   describe('with <Link/>', () => {
     it('should navigate the page', async () => {
@@ -139,6 +118,21 @@ describe('Client Navigation', () => {
       )
     })
 
+    it('should call mouse handlers with an absolute url', async () => {
+      const browser = await webdriver(
+        context.appPort,
+        `/absolute-url?port=${context.appPort}`
+      )
+
+      await browser.elementByCss('#absolute-link-mouse-events').moveTo()
+
+      expect(
+        await browser
+          .waitForElementByCss('#absolute-link-mouse-events')
+          .getAttribute('data-hover')
+      ).toBe('true')
+    })
+
     it('should navigate an absolute local url', async () => {
       const browser = await webdriver(
         context.appPort,
@@ -166,30 +160,6 @@ describe('Client Navigation', () => {
         'hello'
       )
       expect(await browser.eval(() => window._didNotNavigate)).toBe(true)
-    })
-  })
-
-  describe('With url property', () => {
-    it('Should keep immutable pathname, asPath and query', async () => {
-      const browser = await webdriver(context.appPort, '/nav/url-prop-change')
-      await browser.elementByCss('#add-query').click()
-      const urlResult = await browser.elementByCss('#url-result').text()
-      const previousUrlResult = await browser
-        .elementByCss('#previous-url-result')
-        .text()
-
-      expect(JSON.parse(urlResult)).toMatchObject({
-        query: { added: 'yes' },
-        pathname: '/nav/url-prop-change',
-        asPath: '/nav/url-prop-change?added=yes',
-      })
-      expect(JSON.parse(previousUrlResult)).toMatchObject({
-        query: {},
-        pathname: '/nav/url-prop-change',
-        asPath: '/nav/url-prop-change',
-      })
-
-      await browser.close()
     })
   })
 
@@ -586,34 +556,38 @@ describe('Client Navigation', () => {
           browser = await webdriver(context.appPort, '/nav/hash-changes')
 
           // Scrolls to item 400 on the page
-          const scrollPositionBeforeEmptyHash = await browser
-            .elementByCss('#scroll-to-item-400')
-            .click()
-            .eval('window.pageYOffset')
+          await browser.elementByCss('#scroll-to-item-400').click()
+
+          const scrollPositionBeforeEmptyHash = await browser.eval(
+            'window.pageYOffset'
+          )
 
           expect(scrollPositionBeforeEmptyHash).toBe(7258)
 
           // Scrolls back to top when scrolling to `#` with no value.
-          const scrollPositionAfterEmptyHash = await browser
-            .elementByCss('#via-empty-hash')
-            .click()
-            .eval('window.pageYOffset')
+          await browser.elementByCss('#via-empty-hash').click()
+
+          const scrollPositionAfterEmptyHash = await browser.eval(
+            'window.pageYOffset'
+          )
 
           expect(scrollPositionAfterEmptyHash).toBe(0)
 
           // Scrolls to item 400 on the page
-          const scrollPositionBeforeTopHash = await browser
-            .elementByCss('#scroll-to-item-400')
-            .click()
-            .eval('window.pageYOffset')
+          await browser.elementByCss('#scroll-to-item-400').click()
+
+          const scrollPositionBeforeTopHash = await browser.eval(
+            'window.pageYOffset'
+          )
 
           expect(scrollPositionBeforeTopHash).toBe(7258)
 
           // Scrolls back to top when clicking link with href `#top`.
-          const scrollPositionAfterTopHash = await browser
-            .elementByCss('#via-top-hash')
-            .click()
-            .eval('window.pageYOffset')
+          await browser.elementByCss('#via-top-hash').click()
+
+          const scrollPositionAfterTopHash = await browser.eval(
+            'window.pageYOffset'
+          )
 
           expect(scrollPositionAfterTopHash).toBe(0)
         } finally {
@@ -629,18 +603,18 @@ describe('Client Navigation', () => {
           browser = await webdriver(context.appPort, '/nav/hash-changes')
 
           // Scrolls to item 400 with name="name-item-400" on the page
-          const scrollPosition = await browser
-            .elementByCss('#scroll-to-name-item-400')
-            .click()
-            .eval('window.pageYOffset')
+          await browser.elementByCss('#scroll-to-name-item-400').click()
+
+          const scrollPosition = await browser.eval('window.pageYOffset')
 
           expect(scrollPosition).toBe(16258)
 
           // Scrolls back to top when scrolling to `#` with no value.
-          const scrollPositionAfterEmptyHash = await browser
-            .elementByCss('#via-empty-hash')
-            .click()
-            .eval('window.pageYOffset')
+          await browser.elementByCss('#via-empty-hash').click()
+
+          const scrollPositionAfterEmptyHash = await browser.eval(
+            'window.pageYOffset'
+          )
 
           expect(scrollPositionAfterEmptyHash).toBe(0)
         } finally {
@@ -774,7 +748,8 @@ describe('Client Navigation', () => {
 
         const counter = await browser.elementByCss('p').text()
 
-        expect(counter).toBe('COUNT: 2')
+        // getInitialProps should not be called with only hash changes
+        expect(counter).toBe('COUNT: 0')
 
         await browser.close()
       })
@@ -905,6 +880,22 @@ describe('Client Navigation', () => {
 
       expect(newScrollPosition3).toBe(0)
     })
+  })
+
+  it('should scroll to top when the scroll option is set to true', async () => {
+    const browser = await webdriver(context.appPort, '/nav/shallow-routing')
+    await browser.eval(() =>
+      document.querySelector('#increaseWithScroll').scrollIntoView()
+    )
+    const scrollPosition = await browser.eval('window.pageYOffset')
+
+    expect(scrollPosition).toBeGreaterThan(3000)
+
+    await browser.elementByCss('#increaseWithScroll').click()
+    await check(async () => {
+      const newScrollPosition = await browser.eval('window.pageYOffset')
+      return newScrollPosition === 0 ? 'success' : 'fail'
+    }, 'success')
   })
 
   describe('with URL objects', () => {
@@ -1393,6 +1384,75 @@ describe('Client Navigation', () => {
         expect(
           Number(await browser.eval('window.__test_defer_executions'))
         ).toBe(1)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should warn when scripts are in head', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head')
+
+        await browser.waitForElementByCss('h1')
+        await waitFor(2000)
+        const browserLogs = await browser.log('browser')
+        let found = false
+        browserLogs.forEach((log) => {
+          console.log('log.message', log.message)
+          if (log.message.includes('Use next/script instead')) {
+            found = true
+          }
+        })
+        expect(found).toEqual(true)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should not warn when application/ld+json scripts are in head', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head-with-json-ld-snippet')
+
+        await browser.waitForElementByCss('h1')
+        await waitFor(2000)
+        const browserLogs = await browser.log('browser')
+        let found = false
+        browserLogs.forEach((log) => {
+          console.log('log.message', log.message)
+          if (log.message.includes('Use next/script instead')) {
+            found = true
+          }
+        })
+        expect(found).toEqual(false)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should warn when stylesheets are in head', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head')
+
+        await browser.waitForElementByCss('h1')
+        await waitFor(2000)
+        const browserLogs = await browser.log('browser')
+        let found = false
+        browserLogs.forEach((log) => {
+          console.log('log.message', log.message)
+          if (log.message.includes('Do not add stylesheets using next/head')) {
+            found = true
+          }
+        })
+        expect(found).toEqual(true)
       } finally {
         if (browser) {
           await browser.close()

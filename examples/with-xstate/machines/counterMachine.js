@@ -1,9 +1,9 @@
-import { Machine, assign } from 'xstate'
+import { createMachine, assign } from 'xstate'
 
 const increment = (context) => context.count + 1
 const decrement = (context) => context.count - 1
 
-export const counterMachine = Machine({
+export const counterMachine = createMachine({
   initial: 'active',
   context: {
     count: 0,

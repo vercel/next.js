@@ -17,7 +17,7 @@ const AboutPage = () => (
       <p>
         In this simple example, we integrate Apollo seamlessly with{' '}
         <a href="https://github.com/vercel/next.js">Next</a> by calling{' '}
-        <a href="https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation">
+        <a href="https://nextjs.org/docs/basic-features/data-fetching/get-static-props">
           getStaticProps
         </a>{' '}
         at our Page component. This approach lets us opt out of getInitialProps
@@ -26,7 +26,7 @@ const AboutPage = () => (
       </p>
       <p>
         On initial page load, while on the server and inside{' '}
-        <a href="https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation">
+        <a href="https://nextjs.org/docs/basic-features/data-fetching/get-static-props">
           getStaticProps
         </a>
         , we fetch the query used to get the list of posts. At the point in

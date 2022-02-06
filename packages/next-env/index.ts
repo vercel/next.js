@@ -106,12 +106,12 @@ export function loadEnvConfig(
         path: envFile,
         contents,
       })
-    } catch (err) {
+    } catch (err: any) {
       if (err.code !== 'ENOENT') {
         log.error(`Failed to load env from ${envFile}`, err)
       }
     }
   }
-  combinedEnv = processEnv(cachedLoadedEnvFiles, dir)
+  combinedEnv = processEnv(cachedLoadedEnvFiles, dir, log)
   return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
 }

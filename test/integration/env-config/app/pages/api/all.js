@@ -23,7 +23,10 @@ const variables = [
   'ENV_FILE_KEY_EXCLAMATION',
 ]
 
-const items = {}
+const items = {
+  nextConfigEnv: process.env.nextConfigEnv,
+  nextConfigPublicEnv: process.env.nextConfigPublicEnv,
+}
 
 variables.forEach((variable) => {
   items[variable] = process.env[variable]

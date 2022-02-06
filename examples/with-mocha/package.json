@@ -1,6 +1,5 @@
 {
-  "name": "with-mocha",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
     "dev": "next",
@@ -9,8 +8,8 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "devDependencies": {
     "@babel/core": "^7.0.1",
@@ -20,6 +19,5 @@
     "enzyme-adapter-react-16": "^1.15.2",
     "expect.js": "^0.3.1",
     "mocha": "^7.1.1"
-  },
-  "license": "MIT"
+  }
 }

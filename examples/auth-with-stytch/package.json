@@ -1,0 +1,20 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@stytch/stytch-react": "^3.0.3",
+    "next": "12.0.7",
+    "next-iron-session": "^4.2.0",
+    "react": "17.0.2",
+    "react-dom": "17.0.2",
+    "stytch": "^3.6.1"
+  },
+  "devDependencies": {
+    "@types/react": "17.0.37",
+    "typescript": "^4.5.4"
+  }
+}

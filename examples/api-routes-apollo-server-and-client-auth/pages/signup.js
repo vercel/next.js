@@ -60,7 +60,7 @@ function SignUp() {
           label="Password"
         />
         <button type="submit">Sign up</button> or{' '}
-        <Link href="signin">
+        <Link href="/signin">
           <a>Sign in</a>
         </Link>
       </form>

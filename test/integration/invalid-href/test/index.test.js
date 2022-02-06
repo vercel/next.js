@@ -16,8 +16,6 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 1)
-
 let app
 let appPort
 const appDir = join(__dirname, '..')
@@ -121,7 +119,7 @@ describe('Invalid hrefs', () => {
         expect(
           errors.find((err) =>
             err.includes(
-              'The provided `as` value (/blog/post-1) is incompatible with the `href` value (/[post]). Read more: https://err.sh/vercel/next.js/incompatible-href-as'
+              'The provided `as` value (/blog/post-1) is incompatible with the `href` value (/[post]). Read more: https://nextjs.org/docs/messages/incompatible-href-as'
             )
           )
         ).toBeTruthy()

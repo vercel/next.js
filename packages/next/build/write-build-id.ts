@@ -1,6 +1,6 @@
 import { promises } from 'fs'
 import { join } from 'path'
-import { BUILD_ID_FILE } from '../next-server/lib/constants'
+import { BUILD_ID_FILE } from '../shared/lib/constants'
 
 export async function writeBuildId(
   distDir: string,

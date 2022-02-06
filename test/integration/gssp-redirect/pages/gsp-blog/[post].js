@@ -28,7 +28,9 @@ export const getStaticProps = ({ params }) => {
   if (params.post.startsWith('redir')) {
     let destination = '/404'
 
-    if (params.post.includes('dest-')) {
+    if (params.post.includes('dest-external')) {
+      destination = 'https://example.com'
+    } else if (params.post.includes('dest-')) {
       destination = params.post.split('dest-').pop().replace(/_/g, '/')
     }
 
@@ -47,6 +49,17 @@ export const getStaticProps = ({ params }) => {
     } else if (!statusCode) {
       permanent = false
     }
+    let revalidate
+
+    if (params.post.includes('revalidate-')) {
+      revalidate = 1
+    }
+    console.log('redirecting', {
+      destination,
+      permanent,
+      statusCode,
+      revalidate,
+    })
 
     return {
       redirect: {
@@ -54,6 +67,7 @@ export const getStaticProps = ({ params }) => {
         permanent,
         statusCode,
       },
+      revalidate,
     }
   }
 

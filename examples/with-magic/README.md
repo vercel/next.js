@@ -2,7 +2,7 @@
 
 This example shows how to use [Magic](https://magic.link) with Next.js. The example features cookie-based, passwordless authentication with email-based magic links.
 
-The example shows how to do a login and logout; and to get the user info using a hook with [SWR](https://swr.now.sh).
+The example shows how to do a login and logout; and to get the user info using a hook with [SWR](https://swr.vercel.app).
 
 A DB is not included. But you can add any DB you like!.
 

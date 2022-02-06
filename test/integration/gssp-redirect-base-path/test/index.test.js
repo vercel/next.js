@@ -15,7 +15,6 @@ import {
   File,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 
@@ -52,9 +51,21 @@ const runTests = (isDev) => {
     )
     expect(res.status).toBe(307)
 
-    const { pathname } = url.parse(res.headers.get('location'))
+    const text = await res.text()
+    expect(text).toEqual(`/404`)
 
-    expect(pathname).toBe(`/404`)
+    const parsedUrl = url.parse(res.headers.get('location'))
+    expect(parsedUrl.pathname).toBe(`/404`)
+
+    const browser = await webdriver(appPort, `${basePath}`)
+    await browser.eval(`next.router.push('/gssp-blog/redirect-1-no-basepath-')`)
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /oops not found/
+    )
+
+    const parsedUrl2 = url.parse(await browser.eval('window.location.href'))
+    expect(parsedUrl2.pathname).toBe('/404')
   })
 
   it('should apply permanent redirect when visited directly for GSSP page', async () => {
@@ -67,6 +78,9 @@ const runTests = (isDev) => {
       }
     )
     expect(res.status).toBe(308)
+
+    const text = await res.text()
+    expect(text).toEqual(`${basePath}/404`)
 
     const { pathname } = url.parse(res.headers.get('location'))
 
@@ -85,6 +99,9 @@ const runTests = (isDev) => {
     )
     expect(res.status).toBe(301)
 
+    const text = await res.text()
+    expect(text).toEqual(`${basePath}/404`)
+
     const { pathname } = url.parse(res.headers.get('location'))
 
     expect(pathname).toBe(`${basePath}/404`)
@@ -101,6 +118,9 @@ const runTests = (isDev) => {
       }
     )
     expect(res.status).toBe(303)
+
+    const text = await res.text()
+    expect(text).toEqual(`${basePath}/404`)
 
     const { pathname } = url.parse(res.headers.get('location'))
 
@@ -200,11 +220,59 @@ const runTests = (isDev) => {
     )
 
     const initialHref = await browser.eval(() => window.initialHref)
-    expect(initialHref).toBe(null)
+    expect(initialHref).toBeFalsy()
 
     const curUrl = await browser.url()
     const { pathname } = url.parse(curUrl)
-    expect(pathname).toBe('/missing')
+    expect(pathname).toBe('/docs/missing')
+  })
+
+  it('should apply redirect when fallback GSP page is visited directly (external domain)', async () => {
+    const browser = await webdriver(
+      appPort,
+      `${basePath}/gsp-blog/redirect-dest-external`,
+      true,
+      true
+    )
+
+    await check(
+      () => browser.eval(() => document.location.hostname),
+      'example.com'
+    )
+
+    const initialHref = await browser.eval(() => window.initialHref)
+    expect(initialHref).toBeFalsy()
+  })
+
+  it('should apply redirect when fallback GSSP page is visited directly (external domain)', async () => {
+    const browser = await webdriver(
+      appPort,
+      `${basePath}/gssp-blog/redirect-dest-external`,
+      true,
+      true
+    )
+
+    await check(
+      () => browser.eval(() => document.location.hostname),
+      'example.com'
+    )
+
+    const initialHref = await browser.eval(() => window.initialHref)
+    expect(initialHref).toBeFalsy()
+
+    const res = await fetchViaHTTP(
+      appPort,
+      `${basePath}/gssp-blog/redirect-dest-external`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res.status).toBe(307)
+
+    const parsed = url.parse(res.headers.get('location'))
+    expect(parsed.hostname).toBe('example.com')
+    expect(parsed.pathname).toBe('/')
   })
 
   it('should apply redirect when GSSP page is navigated to client-side (internal dynamic)', async () => {
@@ -480,6 +548,8 @@ describe('GS(S)P Redirect Support', () => {
         }
       )
       expect(res1.status).toBe(307)
+      const text1 = await res1.text()
+      expect(text1).toEqual(`${basePath}/gsp-blog/first`)
       const parsed = url.parse(res1.headers.get('location'), true)
       expect(parsed.pathname).toBe(`${basePath}/gsp-blog/first`)
       expect(parsed.query).toEqual({})
@@ -494,6 +564,8 @@ describe('GS(S)P Redirect Support', () => {
         }
       )
       expect(res2.status).toBe(308)
+      const text2 = await res2.text()
+      expect(text2).toEqual(`${basePath}/gsp-blog/first`)
       expect(res2.headers.get('refresh')).toContain(
         `url=${basePath}/gsp-blog/first`
       )
@@ -510,6 +582,8 @@ describe('GS(S)P Redirect Support', () => {
         }
       )
       expect(res3.status).toBe(307)
+      const text3 = await res3.text()
+      expect(text3).toEqual(`${basePath}/gssp-blog/first`)
       expect(res3.headers.get('refresh')).toBe(null)
       const parsed3 = url.parse(res3.headers.get('location'), true)
       expect(parsed3.pathname).toBe(`${basePath}/gssp-blog/first`)
@@ -524,6 +598,8 @@ describe('GS(S)P Redirect Support', () => {
         }
       )
       expect(res4.status).toBe(308)
+      const text4 = await res4.text()
+      expect(text4).toEqual(`${basePath}/gssp-blog/first`)
       expect(res4.headers.get('refresh')).toContain(
         `url=${basePath}/gssp-blog/first`
       )

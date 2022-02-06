@@ -28,6 +28,11 @@ export default function Page(props) {
       <Link href="/gsp" locale="fr">
         <a id="to-gsp-fr">to /gsp</a>
       </Link>
+      <br />
+
+      <Link href="/" locale="fr">
+        <a id="to-index-fr">to /</a>
+      </Link>
     </>
   )
 }

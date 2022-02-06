@@ -58,7 +58,7 @@ export async function getPreviewPostBySlug(slug) {
 }
 
 export async function getAllPostsWithSlug() {
-  const data = fetchAPI(`
+  const data = await fetchAPI(`
     {
       allPosts {
         slug

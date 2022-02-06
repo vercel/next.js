@@ -4,10 +4,10 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-- **Live**: [https://next-blog-graphcms.now.sh/](https://next-blog-graphcms.now.sh/)
-- **Preview Mode**: [https://next-blog-graphcms.now.sh/api/preview...](https://next-blog-graphcms.now.sh/api/preview?secret=PHHsT9YmZjHxjxuzt8Jie2XkieME&slug=technical-seo-with-graphcms)
+- **Live**: [https://next-blog-graphcms.vercel.app/](https://next-blog-graphcms.vercel.app/)
+- **Preview Mode**: [https://next-blog-graphcms.vercel.app/api/preview...](https://next-blog-graphcms.vercel.app/api/preview?secret=PHHsT9YmZjHxjxuzt8Jie2XkieME&slug=technical-seo-with-graphcms)
 
-### [https://next-blog-graphcms.now.sh/](https://next-blog-graphcms.now.sh/)
+### [https://next-blog-graphcms.vercel.app/](https://next-blog-graphcms.vercel.app/)
 
 ### Related examples
 
@@ -24,7 +24,9 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [Storyblok](/examples/cms-storyblok)
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
+- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## Deploy your own
 

@@ -2,67 +2,31 @@
 
 This example showcases how to use Redis as a data store in a Next.js project.
 
-The example is a roadmap voting application where users can enter and vote for feature requests. It features the
-following:
+The example is a roadmap voting application where users can enter and vote for feature requests. It features the following:
 
-- Users can add and upvote items (features in the roadmap), and enter their email addresses to be notified about the
-  released items.
-- The API records the ip-addresses of the voters, so it does not allow multiple votes on the same item from the same IP
-  address.
+- Users can add and upvote items (features in the roadmap)
+- Users can enter their email addresses to be notified about the released items.
+- The API records the ip-addresses of the voters, so it does not allow multiple votes on the same item from the same IP address.
 
 ## Demo
 
-See
-[https://roadmap.upstash.com](https://roadmap.upstash.com)
+- [https://roadmap-redis.vercel.app/](https://roadmap-redis.vercel.app/)
 
 ## Deploy Your Own
 
-You can deploy Roadmap Voting App for your project/company
-using [Vercel and Upstash](https://vercel.com/integrations/upstash) clicking the below button:
+This examples uses [Upstash](https://upstash.com) (Serverless Redis Database) as its data storage. During deployment,
+you will be asked to connect with Upstash. The integration will help you create a free Redis database and link it to your Vercel project automatically.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2Fupstash%2Fserverless-tutorials%2Ftree%2Fmaster%2Froadmap-voting-app&env=LOGO&envDescription=Enter%20URL%20for%20your%20project%2Fcompany%20logo&envLink=https%3A%2F%2Fdocs.upstash.com%2Fdocs%2Ftutorials%2Froadmap_voting_app&project-name=roadmap-voting&repo-name=roadmap-voting&demo-title=Roadmap%20Voting&demo-description=Roadmap%20Voting%20Page%20for%20Your%20Project&demo-url=https%3A%2F%2Froadmap.upstash.com&integration-ids=oac_V3R1GIpkoJorr6fqyiwdhl17)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-redis&project-name=redis-roadmap&repository-name=redis-roadmap&demo-title=Redis%20Roadmap&demo-description=Create%20and%20upvote%20features%20for%20your%20product.&demo-url=https%3A%2F%2Froadmap-redis.vercel.app%2F&integration-ids=oac_V3R1GIpkoJorr6fqyiwdhl17)
 
-## Configuration
+## How to use
 
-The application uses [Upstash](https://upstash.com) (Serverless Redis Database) as its data storage. During deployment,
-you will be asked to integrate Upstash. The integration dialog will help you create an Upstash database for free and
-link it to your Vercel project with the following steps:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
-### Deployment Steps
+```bash
+npx create-next-app --example with-redis roadmap
+# or
+yarn create next-app --example with-redis roadmap
+```
 
-After clicking the deploy button, enter a name for your project. Then you will be asked to install Upstash integration.
-<br/>
-<img src="./docs/s2.png" width="300" />
-<br/>
-
-You can sign up/sign in the following dialog:
-
-<img src="./docs/s3.png" width="300" />
-
-Create a free database:
-
-<img src="./docs/s4.png" width="300" />
-
-Select your database and the Vercel project:
-
-<img src="./docs/s5.png" width="300" />
-
-Click `COMPLETE ON VERCEL` button:
-
-<img src="./docs/s6.png" width="300" />
-
-Finish you deployment by choosing a repository to host the project. In the next step, set the URL of your project's
-logo:
-
-<img src="./docs/s7.png" width="300" />
-
-Your Roadmap Voting Page should be ready:
-
-<img src="./docs/s8.png" width="300" />
-
-### Maintenance
-
-The application uses a Redis database to store the feature requests and emails. The features requests are kept in a
-sorted set with name `roadmap`. You can connect to it via Redis-cli and manage the data using the
-command `zrange roadmap 0 1000 WITHSCORES`. The emails are stored in a set with name `emails`. So you can get the list
-by the command `smembers emails`.
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

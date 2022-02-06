@@ -1,6 +1,5 @@
 {
-  "name": "with-kea",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -11,14 +10,14 @@
     "next": "latest",
     "next-redux-wrapper": "^2.0.0",
     "prop-types": "^15.6.0",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "react-redux": "^5.0.6",
     "redux": "^4.0.0",
     "reselect": "^3.0.1"
   },
-  "license": "MIT",
   "devDependencies": {
+    "@babel/core": "7.14.5",
     "@babel/plugin-proposal-decorators": "^7.1.0"
   },
   "babel": {

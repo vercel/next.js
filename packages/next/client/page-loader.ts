@@ -1,16 +1,18 @@
-import { ComponentType } from 'react'
-import { ClientSsgManifest } from '../build'
+import type { ComponentType } from 'react'
+import type { RouteLoader } from './route-loader'
 import {
   addBasePath,
   addLocale,
   interpolateAs,
-} from '../next-server/lib/router/router'
-import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
-import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
-import { parseRelativeUrl } from '../next-server/lib/router/utils/parse-relative-url'
-import createRouteLoader, {
+} from '../shared/lib/router/router'
+import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
+import { parseRelativeUrl } from '../shared/lib/router/utils/parse-relative-url'
+import { removePathTrailingSlash } from './normalize-trailing-slash'
+import {
+  createRouteLoader,
   getClientBuildManifest,
-  RouteLoader,
+  getMiddlewareManifest,
 } from './route-loader'
 
 function normalizeRoute(route: string): string {
@@ -20,6 +22,15 @@ function normalizeRoute(route: string): string {
 
   if (route === '/') return route
   return route.replace(/\/$/, '')
+}
+
+declare global {
+  interface Window {
+    __DEV_MIDDLEWARE_MANIFEST?: [location: string, isSSR: boolean][]
+    __DEV_PAGES_MANIFEST?: { pages: string[] }
+    __SSG_MANIFEST_CB?: () => void
+    __SSG_MANIFEST?: Set<string>
+  }
 }
 
 export type StyleSheetTuple = { href: string; text: string }
@@ -32,9 +43,12 @@ export type GoodPageCache = {
 export default class PageLoader {
   private buildId: string
   private assetPrefix: string
+  private promisedSsgManifest: Promise<Set<string>>
+  private promisedDevPagesManifest?: Promise<string[]>
+  private promisedMiddlewareManifest?: Promise<
+    [location: string, isSSR: boolean][]
+  >
 
-  private promisedSsgManifest?: Promise<ClientSsgManifest>
-  private promisedDevPagesManifest?: Promise<any>
   public routeLoader: RouteLoader
 
   constructor(buildId: string, assetPrefix: string) {
@@ -43,13 +57,12 @@ export default class PageLoader {
     this.buildId = buildId
     this.assetPrefix = assetPrefix
 
-    /** @type {Promise<Set<string>>} */
     this.promisedSsgManifest = new Promise((resolve) => {
-      if ((window as any).__SSG_MANIFEST) {
-        resolve((window as any).__SSG_MANIFEST)
+      if (window.__SSG_MANIFEST) {
+        resolve(window.__SSG_MANIFEST)
       } else {
-        ;(window as any).__SSG_MANIFEST_CB = () => {
-          resolve((window as any).__SSG_MANIFEST)
+        window.__SSG_MANIFEST_CB = () => {
+          resolve(window.__SSG_MANIFEST!)
         }
       }
     })
@@ -59,23 +72,54 @@ export default class PageLoader {
     if (process.env.NODE_ENV === 'production') {
       return getClientBuildManifest().then((manifest) => manifest.sortedPages)
     } else {
-      if ((window as any).__DEV_PAGES_MANIFEST) {
-        return (window as any).__DEV_PAGES_MANIFEST.pages
+      if (window.__DEV_PAGES_MANIFEST) {
+        return window.__DEV_PAGES_MANIFEST.pages
       } else {
         if (!this.promisedDevPagesManifest) {
+          // TODO: Decide what should happen when fetching fails instead of asserting
+          // @ts-ignore
           this.promisedDevPagesManifest = fetch(
             `${this.assetPrefix}/_next/static/development/_devPagesManifest.json`
           )
             .then((res) => res.json())
-            .then((manifest) => {
-              ;(window as any).__DEV_PAGES_MANIFEST = manifest
+            .then((manifest: { pages: string[] }) => {
+              window.__DEV_PAGES_MANIFEST = manifest
               return manifest.pages
             })
             .catch((err) => {
               console.log(`Failed to fetch devPagesManifest`, err)
             })
         }
-        return this.promisedDevPagesManifest
+        // TODO Remove this assertion as this could be undefined
+        return this.promisedDevPagesManifest!
+      }
+    }
+  }
+
+  getMiddlewareList() {
+    if (process.env.NODE_ENV === 'production') {
+      return getMiddlewareManifest()
+    } else {
+      if (window.__DEV_MIDDLEWARE_MANIFEST) {
+        return window.__DEV_MIDDLEWARE_MANIFEST
+      } else {
+        if (!this.promisedMiddlewareManifest) {
+          // TODO: Decide what should happen when fetching fails instead of asserting
+          // @ts-ignore
+          this.promisedMiddlewareManifest = fetch(
+            `${this.assetPrefix}/_next/static/${this.buildId}/_devMiddlewareManifest.json`
+          )
+            .then((res) => res.json())
+            .then((manifest: [location: string, isSSR: boolean][]) => {
+              window.__DEV_MIDDLEWARE_MANIFEST = manifest
+              return manifest
+            })
+            .catch((err) => {
+              console.log(`Failed to fetch _devMiddlewareManifest`, err)
+            })
+        }
+        // TODO Remove this assertion as this could be undefined
+        return this.promisedMiddlewareManifest!
       }
     }
   }
@@ -85,18 +129,32 @@ export default class PageLoader {
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    * @returns {string}
    */
-  getDataHref(
-    href: string,
-    asPath: string,
-    ssg: boolean,
+  getDataHref({
+    href,
+    asPath,
+    ssg,
+    rsc,
+    locale,
+  }: {
+    href: string
+    asPath: string
+    ssg?: boolean
+    rsc?: boolean
     locale?: string | false
-  ): string {
+  }): string {
     const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
     const { pathname: asPathname } = parseRelativeUrl(asPath)
     const route = normalizeRoute(hrefPathname)
 
     const getHrefForSlug = (path: string) => {
-      const dataRoute = getAssetPathFromRoute(addLocale(path, locale), '.json')
+      if (rsc) {
+        return path + search + (search ? `&` : '?') + '__flight__'
+      }
+
+      const dataRoute = getAssetPathFromRoute(
+        removePathTrailingSlash(addLocale(path, locale)),
+        '.json'
+      )
       return addBasePath(
         `/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`
       )
@@ -113,14 +171,10 @@ export default class PageLoader {
   }
 
   /**
-   * @param {string} href the route href (file-system path)
+   * @param {string} route - the route (file-system path)
    */
-  _isSsg(href: string): Promise<boolean> {
-    const { pathname: hrefPathname } = parseRelativeUrl(href)
-    const route = normalizeRoute(hrefPathname)
-    return this.promisedSsgManifest!.then((s: ClientSsgManifest) =>
-      s.has(route)
-    )
+  _isSsg(route: string): Promise<boolean> {
+    return this.promisedSsgManifest.then((manifest) => manifest.has(route))
   }
 
   loadPage(route: string): Promise<GoodPageCache> {

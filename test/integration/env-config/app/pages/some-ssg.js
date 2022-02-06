@@ -40,4 +40,10 @@ export async function getStaticProps() {
   }
 }
 
-export default ({ env }) => <p>{JSON.stringify(env)}</p>
+export default ({ env }) => (
+  <>
+    <p>{JSON.stringify(env)}</p>
+    <div id="nextConfigEnv">{process.env.nextConfigEnv}</div>
+    <div id="nextConfigPublicEnv">{process.env.nextConfigPublicEnv}</div>
+  </>
+)

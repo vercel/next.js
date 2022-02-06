@@ -1,7 +1,9 @@
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import path from 'path'
 
+// eslint typescript has a bug with TS enums
+/* eslint-disable no-shadow */
 export enum DiagnosticCategory {
   Warning = 0,
   Error = 1,
