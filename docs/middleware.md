@@ -23,12 +23,34 @@ npm install next@latest
 
 import type { NextFetchEvent, NextRequest } from 'next/server'
 
-export async function middleware(req: NextRequest, ev: NextFetchEvent) {
+export function middleware(req: NextRequest, ev: NextFetchEvent) {
   return new Response('Hello, world!')
 }
 ```
 
 In this example, we use the standard Web API Response ([MDN](https://developer.mozilla.org/en-US/docs/Web/API/Response)).
+
+## API
+
+Middleware is created by using a `middleware` function that lives inside a `_middleware` file. Its API is based upon the native [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent), [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response), and [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) objects.
+
+These native Web API objects are extended to give you more control over how you manipulate and configure a response, based on the incoming requests.
+
+The function signature:
+
+```ts
+import type { NextFetchEvent } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export type Middleware = (
+  request: NextRequest,
+  event: NextFetchEvent
+) => Promise<Response | undefined> | Response | undefined
+```
+
+The function can be a default export and as such, does **not** have to be named `middleware`. Though this is a convention. Also note that you only need to make the function `async` if you are running asynchronous code.
+
+**Note:** Edge Functions are currently in Beta. The API might change as we look to continually make improvements.
 
 ## Examples
 
