@@ -180,13 +180,35 @@ describe('Client Navigation', () => {
     it('should not navigate if the <a/> tag has a target', async () => {
       const browser = await webdriver(context.appPort, '/nav')
 
-      const counterText = await browser
+      await browser
         .elementByCss('#increase')
         .click()
         .elementByCss('#target-link')
         .click()
-        .elementByCss('#counter')
-        .text()
+
+      await waitFor(1000)
+
+      const counterText = await browser.elementByCss('#counter').text()
+
+      expect(counterText).toBe('Counter: 1')
+      await browser.close()
+    })
+
+    it('should not navigate if the click-event is modified', async () => {
+      const browser = await webdriver(context.appPort, '/nav')
+
+      await browser.elementByCss('#increase').click()
+
+      const key = process.platform === 'darwin' ? 'Meta' : 'Control'
+
+      await browser.keydown(key)
+
+      await browser.elementByCss('#in-svg-link').click()
+
+      await browser.keyup(key)
+      await waitFor(1000)
+
+      const counterText = await browser.elementByCss('#counter').text()
 
       expect(counterText).toBe('Counter: 1')
       await browser.close()
@@ -413,7 +435,6 @@ describe('Client Navigation', () => {
       }
     })
   })
-
   describe('resets scroll at the correct time', () => {
     it('should reset scroll before the new page runs its lifecycles (<Link />)', async () => {
       let browser
