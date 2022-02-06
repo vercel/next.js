@@ -16,7 +16,8 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                           |
 | --------- | ------------------------------------------------------------------------------------------------- |
-| `v12.0.0` | `formats` configuration added as well as AVIF support.                                            |
+| `v12.0.9` | `lazyRoot` prop added                                                                             |
+| `v12.0.0` | `formats` configuration added.<br/>AVIF support added.<br/>Wrapper `<div>` changed to `<span>`.   |
 | `v11.1.0` | `onLoadingComplete` and `lazyBoundary` props added.                                               |
 | `v11.0.0` | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added. |
 | `v10.0.5` | `loader` prop added.                                                                              |
@@ -37,7 +38,7 @@ Must be one of the following:
 
 1. A [statically imported](/docs/basic-features/image-optimization.md#local-images) image file, or
 2. A path string. This can be either an absolute external URL,
-   or an internal path depending on the [loader](#loader).
+   or an internal path depending on the [loader](#loader) prop or [loader configuration](#loader-configuration).
 
 When using an external URL, you must add it to
 [domains](#domains) in
@@ -119,9 +120,11 @@ const MyImage = (props) => {
 
 A string that provides information about how wide the image will be at different breakpoints. Defaults to `100vw` (the full width of the screen) when using `layout="responsive"` or `layout="fill"`.
 
-`sizes` is important for performance when using `layout="responsive"` or `layout="fill"` with images that take up less than the full viewport width.
+If you are using `layout="fill"` or `layout="responsive"`, it's important to assign `sizes` for any image that takes up less than the full viewport width.
 
-If you are using `layout="fill"` or `layout="responsive"` and the image will always be less than half the viewport width, include `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
+For example, when the parent element will constrain the image to always be less than half the viewport width, use `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
+
+If you are using `layout="intrinsic"` or `layout="fixed"`, then `sizes` is not needed because the upper bound width is constrained already.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes).
 
@@ -134,7 +137,7 @@ The quality of the optimized image, an integer between `1` and `100` where `100`
 When true, the image will be considered high priority and
 [preload](https://web.dev/preload-responsive-images/). Lazy loading is automatically disabled for images using `priority`.
 
-You should use the `priority` attribute on any image which you suspect will be the [Largest Contentful Paint (LCP) element](https://nextjs.org/learn/seo/web-performance/lcp). It may be appropriate to have multiple priority images, as different images may be the LCP element for different viewport sizes.
+You should use the `priority` property on any image detected as the [Largest Contentful Paint (LCP)](https://nextjs.org/learn/seo/web-performance/lcp) element. It may be appropriate to have multiple priority images, as different images may be the LCP element for different viewport sizes.
 
 Should only be used when the image is visible above the fold. Defaults to `false`.
 
@@ -142,7 +145,7 @@ Should only be used when the image is visible above the fold. Defaults to `false
 
 A placeholder to use while the image is loading. Possible values are `blur` or `empty`. Defaults to `empty`.
 
-When `blur`, the [`blurDataURL`](#blurdataurl) property will be used as the placeholder. If `src` is an object from a [static import](#local-images) and the imported image is `.jpg`, `.png`, `.webp`, or `.avif`, then `blurDataURL` will be automatically populated.
+When `blur`, the [`blurDataURL`](#blurdataurl) property will be used as the placeholder. If `src` is an object from a [static import](/docs/basic-features/image-optimization.md#local-images) and the imported image is `.jpg`, `.png`, `.webp`, or `.avif`, then `blurDataURL` will be automatically populated.
 
 For dynamic images, you must provide the [`blurDataURL`](#blurdataurl) property. Solutions such as [Plaiceholder](https://github.com/joe-bell/plaiceholder) can help with `base64` generation.
 
@@ -152,6 +155,7 @@ Try it out:
 
 - [Demo the `blur` placeholder](https://image-component.nextjs.gallery/placeholder)
 - [Demo the shimmer effect with `blurDataURL` prop](https://image-component.nextjs.gallery/shimmer)
+- [Demo the color effect with `blurDataURL` prop](https://image-component.nextjs.gallery/color)
 
 ## Advanced Props
 
@@ -208,6 +212,7 @@ Try it out:
 
 - [Demo the default `blurDataURL` prop](https://image-component.nextjs.gallery/placeholder)
 - [Demo the shimmer effect with `blurDataURL` prop](https://image-component.nextjs.gallery/shimmer)
+- [Demo the color effect with `blurDataURL` prop](https://image-component.nextjs.gallery/color)
 
 You can also [generate a solid color Data URL](https://png-pixel.com) to match the image.
 
@@ -216,6 +221,12 @@ You can also [generate a solid color Data URL](https://png-pixel.com) to match t
 A string (with similar syntax to the margin property) that acts as the bounding box used to detect the intersection of the viewport with the image and trigger lazy [loading](#loading). Defaults to `"200px"`.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/rootMargin)
+
+### lazyRoot
+
+A React [Ref](https://reactjs.org/docs/refs-and-the-dom.html) pointing to the Element which the [lazyBoundary](#lazyBoundary) calculates for the Intersection detection. Defaults to `null`, referring to the document viewport.
+
+[Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/root)
 
 ### unoptimized
 
@@ -250,7 +261,7 @@ module.exports = {
 
 ### Loader Configuration
 
-If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization API, you can configure the `loader` and `path` prefix in your `next.config.js` file. This allows you to use relative URLs for the Image `src` and automatically generate the correct absolute URL for your provider.
+If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization API, you can configure the `loader` and `path` prefix in your `next.config.js` file. This allows you to use relative URLs for the Image [`src`](#src) and automatically generate the correct absolute URL for your provider.
 
 ```js
 module.exports = {
@@ -274,7 +285,7 @@ The following Image Optimization cloud providers are included:
 
 If you need a different provider, you can use the [`loader`](#loader) prop with `next/image`.
 
-> The `next/image` component's default loader is not supported when using [`next export`](/docs/advanced-features/static-html-export.md). However, other loader options will work.
+> Images can not be optimized at build time using [`next export`](/docs/advanced-features/static-html-export.md), only on-demand. To use `next/image` with `next export`, you will need to use a different loader than the default. [Read more in the discussion.](https://github.com/vercel/next.js/discussions/19065)
 
 > The `next/image` component's default loader uses [`squoosh`](https://www.npmjs.com/package/@squoosh/lib) because it is quick to install and suitable for a development environment. When using `next start` in your production environment, it is strongly recommended that you install [`sharp`](https://www.npmjs.com/package/sharp) by running `yarn add sharp` in your project directory. This is not necessary for Vercel deployments, as `sharp` is installed automatically.
 
@@ -300,7 +311,7 @@ module.exports = {
 
 You can specify a list of image widths using the `images.imageSizes` property in your `next.config.js` file. These widths are concatenated with the array of [device sizes](#device-sizes) to form the full array of sizes used to generate image [srcset](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/srcset)s.
 
-The reason there are two seperate lists is that imageSizes is only used for images which provide a [`sizes`](#sizes) prop, which indicates that the image is less than the full width of the screen. **Therefore, the sizes in imageSizes should all be smaller than the smallest size in deviceSizes.**
+The reason there are two separate lists is that imageSizes is only used for images which provide a [`sizes`](#sizes) prop, which indicates that the image is less than the full width of the screen. **Therefore, the sizes in imageSizes should all be smaller than the smallest size in deviceSizes.**
 
 If no configuration is provided, the default below is used.
 
@@ -311,6 +322,34 @@ module.exports = {
   },
 }
 ```
+
+### Acceptable Formats
+
+The default [Image Optimization API](#loader-configuration) will automatically detect the browser's supported image formats via the request's `Accept` header.
+
+If the `Accept` head matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match, the Image Optimization API will fallback to the original image's format.
+
+If no configuration is provided, the default below is used.
+
+```js
+module.exports = {
+  images: {
+    formats: ['image/webp'],
+  },
+}
+```
+
+You can enable AVIF support with the following configuration.
+
+```js
+module.exports = {
+  images: {
+    formats: ['image/avif', 'image/webp'],
+  },
+}
+```
+
+> Note: AVIF generally takes 20% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
 
 ## Caching Behavior
 
@@ -350,22 +389,6 @@ You can disable static image imports inside your `next.config.js`:
 module.exports = {
   images: {
     disableStaticImages: true,
-  },
-}
-```
-
-### Acceptable Formats
-
-The default [Image Optimization API](#loader-configuration) will automatically detect the browser's supported image formats via the request's `Accept` header.
-
-If the `Accept` matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match, the Image Optimization API will fallback to the original image's format.
-
-If no configuration is provided, the default below is used.
-
-```js
-module.exports = {
-  images: {
-    formats: ['image/avif', 'image/webp'],
   },
 }
 ```

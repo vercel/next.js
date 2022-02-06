@@ -1,7 +1,4 @@
-import {
-  QueryResolvers,
-  MutationResolvers,
-} from 'graphql-let/__generated__/__types__'
+import { QueryResolvers, MutationResolvers } from '@graphql-types@'
 import { ResolverContext } from './apollo'
 
 const userProfile = {

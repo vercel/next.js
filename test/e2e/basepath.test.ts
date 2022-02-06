@@ -38,7 +38,7 @@ describe('basePath', () => {
             },
             {
               source: '/rewrite-no-basepath',
-              destination: 'https://test-404-jj4.vercel.app/',
+              destination: 'https://example.com',
               basePath: false,
             },
             {
@@ -97,6 +97,29 @@ describe('basePath', () => {
   afterAll(() => next.destroy())
 
   const runTests = (dev = false) => {
+    it('should navigate to external site and back', async () => {
+      const browser = await webdriver(next.url, `${basePath}/external-and-back`)
+      const initialText = await browser.elementByCss('p').text()
+      expect(initialText).toBe('server')
+
+      await browser
+        .elementByCss('a')
+        .click()
+        .waitForElementByCss('input')
+        .back()
+        .waitForElementByCss('p')
+
+      await waitFor(1000)
+      const newText = await browser.elementByCss('p').text()
+      expect(newText).toBe('server')
+    })
+
+    if (process.env.BROWSER_NAME === 'safari') {
+      // currently only testing the above test in safari
+      // we can investigate testing more cases below if desired
+      return
+    }
+
     it('should navigate back correctly to a dynamic route', async () => {
       const browser = await webdriver(next.url, `${basePath}`)
 
@@ -239,7 +262,7 @@ describe('basePath', () => {
 
     it('should rewrite without basePath when set to false', async () => {
       const html = await renderViaHTTP(next.url, '/rewrite-no-basePath')
-      expect(html).toContain('Get started by editing')
+      expect(html).toContain('Example Domain')
     })
 
     it('should redirect with basePath by default', async () => {
@@ -254,6 +277,8 @@ describe('basePath', () => {
       const { pathname } = url.parse(res.headers.get('location') || '')
       expect(pathname).toBe(`${basePath}/somewhere-else`)
       expect(res.status).toBe(307)
+      const text = await res.text()
+      expect(text).toEqual(`${basePath}/somewhere-else`)
     })
 
     it('should not redirect without basePath without disabling', async () => {
@@ -284,6 +309,8 @@ describe('basePath', () => {
       const { pathname } = url.parse(res.headers.get('location') || '')
       expect(pathname).toBe('/another-destination')
       expect(res.status).toBe(307)
+      const text = await res.text()
+      expect(text).toEqual('/another-destination')
     })
 
     //
@@ -352,8 +379,10 @@ describe('basePath', () => {
 
     it('should update dynamic params after mount correctly', async () => {
       const browser = await webdriver(next.url, `${basePath}/hello-dynamic`)
-      const text = await browser.elementByCss('#slug').text()
-      expect(text).toContain('slug: hello-dynamic')
+      await check(
+        () => browser.elementByCss('#slug').text(),
+        /slug: hello-dynamic/
+      )
     })
 
     it('should navigate to index page with getStaticProps', async () => {
@@ -464,6 +493,8 @@ describe('basePath', () => {
       expect(res.status).toBe(308)
       const { pathname } = new URL(res.headers.get('location'))
       expect(pathname).toBe(`${basePath}/hello`)
+      const text = await res.text()
+      expect(text).toEqual(`${basePath}/hello`)
     })
 
     it('should redirect trailing slash on root correctly', async () => {
@@ -476,6 +507,8 @@ describe('basePath', () => {
       expect(res.status).toBe(308)
       const { pathname } = new URL(res.headers.get('location'))
       expect(pathname).toBe(`${basePath}`)
+      const text = await res.text()
+      expect(text).toEqual(`${basePath}`)
     })
 
     it('should navigate an absolute url', async () => {
@@ -515,7 +548,7 @@ describe('basePath', () => {
         )
         const text = await browser.elementByCss('body').text()
 
-        expect(text).toContain('Get started by editing')
+        expect(text).toContain('Example Domain')
       })
     }
 
@@ -682,6 +715,10 @@ describe('basePath', () => {
     it('should use urls with basepath in router events', async () => {
       const browser = await webdriver(next.url, `${basePath}/hello`)
       try {
+        await check(
+          () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
+          'ready'
+        )
         await browser.eval('window._clearEventLog()')
         await browser
           .elementByCss('#other-page-link')

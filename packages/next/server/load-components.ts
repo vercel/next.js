@@ -6,6 +6,7 @@ import { join } from 'path'
 import { requirePage } from './require'
 import { BuildManifest } from './get-page-files'
 import { AppType, DocumentType } from '../shared/lib/utils'
+import { interopDefault } from '../lib/interop-default'
 import {
   PageConfig,
   GetStaticPaths,
@@ -13,16 +14,12 @@ import {
   GetStaticProps,
 } from 'next/types'
 
-export function interopDefault(mod: any) {
-  return mod.default || mod
-}
-
 export type ManifestItem = {
   id: number | string
   files: string[]
 }
 
-type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
+export type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 
 export type LoadComponentsReturnType = {
   Component: React.ComponentType

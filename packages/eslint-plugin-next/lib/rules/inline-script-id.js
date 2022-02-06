@@ -27,15 +27,22 @@ module.exports = {
           return
         }
 
-        const attributes = node.openingElement.attributes
+        const attributeNames = new Set()
+        node.openingElement.attributes.forEach((attribute) => {
+          if (attribute.type === 'JSXAttribute') {
+            attributeNames.add(attribute.name.name)
+          } else if (attribute.type === 'JSXSpreadAttribute') {
+            attribute.argument.properties.forEach((property) => {
+              attributeNames.add(property.key.name)
+            })
+          }
+        })
 
         if (
           node.children.length > 0 ||
-          attributes.some(
-            (attribute) => attribute.name.name === 'dangerouslySetInnerHTML'
-          )
+          attributeNames.has('dangerouslySetInnerHTML')
         ) {
-          if (!attributes.some((attribute) => attribute.name.name === 'id')) {
+          if (!attributeNames.has('id')) {
             context.report({
               node,
               message:

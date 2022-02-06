@@ -321,6 +321,24 @@ describe('Prerender Preview Mode', () => {
       )
     })
 
+    it('should fetch live static props with preview active', async () => {
+      await browser.get(`http://localhost:${appPort}/`)
+
+      await browser.waitForElementByCss('#ssg-random')
+      const initialRandom = await browser.elementById('ssg-random').text()
+
+      // reload static props with router.replace
+      await browser.elementById('reload-props').click()
+
+      // wait for route change to complete and set updated state
+      await browser.waitForElementByCss('#ssg-reloaded')
+
+      // assert that the random number from static props has changed (thus, was re-evaluated)
+      expect(await browser.elementById('ssg-random').text()).not.toBe(
+        initialRandom
+      )
+    })
+
     afterAll(async () => {
       await browser.close()
       await killApp(app)

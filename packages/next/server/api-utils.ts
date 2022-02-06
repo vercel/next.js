@@ -1,15 +1,16 @@
-import { IncomingMessage, ServerResponse } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
+
 import { parse } from 'next/dist/compiled/content-type'
 import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
-import getRawBody from 'raw-body'
 import { PageConfig, PreviewData } from 'next/types'
 import { Stream } from 'stream'
 import { isResSent, NextApiRequest, NextApiResponse } from '../shared/lib/utils'
 import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
-import { interopDefault } from './load-components'
 import { sendEtagResponse } from './send-payload'
-import generateETag from 'etag'
+import generateETag from 'next/dist/compiled/etag'
 import isError from '../lib/is-error'
+import { interopDefault } from '../lib/interop-default'
+import { BaseNextRequest, BaseNextResponse } from './base-http'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -141,7 +142,7 @@ export async function apiResolver(
  * @param req request object
  */
 export async function parseBody(
-  req: NextApiRequest,
+  req: IncomingMessage,
   limit: string | number
 ): Promise<any> {
   let contentType
@@ -156,6 +157,8 @@ export async function parseBody(
   let buffer
 
   try {
+    const getRawBody =
+      require('next/dist/compiled/raw-body') as typeof import('next/dist/compiled/raw-body')
     buffer = await getRawBody(req, { encoding, limit })
   } catch (e) {
     if (isError(e) && e.type === 'entity.too.large') {
@@ -335,11 +338,11 @@ const COOKIE_NAME_PRERENDER_BYPASS = `__prerender_bypass`
 const COOKIE_NAME_PRERENDER_DATA = `__next_preview_data`
 
 export const SYMBOL_PREVIEW_DATA = Symbol(COOKIE_NAME_PRERENDER_DATA)
-const SYMBOL_CLEARED_COOKIES = Symbol(COOKIE_NAME_PRERENDER_BYPASS)
+export const SYMBOL_CLEARED_COOKIES = Symbol(COOKIE_NAME_PRERENDER_BYPASS)
 
 export function tryGetPreviewData(
-  req: IncomingMessage,
-  res: ServerResponse,
+  req: IncomingMessage | BaseNextRequest,
+  res: ServerResponse | BaseNextResponse,
   options: __ApiPreviewProps
 ): PreviewData {
   // Read cached preview data if present

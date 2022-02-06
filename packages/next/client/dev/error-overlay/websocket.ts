@@ -2,6 +2,17 @@ let source: WebSocket
 const eventCallbacks: ((event: any) => void)[] = []
 let lastActivity = Date.now()
 
+function getSocketProtocol(assetPrefix: string): string {
+  let protocol = location.protocol
+
+  try {
+    // assetPrefix is a url
+    protocol = new URL(assetPrefix).protocol
+  } catch (_) {}
+
+  return protocol === 'http:' ? 'ws' : 'wss'
+}
+
 export function addMessageListener(cb: (event: any) => void) {
   eventCallbacks.push(cb)
 }
@@ -13,6 +24,7 @@ export function sendMessage(data: any) {
 
 export function connectHMR(options: {
   path: string
+  assetPrefix: string
   timeout: number
   log?: boolean
 }) {
@@ -30,8 +42,18 @@ export function connectHMR(options: {
 
   function init() {
     if (source) source.close()
-    const { protocol, hostname, port } = location
-    const url = `${protocol === 'http:' ? 'ws' : 'wss'}://${hostname}:${port}`
+    const { hostname, port } = location
+    const protocol = getSocketProtocol(options.assetPrefix || '')
+    const assetPrefix = options.assetPrefix.replace(/^\/+/, '')
+
+    let url = `${protocol}://${hostname}:${port}${
+      assetPrefix ? `/${assetPrefix}` : ''
+    }`
+
+    if (assetPrefix.startsWith('http')) {
+      url = `${protocol}://${assetPrefix.split('://')[1]}`
+    }
+
     source = new window.WebSocket(`${url}${options.path}`)
     source.onopen = handleOnline
     source.onerror = handleDisconnect
