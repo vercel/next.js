@@ -4,8 +4,6 @@ description: Add rewrites to your Next.js app.
 
 # Rewrites
 
-> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
-
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
@@ -13,9 +11,19 @@ description: Add rewrites to your Next.js app.
   </ul>
 </details>
 
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes         |
+| --------- | --------------- |
+| `v10.2.0` | `has` added.    |
+| `v9.5.0`  | Rewrites added. |
+
+</details>
+
 Rewrites allow you to map an incoming request path to a different destination path.
 
-Rewrites are only available on the Node.js environment and do not affect client-side routing.
+Rewrites act as a URL proxy and mask the destination path, making it appear the user hasn't changed their location on the site. In contrast, [redirects](/docs/api-reference/next.config.js/redirects.md) will reroute to a new page and show the URL changes.
 
 To use rewrites you can use the `rewrites` key in `next.config.js`:
 
@@ -32,6 +40,8 @@ module.exports = {
 }
 ```
 
+Rewrites are applied to client-side routing, a `<Link href="/about">` will have the rewrite applied in the above example.
+
 `rewrites` is an async function that expects an array to be returned holding objects with `source` and `destination` properties:
 
 - `source`: `String` - is the incoming request path pattern.
@@ -40,7 +50,7 @@ module.exports = {
 - `locale`: `false` or `undefined` - whether the locale should not be included when matching.
 - `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
 
-Rewrites are applied after checking the filesystem (pages and `/public` files) and before dynamic routes by default. This behavior can be changed by instead returning an object instead of an array from the `rewrites` function since `v10.1` of Next.js:
+Rewrites are applied after checking the filesystem (pages and `/public` files) and before dynamic routes by default. This behavior can be changed by returning an object instead of an array from the `rewrites` function since `v10.1` of Next.js:
 
 ```js
 module.exports = {
@@ -48,8 +58,8 @@ module.exports = {
     return {
       beforeFiles: [
         // These rewrites are checked after headers/redirects
-        // and before pages/public files which allows overriding
-        // page files
+        // and before all files including _next/public files which
+        // allows overriding page files
         {
           source: '/some-page',
           destination: '/somewhere-else',
@@ -69,13 +79,24 @@ module.exports = {
         // and dynamic routes are checked
         {
           source: '/:path*',
-          destination: 'https://my-old-site.com',
+          destination: `https://my-old-site.com/:path*`,
         },
       ],
     }
   },
 }
 ```
+
+Note: rewrites in `beforeFiles` do not check the filesystem/dynamic routes immediately after matching a source, they continue until all `beforeFiles` have been checked.
+
+The order Next.js routes are checked is:
+
+1. [headers](/docs/api-reference/next.config.js/headers) are checked/applied
+2. [redirects](/docs/api-reference/next.config.js/redirects) are checked/applied
+3. `beforeFiles` rewrites are checked/applied
+4. static files from the [public directory](/docs/basic-features/static-file-serving), `_next/static` files, and non-dynamic pages are checked/served
+5. `afterFiles` rewrites are checked/applied, if one of these rewrites is matched we check dynamic routes/static files after each match
+6. `fallback` rewrites are checked/applied, these are applied before rendering the 404 page and after dynamic routes/all static assets have been checked.
 
 ## Rewrite parameters
 
@@ -126,6 +147,8 @@ module.exports = {
   },
 }
 ```
+
+Note: for static pages from the [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) or [prerendering](/docs/basic-features/data-fetching/get-static-props.md) params from rewrites will be parsed on the client after hydration and provided in the query.
 
 ## Path Matching
 
@@ -178,9 +201,23 @@ module.exports = {
 }
 ```
 
-## Header, Cookie, and Query Matching
+The following characters `(`, `)`, `{`, `}`, `:`, `*`, `+`, `?` are used for regex path matching, so when used in the `source` as non-special values they must be escaped by adding `\\` before them:
 
-Note: this feature is still experimental and not covered by semver and is to be used at your own risk until it is made stable.
+```js
+module.exports = {
+  async rewrites() {
+    return [
+      {
+        // this will match `/english(default)/something` being requested
+        source: '/english\\(default\\)/:slug',
+        destination: '/en-us/:slug',
+      },
+    ]
+  },
+}
+```
+
+## Header, Cookie, and Query Matching
 
 To only match a rewrite when header, cookie, or query values also match the `has` field can be used. Both the `source` and all `has` items must match for the rewrite to be applied.
 
@@ -214,6 +251,9 @@ module.exports = {
           {
             type: 'query',
             key: 'page',
+            // the page value will not be available in the
+            // destination since value is provided and doesn't
+            // use a named capture group e.g. (?<page>home)
             value: 'home',
           },
           {
@@ -222,7 +262,7 @@ module.exports = {
             value: 'true',
           },
         ],
-        destination: '/:path*/:page',
+        destination: '/:path*/home',
       },
       // if the header `x-authorized` is present and
       // contains a matching value, this rewrite will be applied
@@ -280,28 +320,26 @@ module.exports = {
 
 ### Incremental adoption of Next.js
 
-You can also make Next.js check the application routes before falling back to proxying to the previous website.
+You can also have Next.js fall back to proxying to an existing website after checking all Next.js routes.
 
 This way you don't have to change the rewrites configuration when migrating more pages to Next.js
 
 ```js
 module.exports = {
   async rewrites() {
-    return [
-      // we need to define a no-op rewrite to trigger checking
-      // all pages/static files before we attempt proxying
-      {
-        source: '/:path*',
-        destination: '/:path*',
-      },
-      {
-        source: '/:path*',
-        destination: `https://custom-routes-proxying-endpoint.vercel.app/:path*`,
-      },
-    ]
+    return {
+      fallback: [
+        {
+          source: '/:path*',
+          destination: `https://custom-routes-proxying-endpoint.vercel.app/:path*`,
+        },
+      ],
+    }
   },
 }
 ```
+
+See additional information on incremental adoption [in the docs here](/docs/migrating/incremental-adoption.md).
 
 ### Rewrites with basePath support
 

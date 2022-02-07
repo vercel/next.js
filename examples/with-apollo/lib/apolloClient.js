@@ -12,7 +12,7 @@ function createApolloClient() {
   return new ApolloClient({
     ssrMode: typeof window === 'undefined',
     link: new HttpLink({
-      uri: 'https://nextjs-graphql-with-prisma-simple.vercel.app/api', // Server URL (must be absolute)
+      uri: 'https://nextjs-graphql-with-prisma-simple-foo.vercel.app/api', // Server URL (must be absolute)
       credentials: 'same-origin', // Additional fetch() options like `credentials` or `headers`
     }),
     cache: new InMemoryCache({
@@ -36,8 +36,8 @@ export function initializeApollo(initialState = null) {
     // Get existing cache, loaded during client side data fetching
     const existingCache = _apolloClient.extract()
 
-    // Merge the existing cache into data passed from getStaticProps/getServerSideProps
-    const data = merge(initialState, existingCache, {
+    // Merge the initialState from getStaticProps/getServerSideProps in the existing cache
+    const data = merge(existingCache, initialState, {
       // combine arrays using object equality (like in sets)
       arrayMerge: (destinationArray, sourceArray) => [
         ...sourceArray,

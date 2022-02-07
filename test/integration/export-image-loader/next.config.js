@@ -1,6 +1,2 @@
-module.exports = {
-  images: {
-    loader: 'cloudinary',
-    path: 'https://example.com/',
-  },
-}
+// prettier-ignore
+module.exports = { /* replaceme */ }

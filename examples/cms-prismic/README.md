@@ -4,7 +4,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-### [https://next-blog-prismic.now.sh/](https://next-blog-prismic.now.sh/)
+### [https://next-blog-prismic.vercel.app/](https://next-blog-prismic.vercel.app/)
 
 ## Deploy your own
 
@@ -26,7 +26,9 @@ Once you have access to [the environment variables you'll need](#step-5-set-up-e
 - [Storyblok](/examples/cms-storyblok)
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
+- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## How to use
 

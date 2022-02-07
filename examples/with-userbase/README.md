@@ -2,7 +2,7 @@
 
 This is an example of using [Userbase](https://userbase.com) in a Next.js project.
 
-Deployed Demo: [https://next-userbase.now.sh](https://next-userbase.now.sh)
+Deployed Demo: [https://next-userbase.vercel.app](https://next-userbase.vercel.app)
 
 ## Deploy your own
 

@@ -61,7 +61,7 @@ export const people = [
   },
   {
     id: '7',
-    name: 'Beru Whitesun lars',
+    name: 'Beru Whitesun Lars',
     height: '165',
     mass: '75',
     hair_color: 'brown',

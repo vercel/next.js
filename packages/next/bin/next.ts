@@ -16,11 +16,14 @@ import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 const defaultCommand = 'dev'
 export type cliCommand = (argv?: string[]) => void
 const commands: { [command: string]: () => Promise<cliCommand> } = {
-  build: () => import('../cli/next-build').then((i) => i.nextBuild),
-  start: () => import('../cli/next-start').then((i) => i.nextStart),
-  export: () => import('../cli/next-export').then((i) => i.nextExport),
-  dev: () => import('../cli/next-dev').then((i) => i.nextDev),
-  telemetry: () => import('../cli/next-telemetry').then((i) => i.nextTelemetry),
+  build: () => Promise.resolve(require('../cli/next-build').nextBuild),
+  start: () => Promise.resolve(require('../cli/next-start').nextStart),
+  export: () => Promise.resolve(require('../cli/next-export').nextExport),
+  dev: () => Promise.resolve(require('../cli/next-dev').nextDev),
+  lint: () => Promise.resolve(require('../cli/next-lint').nextLint),
+  telemetry: () =>
+    Promise.resolve(require('../cli/next-telemetry').nextTelemetry),
+  info: () => Promise.resolve(require('../cli/next-info').nextInfo),
 }
 
 const args = arg(
@@ -86,21 +89,21 @@ const defaultEnv = command === 'dev' ? 'development' : 'production'
 
 const standardEnv = ['production', 'development', 'test']
 
-if (process.env.NODE_ENV && !standardEnv.includes(process.env.NODE_ENV)) {
-  log.warn(NON_STANDARD_NODE_ENV)
+if (process.env.NODE_ENV) {
+  const isNotStandard = !standardEnv.includes(process.env.NODE_ENV)
+  const shouldWarnCommands =
+    process.env.NODE_ENV === 'development'
+      ? ['start', 'build']
+      : process.env.NODE_ENV === 'production'
+      ? ['dev']
+      : []
+
+  if (isNotStandard || shouldWarnCommands.includes(command)) {
+    log.warn(NON_STANDARD_NODE_ENV)
+  }
 }
 
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
-
-// this needs to come after we set the correct NODE_ENV or
-// else it might cause SSR to break
-const React = require('react')
-
-if (typeof React.Suspense === 'undefined') {
-  throw new Error(
-    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://nextjs.org/docs/messages/invalid-react-version`
-  )
-}
 
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
 process.on('SIGTERM', () => process.exit(0))
@@ -117,13 +120,16 @@ commands[command]()
   })
 
 if (command === 'dev') {
-  const { CONFIG_FILE } = require('../next-server/lib/constants')
+  const { CONFIG_FILES } = require('../shared/lib/constants')
   const { watchFile } = require('fs')
-  watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur: any, prev: any) => {
-    if (cur.size > 0 || prev.size > 0) {
-      console.log(
-        `\n> Found a change in ${CONFIG_FILE}. Restart the server to see the changes in effect.`
-      )
-    }
-  })
+
+  for (const CONFIG_FILE of CONFIG_FILES) {
+    watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur: any, prev: any) => {
+      if (cur.size > 0 || prev.size > 0) {
+        console.log(
+          `\n> Found a change in ${CONFIG_FILE}. Restart the server to see the changes in effect.`
+        )
+      }
+    })
+  }
 }

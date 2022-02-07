@@ -34,7 +34,9 @@ export const config = {
 
 The `api` object includes all configs available for API routes.
 
-`bodyParser` Enables body parsing, you can disable it if you want to consume it as a `Stream`:
+`bodyParser` is automatically enabled. If you want to consume the body as a `Stream` or with [`raw-body`](https://www.npmjs.com/package/raw-body), you can set this to `false`.
+
+One use case for disabling the automatic `bodyParsing` is to allow you to verify the raw body of a **webhook** request, for example [from GitHub](https://docs.github.com/en/developers/webhooks-and-events/webhooks/securing-your-webhooks#validating-payloads-from-github).
 
 ```js
 export const config = {
@@ -119,7 +121,7 @@ export default handler
 
 ## Extending the `req`/`res` objects with TypeScript
 
-For better type-safety, it is not recommended to extend the `req` and `res` objects. Instead, use pure functions to work with them:
+For better type-safety, it is not recommended to extend the `req` and `res` objects. Instead, use functions to work with them:
 
 ```ts
 // utils/cookies.ts
@@ -145,7 +147,7 @@ export const setCookie = (
     options.maxAge /= 1000
   }
 
-  res.setHeader('Set-Cookie', serialize(name, String(stringValue), options))
+  res.setHeader('Set-Cookie', serialize(name, stringValue, options))
 }
 
 // pages/api/cookies.ts

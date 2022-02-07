@@ -41,9 +41,9 @@ npm run deploy
 yarn deploy
 ```
 
-## Typescript
+## TypeScript
 
-To use Typescript, simply follow [Typescript setup](https://nextjs.org/learn/excel/typescript/setup) as normal (package.json scripts are already set).
+To use TypeScript, simply follow [TypeScript setup](https://nextjs.org/learn/excel/typescript/setup) as normal (package.json scripts are already set).
 
 i.e: `npm install --save-dev typescript @types/react @types/node`
 

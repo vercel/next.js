@@ -1,5 +1,5 @@
 import { DeliveryClient } from '@kentico/kontent-delivery'
-import { name, version } from '../package.json'
+import pkg from '../package.json'
 
 const sourceTrackingHeaderName = 'X-KC-SOURCE'
 
@@ -9,7 +9,7 @@ const client = new DeliveryClient({
   globalHeaders: (_queryConfig) => [
     {
       header: sourceTrackingHeaderName,
-      value: `@vercel/next.js/example/${name};${version}`,
+      value: `@vercel/next.js/example/${pkg.name};${pkg.version}`,
     },
   ],
 })
