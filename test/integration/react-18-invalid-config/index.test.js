@@ -25,10 +25,9 @@ describe('Invalid react 18 webpack config', () => {
     )
   })
 
-  it('should enable `experimental.runtime` for server components', async () => {
+  it('should require `experimental.runtime` for server components', async () => {
     writeNextConfig({
       reactRoot: true,
-      runtime: 'edge',
       serverComponents: true,
     })
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
