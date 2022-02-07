@@ -44,8 +44,6 @@ window.next = {
     return router
   },
   emitter,
-  render,
-  renderError,
 }
 initNext({ webpackHMR, beforeRender: displayContent })
   .then(() => {
