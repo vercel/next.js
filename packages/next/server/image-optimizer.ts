@@ -186,15 +186,15 @@ export async function imageOptimizer(
   const hash = getHash([CACHE_VERSION, href, width, quality, mimeType])
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
-  const previousInflight = inflightRequests.get(hashDir)
+  const previousInflight = await inflightRequests.get(hashDir)
   let xCache: XCacheHeader = 'MISS'
   let sendDedupe = { sent: false }
 
   // If there are concurrent requests hitting the same STALE resource,
   // we can serve it from memory to avoid blocking below.
-  if (previousInflight && (await previousInflight)) {
+  if (previousInflight) {
     const now = Date.now()
-    const { filename, buffer } = (await previousInflight)!
+    const { filename, buffer } = previousInflight
     const { maxAge, expireAt, etag, contentType } = getFileMetadata(filename)
     xCache = now < expireAt ? 'HIT' : 'STALE'
     await sendResponse(
@@ -570,12 +570,11 @@ async function writeToCacheDir(
   expireAt: number,
   buffer: Buffer
 ) {
-  await promises.mkdir(dir, { recursive: true })
   const extension = getExtension(contentType)
   const etag = getHash([buffer])
   const filename = join(dir, `${maxAge}.${expireAt}.${etag}.${extension}`)
+  await promises.mkdir(dir, { recursive: true })
   await promises.writeFile(filename, buffer)
-  inflightRequests.delete(dir)
 }
 
 function getFileNameWithExtension(
@@ -652,6 +651,10 @@ function sendResponse(
     } else {
       sendDedupe.sent = true
     }
+    res.on('finish', () => resolve())
+    res.on('close', () => resolve())
+    res.on('end', () => resolve())
+    res.on('error', (e) => reject(e))
     const result = setResponseHeaders(
       req,
       res,
@@ -666,9 +669,6 @@ function sendResponse(
     if (result.finished) {
       resolve()
     } else {
-      res.on('finish', () => resolve())
-      res.on('end', () => resolve())
-      res.on('error', () => reject())
       res.end(buffer, () => resolve())
     }
   })
