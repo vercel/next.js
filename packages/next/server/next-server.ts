@@ -582,6 +582,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getServerComponentManifest() {
+    if (this.nextConfig.experimental.runtime !== 'nodejs') return undefined
     return require(join(
       this.distDir,
       'server',

@@ -14,9 +14,10 @@ function Data() {
   throw promise
 }
 
-export default function Page() {
+export default function Page404() {
   return (
-    <Suspense fallback="next_streaming_fallback">
+    <Suspense fallback={null}>
+      custom-404-page
       <Data />
     </Suspense>
   )
