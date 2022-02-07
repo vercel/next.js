@@ -56,6 +56,10 @@ Check out [next/streaming](/docs/api-reference/next/streaming.md) for more detai
 
 ## Important Notes
 
+#### `next/head` and `next/script`
+
+Using resource tags in `next/head` won't work, and `next/script` instances with `beforeInteractive` will need to be in the `_document`.
+
 #### Data Fetching
 
 Currently, data fetching within `Suspense` boundaries on the server side is not fully supported, which could lead to mismatching between server and client. In the short-term, please don't try data fetching within `Suspense`.
