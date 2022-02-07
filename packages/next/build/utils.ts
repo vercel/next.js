@@ -1116,7 +1116,7 @@ export function isFlightPage(
   if (
     !(
       nextConfig.experimental.serverComponents &&
-      nextConfig.experimental.runtime === 'edge'
+      nextConfig.experimental.runtime
     )
   )
     return false

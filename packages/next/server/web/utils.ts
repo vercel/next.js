@@ -37,7 +37,7 @@ export function readableStreamTee<T = any>(
   }
   read()
 
-  return [transformStream.readable, transformStream2.readable] as any
+  return [transformStream.readable, transformStream2.readable]
 }
 
 export function notImplemented(name: string, method: string): any {

@@ -467,15 +467,17 @@ export default class NextNodeServer extends BaseServer {
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult | null> {
+    // Due to the way we pass data by mutating `renderOpts`, we can't extend the
+    // object here but only updating its `serverComponentManifest` field.
+    // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+    renderOpts.serverComponentManifest = this.serverComponentManifest
+
     return renderToHTML(
       req.originalRequest,
       res.originalResponse,
       pathname,
       query,
-      {
-        serverComponentManifest: this.serverComponentManifest,
-        ...renderOpts,
-      }
+      renderOpts
     )
   }
 
