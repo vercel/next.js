@@ -686,10 +686,10 @@ export class Head extends Component<
               </noscript>
             </>
           )}
+          {!isDeferred && getDynamicHeadContent()}
+
           {children}
           {optimizeFonts && <meta name="next-font-preconnect" />}
-
-          {!isDeferred && getDynamicHeadContent()}
 
           {inAmpMode && (
             <>

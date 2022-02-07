@@ -221,6 +221,7 @@ describe('Functions manifest', () => {
       'server',
       'functions-manifest.json'
     )
+    await fs.remove(join(appDir, '.next'))
     expect(fs.existsSync(functionsManifestPath)).toBe(false)
   })
   it('should contain rsc paths in functions manifest', async () => {
@@ -230,15 +231,17 @@ describe('Functions manifest', () => {
       'server',
       'functions-manifest.json'
     )
-    const content = JSON.parse(await fs.readFile(functionsManifestPath, 'utf8'))
+    const content = JSON.parse(fs.readFileSync(functionsManifestPath, 'utf8'))
     const { pages } = content
     const pageNames = Object.keys(pages)
 
     const paths = ['/', '/next-api/link', '/routes/[dynamic]']
     paths.forEach((path) => {
+      const { runtime, files } = pages[path]
       expect(pageNames).toContain(path)
-      expect(pages[path].runtime).toBe('web')
-      expect(pages[path].files.every((f) => f.startsWith('server/'))).toBe(true)
+      // Runtime of page `/` is undefined since it's configured as nodejs.
+      expect(runtime).toBe(path === '/' ? undefined : 'web')
+      expect(files.every((f) => f.startsWith('server/'))).toBe(true)
     })
 
     expect(content.version).toBe(1)

@@ -165,6 +165,10 @@ class Playwright extends BrowserInterface {
     return this.chain(async () => context.clearCookies())
   }
 
+  focusPage() {
+    return this.chain(() => page.bringToFront())
+  }
+
   private wrapElement(el: ElementHandle, selector: string) {
     ;(el as any).selector = selector
     ;(el as any).text = () => el.innerText()
@@ -235,6 +239,18 @@ class Playwright extends BrowserInterface {
 
   async hasElementByCssSelector(selector: string) {
     return this.eval(`!!document.querySelector('${selector}')`) as any
+  }
+
+  keydown(key: string): BrowserInterface {
+    return this.chain((el) => {
+      return page.keyboard.down(key).then(() => el)
+    })
+  }
+
+  keyup(key: string): BrowserInterface {
+    return this.chain((el) => {
+      return page.keyboard.up(key).then(() => el)
+    })
   }
 
   click() {
