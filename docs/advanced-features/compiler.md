@@ -30,7 +30,7 @@ We chose to build on SWC for a few reasons:
 - **WebAssembly:** Rust's support for WASM is essential for supporting all possible platforms and taking Next.js development everywhere.
 - **Community:** The Rust community and ecosystem are amazing and still growing.
 
-## Experimental Features
+## Supported Features
 
 ### Minification
 
@@ -45,6 +45,28 @@ module.exports = {
 ```
 
 If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
+
+### Relay
+
+To enable [Relay](https://relay.dev/) support:
+
+```js
+// next.config.js
+module.exports = {
+  experimental: {
+    relay: {
+      // This should match relay.config.js
+      src: './',
+      artifactDirectory: './__generated__',
+      language: 'typescript',
+    },
+  },
+}
+```
+
+NOTE: In Next.js all JavaScript files in `pages` directory are considered routes. So, for `relay-compiler` you'll need to specify `artifactDirectory` configuration settings outside of the `pages`, otherwise `relay-compiler` will generate files next to the source file in the `__generated__` directory, and this file will be considered a route, which will break production builds.
+
+## Experimental Features
 
 ### Styled Components
 
@@ -93,26 +115,6 @@ const customJestConfig = {
 // createJestConfig is exported in this way to ensure that next/jest can load the Next.js configuration, which is async
 module.exports = createJestConfig(customJestConfig)
 ```
-
-### Relay
-
-To enable [Relay](https://relay.dev/) support:
-
-```js
-// next.config.js
-module.exports = {
-  experimental: {
-    relay: {
-      // This should match relay.config.js
-      src: './',
-      artifactDirectory: './__generated__',
-      language: 'typescript',
-    },
-  },
-}
-```
-
-NOTE: In Next.js all JavaScript files in `pages` directory are considered routes. So, for `relay-compiler` you'll need to specify `artifactDirectory` configuration settings outside of the `pages`, otherwise `relay-compiler` will generate files next to the source file in the `__generated__` directory, and this file will be considered a route, which will break production builds.
 
 ### Remove React Properties
 
