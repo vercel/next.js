@@ -1,22 +1,39 @@
 import { IncrementalCache } from './incremental-cache'
 import RenderResult from './render-result'
 
-interface CachedRedirectValue {
+export interface CachedRedirectValue {
   kind: 'REDIRECT'
   props: Object
 }
 
 interface CachedPageValue {
   kind: 'PAGE'
+  // this needs to be a RenderResult so since renderResponse
+  // expects that type instead of a string
   html: RenderResult
   pageData: Object
 }
 
-export type ResponseCacheValue = CachedRedirectValue | CachedPageValue
+export interface CachedImageValue {
+  kind: 'IMAGE'
+  etag: string
+  buffer: Buffer
+  extension: string
+  isMiss?: boolean
+  isStale?: boolean
+  revalidate: number
+}
+
+export type ResponseCacheValue =
+  | CachedRedirectValue
+  | CachedPageValue
+  | CachedImageValue
 
 export type ResponseCacheEntry = {
   revalidate?: number | false
   value: ResponseCacheValue | null
+  isStale?: boolean
+  isMiss?: boolean
 }
 
 type ResponseGenerator = (
@@ -73,6 +90,7 @@ export default class ResponseCache {
         const cachedResponse = key ? await this.incrementalCache.get(key) : null
         if (cachedResponse) {
           resolve({
+            isStale: cachedResponse.isStale,
             revalidate: cachedResponse.curRevalidate,
             value:
               cachedResponse.value?.kind === 'PAGE'
@@ -91,7 +109,10 @@ export default class ResponseCache {
         }
 
         const cacheEntry = await responseGenerator(resolved)
-        resolve(cacheEntry)
+        resolve({
+          ...(cacheEntry as ResponseCacheEntry),
+          isMiss: !cachedResponse,
+        })
 
         if (key && cacheEntry && typeof cacheEntry.revalidate !== 'undefined') {
           await this.incrementalCache.set(

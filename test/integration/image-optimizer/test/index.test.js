@@ -3,6 +3,7 @@ import execa from 'execa'
 import fs from 'fs-extra'
 import sizeOf from 'image-size'
 import {
+  check,
   fetchViaHTTP,
   File,
   findPort,
@@ -15,6 +16,7 @@ import {
 } from 'next-test-utils'
 import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
+import assert from 'assert'
 
 const appDir = join(__dirname, '../app')
 const imagesDir = join(appDir, '.next', 'cache', 'images')
@@ -82,11 +84,19 @@ async function expectAvifSmallerThanWebp(w, q) {
   expect(avif).toBeLessThanOrEqual(webp)
 }
 
+async function fetchWithDuration(...args) {
+  const start = Date.now()
+  const res = await fetchViaHTTP(...args)
+  const buffer = await res.buffer()
+  const duration = Date.now() - start
+  return { duration, buffer, res }
+}
+
 function runTests({
   w,
   isDev,
   domains = [],
-  ttl,
+  minimumCacheTTL,
   isSharp,
   isOutdatedSharp,
   avifEnabled,
@@ -502,44 +512,92 @@ function runTests({
 
     it('should use cache and stale-while-revalidate when query is the same for external image', async () => {
       await fs.remove(imagesDir)
+      const delay = 500
 
-      const url = 'https://image-optimization-test.vercel.app/test.jpg'
+      const url = `https://image-optimization-test.vercel.app/api/slow?delay=${delay}`
       const query = { url, w, q: 39 }
       const opts = { headers: { accept: 'image/webp' } }
 
-      const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-      expect(res1.status).toBe(200)
-      expect(res1.headers.get('X-Nextjs-Cache')).toBe('MISS')
-      expect(res1.headers.get('Content-Type')).toBe('image/webp')
-      expect(res1.headers.get('Content-Disposition')).toBe(
-        `inline; filename="test.webp"`
+      const one = await fetchWithDuration(appPort, '/_next/image', query, opts)
+      expect(one.duration).toBeGreaterThan(delay)
+      expect(one.res.status).toBe(200)
+      expect(one.res.headers.get('X-Nextjs-Cache')).toBe('MISS')
+      expect(one.res.headers.get('Content-Type')).toBe('image/webp')
+      expect(one.res.headers.get('Content-Disposition')).toBe(
+        `inline; filename="slow.webp"`
       )
-      const json1 = await fsToJson(imagesDir)
-      expect(Object.keys(json1).length).toBe(1)
+      let json1
+      await check(async () => {
+        json1 = await fsToJson(imagesDir)
+        return Object.keys(json1).length === 1 ? 'success' : 'fail'
+      }, 'success')
 
-      const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-      expect(res2.status).toBe(200)
-      expect(res2.headers.get('X-Nextjs-Cache')).toBe('HIT')
-      expect(res2.headers.get('Content-Type')).toBe('image/webp')
-      expect(res2.headers.get('Content-Disposition')).toBe(
-        `inline; filename="test.webp"`
+      const two = await fetchWithDuration(appPort, '/_next/image', query, opts)
+      expect(two.res.status).toBe(200)
+      expect(two.res.headers.get('X-Nextjs-Cache')).toBe('HIT')
+      expect(two.res.headers.get('Content-Type')).toBe('image/webp')
+      expect(two.res.headers.get('Content-Disposition')).toBe(
+        `inline; filename="slow.webp"`
       )
       const json2 = await fsToJson(imagesDir)
       expect(json2).toStrictEqual(json1)
 
-      if (ttl) {
+      if (minimumCacheTTL) {
         // Wait until expired so we can confirm image is regenerated
-        await waitFor(ttl * 1000)
-        const res3 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-        expect(res3.status).toBe(200)
-        expect(res3.headers.get('X-Nextjs-Cache')).toBe('STALE')
-        expect(res3.headers.get('Content-Type')).toBe('image/webp')
-        expect(res3.headers.get('Content-Disposition')).toBe(
-          `inline; filename="test.webp"`
+        await waitFor(minimumCacheTTL * 1000)
+
+        const [three, four] = await Promise.all([
+          fetchWithDuration(appPort, '/_next/image', query, opts),
+          fetchWithDuration(appPort, '/_next/image', query, opts),
+        ])
+
+        expect(three.duration).toBeLessThan(one.duration)
+        expect(three.res.status).toBe(200)
+        expect(three.res.headers.get('X-Nextjs-Cache')).toBe('STALE')
+        expect(three.res.headers.get('Content-Type')).toBe('image/webp')
+        expect(three.res.headers.get('Content-Disposition')).toBe(
+          `inline; filename="slow.webp"`
         )
-        const json3 = await fsToJson(imagesDir)
-        expect(json3).not.toStrictEqual(json1)
-        expect(Object.keys(json3).length).toBe(1)
+
+        expect(four.duration).toBeLessThan(one.duration)
+        expect(four.res.status).toBe(200)
+        expect(four.res.headers.get('X-Nextjs-Cache')).toBe('STALE')
+        expect(four.res.headers.get('Content-Type')).toBe('image/webp')
+        expect(four.res.headers.get('Content-Disposition')).toBe(
+          `inline; filename="slow.webp"`
+        )
+        await check(async () => {
+          const json4 = await fsToJson(imagesDir)
+          try {
+            assert.deepStrictEqual(json4, json1)
+            return 'fail'
+          } catch (err) {
+            return 'success'
+          }
+        }, 'success')
+
+        const five = await fetchWithDuration(
+          appPort,
+          '/_next/image',
+          query,
+          opts
+        )
+        expect(five.duration).toBeLessThan(one.duration)
+        expect(five.res.status).toBe(200)
+        expect(five.res.headers.get('X-Nextjs-Cache')).toBe('HIT')
+        expect(five.res.headers.get('Content-Type')).toBe('image/webp')
+        expect(five.res.headers.get('Content-Disposition')).toBe(
+          `inline; filename="slow.webp"`
+        )
+        await check(async () => {
+          const json5 = await fsToJson(imagesDir)
+          try {
+            assert.deepStrictEqual(json5, json1)
+            return 'fail'
+          } catch (err) {
+            return 'success'
+          }
+        }, 'success')
       }
     })
   }
@@ -580,39 +638,80 @@ function runTests({
     const query = { url: '/test.png', w, q: 80 }
     const opts = { headers: { accept: 'image/webp' } }
 
-    const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-    expect(res1.status).toBe(200)
-    expect(res1.headers.get('X-Nextjs-Cache')).toBe('MISS')
-    expect(res1.headers.get('Content-Type')).toBe('image/webp')
-    expect(res1.headers.get('Content-Disposition')).toBe(
+    const one = await fetchWithDuration(appPort, '/_next/image', query, opts)
+    expect(one.res.status).toBe(200)
+    expect(one.res.headers.get('X-Nextjs-Cache')).toBe('MISS')
+    expect(one.res.headers.get('Content-Type')).toBe('image/webp')
+    expect(one.res.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.webp"`
     )
-    const json1 = await fsToJson(imagesDir)
-    expect(Object.keys(json1).length).toBe(1)
+    let json1
+    await check(async () => {
+      json1 = await fsToJson(imagesDir)
+      return Object.keys(json1).length === 1 ? 'success' : 'fail'
+    }, 'success')
 
-    const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-    expect(res2.status).toBe(200)
-    expect(res2.headers.get('X-Nextjs-Cache')).toBe('HIT')
-    expect(res2.headers.get('Content-Type')).toBe('image/webp')
-    expect(res2.headers.get('Content-Disposition')).toBe(
+    const two = await fetchWithDuration(appPort, '/_next/image', query, opts)
+    expect(two.res.status).toBe(200)
+    expect(two.res.headers.get('X-Nextjs-Cache')).toBe('HIT')
+    expect(two.res.headers.get('Content-Type')).toBe('image/webp')
+    expect(two.res.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.webp"`
     )
     const json2 = await fsToJson(imagesDir)
     expect(json2).toStrictEqual(json1)
 
-    if (ttl) {
+    if (minimumCacheTTL) {
       // Wait until expired so we can confirm image is regenerated
-      await waitFor(ttl * 1000)
-      const res3 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-      expect(res3.status).toBe(200)
-      expect(res3.headers.get('X-Nextjs-Cache')).toBe('STALE')
-      expect(res3.headers.get('Content-Type')).toBe('image/webp')
-      expect(res3.headers.get('Content-Disposition')).toBe(
+      await waitFor(minimumCacheTTL * 1000)
+
+      const [three, four] = await Promise.all([
+        fetchWithDuration(appPort, '/_next/image', query, opts),
+        fetchWithDuration(appPort, '/_next/image', query, opts),
+      ])
+
+      expect(three.duration).toBeLessThan(one.duration)
+      expect(three.res.status).toBe(200)
+      expect(three.res.headers.get('X-Nextjs-Cache')).toBe('STALE')
+      expect(three.res.headers.get('Content-Type')).toBe('image/webp')
+      expect(three.res.headers.get('Content-Disposition')).toBe(
         `inline; filename="test.webp"`
       )
-      const json3 = await fsToJson(imagesDir)
-      expect(json3).not.toStrictEqual(json1)
-      expect(Object.keys(json3).length).toBe(1)
+
+      expect(four.duration).toBeLessThan(one.duration)
+      expect(four.res.status).toBe(200)
+      expect(four.res.headers.get('X-Nextjs-Cache')).toBe('STALE')
+      expect(four.res.headers.get('Content-Type')).toBe('image/webp')
+      expect(four.res.headers.get('Content-Disposition')).toBe(
+        `inline; filename="test.webp"`
+      )
+      await check(async () => {
+        const json3 = await fsToJson(imagesDir)
+        try {
+          assert.deepStrictEqual(json3, json1)
+          return 'fail'
+        } catch (err) {
+          return 'success'
+        }
+      }, 'success')
+
+      const five = await fetchWithDuration(appPort, '/_next/image', query, opts)
+      expect(five.duration).toBeLessThan(one.duration)
+      expect(five.res.status).toBe(200)
+      expect(five.res.headers.get('X-Nextjs-Cache')).toBe('HIT')
+      expect(five.res.headers.get('Content-Type')).toBe('image/webp')
+      expect(five.res.headers.get('Content-Disposition')).toBe(
+        `inline; filename="test.webp"`
+      )
+      await check(async () => {
+        const json5 = await fsToJson(imagesDir)
+        try {
+          assert.deepStrictEqual(json5, json1)
+          return 'fail'
+        } catch (err) {
+          return 'success'
+        }
+      }, 'success')
     }
   })
 
@@ -629,8 +728,11 @@ function runTests({
     expect(res1.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.svg"`
     )
-    const json1 = await fsToJson(imagesDir)
-    expect(Object.keys(json1).length).toBe(1)
+    let json1
+    await check(async () => {
+      json1 = await fsToJson(imagesDir)
+      return Object.keys(json1).length === 1 ? 'success' : 'fail'
+    }, 'success')
 
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
@@ -656,8 +758,12 @@ function runTests({
     expect(res1.headers.get('Content-Disposition')).toBe(
       `inline; filename="animated.gif"`
     )
-    const json1 = await fsToJson(imagesDir)
-    expect(Object.keys(json1).length).toBe(1)
+
+    let json1
+    await check(async () => {
+      json1 = await fsToJson(imagesDir)
+      return Object.keys(json1).length === 1 ? 'success' : 'fail'
+    }, 'success')
 
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
@@ -716,7 +822,7 @@ function runTests({
     await expectWidth(res3, w)
   })
 
-  it('should proxy-pass unsupported image types and should not cache file', async () => {
+  it('should maintain bmp', async () => {
     const json1 = await fsToJson(imagesDir)
     expect(json1).toBeTruthy()
 
@@ -736,8 +842,14 @@ function runTests({
       `inline; filename="test.bmp"`
     )
 
-    const json2 = await fsToJson(imagesDir)
-    expect(json2).toStrictEqual(json1)
+    await check(async () => {
+      try {
+        assert.deepStrictEqual(await fsToJson(imagesDir), json1)
+        return 'expected change, but matched'
+      } catch (_) {
+        return 'success'
+      }
+    }, 'success')
   })
 
   it('should not resize if requested width is larger than original source image', async () => {
@@ -840,12 +952,16 @@ function runTests({
     await fs.remove(imagesDir)
     const query = { url: '/test.png', w, q: 80 }
     const opts = { headers: { accept: 'image/webp,*/*' } }
-    const [res1, res2] = await Promise.all([
+    const [res1, res2, res3] = await Promise.all([
+      fetchViaHTTP(appPort, '/_next/image', query, opts),
       fetchViaHTTP(appPort, '/_next/image', query, opts),
       fetchViaHTTP(appPort, '/_next/image', query, opts),
     ])
+
     expect(res1.status).toBe(200)
     expect(res2.status).toBe(200)
+    expect(res3.status).toBe(200)
+
     expect(res1.headers.get('Content-Type')).toBe('image/webp')
     expect(res1.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.webp"`
@@ -854,21 +970,28 @@ function runTests({
     expect(res2.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.webp"`
     )
+    expect(res3.headers.get('Content-Type')).toBe('image/webp')
+    expect(res3.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.webp"`
+    )
+
     await expectWidth(res1, w)
     await expectWidth(res2, w)
+    await expectWidth(res3, w)
 
-    const json1 = await fsToJson(imagesDir)
-    expect(Object.keys(json1).length).toBe(1)
+    await check(async () => {
+      const json1 = await fsToJson(imagesDir)
+      return Object.keys(json1).length === 1 ? 'success' : 'fail'
+    }, 'success')
 
-    const xCache1 = res1.headers.get('X-Nextjs-Cache')
-    const xCache2 = res2.headers.get('X-Nextjs-Cache')
-    if (xCache1 === 'HIT') {
-      expect(xCache1).toBe('HIT')
-      expect(xCache2).toBe('MISS')
-    } else {
-      expect(xCache1).toBe('MISS')
-      expect(xCache2).toBe('HIT')
-    }
+    const xCache = [res1, res2, res3]
+      .map((r) => r.headers.get('X-Nextjs-Cache'))
+      .sort((a, b) => b.localeCompare(a))
+
+    // Since the first request is a miss it blocks
+    // until the cache be populated so all concurrent
+    // requests receive the same response
+    expect(xCache).toEqual(['MISS', 'MISS', 'MISS'])
   })
 
   if (isDev || isSharp) {
@@ -1105,13 +1228,17 @@ describe('Image Optimizer', () => {
     'image-optimization-test.vercel.app',
   ]
 
+  // Reduce to 5 seconds so tests dont dont need to
+  // wait too long before testing stale responses.
+  const minimumCacheTTL = 5
+
   describe('Server support for minimumCacheTTL in next.config.js', () => {
     const size = 96 // defaults defined in server/config.ts
-    const ttl = 5 // super low ttl in seconds
     beforeAll(async () => {
       const json = JSON.stringify({
         images: {
-          minimumCacheTTL: ttl,
+          domains,
+          minimumCacheTTL,
         },
       })
       nextOutput = ''
@@ -1130,7 +1257,7 @@ describe('Image Optimizer', () => {
       await fs.remove(imagesDir)
     })
 
-    runTests({ w: size, isDev: false, ttl })
+    runTests({ w: size, isDev: false, domains, minimumCacheTTL })
   })
 
   describe('Server support for headers in next.config.js', () => {
@@ -1164,17 +1291,33 @@ describe('Image Optimizer', () => {
       await fs.remove(imagesDir)
     })
 
-    it('should set max-age header from upstream when matching next.config.js', async () => {
+    it('should set max-age header', async () => {
       const query = { url: '/test.png', w: size, q: 75 }
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=86400, must-revalidate`
+        `public, max-age=0, must-revalidate`
       )
       expect(res.headers.get('Content-Disposition')).toBe(
         `inline; filename="test.webp"`
       )
+
+      await check(async () => {
+        const files = await fsToJson(imagesDir)
+
+        let found = false
+        const maxAge = '86400'
+
+        Object.keys(files).forEach((dir) => {
+          if (
+            Object.keys(files[dir]).some((file) => file.includes(`${maxAge}.`))
+          ) {
+            found = true
+          }
+        })
+        return found ? 'success' : 'failed'
+      }, 'success')
     })
 
     it('should not set max-age header when not matching next.config.js', async () => {
@@ -1241,18 +1384,36 @@ describe('Image Optimizer', () => {
     })
 
     it('should return response when image is served from an external rewrite', async () => {
+      await fs.remove(imagesDir)
+
       const query = { url: '/next-js/next-js-bg.png', w: 64, q: 75 }
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=31536000, must-revalidate`
+        `public, max-age=0, must-revalidate`
       )
       expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('Content-Disposition')).toBe(
         `inline; filename="next-js-bg.webp"`
       )
+
+      await check(async () => {
+        const files = await fsToJson(imagesDir)
+
+        let found = false
+        const maxAge = '31536000'
+
+        Object.keys(files).forEach((dir) => {
+          if (
+            Object.keys(files[dir]).some((file) => file.includes(`${maxAge}.`))
+          ) {
+            found = true
+          }
+        })
+        return found ? 'success' : 'failed'
+      }, 'success')
       await expectWidth(res, 64)
     })
   })
