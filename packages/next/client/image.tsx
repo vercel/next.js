@@ -331,7 +331,7 @@ export default function Image({
     const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
     const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
     return { ...c, allSizes, deviceSizes }
-  }, [configContext, imageConfigDefault])
+  }, [configContext])
 
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
