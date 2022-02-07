@@ -1,4 +1,5 @@
 #![feature(trivial_bounds)]
+#![feature(into_future)]
 
 pub mod macro_helpers;
 mod native_function;

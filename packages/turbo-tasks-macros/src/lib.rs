@@ -145,9 +145,19 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 }
             }
 
-            pub fn get(&self) -> impl std::ops::Deref<Target = #ident> {
-                // unwrap is safe here since we ensure that it will be the correct node type
+            pub async fn get(&self) -> impl std::ops::Deref<Target = #ident> {
+                // unwrap is safe here since we ensured that it will be the correct node type
                 self.node.read::<#ident>().unwrap()
+            }
+        }
+
+        // #[cfg(feature = "into_future")]
+        impl std::future::IntoFuture for #ref_ident {
+            type Output = std::sync::Arc<#ident>;
+            type Future = std::future::Ready<std::sync::Arc<#ident>>;
+            fn into_future(self) -> Self::Future {
+                // unwrap is safe here since we ensured that it will be the correct node type
+                std::future::ready(self.node.read::<#ident>().unwrap())
             }
         }
 
@@ -895,7 +905,7 @@ fn gen_native_function_code(
                     let __self = std::clone::Clone::clone(&__self);
                 });
                 input_from_node.push(quote! {
-                    let __self = #self_ref_type::from_node(__self).unwrap().get();
+                    let __self = #self_ref_type::from_node(__self).unwrap().await;
                 });
                 input_arguments.push(quote! {
                     &*__self

@@ -1,11 +1,11 @@
 #![feature(trivial_bounds)]
 #![feature(hash_drain_filter)]
+#![feature(into_future)]
 
 use std::{
     collections::HashMap,
     fmt::{self, Debug},
     fs,
-    future::Future,
     io::{self, ErrorKind},
     path::{Path, PathBuf, MAIN_SEPARATOR},
     sync::{mpsc::channel, Arc, Mutex},
@@ -167,8 +167,13 @@ impl fmt::Debug for DiskFileSystem {
 #[async_trait::async_trait]
 impl FileSystem for DiskFileSystem {
     async fn read(&self, fs_path: FileSystemPathRef) -> FileContentRef {
-        let full_path = Path::new(&self.root)
-            .join(&fs_path.get().path.replace("/", &MAIN_SEPARATOR.to_string()));
+        let full_path = Path::new(&self.root).join(
+            &fs_path
+                .get()
+                .await
+                .path
+                .replace("/", &MAIN_SEPARATOR.to_string()),
+        );
         {
             let invalidator = Task::get_invalidator();
             let mut invalidators = self.invalidators.lock().unwrap();
@@ -180,7 +185,7 @@ impl FileSystem for DiskFileSystem {
         }
     }
     async fn read_dir(&self, fs_path: FileSystemPathRef) -> DirectoryContentRef {
-        let fs_path = fs_path.get();
+        let fs_path = fs_path.await;
         let full_path =
             Path::new(&self.root).join(&fs_path.path.replace("/", &MAIN_SEPARATOR.to_string()));
         {
@@ -216,9 +221,14 @@ impl FileSystem for DiskFileSystem {
         DirectoryContentRef::new(result)
     }
     async fn write(&self, fs_path: FileSystemPathRef, content: FileContentRef) {
-        let full_path = Path::new(&self.root)
-            .join(&fs_path.get().path.replace("/", &MAIN_SEPARATOR.to_string()));
-        match &*content.get() {
+        let full_path = Path::new(&self.root).join(
+            &fs_path
+                .get()
+                .await
+                .path
+                .replace("/", &MAIN_SEPARATOR.to_string()),
+        );
+        match &*content.await {
             FileContent::Content(buffer) => {
                 println!("write {} bytes to {}", buffer.len(), full_path.display());
                 fs::write(full_path.clone(), buffer)
@@ -261,9 +271,9 @@ pub async fn rebase(
     old_base: FileSystemPathRef,
     new_base: FileSystemPathRef,
 ) -> FileSystemPathRef {
-    let fs_path = &*fs_path.get();
-    let old_base = &*old_base.get();
-    let new_base = &*new_base.get();
+    let fs_path = &*fs_path.await;
+    let old_base = &*old_base.await;
+    let new_base = &*new_base.await;
     FileSystemPathRef::new(
         fs_path.fs.clone(),
         [new_base.path.as_str(), &fs_path.path[old_base.path.len()..]].concat(),
@@ -271,24 +281,24 @@ pub async fn rebase(
 }
 
 impl FileSystemPathRef {
-    pub fn read(self) -> impl Future<Output = FileContentRef> {
-        let this = self.get();
-        this.fs.read(self)
+    pub async fn read(self) -> FileContentRef {
+        let this = self.get().await;
+        this.fs.read(self).await
     }
-    pub fn read_dir(self) -> impl Future<Output = DirectoryContentRef> {
-        let this = self.get();
-        this.fs.read_dir(self)
+    pub async fn read_dir(self) -> DirectoryContentRef {
+        let this = self.get().await;
+        this.fs.read_dir(self).await
     }
-    pub fn write(self, content: FileContentRef) -> impl Future<Output = ()> {
-        let this = self.get();
-        this.fs.write(self, content)
+    pub async fn write(self, content: FileContentRef) {
+        let this = self.get().await;
+        this.fs.write(self, content).await
     }
-    pub fn rebase(
+    pub async fn rebase(
         fs_path: FileSystemPathRef,
         old_base: FileSystemPathRef,
         new_base: FileSystemPathRef,
-    ) -> impl Future<Output = FileSystemPathRef> {
-        rebase(fs_path, old_base, new_base)
+    ) -> FileSystemPathRef {
+        rebase(fs_path, old_base, new_base).await
     }
 }
 
