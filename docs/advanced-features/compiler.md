@@ -157,6 +157,20 @@ module.exports = {
 }
 ```
 
+### importSource
+
+Next.js will automatically detect `jsxImportSource` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with libraries like Theme UI.
+
+First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `jsconfig.json` or `tsconfig.json` file:
+
+```js
+{
+  "compilerOptions": {
+    "jsxImportSource": true
+  }
+}
+```
+
 ## Experimental Features
 
 ### Jest
@@ -186,20 +200,6 @@ const customJestConfig = {
 
 // createJestConfig is exported in this way to ensure that next/jest can load the Next.js configuration, which is async
 module.exports = createJestConfig(customJestConfig)
-```
-
-### importSource
-
-Next.js will automatically detect `jsxImportSource` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with libraries like Theme UI.
-
-First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `jsconfig.json` or `tsconfig.json` file:
-
-```js
-{
-  "compilerOptions": {
-    "jsxImportSource": true
-  }
-}
 ```
 
 ## Unsupported Features
