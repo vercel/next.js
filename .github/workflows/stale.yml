@@ -8,6 +8,7 @@ on:
 jobs:
   stale:
     runs-on: ubuntu-latest
+    if: github.repository_owner == 'vercel'
     steps:
       - uses: actions/stale@v4
         id: stale
