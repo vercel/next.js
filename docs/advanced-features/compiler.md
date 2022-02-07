@@ -113,6 +113,22 @@ module.exports = {
 }
 ```
 
+### Legacy Decorators
+
+Next.js will automatically detect `experimentalDecorators` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with older versions of libraries like `mobx`.
+
+This flag is only supported for compatibility with existing applications. We do not recommend using legacy decorators in new applications.
+
+First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `jsconfig.json` or `tsconfig.json` file:
+
+```js
+{
+  "compilerOptions": {
+    "experimentalDecorators": true
+  }
+}
+```
+
 ## Experimental Features
 
 ### Jest
@@ -142,22 +158,6 @@ const customJestConfig = {
 
 // createJestConfig is exported in this way to ensure that next/jest can load the Next.js configuration, which is async
 module.exports = createJestConfig(customJestConfig)
-```
-
-### Legacy Decorators
-
-Next.js will automatically detect `experimentalDecorators` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with older versions of libraries like `mobx`.
-
-This flag is only supported for compatibility with existing applications. We do not recommend using legacy decorators in new applications.
-
-First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `jsconfig.json` or `tsconfig.json` file:
-
-```js
-{
-  "compilerOptions": {
-    "experimentalDecorators": true
-  }
-}
 ```
 
 ### Remove Console
