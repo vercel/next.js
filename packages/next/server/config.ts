@@ -585,7 +585,7 @@ export default async function loadConfig(
       )
       throw err
     }
-    const userConfig = normalizeConfig(
+    const userConfig = await normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
     )
