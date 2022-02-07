@@ -181,7 +181,8 @@ impl FileSystem for DiskFileSystem {
     }
     async fn read_dir(&self, fs_path: FileSystemPathRef) -> DirectoryContentRef {
         let fs_path = fs_path.get();
-        let full_path = Path::new(&self.root).join(&fs_path.path);
+        let full_path =
+            Path::new(&self.root).join(&fs_path.path.replace("/", &MAIN_SEPARATOR.to_string()));
         {
             let invalidator = Task::get_invalidator();
             let mut invalidators = self.dir_invalidators.lock().unwrap();
@@ -215,7 +216,8 @@ impl FileSystem for DiskFileSystem {
         DirectoryContentRef::new(result)
     }
     async fn write(&self, fs_path: FileSystemPathRef, content: FileContentRef) {
-        let full_path = Path::new(&self.root).join(&fs_path.get().path);
+        let full_path = Path::new(&self.root)
+            .join(&fs_path.get().path.replace("/", &MAIN_SEPARATOR.to_string()));
         match &*content.get() {
             FileContent::Content(buffer) => {
                 println!("write {} bytes to {}", buffer.len(), full_path.display());
