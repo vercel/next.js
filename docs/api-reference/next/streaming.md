@@ -8,7 +8,7 @@ The experimental `next/streaming` module provides streaming related APIs to port
 
 ## unstable_useWebVitalsReport
 
-Next.js provides an App component level function `reportWebVitals` for tracking performance metrics, checkout [measuring-performance](docs/advanced-features/measuring-performance) for more details. With moving to server components, you might have a pure server side custom `_app` component which doesn't run client effects.
+Next.js provides an `_app` component level function, [`reportWebVitals`](docs/advanced-features/measuring-performance), for tracking performance metrics. With server components, you may have a pure server-side custom `_app` component which doesn't run client effects, so this existing API won't work.
 
 With the new `unstable_useWebVitalsReport` API, you're able to track web vitals metrics in client components.
 

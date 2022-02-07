@@ -1,10 +1,13 @@
 # Streaming SSR (Alpha)
 
-React 18 will include architectural improvements to React server-side rendering (SSR) performance. This means you could use `Suspense` in your React components in streaming SSR mode and React will send render them and send through HTTP streams. React server components is also an experimental feature based on streaming. Next.js will also provide server components related features along with other streaming support through `next/streaming`.
+React 18 will include architectural improvements to React server-side rendering (SSR) performance. This means you can use `Suspense` in your React components in streaming SSR mode and React will render them on the server and send them through HTTP streams.
+It's worth noting that another experimental feature, React Server Components, is based on streaming. You can read more about server components related streaming APIs like [`next/streaming`](docs/api-reference/next/streaming.md). However, this guide focuses on basic React 18 streaming.
 
 ## Enable Streaming SSR
 
-To enable streaming, use the experimental flag `concurrentFeatures: true`:
+Enabling streaming SSR means React renders your components into streams and client continues receiving the updating fragments from server, which lets you start emitting the HTML as early as possible. You can break down your app into few smaller independent units by `Suspense`. The client will use selective hydration strategy to prioritize the components hydration which lets users interact with the them efficiently.
+
+To enable streaming SSR, set the experimental flag `concurrentFeatures` to `true`:
 
 ```jsx
 // next.config.js

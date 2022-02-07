@@ -16,9 +16,9 @@ module.exports = {
 }
 ```
 
-Next, if you already have customized `pages/_document` component, you need to remove the `getInitialProps` static method and the `getServerSideProps` export if there’s any, otherwise it won't work with server components. If no custom Document component is provided, Next.js will fallback to a basic functional document component. Check [next/document support](#next/document) for more details.
+Next, if you already have a customized `pages/_document` component. If no custom Document component is provided, Next.js will fallback to a basic functional document component. Take a look at [next/document support](#next/document) for more details.
 
-Then, you can start using React Server Components. [See our example](https://github.com/vercel/next-rsc-demo) for more information.
+Once you've made these changes, you can start using React Server Components. [See our example](https://github.com/vercel/next-rsc-demo) for more information.
 
 ### Server Components Conventions
 
@@ -51,7 +51,9 @@ export default function Home() {
 
 The `<Home>` and `<Profile>` components will always be server-side rendered and streamed to the client, and will not be included by the client runtime. However, `<Content>` will still be hydrated on the client-side, like normal React components.
 
-To see a full example, check out [link to the demo and repository](https://github.com/vercel/next-rsc-demo).
+> Notice that make sure you're using default imports for server and client components at the moment. The the support of named exports are working in progress!
+
+To see a full example, check out the [vercel/next-rsc-demo demo](https://github.com/vercel/next-rsc-demo).
 
 ## Supported Next.js APIs
 
