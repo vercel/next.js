@@ -124,10 +124,10 @@ async function nextDev(dir, port) {
   })
 }
 
-describe('concurrentFeatures - basic', () => {
+describe('edge runtime - basic', () => {
   it('should warn user for experimental risk with server components', async () => {
     const edgeRuntimeWarning =
-      'You are using the experimental Edge Runtime with `concurrentFeatures`.'
+      'You are using the experimental Edge Runtime with `experimental.runtime`.'
     const rscWarning = `You have experimental React Server Components enabled. Continue at your own risk.`
     const { stderr } = await nextBuild(appDir)
     expect(stderr).toContain(edgeRuntimeWarning)
@@ -136,7 +136,7 @@ describe('concurrentFeatures - basic', () => {
 
   it('should warn user that native node APIs are not supported', async () => {
     const fsImportedErrorMessage =
-      'Native Node.js APIs are not supported in the Edge Runtime with `concurrentFeatures` enabled. Found `dns` imported.'
+      'Native Node.js APIs are not supported in the Edge Runtime. Found `dns` imported.'
     const { stderr } = await nextBuild(nativeModuleTestAppDir)
     expect(stderr).toContain(fsImportedErrorMessage)
   })
@@ -156,7 +156,7 @@ describe('concurrentFeatures - basic', () => {
   })
 })
 
-describe('concurrentFeatures - prod', () => {
+describe('edge runtime - prod', () => {
   const context = { appDir }
 
   beforeAll(async () => {
@@ -261,7 +261,7 @@ const customAppPageSuite = {
 runSuite('Custom App', 'dev', customAppPageSuite)
 runSuite('Custom App', 'prod', customAppPageSuite)
 
-describe('concurrentFeatures - dev', () => {
+describe('edge runtime - dev', () => {
   const context = { appDir }
 
   beforeAll(async () => {
@@ -315,7 +315,7 @@ const documentSuite = {
 
       expect(res.status).toBe(500)
       expect(html).toContain(
-        '`getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
+        '`getInitialProps` in Document component is not supported with the Edge Runtime.'
       )
     })
   },

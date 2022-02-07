@@ -459,9 +459,9 @@ export async function renderToHTML(
     runtime,
   } = renderOpts
 
-  const concurrentFeatures = !!runtime
+  const hasConcurrentFeatures = !!runtime
 
-  const isServerComponent = !!serverComponentManifest && concurrentFeatures
+  const isServerComponent = !!serverComponentManifest && hasConcurrentFeatures
   const OriginalComponent = renderOpts.Component
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
@@ -535,7 +535,7 @@ export async function renderToHTML(
     defaultAppGetInitialProps &&
     !isSSG &&
     !getServerSideProps &&
-    !concurrentFeatures
+    !hasConcurrentFeatures
 
   for (const methodName of [
     'getStaticProps',
@@ -1172,7 +1172,7 @@ export async function renderToHTML(
     return inAmpMode ? children : <div id="__next">{children}</div>
   }
 
-  const ReactDOMServer = concurrentFeatures
+  const ReactDOMServer = hasConcurrentFeatures
     ? require('react-dom/server.browser')
     : require('react-dom/server')
 
@@ -1271,7 +1271,7 @@ export async function renderToHTML(
         )
       }
 
-      if (concurrentFeatures) {
+      if (hasConcurrentFeatures) {
         bodyResult = async (suffix: string) => {
           // this must be called inside bodyResult so appWrappers is
           // up to date when getWrappedApp is called
@@ -1408,7 +1408,7 @@ export async function renderToHTML(
   )
 
   let documentHTML: string
-  if (concurrentFeatures) {
+  if (hasConcurrentFeatures) {
     // There is no `renderToStaticMarkup` exposed in the web environment, use
     // blocking `renderToReadableStream` to get the similar result.
     let result = ''

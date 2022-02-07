@@ -18,7 +18,7 @@ function Data() {
       setTimeout(() => {
         result = 'next_streaming_data'
         res()
-      }, 3000)
+      }, 1000)
     })
   throw promise
 }

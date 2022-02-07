@@ -498,7 +498,7 @@ export class Head extends Component<
       runtime,
     } = this.context
 
-    const concurrentFeatures = !!runtime
+    const hasConcurrentFeatures = !!runtime
 
     const disableRuntimeJS = unstable_runtimeJS === false
     const disableJsPreload =
@@ -665,7 +665,7 @@ export class Head extends Component<
 
       return (
         <head {...this.props}>
-          {!concurrentFeatures && this.context.isDevelopment && (
+          {!hasConcurrentFeatures && this.context.isDevelopment && (
             <>
               <style
                 data-next-hide-fouc
