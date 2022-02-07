@@ -1,4 +1,5 @@
 #![feature(trivial_bounds)]
+#![feature(hash_drain_filter)]
 
 use std::{
     collections::HashMap,
@@ -6,11 +7,14 @@ use std::{
     fs,
     future::Future,
     io::{self, ErrorKind},
-    path::Path,
-    sync::Mutex,
+    path::{Path, PathBuf, MAIN_SEPARATOR},
+    sync::{mpsc::channel, Arc, Mutex},
+    thread,
+    time::Duration,
 };
 
 use anyhow::Context;
+use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use turbo_tasks::{Invalidator, Task};
 
 #[turbo_tasks::value_trait]
@@ -26,18 +30,130 @@ pub struct DiskFileSystem {
     pub name: String,
     pub root: String,
     #[trace_ignore]
-    pub invalidators: Mutex<HashMap<String, Invalidator>>,
+    pub invalidators: Arc<Mutex<HashMap<String, Invalidator>>>,
+    #[trace_ignore]
+    pub dir_invalidators: Arc<Mutex<HashMap<String, Invalidator>>>,
+    #[trace_ignore]
+    pub watcher: RecommendedWatcher,
+}
+
+fn path_to_key(path: &Path) -> String {
+    path.to_string_lossy().to_lowercase()
 }
 
 #[turbo_tasks::value_impl]
 impl DiskFileSystem {
     #[turbo_tasks::constructor(intern)]
     pub fn new(name: String, root: String) -> Self {
-        Self {
+        let mut invalidators = Arc::new(Mutex::new(HashMap::<String, Invalidator>::new()));
+        let mut dir_invalidators = Arc::new(Mutex::new(HashMap::<String, Invalidator>::new()));
+        // Create a channel to receive the events.
+        let (tx, rx) = channel();
+        // Create a watcher object, delivering debounced events.
+        // The notification back-end is selected based on the platform.
+        let mut watcher = watcher(tx, Duration::from_millis(20)).unwrap();
+        // Add a path to be watched. All files and directories at that path and
+        // below will be monitored for changes.
+        watcher
+            .watch(root.clone(), RecursiveMode::Recursive)
+            .unwrap();
+
+        let instance = Self {
             name,
-            root: root.into(),
-            invalidators: Mutex::new(HashMap::new()),
-        }
+            root: root.clone(),
+            invalidators: invalidators.clone(),
+            dir_invalidators: dir_invalidators.clone(),
+            watcher,
+        };
+        thread::spawn(move || {
+            fn invalidate_path(
+                invalidators: &mut Arc<Mutex<HashMap<String, Invalidator>>>,
+                path: &Path,
+            ) {
+                if let Some(invalidator) = invalidators.lock().unwrap().remove(&path_to_key(path)) {
+                    invalidator.invalidate()
+                }
+            }
+            fn invalidate_path_and_children(
+                invalidators: &mut Arc<Mutex<HashMap<String, Invalidator>>>,
+                path: &Path,
+            ) {
+                let path_key = path_to_key(path);
+                for (_, invalidator) in invalidators
+                    .lock()
+                    .unwrap()
+                    .drain_filter(|key, _| key.starts_with(&path_key))
+                {
+                    invalidator.invalidate()
+                }
+            }
+            loop {
+                let event = rx.recv();
+                match event {
+                    Ok(DebouncedEvent::Write(path)) => {
+                        invalidate_path(&mut invalidators, path.as_path());
+                    }
+                    Ok(DebouncedEvent::Create(path)) | Ok(DebouncedEvent::Remove(path)) => {
+                        invalidate_path_and_children(&mut invalidators, path.as_path());
+                        invalidate_path_and_children(&mut dir_invalidators, path.as_path());
+                        if let Some(parent) = path.parent() {
+                            invalidate_path(&mut dir_invalidators, parent);
+                        }
+                    }
+                    Ok(DebouncedEvent::Rename(source, destination)) => {
+                        invalidate_path_and_children(&mut invalidators, source.as_path());
+                        if let Some(parent) = source.parent() {
+                            invalidate_path_and_children(&mut dir_invalidators, parent);
+                        }
+                        invalidate_path_and_children(&mut invalidators, destination.as_path());
+                        if let Some(parent) = destination.parent() {
+                            invalidate_path_and_children(&mut dir_invalidators, parent);
+                        }
+                    }
+                    Ok(DebouncedEvent::Rescan) => {
+                        invalidate_path_and_children(
+                            &mut invalidators,
+                            PathBuf::from(&root).as_path(),
+                        );
+                        invalidate_path_and_children(
+                            &mut dir_invalidators,
+                            PathBuf::from(&root).as_path(),
+                        );
+                    }
+                    Ok(DebouncedEvent::Error(err, path)) => {
+                        println!("watch error ({:?}): {:?} ", path, err);
+                        match path {
+                            Some(path) => {
+                                invalidate_path_and_children(&mut invalidators, path.as_path());
+                                invalidate_path_and_children(&mut dir_invalidators, path.as_path());
+                            }
+                            None => {
+                                invalidate_path_and_children(
+                                    &mut invalidators,
+                                    PathBuf::from(&root).as_path(),
+                                );
+                                invalidate_path_and_children(
+                                    &mut dir_invalidators,
+                                    PathBuf::from(&root).as_path(),
+                                );
+                            }
+                        }
+                    }
+                    Ok(DebouncedEvent::Chmod(_))
+                    | Ok(DebouncedEvent::NoticeRemove(_))
+                    | Ok(DebouncedEvent::NoticeWrite(_)) => {
+                        // ignored
+                    }
+                    Err(_) => {
+                        // Sender has been disconnected
+                        // which means DiskFileSystem has been dropped
+                        // exit thread
+                        break;
+                    }
+                }
+            }
+        });
+        instance
     }
 }
 
@@ -51,10 +167,11 @@ impl fmt::Debug for DiskFileSystem {
 #[async_trait::async_trait]
 impl FileSystem for DiskFileSystem {
     async fn read(&self, fs_path: FileSystemPathRef) -> FileContentRef {
-        let full_path = Path::new(&self.root).join(&fs_path.get().path);
+        let full_path = Path::new(&self.root)
+            .join(&fs_path.get().path.replace("/", &MAIN_SEPARATOR.to_string()));
         let invalidator = Task::get_invalidator();
         let mut invalidators = self.invalidators.lock().unwrap();
-        invalidators.insert(String::from(&fs_path.get().path), invalidator);
+        invalidators.insert(path_to_key(full_path.as_path()), invalidator);
         match fs::read(&full_path) {
             Ok(content) => FileContentRef::new(content),
             Err(_) => FileContentRef::not_found(),
