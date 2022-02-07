@@ -587,10 +587,6 @@ export default class DevServer extends Server {
       return
     }
 
-    if (this.nextConfig.experimental.serverComponents) {
-      this.serverComponentManifest = this.getServerComponentManifest()
-    }
-
     if (originalPathname) {
       // restore the path before continuing so that custom-routes can accurately determine
       // if they should match against the basePath or not
@@ -923,6 +919,13 @@ export default class DevServer extends Server {
     }
     try {
       await this.hotReloader!.ensurePage(pathname)
+
+      // When the new page is compiled, we need to reload the server component
+      // manifest.
+      if (this.nextConfig.experimental.serverComponents) {
+        this.serverComponentManifest = this.getServerComponentManifest()
+      }
+
       return super.findPageComponents(pathname, query, params)
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {
