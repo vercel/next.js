@@ -685,35 +685,47 @@ export default async function getBaseWebpackConfig(
     )
   }
 
-  const getPackagePath = (name: string, relativeToPath: string) => {
-    const packageJsonPath = require.resolve(`${name}/package.json`, {
-      paths: [relativeToPath],
-    })
-    // Include a trailing slash so that a `.startsWith(packagePath)` check avoids false positives
-    // when one package name starts with the full name of a different package.
-    // For example:
-    //   "node_modules/react-slider".startsWith("node_modules/react")  // true
-    //   "node_modules/react-slider".startsWith("node_modules/react/") // false
-    return path.join(packageJsonPath, '../')
-  }
-
   // Packages which will be split into the 'framework' chunk.
   // Only top-level packages are included, e.g. nested copies like
   // 'node_modules/meow/node_modules/object-assign' are not included.
-  const topLevelFrameworkPaths = [
-    getPackagePath('react', dir),
-    getPackagePath('react-dom', dir),
-    getPackagePath('scheduler', require.resolve('react-dom', { paths: [dir] })),
-    getPackagePath('object-assign', require.resolve('react', { paths: [dir] })),
-    getPackagePath(
-      'object-assign',
-      require.resolve('react-dom', { paths: [dir] })
-    ),
-    getPackagePath(
-      'use-subscription',
-      require.resolve('next', { paths: [dir] })
-    ),
-  ]
+  const topLevelFrameworkPaths: string[] = []
+  const visitedFrameworkPackages = new Set<string>()
+
+  // Adds package-paths of dependencies recursively
+  const addPackagePath = (packageName: string, relativeToPath: string) => {
+    try {
+      if (visitedFrameworkPackages.has(packageName)) {
+        return
+      }
+      visitedFrameworkPackages.add(packageName)
+
+      const packageJsonPath = require.resolve(`${packageName}/package.json`, {
+        paths: [relativeToPath],
+      })
+
+      // Include a trailing slash so that a `.startsWith(packagePath)` check avoids false positives
+      // when one package name starts with the full name of a different package.
+      // For example:
+      //   "node_modules/react-slider".startsWith("node_modules/react")  // true
+      //   "node_modules/react-slider".startsWith("node_modules/react/") // false
+      const directory = path.join(packageJsonPath, '../')
+
+      // Returning from the function in case the directory has already been added and traversed
+      if (topLevelFrameworkPaths.includes(directory)) return
+      topLevelFrameworkPaths.push(directory)
+
+      const dependencies = require(packageJsonPath).dependencies || {}
+      for (const name of Object.keys(dependencies)) {
+        addPackagePath(name, directory)
+      }
+    } catch (_) {
+      // don't error on failing to resolve framework packages
+    }
+  }
+
+  for (const packageName of ['react', 'react-dom']) {
+    addPackagePath(packageName, dir)
+  }
 
   // Select appropriate SplitChunksPlugin config for this build
   const splitChunksConfig: webpack.Options.SplitChunksOptions | false = dev
