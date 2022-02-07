@@ -717,6 +717,10 @@ export default class DevServer extends Server {
     return undefined
   }
 
+  protected getServerComponentManifest() {
+    return undefined
+  }
+
   protected async hasMiddleware(
     pathname: string,
     isSSR?: boolean
@@ -923,7 +927,7 @@ export default class DevServer extends Server {
       // When the new page is compiled, we need to reload the server component
       // manifest.
       if (this.nextConfig.experimental.serverComponents) {
-        this.serverComponentManifest = this.getServerComponentManifest()
+        this.serverComponentManifest = super.getServerComponentManifest()
       }
 
       return super.findPageComponents(pathname, query, params)
