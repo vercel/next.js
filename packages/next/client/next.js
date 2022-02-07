@@ -1,4 +1,4 @@
-import { initNext, version, router, emitter, render, renderError } from './'
+import { initNext, version, router, emitter } from './'
 
 window.next = {
   version,
