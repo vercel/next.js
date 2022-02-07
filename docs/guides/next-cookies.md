@@ -144,7 +144,7 @@ This code sets `light` mode as the default theme. Then it allows the user to cli
 
 Next.js provides you with a `context.req.cookies` JavaScript object containing all the cookies.
 
-If you export an async function called [`getServerSideProps`](https://nextjs.org/docs/basic-features/data-fetching#getserversideprops-server-side-rendering) from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`.
+If you export an async function called [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props) from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`.
 
 ```js
 export async function getServerSideProps(context) {
