@@ -46,6 +46,25 @@ module.exports = {
 
 If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
 
+### Styled Components
+
+We're working to port `babel-plugin-styled-components` to the Next.js Compiler.
+
+First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `next.config.js` file:
+
+```js
+// next.config.js
+
+module.exports = {
+  experimental: {
+    // ssr and displayName are configured by default
+    styledComponents: true,
+  },
+}
+```
+
+Currently, only the `ssr` and `displayName` transforms have been implemented. These two transforms are the main requirement for using `styled-components` in Next.js.
+
 ### Relay
 
 To enable [Relay](https://relay.dev/) support:
@@ -67,25 +86,6 @@ module.exports = {
 NOTE: In Next.js all JavaScript files in `pages` directory are considered routes. So, for `relay-compiler` you'll need to specify `artifactDirectory` configuration settings outside of the `pages`, otherwise `relay-compiler` will generate files next to the source file in the `__generated__` directory, and this file will be considered a route, which will break production builds.
 
 ## Experimental Features
-
-### Styled Components
-
-We're working to port `babel-plugin-styled-components` to the Next.js Compiler.
-
-First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `next.config.js` file:
-
-```js
-// next.config.js
-
-module.exports = {
-  experimental: {
-    // ssr and displayName are configured by default
-    styledComponents: true,
-  },
-}
-```
-
-Currently, only the `ssr` and `displayName` transforms have been implemented. These two transforms are the main requirement for using `styled-components` in Next.js.
 
 ### Jest
 

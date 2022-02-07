@@ -80,12 +80,6 @@ export interface ExperimentalConfig {
     | {
         exclude?: string[]
       }
-  reactRemoveProperties?:
-    | boolean
-    | {
-        properties?: string[]
-      }
-  styledComponents?: boolean
   swcMinify?: boolean
   swcFileReading?: boolean
   cpus?: number
@@ -382,6 +376,7 @@ export interface NextConfig extends Record<string, any> {
       artifactDirectory?: string
       language?: 'typescript' | 'flow'
     }
+    styledComponents?: boolean
   }
 
   /**
