@@ -227,7 +227,8 @@ export async function imageOptimizer(
       allFiles = await promises.readdir(hashDir)
     } catch (error) {
       if (isError(error) && error.code === 'ENOENT') {
-        await promises.mkdir(hashDir, { recursive: true })
+        // Directory doesn't exist, so there is no cache.
+        // We'll create it later in writeToCacheDir()
       } else {
         throw error
       }
@@ -552,7 +553,6 @@ export async function imageOptimizer(
         throw new Error('Unable to optimize buffer')
       }
     } catch (error) {
-      console.error('Failed to optimize image', error)
       await sendResponse(
         sendDedupe,
         req,
