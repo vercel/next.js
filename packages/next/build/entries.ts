@@ -25,6 +25,12 @@ export type PagesMapping = {
   [page: string]: string
 }
 
+export function getPageFromPath(pagePath: string, extensions: string[]) {
+  let page = pagePath.replace(new RegExp(`\\.+(${extensions.join('|')})$`), '')
+  page = page.replace(/\\/g, '/').replace(/\/index$/, '')
+  return page === '' ? '/' : page
+}
+
 export function createPagesMapping(
   pagePaths: string[],
   extensions: string[],
@@ -47,19 +53,13 @@ export function createPagesMapping(
 
   const pages: PagesMapping = pagePaths.reduce(
     (result: PagesMapping, pagePath): PagesMapping => {
-      let page = pagePath.replace(
-        new RegExp(`\\.+(${extensions.join('|')})$`),
-        ''
-      )
-      if (hasServerComponents && /\.client$/.test(page)) {
+      const pageKey = getPageFromPath(pagePath, extensions)
+
+      if (hasServerComponents && /\.client$/.test(pageKey)) {
         // Assume that if there's a Client Component, that there is
         // a matching Server Component that will map to the page.
         return result
       }
-
-      page = page.replace(/\\/g, '/').replace(/\/index$/, '')
-
-      const pageKey = page === '' ? '/' : page
 
       if (pageKey in result) {
         warn(
@@ -157,7 +157,6 @@ export function createEntrypoints(
     const isFlight = isFlightPage(config, absolutePagePath)
 
     const webServerRuntime = !!config.experimental.concurrentFeatures
-    const hasServerComponents = !!config.experimental.serverComponents
 
     if (page.match(MIDDLEWARE_ROUTE)) {
       const loaderOpts: MiddlewareLoaderOptions = {
@@ -176,11 +175,12 @@ export function createEntrypoints(
       serverWeb[serverBundlePath] = finalizeEntrypoint({
         name: '[name].js',
         value: `next-middleware-ssr-loader?${stringify({
+          dev: false,
           page,
+          stringifiedConfig: JSON.stringify(config),
           absolute500Path: pages['/500'] || '',
           absolutePagePath,
           isServerComponent: isFlight,
-          serverComponents: hasServerComponents,
           ...defaultServerlessOptions,
         } as any)}!`,
         isServer: false,

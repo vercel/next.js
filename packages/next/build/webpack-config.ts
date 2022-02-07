@@ -48,6 +48,7 @@ import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
+import FunctionsManifestPlugin from './webpack/plugins/functions-manifest-plugin'
 import type { Span } from '../trace'
 import { getRawPageExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
@@ -609,14 +610,6 @@ export default async function getBaseWebpackConfig(
           }
         : {}),
 
-      ...(webServerRuntime
-        ? {
-            'react-dom/server': dev
-              ? 'react-dom/cjs/react-dom-server.browser.development'
-              : 'react-dom/cjs/react-dom-server.browser.production.min',
-          }
-        : {}),
-
       setimmediate: 'next/dist/compiled/setimmediate',
     },
     ...(targetWeb
@@ -692,35 +685,47 @@ export default async function getBaseWebpackConfig(
     )
   }
 
-  const getPackagePath = (name: string, relativeToPath: string) => {
-    const packageJsonPath = require.resolve(`${name}/package.json`, {
-      paths: [relativeToPath],
-    })
-    // Include a trailing slash so that a `.startsWith(packagePath)` check avoids false positives
-    // when one package name starts with the full name of a different package.
-    // For example:
-    //   "node_modules/react-slider".startsWith("node_modules/react")  // true
-    //   "node_modules/react-slider".startsWith("node_modules/react/") // false
-    return path.join(packageJsonPath, '../')
-  }
-
   // Packages which will be split into the 'framework' chunk.
   // Only top-level packages are included, e.g. nested copies like
   // 'node_modules/meow/node_modules/object-assign' are not included.
-  const topLevelFrameworkPaths = [
-    getPackagePath('react', dir),
-    getPackagePath('react-dom', dir),
-    getPackagePath('scheduler', require.resolve('react-dom', { paths: [dir] })),
-    getPackagePath('object-assign', require.resolve('react', { paths: [dir] })),
-    getPackagePath(
-      'object-assign',
-      require.resolve('react-dom', { paths: [dir] })
-    ),
-    getPackagePath(
-      'use-subscription',
-      require.resolve('next', { paths: [dir] })
-    ),
-  ]
+  const topLevelFrameworkPaths: string[] = []
+  const visitedFrameworkPackages = new Set<string>()
+
+  // Adds package-paths of dependencies recursively
+  const addPackagePath = (packageName: string, relativeToPath: string) => {
+    try {
+      if (visitedFrameworkPackages.has(packageName)) {
+        return
+      }
+      visitedFrameworkPackages.add(packageName)
+
+      const packageJsonPath = require.resolve(`${packageName}/package.json`, {
+        paths: [relativeToPath],
+      })
+
+      // Include a trailing slash so that a `.startsWith(packagePath)` check avoids false positives
+      // when one package name starts with the full name of a different package.
+      // For example:
+      //   "node_modules/react-slider".startsWith("node_modules/react")  // true
+      //   "node_modules/react-slider".startsWith("node_modules/react/") // false
+      const directory = path.join(packageJsonPath, '../')
+
+      // Returning from the function in case the directory has already been added and traversed
+      if (topLevelFrameworkPaths.includes(directory)) return
+      topLevelFrameworkPaths.push(directory)
+
+      const dependencies = require(packageJsonPath).dependencies || {}
+      for (const name of Object.keys(dependencies)) {
+        addPackagePath(name, directory)
+      }
+    } catch (_) {
+      // don't error on failing to resolve framework packages
+    }
+  }
+
+  for (const packageName of ['react', 'react-dom']) {
+    addPackagePath(packageName, dir)
+  }
 
   // Select appropriate SplitChunksPlugin config for this build
   const splitChunksConfig: webpack.Options.SplitChunksOptions | false = dev
@@ -956,11 +961,6 @@ export default async function getBaseWebpackConfig(
       }
       return /node_modules/.test(excludePath)
     },
-  }
-
-  const nonUserCondition = {
-    include: /node_modules/,
-    exclude: babelIncludeRegexes,
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -1255,13 +1255,6 @@ export default async function getBaseWebpackConfig(
             },
           ],
         },
-        {
-          ...nonUserCondition,
-          // Make all non-user modules to be compiled in a single layer
-          // This avoids compiling them mutliple times and avoids module id changes
-          issuerLayer: 'middleware',
-          layer: '',
-        },
         ...(!config.images.disableStaticImages
           ? [
               {
@@ -1460,6 +1453,14 @@ export default async function getBaseWebpackConfig(
       // replacement is done before its process.env.* handling
       (!isServer || webServerRuntime) &&
         new MiddlewarePlugin({ dev, webServerRuntime }),
+      process.env.ENABLE_FILE_SYSTEM_API === '1' &&
+        webServerRuntime &&
+        new FunctionsManifestPlugin({
+          dev,
+          pagesDir,
+          webServerRuntime,
+          pageExtensions: config.pageExtensions,
+        }),
       isServer && new NextJsSsrImportPlugin(),
       !isServer &&
         new BuildManifestPlugin({
@@ -1617,6 +1618,7 @@ export default async function getBaseWebpackConfig(
     removeConsole: config.experimental.removeConsole,
     reactRemoveProperties: config.experimental.reactRemoveProperties,
     styledComponents: config.experimental.styledComponents,
+    relay: config.experimental.relay,
   })
 
   const cache: any = {

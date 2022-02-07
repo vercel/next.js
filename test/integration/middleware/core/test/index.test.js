@@ -37,8 +37,8 @@ describe('Middleware base tests', () => {
       })
     })
     afterAll(() => killApp(context.app))
-    rewriteTests()
-    rewriteTests('/fr')
+    rewriteTests(log)
+    rewriteTests(log, '/fr')
     redirectTests()
     redirectTests('/fr')
     responseTests()
@@ -74,8 +74,8 @@ describe('Middleware base tests', () => {
       })
     })
     afterAll(() => killApp(context.app))
-    rewriteTests()
-    rewriteTests('/fr')
+    rewriteTests(serverOutput)
+    rewriteTests(serverOutput, '/fr')
     redirectTests()
     redirectTests('/fr')
     responseTests()
@@ -161,7 +161,57 @@ function urlTests(log, locale = '') {
   })
 }
 
-function rewriteTests(locale = '') {
+function rewriteTests(log, locale = '') {
+  it('should override with rewrite internally correctly', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      '/rewrites/about',
+      { override: 'internal' },
+      { redirect: 'manual' }
+    )
+
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('Welcome Page A')
+
+    const browser = await webdriver(context.appPort, `${locale}/rewrites`)
+    await browser.elementByCss('#override-with-internal-rewrite').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /Welcome Page A/
+    )
+    expect(await browser.eval('window.location.pathname')).toBe(
+      `${locale || ''}/rewrites/about`
+    )
+    expect(await browser.eval('window.location.search')).toBe(
+      '?override=internal'
+    )
+  })
+
+  it('should override with rewrite externally correctly', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      '/rewrites/about',
+      { override: 'external' },
+      { redirect: 'manual' }
+    )
+
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('Example Domain')
+
+    const browser = await webdriver(context.appPort, `${locale}/rewrites`)
+    await browser.elementByCss('#override-with-external-rewrite').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /Example Domain/
+    )
+    expect(await browser.eval('window.location.pathname')).toBe(
+      `${locale || ''}/rewrites/about`
+    )
+    expect(await browser.eval('window.location.search')).toBe(
+      '?override=external'
+    )
+  })
+
   it('should rewrite to fallback: true page successfully', async () => {
     const randomSlug = `another-${Date.now()}`
     const res2 = await fetchViaHTTP(
@@ -210,6 +260,35 @@ function rewriteTests(locale = '') {
     // -1 is returned if bucket was not found in func getCookieFromResponse
     expect(bucket).not.toBe(-1)
     expect($('.title').text()).toBe(expectedText)
+  })
+
+  it(`${locale} should clear query parameters`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/clear-query-params`,
+      {
+        a: '1',
+        b: '2',
+        foo: 'bar',
+        allowed: 'kept',
+      }
+    )
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#my-query-params').text())).toEqual({
+      allowed: 'kept',
+    })
+  })
+
+  it(`warns about a query param deleted`, async () => {
+    await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/clear-query-params`,
+      { a: '1', allowed: 'kept' }
+    )
+    expect(log.output).toContain(
+      'Query params are no longer automatically merged for rewrites in middleware'
+    )
   })
 
   it(`${locale} should rewrite to about page`, async () => {

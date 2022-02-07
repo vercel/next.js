@@ -4,8 +4,7 @@
 // - chalk.red('error')
 // - chalk.bold.cyan('message')
 // - chalk.hex('#fff').underline('hello')
-const log = console.log
-const chalk: any = new Proxy(log, {
+const chalk: any = new Proxy((s: string) => s, {
   get(_, prop: string) {
     if (
       ['hex', 'rgb', 'ansi256', 'bgHex', 'bgRgb', 'bgAnsi256'].includes(prop)

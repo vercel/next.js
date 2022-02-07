@@ -9,7 +9,7 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import path from 'path'
+import path, { join } from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
@@ -89,7 +89,6 @@ import {
   PageInfo,
   printCustomRoutes,
   printTreeView,
-  getCssFilePaths,
   getUnresolvedModuleFromError,
   copyTracedFiles,
   isReservedPage,
@@ -551,11 +550,7 @@ export default async function build(
       .traceChild('generate-required-server-files')
       .traceFn(() => ({
         version: 1,
-        config: {
-          ...config,
-          compress: false,
-          configFile: undefined,
-        },
+        config: { ...config, configFile: undefined },
         appDir: dir,
         files: [
           ROUTES_MANIFEST,
@@ -1033,7 +1028,7 @@ export default async function build(
                   )
                 }
               } catch (err) {
-                if (isError(err) && err.message !== 'INVALID_DEFAULT_EXPORT')
+                if (!isError(err) || err.message !== 'INVALID_DEFAULT_EXPORT')
                   throw err
                 invalidPages.add(page)
               }
@@ -1368,10 +1363,22 @@ export default async function build(
     await writeBuildId(distDir, buildId)
 
     if (config.experimental.optimizeCss) {
-      const cssFilePaths = getCssFilePaths(buildManifest)
+      const globOrig =
+        require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+
+      const cssFilePaths = await new Promise<string[]>((resolve, reject) => {
+        globOrig('**/*.css', { cwd: join(distDir, 'static') }, (err, files) => {
+          if (err) {
+            return reject(err)
+          }
+          resolve(files)
+        })
+      })
 
       requiredServerFiles.files.push(
-        ...cssFilePaths.map((filePath) => path.join(config.distDir, filePath))
+        ...cssFilePaths.map((filePath) =>
+          path.join(config.distDir, 'static', filePath)
+        )
       )
     }
 

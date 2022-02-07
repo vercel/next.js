@@ -1,7 +1,20 @@
 import { NextResponse } from 'next/server'
 
+/**
+ * @param {import('next/server').NextRequest} request
+ */
 export async function middleware(request) {
   const url = request.nextUrl
+
+  if (
+    url.pathname.startsWith('/rewrites/about') &&
+    url.searchParams.has('override')
+  ) {
+    const isExternal = url.searchParams.get('override') === 'external'
+    return NextResponse.rewrite(
+      isExternal ? 'https://example.com' : '/rewrites/a'
+    )
+  }
 
   if (url.pathname.startsWith('/rewrites/to-blog')) {
     const slug = url.pathname.split('/').pop()
@@ -30,6 +43,16 @@ export async function middleware(request) {
 
   if (url.pathname === '/rewrites/rewrite-me-to-vercel') {
     return NextResponse.rewrite('https://vercel.com')
+  }
+
+  if (url.pathname === '/rewrites/clear-query-params') {
+    const allowedKeys = ['allowed']
+    for (const key of [...url.searchParams.keys()]) {
+      if (!allowedKeys.includes(key)) {
+        url.searchParams.delete(key)
+      }
+    }
+    return NextResponse.rewrite(url)
   }
 
   if (url.pathname === '/rewrites/rewrite-me-without-hard-navigation') {

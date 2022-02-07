@@ -263,7 +263,7 @@ We've discussed two forms of pre-rendering for Next.js.
 We recommend you to read the following sections next:
 
 <div class="card">
-  <a href="/docs/basic-features/data-fetching/index.md">
+  <a href="/docs/basic-features/data-fetching/overview.md">
     <b>Data Fetching:</b>
     <small>Learn more about data fetching in Next.js.</small>
   </a>
