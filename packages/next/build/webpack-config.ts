@@ -1616,7 +1616,7 @@ export default async function getBaseWebpackConfig(
     swcMinify: config.swcMinify,
     swcLoader: useSWCLoader,
     removeConsole: config.experimental.removeConsole,
-    reactRemoveProperties: config.experimental.reactRemoveProperties,
+    reactRemoveProperties: config.compiler.reactRemoveProperties,
     styledComponents: config.compiler.styledComponents,
     relay: config.compiler.relay,
   })

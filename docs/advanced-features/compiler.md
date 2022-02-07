@@ -85,6 +85,34 @@ module.exports = {
 
 NOTE: In Next.js all JavaScript files in `pages` directory are considered routes. So, for `relay-compiler` you'll need to specify `artifactDirectory` configuration settings outside of the `pages`, otherwise `relay-compiler` will generate files next to the source file in the `__generated__` directory, and this file will be considered a route, which will break production builds.
 
+### Remove React Properties
+
+Allows to remove JSX properties. This is often used for testing. Similar to `babel-plugin-react-remove-properties`.
+
+To remove properties matching the default regex `^data-test`:
+
+```js
+// next.config.js
+module.exports = {
+  experimental: {
+    reactRemoveProperties: true,
+  },
+}
+```
+
+To remove custom properties:
+
+```js
+// next.config.js
+module.exports = {
+  experimental: {
+    // The regexes defined here are processed in Rust so the syntax is different from
+    // JavaScript `RegExp`s. See https://docs.rs/regex.
+    reactRemoveProperties: { properties: ['^data-custom$'] },
+  },
+}
+```
+
 ## Experimental Features
 
 ### Jest
@@ -114,34 +142,6 @@ const customJestConfig = {
 
 // createJestConfig is exported in this way to ensure that next/jest can load the Next.js configuration, which is async
 module.exports = createJestConfig(customJestConfig)
-```
-
-### Remove React Properties
-
-Allows to remove JSX properties. This is often used for testing. Similar to `babel-plugin-react-remove-properties`.
-
-To remove properties matching the default regex `^data-test`:
-
-```js
-// next.config.js
-module.exports = {
-  experimental: {
-    reactRemoveProperties: true,
-  },
-}
-```
-
-To remove custom properties:
-
-```js
-// next.config.js
-module.exports = {
-  experimental: {
-    // The regexes defined here are processed in Rust so the syntax is different from
-    // JavaScript `RegExp`s. See https://docs.rs/regex.
-    reactRemoveProperties: { properties: ['^data-custom$'] },
-  },
-}
 ```
 
 ### Legacy Decorators

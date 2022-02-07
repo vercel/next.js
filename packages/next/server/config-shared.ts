@@ -371,6 +371,11 @@ export interface NextConfig extends Record<string, any> {
    * @see [Supported Compiler Options](https://nextjs.org/docs/advanced-features/compiler#supported-features)
    */
   compiler?: {
+    reactRemoveProperties?:
+      | boolean
+      | {
+          properties?: string[]
+        }
     relay?: {
       src: string
       artifactDirectory?: string
