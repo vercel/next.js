@@ -122,7 +122,7 @@ let {
 imageConfigDefault
 
 function setImageConfig(imagesConfig: ImageConfigComplete) {
-  if (!imagesConfig || process.env.__NEXT_IMAGE_OPTS) return
+  if (!imagesConfig) return
 
   configDeviceSizes = imagesConfig.deviceSizes
   configImageSizes = imagesConfig.imageSizes
