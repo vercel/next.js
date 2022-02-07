@@ -142,7 +142,7 @@ This code sets `light` mode as the default theme. Then it allows the user to cli
 
 ## Server-side cookies with Next.js
 
-Working with cookies on the server-side with Next.js is just like you would expect. However, Next.js provides you with a `context.req.cookies` JavaScript object containing all the cookies.
+Next.js provides you with a `context.req.cookies` JavaScript object containing all the cookies.
 
 If you export an async function called [`getServerSideProps`](https://nextjs.org/docs/basic-features/data-fetching#getserversideprops-server-side-rendering) from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`.
 
