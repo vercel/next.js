@@ -32,18 +32,6 @@ We chose to build on SWC for a few reasons:
 
 ## Supported Features
 
-### Minification
-
-You can opt-in to using the Next.js compiler for minification. This is 7x faster than Terser.
-
-```js
-// next.config.js
-
-module.exports = {
-  swcMinify: true,
-}
-```
-
 If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
 
 ### Styled Components
@@ -56,7 +44,7 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 // next.config.js
 
 module.exports = {
-  experimental: {
+  compiler: {
     // ssr and displayName are configured by default
     styledComponents: true,
   },
@@ -72,7 +60,7 @@ To enable [Relay](https://relay.dev/) support:
 ```js
 // next.config.js
 module.exports = {
-  experimental: {
+  compiler: {
     relay: {
       // This should match relay.config.js
       src: './',
@@ -94,7 +82,7 @@ To remove properties matching the default regex `^data-test`:
 ```js
 // next.config.js
 module.exports = {
-  experimental: {
+  compiler: {
     reactRemoveProperties: true,
   },
 }
@@ -105,27 +93,11 @@ To remove custom properties:
 ```js
 // next.config.js
 module.exports = {
-  experimental: {
+  compiler: {
     // The regexes defined here are processed in Rust so the syntax is different from
     // JavaScript `RegExp`s. See https://docs.rs/regex.
     reactRemoveProperties: { properties: ['^data-custom$'] },
   },
-}
-```
-
-### Legacy Decorators
-
-Next.js will automatically detect `experimentalDecorators` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with older versions of libraries like `mobx`.
-
-This flag is only supported for compatibility with existing applications. We do not recommend using legacy decorators in new applications.
-
-First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `jsconfig.json` or `tsconfig.json` file:
-
-```js
-{
-  "compilerOptions": {
-    "experimentalDecorators": true
-  }
 }
 ```
 
@@ -157,6 +129,22 @@ module.exports = {
 }
 ```
 
+### Legacy Decorators
+
+Next.js will automatically detect `experimentalDecorators` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with older versions of libraries like `mobx`.
+
+This flag is only supported for compatibility with existing applications. We do not recommend using legacy decorators in new applications.
+
+First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `jsconfig.json` or `tsconfig.json` file:
+
+```js
+{
+  "compilerOptions": {
+    "experimentalDecorators": true
+  }
+}
+```
+
 ### importSource
 
 Next.js will automatically detect `jsxImportSource` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with libraries like Theme UI.
@@ -172,6 +160,18 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 ```
 
 ## Experimental Features
+
+### Minification
+
+You can opt-in to using the Next.js compiler for minification. This is 7x faster than Terser.
+
+```js
+// next.config.js
+
+module.exports = {
+  swcMinify: true,
+}
+```
 
 ### Jest
 
