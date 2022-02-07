@@ -169,9 +169,11 @@ impl FileSystem for DiskFileSystem {
     async fn read(&self, fs_path: FileSystemPathRef) -> FileContentRef {
         let full_path = Path::new(&self.root)
             .join(&fs_path.get().path.replace("/", &MAIN_SEPARATOR.to_string()));
-        let invalidator = Task::get_invalidator();
-        let mut invalidators = self.invalidators.lock().unwrap();
-        invalidators.insert(path_to_key(full_path.as_path()), invalidator);
+        {
+            let invalidator = Task::get_invalidator();
+            let mut invalidators = self.invalidators.lock().unwrap();
+            invalidators.insert(path_to_key(full_path.as_path()), invalidator);
+        }
         match fs::read(&full_path) {
             Ok(content) => FileContentRef::new(content),
             Err(_) => FileContentRef::not_found(),
@@ -180,6 +182,11 @@ impl FileSystem for DiskFileSystem {
     async fn read_dir(&self, fs_path: FileSystemPathRef) -> DirectoryContentRef {
         let fs_path = fs_path.get();
         let full_path = Path::new(&self.root).join(&fs_path.path);
+        {
+            let invalidator = Task::get_invalidator();
+            let mut invalidators = self.dir_invalidators.lock().unwrap();
+            invalidators.insert(path_to_key(full_path.as_path()), invalidator);
+        }
         let result = fs::read_dir(&full_path)
             .unwrap()
             .map(|res| {
