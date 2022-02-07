@@ -17,6 +17,7 @@ import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import chalk from 'next/dist/compiled/chalk'
 import { NextUrlWithParsedQuery } from './request-meta'
+import isError from '../lib/is-error'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 type Inflight = { buffer: Buffer; filename: string }
@@ -225,7 +226,7 @@ export async function imageOptimizer(
     try {
       allFiles = await promises.readdir(hashDir)
     } catch (error) {
-      if (error.code === 'ENOENT') {
+      if (isError(error) && error.code === 'ENOENT') {
         await promises.mkdir(hashDir, { recursive: true })
       } else {
         throw error
