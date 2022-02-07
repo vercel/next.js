@@ -4,13 +4,13 @@ description: Streaming related APIs to build Next.js apps in streaming SSR or wi
 
 # next/streaming
 
-The `next/streaming` module provides streaming related APIs to port the existing functionality of Next.js app to streaming scenarios or assign users ability to interact much easier with React Server Components.
+The experimental `next/streaming` module provides streaming related APIs to port the existing functionality of Next.js apps to streaming scenarios and facilitate the usage of React Server Components.
 
 ## unstable_useWebVitalsReport
 
 Next.js provides an App component level function `reportWebVitals` for tracking performance metrics, checkout [measuring-performance](docs/advanced-features/measuring-performance) for more details. With moving to server components, you might have a pure server side custom `_app` component which doesn't run client effects.
 
-With this API, you're able to track web vitals metrics through this hook in client components.
+With the new `unstable_useWebVitalsReport` API, you're able to track web vitals metrics in client components.
 
 ```jsx
 // pages/_app.js
@@ -25,7 +25,7 @@ export default function Home() {
 }
 ```
 
-Or it could also be an alternative way for you to replace static exported `reportWebVitals` function in your existing \_app.
+This method could also be used to replace static exported `reportWebVitals` functions in your existing `_app`.
 
 ```jsx
 // pages/_app.server.js
@@ -56,11 +56,11 @@ export default function Layout() {
 
 ## unstable_useRefreshRoot
 
-Since server components are rendered on server side when requesting to server, in some case you might need to partially refresh server rendered content.
+Since server components are rendered on the server side when requesting to server, in some cases you might need to partially refresh server rendered content.
 
-For instance, you build a search bar in client component and display few search results by server components, you'd like to update the search results while typing. Then you'd like to re-render the results list in a certain frequency, it could be each typing, or be batched by debounce.
+For instance, let's say you build a search bar in a client component and display search results through server components. You'd want to update the search results while typing and re-render the results list with a certain frequency (e.g. with each keystroke or on a debounce).
 
-The hook `unstable_useRefreshRoot` returns a `refresh` API to let you rerender the React tree smoothly without flicking. This is only allowed to be used on client side and will only effect server components so far.
+The `unstable_useRefreshRoot` hook returns a `refresh` API to let you re-render the React tree smoothly without flickering. This is only allowed to be used on the client side and will only affect server components at the moment.
 
 ```jsx
 // pages/index.server.js

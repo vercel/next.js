@@ -1,6 +1,6 @@
 # React Server Components (Alpha)
 
-Server Components allow us to render React components on the server. This is fundamentally different from server-side rendering where you're pre-generating HTML on the server. With Server Components, there's **zero client-side JavaScript needed,** making page rendering faster. This improves the user experience of your application, pairing the best parts of server-rendering with client-side interactivity.
+Server Components allow us to render React components on the server. This is fundamentally different from server-side rendering (SSR) where you're pre-generating HTML on the server. With Server Components, there's **zero client-side JavaScript needed,** making page rendering faster. This improves the user experience of your application, pairing the best parts of server-rendering with client-side interactivity.
 
 ### Enable React Server Components
 
@@ -20,13 +20,13 @@ Next, if you already have customized `pages/_document` component, you need to re
 
 Then, you can start using React Server Components. [See our example](https://github.com/vercel/next-rsc-demo) for more information.
 
-### Server Components Convention
+### Server Components Conventions
 
-To run a component on the server, append `.server.js` to the end of the filename. For example `./pages/home.server.js` is a Server Component.
+To run a component on the server, append `.server.js` to the end of the filename. For example, `./pages/home.server.js` will be treated as a Server Component.
 
-For client components, add `.client.js`. For example, `./components/avatar.client.js`.
+For client components, append `.client.js` to the filename. For example, `./components/avatar.client.js`.
 
-You can then import other server or client components from any server component. Note: a server component **can not** be imported by a client component. Components without "server/client" extensions will be treated as "universal component" and can be used and rendered by both sides, depending on where it is imported. For example:
+You can then import other server or client components from any server component. Note: a server component **can not** be imported by a client component. Components without "server/client" extensions will be treated as "universal components" and can be used and rendered by both sides, depending on where it is imported. For example:
 
 ```jsx
 // pages/home.server.js
@@ -49,19 +49,19 @@ export default function Home() {
 }
 ```
 
-The `<Home>` and `<Profile>` components will always be server-side rendered and streamed to the client, and will not be included by the client runtime. However `<Content>` will still be hydrated on the client-side, like normal React components.
+The `<Home>` and `<Profile>` components will always be server-side rendered and streamed to the client, and will not be included by the client runtime. However, `<Content>` will still be hydrated on the client-side, like normal React components.
 
 To see a full example, check out [link to the demo and repository](https://github.com/vercel/next-rsc-demo).
 
-## **Supported Next.js APIs**
+## Supported Next.js APIs
 
 ### `next/link` and `next/image`
 
-You could use `next/link` and `next/image` like before and they will be treated as client components to keep the interaction on client side.
+You can use `next/link` and `next/image` like before and they will be treated as client components to keep the interaction on client side.
 
 ### `next/document`
 
-If you have custom `_document` To use server components you have to change your `_document` to a functional component like below. Or if you don't have any, Next.js will provide a functional fallback `_document` component.
+If you have custom `_document`, you have to change your `_document` to a functional component like below to use server components. Or if you don't have any, Next.js will provide a functional fallback `_document` component.
 
 ```jsx
 // pages/_document.js
@@ -82,8 +82,8 @@ export default function Document() {
 
 ### `next/app`
 
-If you're use `_app.js`, the usage is same with [Custom App](/docs/advanced-features/custom-app).
-If you're use `_app.server.js` as a server component, the signature is changed as below where it only receive the `children` prop as element. You can surly wrap any other client or server components around `children` to customize the layout of your app.
+If you're using `_app.js`, the usage is the same as [Custom App](/docs/advanced-features/custom-app).
+If you're using `_app.server.js` as a server component, the signature is changed as below where it only receives the `children` prop as elements. You can wrap any other client or server components around `children` to customize the layout of your app.
 
 ```js
 // pages/_app.server.js
@@ -105,7 +105,7 @@ export default function Index({ router }) {
 }
 ```
 
-### **Unsupported Next.js APIs**
+### Unsupported Next.js APIs
 
 While RSC and SSR streaming is still in the alpha stage, not all Next.js APIs are supported. The following Next.js APIs have limited functionality within Server Components. Note that React 18 without SSR streaming isn't affected.
 

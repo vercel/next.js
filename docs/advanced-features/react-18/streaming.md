@@ -4,7 +4,7 @@ React 18 will include architectural improvements to React server-side rendering 
 
 ## Enable Streaming SSR
 
-To enable, use the experimental flag `concurrentFeatures: true`:
+To enable streaming, use the experimental flag `concurrentFeatures: true`:
 
 ```jsx
 // next.config.js
@@ -19,7 +19,7 @@ module.exports = {
 
 ### next/dynamic
 
-Using Dynamic import on React components by `React.lazy` have better support in React 18. Previously Next.js support dynamic import internally without require `Suspense` or `React.lazy`, Now to embrace the official APIs on React side we provide you with `options.suspense` in `next/dynamic`.
+Dynamic imports through `React.lazy` have better support in React 18. Previously, Next.js supported dynamic imports internally without requiring `Suspense` or `React.lazy`. Now to embrace the official APIs on the React side, we provide you with `options.suspense` in `next/dynamic`.
 
 ```jsx
 import dynamic from 'next/dynamic'
@@ -35,7 +35,7 @@ export default function Home() {
   return (
     <div>
       <Suspense fallback={<Spinner />}>
-        {/* A component that uses Suspense-based */}
+        {/* A component that uses Suspense */}
         <Content />
       </Suspense>
       <Suspense fallback={<Spinner />}>
@@ -49,14 +49,14 @@ export default function Home() {
 }
 ```
 
-Checkout [next/streaming](/docs/api-reference/next/streaming.md) for more details for building Next.js apps in streaming SSR mode.
+Check out [next/streaming](/docs/api-reference/next/streaming.md) for more details for building Next.js apps in streaming SSR mode.
 
-## Notice
+## Important Notes
 
 #### Data Fetching
 
-Currently data fetching within suspense boundaries on server side is not fully supported, which could lead to mismatching between server and client. In the short-term, please don't put data fetching within suspense.
+Currently, data fetching within `Suspense` boundaries on the server side is not fully supported, which could lead to mismatching between server and client. In the short-term, please don't try data fetching within `Suspense`.
 
 #### Styling
 
-Styling your components with styled-jsx or CSS modules are not supported well in streaming SSR. We're still working on them.
+The Next.js team is still working on support for styled-jsx and CSS modules in streaming SSR. Please stay tuned for updates!
