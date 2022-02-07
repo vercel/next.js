@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useContext } from 'react'
+import React, { useRef, useEffect, useContext, useMemo } from 'react'
 import Head from '../shared/lib/head'
 import {
   ImageConfigComplete,
@@ -9,6 +9,7 @@ import {
 import { useIntersection } from './use-intersection'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 
+const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
   string,
@@ -324,13 +325,13 @@ export default function Image({
 }: ImageProps) {
   const imgRef = useRef<HTMLImageElement>(null)
 
-  const context = useContext(ImageConfigContext)
-  const config: ImageConfig =
-    (process.env.__NEXT_IMAGE_OPTS as any) || context || imageConfigDefault
-  config.allSizes = [...config.deviceSizes, ...config.imageSizes].sort(
-    (a, b) => a - b
-  )
-  config.deviceSizes.sort((a, b) => a - b)
+  const configContext = useContext(ImageConfigContext)
+  const config: ImageConfig = useMemo(() => {
+    const c = configEnv || configContext || imageConfigDefault
+    const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
+    const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
+    return { ...c, allSizes, deviceSizes }
+  }, [configContext, configEnv])
 
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
