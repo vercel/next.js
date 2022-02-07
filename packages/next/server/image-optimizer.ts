@@ -221,7 +221,14 @@ export async function imageOptimizer(
     const freshFiles = []
     const staleFiles = []
     let cachedFile: FileMetadata | undefined
-    const files = (await promises.readdir(hashDir).catch(() => {})) || []
+    let files: string[] = []
+    try {
+      await promises.readdir(hashDir)
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        throw error
+      }
+    }
 
     for (let filename of files) {
       const meta = getFileMetadata(filename)
@@ -542,6 +549,7 @@ export async function imageOptimizer(
         throw new Error('Unable to optimize buffer')
       }
     } catch (error) {
+      console.error('Failed to optimize image', error)
       await sendResponse(
         sendDedupe,
         req,
