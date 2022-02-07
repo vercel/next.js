@@ -221,16 +221,18 @@ export async function imageOptimizer(
     const freshFiles = []
     const staleFiles = []
     let cachedFile: FileMetadata | undefined
-    let files: string[] = []
+    let allFiles: string[] = []
     try {
-      await promises.readdir(hashDir)
+      allFiles = await promises.readdir(hashDir)
     } catch (error) {
-      if (error.code !== 'ENOENT') {
+      if (error.code === 'ENOENT') {
+        await promises.mkdir(hashDir, { recursive: true })
+      } else {
         throw error
       }
     }
 
-    for (let filename of files) {
+    for (let filename of allFiles) {
       const meta = getFileMetadata(filename)
       if (now < meta.expireAt) {
         freshFiles.push(meta)
