@@ -129,6 +129,34 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 }
 ```
 
+### Remove Console
+
+This transform allows for removing all `console.*` calls in application code (not `node_modules`). Similar to `babel-plugin-transform-remove-console`.
+
+Remove all `console.*` calls:
+
+```js
+// next.config.js
+module.exports = {
+  compiler: {
+    removeConsole: true,
+  },
+}
+```
+
+Remove `console.*` output except `console.error`:
+
+```js
+// next.config.js
+module.exports = {
+  compiler: {
+    removeConsole: {
+      exclude: ['error'],
+    },
+  },
+}
+```
+
 ## Experimental Features
 
 ### Jest
@@ -158,34 +186,6 @@ const customJestConfig = {
 
 // createJestConfig is exported in this way to ensure that next/jest can load the Next.js configuration, which is async
 module.exports = createJestConfig(customJestConfig)
-```
-
-### Remove Console
-
-This transform allows for removing all `console.*` calls in application code (not `node_modules`). Similar to `babel-plugin-transform-remove-console`.
-
-Remove all `console.*` calls:
-
-```js
-// next.config.js
-module.exports = {
-  experimental: {
-    removeConsole: true,
-  },
-}
-```
-
-Remove `console.*` output except `console.error`:
-
-```js
-// next.config.js
-module.exports = {
-  experimental: {
-    removeConsole: {
-      exclude: ['error'],
-    },
-  },
-}
 ```
 
 ### importSource

@@ -1615,7 +1615,7 @@ export default async function getBaseWebpackConfig(
     concurrentFeatures: config.experimental.concurrentFeatures,
     swcMinify: config.swcMinify,
     swcLoader: useSWCLoader,
-    removeConsole: config.experimental.removeConsole,
+    removeConsole: config.compiler.removeConsole,
     reactRemoveProperties: config.compiler.reactRemoveProperties,
     styledComponents: config.compiler.styledComponents,
     relay: config.compiler.relay,

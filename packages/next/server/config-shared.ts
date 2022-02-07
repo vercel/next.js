@@ -75,11 +75,6 @@ export interface NextJsWebpackConfig {
 
 export interface ExperimentalConfig {
   disablePostcssPresetEnv?: boolean
-  removeConsole?:
-    | boolean
-    | {
-        exclude?: string[]
-      }
   swcMinify?: boolean
   swcFileReading?: boolean
   cpus?: number
@@ -381,6 +376,11 @@ export interface NextConfig extends Record<string, any> {
       artifactDirectory?: string
       language?: 'typescript' | 'flow'
     }
+    removeConsole?:
+      | boolean
+      | {
+          exclude?: string[]
+        }
     styledComponents?: boolean
   }
 
