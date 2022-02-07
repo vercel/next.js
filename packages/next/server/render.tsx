@@ -433,7 +433,6 @@ export async function renderToHTML(
     getStaticPaths,
     getServerSideProps,
     serverComponentManifest,
-    renderServerComponentData,
     serverComponentProps,
     isDataReq,
     params,
@@ -448,8 +447,9 @@ export async function renderToHTML(
 
   const isServerComponent = !!serverComponentManifest
   const OriginalComponent = renderOpts.Component
-  const serverComponentsInlinedTransformStream =
-    process.browser && isServerComponent ? new TransformStream() : null
+  const serverComponentsInlinedTransformStream = isServerComponent
+    ? new TransformStream()
+    : null
   const search = stringifyQuery(query)
   const cachePrefix = pathname + '?' + search
   const Component = isServerComponent
@@ -467,6 +467,12 @@ export async function renderToHTML(
       return getFontDefinitionFromManifest(url, fontManifest)
     }
     return ''
+  }
+
+  let { renderServerComponentData } = renderOpts
+  if (isServerComponent && query.__flight__) {
+    renderServerComponentData = true
+    delete query.__flight__
   }
 
   const callMiddleware = async (method: string, args: any[], props = false) => {

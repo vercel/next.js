@@ -352,6 +352,8 @@ export default async function getBaseWebpackConfig(
   const hasReactRoot: boolean =
     config.experimental.reactRoot || hasReact18 || isReactExperimental
 
+  const runtime = config.experimental.runtime
+
   // Make sure reactRoot is enabled when react 18 is detected
   if (hasReactRoot) {
     config.experimental.reactRoot = true
@@ -366,19 +368,18 @@ export default async function getBaseWebpackConfig(
     // It's fine to only mention React 18 here as we don't recommend people to try experimental.
     Log.warn('You have to use React 18 to use `experimental.reactRoot`.')
   }
-  if (!isServer && config.experimental.runtime && !hasReactRoot) {
+  if (!isServer && runtime && !hasReactRoot) {
     throw new Error(
       '`experimental.runtime` requires `experimental.reactRoot` to be enabled along with React 18.'
     )
   }
-  if (config.experimental.serverComponents && !config.experimental.runtime) {
+  if (config.experimental.serverComponents && !runtime) {
     throw new Error(
       '`experimental.runtime` is required to be set along with `experimental.serverComponents`.'
     )
   }
 
   const targetWeb = isEdgeRuntime || !isServer
-  const runtime = config.experimental.runtime
   const hasConcurrentFeatures = !!runtime && hasReactRoot
   const hasServerComponents =
     hasConcurrentFeatures && !!config.experimental.serverComponents
@@ -1169,6 +1170,7 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
+        // Loaders for the client compilation when RSC is enabled.
         ...(hasServerComponents && !isServer
           ? [
               {
@@ -1183,7 +1185,10 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        ...(hasServerComponents && isEdgeRuntime
+        // Loaders for the server compilation when RSC is enabled.
+        ...(hasServerComponents &&
+        ((runtime === 'edge' && isEdgeRuntime) ||
+          (runtime === 'nodejs' && isServer))
           ? [
               {
                 ...codeCondition,
@@ -1483,7 +1488,7 @@ export default async function getBaseWebpackConfig(
         }),
       hasServerComponents &&
         !isServer &&
-        new FlightManifestPlugin({ dev, clientComponentsRegex }),
+        new FlightManifestPlugin({ dev, clientComponentsRegex, runtime }),
       !dev &&
         !isServer &&
         new TelemetryPlugin(
@@ -1597,7 +1602,7 @@ export default async function getBaseWebpackConfig(
     webpack: !!config.webpack,
     hasRewrites,
     reactRoot: config.experimental.reactRoot,
-    runtime: config.experimental.runtime,
+    runtime,
     swcMinify: config.swcMinify,
     swcLoader: useSWCLoader,
     removeConsole: config.experimental.removeConsole,

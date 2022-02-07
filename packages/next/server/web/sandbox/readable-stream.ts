@@ -1,5 +1,3 @@
-import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
-
 export class ReadableStream<T> {
   constructor(opts: UnderlyingSource = {}) {
     let closed = false

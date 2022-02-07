@@ -170,6 +170,7 @@ export default abstract class Server {
   protected customRoutes: CustomRoutes
   protected middlewareManifest?: MiddlewareManifest
   protected middleware?: RoutingItem[]
+  protected serverComponentManifest?: any
   public readonly hostname?: string
   public readonly port?: number
 
@@ -214,6 +215,7 @@ export default abstract class Server {
   protected abstract getMiddlewareManifest(): MiddlewareManifest | undefined
   protected abstract getRoutesManifest(): CustomRoutes
   protected abstract getPrerenderManifest(): PrerenderManifest
+  protected abstract getServerComponentManifest(): any
 
   protected abstract sendRenderResult(
     req: BaseNextRequest,
@@ -286,6 +288,11 @@ export default abstract class Server {
     this.buildId = this.getBuildId()
     this.minimalMode = minimalMode
 
+    const serverComponents = this.nextConfig.experimental.serverComponents
+    this.serverComponentManifest = serverComponents
+      ? this.getServerComponentManifest()
+      : undefined
+
     this.renderOpts = {
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase || '',
@@ -309,7 +316,7 @@ export default abstract class Server {
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
       runtime: this.nextConfig.experimental.runtime,
-      serverComponents: this.nextConfig.experimental.serverComponents,
+      serverComponents,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
         : undefined,

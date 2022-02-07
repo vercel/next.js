@@ -587,6 +587,10 @@ export default class DevServer extends Server {
       return
     }
 
+    if (this.nextConfig.experimental.serverComponents) {
+      this.serverComponentManifest = this.getServerComponentManifest()
+    }
+
     if (originalPathname) {
       // restore the path before continuing so that custom-routes can accurately determine
       // if they should match against the basePath or not

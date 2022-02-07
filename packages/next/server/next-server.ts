@@ -29,6 +29,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
+  MIDDLEWARE_FLIGHT_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
   SERVERLESS_DIRECTORY,
 } from '../shared/lib/constants'
@@ -471,7 +472,10 @@ export default class NextNodeServer extends BaseServer {
       res.originalResponse,
       pathname,
       query,
-      renderOpts
+      {
+        serverComponentManifest: this.serverComponentManifest,
+        ...renderOpts,
+      }
     )
   }
 
@@ -575,6 +579,14 @@ export default class NextNodeServer extends BaseServer {
 
   protected getFontManifest(): FontManifest {
     return requireFontManifest(this.distDir, this._isLikeServerless)
+  }
+
+  protected getServerComponentManifest() {
+    return require(join(
+      this.distDir,
+      'server',
+      MIDDLEWARE_FLIGHT_MANIFEST + '.json'
+    ))
   }
 
   protected getCacheFilesystem(): CacheFs {

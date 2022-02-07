@@ -1,5 +1,7 @@
 import type { NodeHeaders } from './types'
 
+import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
+
 export async function* streamToIterator<T>(
   readable: ReadableStream<T>
 ): AsyncIterableIterator<T> {
@@ -37,7 +39,7 @@ export function readableStreamTee<T = any>(
   }
   read()
 
-  return [transformStream.readable, transformStream2.readable]
+  return [transformStream.readable, transformStream2.readable] as any
 }
 
 export function notImplemented(name: string, method: string): any {

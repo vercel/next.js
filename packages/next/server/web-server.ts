@@ -109,6 +109,10 @@ export default class NextWebServer extends BaseServer {
       },
     }
   }
+  protected getServerComponentManifest() {
+    // @TODO: Need to return `extendRenderOpts.serverComponentManifest` here.
+    return undefined
+  }
   protected async renderHTML(
     req: WebNextRequest,
     _res: WebNextResponse,
