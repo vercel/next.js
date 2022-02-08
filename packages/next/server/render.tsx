@@ -1675,23 +1675,22 @@ function renderToStream(
 
         // React will call our callbacks synchronously, so we need to
         // defer to a microtask to ensure `stream` is set.
-        Promise.resolve().then(() => {
-          let readable = pipeThrough(stream, createBufferedTransformStream())
-          readable = pipeThrough(
-            readable,
-            createInlineDataStream(
+        Promise.resolve().then(() =>
+          resolve(
+            pipeThrough(
               pipeThrough(
-                dataStream,
-                createPrefixStream(suffixState?.suffixUnclosed ?? null)
-              )
+                pipeThrough(stream, createBufferedTransformStream()),
+                createInlineDataStream(
+                  pipeThrough(
+                    dataStream,
+                    createPrefixStream(suffixState?.suffixUnclosed ?? null)
+                  )
+                )
+              ),
+              createSuffixStream(suffixState?.closeTag ?? null)
             )
           )
-          readable = pipeThrough(
-            readable,
-            createSuffixStream(suffixState?.closeTag ?? null)
-          )
-          resolve(readable)
-        })
+        )
       }
     }
 
@@ -1791,10 +1790,10 @@ function pipeTo(
   function process() {
     reader.read().then(({ done, value }) => {
       if (done) {
-        if (!options?.preventClose) {
-          writer.close()
-        } else {
+        if (options?.preventClose) {
           writer.releaseLock()
+        } else {
+          writer.close()
         }
         resolver()
       } else {
@@ -1807,9 +1806,12 @@ function pipeTo(
   return promise
 }
 
-function pipeThrough(readable: ReadableStream, ts: TransformStream) {
-  pipeTo(readable, ts.writable)
-  return ts.readable
+function pipeThrough(
+  readable: ReadableStream,
+  transformStream: TransformStream
+) {
+  pipeTo(readable, transformStream.writable)
+  return transformStream.readable
 }
 
 function chainStreams(streams: ReadableStream[]): ReadableStream {
