@@ -228,7 +228,7 @@ export type RenderOptsPartial = {
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
   supportsDynamicHTML?: boolean
-  concurrentFeatures?: boolean
+  runtime?: 'nodejs' | 'edge'
   serverComponents?: boolean
   customServer?: boolean
   crossOrigin?: string
@@ -351,12 +351,28 @@ const useRSCResponse = createRSCHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
-  cachePrefix: string,
-  transformStream: TransformStream,
   App: AppType,
   OriginalComponent: React.ComponentType,
-  serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
+  {
+    cachePrefix,
+    transformStream,
+    serverComponentManifest,
+    runtime,
+  }: {
+    cachePrefix: string
+    transformStream: TransformStream
+    serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
+    runtime: 'nodejs' | 'edge'
+  }
 ) {
+  if (runtime === 'nodejs') {
+    // For the nodejs runtime, we need to expose the `__webpack_require__` API
+    // globally for react-server-dom-webpack.
+    // This is a hack until we find a better way.
+    // @ts-ignore
+    globalThis.__webpack_require__ = OriginalComponent.__webpack_require__
+  }
+
   const writable = transformStream.writable
   const ServerComponentWrapper = (props: any) => {
     const id = (React as any).useId()
@@ -433,7 +449,6 @@ export async function renderToHTML(
     getStaticPaths,
     getServerSideProps,
     serverComponentManifest,
-    renderServerComponentData,
     serverComponentProps,
     isDataReq,
     params,
@@ -441,30 +456,40 @@ export async function renderToHTML(
     basePath,
     devOnlyCacheBusterQueryString,
     supportsDynamicHTML,
-    concurrentFeatures,
+    runtime,
   } = renderOpts
 
-  const isServerComponent = !!serverComponentManifest
+  const hasConcurrentFeatures = !!runtime
+
+  const isServerComponent = !!serverComponentManifest && hasConcurrentFeatures
   const OriginalComponent = renderOpts.Component
-  const serverComponentsInlinedTransformStream =
-    process.browser && isServerComponent ? new TransformStream() : null
-  const search = stringifyQuery(query)
-  const cachePrefix = pathname + '?' + search
-  const Component = isServerComponent
-    ? createServerComponentRenderer(
-        cachePrefix,
-        serverComponentsInlinedTransformStream!,
-        App,
-        OriginalComponent,
-        serverComponentManifest
-      )
-    : renderOpts.Component
+
+  let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
+    renderOpts.Component
+  let serverComponentsInlinedTransformStream: TransformStream<any, any> | null =
+    null
+
+  if (isServerComponent) {
+    serverComponentsInlinedTransformStream = new TransformStream()
+    Component = createServerComponentRenderer(App, OriginalComponent, {
+      cachePrefix: pathname + '?' + stringifyQuery(query),
+      transformStream: serverComponentsInlinedTransformStream,
+      serverComponentManifest,
+      runtime,
+    })
+  }
 
   const getFontDefinition = (url: string): string => {
     if (fontManifest) {
       return getFontDefinitionFromManifest(url, fontManifest)
     }
     return ''
+  }
+
+  let { renderServerComponentData } = renderOpts
+  if (isServerComponent && query.__flight__) {
+    renderServerComponentData = true
+    delete query.__flight__
   }
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
@@ -510,7 +535,7 @@ export async function renderToHTML(
     defaultAppGetInitialProps &&
     !isSSG &&
     !getServerSideProps &&
-    !concurrentFeatures
+    !hasConcurrentFeatures
 
   for (const methodName of [
     'getStaticProps',
@@ -1140,7 +1165,7 @@ export async function renderToHTML(
     return inAmpMode ? children : <div id="__next">{children}</div>
   }
 
-  const ReactDOMServer = concurrentFeatures
+  const ReactDOMServer = hasConcurrentFeatures
     ? require('react-dom/server.browser')
     : require('react-dom/server')
 
@@ -1159,7 +1184,7 @@ export async function renderToHTML(
    */
   const generateStaticHTML = supportsDynamicHTML !== true
   const renderDocument = async () => {
-    if (!process.browser && Document.getInitialProps) {
+    if (!runtime && Document.getInitialProps) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
       ): RenderPageResult | Promise<RenderPageResult> => {
@@ -1240,7 +1265,7 @@ export async function renderToHTML(
         )
       }
 
-      if (concurrentFeatures) {
+      if (hasConcurrentFeatures) {
         bodyResult = async (suffix: string) => {
           // this must be called inside bodyResult so appWrappers is
           // up to date when getWrappedApp is called
@@ -1366,7 +1391,7 @@ export async function renderToHTML(
     optimizeCss: renderOpts.optimizeCss,
     optimizeFonts: renderOpts.optimizeFonts,
     optimizeImages: renderOpts.optimizeImages,
-    concurrentFeatures: renderOpts.concurrentFeatures,
+    runtime,
   }
 
   const document = (
@@ -1378,7 +1403,7 @@ export async function renderToHTML(
   )
 
   let documentHTML: string
-  if (concurrentFeatures) {
+  if (hasConcurrentFeatures) {
     const documentStream = await renderToStream(
       ReactDOMServer,
       document,

@@ -18,12 +18,14 @@ import { MIDDLEWARE_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 type Options = {
   dev: boolean
   clientComponentsRegex: RegExp
+  runtime?: 'nodejs' | 'edge'
 }
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
 
 export class FlightManifestPlugin {
   dev: boolean = false
+  runtime?: 'nodejs' | 'edge'
   clientComponentsRegex: RegExp
 
   constructor(options: Options) {
@@ -31,6 +33,7 @@ export class FlightManifestPlugin {
       this.dev = options.dev
     }
     this.clientComponentsRegex = options.clientComponentsRegex
+    this.runtime = options.runtime
   }
 
   apply(compiler: any) {
@@ -120,9 +123,13 @@ export class FlightManifestPlugin {
       })
     })
 
-    const output = `self.__RSC_MANIFEST=` + JSON.stringify(json)
-    assets[`server/${MIDDLEWARE_FLIGHT_MANIFEST}.js`] = new sources.RawSource(
-      output
-    )
+    const output =
+      (this.runtime === 'edge' ? 'self.__RSC_MANIFEST=' : '') +
+      JSON.stringify(json)
+    assets[
+      `server/${MIDDLEWARE_FLIGHT_MANIFEST}${
+        this.runtime === 'edge' ? '.js' : '.json'
+      }`
+    ] = new sources.RawSource(output)
   }
 }
