@@ -1505,6 +1505,12 @@ export default async function getBaseWebpackConfig(
           new Map([
             ['swcLoader', useSWCLoader],
             ['swcMinify', config.swcMinify],
+            ['swcRelay', !!config.compiler?.relay],
+            ['swcStyledComponents', !!config.compiler?.styledComponents],
+            ['swcReactRemoveProperties', !!config.reactRemoveProperties],
+            ['swcExperimentalDecorators', !!config.experimentalDecorators],
+            ['swcRemoveConsole', !!config.removeConsole],
+            ['swcImportSource', !!config.importSource],
           ])
         ),
     ].filter(Boolean as any as ExcludesFalse),
@@ -1615,10 +1621,10 @@ export default async function getBaseWebpackConfig(
     concurrentFeatures: config.experimental.concurrentFeatures,
     swcMinify: config.swcMinify,
     swcLoader: useSWCLoader,
-    removeConsole: config.compiler.removeConsole,
-    reactRemoveProperties: config.compiler.reactRemoveProperties,
-    styledComponents: config.compiler.styledComponents,
-    relay: config.compiler.relay,
+    removeConsole: config.compiler?.removeConsole,
+    reactRemoveProperties: config.compiler?.reactRemoveProperties,
+    styledComponents: config.compiler?.styledComponents,
+    relay: config.compiler?.relay,
   })
 
   const cache: any = {
