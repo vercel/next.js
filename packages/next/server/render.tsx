@@ -1291,7 +1291,7 @@ export async function renderToHTML(
 
       return {
         bodyResult,
-        documentElement: () => <Document {...({} as any)} />,
+        documentElement: () => (Document as any)(),
         head,
         headTags: [],
         styles: jsxStyleRegistry.styles(),
