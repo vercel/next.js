@@ -163,6 +163,7 @@ export default abstract class Server {
     serverComponentManifest?: any
     renderServerComponentData?: boolean
     serverComponentProps?: any
+    reactRoot: boolean
   }
   private incrementalCache: IncrementalCache
   private responseCache: ResponseCache
@@ -321,6 +322,7 @@ export default abstract class Server {
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
         : undefined,
+      reactRoot: this.nextConfig.experimental.reactRoot === true,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side

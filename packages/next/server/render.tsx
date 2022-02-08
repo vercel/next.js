@@ -232,6 +232,7 @@ export type RenderOptsPartial = {
   serverComponents?: boolean
   customServer?: boolean
   crossOrigin?: string
+  reactRoot: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -456,6 +457,7 @@ export async function renderToHTML(
     basePath,
     devOnlyCacheBusterQueryString,
     supportsDynamicHTML,
+    reactRoot,
     runtime,
   } = renderOpts
 
@@ -1265,7 +1267,7 @@ export async function renderToHTML(
         )
       }
 
-      if (hasConcurrentFeatures) {
+      if (reactRoot) {
         bodyResult = async (suffix: string) => {
           // this must be called inside bodyResult so appWrappers is
           // up to date when getWrappedApp is called
@@ -1277,7 +1279,7 @@ export async function renderToHTML(
             suffix,
             serverComponentsInlinedTransformStream?.readable ??
               streamFromArray([]),
-            generateStaticHTML
+            generateStaticHTML || !hasConcurrentFeatures
           )
         }
       } else {
