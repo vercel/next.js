@@ -38,7 +38,6 @@ import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import { TraceEntryPointsPlugin } from './webpack/plugins/next-trace-entrypoints-plugin'
-import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
@@ -1461,7 +1460,6 @@ export default async function getBaseWebpackConfig(
           webServerRuntime,
           pageExtensions: config.pageExtensions,
         }),
-      isServer && new NextJsSsrImportPlugin(),
       !isServer &&
         new BuildManifestPlugin({
           buildId,
