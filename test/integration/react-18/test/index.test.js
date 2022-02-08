@@ -114,17 +114,14 @@ describe('Blocking mode', () => {
     dynamicHello.restore()
   })
 
-  runTests('concurrentFeatures is disabled', (context) =>
+  runTests('`runtime` is disabled', (context) =>
     blocking(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   )
 })
 
-describe('Concurrent mode', () => {
+describe('Concurrent mode in the edge runtime', () => {
   beforeAll(async () => {
-    nextConfig.replace(
-      '// concurrentFeatures: true',
-      'concurrentFeatures: true'
-    )
+    nextConfig.replace("// runtime: 'edge'", "runtime: 'edge'")
     dynamicHello.replace('suspense = false', `suspense = true`)
     // `noSSR` mode will be ignored by suspense
     dynamicHello.replace('let ssr', `let ssr = false`)
@@ -134,7 +131,7 @@ describe('Concurrent mode', () => {
     dynamicHello.restore()
   })
 
-  runTests('concurrentFeatures is enabled', (context) => {
+  runTests('`runtime` is set to `edge`', (context) => {
     concurrent(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
     it('should stream to users', async () => {

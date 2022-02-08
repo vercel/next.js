@@ -9,7 +9,7 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import path from 'path'
+import path, { join } from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
@@ -57,9 +57,9 @@ import {
   isDynamicRoute,
 } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
-import loadConfig, { isTargetLikeServerless } from '../server/config'
+import loadConfig from '../server/config'
+import { isTargetLikeServerless } from '../server/utils'
 import { BuildManifest } from '../server/get-page-files'
-import '../server/node-polyfill-fetch'
 import { normalizePagePath } from '../server/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -89,7 +89,6 @@ import {
   PageInfo,
   printCustomRoutes,
   printTreeView,
-  getCssFilePaths,
   getUnresolvedModuleFromError,
   copyTracedFiles,
   isReservedPage,
@@ -152,7 +151,11 @@ export default async function build(
     setGlobal('phase', PHASE_PRODUCTION_BUILD)
     setGlobal('distDir', distDir)
 
-    const hasConcurrentFeatures = !!config.experimental.concurrentFeatures
+    // Currently, when the runtime option is set (either `nodejs` or `edge`),
+    // we enable concurrent features (Fizz-related rendering architecture).
+    const runtime = config.experimental.runtime
+    const hasConcurrentFeatures = !!runtime
+
     const hasServerComponents =
       hasConcurrentFeatures && !!config.experimental.serverComponents
 
@@ -293,7 +296,7 @@ export default async function build(
         createPagesMapping(pagePaths, config.pageExtensions, {
           isDev: false,
           hasServerComponents,
-          hasConcurrentFeatures,
+          runtime,
         })
       )
 
@@ -553,8 +556,11 @@ export default async function build(
         version: 1,
         config: {
           ...config,
-          compress: false,
           configFile: undefined,
+          experimental: {
+            ...config.experimental,
+            trustHostHeader: ciEnvironment.hasNextSupport,
+          },
         },
         appDir: dir,
         files: [
@@ -612,16 +618,16 @@ export default async function build(
               rewrites,
               runWebpackSpan,
             }),
-            hasConcurrentFeatures
+            runtime === 'edge'
               ? getBaseWebpackConfig(dir, {
                   buildId,
                   reactProductionProfiling,
                   isServer: true,
-                  webServerRuntime: true,
+                  isEdgeRuntime: true,
                   config,
                   target,
                   pagesDir,
-                  entrypoints: entrypoints.serverWeb,
+                  entrypoints: entrypoints.edgeServer,
                   rewrites,
                   runWebpackSpan,
                 })
@@ -655,7 +661,7 @@ export default async function build(
           }
         } else {
           const serverResult = await runCompiler(configs[1], { runWebpackSpan })
-          const serverWebResult = configs[2]
+          const edgeServerResult = configs[2]
             ? await runCompiler(configs[2], { runWebpackSpan })
             : null
 
@@ -663,12 +669,12 @@ export default async function build(
             warnings: [
               ...clientResult.warnings,
               ...serverResult.warnings,
-              ...(serverWebResult?.warnings || []),
+              ...(edgeServerResult?.warnings || []),
             ],
             errors: [
               ...clientResult.errors,
               ...serverResult.errors,
-              ...(serverWebResult?.errors || []),
+              ...(edgeServerResult?.errors || []),
             ],
           }
         }
@@ -715,7 +721,7 @@ export default async function build(
       const moduleName = getUnresolvedModuleFromError(error)
       if (hasConcurrentFeatures && moduleName) {
         const err = new Error(
-          `Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`${moduleName}\` imported.\n\n`
+          `Native Node.js APIs are not supported in the Edge Runtime. Found \`${moduleName}\` imported.\n\n`
         ) as NextError
         err.code = 'EDGE_RUNTIME_UNSUPPORTED_API'
         throw err
@@ -1033,7 +1039,7 @@ export default async function build(
                   )
                 }
               } catch (err) {
-                if (isError(err) && err.message !== 'INVALID_DEFAULT_EXPORT')
+                if (!isError(err) || err.message !== 'INVALID_DEFAULT_EXPORT')
                   throw err
                 invalidPages.add(page)
               }
@@ -1368,10 +1374,22 @@ export default async function build(
     await writeBuildId(distDir, buildId)
 
     if (config.experimental.optimizeCss) {
-      const cssFilePaths = getCssFilePaths(buildManifest)
+      const globOrig =
+        require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+
+      const cssFilePaths = await new Promise<string[]>((resolve, reject) => {
+        globOrig('**/*.css', { cwd: join(distDir, 'static') }, (err, files) => {
+          if (err) {
+            return reject(err)
+          }
+          resolve(files)
+        })
+      })
 
       requiredServerFiles.files.push(
-        ...cssFilePaths.map((filePath) => path.join(config.distDir, filePath))
+        ...cssFilePaths.map((filePath) =>
+          path.join(config.distDir, 'static', filePath)
+        )
       )
     }
 

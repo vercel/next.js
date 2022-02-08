@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import chalk from '../lib/chalk'
 import findUp from 'next/dist/compiled/find-up'
 import { basename, extname, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
@@ -367,7 +367,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
   if (result.swcMinify) {
     Log.warn(
-      'SWC minify beta enabled. https://nextjs.org/docs/messages/swc-minify-enabled'
+      'SWC minify release candidate enabled. https://nextjs.org/docs/messages/swc-minify-enabled'
     )
   }
 
@@ -585,7 +585,7 @@ export default async function loadConfig(
       )
       throw err
     }
-    const userConfig = normalizeConfig(
+    const userConfig = await normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
     )
@@ -654,12 +654,6 @@ export default async function loadConfig(
   completeConfig.configFileName = configFileName
   setHttpAgentOptions(completeConfig.httpAgentOptions)
   return completeConfig
-}
-
-export function isTargetLikeServerless(target: string) {
-  const isServerless = target === 'serverless'
-  const isServerlessTrace = target === 'experimental-serverless-trace'
-  return isServerless || isServerlessTrace
 }
 
 export function setHttpAgentOptions(

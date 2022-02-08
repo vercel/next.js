@@ -1,4 +1,8 @@
-import * as acorn from 'next/dist/compiled/acorn'
+// TODO: add ts support for next-swc api
+// @ts-ignore
+import { parse } from '../../swc'
+// @ts-ignore
+import { getBaseSWCOptions } from '../../swc/options'
 import { getRawPageExtensions } from '../../utils'
 
 function isClientComponent(importSource: string, pageExtensions: string[]) {
@@ -28,25 +32,31 @@ export function isImageImport(importSource: string) {
 }
 
 async function parseImportsInfo(
+  resourcePath: string,
   source: string,
   imports: Array<string>,
   isClientCompilation: boolean,
   pageExtensions: string[]
-): Promise<string> {
-  const { body } = acorn.parse(source, {
-    ecmaVersion: 11,
-    sourceType: 'module',
-  }) as any
+): Promise<{
+  source: string
+  defaultExportName: string
+}> {
+  const opts = getBaseSWCOptions({
+    filename: resourcePath,
+    globalWindow: isClientCompilation,
+  })
 
+  const ast = await parse(source, { ...opts.jsc.parser, isModule: true })
+  const { body } = ast
+  const beginPos = ast.span.start
   let transformedSource = ''
   let lastIndex = 0
-
+  let defaultExportName
   for (let i = 0; i < body.length; i++) {
     const node = body[i]
     switch (node.type) {
-      case 'ImportDeclaration':
+      case 'ImportDeclaration': {
         const importSource = node.source.value
-
         if (!isClientCompilation) {
           if (
             !(
@@ -57,10 +67,11 @@ async function parseImportsInfo(
           ) {
             continue
           }
-          transformedSource += source.substr(
+          const importDeclarations = source.substring(
             lastIndex,
-            node.source.start - lastIndex
+            node.source.span.start - beginPos
           )
+          transformedSource += importDeclarations
           transformedSource += JSON.stringify(`${node.source.value}?flight`)
         } else {
           // For the client compilation, we skip all modules imports but
@@ -80,19 +91,29 @@ async function parseImportsInfo(
           }
         }
 
-        lastIndex = node.source.end
+        lastIndex = node.source.span.end - beginPos
         imports.push(`require(${JSON.stringify(importSource)})`)
         continue
+      }
+      case 'ExportDefaultDeclaration': {
+        const def = node.decl
+        if (def.type === 'Identifier') {
+          defaultExportName = def.name
+        } else if (def.type === 'FunctionExpression') {
+          defaultExportName = def.identifier.value
+        }
+        break
+      }
       default:
         break
     }
   }
 
   if (!isClientCompilation) {
-    transformedSource += source.substr(lastIndex)
+    transformedSource += source.substring(lastIndex)
   }
 
-  return transformedSource
+  return { source: transformedSource, defaultExportName }
 }
 
 export default async function transformSource(
@@ -113,17 +134,36 @@ export default async function transformSource(
   }
 
   const imports: string[] = []
-  const transformed = await parseImportsInfo(
-    source,
-    imports,
-    isClientCompilation,
-    getRawPageExtensions(pageExtensions)
-  )
+  const { source: transformedSource, defaultExportName } =
+    await parseImportsInfo(
+      resourcePath,
+      source,
+      imports,
+      isClientCompilation,
+      getRawPageExtensions(pageExtensions)
+    )
 
-  const noop = `\nexport const __rsc_noop__=()=>{${imports.join(';')}}`
+  /**
+   * For .server.js files, we handle this loader differently.
+   *
+   * Server compilation output:
+   *   export default function ServerComponent() { ... }
+   *   export const __rsc_noop__ = () => { ... }
+   *   ServerComponent.__next_rsc__ = 1
+   *   ServerComponent.__webpack_require__ = __webpack_require__
+   *
+   * Client compilation output:
+   *   The function body of Server Component will be removed
+   */
+
+  const noop = `export const __rsc_noop__=()=>{${imports.join(';')}}`
   const defaultExportNoop = isClientCompilation
-    ? `\nexport default function Comp(){}\nComp.__next_rsc__=1`
+    ? `export default function ${defaultExportName}(){}\n${defaultExportName}.__next_rsc__=1;`
+    : defaultExportName
+    ? `${defaultExportName}.__next_rsc__=1;${defaultExportName}.__webpack_require__=__webpack_require__;`
     : ''
 
-  return transformed + noop + defaultExportNoop
+  const transformed = transformedSource + '\n' + noop + '\n' + defaultExportNoop
+
+  return transformed
 }

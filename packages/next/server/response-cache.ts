@@ -20,7 +20,8 @@ export type ResponseCacheEntry = {
 }
 
 type ResponseGenerator = (
-  hasResolved: boolean
+  hasResolved: boolean,
+  hadCache: boolean
 ) => Promise<ResponseCacheEntry | null>
 
 export default class ResponseCache {
@@ -34,7 +35,8 @@ export default class ResponseCache {
 
   public get(
     key: string | null,
-    responseGenerator: ResponseGenerator
+    responseGenerator: ResponseGenerator,
+    context: { isManualRevalidate?: boolean }
   ): Promise<ResponseCacheEntry | null> {
     const pendingResponse = key ? this.pendingResponses.get(key) : null
     if (pendingResponse) {
@@ -71,7 +73,11 @@ export default class ResponseCache {
     ;(async () => {
       try {
         const cachedResponse = key ? await this.incrementalCache.get(key) : null
-        if (cachedResponse) {
+        if (
+          cachedResponse &&
+          (!context.isManualRevalidate ||
+            cachedResponse.revalidateAfter === false)
+        ) {
           resolve({
             revalidate: cachedResponse.curRevalidate,
             value:
@@ -90,7 +96,7 @@ export default class ResponseCache {
           }
         }
 
-        const cacheEntry = await responseGenerator(resolved)
+        const cacheEntry = await responseGenerator(resolved, !!cachedResponse)
         resolve(cacheEntry)
 
         if (key && cacheEntry && typeof cacheEntry.revalidate !== 'undefined') {
@@ -107,7 +113,13 @@ export default class ResponseCache {
           )
         }
       } catch (err) {
-        rejecter(err as Error)
+        // while revalidating in the background we can't reject as
+        // we already resolved the cache entry so log the error here
+        if (resolved) {
+          console.error(err)
+        } else {
+          rejecter(err as Error)
+        }
       } finally {
         if (key) {
           this.pendingResponses.delete(key)

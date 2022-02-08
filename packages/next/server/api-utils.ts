@@ -1,7 +1,7 @@
-import { IncomingMessage, ServerResponse } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
+
 import { parse } from 'next/dist/compiled/content-type'
 import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
-import getRawBody from 'next/dist/compiled/raw-body'
 import { PageConfig, PreviewData } from 'next/types'
 import { Stream } from 'stream'
 import { isResSent, NextApiRequest, NextApiResponse } from '../shared/lib/utils'
@@ -10,6 +10,7 @@ import { sendEtagResponse } from './send-payload'
 import generateETag from 'next/dist/compiled/etag'
 import isError from '../lib/is-error'
 import { interopDefault } from '../lib/interop-default'
+import { BaseNextRequest, BaseNextResponse } from './base-http'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -25,7 +26,11 @@ export async function apiResolver(
   res: ServerResponse,
   query: any,
   resolverModule: any,
-  apiContext: __ApiPreviewProps,
+  apiContext: __ApiPreviewProps & {
+    trustHostHeader?: boolean
+    hostname?: string
+    port?: number
+  },
   propagateError: boolean,
   dev?: boolean,
   page?: string
@@ -94,6 +99,8 @@ export async function apiResolver(
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
     apiRes.clearPreviewData = () => clearPreviewData(apiRes)
+    apiRes.unstable_revalidate = (urlPath: string) =>
+      unstable_revalidate(urlPath, req, apiContext)
 
     const resolver = interopDefault(resolverModule)
     let wasPiped = false
@@ -141,7 +148,7 @@ export async function apiResolver(
  * @param req request object
  */
 export async function parseBody(
-  req: NextApiRequest,
+  req: IncomingMessage,
   limit: string | number
 ): Promise<any> {
   let contentType
@@ -156,6 +163,8 @@ export async function parseBody(
   let buffer
 
   try {
+    const getRawBody =
+      require('next/dist/compiled/raw-body') as typeof import('next/dist/compiled/raw-body')
     buffer = await getRawBody(req, { encoding, limit })
   } catch (e) {
     if (isError(e) && e.type === 'entity.too.large') {
@@ -331,15 +340,51 @@ export function sendJson(res: NextApiResponse, jsonBody: any): void {
   res.send(jsonBody)
 }
 
+const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
+
+export function checkIsManualRevalidate(
+  req: IncomingMessage | BaseNextRequest,
+  previewProps: __ApiPreviewProps
+): boolean {
+  return req.headers[PRERENDER_REVALIDATE_HEADER] === previewProps.previewModeId
+}
+
+async function unstable_revalidate(
+  urlPath: string,
+  req: IncomingMessage | BaseNextRequest,
+  context: {
+    hostname?: string
+    port?: number
+    previewModeId: string
+    trustHostHeader?: boolean
+  }
+) {
+  if (!context.trustHostHeader && (!context.hostname || !context.port)) {
+    throw new Error(
+      `"hostname" and "port" must be provided when starting next to use "unstable_revalidate". See more here https://nextjs.org/docs/advanced-features/custom-server`
+    )
+  }
+
+  const baseUrl = context.trustHostHeader
+    ? `https://${req.headers.host}`
+    : `http://${context.hostname}:${context.port}`
+
+  return fetch(`${baseUrl}${urlPath}`, {
+    headers: {
+      [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
+    },
+  })
+}
+
 const COOKIE_NAME_PRERENDER_BYPASS = `__prerender_bypass`
 const COOKIE_NAME_PRERENDER_DATA = `__next_preview_data`
 
 export const SYMBOL_PREVIEW_DATA = Symbol(COOKIE_NAME_PRERENDER_DATA)
-const SYMBOL_CLEARED_COOKIES = Symbol(COOKIE_NAME_PRERENDER_BYPASS)
+export const SYMBOL_CLEARED_COOKIES = Symbol(COOKIE_NAME_PRERENDER_BYPASS)
 
 export function tryGetPreviewData(
-  req: IncomingMessage,
-  res: ServerResponse,
+  req: IncomingMessage | BaseNextRequest,
+  res: ServerResponse | BaseNextResponse,
   options: __ApiPreviewProps
 ): PreviewData {
   // Read cached preview data if present

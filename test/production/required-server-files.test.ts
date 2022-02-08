@@ -107,11 +107,17 @@ describe('should set-up next', () => {
     if (server) await killApp(server)
   })
 
-  it('should output middleware correctly', async () => {
-    // the middleware-runtime is located in .next/static/chunks so ensure
-    // the folder is present
+  it('`compress` should be `true` by default', async () => {
     expect(
-      await fs.pathExists(join(next.testDir, 'standalone/.next/static/chunks'))
+      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
+    ).toContain('"compress":true')
+  })
+
+  it('should output middleware correctly', async () => {
+    expect(
+      await fs.pathExists(
+        join(next.testDir, 'standalone/.next/server/middleware-runtime.js')
+      )
     ).toBe(true)
     expect(
       await fs.pathExists(
@@ -119,6 +125,11 @@ describe('should set-up next', () => {
           next.testDir,
           'standalone/.next/server/pages/middleware/_middleware.js'
         )
+      )
+    ).toBe(true)
+    expect(
+      await fs.pathExists(
+        join(next.testDir, 'standalone/.next/server/pages/_middleware.js')
       )
     ).toBe(true)
   })
@@ -664,6 +675,23 @@ describe('should set-up next', () => {
     const json = await res.json()
     expect(json.query).toEqual({ another: 'value' })
     expect(json.url).toBe('/api/optional?another=value')
+  })
+
+  it('should normalize index optional values correctly for API page', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/api/optional/index',
+      { rest: 'index', another: 'value' },
+      {
+        headers: {
+          'x-matched-path': '/api/optional/[[...rest]]',
+        },
+      }
+    )
+
+    const json = await res.json()
+    expect(json.query).toEqual({ another: 'value', rest: ['index'] })
+    expect(json.url).toBe('/api/optional/index?another=value')
   })
 
   it('should match the index page correctly', async () => {

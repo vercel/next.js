@@ -1,4 +1,3 @@
-import { formatUrl } from './router/utils/format-url'
 import type { BuildManifest } from '../../server/get-page-files'
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../server/config'
@@ -9,6 +8,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
 import type { UrlObject } from 'url'
 import { createContext } from 'react'
+import { formatUrl } from './router/utils/format-url'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -225,7 +225,7 @@ export type HtmlProps = {
   optimizeCss?: boolean
   optimizeFonts?: boolean
   optimizeImages?: boolean
-  concurrentFeatures?: boolean
+  runtime?: 'edge' | 'nodejs'
 }
 
 /**
@@ -293,6 +293,8 @@ export type NextApiResponse<T = any> = ServerResponse & {
     }
   ) => NextApiResponse<T>
   clearPreviewData: () => NextApiResponse<T>
+
+  unstable_revalidate: (urlPath: string) => Promise<Response>
 }
 
 /**

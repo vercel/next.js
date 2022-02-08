@@ -4,7 +4,7 @@ import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { promises as fs } from 'fs'
-import { isValidElementType } from 'react-is'
+import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
   Redirect,
@@ -1103,19 +1103,6 @@ export function detectConflictingPaths(
   }
 }
 
-export function getCssFilePaths(buildManifest: BuildManifest): string[] {
-  const cssFiles = new Set<string>()
-  Object.values(buildManifest.pages).forEach((files) => {
-    files.forEach((file) => {
-      if (file.endsWith('.css')) {
-        cssFiles.add(file)
-      }
-    })
-  })
-
-  return [...cssFiles]
-}
-
 export function getRawPageExtensions(pageExtensions: string[]): string[] {
   return pageExtensions.filter(
     (ext) => !ext.startsWith('client.') && !ext.startsWith('server.')
@@ -1129,7 +1116,7 @@ export function isFlightPage(
   if (
     !(
       nextConfig.experimental.serverComponents &&
-      nextConfig.experimental.concurrentFeatures
+      nextConfig.experimental.runtime
     )
   )
     return false
@@ -1207,7 +1194,7 @@ export async function copyTracedFiles(
   for (const page of pageKeys) {
     if (MIDDLEWARE_ROUTE.test(page)) {
       const { files } =
-        middlewareManifest.middleware[page.replace(/\/_middleware$/, '')]
+        middlewareManifest.middleware[page.replace(/\/_middleware$/, '') || '/']
 
       for (const file of files) {
         const originalPath = path.join(distDir, file)
