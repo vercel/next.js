@@ -11,7 +11,7 @@ import {
   AppProps,
   delBasePath,
   hasBasePath,
-  PrivateRouteInfo,
+  RenderRouteInfo,
 } from '../shared/lib/router/router'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
@@ -56,10 +56,6 @@ declare global {
   }
 }
 
-type RenderRouteInfo = PrivateRouteInfo & {
-  App: AppComponent
-  scroll?: { x: number; y: number } | null
-}
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
 
 const data: typeof window['__NEXT_DATA__'] = JSON.parse(
@@ -393,6 +389,12 @@ export async function initNext(
     await window.__NEXT_PRELOADREADY(dynamicIds)
   }
 
+  let beforeRenderPromise = opts.beforeRender
+    ? opts.beforeRender().then(() => {
+        beforeRenderPromise = null
+      })
+    : null
+
   router = createRouter(page, query, asPath, {
     initialProps: hydrateProps,
     pageLoader,
@@ -401,37 +403,18 @@ export async function initNext(
     wrapApp,
     err: initialErr,
     isFallback: Boolean(isFallback),
-    subscription: (info, App, scroll) =>
-      render(
-        Object.assign<
-          {},
-          Omit<RenderRouteInfo, 'App' | 'scroll'>,
-          Pick<RenderRouteInfo, 'App' | 'scroll'>
-        >({}, info, {
-          App,
-          scroll,
-        }) as RenderRouteInfo
-      ),
+    subscription: async (route) => {
+      if (beforeRenderPromise) {
+        await beforeRenderPromise
+      }
+      await render(route)
+    },
     locale,
     locales,
     defaultLocale,
     domainLocales,
     isPreview,
   })
-
-  const renderCtx: RenderRouteInfo = {
-    App: CachedApp,
-    initial: true,
-    Component: CachedComponent,
-    props: hydrateProps,
-    err: initialErr,
-  }
-
-  if (opts.beforeRender) {
-    await opts.beforeRender()
-  }
-
-  render(renderCtx)
 }
 
 async function render(renderingProps: RenderRouteInfo): Promise<void> {

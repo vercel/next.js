@@ -484,16 +484,17 @@ export type CompletePrivateRouteInfo = {
   error?: any
 }
 
+export type RenderRouteInfo = PrivateRouteInfo & {
+  App: AppComponent
+  scroll?: { x: number; y: number } | null
+}
+
 export type AppProps = Pick<CompletePrivateRouteInfo, 'Component' | 'err'> & {
   router: Router
 } & Record<string, any>
 export type AppComponent = ComponentType<AppProps>
 
-type Subscription = (
-  data: PrivateRouteInfo,
-  App: AppComponent,
-  resetScroll: { x: number; y: number } | null
-) => Promise<void>
+type Subscription = (route: RenderRouteInfo) => Promise<void>
 
 type BeforePopStateCallback = (state: NextHistoryState) => boolean
 
@@ -773,6 +774,8 @@ export default class Router implements BaseRouter {
         }
       }
     }
+
+    this.set(this.state, this.components[route], null)
   }
 
   onPopState = (e: PopStateEvent): void => {
@@ -1603,15 +1606,15 @@ export default class Router implements BaseRouter {
   private set(
     state: typeof this.state,
     data: PrivateRouteInfo,
-    resetScroll: { x: number; y: number } | null
+    scroll: { x: number; y: number } | null
   ): Promise<void> {
     this.state = state
 
-    return this.sub(
-      data,
-      this.components['/_app'].Component as AppComponent,
-      resetScroll
-    )
+    return this.sub({
+      ...data,
+      App: this.components['/_app'].Component as AppComponent,
+      scroll,
+    })
   }
 
   /**
