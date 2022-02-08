@@ -387,10 +387,17 @@ export default async function getBaseWebpackConfig(
     ? true
     : config.experimental.disableOptimizedLoading
 
-  if (isEdgeRuntime) {
-    Log.warn(
-      'You are using the experimental Edge Runtime with `experimental.runtime`.'
-    )
+  if (!isServer) {
+    if (runtime === 'edge') {
+      Log.warn(
+        'You are using the experimental Edge Runtime with `experimental.runtime`.'
+      )
+    }
+    if (runtime === 'nodejs') {
+      Log.warn(
+        'You are using the experimental Node.js Runtime with `experimental.runtime`.'
+      )
+    }
     if (hasServerComponents) {
       Log.warn(
         'You have experimental React Server Components enabled. Continue at your own risk.'

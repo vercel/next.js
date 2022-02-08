@@ -158,13 +158,6 @@ export default class NextWebServer extends BaseServer {
       uncork: () => {},
       // Not implemented: on/removeListener
     } as any)
-
-    // To prevent Safari's bfcache caching the "shell", we have to add the
-    // `no-cache` header to document responses.
-    res.setHeader(
-      'Cache-Control',
-      'no-cache, no-store, max-age=0, must-revalidate'
-    )
     res.send()
   }
   protected async runApi() {
