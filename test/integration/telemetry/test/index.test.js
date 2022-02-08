@@ -639,21 +639,22 @@ describe('Telemetry CLI', () => {
   })
 
   it('emits telemetry for usage of swc', async () => {
+    await fs.remove(path.join(appDir, 'next.config.js'))
+    await fs.remove(path.join(appDir, 'jsconfig.json'))
+    await fs.rename(
+      path.join(appDir, 'next.config.swc'),
+      path.join(appDir, 'next.config.js')
+    )
+    await fs.rename(
+      path.join(appDir, 'jsconfig.swc'),
+      path.join(appDir, 'jsconfig.json')
+    )
     const { stderr } = await nextBuild(appDir, [], {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
-
-    await fs.copy(
-      path.join(appDir, 'next.config.swc'),
-      path.join(appDir, 'next.config.js')
-    )
-    await fs.copy(
-      path.join(appDir, 'jsconfig.swc'),
-      path.join(appDir, 'jsconfig.json')
-    )
-
-    console.log('STDERR', stderr)
+    await fs.remove(path.join(appDir, 'next.config.js'))
+    await fs.remove(path.join(appDir, 'jsconfig.json'))
 
     const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
     regex.exec(stderr).pop() // optimizeCss
