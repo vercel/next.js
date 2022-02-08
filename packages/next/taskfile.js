@@ -1820,7 +1820,7 @@ export async function pages_document(task, opts) {
 
 export async function pages_document_server(task, opts) {
   await task
-    .source('pages/_document-web.tsx')
+    .source('pages/_document-concurrent.tsx')
     .swc('client', { dev: opts.dev })
     .target('dist/pages')
 }

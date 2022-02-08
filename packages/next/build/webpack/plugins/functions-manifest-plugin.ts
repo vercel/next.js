@@ -28,23 +28,23 @@ export default class FunctionsManifestPlugin {
   dev: boolean
   pagesDir: string
   pageExtensions: string[]
-  webServerRuntime: boolean
+  isEdgeRuntime: boolean
   pagesRuntime: Map<string, string>
 
   constructor({
     dev,
     pagesDir,
     pageExtensions,
-    webServerRuntime,
+    isEdgeRuntime,
   }: {
     dev: boolean
     pagesDir: string
     pageExtensions: string[]
-    webServerRuntime: boolean
+    isEdgeRuntime: boolean
   }) {
     this.dev = dev
     this.pagesDir = pagesDir
-    this.webServerRuntime = webServerRuntime
+    this.isEdgeRuntime = isEdgeRuntime
     this.pageExtensions = pageExtensions
     this.pagesRuntime = new Map()
   }
@@ -53,20 +53,20 @@ export default class FunctionsManifestPlugin {
     compilation: webpack5.Compilation,
     assets: any,
     envPerRoute: Map<string, string[]>,
-    webServerRuntime: boolean
+    isEdgeRuntime: boolean
   ) {
     const functionsManifest: FunctionsManifest = {
       version: 1,
       pages: {},
     }
 
-    const infos = getEntrypointInfo(compilation, envPerRoute, webServerRuntime)
+    const infos = getEntrypointInfo(compilation, envPerRoute, isEdgeRuntime)
     infos.forEach((info) => {
       const { page } = info
       // TODO: use global default runtime instead of 'web'
       const pageRuntime = this.pagesRuntime.get(page)
       const isWebRuntime =
-        pageRuntime === 'edge' || (this.webServerRuntime && !pageRuntime)
+        pageRuntime === 'edge' || (this.isEdgeRuntime && !pageRuntime)
       functionsManifest.pages[page] = {
         // Not assign if it's nodejs runtime, project configured node version is used instead
         ...(isWebRuntime && { runtime: 'web' }),
@@ -74,8 +74,7 @@ export default class FunctionsManifestPlugin {
       }
     })
 
-    const assetPath =
-      (this.webServerRuntime ? '' : 'server/') + FUNCTIONS_MANIFEST
+    const assetPath = (this.isEdgeRuntime ? '' : 'server/') + FUNCTIONS_MANIFEST
     assets[assetPath] = new sources.RawSource(
       JSON.stringify(functionsManifest, null, 2)
     )
@@ -149,7 +148,7 @@ export default class FunctionsManifestPlugin {
     collectAssets(compiler, this.createAssets.bind(this), {
       dev: this.dev,
       pluginName: PLUGIN_NAME,
-      webServerRuntime: this.webServerRuntime,
+      isEdgeRuntime: this.isEdgeRuntime,
     })
   }
 }
