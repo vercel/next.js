@@ -170,7 +170,7 @@ export default class NextNodeServer extends BaseServer {
 
   protected generateImageRoutes(): Route[] {
     const { getHash, ImageOptimizerCache, sendResponse, ImageError } =
-      require('./image-config') as typeof import('./image-optimizer')
+      require('./image-optimizer') as typeof import('./image-optimizer')
     return [
       {
         match: route('/_next/image'),
