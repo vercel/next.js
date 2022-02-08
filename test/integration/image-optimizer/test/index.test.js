@@ -645,10 +645,16 @@ function runTests({
     expect(one.res.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.webp"`
     )
+    const etagOne = one.res.headers.get('etag')
+
     let json1
     await check(async () => {
       json1 = await fsToJson(imagesDir)
-      return Object.keys(json1).length === 1 ? 'success' : 'fail'
+      return Object.keys(json1).some((dir) => {
+        return Object.keys(json1[dir]).some((file) => file.includes(etagOne))
+      })
+        ? 'success'
+        : 'fail'
     }, 'success')
 
     const two = await fetchWithDuration(appPort, '/_next/image', query, opts)
@@ -728,10 +734,16 @@ function runTests({
     expect(res1.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.svg"`
     )
+    const etagOne = res1.headers.get('etag')
+
     let json1
     await check(async () => {
       json1 = await fsToJson(imagesDir)
-      return Object.keys(json1).length === 1 ? 'success' : 'fail'
+      return Object.keys(json1).some((dir) => {
+        return Object.keys(json1[dir]).some((file) => file.includes(etagOne))
+      })
+        ? 'success'
+        : 'fail'
     }, 'success')
 
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
