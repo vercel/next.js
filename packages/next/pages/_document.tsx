@@ -72,9 +72,50 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
 }
 
 function getPreNextScripts(context: HtmlProps, props: OriginProps) {
-  const { scriptLoader, disableOptimizedLoading, crossOrigin } = context
+  const {
+    scriptLoader,
+    disableOptimizedLoading,
+    crossOrigin,
+    optimizeScripts,
+  } = context
 
-  return (scriptLoader.beforeInteractive || []).map(
+  const webWorkerScripts =
+    optimizeScripts?.enablePartytown && scriptLoader.worker?.length ? (
+      <>
+        {optimizeScripts?.partytownConfig && (
+          <script
+            data-partytown-config=""
+            dangerouslySetInnerHTML={{
+              __html: `partytown = ${JSON.stringify(
+                optimizeScripts?.partytownConfig
+              )};`,
+            }}
+          />
+        )}
+        <script
+          data-partytown=""
+          dangerouslySetInnerHTML={{
+            __html:
+              require('next/dist/compiled/@builder.io/partytown/index.cjs').partytownSnippet(),
+          }}
+        />
+        {scriptLoader.worker.map((file: ScriptProps, index: number) => {
+          const { strategy, ...scriptProps } = file
+          return (
+            <script
+              {...scriptProps}
+              type="text/partytown"
+              key={scriptProps.src || index}
+              nonce={props.nonce}
+              data-nscript="worker"
+              crossOrigin={props.crossOrigin || crossOrigin}
+            />
+          )
+        })}
+      </>
+    ) : null
+
+  const beforeInteractiveScripts = (scriptLoader.beforeInteractive || []).map(
     (file: ScriptProps, index: number) => {
       const { strategy, ...scriptProps } = file
       return (
@@ -88,6 +129,13 @@ function getPreNextScripts(context: HtmlProps, props: OriginProps) {
         />
       )
     }
+  )
+
+  return (
+    <>
+      {webWorkerScripts}
+      {beforeInteractiveScripts}
+    </>
   )
 }
 
@@ -435,7 +483,9 @@ export class Head extends Component<
           ])
           return
         } else if (
-          ['lazyOnload', 'afterInteractive'].includes(child.props.strategy)
+          ['lazyOnload', 'afterInteractive', 'worker'].includes(
+            child.props.strategy
+          )
         ) {
           scriptLoaderItems.push(child.props)
           return

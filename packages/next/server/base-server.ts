@@ -155,6 +155,10 @@ export default abstract class Server {
     fontManifest?: FontManifest
     disableOptimizedLoading?: boolean
     optimizeCss: any
+    optimizeScripts?: {
+      enablePartytown?: boolean
+      partytownConfig?: any
+    }
     locale?: string
     locales?: string[]
     defaultLocale?: string
@@ -315,6 +319,7 @@ export default abstract class Server {
           ? this.getFontManifest()
           : undefined,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
+      optimizeScripts: this.nextConfig.experimental.optimizeScripts,
       disableOptimizedLoading: this.nextConfig.experimental.runtime
         ? true
         : this.nextConfig.experimental.disableOptimizedLoading,

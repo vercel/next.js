@@ -67,8 +67,9 @@ With `next/script`, you decide when to load your third-party script by using the
 There are three different loading strategies that can be used:
 
 - `beforeInteractive`: Load before the page is interactive
-- `afterInteractive`: (**default**): Load immediately after the page becomes interactive
+- `afterInteractive`: (**default**) Load immediately after the page becomes interactive
 - `lazyOnload`: Load during idle time
+- `worker`: (experimental) Load in a web worker
 
 #### beforeInteractive
 
@@ -122,6 +123,54 @@ Examples of scripts that do not need to load immediately and can be lazy-loaded 
 
 - Chat support plugins
 - Social media widgets
+
+### Off-loading Scripts To A Web Worker
+
+> **Note: The `worker` strategy is not yet stable and can cause unexpected issues in your application. Use with caution.**
+
+Scripts that use the `worker` strategy are relocated and executed in a web worker with [Partytown](https://partytown.builder.io/). This can improve the performance of your site by dedicating the main thread to the rest of your application code.
+
+This strategy is still experimental and can only be used if enabled in `next.config.js`:
+
+```js
+module.exports = {
+  experimental: {
+    enablePartytown: true,
+  },
+}
+```
+
+Once enabled, defining `strategy="worker` will automatically instantiate Partytown in your application and off-load the script to a web worker.
+
+```jsx
+<Script src="https://example.com/analytics.js" strategy="worker" />
+```
+
+There are a number of trade-offs that need to be considered when loading a third-party script in a web worker. Please see Partytown's[Trade-Offs](https://partytown.builder.io/trade-offs) documentation for more information.
+
+#### Static Library Files
+
+In order for Partytown to intercept scripts in a worker, a number of its static library files must be served in the `public` folder of your application. When the experimental `enablePartytown` flag is enabled in `next.config.js`, these files will automatically be added for you in a `~partytown` directory after every build (`next build`).
+
+> **Note: Partytown's [debug](https://partytown.builder.io/distribution#libdebug) files are not included by default. If you wish to use Partytown's debugging capabilities during development (`next dev`), you will need to add this [folder](https://partytown.builder.io/distribution#libdebug) manually to the `~partytown` directory.**
+
+#### Configuration
+
+Although the `worker` strategy does not require any additional configuration to work, a config object can be set in order to modify any of Partytown's settings, including enabling `debug` mode and forwarding events and triggers.
+
+```js
+module.exports = {
+  experimental: {
+    enablePartytown: true,
+    partytownConfig: {
+      debug: true,
+      forward: ['dataLayer.push', 'fbq'],
+    },
+  },
+}
+```
+
+Take a look at Partytown's [configuration options](https://partytown.builder.io/configuration) to see the full list of properties that can be added.
 
 ### Inline Scripts
 

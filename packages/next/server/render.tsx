@@ -216,6 +216,10 @@ export type RenderOptsPartial = {
   optimizeFonts: boolean
   fontManifest?: FontManifest
   optimizeCss: any
+  optimizeScripts?: {
+    enablePartytown?: boolean
+    partytownConfig?: any
+  }
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
@@ -1471,6 +1475,7 @@ export async function renderToHTML(
     crossOrigin: renderOpts.crossOrigin,
     optimizeCss: renderOpts.optimizeCss,
     optimizeFonts: renderOpts.optimizeFonts,
+    optimizeScripts: renderOpts.optimizeScripts,
     runtime,
   }
 

@@ -747,6 +747,58 @@ export async function ncc_amp_optimizer(task, opts) {
     })
     .target('dist/compiled/@ampproject/toolbox-optimizer')
 }
+
+// eslint-disable-next-line camelcase
+externals['@builder.io/partytown'] = 'next/dist/compiled/@builder.io/partytown'
+export async function ncc_partytown(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(
+          __dirname,
+          resolve(
+            require.resolve('@builder.io/partytown'),
+            '../integration/index.cjs'
+          )
+        )
+    )
+    .ncc({
+      packageName: '@builder.io/partytown',
+      externals,
+    })
+    .target('compiled/@builder.io/partytown')
+}
+
+// eslint-disable-next-line camelcase
+externals['@builder.io/partytown/utils'] =
+  'next/dist/compiled/@builder.io/partytown/utils'
+export async function ncc_partytown_utils(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(
+          __dirname,
+          resolve(
+            require.resolve('@builder.io/partytown'),
+            '../utils/index.cjs'
+          )
+        )
+    )
+    .ncc({
+      packageName: '@builder.io/partytown/utils',
+      externals,
+    })
+    .target('compiled/@builder.io/partytown/utils')
+}
+
+// eslint-disable-next-line camelcase
+export async function copy_partytown_lib_files(task) {
+  // To minimize file size, debug files from partytown are not copied over
+  await task
+    .source(join(dirname(require.resolve('@builder.io/partytown')), 'lib/*'))
+    .target('compiled/@builder.io/partytown/lib')
+}
+
 // eslint-disable-next-line camelcase
 externals['arg'] = 'next/dist/compiled/arg'
 export async function ncc_arg(task, opts) {
@@ -1685,6 +1737,8 @@ export async function ncc(task, opts) {
         'ncc_native_url',
         'ncc_neo_async',
         'ncc_ora',
+        'ncc_partytown',
+        'ncc_partytown_utils',
         'ncc_postcss_safe_parser',
         'ncc_postcss_flexbugs_fixes',
         'ncc_postcss_preset_env',
@@ -1733,6 +1787,7 @@ export async function ncc(task, opts) {
       'copy_constants_browserify',
       'copy_react_server_dom_webpack',
       'copy_react_is',
+      'copy_partytown_lib_files',
       'ncc_jest_worker',
     ],
     opts

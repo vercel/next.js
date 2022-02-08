@@ -32,6 +32,10 @@ export type HtmlProps = {
   crossOrigin?: string
   optimizeCss?: boolean
   optimizeFonts?: boolean
+  optimizeScripts?: {
+    enablePartytown?: boolean
+    partytownConfig?: any
+  }
   runtime?: 'edge' | 'nodejs'
 }
 

@@ -1342,6 +1342,10 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
           config.experimental.optimizeCss && !dev
         ),
+        'process.env.__NEXT_OPTIMIZE_SCRIPTS': JSON.stringify({
+          enablePartytown: config.experimental.optimizeScripts?.enablePartytown,
+          partytownConfig: config.experimental.optimizeScripts?.partytownConfig,
+        }),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
         ),
