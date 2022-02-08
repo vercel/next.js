@@ -96,7 +96,11 @@ function createLoadableComponent(loadFn, options) {
 
   // Client only
   if (!initialized && typeof window !== 'undefined' && !opts.suspense) {
-    const moduleIds = opts.webpack ? opts.webpack() : opts.modules
+    // require.resolveWeak check is needed for environments that don't have it available like Jest
+    const moduleIds =
+      opts.webpack && typeof require.resolveWeak === 'function'
+        ? opts.webpack()
+        : opts.modules
     if (moduleIds) {
       READY_INITIALIZERS.push((ids) => {
         for (const moduleId of moduleIds) {
