@@ -1519,10 +1519,16 @@ export default async function getBaseWebpackConfig(
             ['swcMinify', config.swcMinify],
             ['swcRelay', !!config.compiler?.relay],
             ['swcStyledComponents', !!config.compiler?.styledComponents],
-            ['swcReactRemoveProperties', !!config.reactRemoveProperties],
-            ['swcExperimentalDecorators', !!config.experimentalDecorators],
-            ['swcRemoveConsole', !!config.removeConsole],
-            ['swcImportSource', !!config.importSource],
+            [
+              'swcReactRemoveProperties',
+              !!config.compiler?.reactRemoveProperties,
+            ],
+            [
+              'swcExperimentalDecorators',
+              !!jsConfig?.compilerOptions?.experimentalDecorators,
+            ],
+            ['swcRemoveConsole', !!config.compiler?.removeConsole],
+            ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
           ])
         ),
     ].filter(Boolean as any as ExcludesFalse),

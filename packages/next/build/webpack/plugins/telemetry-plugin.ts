@@ -44,6 +44,7 @@ const FEATURE_MODULE_MAP: ReadonlyMap<Feature, string> = new Map([
 const BUILD_FEATURES: Array<Feature> = [
   'swcLoader',
   'swcMinify',
+  'swcRelay',
   'swcStyledComponents',
   'swcReactRemoveProperties',
   'swcExperimentalDecorators',

@@ -621,6 +621,12 @@ describe('Telemetry CLI', () => {
     expect(optimizeFonts).toContain(`"invocationCount": 1`)
     regex.exec(stderr).pop() // swcLoader
     regex.exec(stderr).pop() // swcMinify
+    regex.exec(stderr).pop() // swcRelay
+    regex.exec(stderr).pop() // swcStyledComponents
+    regex.exec(stderr).pop() // swcExperimentalDecorators
+    regex.exec(stderr).pop() // swcReactRemoveProperties
+    regex.exec(stderr).pop() // swcRemoveConsole
+    regex.exec(stderr).pop() // swcImportSource
     const image = regex.exec(stderr).pop()
     expect(image).toContain(`"featureName": "next/image"`)
     expect(image).toContain(`"invocationCount": 1`)
@@ -647,6 +653,8 @@ describe('Telemetry CLI', () => {
       path.join(appDir, 'jsconfig.json')
     )
 
+    console.log('STDERR', stderr)
+
     const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
     regex.exec(stderr).pop() // optimizeCss
     regex.exec(stderr).pop() // build-lint
@@ -656,7 +664,7 @@ describe('Telemetry CLI', () => {
     expect(swcLoader).toContain(`"invocationCount": 1`)
     const swcMinify = regex.exec(stderr).pop()
     expect(swcMinify).toContain(`"featureName": "swcMinify"`)
-    //expect(swcMinify).toContain(`"invocationCount": 1`)
+    expect(swcMinify).toContain(`"invocationCount": 1`)
     const swcRelay = regex.exec(stderr).pop()
     expect(swcRelay).toContain(`"featureName": "swcRelay"`)
     expect(swcRelay).toContain(`"invocationCount": 1`)
@@ -680,7 +688,7 @@ describe('Telemetry CLI', () => {
     expect(swcRemoveConsole).toContain(`"invocationCount": 1`)
     const swcImportSource = regex.exec(stderr).pop()
     expect(swcImportSource).toContain(`"featureName": "swcImportSource"`)
-    expect(swcImportSource).toContain(`"invocationCount": 1`)
+    expect(swcImportSource).toContain(`"invocationCount": 0`)
   })
 
   it('emits telemetry for usage of `optimizeCss`', async () => {

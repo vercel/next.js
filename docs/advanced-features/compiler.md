@@ -154,7 +154,7 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 ```js
 {
   "compilerOptions": {
-    "jsxImportSource": true
+    "jsxImportSource": 'preact'
   }
 }
 ```
