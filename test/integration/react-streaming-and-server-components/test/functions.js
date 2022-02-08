@@ -15,8 +15,8 @@ export default function (context) {
       'server',
       'functions-manifest.json'
     )
-    await fs.remove(join(context.appDir, '.next'))
     expect(fs.existsSync(functionsManifestPath)).toBe(false)
+    await fs.remove(join(context.appDir, '.next'))
   })
   it('should contain rsc paths in functions manifest', async () => {
     await nextBuild(context.appDir, { env: { ENABLE_FILE_SYSTEM_API: '1' } })
