@@ -1094,15 +1094,6 @@ export default class NextNodeServer extends BaseServer {
     for (const item of this.allRoutes || []) {
       if (item.match(normalizedPathname)) {
         if (!item.isMiddleware) break
-
-        // prevent matching with API requests except `/` and `/api/.*`
-        if (
-          item.page !== '/' &&
-          !isApiRoute(item.page) &&
-          isApiRoute(normalizedPathname)
-        )
-          continue
-
         if (isDynamicRoute(item.page) !== isDynamic) continue
 
         middleware.push(item)
