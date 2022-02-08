@@ -239,7 +239,7 @@
     "react-refresh": "0.8.3",
     "react-server-dom-webpack": "0.0.0-experimental-13455d26d-20211104",
     "regenerator-runtime": "0.13.4",
-    "sass-loader": "10.2.0",
+    "sass-loader": "12.4.0",
     "schema-utils2": "npm:schema-utils@2.7.1",
     "schema-utils3": "npm:schema-utils@3.0.0",
     "semver": "7.3.2",
