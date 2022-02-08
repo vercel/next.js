@@ -225,7 +225,8 @@ export default class NextNodeServer extends BaseServer {
                   },
                   revalidate: maxAge,
                 }
-              }
+              },
+              {}
             )
 
             if (cacheEntry?.value?.kind !== 'IMAGE') {
