@@ -227,8 +227,11 @@ export class ImageOptimizerCache {
       buffer: Buffer
       extension: string
     },
-    revalidate: number
+    revalidate?: number | false
   ) {
+    if (typeof revalidate !== 'number') {
+      throw new Error('invariant revalidate must be a number for image-cache')
+    }
     const expireAt =
       Math.max(revalidate, this.nextConfig.images.minimumCacheTTL) * 1000 +
       Date.now()

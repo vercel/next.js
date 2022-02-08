@@ -1,4 +1,3 @@
-import { IncrementalCache } from './incremental-cache'
 import RenderResult from './render-result'
 
 export interface CachedRedirectValue {
@@ -38,6 +37,17 @@ export type ResponseCacheEntry = {
 type ResponseGenerator = (
   hasResolved: boolean
 ) => Promise<ResponseCacheEntry | null>
+
+interface IncrementalCache {
+  get: (key: string) => Promise<{
+    curRevalidate?: number | false
+    revalidate?: number | false
+    value?: any | null
+    isStale?: boolean
+    isMiss?: boolean
+  } | null>
+  set: (key: string, data: any, revalidate?: number | false) => Promise<void>
+}
 
 export default class ResponseCache {
   incrementalCache: IncrementalCache
@@ -108,10 +118,14 @@ export default class ResponseCache {
         }
 
         const cacheEntry = await responseGenerator(resolved)
-        resolve({
-          ...(cacheEntry as ResponseCacheEntry),
-          isMiss: !cachedResponse,
-        })
+        resolve(
+          cacheEntry === null
+            ? null
+            : {
+                ...cacheEntry,
+                isMiss: !cachedResponse,
+              }
+        )
 
         if (key && cacheEntry && typeof cacheEntry.revalidate !== 'undefined') {
           await this.incrementalCache.set(

@@ -58,7 +58,6 @@ import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
-import { ImageOptimizerCache } from './image-optimizer'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -166,7 +165,6 @@ export default abstract class Server {
   }
   private incrementalCache: IncrementalCache
   private responseCache: ResponseCache
-  protected imageResponseCache: ResponseCache
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
   protected customRoutes: CustomRoutes
@@ -362,12 +360,6 @@ export default abstract class Server {
       },
     })
     this.responseCache = new ResponseCache(this.incrementalCache)
-    this.imageResponseCache = new ResponseCache(
-      new ImageOptimizerCache({
-        distDir: this.distDir,
-        nextConfig: this.nextConfig,
-      }) as any
-    )
   }
 
   public logError(err: Error): void {

@@ -75,13 +75,7 @@ import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { loadEnvConfig } from '@next/env'
 import { getCustomRoute } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
-import {
-  getHash,
-  ImageError,
-  ImageOptimizerCache,
-  ImageParamsResult,
-  sendResponse,
-} from './image-optimizer'
+import ResponseCache from '../server/response-cache'
 
 export * from './base-server'
 
@@ -100,6 +94,8 @@ export interface NodeRequestHandler {
 }
 
 export default class NextNodeServer extends BaseServer {
+  private imageResponseCache: ResponseCache
+
   constructor(options: Options) {
     // Initialize super class
     super(options)
@@ -119,6 +115,16 @@ export default class NextNodeServer extends BaseServer {
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
+
+    const { ImageOptimizerCache } =
+      require('./image-optimizer') as typeof import('./image-optimizer')
+
+    this.imageResponseCache = new ResponseCache(
+      new ImageOptimizerCache({
+        distDir: this.distDir,
+        nextConfig: this.nextConfig,
+      })
+    )
   }
 
   private compression =
@@ -163,6 +169,8 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected generateImageRoutes(): Route[] {
+    const { getHash, ImageOptimizerCache, sendResponse, ImageError } =
+      require('./image-config') as typeof import('./image-optimizer')
     return [
       {
         match: route('/_next/image'),
@@ -553,7 +561,7 @@ export default class NextNodeServer extends BaseServer {
   protected async imageOptimizer(
     req: NodeNextRequest,
     res: NodeNextResponse,
-    paramsResult: ImageParamsResult
+    paramsResult: import('./image-optimizer').ImageParamsResult
   ): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
     const { imageOptimizer } =
       require('./image-optimizer') as typeof import('./image-optimizer')
