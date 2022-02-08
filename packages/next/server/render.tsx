@@ -1675,20 +1675,23 @@ function renderToStream(
 
         // React will call our callbacks synchronously, so we need to
         // defer to a microtask to ensure `stream` is set.
-        Promise.resolve().then(() =>
-          resolve(
-            stream
-              .pipeThrough(createBufferedTransformStream())
-              .pipeThrough(
-                createInlineDataStream(
-                  dataStream.pipeThrough(
-                    createPrefixStream(suffixState?.suffixUnclosed ?? null)
-                  )
-                )
+        Promise.resolve().then(() => {
+          let readable = pipeThrough(stream, createBufferedTransformStream())
+          readable = pipeThrough(
+            readable,
+            createInlineDataStream(
+              pipeThrough(
+                dataStream,
+                createPrefixStream(suffixState?.suffixUnclosed ?? null)
               )
-              .pipeThrough(createSuffixStream(suffixState?.closeTag ?? null))
+            )
           )
-        )
+          readable = pipeThrough(
+            readable,
+            createSuffixStream(suffixState?.closeTag ?? null)
+          )
+          resolve(readable)
+        })
       }
     }
 
