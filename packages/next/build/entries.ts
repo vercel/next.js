@@ -37,11 +37,11 @@ export function createPagesMapping(
   {
     isDev,
     hasServerComponents,
-    hasConcurrentFeatures,
+    runtime,
   }: {
     isDev: boolean
     hasServerComponents: boolean
-    hasConcurrentFeatures: boolean
+    runtime?: 'nodejs' | 'edge'
   }
 ): PagesMapping {
   const previousPages: PagesMapping = {}
@@ -81,7 +81,7 @@ export function createPagesMapping(
   // we alias these in development and allow webpack to
   // allow falling back to the correct source file so
   // that HMR can work properly when a file is added/removed
-  const documentPage = `_document${hasConcurrentFeatures ? '-web' : ''}`
+  const documentPage = `_document${runtime ? '-concurrent' : ''}`
   if (isDev) {
     pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
     pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
@@ -98,7 +98,7 @@ export function createPagesMapping(
 type Entrypoints = {
   client: webpack5.EntryObject
   server: webpack5.EntryObject
-  serverWeb: webpack5.EntryObject
+  edgeServer: webpack5.EntryObject
 }
 
 export function createEntrypoints(
@@ -111,7 +111,7 @@ export function createEntrypoints(
 ): Entrypoints {
   const client: webpack5.EntryObject = {}
   const server: webpack5.EntryObject = {}
-  const serverWeb: webpack5.EntryObject = {}
+  const edgeServer: webpack5.EntryObject = {}
 
   const hasRuntimeConfig =
     Object.keys(config.publicRuntimeConfig).length > 0 ||
@@ -156,7 +156,7 @@ export function createEntrypoints(
     const isCustomError = isCustomErrorPage(page)
     const isFlight = isFlightPage(config, absolutePagePath)
 
-    const webServerRuntime = !!config.experimental.concurrentFeatures
+    const edgeRuntime = config.experimental.runtime === 'edge'
 
     if (page.match(MIDDLEWARE_ROUTE)) {
       const loaderOpts: MiddlewareLoaderOptions = {
@@ -170,9 +170,9 @@ export function createEntrypoints(
       return
     }
 
-    if (webServerRuntime && !isReserved && !isCustomError && !isApiRoute) {
+    if (edgeRuntime && !isReserved && !isCustomError && !isApiRoute) {
       ssrEntries.set(clientBundlePath, { requireFlightManifest: isFlight })
-      serverWeb[serverBundlePath] = finalizeEntrypoint({
+      edgeServer[serverBundlePath] = finalizeEntrypoint({
         name: '[name].js',
         value: `next-middleware-ssr-loader?${stringify({
           dev: false,
@@ -184,7 +184,7 @@ export function createEntrypoints(
           ...defaultServerlessOptions,
         } as any)}!`,
         isServer: false,
-        isServerWeb: true,
+        isEdgeServer: true,
       })
     }
 
@@ -198,14 +198,14 @@ export function createEntrypoints(
         serverlessLoaderOptions
       )}!`
     } else if (isApiRoute || target === 'server') {
-      if (!webServerRuntime || isReserved || isCustomError) {
+      if (!edgeRuntime || isReserved || isCustomError) {
         server[serverBundlePath] = [absolutePagePath]
       }
     } else if (
       isLikeServerless &&
       page !== '/_app' &&
       page !== '/_document' &&
-      !webServerRuntime
+      !edgeRuntime
     ) {
       const serverlessLoaderOptions: ServerlessLoaderQuery = {
         page,
@@ -244,7 +244,7 @@ export function createEntrypoints(
   return {
     client,
     server,
-    serverWeb,
+    edgeServer,
   }
 }
 
@@ -253,13 +253,13 @@ export function finalizeEntrypoint({
   value,
   isServer,
   isMiddleware,
-  isServerWeb,
+  isEdgeServer,
 }: {
   isServer: boolean
   name: string
   value: ObjectValue<webpack5.EntryObject>
   isMiddleware?: boolean
-  isServerWeb?: boolean
+  isEdgeServer?: boolean
 }): ObjectValue<webpack5.EntryObject> {
   const entry =
     typeof value !== 'object' || Array.isArray(value)
@@ -276,7 +276,7 @@ export function finalizeEntrypoint({
     }
   }
 
-  if (isServerWeb) {
+  if (isEdgeServer) {
     const ssrMiddlewareEntry = {
       library: {
         name: ['_ENTRIES', `middleware_[name]`],

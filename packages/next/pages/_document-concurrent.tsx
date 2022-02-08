@@ -1,4 +1,4 @@
-// Default _document page for web runtime
+// Default Document for streaming features
 
 import React from 'react'
 import { Html, Head, Main, NextScript } from './_document'

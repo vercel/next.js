@@ -29,6 +29,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
+  MIDDLEWARE_FLIGHT_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
   SERVERLESS_DIRECTORY,
 } from '../shared/lib/constants'
@@ -552,6 +553,11 @@ export default class NextNodeServer extends BaseServer {
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult | null> {
+    // Due to the way we pass data by mutating `renderOpts`, we can't extend the
+    // object here but only updating its `serverComponentManifest` field.
+    // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+    renderOpts.serverComponentManifest = this.serverComponentManifest
+
     return renderToHTML(
       req.originalRequest,
       res.originalResponse,
@@ -658,6 +664,15 @@ export default class NextNodeServer extends BaseServer {
 
   protected getFontManifest(): FontManifest {
     return requireFontManifest(this.distDir, this._isLikeServerless)
+  }
+
+  protected getServerComponentManifest() {
+    if (this.nextConfig.experimental.runtime !== 'nodejs') return undefined
+    return require(join(
+      this.distDir,
+      'server',
+      MIDDLEWARE_FLIGHT_MANIFEST + '.json'
+    ))
   }
 
   protected getCacheFilesystem(): CacheFs {
@@ -1235,7 +1250,7 @@ export default class NextNodeServer extends BaseServer {
             url: url,
             page: page,
           },
-          useCache: !this.nextConfig.experimental.concurrentFeatures,
+          useCache: !this.nextConfig.experimental.runtime,
           onWarning: (warning: Error) => {
             if (params.onWarning) {
               warning.message += ` "./${middlewareInfo.name}"`
