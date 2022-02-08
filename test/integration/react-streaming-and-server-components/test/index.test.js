@@ -301,7 +301,7 @@ runSuite('Custom Document', 'prod', documentSuite)
 runSuite('Functions manifest', 'build', { runTests: functions })
 
 function runSuite(suiteName, env, options) {
-  const context = { appDir }
+  const context = { appDir, distDir }
   describe(`${suiteName} ${env}`, () => {
     beforeAll(async () => {
       options.beforeAll?.()

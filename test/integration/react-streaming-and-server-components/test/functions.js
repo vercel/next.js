@@ -9,19 +9,19 @@ import { nextBuild } from './utils'
 
 export default function (context) {
   it('should not generate functions manifest when filesystem API is not enabled', async () => {
-    await nextBuild(appDir)
+    await nextBuild(context.appDir)
     const functionsManifestPath = join(
-      distDir,
+      context.distDir,
       'server',
       'functions-manifest.json'
     )
-    await fs.remove(join(appDir, '.next'))
+    await fs.remove(join(context.appDir, '.next'))
     expect(fs.existsSync(functionsManifestPath)).toBe(false)
   })
   it('should contain rsc paths in functions manifest', async () => {
-    await nextBuild(appDir, { env: { ENABLE_FILE_SYSTEM_API: '1' } })
+    await nextBuild(context.appDir, { env: { ENABLE_FILE_SYSTEM_API: '1' } })
     const functionsManifestPath = join(
-      distDir,
+      context.distDir,
       'server',
       'functions-manifest.json'
     )
