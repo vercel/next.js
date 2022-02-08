@@ -188,7 +188,7 @@ describe('Edge runtime - prod', () => {
 
   it('should render 500 error correctly', async () => {
     const path500HTML = await renderViaHTTP(context.appPort, '/err')
-    expect(path500HTML).toContain('Error: oops')
+    expect(path500HTML).toContain('custom-500-page')
   })
 
   basic(context, 'prod')
