@@ -35,11 +35,13 @@ export type ResponseCacheEntry = {
 }
 
 type ResponseGenerator = (
-  hasResolved: boolean
+  hasResolved: boolean,
+  hadCache: boolean
 ) => Promise<ResponseCacheEntry | null>
 
 interface IncrementalCache {
   get: (key: string) => Promise<{
+    revalidateAfter?: number | false
     curRevalidate?: number | false
     revalidate?: number | false
     value?: any | null
@@ -60,7 +62,8 @@ export default class ResponseCache {
 
   public get(
     key: string | null,
-    responseGenerator: ResponseGenerator
+    responseGenerator: ResponseGenerator,
+    context: { isManualRevalidate?: boolean }
   ): Promise<ResponseCacheEntry | null> {
     const pendingResponse = key ? this.pendingResponses.get(key) : null
     if (pendingResponse) {
@@ -97,7 +100,11 @@ export default class ResponseCache {
     ;(async () => {
       try {
         const cachedResponse = key ? await this.incrementalCache.get(key) : null
-        if (cachedResponse) {
+        if (
+          cachedResponse &&
+          (!context.isManualRevalidate ||
+            cachedResponse.revalidateAfter === false)
+        ) {
           resolve({
             isStale: cachedResponse.isStale,
             revalidate: cachedResponse.curRevalidate,
@@ -117,7 +124,7 @@ export default class ResponseCache {
           }
         }
 
-        const cacheEntry = await responseGenerator(resolved)
+        const cacheEntry = await responseGenerator(resolved, !!cachedResponse)
         resolve(
           cacheEntry === null
             ? null
