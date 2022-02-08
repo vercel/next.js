@@ -1133,7 +1133,9 @@ export async function renderToHTML(
       }),
       serverComponentManifest
     )
-    return new RenderResult(stream.pipeThrough(createBufferedTransformStream()))
+    return new RenderResult(
+      pipeThrough(stream, createBufferedTransformStream())
+    )
   }
 
   // we preload the buildManifest for auto-export dynamic pages
@@ -1800,6 +1802,11 @@ function pipeTo(
   }
   process()
   return promise
+}
+
+function pipeThrough(readable: ReadableStream, ts: TransformStream) {
+  readable.pipeTo(ts.writable)
+  return ts.readable
 }
 
 function chainStreams(streams: ReadableStream[]): ReadableStream {
