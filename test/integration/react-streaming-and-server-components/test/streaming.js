@@ -17,18 +17,6 @@ async function resolveStreamResponse(response, onData) {
 }
 
 export default function (context) {
-  it('should disable cache for fizz pages', async () => {
-    const urls = ['/', '/next-api/image', '/next-api/link']
-    await Promise.all(
-      urls.map(async (url) => {
-        const { headers } = await fetchViaHTTP(context.appPort, url)
-        expect(headers.get('cache-control')).toBe(
-          'no-cache, no-store, max-age=0, must-revalidate'
-        )
-      })
-    )
-  })
-
   it('should support streaming for fizz response', async () => {
     await fetchViaHTTP(context.appPort, '/streaming', null, {}).then(
       async (response) => {
