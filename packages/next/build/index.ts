@@ -550,7 +550,14 @@ export default async function build(
       .traceChild('generate-required-server-files')
       .traceFn(() => ({
         version: 1,
-        config: { ...config, configFile: undefined },
+        config: {
+          ...config,
+          configFile: undefined,
+          experimental: {
+            ...config.experimental,
+            trustHostHeader: ciEnvironment.hasNextSupport,
+          },
+        },
         appDir: dir,
         files: [
           ROUTES_MANIFEST,
