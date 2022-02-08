@@ -192,7 +192,7 @@ export default class NextNodeServer extends BaseServer {
             return { finished: true }
           }
           const paramsResult = ImageOptimizerCache.validateParams(
-            req as any,
+            (req as NodeNextRequest).originalRequest,
             parsedUrl.query,
             this.nextConfig,
             !!this.renderOpts.dev

@@ -163,7 +163,7 @@ export class ImageOptimizerCache {
       width,
       quality,
       mimeType,
-      minimumCacheTTL: minimumCacheTTL,
+      minimumCacheTTL,
     }
   }
 
@@ -249,7 +249,7 @@ export class ImageOptimizerCache {
 export class ImageError extends Error {
   statusCode: number
 
-  constructor(message: string, statusCode: number) {
+  constructor(statusCode: number, message: string) {
     super(message)
     this.statusCode = statusCode
   }
@@ -281,8 +281,8 @@ export async function imageOptimizer(
         upstreamRes.status
       )
       throw new ImageError(
-        '"url" parameter is valid but upstream response is invalid',
-        upstreamRes.status
+        upstreamRes.status,
+        '"url" parameter is valid but upstream response is invalid'
       )
     }
 
@@ -299,7 +299,7 @@ export async function imageOptimizer(
       const isStreamFinished = new Promise(function (resolve, reject) {
         mockRes.on('finish', () => resolve(true))
         mockRes.on('end', () => resolve(true))
-        mockRes.on('error', () => reject())
+        mockRes.on('error', (err: any) => reject(err))
       })
 
       mockRes.write = (chunk: Buffer | string) => {
@@ -350,6 +350,15 @@ export async function imageOptimizer(
 
       await handleRequest(mockReq, mockRes, nodeUrl.parse(href, true))
       await isStreamFinished
+
+      if (!mockRes.statusCode) {
+        console.error('image response failed for', href, mockRes.statusCode)
+        throw new ImageError(
+          mockRes.statusCode,
+          '"url" parameter is valid but internal response is invalid'
+        )
+      }
+
       upstreamBuffer = Buffer.concat(resBuffers)
       upstreamType =
         detectContentType(upstreamBuffer) || mockRes.getHeader('Content-Type')
@@ -357,8 +366,8 @@ export async function imageOptimizer(
     } catch (err) {
       console.error('upstream image response failed for', href, err)
       throw new ImageError(
-        '"url" parameter is valid but upstream response is invalid',
-        500
+        500,
+        '"url" parameter is valid but upstream response is invalid'
       )
     }
   }
@@ -378,7 +387,7 @@ export async function imageOptimizer(
         'received',
         upstreamType
       )
-      throw new ImageError("The requested resource isn't a valid image.", 400)
+      throw new ImageError(400, "The requested resource isn't a valid image.")
     }
   }
 
@@ -440,7 +449,7 @@ export async function imageOptimizer(
         console.error(
           `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly`
         )
-        throw new ImageError('internal server error', 500)
+        throw new ImageError(500, 'internal server error')
       }
       // Show sharp warning in production once
       if (showSharpMissingWarning) {
@@ -510,7 +519,7 @@ export async function imageOptimizer(
         maxAge: Math.max(maxAge, nextConfig.images.minimumCacheTTL),
       }
     } else {
-      throw new ImageError('Unable to optimize buffer', 500)
+      throw new ImageError(500, 'Unable to optimize buffer')
     }
   } catch (error) {
     return {
