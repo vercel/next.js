@@ -26,6 +26,11 @@ let nextOutput
 let appPort
 let app
 
+const cleanImagesDir = async () => {
+  console.warn('Cleaning', imagesDir)
+  await fs.remove(imagesDir)
+}
+
 const sharpMissingText = `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended`
 const sharpOutdatedText = `Your installed version of the 'sharp' package does not support AVIF images. Run 'yarn add sharp@latest' to upgrade to the latest version`
 
@@ -85,6 +90,7 @@ async function expectAvifSmallerThanWebp(w, q) {
 }
 
 async function fetchWithDuration(...args) {
+  console.warn('Fetching', args[1])
   const start = Date.now()
   const res = await fetchViaHTTP(...args)
   const buffer = await res.buffer()
@@ -511,7 +517,7 @@ function runTests({
     })
 
     it('should use cache and stale-while-revalidate when query is the same for external image', async () => {
-      await fs.remove(imagesDir)
+      await cleanImagesDir()
       const delay = 500
 
       const url = `https://image-optimization-test.vercel.app/api/slow?delay=${delay}`
@@ -639,7 +645,7 @@ function runTests({
   }
 
   it('should use cache and stale-while-revalidate when query is the same for internal image', async () => {
-    await fs.remove(imagesDir)
+    await cleanImagesDir()
 
     const query = { url: '/test.png', w, q: 80 }
     const opts = { headers: { accept: 'image/webp' } }
@@ -728,7 +734,7 @@ function runTests({
   })
 
   it('should use cached image file when parameters are the same for svg', async () => {
-    await fs.remove(imagesDir)
+    await cleanImagesDir()
 
     const query = { url: '/test.svg', w, q: 80 }
     const opts = { headers: { accept: 'image/webp' } }
@@ -764,7 +770,7 @@ function runTests({
   })
 
   it('should use cached image file when parameters are the same for animated gif', async () => {
-    await fs.remove(imagesDir)
+    await cleanImagesDir()
 
     const query = { url: '/animated.gif', w, q: 80 }
     const opts = { headers: { accept: 'image/webp' } }
@@ -967,7 +973,7 @@ function runTests({
   })
 
   it('should handle concurrent requests', async () => {
-    await fs.remove(imagesDir)
+    await cleanImagesDir()
     const query = { url: '/test.png', w, q: 80 }
     const opts = { headers: { accept: 'image/webp,*/*' } }
     const [res1, res2, res3] = await Promise.all([
@@ -1262,6 +1268,7 @@ describe('Image Optimizer', () => {
       nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
       await nextBuild(appDir)
+      await cleanImagesDir()
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
         onStderr(msg) {
@@ -1272,7 +1279,6 @@ describe('Image Optimizer', () => {
     afterAll(async () => {
       await killApp(app)
       nextConfig.restore()
-      await fs.remove(imagesDir)
     })
 
     runTests({ w: size, isDev: false, domains, minimumCacheTTL })
@@ -1300,13 +1306,13 @@ describe('Image Optimizer', () => {
       }`
       )
       await nextBuild(appDir)
+      await cleanImagesDir()
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
       await killApp(app)
       nextConfig.restore()
-      await fs.remove(imagesDir)
     })
 
     it('should set max-age header', async () => {
@@ -1361,13 +1367,13 @@ describe('Image Optimizer', () => {
         },
       })
       nextConfig.replace('{ /* replaceme */ }', json)
+      await cleanImagesDir()
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
     afterAll(async () => {
       await killApp(app)
       nextConfig.restore()
-      await fs.remove(imagesDir)
     })
     it('should 404 when loader is not default', async () => {
       const size = 384 // defaults defined in server/config.ts
@@ -1392,17 +1398,17 @@ describe('Image Optimizer', () => {
       }`
       nextConfig.replace('{ /* replaceme */ }', newConfig)
       await nextBuild(appDir)
+      await cleanImagesDir()
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
       await killApp(app)
       nextConfig.restore()
-      await fs.remove(imagesDir)
     })
 
     it('should return response when image is served from an external rewrite', async () => {
-      await fs.remove(imagesDir)
+      await cleanImagesDir()
 
       const query = { url: '/next-js/next-js-bg.png', w: 64, q: 75 }
       const opts = { headers: { accept: 'image/webp' } }
@@ -1445,13 +1451,13 @@ describe('Image Optimizer', () => {
         },
       })
       nextConfig.replace('{ /* replaceme */ }', json)
+      await cleanImagesDir()
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
     afterAll(async () => {
       await killApp(app)
       nextConfig.restore()
-      await fs.remove(imagesDir)
     })
 
     it('should support width 8 per BLUR_IMG_SIZE with next dev', async () => {
@@ -1480,10 +1486,10 @@ describe('Image Optimizer', () => {
           },
           cwd: appDir,
         })
+        await cleanImagesDir()
       })
       afterAll(async () => {
         await killApp(app)
-        await fs.remove(imagesDir)
       })
 
       runTests({
@@ -1509,6 +1515,7 @@ describe('Image Optimizer', () => {
         })
         nextOutput = ''
         nextConfig.replace('{ /* replaceme */ }', json)
+        await cleanImagesDir()
         appPort = await findPort()
         app = await launchApp(appDir, appPort, {
           onStderr(msg) {
@@ -1525,7 +1532,6 @@ describe('Image Optimizer', () => {
       afterAll(async () => {
         await killApp(app)
         nextConfig.restore()
-        await fs.remove(imagesDir)
       })
 
       runTests({
@@ -1543,6 +1549,7 @@ describe('Image Optimizer', () => {
       beforeAll(async () => {
         nextOutput = ''
         await nextBuild(appDir)
+        await cleanImagesDir()
         appPort = await findPort()
         app = await nextStart(appDir, appPort, {
           onStderr(msg) {
@@ -1558,7 +1565,6 @@ describe('Image Optimizer', () => {
       })
       afterAll(async () => {
         await killApp(app)
-        await fs.remove(imagesDir)
       })
 
       runTests({ w: size, isDev: false, domains: [], isSharp, isOutdatedSharp })
@@ -1577,6 +1583,7 @@ describe('Image Optimizer', () => {
         nextOutput = ''
         nextConfig.replace('{ /* replaceme */ }', json)
         await nextBuild(appDir)
+        await cleanImagesDir()
         appPort = await findPort()
         app = await nextStart(appDir, appPort, {
           onStderr(msg) {
@@ -1593,7 +1600,6 @@ describe('Image Optimizer', () => {
       afterAll(async () => {
         await killApp(app)
         nextConfig.restore()
-        await fs.remove(imagesDir)
       })
 
       runTests({
