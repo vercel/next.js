@@ -18,7 +18,7 @@ module.exports = {
 }
 ```
 
-This option determines the environment that streaming SSR will be happening. When setting to `'edge'`, the server will be running entirely in the [Edge Runtime](https://nextjs.org/docs/api-reference/edge-runtime).
+This option determines the environment in which streaming SSR will be happening. When setting to `'edge'`, the server will be running entirely in the [Edge Runtime](https://nextjs.org/docs/api-reference/edge-runtime).
 
 ## Streaming Features
 
