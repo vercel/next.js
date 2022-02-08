@@ -39,19 +39,6 @@ let appPort
 let app
 
 const runTests = (isDev = false) => {
-  it('should handle external beforeFiles rewrite correctly', async () => {
-    const res = await fetchViaHTTP(appPort, '/overridden')
-    expect(res.status).toBe(200)
-    expect(await res.text()).toContain('Example Domain')
-
-    const browser = await webdriver(appPort, '/nav')
-    await browser.elementByCss('#to-before-files-overridden').click()
-    await check(
-      () => browser.eval('document.documentElement.innerHTML'),
-      /Example Domain/
-    )
-  })
-
   it('should handle has query encoding correctly', async () => {
     for (const expected of [
       {
@@ -92,6 +79,24 @@ const runTests = (isDev = false) => {
         })
       }
     }
+  })
+
+  it('should handle external beforeFiles rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/overridden')
+    const html = await res.text()
+
+    if (res.status !== 200) {
+      console.error('Invalid response', html)
+    }
+    expect(res.status).toBe(200)
+    expect(html).toContain('Example Domain')
+
+    const browser = await webdriver(appPort, '/nav')
+    await browser.elementByCss('#to-before-files-overridden').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /Example Domain/
+    )
   })
 
   it('should support long URLs for rewrites', async () => {

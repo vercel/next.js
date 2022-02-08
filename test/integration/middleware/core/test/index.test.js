@@ -165,7 +165,7 @@ function rewriteTests(log, locale = '') {
   it('should override with rewrite internally correctly', async () => {
     const res = await fetchViaHTTP(
       context.appPort,
-      '/rewrites/about',
+      `${locale}/rewrites/about`,
       { override: 'internal' },
       { redirect: 'manual' }
     )
@@ -190,7 +190,7 @@ function rewriteTests(log, locale = '') {
   it('should override with rewrite externally correctly', async () => {
     const res = await fetchViaHTTP(
       context.appPort,
-      '/rewrites/about',
+      `${locale}/rewrites/about`,
       { override: 'external' },
       { redirect: 'manual' }
     )
