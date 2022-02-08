@@ -86,6 +86,7 @@ const devtoolRevertWarning = execOnce(
 )
 
 let loggedSwcDisabled = false
+let loggedIgnoredCompilerOptions = false
 
 function getOptimizedAliases(): { [pkg: string]: string } {
   const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch', 'index.js')
@@ -434,6 +435,17 @@ export default async function getBaseWebpackConfig(
       )}" https://nextjs.org/docs/messages/swc-disabled`
     )
     loggedSwcDisabled = true
+  }
+
+  if (
+    !loggedIgnoredCompilerOptions &&
+    !useSWCLoader &&
+    config.compiler != null
+  ) {
+    Log.info(
+      '`compiler` options in `next.config.js` will be ignored while using Babel https://next.js.org/docs/messages/ignored-compiler-options'
+    )
+    loggedIgnoredCompilerOptions = true
   }
 
   const getBabelOrSwcLoader = (isMiddleware: boolean) => {
