@@ -66,10 +66,21 @@ export default function (context) {
       '/client-exports'
     )
     const $clientExports = cheerio.load(clientExportsHTML)
-    expect($clientExports('div[hidden] > div').text()).toBe('abcde')
+    expect($clientExports('div[hidden] > div > #named-exports').text()).toBe(
+      'abcde'
+    )
+    expect(
+      $clientExports('div[hidden] > div > #default-exports-arrow').text()
+    ).toBe('client-default-export-arrow')
 
     const browser = await webdriver(context.appPort, '/client-exports')
-    const text = await browser.waitForElementByCss('#__next').text()
-    expect(text).toBe('abcde')
+    const textNamedExports = await browser
+      .waitForElementByCss('#named-exports')
+      .text()
+    const textDefaultExportsArrow = await browser
+      .waitForElementByCss('#default-exports-arrow')
+      .text()
+    expect(textNamedExports).toBe('abcde')
+    expect(textDefaultExportsArrow).toBe('client-default-export-arrow')
   })
 }
