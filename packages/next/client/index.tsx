@@ -434,7 +434,7 @@ export async function initNext(
   render(renderCtx)
 }
 
-export async function render(renderingProps: RenderRouteInfo): Promise<void> {
+async function render(renderingProps: RenderRouteInfo): Promise<void> {
   if (renderingProps.err) {
     await renderError(renderingProps)
     return
@@ -462,7 +462,7 @@ export async function render(renderingProps: RenderRouteInfo): Promise<void> {
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
-export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
+function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
   const { App, err } = renderErrorProps
 
   // In development runtime errors are caught by our overlay

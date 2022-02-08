@@ -452,7 +452,13 @@ export default class NextNodeServer extends BaseServer {
       res.originalResponse,
       query,
       pageModule,
-      this.renderOpts.previewProps,
+      {
+        ...this.renderOpts.previewProps,
+        port: this.port,
+        hostname: this.hostname,
+        // internal config so is not typed
+        trustHostHeader: (this.nextConfig.experimental as any).trustHostHeader,
+      },
       this.minimalMode,
       this.renderOpts.dev,
       page

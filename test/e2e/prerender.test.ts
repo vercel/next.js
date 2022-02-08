@@ -1890,6 +1890,147 @@ describe('Prerender', () => {
         }
       })
     }
+
+    if (!(global as any).isNextDev) {
+      it('should handle manual revalidate for fallback: blocking', async () => {
+        const html = await renderViaHTTP(
+          next.url,
+          '/blocking-fallback/test-manual-1'
+        )
+        const $ = cheerio.load(html)
+        const initialTime = $('#time').text()
+
+        expect($('p').text()).toMatch(/Post:.*?test-manual-1/)
+
+        const html2 = await renderViaHTTP(
+          next.url,
+          '/blocking-fallback/test-manual-1'
+        )
+        const $2 = cheerio.load(html2)
+
+        expect(initialTime).toBe($2('#time').text())
+
+        const res = await fetchViaHTTP(
+          next.url,
+          '/api/manual-revalidate',
+          {
+            pathname: '/blocking-fallback/test-manual-1',
+          },
+          { redirect: 'manual' }
+        )
+
+        expect(res.status).toBe(200)
+        const revalidateData = await res.json()
+        const revalidatedText = revalidateData.text
+        const $3 = cheerio.load(revalidatedText)
+        expect(revalidateData.status).toBe(200)
+        expect($3('#time').text()).not.toBe(initialTime)
+
+        const html4 = await renderViaHTTP(
+          next.url,
+          '/blocking-fallback/test-manual-1'
+        )
+        const $4 = cheerio.load(html4)
+        expect($4('#time').text()).not.toBe(initialTime)
+        expect($3('#time').text()).toBe($4('#time').text())
+      })
+
+      it('should not manual revalidate for revalidate: false', async () => {
+        const html = await renderViaHTTP(
+          next.url,
+          '/blocking-fallback-once/test-manual-1'
+        )
+        const $ = cheerio.load(html)
+        const initialTime = $('#time').text()
+
+        expect($('p').text()).toMatch(/Post:.*?test-manual-1/)
+
+        const html2 = await renderViaHTTP(
+          next.url,
+          '/blocking-fallback-once/test-manual-1'
+        )
+        const $2 = cheerio.load(html2)
+
+        expect(initialTime).toBe($2('#time').text())
+
+        const res = await fetchViaHTTP(
+          next.url,
+          '/api/manual-revalidate',
+          {
+            pathname: '/blocking-fallback-once/test-manual-1',
+          },
+          { redirect: 'manual' }
+        )
+
+        expect(res.status).toBe(200)
+        const revalidateData = await res.json()
+        const revalidatedText = revalidateData.text
+        const $3 = cheerio.load(revalidatedText)
+        expect(revalidateData.status).toBe(200)
+        expect($3('#time').text()).toBe(initialTime)
+
+        const html4 = await renderViaHTTP(
+          next.url,
+          '/blocking-fallback-once/test-manual-1'
+        )
+        const $4 = cheerio.load(html4)
+        expect($4('#time').text()).toBe(initialTime)
+        expect($3('#time').text()).toBe($4('#time').text())
+      })
+
+      it('should handle manual revalidate for fallback: false', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/catchall-explicit/test-manual-1'
+        )
+        expect(res.status).toBe(404)
+
+        // fallback: false pages should only manually revalidate
+        // prerendered paths
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/api/manual-revalidate',
+          {
+            pathname: '/catchall-explicity/test-manual-1',
+          },
+          { redirect: 'manual' }
+        )
+
+        expect(res2.status).toBe(200)
+        const revalidateData = await res2.json()
+        expect(revalidateData.status).toBe(404)
+
+        const res3 = await fetchViaHTTP(
+          next.url,
+          '/catchall-explicit/test-manual-1'
+        )
+        expect(res3.status).toBe(404)
+
+        const res4 = await fetchViaHTTP(next.url, '/catchall-explicit/first')
+        expect(res4.status).toBe(200)
+        const html = await res4.text()
+        const $ = cheerio.load(html)
+        const initialTime = $('#time').text()
+
+        const res5 = await fetchViaHTTP(
+          next.url,
+          '/api/manual-revalidate',
+          {
+            pathname: '/catchall-explicit/first',
+          },
+          { redirect: 'manual' }
+        )
+        expect(res5.status).toBe(200)
+        expect((await res5.json()).status).toBe(200)
+
+        const res6 = await fetchViaHTTP(next.url, '/catchall-explicit/first')
+        expect(res6.status).toBe(200)
+        const html2 = await res6.text()
+        const $2 = cheerio.load(html2)
+
+        expect(initialTime).not.toBe($2('#time').text())
+      })
+    }
   }
   runTests((global as any).isNextDev)
 })
