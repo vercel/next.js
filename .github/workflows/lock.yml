@@ -16,6 +16,7 @@ concurrency:
 jobs:
   action:
     runs-on: ubuntu-latest
+    if: github.repository_owner == 'vercel'
     steps:
       - uses: dessant/lock-threads@v3
         with:
