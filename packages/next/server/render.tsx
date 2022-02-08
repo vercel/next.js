@@ -460,7 +460,6 @@ export async function renderToHTML(
     basePath,
     devOnlyCacheBusterQueryString,
     supportsDynamicHTML,
-    concurrentFeatures,
     images,
     reactRoot,
     runtime,
