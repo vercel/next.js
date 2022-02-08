@@ -4,31 +4,10 @@ import LRUCache from 'next/dist/compiled/lru-cache'
 import path from 'path'
 import { PrerenderManifest } from '../build'
 import { normalizePagePath } from './normalize-page-path'
-import { CachedImageValue, CachedRedirectValue } from './response-cache'
+import { IncrementalCacheValue, IncrementalCacheEntry } from './response-cache'
 
 function toRoute(pathname: string): string {
   return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
-}
-
-interface CachedPageValue {
-  kind: 'PAGE'
-  // this needs to be a string since the cache expects to store
-  // the string value
-  html: string
-  pageData: Object
-}
-
-export type IncrementalCacheValue =
-  | CachedRedirectValue
-  | CachedPageValue
-  | CachedImageValue
-
-type IncrementalCacheEntry = {
-  curRevalidate?: number | false
-  // milliseconds to revalidate after
-  revalidateAfter: number | false
-  isStale?: boolean
-  value: IncrementalCacheValue | null
 }
 
 export class IncrementalCache {

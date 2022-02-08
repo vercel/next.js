@@ -22,6 +22,27 @@ export interface CachedImageValue {
   isStale?: boolean
 }
 
+interface IncrementalCachedPageValue {
+  kind: 'PAGE'
+  // this needs to be a string since the cache expects to store
+  // the string value
+  html: string
+  pageData: Object
+}
+
+export type IncrementalCacheEntry = {
+  curRevalidate?: number | false
+  // milliseconds to revalidate after
+  revalidateAfter: number | false
+  isStale?: boolean
+  value: IncrementalCacheValue | null
+}
+
+export type IncrementalCacheValue =
+  | CachedRedirectValue
+  | IncrementalCachedPageValue
+  | CachedImageValue
+
 export type ResponseCacheValue =
   | CachedRedirectValue
   | CachedPageValue
@@ -44,11 +65,15 @@ interface IncrementalCache {
     revalidateAfter?: number | false
     curRevalidate?: number | false
     revalidate?: number | false
-    value?: any | null
+    value: IncrementalCacheValue | null
     isStale?: boolean
     isMiss?: boolean
   } | null>
-  set: (key: string, data: any, revalidate?: number | false) => Promise<void>
+  set: (
+    key: string,
+    data: IncrementalCacheValue | null,
+    revalidate?: number | false
+  ) => Promise<void>
 }
 
 export default class ResponseCache {

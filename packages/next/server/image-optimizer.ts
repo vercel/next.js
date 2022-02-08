@@ -16,6 +16,7 @@ import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import chalk from 'next/dist/compiled/chalk'
 import { NextUrlWithParsedQuery } from './request-meta'
+import { IncrementalCacheEntry, IncrementalCacheValue } from './response-cache'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -192,7 +193,7 @@ export class ImageOptimizerCache {
     this.nextConfig = nextConfig
   }
 
-  async get(cacheKey: string) {
+  async get(cacheKey: string): Promise<IncrementalCacheEntry | null> {
     try {
       const cacheDir = join(this.cacheDir, cacheKey)
       const files = await promises.readdir(cacheDir)
@@ -211,7 +212,10 @@ export class ImageOptimizerCache {
             buffer,
             extension,
           },
-          revalidate: maxAge,
+          revalidateAfter:
+            Math.max(maxAge, this.nextConfig.images.minimumCacheTTL) * 1000 +
+            Date.now(),
+          curRevalidate: maxAge,
           isStale: now > expireAt,
         }
       }
@@ -222,13 +226,13 @@ export class ImageOptimizerCache {
   }
   async set(
     cacheKey: string,
-    value: {
-      etag: string
-      buffer: Buffer
-      extension: string
-    },
+    value: IncrementalCacheValue | null,
     revalidate?: number | false
   ) {
+    if (value?.kind !== 'IMAGE') {
+      throw new Error('invariant attempted to set non-image to image-cache')
+    }
+
     if (typeof revalidate !== 'number') {
       throw new Error('invariant revalidate must be a number for image-cache')
     }
