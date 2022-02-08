@@ -1,5 +1,6 @@
 import type { CacheFs } from '../shared/lib/utils'
 
+import LRUCache from 'next/dist/compiled/lru-cache'
 import path from 'path'
 import { PrerenderManifest } from '../build'
 import { normalizePagePath } from './normalize-page-path'
@@ -7,6 +8,14 @@ import { CachedImageValue, CachedRedirectValue } from './response-cache'
 
 function toRoute(pathname: string): string {
   return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
+}
+
+interface CachedPageValue {
+  kind: 'PAGE'
+  // this needs to be a string since the cache expects to store
+  // the string value
+  html: string
+  pageData: Object
 }
 
 export type IncrementalCacheValue =
@@ -22,30 +31,6 @@ type IncrementalCacheEntry = {
   value: IncrementalCacheValue | null
 }
 
-// we need to avoid relying on lru-cache types here or
-// it will break skipLibCheck: false with TypeScript
-declare class LRUCacheType<K, V> {
-  set(key: K, value: V, maxAge?: number): boolean
-  get(key: K): V | undefined
-}
-interface Constructable<T> {
-  new (options?: {
-    max: number
-    length?(value: IncrementalCacheEntry, key?: string): number
-  }): T
-}
-const LRUCache = require('next/dist/compiled/lru-cache') as Constructable<
-  LRUCacheType<string, IncrementalCacheEntry>
->
-
-interface CachedPageValue {
-  kind: 'PAGE'
-  // this needs to be a string since the cache expects to store
-  // the string value
-  html: string
-  pageData: Object
-}
-
 export class IncrementalCache {
   incrementalOptions: {
     flushToDisk?: boolean
@@ -55,7 +40,7 @@ export class IncrementalCache {
   }
 
   prerenderManifest: PrerenderManifest
-  cache?: LRUCacheType<string, IncrementalCacheEntry>
+  cache?: LRUCache<string, IncrementalCacheEntry>
   locales?: string[]
   fs: CacheFs
 
