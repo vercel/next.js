@@ -1921,10 +1921,7 @@ describe('Prerender', () => {
 
         expect(res.status).toBe(200)
         const revalidateData = await res.json()
-        const revalidatedText = revalidateData.text
-        const $3 = cheerio.load(revalidatedText)
-        expect(revalidateData.status).toBe(200)
-        expect($3('#time').text()).not.toBe(initialTime)
+        expect(revalidateData.revalidated).toBe(true)
 
         const html4 = await renderViaHTTP(
           next.url,
@@ -1932,7 +1929,6 @@ describe('Prerender', () => {
         )
         const $4 = cheerio.load(html4)
         expect($4('#time').text()).not.toBe(initialTime)
-        expect($3('#time').text()).toBe($4('#time').text())
       })
 
       it('should not manual revalidate for revalidate: false', async () => {
@@ -1964,10 +1960,7 @@ describe('Prerender', () => {
 
         expect(res.status).toBe(200)
         const revalidateData = await res.json()
-        const revalidatedText = revalidateData.text
-        const $3 = cheerio.load(revalidatedText)
-        expect(revalidateData.status).toBe(200)
-        expect($3('#time').text()).toBe(initialTime)
+        expect(revalidateData.revalidated).toBe(true)
 
         const html4 = await renderViaHTTP(
           next.url,
@@ -1975,7 +1968,6 @@ describe('Prerender', () => {
         )
         const $4 = cheerio.load(html4)
         expect($4('#time').text()).toBe(initialTime)
-        expect($3('#time').text()).toBe($4('#time').text())
       })
 
       it('should handle manual revalidate for fallback: false', async () => {
@@ -1998,7 +1990,7 @@ describe('Prerender', () => {
 
         expect(res2.status).toBe(200)
         const revalidateData = await res2.json()
-        expect(revalidateData.status).toBe(404)
+        expect(revalidateData.revalidated).toBe(false)
 
         const res3 = await fetchViaHTTP(
           next.url,
@@ -2021,7 +2013,7 @@ describe('Prerender', () => {
           { redirect: 'manual' }
         )
         expect(res5.status).toBe(200)
-        expect((await res5.json()).status).toBe(200)
+        expect((await res5.json()).revalidated).toBe(true)
 
         const res6 = await fetchViaHTTP(next.url, '/catchall-explicit/first')
         expect(res6.status).toBe(200)

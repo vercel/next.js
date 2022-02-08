@@ -163,6 +163,7 @@ export default abstract class Server {
     serverComponentManifest?: any
     renderServerComponentData?: boolean
     serverComponentProps?: any
+    reactRoot: boolean
   }
   private incrementalCache: IncrementalCache
   private responseCache: ResponseCache
@@ -321,6 +322,7 @@ export default abstract class Server {
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
         : undefined,
+      reactRoot: this.nextConfig.experimental.reactRoot === true,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -1543,6 +1545,8 @@ export default abstract class Server {
         await handleRedirect(cachedData.props)
         return null
       }
+    } else if (cachedData.kind === 'IMAGE') {
+      throw new Error('invariant SSG should not return an image cache value')
     } else {
       return {
         type: isDataReq ? 'json' : 'html',

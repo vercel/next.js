@@ -222,7 +222,7 @@ module.exports = {
         },
         {
           source: '/overridden',
-          destination: 'https://example.com',
+          destination: 'https://vercel.com',
         },
       ],
     }

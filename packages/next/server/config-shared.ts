@@ -8,7 +8,7 @@ import {
 } from './image-config'
 
 export type NextConfigComplete = Required<NextConfig> & {
-  images: ImageConfigComplete
+  images: Required<ImageConfigComplete>
   typescript: Required<TypeScriptConfig>
   configOrigin?: string
   configFile?: string

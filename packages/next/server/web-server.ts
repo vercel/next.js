@@ -150,14 +150,20 @@ export default class NextWebServer extends BaseServer {
   ): Promise<void> {
     // @TODO
     const writer = res.transformStream.writable.getWriter()
-    options.result.pipe({
-      write: (chunk: Uint8Array) => writer.write(chunk),
-      end: () => writer.close(),
-      destroy: (err: Error) => writer.abort(err),
-      cork: () => {},
-      uncork: () => {},
-      // Not implemented: on/removeListener
-    } as any)
+
+    if (options.result.isDynamic()) {
+      options.result.pipe({
+        write: (chunk: Uint8Array) => writer.write(chunk),
+        end: () => writer.close(),
+        destroy: (err: Error) => writer.abort(err),
+        cork: () => {},
+        uncork: () => {},
+        // Not implemented: on/removeListener
+      } as any)
+    } else {
+      res.body(await options.result.toUnchunkedString())
+    }
+
     res.send()
   }
   protected async runApi() {
