@@ -196,18 +196,20 @@ function rewriteTests(log, locale = '') {
     )
 
     expect(res.status).toBe(200)
-    expect(await res.text()).toContain('Example Domain')
+    expect(await res.text()).toContain('Vercel')
 
     const browser = await webdriver(context.appPort, `${locale}/rewrites`)
     await browser.elementByCss('#override-with-external-rewrite').click()
     await check(
       () => browser.eval('document.documentElement.innerHTML'),
-      /Example Domain/
+      /Vercel/
     )
-    expect(await browser.eval('window.location.pathname')).toBe(
+    await check(
+      () => browser.eval('window.location.pathname'),
       `${locale || ''}/rewrites/about`
     )
-    expect(await browser.eval('window.location.search')).toBe(
+    await check(
+      () => browser.eval('window.location.search'),
       '?override=external'
     )
   })

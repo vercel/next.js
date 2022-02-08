@@ -89,13 +89,13 @@ const runTests = (isDev = false) => {
       console.error('Invalid response', html)
     }
     expect(res.status).toBe(200)
-    expect(html).toContain('Example Domain')
+    expect(html).toContain('Vercel')
 
     const browser = await webdriver(appPort, '/nav')
     await browser.elementByCss('#to-before-files-overridden').click()
     await check(
       () => browser.eval('document.documentElement.innerHTML'),
-      /Example Domain/
+      /Vercel/
     )
   })
 
@@ -1716,7 +1716,7 @@ const runTests = (isDev = false) => {
               source: '/old-blog/:path*',
             },
             {
-              destination: 'https://example.com',
+              destination: 'https://vercel.com',
               regex: normalizeRegEx('^\\/overridden(?:\\/)?$'),
               source: '/overridden',
             },
