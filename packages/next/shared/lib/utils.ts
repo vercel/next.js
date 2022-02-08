@@ -225,7 +225,7 @@ export type HtmlProps = {
   optimizeCss?: boolean
   optimizeFonts?: boolean
   optimizeImages?: boolean
-  concurrentFeatures?: boolean
+  runtime?: 'edge' | 'nodejs'
 }
 
 /**
