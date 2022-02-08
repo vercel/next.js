@@ -526,10 +526,16 @@ function runTests({
       expect(one.res.headers.get('Content-Disposition')).toBe(
         `inline; filename="slow.webp"`
       )
+      const etagOne = one.res.headers.get('etag')
+
       let json1
       await check(async () => {
         json1 = await fsToJson(imagesDir)
-        return Object.keys(json1).length === 1 ? 'success' : 'fail'
+        return Object.keys(json1).some((dir) => {
+          return Object.keys(json1[dir]).some((file) => file.includes(etagOne))
+        })
+          ? 'success'
+          : 'fail'
       }, 'success')
 
       const two = await fetchWithDuration(appPort, '/_next/image', query, opts)
