@@ -1133,7 +1133,9 @@ export async function renderToHTML(
       }),
       serverComponentManifest
     )
-    return new RenderResult(stream.pipeThrough(createBufferedTransformStream()))
+    return new RenderResult(
+      pipeThrough(stream, createBufferedTransformStream())
+    )
   }
 
   // we preload the buildManifest for auto-export dynamic pages
@@ -1675,16 +1677,18 @@ function renderToStream(
         // defer to a microtask to ensure `stream` is set.
         Promise.resolve().then(() =>
           resolve(
-            stream
-              .pipeThrough(createBufferedTransformStream())
-              .pipeThrough(
+            pipeThrough(
+              pipeThrough(
+                pipeThrough(stream, createBufferedTransformStream()),
                 createInlineDataStream(
-                  dataStream.pipeThrough(
+                  pipeThrough(
+                    dataStream,
                     createPrefixStream(suffixState?.suffixUnclosed ?? null)
                   )
                 )
-              )
-              .pipeThrough(createSuffixStream(suffixState?.closeTag ?? null))
+              ),
+              createSuffixStream(suffixState?.closeTag ?? null)
+            )
           )
         )
       }
@@ -1773,13 +1777,50 @@ function createInlineDataStream(
   })
 }
 
+function pipeTo(
+  readable: ReadableStream,
+  writable: WritableStream,
+  options?: { preventClose: boolean }
+) {
+  let resolver: () => void
+  const promise = new Promise<void>((resolve) => (resolver = resolve))
+
+  const reader = readable.getReader()
+  const writer = writable.getWriter()
+  function process() {
+    reader.read().then(({ done, value }) => {
+      if (done) {
+        if (options?.preventClose) {
+          writer.releaseLock()
+        } else {
+          writer.close()
+        }
+        resolver()
+      } else {
+        writer.write(value)
+        process()
+      }
+    })
+  }
+  process()
+  return promise
+}
+
+function pipeThrough(
+  readable: ReadableStream,
+  transformStream: TransformStream
+) {
+  pipeTo(readable, transformStream.writable)
+  return transformStream.readable
+}
+
 function chainStreams(streams: ReadableStream[]): ReadableStream {
   const { readable, writable } = new TransformStream()
 
   let promise = Promise.resolve()
   for (let i = 0; i < streams.length; ++i) {
     promise = promise.then(() =>
-      streams[i].pipeTo(writable, {
+      pipeTo(streams[i], writable, {
         preventClose: i + 1 < streams.length,
       })
     )
