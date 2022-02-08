@@ -83,8 +83,13 @@ export class IncrementalCache {
       this.cache = new LRUCache({
         max,
         length({ value }) {
-          if (!value || value.kind === 'REDIRECT' || value.kind === 'IMAGE')
+          if (!value) {
             return 25
+          } else if (value.kind === 'REDIRECT') {
+            return JSON.stringify(value.props).length
+          } else if (value.kind === 'IMAGE') {
+            throw new Error('invariant image should not be incremental-cache')
+          }
           // rough estimate of size of cache value
           return value.html.length + JSON.stringify(value.pageData).length
         },

@@ -45,7 +45,7 @@ try {
 
 let showSharpMissingWarning = process.env.NODE_ENV === 'production'
 
-interface ParamsResult {
+export interface ImageParamsResult {
   href: string
   isAbsolute: boolean
   isStatic: boolean
@@ -65,8 +65,15 @@ export class ImageOptimizerCache {
     query: UrlWithParsedQuery['query'],
     nextConfig: NextConfigComplete,
     isDev: boolean
-  ): ParamsResult | { errorMessage: string } {
-    const imageConfig = nextConfig.images
+  ): ImageParamsResult | { errorMessage: string } {
+    const imageData = nextConfig.images
+    const {
+      deviceSizes = [],
+      imageSizes = [],
+      domains = [],
+      minimumCacheTTL = 60,
+      formats = ['image/webp'],
+    } = imageData
     const { url, w, q } = query
     let href: string
 
@@ -96,10 +103,7 @@ export class ImageOptimizerCache {
         return { errorMessage: '"url" parameter is invalid' }
       }
 
-      if (
-        !imageConfig.domains ||
-        !imageConfig.domains.includes(hrefParsed.hostname)
-      ) {
+      if (!domains || !domains.includes(hrefParsed.hostname)) {
         return { errorMessage: '"url" parameter is not allowed' }
       }
     }
@@ -124,10 +128,7 @@ export class ImageOptimizerCache {
       }
     }
 
-    const sizes = [
-      ...(imageConfig.deviceSizes || []),
-      ...(imageConfig.imageSizes || []),
-    ]
+    const sizes = [...(deviceSizes || []), ...(imageSizes || [])]
 
     if (isDev) {
       sizes.push(BLUR_IMG_SIZE)
@@ -148,10 +149,7 @@ export class ImageOptimizerCache {
       }
     }
 
-    const mimeType = getSupportedMimeType(
-      imageConfig.formats || [],
-      req.headers['accept']
-    )
+    const mimeType = getSupportedMimeType(formats || [], req.headers['accept'])
 
     const isStatic = url.startsWith(
       `${nextConfig.basePath || ''}/_next/static/media`
@@ -165,7 +163,7 @@ export class ImageOptimizerCache {
       width,
       quality,
       mimeType,
-      minimumCacheTTL: imageConfig.minimumCacheTTL,
+      minimumCacheTTL: minimumCacheTTL,
     }
   }
 
@@ -205,7 +203,6 @@ export class ImageOptimizerCache {
         const buffer = await promises.readFile(join(cacheDir, file))
         const expireAt = Number(expireAtSt)
         const maxAge = Number(maxAgeSt)
-        const revalidate = maxAge
 
         return {
           value: {
@@ -213,9 +210,8 @@ export class ImageOptimizerCache {
             etag,
             buffer,
             extension,
-            revalidate,
           },
-          revalidate,
+          revalidate: maxAge,
           isStale: now > expireAt,
         }
       }
@@ -248,9 +244,9 @@ export class ImageOptimizerCache {
   }
 }
 export class ImageError extends Error {
-  statusCode?: number
+  statusCode: number
 
-  constructor(message: string, statusCode?: number) {
+  constructor(message: string, statusCode: number) {
     super(message)
     this.statusCode = statusCode
   }
@@ -259,7 +255,7 @@ export class ImageError extends Error {
 export async function imageOptimizer(
   _req: IncomingMessage,
   _res: ServerResponse,
-  paramsResult: ParamsResult,
+  paramsResult: ImageParamsResult,
   nextConfig: NextConfigComplete,
   handleRequest: (
     newReq: IncomingMessage,
@@ -441,7 +437,7 @@ export async function imageOptimizer(
         console.error(
           `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly`
         )
-        throw new ImageError('internal server error')
+        throw new ImageError('internal server error', 500)
       }
       // Show sharp warning in production once
       if (showSharpMissingWarning) {
@@ -511,7 +507,7 @@ export async function imageOptimizer(
         maxAge: Math.max(maxAge, nextConfig.images.minimumCacheTTL),
       }
     } else {
-      throw new ImageError('Unable to optimize buffer')
+      throw new ImageError('Unable to optimize buffer', 500)
     }
   } catch (error) {
     return {

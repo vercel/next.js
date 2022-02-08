@@ -21,7 +21,6 @@ export interface CachedImageValue {
   extension: string
   isMiss?: boolean
   isStale?: boolean
-  revalidate: number
 }
 
 export type ResponseCacheValue =

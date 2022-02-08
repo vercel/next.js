@@ -79,10 +79,9 @@ import {
   getHash,
   ImageError,
   ImageOptimizerCache,
+  ImageParamsResult,
   sendResponse,
-  setResponseHeaders,
 } from './image-optimizer'
-import { CachedImageValue } from './response-cache'
 
 export * from './base-server'
 
@@ -215,7 +214,6 @@ export default class NextNodeServer extends BaseServer {
                     buffer,
                     etag,
                     extension: getExtension(contentType) as string,
-                    revalidate: maxAge,
                   },
                   revalidate: maxAge,
                 }
@@ -555,7 +553,7 @@ export default class NextNodeServer extends BaseServer {
   protected async imageOptimizer(
     req: NodeNextRequest,
     res: NodeNextResponse,
-    paramsResult: any
+    paramsResult: ImageParamsResult
   ): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
     const { imageOptimizer } =
       require('./image-optimizer') as typeof import('./image-optimizer')
