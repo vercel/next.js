@@ -5,18 +5,20 @@ It's worth noting that another experimental feature, React Server Components, is
 
 ## Enable Streaming SSR
 
-Enabling streaming SSR means React renders your components into streams and the client continues receiving updates from these streams even after the initial SSR response is sent. In other words, when any suspended components resolve down the line, they are rendered on the server and streamed to the client.  With this strategy, the app can start emitting HTML even before all the data is ready, improving your app's loading performance.  As an added bonus, in streaming SSR mode, the client will also use selective hydration strategy to prioritize component hydration which based on user interaction.
+Enabling streaming SSR means React renders your components into streams and the client continues receiving updates from these streams even after the initial SSR response is sent. In other words, when any suspended components resolve down the line, they are rendered on the server and streamed to the client. With this strategy, the app can start emitting HTML even before all the data is ready, improving your app's loading performance. As an added bonus, in streaming SSR mode, the client will also use selective hydration strategy to prioritize component hydration which based on user interaction.
 
-To enable streaming SSR, set the experimental flag `concurrentFeatures` to `true`:
+To enable streaming SSR, set the experimental option `runtime` to either `'nodejs'` or `'edge'`:
 
 ```jsx
 // next.config.js
 module.exports = {
   experimental: {
-    concurrentFeatures: true,
+    runtime: 'nodejs',
   },
 }
 ```
+
+This option determines the environment that streaming SSR will be happening. When setting to `'edge'`, the server will be running entirely in the [Edge Runtime](https://nextjs.org/docs/api-reference/edge-runtime).
 
 ## Streaming Features
 
@@ -58,7 +60,7 @@ Check out [next/streaming](/docs/api-reference/next/streaming.md) for more detai
 
 #### `next/head` and `next/script`
 
-Using resource tags (e.g. scripts or stylesheets)  in `next/head` won't work as intended with streaming, as the loading order and timing of `next/head` tags can no longer be guaranteed once you add Suspense boundaries. For this reason, we suggest moving resource tags to `next/script` with the `afterInteractive` or `lazyOnload` strategy, or the `_document`. For similar reasons, we suggest migrating `next/script` instances with the `beforeInteractive` strategy to the `_document` as well. 
+Using resource tags (e.g. scripts or stylesheets) in `next/head` won't work as intended with streaming, as the loading order and timing of `next/head` tags can no longer be guaranteed once you add Suspense boundaries. For this reason, we suggest moving resource tags to `next/script` with the `afterInteractive` or `lazyOnload` strategy, or the `_document`. For similar reasons, we suggest migrating `next/script` instances with the `beforeInteractive` strategy to the `_document` as well.
 
 #### Data Fetching
 

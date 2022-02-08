@@ -4,18 +4,19 @@ Server Components allow us to render React components on the server. This is fun
 
 ### Enable React Server Components
 
-To use React Server Components, ensure you have React 18 installed. Then, turn on the `concurrentFeatures` and `serverComponents` options in `next.config.js`:
+To use React Server Components, ensure you have React 18 installed. Then enable the `serverComponents` option and specify the global `runtime` (can be either `'nodejs'` or `'edge'`) in `next.config.js`:
 
 ```jsx
 // next.config.js
 module.exports = {
   experimental: {
-    concurrentFeatures: true,
+    runtime: 'nodejs',
     serverComponents: true,
   },
 }
 ```
 
+Note that the `runtime` option also enables [Streaming SSR](/docs/advanced-features/react-18/streaming). When setting to `'edge'`, the server will be running entirely in the [Edge Runtime](https://nextjs.org/docs/api-reference/edge-runtime).
 
 Once you've made this change, you can start using React Server Components. [See our example](https://github.com/vercel/next-rsc-demo) for more information.
 
