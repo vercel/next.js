@@ -1781,7 +1781,7 @@ function createInlineDataStream(
 function pipeTo(
   readable: ReadableStream,
   writable: WritableStream,
-  options: { preventClose: boolean }
+  options?: { preventClose: boolean }
 ) {
   let resolver: () => void
   const promise = new Promise<void>((resolve) => (resolver = resolve))
@@ -1791,7 +1791,7 @@ function pipeTo(
   function process() {
     reader.read().then(({ done, value }) => {
       if (done) {
-        if (!options.preventClose) {
+        if (!options?.preventClose) {
           writer.close()
         } else {
           writer.releaseLock()
@@ -1808,7 +1808,7 @@ function pipeTo(
 }
 
 function pipeThrough(readable: ReadableStream, ts: TransformStream) {
-  readable.pipeTo(ts.writable)
+  pipeTo(readable, ts.writable)
   return ts.readable
 }
 
