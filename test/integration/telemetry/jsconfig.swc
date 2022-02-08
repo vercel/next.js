@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "jsxImportSource": true,
     "experimentalDecorators": true
   }
 }
