@@ -304,7 +304,7 @@ export default async function getBaseWebpackConfig(
     config,
     dev = false,
     isServer = false,
-    webServerRuntime = false,
+    isEdgeRuntime = false,
     pagesDir,
     target = 'server',
     reactProductionProfiling = false,
@@ -317,7 +317,7 @@ export default async function getBaseWebpackConfig(
     config: NextConfigComplete
     dev?: boolean
     isServer?: boolean
-    webServerRuntime?: boolean
+    isEdgeRuntime?: boolean
     pagesDir: string
     target?: string
     reactProductionProfiling?: boolean
@@ -352,6 +352,8 @@ export default async function getBaseWebpackConfig(
   const hasReactRoot: boolean =
     config.experimental.reactRoot || hasReact18 || isReactExperimental
 
+  const runtime = config.experimental.runtime
+
   // Make sure reactRoot is enabled when react 18 is detected
   if (hasReactRoot) {
     config.experimental.reactRoot = true
@@ -366,29 +368,36 @@ export default async function getBaseWebpackConfig(
     // It's fine to only mention React 18 here as we don't recommend people to try experimental.
     Log.warn('You have to use React 18 to use `experimental.reactRoot`.')
   }
-  if (!isServer && config.experimental.concurrentFeatures && !hasReactRoot) {
+  if (!isServer && runtime && !hasReactRoot) {
     throw new Error(
-      '`experimental.concurrentFeatures` requires `experimental.reactRoot` to be enabled along with React 18.'
+      '`experimental.runtime` requires `experimental.reactRoot` to be enabled along with React 18.'
     )
   }
-  if (
-    config.experimental.serverComponents &&
-    !config.experimental.concurrentFeatures
-  ) {
+  if (config.experimental.serverComponents && !runtime) {
     throw new Error(
-      '`experimental.concurrentFeatures` is required to be enabled along with `experimental.serverComponents`.'
+      '`experimental.runtime` is required to be set along with `experimental.serverComponents`.'
     )
   }
-  const hasConcurrentFeatures =
-    config.experimental.concurrentFeatures && hasReactRoot
+
+  const targetWeb = isEdgeRuntime || !isServer
+  const hasConcurrentFeatures = !!runtime && hasReactRoot
   const hasServerComponents =
     hasConcurrentFeatures && !!config.experimental.serverComponents
-  const targetWeb = webServerRuntime || !isServer
+  const disableOptimizedLoading = hasConcurrentFeatures
+    ? true
+    : config.experimental.disableOptimizedLoading
 
-  if (webServerRuntime) {
-    Log.warn(
-      'You are using the experimental Edge Runtime with `concurrentFeatures`.'
-    )
+  if (!isServer) {
+    if (runtime === 'edge') {
+      Log.warn(
+        'You are using the experimental Edge Runtime with `experimental.runtime`.'
+      )
+    }
+    if (runtime === 'nodejs') {
+      Log.warn(
+        'You are using the experimental Node.js Runtime with `experimental.runtime`.'
+      )
+    }
     if (hasServerComponents) {
       Log.warn(
         'You have experimental React Server Components enabled. Continue at your own risk.'
@@ -562,7 +571,9 @@ export default async function getBaseWebpackConfig(
         prev.push(path.join(pagesDir, `_document.${ext}`))
         return prev
       }, [] as string[]),
-      `next/dist/pages/_document${webServerRuntime ? '-web' : ''}.js`,
+      `next/dist/pages/_document${
+        hasConcurrentFeatures ? '-concurrent' : ''
+      }.js`,
     ]
   }
 
@@ -607,14 +618,6 @@ export default async function getBaseWebpackConfig(
               ? clientResolveRewrites
               : // With webpack 5 an alias can be pointed to false to noop
                 false,
-          }
-        : {}),
-
-      ...(webServerRuntime
-        ? {
-            'react-dom/server': dev
-              ? 'react-dom/cjs/react-dom-server.browser.development'
-              : 'react-dom/cjs/react-dom-server.browser.production.min',
           }
         : {}),
 
@@ -693,35 +696,47 @@ export default async function getBaseWebpackConfig(
     )
   }
 
-  const getPackagePath = (name: string, relativeToPath: string) => {
-    const packageJsonPath = require.resolve(`${name}/package.json`, {
-      paths: [relativeToPath],
-    })
-    // Include a trailing slash so that a `.startsWith(packagePath)` check avoids false positives
-    // when one package name starts with the full name of a different package.
-    // For example:
-    //   "node_modules/react-slider".startsWith("node_modules/react")  // true
-    //   "node_modules/react-slider".startsWith("node_modules/react/") // false
-    return path.join(packageJsonPath, '../')
-  }
-
   // Packages which will be split into the 'framework' chunk.
   // Only top-level packages are included, e.g. nested copies like
   // 'node_modules/meow/node_modules/object-assign' are not included.
-  const topLevelFrameworkPaths = [
-    getPackagePath('react', dir),
-    getPackagePath('react-dom', dir),
-    getPackagePath('scheduler', require.resolve('react-dom', { paths: [dir] })),
-    getPackagePath('object-assign', require.resolve('react', { paths: [dir] })),
-    getPackagePath(
-      'object-assign',
-      require.resolve('react-dom', { paths: [dir] })
-    ),
-    getPackagePath(
-      'use-subscription',
-      require.resolve('next', { paths: [dir] })
-    ),
-  ]
+  const topLevelFrameworkPaths: string[] = []
+  const visitedFrameworkPackages = new Set<string>()
+
+  // Adds package-paths of dependencies recursively
+  const addPackagePath = (packageName: string, relativeToPath: string) => {
+    try {
+      if (visitedFrameworkPackages.has(packageName)) {
+        return
+      }
+      visitedFrameworkPackages.add(packageName)
+
+      const packageJsonPath = require.resolve(`${packageName}/package.json`, {
+        paths: [relativeToPath],
+      })
+
+      // Include a trailing slash so that a `.startsWith(packagePath)` check avoids false positives
+      // when one package name starts with the full name of a different package.
+      // For example:
+      //   "node_modules/react-slider".startsWith("node_modules/react")  // true
+      //   "node_modules/react-slider".startsWith("node_modules/react/") // false
+      const directory = path.join(packageJsonPath, '../')
+
+      // Returning from the function in case the directory has already been added and traversed
+      if (topLevelFrameworkPaths.includes(directory)) return
+      topLevelFrameworkPaths.push(directory)
+
+      const dependencies = require(packageJsonPath).dependencies || {}
+      for (const name of Object.keys(dependencies)) {
+        addPackagePath(name, directory)
+      }
+    } catch (_) {
+      // don't error on failing to resolve framework packages
+    }
+  }
+
+  for (const packageName of ['react', 'react-dom']) {
+    addPackagePath(packageName, dir)
+  }
 
   // Select appropriate SplitChunksPlugin config for this build
   const splitChunksConfig: webpack.Options.SplitChunksOptions | false = dev
@@ -959,11 +974,6 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  const nonUserCondition = {
-    include: /node_modules/,
-    exclude: babelIncludeRegexes,
-  }
-
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     externals: targetWeb
@@ -972,7 +982,7 @@ export default async function getBaseWebpackConfig(
         // TODO: should we warn/error for this instead?
         [
           'next',
-          ...(webServerRuntime
+          ...(isEdgeRuntime
             ? [
                 {
                   'next/dist/compiled/etag': '{}',
@@ -1048,7 +1058,7 @@ export default async function getBaseWebpackConfig(
         ? dev
           ? false
           : ({
-              filename: webServerRuntime ? 'chunks/[name].js' : '[name].js',
+              filename: isEdgeRuntime ? 'chunks/[name].js' : '[name].js',
               // allow to split entrypoints
               chunks: ({ name }: any) => !name?.match(MIDDLEWARE_ROUTE),
               // size of files is not so relevant for server build
@@ -1109,12 +1119,12 @@ export default async function getBaseWebpackConfig(
       // auto which doesn't work in IE11
       publicPath: `${config.assetPrefix || ''}/_next/`,
       path:
-        isServer && !dev && !webServerRuntime
+        isServer && !dev && !isEdgeRuntime
           ? path.join(outputPath, 'chunks')
           : outputPath,
       // On the server we don't use hashes
       filename: isServer
-        ? !dev && !webServerRuntime
+        ? !dev && !isEdgeRuntime
           ? `../[name].js`
           : `[name].js`
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
@@ -1179,6 +1189,7 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
+        // Loaders for the client compilation when RSC is enabled.
         ...(hasServerComponents && !isServer
           ? [
               {
@@ -1193,7 +1204,10 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        ...(hasServerComponents && webServerRuntime
+        // Loaders for the server compilation when RSC is enabled.
+        ...(hasServerComponents &&
+        ((runtime === 'edge' && isEdgeRuntime) ||
+          (runtime === 'nodejs' && isServer))
           ? [
               {
                 ...codeCondition,
@@ -1255,13 +1269,6 @@ export default async function getBaseWebpackConfig(
                 : defaultLoaders.babel,
             },
           ],
-        },
-        {
-          ...nonUserCondition,
-          // Make all non-user modules to be compiled in a single layer
-          // This avoids compiling them mutliple times and avoids module id changes
-          issuerLayer: 'middleware',
-          layer: '',
         },
         ...(!config.images.disableStaticImages
           ? [
@@ -1452,18 +1459,22 @@ export default async function getBaseWebpackConfig(
           resourceRegExp: /react-is/,
           contextRegExp: /next[\\/]dist[\\/]/,
         }),
-      ((isServerless && isServer) || webServerRuntime) &&
-        new ServerlessPlugin(),
+      ((isServerless && isServer) || isEdgeRuntime) && new ServerlessPlugin(),
       isServer &&
-        !webServerRuntime &&
+        !isEdgeRuntime &&
         new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
-      (!isServer || webServerRuntime) &&
-        new MiddlewarePlugin({ dev, webServerRuntime }),
+      (!isServer || isEdgeRuntime) &&
+        new MiddlewarePlugin({ dev, isEdgeRuntime }),
       process.env.ENABLE_FILE_SYSTEM_API === '1' &&
-        webServerRuntime &&
-        new FunctionsManifestPlugin({ dev, webServerRuntime }),
+        isEdgeRuntime &&
+        new FunctionsManifestPlugin({
+          dev,
+          pagesDir,
+          isEdgeRuntime,
+          pageExtensions: config.pageExtensions,
+        }),
       isServer && new NextJsSsrImportPlugin(),
       !isServer &&
         new BuildManifestPlugin({
@@ -1476,7 +1487,7 @@ export default async function getBaseWebpackConfig(
       config.optimizeFonts &&
         !dev &&
         isServer &&
-        !webServerRuntime &&
+        !isEdgeRuntime &&
         (function () {
           const { FontStylesheetGatheringPlugin } =
             require('./webpack/plugins/font-stylesheet-gathering-plugin') as {
@@ -1501,7 +1512,7 @@ export default async function getBaseWebpackConfig(
         }),
       hasServerComponents &&
         !isServer &&
-        new FlightManifestPlugin({ dev, clientComponentsRegex }),
+        new FlightManifestPlugin({ dev, clientComponentsRegex, runtime }),
       !dev &&
         !isServer &&
         new TelemetryPlugin(
@@ -1608,19 +1619,20 @@ export default async function getBaseWebpackConfig(
     pageEnv: config.experimental.pageEnv,
     excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
     assetPrefix: config.assetPrefix,
-    disableOptimizedLoading: config.experimental.disableOptimizedLoading,
+    disableOptimizedLoading,
     target,
-    webServerRuntime,
+    isEdgeRuntime,
     reactProductionProfiling,
     webpack: !!config.webpack,
     hasRewrites,
     reactRoot: config.experimental.reactRoot,
-    concurrentFeatures: config.experimental.concurrentFeatures,
+    runtime,
     swcMinify: config.swcMinify,
     swcLoader: useSWCLoader,
     removeConsole: config.experimental.removeConsole,
     reactRemoveProperties: config.experimental.reactRemoveProperties,
     styledComponents: config.experimental.styledComponents,
+    relay: config.experimental.relay,
   })
 
   const cache: any = {
@@ -1707,7 +1719,7 @@ export default async function getBaseWebpackConfig(
     customAppFile: new RegExp(escapeStringRegexp(path.join(pagesDir, `_app`))),
     isDevelopment: dev,
     isServer,
-    webServerRuntime,
+    isEdgeRuntime,
     targetWeb,
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
@@ -2072,7 +2084,7 @@ export default async function getBaseWebpackConfig(
       }
       delete entry['main.js']
 
-      if (!webServerRuntime) {
+      if (!isEdgeRuntime) {
         for (const name of Object.keys(entry)) {
           entry[name] = finalizeEntrypoint({
             value: entry[name],

@@ -157,6 +157,15 @@
           "path": "/docs/testing.md"
         },
         {
+          "title": "Guides",
+          "routes": [
+            {
+              "title": "Building Forms",
+              "path": "/docs/guides/building-forms.md"
+            }
+          ]
+        },
+        {
           "title": "Advanced Features",
           "routes": [
             {

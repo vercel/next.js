@@ -39,6 +39,19 @@ let appPort
 let app
 
 const runTests = (isDev = false) => {
+  it('should handle external beforeFiles rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/overridden')
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('Example Domain')
+
+    const browser = await webdriver(appPort, '/nav')
+    await browser.elementByCss('#to-before-files-overridden').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /Example Domain/
+    )
+  })
+
   it('should handle has query encoding correctly', async () => {
     for (const expected of [
       {
@@ -1697,6 +1710,11 @@ const runTests = (isDev = false) => {
               ),
               source: '/old-blog/:path*',
             },
+            {
+              destination: 'https://example.com',
+              regex: normalizeRegEx('^\\/overridden(?:\\/)?$'),
+              source: '/overridden',
+            },
           ],
           afterFiles: [
             {
@@ -2026,6 +2044,12 @@ const runTests = (isDev = false) => {
             namedRegex: '^/nav(?:/)?$',
             page: '/nav',
             regex: '^/nav(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/overridden(?:/)?$',
+            page: '/overridden',
+            regex: '^/overridden(?:/)?$',
             routeKeys: {},
           },
           {
