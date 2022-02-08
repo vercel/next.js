@@ -16,9 +16,8 @@ module.exports = {
 }
 ```
 
-Next, if you already have a customized `pages/_document` component. If no custom Document component is provided, Next.js will fallback to a basic functional document component. Take a look at [next/document support](#next/document) for more details.
 
-Once you've made these changes, you can start using React Server Components. [See our example](https://github.com/vercel/next-rsc-demo) for more information.
+Once you've made this change, you can start using React Server Components. [See our example](https://github.com/vercel/next-rsc-demo) for more information.
 
 ### Server Components Conventions
 
@@ -51,7 +50,7 @@ export default function Home() {
 
 The `<Home>` and `<Profile>` components will always be server-side rendered and streamed to the client, and will not be included by the client runtime. However, `<Content>` will still be hydrated on the client-side, like normal React components.
 
-> Notice that make sure you're using default imports for server and client components at the moment. The the support of named exports are working in progress!
+> Make sure you're using default imports for server and client components. The support of named exports are a work in progress!
 
 To see a full example, check out the [vercel/next-rsc-demo demo](https://github.com/vercel/next-rsc-demo).
 
@@ -63,7 +62,7 @@ You can use `next/link` and `next/image` like before and they will be treated as
 
 ### `next/document`
 
-If you have custom `_document`, you have to change your `_document` to a functional component like below to use server components. Or if you don't have any, Next.js will provide a functional fallback `_document` component.
+If you have a custom `_document`, you have to change your `_document` to a functional component like below to use server components. If you don't have one, Next.js will provide a functional fallback `_document` component for you.
 
 ```jsx
 // pages/_document.js
@@ -96,7 +95,7 @@ export default function App({ children }) {
 
 ### Routing
 
-Basic routes with path and queries, dynamic routes are supported as well. If you need to access the router in server components(`.server.js`), They will receive `router` instance as a prop so that you could directly accessing them without using `useRouter()` hook.
+Both basic routes with path and queries and dynamic routes are supported. If you need to access the router in server components(`.server.js`), they will receive `router` instance as a prop so that you can directly access them without using the `useRouter()` hook.
 
 ```jsx
 // pages/index.server.js
@@ -109,15 +108,15 @@ export default function Index({ router }) {
 
 ### Unsupported Next.js APIs
 
-While RSC and SSR streaming is still in the alpha stage, not all Next.js APIs are supported. The following Next.js APIs have limited functionality within Server Components. Note that React 18 without SSR streaming isn't affected.
+While RSC and SSR streaming are still in the alpha stage, not all Next.js APIs are supported. The following Next.js APIs have limited functionality within server components. Note that React 18 use without SSR streaming isn't affected.
 
 #### React internals
 
-Most of React hooks such as `useContext`, `useState`, `useReducer`, `useEffect` and `useLayoutEffect` are not supported as of today since Server Components are executed per requests and aren't stateful.
+Most React hooks, such as `useContext`, `useState`, `useReducer`, `useEffect` and `useLayoutEffect`, are not supported as of today since server components are executed per request and aren't stateful.
 
 #### Data Fetching & Styling
 
-Like streaming SSR, styling and data fetching within `Suspense` on server side are not well supported. We're still working on them.
+Like streaming SSR, styling and data fetching within `Suspense` on the server side are not well supported. We're still working on them.
 
 Page level exported methods like `getInitialProps`, `getStaticProps` and `getStaticPaths` are not supported.
 

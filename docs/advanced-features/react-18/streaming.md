@@ -1,11 +1,11 @@
 # Streaming SSR (Alpha)
 
 React 18 will include architectural improvements to React server-side rendering (SSR) performance. This means you can use `Suspense` in your React components in streaming SSR mode and React will render them on the server and send them through HTTP streams.
-It's worth noting that another experimental feature, React Server Components, is based on streaming. You can read more about server components related streaming APIs like [`next/streaming`](docs/api-reference/next/streaming.md). However, this guide focuses on basic React 18 streaming.
+It's worth noting that another experimental feature, React Server Components, is based on streaming. You can read more about server components related streaming APIs in [`next/streaming`](docs/api-reference/next/streaming.md). However, this guide focuses on basic React 18 streaming.
 
 ## Enable Streaming SSR
 
-Enabling streaming SSR means React renders your components into streams and client continues receiving the updating fragments from server, which lets you start emitting the HTML as early as possible. You can break down your app into few smaller independent units by `Suspense`. The client will use selective hydration strategy to prioritize the components hydration which lets users interact with the them efficiently.
+Enabling streaming SSR means React renders your components into streams and the client continues receiving updates from these streams even after the initial SSR response is sent. In other words, when any suspended components resolve down the line, they are rendered on the server and streamed to the client.  With this strategy, the app can start emitting HTML even before all the data is ready, improving your app's loading performance.  As an added bonus, in streaming SSR mode, the client will also use selective hydration strategy to prioritize component hydration which based on user interaction.
 
 To enable streaming SSR, set the experimental flag `concurrentFeatures` to `true`:
 
@@ -58,7 +58,7 @@ Check out [next/streaming](/docs/api-reference/next/streaming.md) for more detai
 
 #### `next/head` and `next/script`
 
-Using resource tags in `next/head` won't work, and `next/script` instances with `beforeInteractive` will need to be in the `_document`.
+Using resource tags (e.g. scripts or stylesheets)  in `next/head` won't work as intended with streaming, as the loading order and timing of `next/head` tags can no longer be guaranteed once you add Suspense boundaries. For this reason, we suggest moving resource tags to `next/script` with the `afterInteractive` or `lazyOnload` strategy, or the `_document`. For similar reasons, we suggest migrating `next/script` instances with the `beforeInteractive` strategy to the `_document` as well. 
 
 #### Data Fetching
 

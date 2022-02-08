@@ -22,6 +22,6 @@ Streaming server-rendering (SSR) is an experimental feature in Next.js 12. When 
 
 ## React Server Components (Alpha)
 
-Server Components are a new feature in React that lets you reduce your JavaScript bundle size by separating server and client-side code. Server Components allow developers to build apps that span the server and client, combining the rich interactivity of client-side apps with the improved performance of traditional server rendering.
+Server Components are a new feature in React that let you reduce your JavaScript bundle size by separating server and client-side code. Server Components allow developers to build apps that span the server and client, combining the rich interactivity of client-side apps with the improved performance of traditional server rendering.
 
 Server Components are still in research and development. [Learn how to try Server Components](/docs/react-18/server-components.md) as an experimental feature in Next.js.
