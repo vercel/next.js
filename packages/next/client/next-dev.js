@@ -1,4 +1,4 @@
-import { initNext, version, router, emitter, render, renderError } from './'
+import { initNext, version, router, emitter } from './'
 import initOnDemandEntries from './dev/on-demand-entries-client'
 import initWebpackHMR from './dev/webpack-hot-middleware-client'
 import initializeBuildWatcher from './dev/dev-build-watcher'
@@ -44,8 +44,6 @@ window.next = {
     return router
   },
   emitter,
-  render,
-  renderError,
 }
 initNext({ webpackHMR, beforeRender: displayContent })
   .then(() => {

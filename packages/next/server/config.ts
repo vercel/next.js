@@ -367,7 +367,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
   if (result.swcMinify) {
     Log.warn(
-      'SWC minify beta enabled. https://nextjs.org/docs/messages/swc-minify-enabled'
+      'SWC minify release candidate enabled. https://nextjs.org/docs/messages/swc-minify-enabled'
     )
   }
 
@@ -585,7 +585,7 @@ export default async function loadConfig(
       )
       throw err
     }
-    const userConfig = normalizeConfig(
+    const userConfig = await normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
     )
