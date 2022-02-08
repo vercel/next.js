@@ -678,19 +678,21 @@ export default class Router implements BaseRouter {
 
     // set up the component cache (by route keys)
     this.components = {}
-    // We should not keep the cache, if there's an error
-    // Otherwise, this cause issues when when going back and
-    // come again to the errored page.
+    const routeInfo: PrivateRouteInfo = {
+      Component,
+      initial: true,
+      props: initialProps,
+      err,
+      __N_SSG: initialProps && initialProps.__N_SSG,
+      __N_SSP: initialProps && initialProps.__N_SSP,
+      __N_RSC: !!(Component as any)?.__next_rsc__,
+    }
+
     if (pathname !== '/_error') {
-      this.components[route] = {
-        Component,
-        initial: true,
-        props: initialProps,
-        err,
-        __N_SSG: initialProps && initialProps.__N_SSG,
-        __N_SSP: initialProps && initialProps.__N_SSP,
-        __N_RSC: !!(Component as any)?.__next_rsc__,
-      }
+      // We should not keep the cache, if there's an error
+      // Otherwise, this cause issues when when going back and
+      // come again to the errored page.
+      this.components[route] = routeInfo
     }
 
     this.components['/_app'] = {
@@ -775,7 +777,7 @@ export default class Router implements BaseRouter {
       }
     }
 
-    this.set(this.state, this.components[route], null)
+    this.set(this.state, routeInfo, null)
   }
 
   onPopState = (e: PopStateEvent): void => {
