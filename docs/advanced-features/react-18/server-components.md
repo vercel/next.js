@@ -51,7 +51,7 @@ export default function Home() {
 
 The `<Home>` and `<Profile>` components will always be server-side rendered and streamed to the client, and will not be included by the client runtime. However, `<Content>` will still be hydrated on the client-side, like normal React components.
 
-> Make sure you're using default imports for server and client components. The support of named exports are a work in progress!
+> Make sure you're using default imports and exports for server components (`.server.js`). The support of named exports are a work in progress!
 
 To see a full example, check out the [vercel/next-rsc-demo demo](https://github.com/vercel/next-rsc-demo).
 
