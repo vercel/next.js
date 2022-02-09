@@ -1175,7 +1175,7 @@ export async function renderToHTML(
     return inAmpMode ? children : <div id="__next">{children}</div>
   }
 
-  const ReactDOMServer = hasConcurrentFeatures
+  const ReactDOMServer = reactRoot
     ? require('react-dom/server.browser')
     : require('react-dom/server')
 
