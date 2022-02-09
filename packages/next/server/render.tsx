@@ -63,7 +63,7 @@ import isError from '../lib/is-error'
 import { readableStreamTee } from './web/utils'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from './image-config'
-import { FlushEffectContext } from '../shared/lib/flush-effect'
+import { FlushEffectContext, useFlushEffect } from '../shared/lib/flush-effect'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
@@ -739,14 +739,13 @@ export async function renderToHTML(
 
     const flushEffectImpl = React.useCallback(
       (callback: () => React.ReactNode) => {
-        if (!flushEffectState.sealed) {
-          flushEffectState.effects.push(callback)
-        } else {
+        if (flushEffectState.sealed) {
           throw new Error(
             '`useFlushEffect` was called after flushing started. Did you use it inside a <Suspense> boundary?' +
               '\nRead more: https://nextjs.org/docs/messages/flush-after-start'
           )
         }
+        flushEffectState.effects.push(callback)
       },
       []
     )
@@ -756,6 +755,24 @@ export async function renderToHTML(
         {children}
       </FlushEffectContext.Provider>
     )
+  }
+
+  function StyleRegistryFlusher({ children }: { children: JSX.Element }) {
+    useFlushEffect(() => {
+      const styles = jsxStyleRegistry.styles()
+      jsxStyleRegistry.flush()
+      return (
+        <>
+          {React.Children.map(styles, (element, i) =>
+            React.cloneElement(element, {
+              key: i,
+            })
+          )}
+        </>
+      )
+    })
+
+    return <StyleRegistry registry={jsxStyleRegistry}>{children}</StyleRegistry>
   }
 
   const AppContainer = ({ children }: { children: JSX.Element }) => (
@@ -777,11 +794,11 @@ export async function renderToHTML(
             <LoadableContext.Provider
               value={(moduleName) => reactLoadableModules.push(moduleName)}
             >
-              <StyleRegistry registry={jsxStyleRegistry}>
+              <StyleRegistryFlusher>
                 <ImageConfigContext.Provider value={images}>
                   {children}
                 </ImageConfigContext.Provider>
-              </StyleRegistry>
+              </StyleRegistryFlusher>
             </LoadableContext.Provider>
           </HeadManagerContext.Provider>
         </AmpStateContext.Provider>
@@ -1353,12 +1370,15 @@ export async function renderToHTML(
         bodyResult = (suffix: string) => streamFromArray([result, suffix])
       }
 
+      const styles = jsxStyleRegistry.styles()
+      jsxStyleRegistry.flush()
+
       return {
         bodyResult,
         documentElement: () => (Document as any)(),
         head,
         headTags: [],
-        styles: jsxStyleRegistry.styles(),
+        styles,
       }
     }
   }
@@ -1762,21 +1782,25 @@ function renderToStream({
 
         // React will call our callbacks synchronously, so we need to
         // defer to a microtask to ensure `stream` is set.
-        Promise.resolve().then(() => {
-          const transforms: Array<TransformStream> = [
-            createBufferedTransformStream(),
-            handleFlushEffect
-              ? createFlushEffectStream(handleFlushEffect)
-              : null,
-            dataStream ? createInlineDataStream(dataStream) : null,
-            suffixState ? createPrefixStream(suffixState.suffixUnclosed) : null,
-          ].filter(Boolean) as any
+        resolve(
+          Promise.resolve().then(() => {
+            const transforms: Array<TransformStream> = [
+              createBufferedTransformStream(),
+              handleFlushEffect
+                ? createFlushEffectStream(handleFlushEffect)
+                : null,
+              dataStream ? createInlineDataStream(dataStream) : null,
+              suffixState
+                ? createPrefixStream(suffixState.suffixUnclosed)
+                : null,
+            ].filter(Boolean) as any
 
-          return transforms.reduce(
-            (readable, transform) => pipeThrough(readable, transform),
-            stream
-          )
-        })
+            return transforms.reduce(
+              (readable, transform) => pipeThrough(readable, transform),
+              stream
+            )
+          })
+        )
       }
     }
 
