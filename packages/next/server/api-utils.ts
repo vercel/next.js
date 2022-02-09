@@ -26,7 +26,11 @@ export async function apiResolver(
   res: ServerResponse,
   query: any,
   resolverModule: any,
-  apiContext: __ApiPreviewProps,
+  apiContext: __ApiPreviewProps & {
+    trustHostHeader?: boolean
+    hostname?: string
+    port?: number
+  },
   propagateError: boolean,
   dev?: boolean,
   page?: string
@@ -95,6 +99,8 @@ export async function apiResolver(
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
     apiRes.clearPreviewData = () => clearPreviewData(apiRes)
+    apiRes.unstable_revalidate = (urlPath: string) =>
+      unstable_revalidate(urlPath, req, apiContext)
 
     const resolver = interopDefault(resolverModule)
     let wasPiped = false
@@ -332,6 +338,56 @@ export function sendJson(res: NextApiResponse, jsonBody: any): void {
 
   // Use send to handle request
   res.send(jsonBody)
+}
+
+const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
+
+export function checkIsManualRevalidate(
+  req: IncomingMessage | BaseNextRequest,
+  previewProps: __ApiPreviewProps
+): boolean {
+  return req.headers[PRERENDER_REVALIDATE_HEADER] === previewProps.previewModeId
+}
+
+async function unstable_revalidate(
+  urlPath: string,
+  req: IncomingMessage | BaseNextRequest,
+  context: {
+    hostname?: string
+    port?: number
+    previewModeId: string
+    trustHostHeader?: boolean
+  }
+) {
+  if (!context.trustHostHeader && (!context.hostname || !context.port)) {
+    throw new Error(
+      `"hostname" and "port" must be provided when starting next to use "unstable_revalidate". See more here https://nextjs.org/docs/advanced-features/custom-server`
+    )
+  }
+
+  if (typeof urlPath !== 'string' || !urlPath.startsWith('/')) {
+    throw new Error(
+      `Invalid urlPath provided to revalidate(), must be a path e.g. /blog/post-1, received ${urlPath}`
+    )
+  }
+
+  const baseUrl = context.trustHostHeader
+    ? `https://${req.headers.host}`
+    : `http://${context.hostname}:${context.port}`
+
+  try {
+    const res = await fetch(`${baseUrl}${urlPath}`, {
+      headers: {
+        [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
+      },
+    })
+
+    if (!res.ok) {
+      throw new Error(`Invalid response ${res.status}`)
+    }
+  } catch (err) {
+    throw new Error(`Failed to revalidate ${urlPath}`)
+  }
 }
 
 const COOKIE_NAME_PRERENDER_BYPASS = `__prerender_bypass`

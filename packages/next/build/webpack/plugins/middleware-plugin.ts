@@ -52,7 +52,7 @@ function getPageFromEntrypointName(pagePath: string) {
 export function getEntrypointInfo(
   compilation: webpack5.Compilation,
   envPerRoute: Map<string, string[]>,
-  webServerRuntime: boolean
+  isEdgeRuntime: boolean
 ) {
   const entrypoints = compilation.entrypoints
   const infos = []
@@ -61,8 +61,8 @@ export function getEntrypointInfo(
 
     const ssrEntryInfo = ssrEntries.get(entrypoint.name)
 
-    if (ssrEntryInfo && !webServerRuntime) continue
-    if (!ssrEntryInfo && webServerRuntime) continue
+    if (ssrEntryInfo && !isEdgeRuntime) continue
+    if (!ssrEntryInfo && isEdgeRuntime) continue
 
     const page = getPageFromEntrypointName(entrypoint.name)
 
@@ -98,26 +98,26 @@ export function getEntrypointInfo(
 
 export default class MiddlewarePlugin {
   dev: boolean
-  webServerRuntime: boolean
+  isEdgeRuntime: boolean
 
   constructor({
     dev,
-    webServerRuntime,
+    isEdgeRuntime,
   }: {
     dev: boolean
-    webServerRuntime: boolean
+    isEdgeRuntime: boolean
   }) {
     this.dev = dev
-    this.webServerRuntime = webServerRuntime
+    this.isEdgeRuntime = isEdgeRuntime
   }
 
   createAssets(
     compilation: webpack5.Compilation,
     assets: any,
     envPerRoute: Map<string, string[]>,
-    webServerRuntime: boolean
+    isEdgeRuntime: boolean
   ) {
-    const infos = getEntrypointInfo(compilation, envPerRoute, webServerRuntime)
+    const infos = getEntrypointInfo(compilation, envPerRoute, isEdgeRuntime)
     infos.forEach((info) => {
       middlewareManifest.middleware[info.page] = info
     })
@@ -134,9 +134,7 @@ export default class MiddlewarePlugin {
     )
 
     assets[
-      this.webServerRuntime
-        ? MIDDLEWARE_MANIFEST
-        : `server/${MIDDLEWARE_MANIFEST}`
+      this.isEdgeRuntime ? MIDDLEWARE_MANIFEST : `server/${MIDDLEWARE_MANIFEST}`
     ] = new sources.RawSource(JSON.stringify(middlewareManifest, null, 2))
   }
 
@@ -144,7 +142,7 @@ export default class MiddlewarePlugin {
     collectAssets(compiler, this.createAssets.bind(this), {
       dev: this.dev,
       pluginName: PLUGIN_NAME,
-      webServerRuntime: this.webServerRuntime,
+      isEdgeRuntime: this.isEdgeRuntime,
     })
   }
 }
@@ -155,12 +153,12 @@ export function collectAssets(
     compilation: webpack5.Compilation,
     assets: any,
     envPerRoute: Map<string, string[]>,
-    webServerRuntime: boolean
+    isEdgeRuntime: boolean
   ) => void,
   options: {
     dev: boolean
     pluginName: string
-    webServerRuntime: boolean
+    isEdgeRuntime: boolean
   }
 ) {
   const wp = compiler.webpack
@@ -377,12 +375,7 @@ export function collectAssets(
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => {
-          createAssets(
-            compilation,
-            assets,
-            envPerRoute,
-            options.webServerRuntime
-          )
+          createAssets(compilation, assets, envPerRoute, options.isEdgeRuntime)
         }
       )
     }

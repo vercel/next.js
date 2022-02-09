@@ -381,11 +381,12 @@ export default async function exportApp(
       disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
       // Exported pages do not currently support dynamic HTML.
       supportsDynamicHTML: false,
-      concurrentFeatures: nextConfig.experimental.concurrentFeatures,
+      runtime: nextConfig.experimental.runtime,
       crossOrigin: nextConfig.crossOrigin,
       optimizeCss: nextConfig.experimental.optimizeCss,
       optimizeFonts: nextConfig.optimizeFonts,
       optimizeImages: nextConfig.experimental.optimizeImages,
+      reactRoot: nextConfig.experimental.reactRoot || false,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig

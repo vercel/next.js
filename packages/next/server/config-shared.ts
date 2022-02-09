@@ -8,7 +8,7 @@ import {
 } from './image-config'
 
 export type NextConfigComplete = Required<NextConfig> & {
-  images: ImageConfigComplete
+  images: Required<ImageConfigComplete>
   typescript: Required<TypeScriptConfig>
   configOrigin?: string
   configFile?: string
@@ -112,7 +112,7 @@ export interface ExperimentalConfig {
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
-  concurrentFeatures?: boolean
+  runtime?: 'nodejs' | 'edge'
   serverComponents?: boolean
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
@@ -458,7 +458,6 @@ export const defaultConfig: NextConfig = {
     esmExternals: true,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
-    concurrentFeatures: false,
     serverComponents: false,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
