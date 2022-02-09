@@ -1,14 +1,9 @@
 import type { ServerResponse } from 'http'
 
-export type ResultPiper = (
-  push: (chunks: Uint8Array[]) => void,
-  next: (err?: Error) => void
-) => void
-
 export default class RenderResult {
-  _result: string | ResultPiper
+  _result: string | ReadableStream
 
-  constructor(response: string | ResultPiper) {
+  constructor(response: string | ReadableStream) {
     this._result = response
   }
 
@@ -33,31 +28,30 @@ export default class RenderResult {
         ? () => (res as any).flush()
         : () => {}
 
-    return new Promise((resolve, reject) => {
+    return (async () => {
+      const reader = response.getReader()
       let fatalError = false
-      response(
-        (chunks) => {
-          // The state of the stream is non-deterministic after
-          // writing, so any error becomes fatal.
-          fatalError = true
-          res.cork()
-          chunks.forEach((chunk) => res.write(chunk))
-          res.uncork()
-          flush()
-        },
-        (err) => {
-          if (err) {
-            if (fatalError) {
-              res.destroy(err)
-            }
-            reject(err)
-          } else {
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+
+          if (done) {
             res.end()
-            resolve()
+            return
           }
+
+          fatalError = true
+          res.write(value)
+          flush()
         }
-      )
-    })
+      } catch (err) {
+        if (fatalError) {
+          res.destroy(err as any)
+        }
+        throw err
+      }
+    })()
   }
 
   isDynamic(): boolean {

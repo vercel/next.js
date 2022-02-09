@@ -134,6 +134,7 @@ To see examples with other authentication providers, check out the [examples fol
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-firebase-authentication">with-firebase-authentication</a></li>
+    <li><a href="https://github.com/vercel/examples/tree/main/solutions/auth-with-ory">auth-with-ory</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-magic">with-magic</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/auth0">auth0</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-supabase-auth-realtime-db">with-supabase-auth-realtime-db</a></li>

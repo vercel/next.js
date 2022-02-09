@@ -1010,15 +1010,49 @@ function runTests(mode) {
     }
   })
 
-  it('should load the image when the lazyRoot prop is used', async () => {
+  it('should initially load only two of four images using lazyroot', async () => {
     let browser
     try {
-      //trying on '/lazy-noref' it fails
       browser = await webdriver(appPort, '/lazy-withref')
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('myImage1').naturalWidth`
+        )
+
+        if (result >= 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
 
       await check(async () => {
         const result = await browser.eval(
-          `document.getElementById('myImage').naturalWidth`
+          `document.getElementById('myImage4').naturalWidth`
+        )
+
+        if (result >= 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('myImage2').naturalWidth`
+        )
+
+        if (result < 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('myImage3').naturalWidth`
         )
 
         if (result < 400) {
@@ -1033,7 +1067,25 @@ function runTests(mode) {
           browser,
           `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=828&q=75`
         )
+      ).toBe(false)
+      expect(
+        await hasImageMatchingUrl(
+          browser,
+          `http://localhost:${appPort}/_next/image?url=%2Ftest.png&w=828&q=75`
+        )
       ).toBe(true)
+      expect(
+        await hasImageMatchingUrl(
+          browser,
+          `http://localhost:${appPort}/_next/image?url=%2Ftest.svg&w=828&q=75`
+        )
+      ).toBe(true)
+      expect(
+        await hasImageMatchingUrl(
+          browser,
+          `http://localhost:${appPort}/_next/image?url=%2Ftest.webp&w=828&q=75`
+        )
+      ).toBe(false)
     } finally {
       if (browser) {
         await browser.close()
