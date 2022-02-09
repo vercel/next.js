@@ -22,7 +22,7 @@ You can view your images created with `docker images`.
 
 ### In existing projects
 
-To add support for docker to an existing project, just copy the `Dockerfile` into the root of the project and add the following to the `next.config.js` file:
+To add support for Docker to an existing project, just copy the `Dockerfile` into the root of the project and add the following to the `next.config.js` file:
 ```js
 // next.config.js
 module.exports = {
