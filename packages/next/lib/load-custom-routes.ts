@@ -10,17 +10,21 @@ import {
 } from '../shared/lib/constants'
 import isError from './is-error'
 
-export type RouteHas =
-  | {
-      type: 'header' | 'query' | 'cookie'
-      key: string
-      value?: string
-    }
-  | {
-      type: 'host'
-      key?: undefined
-      value: string
-    }
+export type KeyedRouteHasTypes = 'header' | 'query' | 'cookie'
+export type KeyedRouteHas = {
+  type: KeyedRouteHasTypes
+  key: string
+  value?: string
+}
+
+export type KeylessRouteHasTypes = 'host'
+export type KeylessRouteHas = {
+  type: KeylessRouteHasTypes
+  value: string
+}
+
+export type HasTypes = KeyedRouteHasTypes | KeylessRouteHasTypes
+export type RouteHas = KeyedRouteHas | KeylessRouteHas
 
 export type Rewrite = {
   source: string
@@ -50,7 +54,12 @@ export type Redirect = {
 }
 
 export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
-const allowedHasTypes = new Set(['header', 'cookie', 'query', 'host'])
+const allowedHasTypes: Set<HasTypes> = new Set([
+  'header',
+  'cookie',
+  'query',
+  'host',
+])
 const namedGroupsRegex = /\(\?<([a-zA-Z][a-zA-Z0-9]*)>/g
 
 export function getRedirectStatus(route: {
@@ -267,7 +276,7 @@ function checkCustomRoutes(
         if (!allowedHasTypes.has(hasItem.type)) {
           invalidHasParts.push(`invalid type "${hasItem.type}"`)
         }
-        if (typeof hasItem.key !== 'string' && hasItem.type !== 'host') {
+        if (hasItem.type !== 'host' && typeof hasItem.key !== 'string') {
           invalidHasParts.push(`invalid key "${hasItem.key}"`)
         }
         if (
@@ -352,7 +361,7 @@ function checkCustomRoutes(
 
     if (route.has) {
       for (const hasItem of route.has) {
-        if (!hasItem.value && hasItem.key) {
+        if (!hasItem.value && 'key' in hasItem) {
           hasSegments.add(hasItem.key)
         }
 
