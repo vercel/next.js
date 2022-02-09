@@ -63,6 +63,7 @@ import isError from '../lib/is-error'
 import { readableStreamTee } from './web/utils'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from './image-config'
+import { FlushEffectContext } from '../shared/lib/flush-effect'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
@@ -725,33 +726,67 @@ export async function renderToHTML(
   const nextExport =
     !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
 
+  const flushEffectState: {
+    effects: Array<() => React.ReactNode>
+    sealed: boolean
+  } = { effects: [], sealed: false }
+
+  function FlushEffectContainer({ children }: { children: JSX.Element }) {
+    // If the client tree suspends, this component will be rendered multiple
+    // times before we flush. To ensure we don't call old callbacks corresponding
+    // to a previous render, we clear any registered callbacks whenever we render.
+    flushEffectState.effects.length = 0
+
+    const flushEffectImpl = React.useCallback(
+      (callback: () => React.ReactNode) => {
+        if (!flushEffectState.sealed) {
+          flushEffectState.effects.push(callback)
+        } else {
+          throw new Error(
+            '`useFlushEffect` was called after flushing started. Did you use it inside a <Suspense> boundary?' +
+              '\nRead more: https://nextjs.org/docs/messages/flush-after-start'
+          )
+        }
+      },
+      []
+    )
+
+    return (
+      <FlushEffectContext.Provider value={flushEffectImpl}>
+        {children}
+      </FlushEffectContext.Provider>
+    )
+  }
+
   const AppContainer = ({ children }: { children: JSX.Element }) => (
-    <RouterContext.Provider value={router}>
-      <AmpStateContext.Provider value={ampState}>
-        <HeadManagerContext.Provider
-          value={{
-            updateHead: (state) => {
-              head = state
-            },
-            updateScripts: (scripts) => {
-              scriptLoader = scripts
-            },
-            scripts: {},
-            mountedInstances: new Set(),
-          }}
-        >
-          <LoadableContext.Provider
-            value={(moduleName) => reactLoadableModules.push(moduleName)}
+    <FlushEffectContainer>
+      <RouterContext.Provider value={router}>
+        <AmpStateContext.Provider value={ampState}>
+          <HeadManagerContext.Provider
+            value={{
+              updateHead: (state) => {
+                head = state
+              },
+              updateScripts: (scripts) => {
+                scriptLoader = scripts
+              },
+              scripts: {},
+              mountedInstances: new Set(),
+            }}
           >
-            <StyleRegistry registry={jsxStyleRegistry}>
-              <ImageConfigContext.Provider value={images}>
-                {children}
-              </ImageConfigContext.Provider>
-            </StyleRegistry>
-          </LoadableContext.Provider>
-        </HeadManagerContext.Provider>
-      </AmpStateContext.Provider>
-    </RouterContext.Provider>
+            <LoadableContext.Provider
+              value={(moduleName) => reactLoadableModules.push(moduleName)}
+            >
+              <StyleRegistry registry={jsxStyleRegistry}>
+                <ImageConfigContext.Provider value={images}>
+                  {children}
+                </ImageConfigContext.Provider>
+              </StyleRegistry>
+            </LoadableContext.Provider>
+          </HeadManagerContext.Provider>
+        </AmpStateContext.Provider>
+      </RouterContext.Provider>
+    </FlushEffectContainer>
   )
 
   // The `useId` API uses the path indexes to generate an ID for each node.
@@ -1281,14 +1316,33 @@ export async function renderToHTML(
           // up to date when getWrappedApp is called
 
           const content = renderContent()
-          return await renderToStream(
+          const handleFlushEffect = async () => {
+            // Prevent additional flush effects from being registered
+            flushEffectState.sealed = true
+
+            const flushEffectStream = await renderToStream({
+              ReactDOMServer,
+              element: (
+                <>
+                  {flushEffectState.effects.map((flushEffect, i) => (
+                    <React.Fragment key={i}>{flushEffect()}</React.Fragment>
+                  ))}
+                </>
+              ),
+              generateStaticHTML: true,
+            })
+
+            return await streamToString(flushEffectStream)
+          }
+
+          return await renderToStream({
             ReactDOMServer,
-            content,
+            element: content,
             suffix,
-            serverComponentsInlinedTransformStream?.readable ??
-              streamFromArray([]),
-            generateStaticHTML || !hasConcurrentFeatures
-          )
+            dataStream: serverComponentsInlinedTransformStream?.readable,
+            generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
+            handleFlushEffect,
+          })
         }
       } else {
         const content = renderContent()
@@ -1414,13 +1468,11 @@ export async function renderToHTML(
 
   let documentHTML: string
   if (hasConcurrentFeatures) {
-    const documentStream = await renderToStream(
+    const documentStream = await renderToStream({
       ReactDOMServer,
-      document,
-      null,
-      streamFromArray([]),
-      true
-    )
+      element: document,
+      generateStaticHTML: true,
+    })
     documentHTML = await streamToString(documentStream)
   } else {
     documentHTML = ReactDOMServer.renderToStaticMarkup(document)
@@ -1563,7 +1615,7 @@ function createTransformStream({
   transform?: (
     chunk: Uint8Array,
     controller: TransformStreamDefaultController
-  ) => void
+  ) => Promise<void> | void
 }): TransformStream {
   const source = new TransformStream()
   const sink = new TransformStream()
@@ -1605,7 +1657,10 @@ function createTransformStream({
         }
 
         if (transform) {
-          transform(value, controller)
+          const maybePromise = transform(value, controller)
+          if (maybePromise) {
+            await maybePromise
+          }
         } else {
           controller.enqueue(value)
         }
@@ -1656,13 +1711,39 @@ function createBufferedTransformStream(): TransformStream {
   })
 }
 
-function renderToStream(
-  ReactDOMServer: typeof import('react-dom/server'),
-  element: React.ReactElement,
-  suffix: string | null,
-  dataStream: ReadableStream,
+function createFlushEffectStream(
+  handleFlushEffect: () => Promise<string>
+): TransformStream {
+  const decoder = new TextDecoder()
+  const encoder = new TextEncoder()
+
+  return createTransformStream({
+    async transform(chunk, controller) {
+      const extraChunk = await handleFlushEffect()
+      // HACK: Re-encode the original chunk to ensure that the two chunks
+      // are compressed and sent together to try to reduce overhead.
+      controller.enqueue(
+        encoder.encode(`${extraChunk}${decoder.decode(chunk)}`)
+      )
+    },
+  })
+}
+
+function renderToStream({
+  ReactDOMServer,
+  element,
+  suffix,
+  dataStream,
+  generateStaticHTML,
+  handleFlushEffect,
+}: {
+  ReactDOMServer: typeof import('react-dom/server')
+  element: React.ReactElement
+  suffix?: string
+  dataStream?: ReadableStream
   generateStaticHTML: boolean
-): Promise<ReadableStream> {
+  handleFlushEffect?: () => Promise<string>
+}): Promise<ReadableStream> {
   return new Promise((resolve, reject) => {
     let resolved = false
 
@@ -1681,22 +1762,21 @@ function renderToStream(
 
         // React will call our callbacks synchronously, so we need to
         // defer to a microtask to ensure `stream` is set.
-        Promise.resolve().then(() =>
-          resolve(
-            pipeThrough(
-              pipeThrough(
-                pipeThrough(stream, createBufferedTransformStream()),
-                createInlineDataStream(
-                  pipeThrough(
-                    dataStream,
-                    createPrefixStream(suffixState?.suffixUnclosed ?? null)
-                  )
-                )
-              ),
-              createSuffixStream(suffixState?.closeTag ?? null)
-            )
+        Promise.resolve().then(() => {
+          const transforms: Array<TransformStream> = [
+            createBufferedTransformStream(),
+            handleFlushEffect
+              ? createFlushEffectStream(handleFlushEffect)
+              : null,
+            dataStream ? createInlineDataStream(dataStream) : null,
+            suffixState ? createPrefixStream(suffixState.suffixUnclosed) : null,
+          ].filter(Boolean) as any
+
+          return transforms.reduce(
+            (readable, transform) => pipeThrough(readable, transform),
+            stream
           )
-        )
+        })
       }
     }
 
