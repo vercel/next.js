@@ -1545,6 +1545,8 @@ export default abstract class Server {
         await handleRedirect(cachedData.props)
         return null
       }
+    } else if (cachedData.kind === 'IMAGE') {
+      throw new Error('invariant SSG should not return an image cache value')
     } else {
       return {
         type: isDataReq ? 'json' : 'html',
