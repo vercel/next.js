@@ -7,10 +7,10 @@ description: Learn about the Next.js Compiler, written in Rust, which transforms
 <details open>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                                                                                                      |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `v12.1.0` | Added support for Styled Components, Relay, Remove React Properties, Legacy Decorators, Remove Console, and jsxImportSource. |
-| `v12.0.0` | Next.js Compiler [introduced](https://nextjs.org/blog/next-12).                                                              |
+| Version   | Changes                                                                                                                            |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `v12.1.0` | Added support for Styled Components, Jest, Relay, Remove React Properties, Legacy Decorators, Remove Console, and jsxImportSource. |
+| `v12.0.0` | Next.js Compiler [introduced](https://nextjs.org/blog/next-12).                                                                    |
 
 </details>
 
@@ -51,6 +51,35 @@ module.exports = {
 ```
 
 Currently, only the `ssr` and `displayName` transforms have been implemented. These two transforms are the main requirement for using `styled-components` in Next.js.
+
+### Jest
+
+Jest support not only includes the transformation previously provided by Babel, but also simplifies configuring Jest together with Next.js including:
+
+- Auto mocking of `.css`, `.module.css` (and their `.scss` variants), and image imports
+- Automatically sets up `transform` using SWC
+- Loading `.env` (and all variants) into `process.env`
+- Ignores `node_modules` from test resolving and transforms
+- Ignoring `.next` from test resolving
+- Loads `next.config.js` for flags that enable experimental SWC transforms
+
+First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `jest.config.js` file:
+
+```js
+// jest.config.js
+const nextJest = require('next/jest')
+
+// Providing the path to your Next.js app which will enable loading next.config.js and .env files
+const createJestConfig = nextJest({ dir })
+
+// Any custom config you want to pass to Jest
+const customJestConfig = {
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+}
+
+// createJestConfig is exported in this way to ensure that next/jest can load the Next.js configuration, which is async
+module.exports = createJestConfig(customJestConfig)
+```
 
 ### Relay
 
@@ -173,35 +202,6 @@ module.exports = {
 ```
 
 If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
-
-### Jest
-
-Jest support not only includes the transformation previously provided by Babel, but also simplifies configuring Jest together with Next.js including:
-
-- Auto mocking of `.css`, `.module.css` (and their `.scss` variants), and image imports
-- Automatically sets up `transform` using SWC
-- Loading `.env` (and all variants) into `process.env`
-- Ignores `node_modules` from test resolving and transforms
-- Ignoring `.next` from test resolving
-- Loads `next.config.js` for flags that enable experimental SWC transforms
-
-First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `jest.config.js` file:
-
-```js
-// jest.config.js
-const nextJest = require('next/jest')
-
-// Providing the path to your Next.js app which will enable loading next.config.js and .env files
-const createJestConfig = nextJest({ dir })
-
-// Any custom config you want to pass to Jest
-const customJestConfig = {
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-}
-
-// createJestConfig is exported in this way to ensure that next/jest can load the Next.js configuration, which is async
-module.exports = createJestConfig(customJestConfig)
-```
 
 ## Unsupported Features
 
