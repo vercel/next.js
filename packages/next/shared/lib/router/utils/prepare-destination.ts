@@ -47,7 +47,13 @@ export function matchHas(
     }
 
     if (!hasItem.value && value) {
-      params[getSafeParamName(key!)] = value
+      let found = value
+      if (Array.isArray(value)) {
+        // ensure at least one value is truthy
+        if (!value.some((v) => found = v)) return false
+      }
+
+      params[getSafeParamName(key!)] = found
       return true
     } else if (typeof value !== 'undefined') {
       const matcher = new RegExp(`^${hasItem.value}$`)
