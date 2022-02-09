@@ -32,8 +32,6 @@ We chose to build on SWC for a few reasons:
 
 ## Supported Features
 
-If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
-
 ### Styled Components
 
 We're working to port `babel-plugin-styled-components` to the Next.js Compiler.
@@ -172,6 +170,8 @@ module.exports = {
   swcMinify: true,
 }
 ```
+
+If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
 
 ### Jest
 
