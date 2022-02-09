@@ -49,16 +49,17 @@ export function matchHas(
     if (!hasItem.value && value) {
       params[getSafeParamName(key!)] = value
       return true
-    } else if (typeof(value) !== 'undefined') {
+    } else if (typeof value !== 'undefined') {
       const matcher = new RegExp(`^${hasItem.value}$`)
       // a value of false is equivalent to ''
       // e.g. /path?q - q is false and should be matched as ''
-      const match = (v) => String(v || '').match(matcher)
+      const match = (v?: string) => String(v || '').match(matcher)
 
-     let matches
+      let matches: ReturnType<typeof match> = null
+
       if (Array.isArray(value)) {
         // any match in an array means we have it
-        value.some((v) => matches = match(v))
+        value.some((v) => (matches = match(v)))
       } else {
         matches = match(value)
       }
@@ -67,7 +68,7 @@ export function matchHas(
         if (Array.isArray(matches)) {
           if (matches.groups) {
             Object.keys(matches.groups).forEach((groupKey) => {
-              params[groupKey] = matches.groups![groupKey]
+              params[groupKey] = matches?.groups![groupKey]
             })
           } else if (hasItem.type === 'host' && matches[0]) {
             params.host = matches[0]
