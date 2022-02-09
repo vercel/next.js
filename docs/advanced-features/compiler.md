@@ -7,9 +7,10 @@ description: Learn about the Next.js Compiler, written in Rust, which transforms
 <details open>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                                         |
-| --------- | --------------------------------------------------------------- |
-| `v12.0.0` | Next.js Compiler [introduced](https://nextjs.org/blog/next-12). |
+| Version   | Changes                                                                                                                      |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `v12.0.0` | Next.js Compiler [introduced](https://nextjs.org/blog/next-12).                                                              |
+| `v12.1.0` | Added support for Styled Components, Relay, Remove React Properties, Legacy Decorators, Remove Console, and jsxImportSource. |
 
 </details>
 
