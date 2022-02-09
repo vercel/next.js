@@ -570,7 +570,12 @@ export default async function build(
           PRERENDER_MANIFEST,
           path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
           hasServerComponents
-            ? path.join(SERVER_DIRECTORY, MIDDLEWARE_FLIGHT_MANIFEST + '.js')
+            ? path.join(
+                SERVER_DIRECTORY,
+                MIDDLEWARE_FLIGHT_MANIFEST + runtime === 'edge'
+                  ? '.js'
+                  : '.json'
+              )
             : null,
           REACT_LOADABLE_MANIFEST,
           config.optimizeFonts

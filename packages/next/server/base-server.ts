@@ -58,6 +58,7 @@ import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
+import { ImageConfigComplete } from './image-config'
 import { checkIsManualRevalidate } from '../server/api-utils'
 
 export type FindComponentsResult = {
@@ -146,7 +147,7 @@ export default abstract class Server {
     ampOptimizerConfig?: { [key: string]: any }
     basePath: string
     optimizeFonts: boolean
-    images: string
+    images: ImageConfigComplete
     fontManifest?: FontManifest
     optimizeImages: boolean
     disableOptimizedLoading?: boolean
@@ -163,6 +164,7 @@ export default abstract class Server {
     serverComponentManifest?: any
     renderServerComponentData?: boolean
     serverComponentProps?: any
+    reactRoot: boolean
   }
   private incrementalCache: IncrementalCache
   private responseCache: ResponseCache
@@ -303,7 +305,7 @@ export default abstract class Server {
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
-      images: JSON.stringify(this.nextConfig.images),
+      images: this.nextConfig.images,
       optimizeFonts: !!this.nextConfig.optimizeFonts && !dev,
       fontManifest:
         this.nextConfig.optimizeFonts && !dev
@@ -321,6 +323,7 @@ export default abstract class Server {
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
         : undefined,
+      reactRoot: this.nextConfig.experimental.reactRoot === true,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -1543,6 +1546,8 @@ export default abstract class Server {
         await handleRedirect(cachedData.props)
         return null
       }
+    } else if (cachedData.kind === 'IMAGE') {
+      throw new Error('invariant SSG should not return an image cache value')
     } else {
       return {
         type: isDataReq ? 'json' : 'html',

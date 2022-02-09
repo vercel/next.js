@@ -141,6 +141,7 @@ export function createEntrypoints(
       'base64'
     ),
     i18n: config.i18n ? JSON.stringify(config.i18n) : '',
+    reactRoot: config.experimental.reactRoot ? 'true' : '',
   }
 
   Object.keys(pages).forEach((page) => {

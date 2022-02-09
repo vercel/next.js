@@ -365,15 +365,29 @@ async function unstable_revalidate(
     )
   }
 
+  if (typeof urlPath !== 'string' || !urlPath.startsWith('/')) {
+    throw new Error(
+      `Invalid urlPath provided to revalidate(), must be a path e.g. /blog/post-1, received ${urlPath}`
+    )
+  }
+
   const baseUrl = context.trustHostHeader
     ? `https://${req.headers.host}`
     : `http://${context.hostname}:${context.port}`
 
-  return fetch(`${baseUrl}${urlPath}`, {
-    headers: {
-      [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
-    },
-  })
+  try {
+    const res = await fetch(`${baseUrl}${urlPath}`, {
+      headers: {
+        [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
+      },
+    })
+
+    if (!res.ok) {
+      throw new Error(`Invalid response ${res.status}`)
+    }
+  } catch (err) {
+    throw new Error(`Failed to revalidate ${urlPath}`)
+  }
 }
 
 const COOKIE_NAME_PRERENDER_BYPASS = `__prerender_bypass`

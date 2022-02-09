@@ -386,6 +386,7 @@ export default async function exportApp(
       optimizeCss: nextConfig.experimental.optimizeCss,
       optimizeFonts: nextConfig.optimizeFonts,
       optimizeImages: nextConfig.experimental.optimizeImages,
+      reactRoot: nextConfig.experimental.reactRoot || false,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
