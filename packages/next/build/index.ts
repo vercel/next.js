@@ -572,9 +572,8 @@ export default async function build(
           hasServerComponents
             ? path.join(
                 SERVER_DIRECTORY,
-                MIDDLEWARE_FLIGHT_MANIFEST + runtime === 'edge'
-                  ? '.js'
-                  : '.json'
+                MIDDLEWARE_FLIGHT_MANIFEST +
+                  (runtime === 'edge' ? '.js' : '.json')
               )
             : null,
           REACT_LOADABLE_MANIFEST,
