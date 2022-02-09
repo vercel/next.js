@@ -49,7 +49,11 @@ export function matchHas(
       let found
       if (Array.isArray(value)) {
         // ensure at least one value is truthy
-        if (!value.some((v) => (found = v))) return false
+        // ensure we return the last value
+        value.forEach((v) => {
+          if (v) found = v
+        })
+        if (!found) return false
       } else {
         found = value
       }
@@ -71,9 +75,13 @@ export function matchHas(
 
       if (Array.isArray(value)) {
         // any match in an array means we have it
-        value.some(
-          (v) => (matches = typeof v !== 'undefined' ? match(v) : null)
-        )
+        // ensure we return the last matching value
+        value.forEach((v) => {
+          if (typeof v !== 'undefined') {
+            const matched = match(v)
+            if (matched) matches = matched
+          }
+        })
       } else {
         matches = match(value)
       }
