@@ -131,7 +131,7 @@ module.exports = {
 
 ### Legacy Decorators
 
-Next.js will automatically detect `experimentalDecorators` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with older versions of libraries like `mobx`.
+Next.js will automatically detect `experimentalDecorators` in `jsconfig.json` or `tsconfig.json`. Legacy decorators are commonly used with older versions of libraries like `mobx`.
 
 This flag is only supported for compatibility with existing applications. We do not recommend using legacy decorators in new applications.
 
