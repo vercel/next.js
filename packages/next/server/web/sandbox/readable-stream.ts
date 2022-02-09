@@ -61,6 +61,17 @@ class ReadableStream<T> {
 
     pull()
 
+    if (process.env.NODE_ENV !== 'production') {
+      // @ts-ignore
+      readable.pipeThrough = () => {
+        throw new Error('ReadableStream pipeThrough is not allowed to use')
+      }
+      // @ts-ignore
+      readable.pipeTo = () => {
+        throw new Error('ReadableStream pipeTo is not allowed to use')
+      }
+    }
+
     return readable
   }
 }
