@@ -49,11 +49,19 @@ export function matchHas(
     if (!hasItem.value && value) {
       params[getSafeParamName(key!)] = value
       return true
-    } else if (value) {
+    } else if (typeof(value) !== 'undefined') {
       const matcher = new RegExp(`^${hasItem.value}$`)
-      const matches = Array.isArray(value)
-        ? value.slice(-1)[0].match(matcher)
-        : value.match(matcher)
+      // a value of false is equivalent to ''
+      // e.g. /path?q - q is false and should be matched as ''
+      const match = (v) => String(v || '').match(matcher)
+
+     let matches
+      if (Array.isArray(value)) {
+        // any match in an array means we have it
+        value.some((v) => matches = match(v))
+      } else {
+        matches = match(value)
+      }
 
       if (matches) {
         if (Array.isArray(matches)) {
