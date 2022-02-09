@@ -437,11 +437,7 @@ export default async function getBaseWebpackConfig(
     loggedSwcDisabled = true
   }
 
-  if (
-    !loggedIgnoredCompilerOptions &&
-    !useSWCLoader &&
-    config.compiler
-  ) {
+  if (!loggedIgnoredCompilerOptions && !useSWCLoader && config.compiler) {
     Log.info(
       '`compiler` options in `next.config.js` will be ignored while using Babel https://next.js.org/docs/messages/ignored-compiler-options'
     )
