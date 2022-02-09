@@ -2037,6 +2037,7 @@ export default async function build(
       for (const file of [
         ...requiredServerFiles.files,
         path.join(config.distDir, SERVER_FILES_MANIFEST),
+        '.env',
       ]) {
         const filePath = path.join(dir, file)
         await promises.copyFile(
