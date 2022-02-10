@@ -9,17 +9,17 @@ import {
   fetchViaHTTP,
   findPort,
   killApp,
-  launchApp,
-  nextBuild as _nextBuild,
-  nextStart as _nextStart,
   renderViaHTTP,
 } from 'next-test-utils'
+
+import { nextBuild, nextStart, nextDev } from './utils'
 
 import css from './css'
 import rsc from './rsc'
 import streaming from './streaming'
+import basic from './basic'
+import functions from './functions'
 
-const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
 const appDir = join(__dirname, '../app')
 const nativeModuleTestAppDir = join(__dirname, '../unsupported-native-module')
 const distDir = join(__dirname, '../app/.next')
@@ -28,6 +28,7 @@ const appPage = new File(join(appDir, 'pages/_app.js'))
 const appServerPage = new File(join(appDir, 'pages/_app.server.js'))
 const error500Page = new File(join(appDir, 'pages/500.js'))
 const error404Page = new File(join(appDir, 'pages/404.js'))
+const nextConfig = new File(join(appDir, 'next.config.js'))
 
 const documentWithGip = `
 import { Html, Head, Main, NextScript } from 'next/document'
@@ -99,35 +100,10 @@ export default function Page404() {
 }
 `
 
-async function nextBuild(dir, options) {
-  return await _nextBuild(dir, [], {
-    ...options,
-    stdout: true,
-    stderr: true,
-    nodeArgs,
-  })
-}
-
-async function nextStart(dir, port) {
-  return await _nextStart(dir, port, {
-    stdout: true,
-    stderr: true,
-    nodeArgs,
-  })
-}
-
-async function nextDev(dir, port) {
-  return await launchApp(dir, port, {
-    stdout: true,
-    stderr: true,
-    nodeArgs,
-  })
-}
-
-describe('concurrentFeatures - basic', () => {
+describe('Edge runtime - basic', () => {
   it('should warn user for experimental risk with server components', async () => {
     const edgeRuntimeWarning =
-      'You are using the experimental Edge Runtime with `concurrentFeatures`.'
+      'You are using the experimental Edge Runtime with `experimental.runtime`.'
     const rscWarning = `You have experimental React Server Components enabled. Continue at your own risk.`
     const { stderr } = await nextBuild(appDir)
     expect(stderr).toContain(edgeRuntimeWarning)
@@ -136,7 +112,7 @@ describe('concurrentFeatures - basic', () => {
 
   it('should warn user that native node APIs are not supported', async () => {
     const fsImportedErrorMessage =
-      'Native Node.js APIs are not supported in the Edge Runtime with `concurrentFeatures` enabled. Found `dns` imported.'
+      'Native Node.js APIs are not supported in the Edge Runtime. Found `dns` imported.'
     const { stderr } = await nextBuild(nativeModuleTestAppDir)
     expect(stderr).toContain(fsImportedErrorMessage)
   })
@@ -156,7 +132,7 @@ describe('concurrentFeatures - basic', () => {
   })
 })
 
-describe('concurrentFeatures - prod', () => {
+describe('Edge runtime - prod', () => {
   const context = { appDir }
 
   beforeAll(async () => {
@@ -170,18 +146,27 @@ describe('concurrentFeatures - prod', () => {
     await killApp(context.server)
   })
 
-  it('should generate rsc middleware manifests', async () => {
+  it('should generate middleware SSR manifests for edge runtime', async () => {
     const distServerDir = join(distDir, 'server')
-    const hasFile = (filename) => fs.existsSync(join(distServerDir, filename))
-
     const files = [
       'middleware-build-manifest.js',
       'middleware-flight-manifest.js',
       'middleware-ssr-runtime.js',
       'middleware-manifest.json',
     ]
+
+    const requiredServerFiles = (
+      await fs.readJSON(join(distDir, 'required-server-files.json'))
+    ).files
+
     files.forEach((file) => {
-      expect(hasFile(file)).toBe(true)
+      const filepath = join(distServerDir, file)
+      expect(fs.existsSync(filepath)).toBe(true)
+    })
+
+    requiredServerFiles.forEach((file) => {
+      const requiredFilePath = join(appDir, file)
+      expect(fs.existsSync(requiredFilePath)).toBe(true)
     })
   })
 
@@ -210,61 +195,17 @@ describe('concurrentFeatures - prod', () => {
     expect(html).toContain('foo.client')
   })
 
-  runBasicTests(context, 'prod')
+  it('should render 500 error correctly', async () => {
+    const path500HTML = await renderViaHTTP(context.appPort, '/err')
+    expect(path500HTML).toContain('custom-500-page')
+  })
+
+  basic(context, 'prod')
+  rsc(context)
+  streaming(context)
 })
 
-describe('Functions manifest', () => {
-  it('should not generate functions manifest when filesystem API is not enabled', async () => {
-    await nextBuild(appDir)
-    const functionsManifestPath = join(
-      distDir,
-      'server',
-      'functions-manifest.json'
-    )
-    await fs.remove(join(appDir, '.next'))
-    expect(fs.existsSync(functionsManifestPath)).toBe(false)
-  })
-  it('should contain rsc paths in functions manifest', async () => {
-    await nextBuild(appDir, { env: { ENABLE_FILE_SYSTEM_API: '1' } })
-    const functionsManifestPath = join(
-      distDir,
-      'server',
-      'functions-manifest.json'
-    )
-    const content = JSON.parse(fs.readFileSync(functionsManifestPath, 'utf8'))
-    const { pages } = content
-    const pageNames = Object.keys(pages)
-
-    const paths = ['/', '/next-api/link', '/routes/[dynamic]']
-    paths.forEach((path) => {
-      const { runtime, files } = pages[path]
-      expect(pageNames).toContain(path)
-      // Runtime of page `/` is undefined since it's configured as nodejs.
-      expect(runtime).toBe(path === '/' ? undefined : 'web')
-      expect(files.every((f) => f.startsWith('server/'))).toBe(true)
-    })
-
-    expect(content.version).toBe(1)
-  })
-})
-
-const customAppPageSuite = {
-  runTests: (context) => {
-    it('should render container in app', async () => {
-      const indexHtml = await renderViaHTTP(context.appPort, '/')
-      const indexFlight = await renderViaHTTP(context.appPort, '/?__flight__=1')
-      expect(indexHtml).toContain('container-server')
-      expect(indexFlight).toContain('container-server')
-    })
-  },
-  beforeAll: () => appServerPage.write(rscAppPage),
-  afterAll: () => appServerPage.delete(),
-}
-
-runSuite('Custom App', 'dev', customAppPageSuite)
-runSuite('Custom App', 'prod', customAppPageSuite)
-
-describe('concurrentFeatures - dev', () => {
+describe('Edge runtime - dev', () => {
   const context = { appDir }
 
   beforeAll(async () => {
@@ -298,17 +239,71 @@ describe('concurrentFeatures - dev', () => {
     expect(bundle).not.toContain('moment')
   })
 
-  runBasicTests(context, 'dev')
+  it('should render 500 error correctly', async () => {
+    const path500HTML = await renderViaHTTP(context.appPort, '/err')
+
+    // In dev mode it should show the error popup.
+    expect(path500HTML).toContain('Error: oops')
+  })
+
+  basic(context, 'dev')
+  rsc(context)
+  streaming(context)
 })
+
+const nodejsRuntimeBasicSuite = {
+  runTests: (context, env) => {
+    basic(context, env)
+    streaming(context)
+
+    if (env === 'prod') {
+      it('should generate middleware SSR manifests for Node.js', async () => {
+        const distServerDir = join(distDir, 'server')
+
+        const requiredServerFiles = (
+          await fs.readJSON(join(distDir, 'required-server-files.json'))
+        ).files
+
+        const files = [
+          'middleware-build-manifest.js',
+          'middleware-flight-manifest.json',
+          'middleware-manifest.json',
+        ]
+
+        files.forEach((file) => {
+          const filepath = join(distServerDir, file)
+          expect(fs.existsSync(filepath)).toBe(true)
+        })
+
+        requiredServerFiles.forEach((file) => {
+          const requiredFilePath = join(appDir, file)
+          expect(fs.existsSync(requiredFilePath)).toBe(true)
+        })
+      })
+    }
+  },
+  beforeAll: () => nextConfig.replace("runtime: 'edge'", "runtime: 'nodejs'"),
+  afterAll: () => nextConfig.restore(),
+}
+
+const customAppPageSuite = {
+  runTests: (context) => {
+    it('should render container in app', async () => {
+      const indexHtml = await renderViaHTTP(context.appPort, '/')
+      const indexFlight = await renderViaHTTP(context.appPort, '/?__flight__=1')
+      expect(indexHtml).toContain('container-server')
+      expect(indexFlight).toContain('container-server')
+    })
+  },
+  beforeAll: () => appServerPage.write(rscAppPage),
+  afterAll: () => appServerPage.delete(),
+}
 
 const cssSuite = {
   runTests: css,
   beforeAll: () => appPage.write(appWithGlobalCss),
   afterAll: () => appPage.delete(),
 }
-
-runSuite('CSS', 'dev', cssSuite)
-runSuite('CSS', 'prod', cssSuite)
 
 const documentSuite = {
   runTests: (context) => {
@@ -318,7 +313,7 @@ const documentSuite = {
 
       expect(res.status).toBe(500)
       expect(html).toContain(
-        '`getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
+        '`getInitialProps` in Document component is not supported with the Edge Runtime.'
       )
     })
   },
@@ -326,72 +321,41 @@ const documentSuite = {
   afterAll: () => documentPage.delete(),
 }
 
-runSuite('document', 'dev', documentSuite)
-runSuite('document', 'prod', documentSuite)
+runSuite('Node.js runtime', 'dev', nodejsRuntimeBasicSuite)
+runSuite('Node.js runtime', 'prod', nodejsRuntimeBasicSuite)
 
-async function runBasicTests(context, env) {
-  it('should render 500 error correctly', async () => {
-    const path500HTML = await renderViaHTTP(context.appPort, '/err')
+runSuite('Custom App', 'dev', customAppPageSuite)
+runSuite('Custom App', 'prod', customAppPageSuite)
 
-    // In dev mode it should show the error popup.
-    const isDev = env === 'dev'
-    expect(path500HTML).toContain(isDev ? 'Error: oops' : 'custom-500-page')
-  })
+runSuite('CSS', 'dev', cssSuite)
+runSuite('CSS', 'prod', cssSuite)
 
-  it('should render 404 error correctly', async () => {
-    const path404HTML = await renderViaHTTP(context.appPort, '/404')
-    const pathNotFoundHTML = await renderViaHTTP(context.appPort, '/not-found')
+runSuite('Custom Document', 'dev', documentSuite)
+runSuite('Custom Document', 'prod', documentSuite)
 
-    expect(path404HTML).toContain('custom-404-page')
-    expect(pathNotFoundHTML).toContain('custom-404-page')
-  })
-
-  it('should render dynamic routes correctly', async () => {
-    const dynamicRoute1HTML = await renderViaHTTP(
-      context.appPort,
-      '/routes/dynamic1'
-    )
-    const dynamicRoute2HTML = await renderViaHTTP(
-      context.appPort,
-      '/routes/dynamic2'
-    )
-
-    expect(dynamicRoute1HTML).toContain('query: dynamic1')
-    expect(dynamicRoute2HTML).toContain('query: dynamic2')
-  })
-
-  it('should support api routes', async () => {
-    const res = await renderViaHTTP(context.appPort, '/api/ping')
-    expect(res).toContain('pong')
-  })
-
-  rsc(context)
-  streaming(context)
-}
+runSuite('Functions manifest', 'build', { runTests: functions })
 
 function runSuite(suiteName, env, options) {
-  const context = { appDir }
+  const context = { appDir, distDir }
   describe(`${suiteName} ${env}`, () => {
-    if (env === 'prod') {
-      beforeAll(async () => {
-        options.beforeAll?.()
+    beforeAll(async () => {
+      options.beforeAll?.()
+      if (env === 'prod') {
         context.appPort = await findPort()
         await nextBuild(context.appDir)
         context.server = await nextStart(context.appDir, context.appPort)
-      })
-    }
-    if (env === 'dev') {
-      beforeAll(async () => {
-        options.beforeAll?.()
+      }
+      if (env === 'dev') {
         context.appPort = await findPort()
         context.server = await nextDev(context.appDir, context.appPort)
-      })
-    }
+      }
+    })
     afterAll(async () => {
       options.afterAll?.()
-      await killApp(context.server)
+      if (context.server) {
+        await killApp(context.server)
+      }
     })
-
     options.runTests(context, env)
   })
 }

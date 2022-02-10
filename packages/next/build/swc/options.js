@@ -81,14 +81,14 @@ export function getBaseSWCOptions({
       },
     },
     sourceMaps: jest ? 'inline' : undefined,
-    styledComponents: nextConfig?.experimental?.styledComponents
+    styledComponents: nextConfig?.compiler?.styledComponents
       ? {
           displayName: Boolean(development),
         }
       : null,
-    removeConsole: nextConfig?.experimental?.removeConsole,
-    reactRemoveProperties: nextConfig?.experimental?.reactRemoveProperties,
-    relay: nextConfig?.experimental?.relay,
+    removeConsole: nextConfig?.compiler?.removeConsole,
+    reactRemoveProperties: nextConfig?.compiler?.reactRemoveProperties,
+    relay: nextConfig?.compiler?.relay,
   }
 }
 

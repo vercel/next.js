@@ -29,6 +29,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
+  MIDDLEWARE_FLIGHT_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
   SERVERLESS_DIRECTORY,
 } from '../shared/lib/constants'
@@ -47,7 +48,7 @@ import {
   NodeNextResponse,
 } from './base-http'
 import { PayloadOptions, sendRenderResult } from './send-payload'
-import { serveStatic } from './serve-static'
+import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils'
 import { RenderOpts, renderToHTML } from './render'
@@ -75,6 +76,7 @@ import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { loadEnvConfig } from '@next/env'
 import { getCustomRoute } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
+import ResponseCache from '../server/response-cache'
 
 export * from './base-server'
 
@@ -93,6 +95,8 @@ export interface NodeRequestHandler {
 }
 
 export default class NextNodeServer extends BaseServer {
+  private imageResponseCache?: ResponseCache
+
   constructor(options: Options) {
     // Initialize super class
     super(options)
@@ -111,6 +115,18 @@ export default class NextNodeServer extends BaseServer {
     }
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
+    }
+
+    if (!this.minimalMode) {
+      const { ImageOptimizerCache } =
+        require('./image-optimizer') as typeof import('./image-optimizer')
+
+      this.imageResponseCache = new ResponseCache(
+        new ImageOptimizerCache({
+          distDir: this.distDir,
+          nextConfig: this.nextConfig,
+        })
+      )
     }
   }
 
@@ -161,7 +177,7 @@ export default class NextNodeServer extends BaseServer {
         match: route('/_next/image'),
         type: 'route',
         name: '_next/image catchall',
-        fn: (req, res, _params, parsedUrl) => {
+        fn: async (req, res, _params, parsedUrl) => {
           if (this.minimalMode) {
             res.statusCode = 400
             res.body('Bad Request').send()
@@ -169,12 +185,86 @@ export default class NextNodeServer extends BaseServer {
               finished: true,
             }
           }
+          const { getHash, ImageOptimizerCache, sendResponse, ImageError } =
+            require('./image-optimizer') as typeof import('./image-optimizer')
 
-          return this.imageOptimizer(
-            req as NodeNextRequest,
-            res as NodeNextResponse,
-            parsedUrl
+          if (!this.imageResponseCache) {
+            throw new Error(
+              'invariant image optimizer cache was not initialized'
+            )
+          }
+
+          const imagesConfig = this.nextConfig.images
+
+          if (imagesConfig.loader !== 'default') {
+            await this.render404(req, res)
+            return { finished: true }
+          }
+          const paramsResult = ImageOptimizerCache.validateParams(
+            (req as NodeNextRequest).originalRequest,
+            parsedUrl.query,
+            this.nextConfig,
+            !!this.renderOpts.dev
           )
+
+          if ('errorMessage' in paramsResult) {
+            res.statusCode = 400
+            res.body(paramsResult.errorMessage).send()
+            return { finished: true }
+          }
+          const cacheKey = ImageOptimizerCache.getCacheKey(paramsResult)
+
+          try {
+            const cacheEntry = await this.imageResponseCache.get(
+              cacheKey,
+              async () => {
+                const { buffer, contentType, maxAge } =
+                  await this.imageOptimizer(
+                    req as NodeNextRequest,
+                    res as NodeNextResponse,
+                    paramsResult
+                  )
+                const etag = getHash([buffer])
+
+                return {
+                  value: {
+                    kind: 'IMAGE',
+                    buffer,
+                    etag,
+                    extension: getExtension(contentType) as string,
+                  },
+                  revalidate: maxAge,
+                }
+              },
+              {}
+            )
+
+            if (cacheEntry?.value?.kind !== 'IMAGE') {
+              throw new Error(
+                'invariant did not get entry from image response cache'
+              )
+            }
+
+            sendResponse(
+              (req as NodeNextRequest).originalRequest,
+              (res as NodeNextResponse).originalResponse,
+              paramsResult.href,
+              cacheEntry.value.extension,
+              cacheEntry.value.buffer,
+              paramsResult.isStatic,
+              cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT'
+            )
+          } catch (err) {
+            if (err instanceof ImageError) {
+              res.statusCode = err.statusCode
+              res.body(err.message).send()
+              return {
+                finished: true,
+              }
+            }
+            throw err
+          }
+          return { finished: true }
         },
       },
     ]
@@ -451,7 +541,13 @@ export default class NextNodeServer extends BaseServer {
       res.originalResponse,
       query,
       pageModule,
-      this.renderOpts.previewProps,
+      {
+        ...this.renderOpts.previewProps,
+        port: this.port,
+        hostname: this.hostname,
+        // internal config so is not typed
+        trustHostHeader: (this.nextConfig.experimental as any).trustHostHeader,
+      },
       this.minimalMode,
       this.renderOpts.dev,
       page
@@ -466,6 +562,11 @@ export default class NextNodeServer extends BaseServer {
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult | null> {
+    // Due to the way we pass data by mutating `renderOpts`, we can't extend the
+    // object here but only updating its `serverComponentManifest` field.
+    // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+    renderOpts.serverComponentManifest = this.serverComponentManifest
+
     return renderToHTML(
       req.originalRequest,
       res.originalResponse,
@@ -482,25 +583,22 @@ export default class NextNodeServer extends BaseServer {
   protected async imageOptimizer(
     req: NodeNextRequest,
     res: NodeNextResponse,
-    parsedUrl: UrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
+    paramsResult: import('./image-optimizer').ImageParamsResult
+  ): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
     const { imageOptimizer } =
       require('./image-optimizer') as typeof import('./image-optimizer')
 
     return imageOptimizer(
       req.originalRequest,
       res.originalResponse,
-      parsedUrl,
+      paramsResult,
       this.nextConfig,
-      this.distDir,
-      () => this.render404(req, res, parsedUrl),
       (newReq, newRes, newParsedUrl) =>
         this.getRequestHandler()(
           new NodeNextRequest(newReq),
           new NodeNextResponse(newRes),
           newParsedUrl
-        ),
-      this.renderOpts.dev
+        )
     )
   }
 
@@ -575,6 +673,15 @@ export default class NextNodeServer extends BaseServer {
 
   protected getFontManifest(): FontManifest {
     return requireFontManifest(this.distDir, this._isLikeServerless)
+  }
+
+  protected getServerComponentManifest() {
+    if (this.nextConfig.experimental.runtime !== 'nodejs') return undefined
+    return require(join(
+      this.distDir,
+      'server',
+      MIDDLEWARE_FLIGHT_MANIFEST + '.json'
+    ))
   }
 
   protected getCacheFilesystem(): CacheFs {
@@ -1152,7 +1259,7 @@ export default class NextNodeServer extends BaseServer {
             url: url,
             page: page,
           },
-          useCache: !this.nextConfig.experimental.concurrentFeatures,
+          useCache: !this.nextConfig.experimental.runtime,
           onWarning: (warning: Error) => {
             if (params.onWarning) {
               warning.message += ` "./${middlewareInfo.name}"`
