@@ -31,9 +31,10 @@ import {
   onBuildError,
   onBuildOk,
   onRefresh,
-} from '@next/react-dev-overlay/lib/client'
+  onFullRefreshNeeded,
+} from 'next/dist/compiled/@next/react-dev-overlay/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { addMessageListener } from './eventsource'
+import { addMessageListener } from './websocket'
 import formatWebpackMessages from './format-webpack-messages'
 
 // This alternative WebpackDevServer combines the functionality of:
@@ -51,14 +52,12 @@ export default function connect() {
   register()
 
   addMessageListener((event) => {
-    // This is the heartbeat event
-    if (event.data === '\uD83D\uDC93') {
-      return
-    }
+    if (event.data.indexOf('action') === -1) return
+
     try {
       processMessage(event)
     } catch (ex) {
-      console.warn('Invalid HMR message: ' + event.data + '\n' + ex)
+      console.warn('Invalid HMR message: ' + event.data + '\n', ex)
     }
   })
 
@@ -90,7 +89,9 @@ function clearOutdatedErrors() {
 function handleSuccess() {
   clearOutdatedErrors()
 
-  const isHotUpdate = !isFirstCompilation
+  const isHotUpdate =
+    !isFirstCompilation ||
+    (window.__NEXT_DATA__.page !== '/_error' && isUpdateAvailable())
   isFirstCompilation = false
   hasCompileErrors = false
 
@@ -275,28 +276,21 @@ function tryApplyUpdates(onHotUpdateSuccess) {
   }
 
   if (!isUpdateAvailable() || !canApplyUpdates()) {
+    onBuildOk()
     return
   }
 
   function handleApplyUpdates(err, updatedModules) {
     if (err || hadRuntimeError || !updatedModules) {
       if (err) {
-        console.warn(
-          '[Fast Refresh] performing full reload\n\n' +
-            "Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.\n" +
-            'You might have a file which exports a React component but also exports a value that is imported by a non-React component file.\n' +
-            'Consider migrating the non-React component export to a separate file and importing it into both files.\n\n' +
-            'It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.\n' +
-            'Fast Refresh requires at least one parent function component in your React tree.'
-        )
+        performFullRefresh(err)
       } else if (hadRuntimeError) {
-        console.warn(
-          '[Fast Refresh] performing full reload because your application had an unrecoverable error'
-        )
+        performFullRefresh()
       }
-      window.location.reload()
       return
     }
+
+    clearFullRefreshStorage()
 
     const hasUpdates = Boolean(updatedModules.length)
     if (typeof onHotUpdateSuccess === 'function') {
@@ -306,8 +300,9 @@ function tryApplyUpdates(onHotUpdateSuccess) {
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
-      tryApplyUpdates(hasUpdates ? undefined : onHotUpdateSuccess)
+      tryApplyUpdates(hasUpdates ? onBuildOk : onHotUpdateSuccess)
     } else {
+      onBuildOk()
       if (process.env.__NEXT_TEST_MODE) {
         afterApplyUpdates(() => {
           if (self.__NEXT_HMR_CB) {
@@ -328,4 +323,32 @@ function tryApplyUpdates(onHotUpdateSuccess) {
       handleApplyUpdates(err, null)
     }
   )
+}
+
+const FULL_REFRESH_STORAGE_KEY = '_has_warned_about_full_refresh'
+
+function performFullRefresh(err) {
+  if (shouldWarnAboutFullRefresh()) {
+    sessionStorage.setItem(FULL_REFRESH_STORAGE_KEY, 'true')
+    const reason =
+      err &&
+      ((err.stack && err.stack.split('\n').slice(0, 5).join('\n')) ||
+        err.message ||
+        err + '')
+    onFullRefreshNeeded(reason)
+  } else {
+    window.location.reload()
+  }
+}
+
+function shouldWarnAboutFullRefresh() {
+  return !process.env.__NEXT_TEST_MODE && !hasAlreadyWarnedAboutFullRefresh()
+}
+
+function hasAlreadyWarnedAboutFullRefresh() {
+  return sessionStorage.getItem(FULL_REFRESH_STORAGE_KEY) !== null
+}
+
+function clearFullRefreshStorage() {
+  sessionStorage.removeItem(FULL_REFRESH_STORAGE_KEY)
 }

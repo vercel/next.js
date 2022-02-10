@@ -14,6 +14,12 @@ body:
   - type: markdown
     attributes:
       value: 'next@canary is the beta version of Next.js. It includes all features and fixes that are pending to land on the stable release line.'
+  - type: textarea
+    attributes:
+      label: Run `next info` (available from version 12.0.8 and up)
+      description: Please run `next info` in the root directory of your project and paste the results. You might need to use `npx --no-install next info` if next is not in the current PATH.
+    validations:
+      required: false
   - type: input
     attributes:
       label: What version of Next.js are you using?

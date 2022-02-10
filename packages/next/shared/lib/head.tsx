@@ -147,10 +147,9 @@ function reduceComponents(
           c.type === 'link' &&
           c.props['href'] &&
           // TODO(prateekbh@): Replace this with const from `constants` when the tree shaking works.
-          [
-            'https://fonts.googleapis.com/css',
-            'https://use.typekit.net/',
-          ].some((url) => c.props['href'].startsWith(url))
+          ['https://fonts.googleapis.com/css', 'https://use.typekit.net/'].some(
+            (url) => c.props['href'].startsWith(url)
+          )
         ) {
           const newProps = { ...(c.props || {}) }
           newProps['data-href'] = newProps['href']
@@ -160,6 +159,21 @@ function reduceComponents(
           newProps['data-optimized-fonts'] = true
 
           return React.cloneElement(c, newProps)
+        }
+      }
+      if (process.env.NODE_ENV === 'development') {
+        // omit JSON-LD structured data snippets from the warning
+        if (c.type === 'script' && c.props['type'] !== 'application/ld+json') {
+          const srcMessage = c.props['src']
+            ? `<script> tag with src="${c.props['src']}"`
+            : `inline <script>`
+          console.warn(
+            `Do not add <script> tags using next/head (see ${srcMessage}). Use next/script instead. \nSee more info here: https://nextjs.org/docs/messages/no-script-tags-in-head-component`
+          )
+        } else if (c.type === 'link' && c.props['rel'] === 'stylesheet') {
+          console.warn(
+            `Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="${c.props['href']}"). Use Document instead. \nSee more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component`
+          )
         }
       }
       return React.cloneElement(c, { key })

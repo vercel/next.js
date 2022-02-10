@@ -2,6 +2,7 @@ import React from 'react'
 import Image from 'next/image'
 import testTall from '../public/tall.png'
 import svg from '../public/test.svg'
+import avif from '../public/test.avif'
 import { ImageCard } from '../components/image-card'
 import { DynamicSrcImage } from '../components/image-dynamic-src'
 
@@ -77,6 +78,7 @@ const Page = () => {
         placeholder="blur"
       />
       <Image id="object-src-with-svg" src={svg} />
+      <Image id="object-src-with-avif" src={avif} />
       <Image
         id="fill-with-unused-width-height"
         src="https://via.placeholder.com/200"

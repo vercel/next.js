@@ -198,7 +198,7 @@ module.exports = {
               key: 'post',
             },
           ],
-          destination: '/blog/:post',
+          destination: '/blog-catchall/:post',
         },
         {
           source: '/blog/about',
@@ -219,6 +219,10 @@ module.exports = {
         {
           source: '/old-blog/:path*',
           destination: '/blog/:path*',
+        },
+        {
+          source: '/overridden',
+          destination: 'https://vercel.com',
         },
       ],
     }
@@ -387,6 +391,29 @@ module.exports = {
           },
         ],
         destination: '/somewhere',
+        permanent: false,
+      },
+      {
+        source: '/has-redirect-6',
+        has: [
+          {
+            type: 'host',
+            value: '(?<subdomain>.*)-test.example.com',
+          },
+        ],
+        destination: 'https://:subdomain.example.com/some-path/end?a=b',
+        permanent: false,
+      },
+      {
+        source: '/has-redirect-7',
+        has: [
+          {
+            type: 'query',
+            key: 'hello',
+            value: '(?<hello>.*)',
+          },
+        ],
+        destination: '/somewhere?value=:hello',
         permanent: false,
       },
     ]

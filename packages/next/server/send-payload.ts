@@ -1,7 +1,10 @@
-import { IncomingMessage, ServerResponse } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { BaseNextResponse } from './base-http'
+
 import { isResSent } from '../shared/lib/utils'
-import generateETag from 'etag'
+import generateETag from 'next/dist/compiled/etag'
 import fresh from 'next/dist/compiled/fresh'
+import RenderResult from './render-result'
 
 export type PayloadOptions =
   | { private: true }
@@ -9,7 +12,7 @@ export type PayloadOptions =
   | { private: boolean; stateful: false; revalidate: number | false }
 
 export function setRevalidateHeaders(
-  res: ServerResponse,
+  res: ServerResponse | BaseNextResponse,
   options: PayloadOptions
 ) {
   if (options.private || options.stateful) {
@@ -35,17 +38,23 @@ export function setRevalidateHeaders(
   }
 }
 
-export function sendPayload(
-  req: IncomingMessage,
-  res: ServerResponse,
-  payload: any,
-  type: 'html' | 'json',
-  {
-    generateEtags,
-    poweredByHeader,
-  }: { generateEtags: boolean; poweredByHeader: boolean },
+export async function sendRenderResult({
+  req,
+  res,
+  result,
+  type,
+  generateEtags,
+  poweredByHeader,
+  options,
+}: {
+  req: IncomingMessage
+  res: ServerResponse
+  result: RenderResult
+  type: 'html' | 'json'
+  generateEtags: boolean
+  poweredByHeader: boolean
   options?: PayloadOptions
-): void {
+}): Promise<void> {
   if (isResSent(res)) {
     return
   }
@@ -54,9 +63,13 @@ export function sendPayload(
     res.setHeader('X-Powered-By', 'Next.js')
   }
 
-  const etag = generateEtags ? generateETag(payload) : undefined
-  if (sendEtagResponse(req, res, etag)) {
-    return
+  const payload = result.isDynamic() ? null : await result.toUnchunkedString()
+
+  if (payload) {
+    const etag = generateEtags ? generateETag(payload) : undefined
+    if (sendEtagResponse(req, res, etag)) {
+      return
+    }
   }
 
   if (!res.getHeader('Content-Type')) {
@@ -65,11 +78,22 @@ export function sendPayload(
       type === 'json' ? 'application/json' : 'text/html; charset=utf-8'
     )
   }
-  res.setHeader('Content-Length', Buffer.byteLength(payload))
+
+  if (payload) {
+    res.setHeader('Content-Length', Buffer.byteLength(payload))
+  }
+
   if (options != null) {
     setRevalidateHeaders(res, options)
   }
-  res.end(req.method === 'HEAD' ? null : payload)
+
+  if (req.method === 'HEAD') {
+    res.end(null)
+  } else if (payload) {
+    res.end(payload)
+  } else {
+    await result.pipe(res)
+  }
 }
 
 export function sendEtagResponse(

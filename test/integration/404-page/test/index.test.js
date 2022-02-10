@@ -14,12 +14,11 @@ import {
   getPageFileFromPagesManifest,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
 const pages404 = join(appDir, 'pages/404.js')
 const nextConfig = join(appDir, 'next.config.js')
-const gip404Err = /`pages\/404` can not have getInitialProps\/getServerSideProps/
+const gip404Err =
+  /`pages\/404` can not have getInitialProps\/getServerSideProps/
 
 let nextConfigContent
 let appPort
@@ -37,6 +36,11 @@ const runTests = (mode = 'server') => {
   it('should set correct status code with pages/404', async () => {
     const res = await fetchViaHTTP(appPort, '/abc')
     expect(res.status).toBe(404)
+  })
+
+  it('should use pages/404 for .d.ts file', async () => {
+    const html = await renderViaHTTP(appPort, '/invalidExtension')
+    expect(html).toContain('custom 404 page')
   })
 
   it('should not error when visited directly', async () => {

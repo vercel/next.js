@@ -27,7 +27,9 @@ Once you have access to [the environment variables you'll need](#step-7-set-up-e
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
+- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## How to use
 
@@ -47,7 +49,7 @@ Use the provided [Strapi template Next example](https://github.com/strapi/strapi
 
 ```bash
 npx create-strapi-app my-project --template next-example --quickstart
-# or: yarn create strapi-app my-project next-example --quickstart
+# or: yarn create strapi-app my-project --template next-example --quickstart
 npm run develop # or: yarn develop
 ```
 

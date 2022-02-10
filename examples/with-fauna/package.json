@@ -1,0 +1,28 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "yarn setup && next build",
+    "start": "next start",
+    "setup": "node ./scripts/setup.js"
+  },
+  "dependencies": {
+    "classnames": "2.3.1",
+    "date-fns": "2.23.0",
+    "faunadb": "4.3.0",
+    "graphql": "15.5.1",
+    "graphql-request": "3.5.0",
+    "next": "latest",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "request": "2.88.2",
+    "swr": "0.5.6"
+  },
+  "devDependencies": {
+    "autoprefixer": "10.3.1",
+    "postcss": "8.3.6",
+    "prettier": "2.3.2",
+    "stream-to-promise": "3.0.0",
+    "tailwindcss": "2.2.7"
+  }
+}

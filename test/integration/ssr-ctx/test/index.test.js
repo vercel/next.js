@@ -12,8 +12,6 @@ import {
   launchApp,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 30)
-
 const appDir = join(__dirname, '../')
 const appPg = new File(join(appDir, 'pages/_app.js'))
 

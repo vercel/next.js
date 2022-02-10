@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import useSWR from 'swr'
 import { Auth, Card, Typography, Space, Button, Icon } from '@supabase/ui'
-import { supabase } from '../utils/initSupabase'
+import { supabase } from '../lib/initSupabase'
 import { useEffect, useState } from 'react'
 
 const fetcher = (url, token) =>

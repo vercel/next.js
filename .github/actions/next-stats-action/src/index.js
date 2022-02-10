@@ -45,6 +45,10 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       await checkoutRef(actionInfo.prRef, diffRepoDir)
     }
 
+    if (actionInfo.isRelease) {
+      process.env.STATS_IS_RELEASE = 'true'
+    }
+
     // load stats config from allowed locations
     const { statsConfig, relativeStatsAppDir } = loadStatsConfig()
 
@@ -110,8 +114,19 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
         if (statsConfig.initialBuildCommand) {
           buildCommand += ` && ${statsConfig.initialBuildCommand}`
         }
-        await exec(buildCommand)
+        // allow 5 minutes node_modules install + building all packages
+        // in case of noisy environment slowing down initial repo build
+        await exec(buildCommand, false, { timeout: 5 * 60 * 1000 })
       }
+      await fs.copy(
+        path.join(__dirname, '../native'),
+        path.join(dir, 'packages/next-swc/native')
+      )
+      // TODO: remove after next stable release (current v12.0.4)
+      await fs.copy(
+        path.join(__dirname, '../native'),
+        path.join(dir, 'packages/next/native')
+      )
 
       logger(`Linking packages in ${dir}`)
       const pkgPaths = await linkPackages(dir)
