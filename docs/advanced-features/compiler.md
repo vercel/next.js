@@ -7,9 +7,10 @@ description: Learn about the Next.js Compiler, written in Rust, which transforms
 <details open>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                                         |
-| --------- | --------------------------------------------------------------- |
-| `v12.0.0` | Next.js Compiler [introduced](https://nextjs.org/blog/next-12). |
+| Version   | Changes                                                                                                                            |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `v12.1.0` | Added support for Styled Components, Jest, Relay, Remove React Properties, Legacy Decorators, Remove Console, and jsxImportSource. |
+| `v12.0.0` | Next.js Compiler [introduced](https://nextjs.org/blog/next-12).                                                                    |
 
 </details>
 
@@ -30,21 +31,7 @@ We chose to build on SWC for a few reasons:
 - **WebAssembly:** Rust's support for WASM is essential for supporting all possible platforms and taking Next.js development everywhere.
 - **Community:** The Rust community and ecosystem are amazing and still growing.
 
-## Experimental Features
-
-### Minification
-
-You can opt-in to using the Next.js compiler for minification. This is 7x faster than Terser.
-
-```js
-// next.config.js
-
-module.exports = {
-  swcMinify: true,
-}
-```
-
-If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
+## Supported Features
 
 ### Styled Components
 
@@ -56,7 +43,7 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 // next.config.js
 
 module.exports = {
-  experimental: {
+  compiler: {
     // ssr and displayName are configured by default
     styledComponents: true,
   },
@@ -101,7 +88,7 @@ To enable [Relay](https://relay.dev/) support:
 ```js
 // next.config.js
 module.exports = {
-  experimental: {
+  compiler: {
     relay: {
       // This should match relay.config.js
       src: './',
@@ -123,7 +110,7 @@ To remove properties matching the default regex `^data-test`:
 ```js
 // next.config.js
 module.exports = {
-  experimental: {
+  compiler: {
     reactRemoveProperties: true,
   },
 }
@@ -134,7 +121,7 @@ To remove custom properties:
 ```js
 // next.config.js
 module.exports = {
-  experimental: {
+  compiler: {
     // The regexes defined here are processed in Rust so the syntax is different from
     // JavaScript `RegExp`s. See https://docs.rs/regex.
     reactRemoveProperties: { properties: ['^data-custom$'] },
@@ -142,9 +129,37 @@ module.exports = {
 }
 ```
 
+### Remove Console
+
+This transform allows for removing all `console.*` calls in application code (not `node_modules`). Similar to `babel-plugin-transform-remove-console`.
+
+Remove all `console.*` calls:
+
+```js
+// next.config.js
+module.exports = {
+  compiler: {
+    removeConsole: true,
+  },
+}
+```
+
+Remove `console.*` output except `console.error`:
+
+```js
+// next.config.js
+module.exports = {
+  compiler: {
+    removeConsole: {
+      exclude: ['error'],
+    },
+  },
+}
+```
+
 ### Legacy Decorators
 
-Next.js will automatically detect `experimentalDecorators` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with older versions of libraries like `mobx`.
+Next.js will automatically detect `experimentalDecorators` in `jsconfig.json` or `tsconfig.json`. Legacy decorators are commonly used with older versions of libraries like `mobx`.
 
 This flag is only supported for compatibility with existing applications. We do not recommend using legacy decorators in new applications.
 
@@ -158,34 +173,6 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 }
 ```
 
-### Remove Console
-
-This transform allows for removing all `console.*` calls in application code (not `node_modules`). Similar to `babel-plugin-transform-remove-console`.
-
-Remove all `console.*` calls:
-
-```js
-// next.config.js
-module.exports = {
-  experimental: {
-    removeConsole: true,
-  },
-}
-```
-
-Remove `console.*` output except `console.error`:
-
-```js
-// next.config.js
-module.exports = {
-  experimental: {
-    removeConsole: {
-      exclude: ['error'],
-    },
-  },
-}
-```
-
 ### importSource
 
 Next.js will automatically detect `jsxImportSource` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with libraries like Theme UI.
@@ -195,10 +182,26 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 ```js
 {
   "compilerOptions": {
-    "jsxImportSource": true
+    "jsxImportSource": 'preact'
   }
 }
 ```
+
+## Experimental Features
+
+### Minification
+
+You can opt-in to using the Next.js compiler for minification. This is 7x faster than Terser.
+
+```js
+// next.config.js
+
+module.exports = {
+  swcMinify: true,
+}
+```
+
+If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
 
 ## Unsupported Features
 

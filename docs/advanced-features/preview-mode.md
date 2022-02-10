@@ -186,6 +186,8 @@ export default function handler(req, res) {
 }
 ```
 
+> **Note:** If calling this route using `Link` component, you must pass in `prefetch={false}` to prevent calling `clearPreviewData` during prefetch.
+
 ### Specify the preview mode duration
 
 `setPreviewData` takes an optional second parameter which should be an options object. It accepts the following keys:
