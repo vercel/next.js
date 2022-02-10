@@ -933,7 +933,7 @@ export default abstract class Server {
       page,
       ssr: !MIDDLEWARE_ROUTE.test(middlewareMap[page].name),
     }))
-    return [...getRoutingItems(pages, middleware)]
+    return getRoutingItems(pages, middleware)
   }
 
   protected getDynamicRoutes(): Array<RoutingItem> {

@@ -15,46 +15,28 @@ export interface RoutingItem {
 export function getRoutingItems(
   pages: string[],
   middleware: { page: string; ssr: boolean }[]
-): IterableIterator<RoutingItem> {
+): RoutingItem[] {
   // append the suffix so that `getSortedRoutes()` can handle middleware properly
   const middlewarePages = middleware.map((m) => `${m.page}${MIDDLEWARE_SUFFIX}`)
 
   const middlewareMap = new Map(middleware.map((m) => [m.page, m]))
   const sortedRoutes = getSortedRoutes([...pages, ...middlewarePages])
-  let i = 0
 
-  return {
-    [Symbol.iterator](): IterableIterator<RoutingItem> {
-      return this
-    },
-
-    next(): IteratorResult<RoutingItem> {
-      if (i >= sortedRoutes.length) {
-        return { done: true, value: null }
+  return sortedRoutes.map((page) => {
+    if (page.endsWith(MIDDLEWARE_SUFFIX)) {
+      const p = page.slice(0, -MIDDLEWARE_SUFFIX.length) || '/'
+      const { ssr } = middlewareMap.get(p)!
+      return {
+        match: getRouteMatcher(getMiddlewareRegex(p, !ssr)),
+        page: p,
+        ssr,
+        isMiddleware: true,
       }
-
-      const page = sortedRoutes[i++]
-      if (page.endsWith(MIDDLEWARE_SUFFIX)) {
-        const p = page.slice(0, -MIDDLEWARE_SUFFIX.length) || '/'
-        const { ssr } = middlewareMap.get(p)!
-        return {
-          done: false,
-          value: {
-            match: getRouteMatcher(getMiddlewareRegex(p, !ssr)),
-            page: p,
-            ssr,
-            isMiddleware: true,
-          },
-        }
-      } else {
-        return {
-          done: false,
-          value: {
-            match: getRouteMatcher(getRouteRegex(page)),
-            page,
-          },
-        }
+    } else {
+      return {
+        match: getRouteMatcher(getRouteRegex(page)),
+        page,
       }
-    },
-  }
+    }
+  })
 }

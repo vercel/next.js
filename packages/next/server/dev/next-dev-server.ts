@@ -298,7 +298,7 @@ export default class DevServer extends Server {
           routedPages.push(pageName)
         }
 
-        this.allRoutes = [...getRoutingItems(routedPages, routedMiddleware)]
+        this.allRoutes = getRoutingItems(routedPages, routedMiddleware)
         this.middleware = this.allRoutes.filter((r) => r.isMiddleware)
 
         try {
