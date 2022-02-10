@@ -730,7 +730,7 @@ describe('should set-up next', () => {
     expect($('#slug-page').text()).toBe('[slug] page')
   })
 
-  it.only('should copy and read .env file', async () => {
+  it('should copy and read .env file', async () => {
     const res = await fetchViaHTTP(appPort, '/api/env')
 
     const envVariables = await res.json()
