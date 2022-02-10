@@ -148,16 +148,25 @@ describe('Edge runtime - prod', () => {
 
   it('should generate middleware SSR manifests for edge runtime', async () => {
     const distServerDir = join(distDir, 'server')
-    const hasFile = (filename) => fs.existsSync(join(distServerDir, filename))
-
     const files = [
       'middleware-build-manifest.js',
       'middleware-flight-manifest.js',
       'middleware-ssr-runtime.js',
       'middleware-manifest.json',
     ]
+
+    const requiredServerFiles = (
+      await fs.readJSON(join(distDir, 'required-server-files.json'))
+    ).files
+
     files.forEach((file) => {
-      expect(hasFile(file)).toBe(true)
+      const filepath = join(distServerDir, file)
+      expect(fs.existsSync(filepath)).toBe(true)
+    })
+
+    requiredServerFiles.forEach((file) => {
+      const requiredFilePath = join(appDir, file)
+      expect(fs.existsSync(requiredFilePath)).toBe(true)
     })
   })
 
@@ -250,17 +259,25 @@ const nodejsRuntimeBasicSuite = {
     if (env === 'prod') {
       it('should generate middleware SSR manifests for Node.js', async () => {
         const distServerDir = join(distDir, 'server')
-        const hasFile = (filename) =>
-          fs.existsSync(join(distServerDir, filename))
+
+        const requiredServerFiles = (
+          await fs.readJSON(join(distDir, 'required-server-files.json'))
+        ).files
 
         const files = [
           'middleware-build-manifest.js',
           'middleware-flight-manifest.json',
           'middleware-manifest.json',
         ]
+
         files.forEach((file) => {
-          if (!hasFile(file)) console.log(file)
-          expect(hasFile(file)).toBe(true)
+          const filepath = join(distServerDir, file)
+          expect(fs.existsSync(filepath)).toBe(true)
+        })
+
+        requiredServerFiles.forEach((file) => {
+          const requiredFilePath = join(appDir, file)
+          expect(fs.existsSync(requiredFilePath)).toBe(true)
         })
       })
     }
