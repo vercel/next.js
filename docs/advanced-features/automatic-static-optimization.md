@@ -20,11 +20,13 @@ If the above is not the case, Next.js will **statically optimize** your page aut
 
 During prerendering, the router's `query` object will be empty since we do not have `query` information to provide during this phase. After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.
 
-The cases where the query will be updated after hydration triggering another render for an automatically statically optimized page are:
+The cases where the query will be updated after hydration triggering another render are:
 
-- The page has query values in the URL.
 - The page is a [dynamic-route](/docs/routing/dynamic-routes.md).
-- You have [rewrites](/docs/api-reference/next.config.js/rewrites.md) in your `next.config.js` since these can have parameters that may need to be parsed and provided in the `query`. 
+- The page has query values in the URL.
+- [Rewrites](/docs/api-reference/next.config.js/rewrites.md) are configured in your `next.config.js` since these can have parameters that may need to be parsed and provided in the `query`.
+
+To be able to distinguish if the query is fully updated and ready for use, you can leverage the `isReady` field on [`next/router`](/docs/api-reference/next/router.md#router-object).
 
 > **Note:** Parameters added with [dynamic routes](/docs/routing/dynamic-routes.md) to a page that's using [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) will always be available inside the `query` object.
 
