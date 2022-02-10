@@ -363,7 +363,7 @@ function createServerComponentRenderer(
     runtime,
   }: {
     cachePrefix: string
-    transformStream: TransformStream
+    transformStream: TransformStream<string, string>
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
     runtime: 'nodejs' | 'edge'
   }
@@ -474,8 +474,10 @@ export async function renderToHTML(
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
-  let serverComponentsInlinedTransformStream: TransformStream<any, any> | null =
-    null
+  let serverComponentsInlinedTransformStream: TransformStream<
+    string,
+    string
+  > | null = null
 
   if (isServerComponent) {
     serverComponentsInlinedTransformStream = new TransformStream()
@@ -1759,7 +1761,7 @@ function createBufferedTransformStream(): TransformStream<string, string> {
 
 function createFlushEffectStream(
   handleFlushEffect: () => Promise<string>
-): TransformStream {
+): TransformStream<string, string> {
   return createTransformStream({
     async transform(chunk, controller) {
       const extraChunk = await handleFlushEffect()
@@ -1797,7 +1799,7 @@ function renderToStream({
         // defer to a microtask to ensure `stream` is set.
         resolve(
           Promise.resolve().then(() => {
-            const transforms: Array<TransformStream> = [
+            const transforms: Array<TransformStream<string, string>> = [
               createBufferedTransformStream(),
               handleFlushEffect
                 ? createFlushEffectStream(handleFlushEffect)
