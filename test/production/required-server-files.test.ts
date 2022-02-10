@@ -19,7 +19,6 @@ describe('should set-up next', () => {
   let appPort
   let errors = []
   let requiredFilesManifest
-  const envPath = join(__dirname, 'required-server-files/.env')
 
   beforeAll(async () => {
     // test build against environment with next support
@@ -32,7 +31,13 @@ describe('should set-up next', () => {
         'data.txt': new FileRef(
           join(__dirname, 'required-server-files/data.txt')
         ),
-        '.env': new FileRef(envPath),
+        '.env': new FileRef(join(__dirname, 'required-server-files/.env')),
+        '.env.local': new FileRef(
+          join(__dirname, 'required-server-files/.env.local')
+        ),
+        '.env.production': new FileRef(
+          join(__dirname, 'required-server-files/.env.production')
+        ),
       },
       nextConfig: {
         eslint: {
@@ -725,12 +730,13 @@ describe('should set-up next', () => {
     expect($('#slug-page').text()).toBe('[slug] page')
   })
 
-  it('should copy and read .env file', async () => {
+  it.only('should copy and read .env file', async () => {
     const res = await fetchViaHTTP(appPort, '/api/env')
 
-    const envVariable = await res.text()
-    const envFromFile = fs.readFileSync(envPath).toString().split('=')[1]
+    const envVariables = await res.json()
 
-    expect(envFromFile).toBe(envVariable)
+    expect(envVariables.env).not.toBeUndefined()
+    expect(envVariables.envProd).not.toBeUndefined()
+    expect(envVariables.envLocal).toBeUndefined()
   })
 })
