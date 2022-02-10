@@ -4,6 +4,8 @@ Read about our [Commitment to Open Source](https://vercel.com/oss). To
 contribute to [our examples](examples), please see **[Adding
 examples](#adding-examples)** below.
 
+Before jumping into a PR be sure to search [existing PRs](https://github.com/vercel/next.js/pulls) or [issues](https://github.com/vercel/next.js/issues) for an open or closed item that relates to your submission.
+
 ## Developing
 
 The development branch is `canary`. This is the branch that all pull

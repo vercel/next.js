@@ -162,6 +162,58 @@ function urlTests(log, locale = '') {
 }
 
 function rewriteTests(log, locale = '') {
+  it('should override with rewrite internally correctly', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/about`,
+      { override: 'internal' },
+      { redirect: 'manual' }
+    )
+
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('Welcome Page A')
+
+    const browser = await webdriver(context.appPort, `${locale}/rewrites`)
+    await browser.elementByCss('#override-with-internal-rewrite').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /Welcome Page A/
+    )
+    expect(await browser.eval('window.location.pathname')).toBe(
+      `${locale || ''}/rewrites/about`
+    )
+    expect(await browser.eval('window.location.search')).toBe(
+      '?override=internal'
+    )
+  })
+
+  it('should override with rewrite externally correctly', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/about`,
+      { override: 'external' },
+      { redirect: 'manual' }
+    )
+
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('Vercel')
+
+    const browser = await webdriver(context.appPort, `${locale}/rewrites`)
+    await browser.elementByCss('#override-with-external-rewrite').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /Vercel/
+    )
+    await check(
+      () => browser.eval('window.location.pathname'),
+      `${locale || ''}/rewrites/about`
+    )
+    await check(
+      () => browser.eval('window.location.search'),
+      '?override=external'
+    )
+  })
+
   it('should rewrite to fallback: true page successfully', async () => {
     const randomSlug = `another-${Date.now()}`
     const res2 = await fetchViaHTTP(
