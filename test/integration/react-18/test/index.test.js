@@ -11,12 +11,11 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
+  fetchViaHTTP,
 } from 'next-test-utils'
 import blocking from './blocking'
 import concurrent from './concurrent'
 import basics from './basics'
-
-jest.setTimeout(1000 * 60 * 5)
 
 // overrides react and react-dom to v18
 const nodeArgs = ['-r', join(__dirname, 'require-hook.js')]
@@ -25,8 +24,6 @@ const nextConfig = new File(join(appDir, 'next.config.js'))
 const dynamicHello = new File(join(appDir, 'components/dynamic-hello.js'))
 const unwrappedPage = new File(join(appDir, 'pages/suspense/unwrapped.js'))
 
-const UNSUPPORTED_PRERELEASE =
-  "You are using an unsupported prerelease of 'react-dom'"
 const USING_CREATE_ROOT = 'Using the createRoot API for React'
 
 async function getBuildOutput(dir) {
@@ -59,25 +56,23 @@ async function getDevOutput(dir) {
 }
 
 describe('React 18 Support', () => {
-  describe('no warns with stable supported version of react-dom', () => {
+  describe('Use legacy render', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, 'node_modules'))
-      nextConfig.replace('reactRoot: true', '// reactRoot: true')
+      nextConfig.replace('reactRoot: true', 'reactRoot: false')
     })
     afterAll(() => {
-      nextConfig.replace('// reactRoot: true', 'reactRoot: true')
+      nextConfig.replace('reactRoot: false', 'reactRoot: true')
     })
 
     test('supported version of react in dev', async () => {
       const output = await getDevOutput(appDir)
       expect(output).not.toMatch(USING_CREATE_ROOT)
-      expect(output).not.toMatch(UNSUPPORTED_PRERELEASE)
     })
 
     test('supported version of react in build', async () => {
       const output = await getBuildOutput(appDir)
       expect(output).not.toMatch(USING_CREATE_ROOT)
-      expect(output).not.toMatch(UNSUPPORTED_PRERELEASE)
     })
 
     test('suspense is not allowed in blocking rendering mode (prod)', async () => {
@@ -89,32 +84,6 @@ describe('React 18 Support', () => {
       expect(stderr).toContain(
         'Invalid suspense option usage in next/dynamic. Read more: https://nextjs.org/docs/messages/invalid-dynamic-suspense'
       )
-    })
-  })
-
-  describe('warns with stable supported version of react-dom', () => {
-    beforeAll(async () => {
-      const reactDomPkgPath = join(
-        appDir,
-        'node_modules/react-dom/package.json'
-      )
-      await fs.outputJson(reactDomPkgPath, {
-        name: 'react-dom',
-        version: '18.0.0-alpha-c76e4dbbc-20210722',
-      })
-    })
-    afterAll(async () => await fs.remove(join(appDir, 'node_modules')))
-
-    test('prerelease version of react in dev', async () => {
-      const output = await getDevOutput(appDir)
-      expect(output).toMatch(USING_CREATE_ROOT)
-      expect(output).toMatch(UNSUPPORTED_PRERELEASE)
-    })
-
-    test('prerelease version of react in build', async () => {
-      const output = await getBuildOutput(appDir)
-      expect(output).toMatch(USING_CREATE_ROOT)
-      expect(output).toMatch(UNSUPPORTED_PRERELEASE)
     })
   })
 })
@@ -145,17 +114,14 @@ describe('Blocking mode', () => {
     dynamicHello.restore()
   })
 
-  runTests('concurrentFeatures is disabled', (context) =>
+  runTests('`runtime` is disabled', (context) =>
     blocking(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   )
 })
 
-describe('Concurrent mode', () => {
+describe('Concurrent mode in the edge runtime', () => {
   beforeAll(async () => {
-    nextConfig.replace(
-      '// concurrentFeatures: true',
-      'concurrentFeatures: true'
-    )
+    nextConfig.replace("// runtime: 'edge'", "runtime: 'edge'")
     dynamicHello.replace('suspense = false', `suspense = true`)
     // `noSSR` mode will be ignored by suspense
     dynamicHello.replace('let ssr', `let ssr = false`)
@@ -165,9 +131,43 @@ describe('Concurrent mode', () => {
     dynamicHello.restore()
   })
 
-  runTests('concurrentFeatures is enabled', (context) =>
+  runTests('`runtime` is set to `edge`', (context) => {
     concurrent(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  )
+
+    it('should stream to users', async () => {
+      const res = await fetchViaHTTP(context.appPort, '/ssr')
+      expect(res.headers.get('etag')).toBeNull()
+    })
+
+    it('should not stream to bots', async () => {
+      const res = await fetchViaHTTP(
+        context.appPort,
+        '/ssr',
+        {},
+        {
+          headers: {
+            'user-agent': 'Googlebot',
+          },
+        }
+      )
+      expect(res.headers.get('etag')).toBeDefined()
+    })
+
+    it('should not stream to google pagerender bot', async () => {
+      const res = await fetchViaHTTP(
+        context.appPort,
+        '/ssr',
+        {},
+        {
+          headers: {
+            'user-agent':
+              'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36 Google-PageRenderer Google (+https://developers.google.com/+/web/snippet/)',
+          },
+        }
+      )
+      expect(res.headers.get('etag')).toBeDefined()
+    })
+  })
 })
 
 function runTest(mode, name, fn) {
@@ -175,14 +175,21 @@ function runTest(mode, name, fn) {
   describe(`${name} (${mode})`, () => {
     beforeAll(async () => {
       context.appPort = await findPort()
+      context.stderr = ''
       if (mode === 'dev') {
         context.server = await launchApp(context.appDir, context.appPort, {
           nodeArgs,
+          onStderr(msg) {
+            context.stderr += msg
+          },
         })
       } else {
         await nextBuild(context.appDir, [], { nodeArgs })
         context.server = await nextStart(context.appDir, context.appPort, {
           nodeArgs,
+          onStderr(msg) {
+            context.stderr += msg
+          },
         })
       }
     })

@@ -1,12 +1,14 @@
-import chalk from 'chalk'
+import type { NextConfig } from '../server/config'
+
+import chalk from './chalk'
 import { parse as parseUrl } from 'url'
-import { NextConfig } from '../server/config'
 import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
-import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
+import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
   PERMANENT_REDIRECT_STATUS,
   TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
+import isError from './is-error'
 
 export type RouteHas =
   | {
@@ -156,9 +158,9 @@ function tryParsePath(route: string, handleUrl?: boolean): ParseAttemptResult {
     result.regexStr = regex.source
   } catch (err) {
     // If there is an error show our error link but still show original error or a formatted one if we can
-    const errMatches = err.message.match(/at (\d{0,})/)
+    let errMatches
 
-    if (errMatches) {
+    if (isError(err) && (errMatches = err.message.match(/at (\d{0,})/))) {
       const position = parseInt(errMatches[1], 10)
       console.error(
         `\nError parsing \`${route}\` ` +

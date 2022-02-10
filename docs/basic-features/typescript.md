@@ -19,7 +19,7 @@ experience out of the box, similar to an IDE.
 You can create a TypeScript project with [`create-next-app`](https://nextjs.org/docs/api-reference/create-next-app) using the `--ts, --typescript` flag like so:
 
 ```
-npx create-next-app --ts
+npx create-next-app@latest --ts
 # or
 yarn create next-app --typescript
 ```
@@ -35,7 +35,11 @@ touch tsconfig.json
 
 Next.js will automatically configure this file with default values. Providing your own `tsconfig.json` with custom [compiler options](https://www.typescriptlang.org/docs/handbook/compiler-options.html) is also supported.
 
-> Next.js uses Babel to handle TypeScript, which has some [caveats](https://babeljs.io/docs/en/babel-plugin-transform-typescript#caveats), and some [compiler options are handled differently](https://babeljs.io/docs/en/babel-plugin-transform-typescript#typescript-compiler-options).
+You can also provide a relative path to a tsconfig.json file by setting `typescript.tsconfigPath` prop inside your `next.config.js` file.
+
+Starting in `v12.0.0`, Next.js uses [SWC](https://nextjs.org/docs/advanced-features/compiler) by default to compile TypeScript and TSX for faster builds.
+
+> Next.js will use Babel to handle TypeScript if `.babelrc` is present. This has some [caveats](https://babeljs.io/docs/en/babel-plugin-transform-typescript#caveats) and some [compiler options are handled differently](https://babeljs.io/docs/en/babel-plugin-transform-typescript#typescript-compiler-options).
 
 Then, run `next` (normally `npm run dev` or `yarn dev`) and Next.js will guide you through the installation of the required packages to finish the setup:
 
@@ -44,14 +48,14 @@ npm run dev
 
 # You'll see instructions like these:
 #
-# Please install typescript, @types/react, and @types/node by running:
+# Please install TypeScript, @types/react, and @types/node by running:
 #
 #         yarn add --dev typescript @types/react @types/node
 #
 # ...
 ```
 
-You're now ready to start converting files from `.js` to `.tsx` and leveraging the benefits of TypeScript!.
+You're now ready to start converting files from `.js` to `.tsx` and leveraging the benefits of TypeScript!
 
 > A file named `next-env.d.ts` will be created in the root of your project. This file ensures Next.js types are picked up by the TypeScript compiler. **You cannot remove it or edit it** as it can change at any time.
 
@@ -83,7 +87,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 }
 ```
 
-> If you're using `getInitialProps`, you can [follow the directions on this page](/docs/api-reference/data-fetching/getInitialProps.md#typescript).
+> If you're using `getInitialProps`, you can [follow the directions on this page](/docs/api-reference/data-fetching/get-initial-props.md#typescript).
 
 ## API Routes
 

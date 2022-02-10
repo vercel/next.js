@@ -5,7 +5,6 @@ import { nextBuild } from 'next-test-utils'
 import fs from 'fs'
 const appDir = join(__dirname, '../')
 const profileEventsPath = join(appDir, '.next', 'profile-events.json')
-jest.setTimeout(1000 * 60 * 5)
 
 // TODO: Make profiling experimental flag work with webpack 5
 describe.skip('Profiling Usage', () => {

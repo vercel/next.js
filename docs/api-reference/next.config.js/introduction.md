@@ -4,7 +4,7 @@ description: learn more about the configuration file used by Next.js to handle y
 
 # next.config.js
 
-For custom advanced behavior of Next.js, you can create a `next.config.js` in the root of your project directory (next to `package.json`).
+For custom advanced configuration of Next.js, you can create a `next.config.js` or `next.config.mjs` file in the root of your project directory (next to `package.json`).
 
 `next.config.js` is a regular Node.js module, not a JSON file. It gets used by the Next.js server and build phases, and it's not included in the browser build.
 
@@ -21,6 +21,19 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
+If you need [ECMAScript modules](https://nodejs.org/api/esm.html), you can use `next.config.mjs`:
+
+```js
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  /* config options here */
+}
+
+export default nextConfig
+```
+
 You can also use a function:
 
 ```js
@@ -35,7 +48,21 @@ module.exports = (phase, { defaultConfig }) => {
 }
 ```
 
-`phase` is the current context in which the configuration is loaded. You can see the [available phases](https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/constants.ts#L1-L4). Phases can be imported from `next/constants`:
+Since Next.js 12.0.10, you can use an async function:
+
+```js
+module.exports = async (phase, { defaultConfig }) => {
+  /**
+   * @type {import('next').NextConfig}
+   */
+  const nextConfig = {
+    /* config options here */
+  }
+  return nextConfig
+}
+```
+
+`phase` is the current context in which the configuration is loaded. You can see the [available phases](https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/constants.ts#L1-L5). Phases can be imported from `next/constants`:
 
 ```js
 const { PHASE_DEVELOPMENT_SERVER } = require('next/constants')

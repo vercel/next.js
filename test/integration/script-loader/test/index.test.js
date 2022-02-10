@@ -12,8 +12,6 @@ import {
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 
-jest.setTimeout(1000 * 60 * 5)
-
 let appDir = join(__dirname, '..')
 let server
 let appPort
@@ -74,7 +72,10 @@ describe('Script Loader', () => {
 
       const logs = await browser.log('browser')
       const filteredLogs = logs.filter(
-        (log) => !log.message.includes('Failed to load resource')
+        (log) =>
+          !log.message.includes('Failed to load resource') &&
+          !log.message === 'error' &&
+          !log.message === 'Event'
       )
       expect(filteredLogs.length).toBe(0)
 

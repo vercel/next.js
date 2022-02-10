@@ -4,8 +4,6 @@ import { findPort, killApp, launchApp, renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 import waitPort from 'wait-port'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
 
 let appPort

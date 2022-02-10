@@ -3,8 +3,6 @@
 import { join } from 'path'
 import { launchApp, nextBuild } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
 const expectedErr =
   /Webpack config is undefined. You may have forgot to return properly from within the "webpack" method of your next.config.js/

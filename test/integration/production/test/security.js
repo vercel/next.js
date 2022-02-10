@@ -2,8 +2,9 @@
 /* global browserName */
 import webdriver from 'next-webdriver'
 import { readFileSync } from 'fs'
+import http from 'http'
 import url from 'url'
-import { join, resolve as resolvePath } from 'path'
+import { join } from 'path'
 import {
   renderViaHTTP,
   getBrowserBodyText,
@@ -27,6 +28,32 @@ async function checkInjected(browser) {
 
 module.exports = (context) => {
   describe('With Security Related Issues', () => {
+    it('should handle invalid URL properly', async () => {
+      async function invalidRequest() {
+        return new Promise((resolve, reject) => {
+          const request = http.request(
+            {
+              hostname: `localhost`,
+              port: context.appPort,
+              path: `*`,
+            },
+            (response) => {
+              resolve(response.statusCode)
+            }
+          )
+          request.on('error', (err) => reject(err))
+          request.end()
+        })
+      }
+      try {
+        expect(await invalidRequest()).toBe(400)
+        expect(await invalidRequest()).toBe(400)
+      } catch (err) {
+        // eslint-disable-next-line
+        expect(err.code).toBe('ECONNREFUSED')
+      }
+    })
+
     it('should only access files inside .next directory', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
 
@@ -88,8 +115,9 @@ module.exports = (context) => {
             `Found the user's home directory in: ${buildFile}, ${homeDir}\n\n${content}`
           )
         }
-
-        const checkPathProject = resolvePath(__dirname, ...Array(5).fill('..'))
+        // TODO: this checks the monorepo's path currently, we should check
+        // the Next.js apps directory instead once using isolated next
+        const checkPathProject = join(__dirname, ...Array(4).fill('..'))
         if (
           content.includes(checkPathProject) ||
           (process.platform.match(/win/) &&
@@ -234,60 +262,6 @@ module.exports = (context) => {
       expect(query).toBe(
         'url=https%3A%2F%2Fgoogle.com%2Fimage%3Fcrop%3Dfocalpoint%26w%3D24&w=1200&q=100'
       )
-    })
-
-    it('should handle encoded value in the pathname correctly /', async () => {
-      const res = await fetchViaHTTP(
-        context.appPort,
-        '/redirect/me/to-about/%2fgoogle.com',
-        undefined,
-        {
-          redirect: 'manual',
-        }
-      )
-
-      const { pathname, hostname } = url.parse(
-        res.headers.get('location') || ''
-      )
-      expect(res.status).toBe(307)
-      expect(pathname).toBe('/%2fgoogle.com/about')
-      expect(hostname).not.toBe('google.com')
-    })
-
-    it('should handle encoded value in the pathname to query correctly (/)', async () => {
-      const res = await fetchViaHTTP(
-        context.appPort,
-        '/redirect-query-test/%2Fgoogle.com',
-        undefined,
-        {
-          redirect: 'manual',
-        }
-      )
-
-      const { pathname, hostname, query } = url.parse(
-        res.headers.get('location') || ''
-      )
-      expect(res.status).toBe(307)
-      expect(pathname).toBe('/about')
-      expect(query).toBe('foo=%2Fgoogle.com')
-      expect(hostname).not.toBe('google.com')
-      expect(hostname).not.toMatch(/google/)
-    })
-
-    it('should handle encoded / value for trailing slash correctly', async () => {
-      const res = await fetchViaHTTP(
-        context.appPort,
-        '/%2fexample.com/',
-        undefined,
-        { redirect: 'manual' }
-      )
-
-      const { pathname, hostname } = url.parse(
-        res.headers.get('location') || ''
-      )
-      expect(res.status).toBe(308)
-      expect(pathname).toBe('/%2fexample.com')
-      expect(hostname).not.toBe('example.com')
     })
 
     it('should handle encoded value in the pathname correctly /', async () => {

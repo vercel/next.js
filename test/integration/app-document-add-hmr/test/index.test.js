@@ -5,11 +5,8 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { killApp, findPort, launchApp, check } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
 const appPage = join(appDir, 'pages/_app.js')
-const indexPage = join(appDir, 'pages/index.js')
 const documentPage = join(appDir, 'pages/_document.js')
 
 let appPort
@@ -23,10 +20,8 @@ describe('_app/_document add HMR', () => {
   afterAll(() => killApp(app))
 
   it('should HMR when _app is added', async () => {
-    let indexContent = await fs.readFile(indexPage)
+    const browser = await webdriver(appPort, '/')
     try {
-      const browser = await webdriver(appPort, '/')
-
       const html = await browser.eval('document.documentElement.innerHTML')
       expect(html).not.toContain('custom _app')
       expect(html).toContain('index page')
@@ -52,16 +47,19 @@ describe('_app/_document add HMR', () => {
           : html
       }, 'success')
     } finally {
-      await fs.writeFile(indexPage, indexContent)
       await fs.remove(appPage)
+      await check(async () => {
+        const html = await browser.eval('document.documentElement.innerHTML')
+        return !html.includes('custom _app') && html.includes('index page')
+          ? 'restored'
+          : html
+      }, 'restored')
     }
   })
 
   it('should HMR when _document is added', async () => {
-    let indexContent = await fs.readFile(indexPage)
+    const browser = await webdriver(appPort, '/')
     try {
-      const browser = await webdriver(appPort, '/')
-
       const html = await browser.eval('document.documentElement.innerHTML')
       expect(html).not.toContain('custom _document')
       expect(html).toContain('index page')
@@ -103,8 +101,13 @@ describe('_app/_document add HMR', () => {
           : html
       }, 'success')
     } finally {
-      await fs.writeFile(indexPage, indexContent)
       await fs.remove(documentPage)
+      await check(async () => {
+        const html = await browser.eval('document.documentElement.innerHTML')
+        return !html.includes('custom _document') && html.includes('index page')
+          ? 'restored'
+          : html
+      }, 'restored')
     }
   })
 })

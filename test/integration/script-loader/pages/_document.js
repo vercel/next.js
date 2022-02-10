@@ -1,6 +1,6 @@
 import * as React from 'react'
 /// @ts-ignore
-import Document, { Main, NextScript, Head } from 'next/document'
+import Document, { Main, NextScript, Head, Html } from 'next/document'
 
 export default class MyDocument extends Document {
   constructor(props) {
@@ -13,7 +13,7 @@ export default class MyDocument extends Document {
 
   render() {
     return (
-      <html>
+      <Html>
         <Head>
           <link
             rel="stylesheet"
@@ -25,7 +25,7 @@ export default class MyDocument extends Document {
           <NextScript />
           <div id="text" />
         </body>
-      </html>
+      </Html>
     )
   }
 }

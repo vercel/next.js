@@ -1,10 +1,10 @@
-import Image from 'next/image'
+import ContentfulImage from './contentful-image'
 import Link from 'next/link'
 import cn from 'classnames'
 
 export default function CoverImage({ title, url, slug }) {
   const image = (
-    <Image
+    <ContentfulImage
       width={2000}
       height={1000}
       alt={`Cover Image for ${title}`}

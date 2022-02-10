@@ -44,7 +44,7 @@ export async function createApp({
 
     try {
       repoUrl = new URL(example)
-    } catch (error) {
+    } catch (error: any) {
       if (error.code !== 'ERR_INVALID_URL') {
         console.error(error)
         process.exit(1)
@@ -158,7 +158,16 @@ export async function createApp({
         })
       }
     } catch (reason) {
-      throw new DownloadError(reason)
+      function isErrorLike(err: unknown): err is { message: string } {
+        return (
+          typeof err === 'object' &&
+          err !== null &&
+          typeof (err as { message?: unknown }).message === 'string'
+        )
+      }
+      throw new DownloadError(
+        isErrorLike(reason) ? reason.message : reason + ''
+      )
     }
     // Copy our default `.gitignore` if the application did not provide one
     const ignorePath = path.join(root, '.gitignore')

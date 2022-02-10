@@ -6,10 +6,8 @@ import path from 'path'
 
 const cli = require.resolve('create-next-app/dist/index.js')
 
-const exampleRepo = 'https://github.com/vercel/next-learn-starter/tree/master'
-const examplePath = 'navigate-between-pages-starter'
-
-jest.setTimeout(1000 * 60 * 5)
+const exampleRepo = 'https://github.com/vercel/next.js/tree/canary'
+const examplePath = 'examples/basic-css'
 
 const run = (args, options) => execa('node', [cli].concat(args), options)
 
@@ -378,7 +376,7 @@ describe('create next app', () => {
           projectName,
           '--use-npm',
           '--example',
-          'https://github.com/vercel/next-learn-starter/tree/master/learn-starter',
+          `${exampleRepo}/${examplePath}`,
         ],
         { cwd }
       )

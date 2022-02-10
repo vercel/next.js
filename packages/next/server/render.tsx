@@ -1,11 +1,9 @@
 import { IncomingMessage, ServerResponse } from 'http'
-import { ParsedUrlQuery } from 'querystring'
-import { PassThrough } from 'stream'
+import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import React from 'react'
-import * as ReactDOMServer from 'react-dom/server'
-import flush from 'styled-jsx/server'
-import Observable from 'next/dist/compiled/zen-observable'
-import { warn } from '../build/output/log'
+import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
+import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
+import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import {
   GSP_NO_RETURNED_VALUE,
@@ -22,7 +20,6 @@ import { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
 import { isInAmpMode } from '../shared/lib/amp'
 import { AmpStateContext } from '../shared/lib/amp-context'
 import {
-  BODY_RENDER_TARGET,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
   STATIC_STATUS_PAGES,
@@ -31,7 +28,6 @@ import { defaultHead } from '../shared/lib/head'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import Loadable from '../shared/lib/loadable'
 import { LoadableContext } from '../shared/lib/loadable-context'
-import postProcess from '../shared/lib/post-process'
 import { RouterContext } from '../shared/lib/router-context'
 import { NextRouter } from '../shared/lib/router/router'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
@@ -40,6 +36,7 @@ import {
   ComponentsEnhancer,
   DocumentInitialProps,
   DocumentProps,
+  DocumentContext,
   HtmlContext,
   HtmlProps,
   getDisplayName,
@@ -49,23 +46,43 @@ import {
   RenderPage,
   RenderPageResult,
 } from '../shared/lib/utils'
-import {
-  tryGetPreviewData,
-  NextApiRequestCookies,
-  __ApiPreviewProps,
-} from './api-utils'
+import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
 import { denormalizePagePath } from './denormalize-page-path'
-import { FontManifest, getFontDefinitionFromManifest } from './font-utils'
-import { LoadComponentsReturnType, ManifestItem } from './load-components'
+import type { FontManifest } from './font-utils'
+import type { LoadComponentsReturnType, ManifestItem } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
-import optimizeAmp from './optimize-amp'
+import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
 import {
   allowedStatusCodes,
   getRedirectStatus,
   Redirect,
 } from '../lib/load-custom-routes'
 import { DomainLocale } from './config'
-import { mergeResults, RenderResult, resultsToString } from './utils'
+import RenderResult from './render-result'
+import isError from '../lib/is-error'
+import { readableStreamTee } from './web/utils'
+import { ImageConfigContext } from '../shared/lib/image-config-context'
+import { ImageConfigComplete } from './image-config'
+
+let optimizeAmp: typeof import('./optimize-amp').default
+let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
+let tryGetPreviewData: typeof import('./api-utils').tryGetPreviewData
+let warn: typeof import('../build/output/log').warn
+let postProcess: typeof import('../shared/lib/post-process').default
+
+const DOCTYPE = '<!DOCTYPE html>'
+
+if (!process.browser) {
+  require('./node-polyfill-web-streams')
+  optimizeAmp = require('./optimize-amp').default
+  getFontDefinitionFromManifest =
+    require('./font-utils').getFontDefinitionFromManifest
+  tryGetPreviewData = require('./api-utils').tryGetPreviewData
+  warn = require('../build/output/log').warn
+  postProcess = require('../shared/lib/post-process').default
+} else {
+  warn = console.warn.bind(console)
+}
 
 function noRouter() {
   const message =
@@ -162,6 +179,21 @@ function enhanceComponents(
   }
 }
 
+function renderFlight(
+  App: AppType,
+  Component: React.ComponentType,
+  props: any
+) {
+  const AppServer = (App as any).__next_rsc__
+    ? (App as React.ComponentType)
+    : React.Fragment
+  return (
+    <AppServer>
+      <Component {...props} />
+    </AppServer>
+  )
+}
+
 export type RenderOptsPartial = {
   buildId: string
   canonicalBase: string
@@ -188,15 +220,22 @@ export type RenderOptsPartial = {
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
+  serverComponentManifest?: any
+  renderServerComponentData?: boolean
+  serverComponentProps?: any
   distDir?: string
   locale?: string
   locales?: string[]
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
-  requireStaticHTML?: boolean
-  concurrentFeatures?: boolean
+  supportsDynamicHTML?: boolean
+  runtime?: 'nodejs' | 'edge'
+  serverComponents?: boolean
   customServer?: boolean
+  crossOrigin?: string
+  images: ImageConfigComplete
+  reactRoot: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -258,11 +297,135 @@ function checkRedirectValues(
   }
 }
 
+const rscCache = new Map()
+
+function createRSCHook() {
+  const decoder = new TextDecoder()
+  const encoder = new TextEncoder()
+
+  return (
+    writable: WritableStream,
+    id: string,
+    req: ReadableStream,
+    bootstrap: boolean
+  ) => {
+    let entry = rscCache.get(id)
+    if (!entry) {
+      const [renderStream, forwardStream] = readableStreamTee(req)
+      entry = createFromReadableStream(renderStream)
+      rscCache.set(id, entry)
+
+      let bootstrapped = false
+      const forwardReader = forwardStream.getReader()
+      const writer = writable.getWriter()
+      function process() {
+        forwardReader.read().then(({ done, value }) => {
+          if (bootstrap && !bootstrapped) {
+            bootstrapped = true
+            writer.write(
+              encoder.encode(
+                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
+                  [0, id]
+                )})</script>`
+              )
+            )
+          }
+          if (done) {
+            rscCache.delete(id)
+            writer.close()
+          } else {
+            writer.write(
+              encoder.encode(
+                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
+                  [1, id, decoder.decode(value)]
+                )})</script>`
+              )
+            )
+            process()
+          }
+        })
+      }
+      process()
+    }
+    return entry
+  }
+}
+
+const useRSCResponse = createRSCHook()
+
+// Create the wrapper component for a Flight stream.
+function createServerComponentRenderer(
+  App: AppType,
+  OriginalComponent: React.ComponentType,
+  {
+    cachePrefix,
+    transformStream,
+    serverComponentManifest,
+    runtime,
+  }: {
+    cachePrefix: string
+    transformStream: TransformStream
+    serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
+    runtime: 'nodejs' | 'edge'
+  }
+) {
+  if (runtime === 'nodejs') {
+    // For the nodejs runtime, we need to expose the `__webpack_require__` API
+    // globally for react-server-dom-webpack.
+    // This is a hack until we find a better way.
+    // @ts-ignore
+    globalThis.__webpack_require__ = OriginalComponent.__webpack_require__
+  }
+
+  const writable = transformStream.writable
+  const ServerComponentWrapper = (props: any) => {
+    const id = (React as any).useId()
+    const reqStream = renderToReadableStream(
+      renderFlight(App, OriginalComponent, props),
+      serverComponentManifest
+    )
+
+    const response = useRSCResponse(
+      writable,
+      cachePrefix + ',' + id,
+      reqStream,
+      true
+    )
+    const root = response.readRoot()
+    rscCache.delete(id)
+    return root
+  }
+
+  const Component = (props: any) => {
+    return (
+      <React.Suspense fallback={null}>
+        <ServerComponentWrapper {...props} />
+      </React.Suspense>
+    )
+  }
+
+  // Although it's not allowed to attach some static methods to Component,
+  // we still re-assign all the component APIs to keep the behavior unchanged.
+  for (const methodName of [
+    'getInitialProps',
+    'getStaticProps',
+    'getServerSideProps',
+    'getStaticPaths',
+  ]) {
+    const method = (OriginalComponent as any)[methodName]
+    if (method) {
+      ;(Component as any)[methodName] = method
+    }
+  }
+
+  return Component
+}
+
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
   pathname: string,
-  query: ParsedUrlQuery,
+  query: NextParsedUrlQuery,
   renderOpts: RenderOpts
 ): Promise<RenderResult | null> {
   // In dev we invalidate the cache by appending a timestamp to the resource URL.
@@ -282,7 +445,6 @@ export async function renderToHTML(
     App,
     Document,
     pageConfig = {},
-    Component,
     buildManifest,
     fontManifest,
     reactLoadableManifest,
@@ -290,20 +452,50 @@ export async function renderToHTML(
     getStaticProps,
     getStaticPaths,
     getServerSideProps,
+    serverComponentManifest,
+    serverComponentProps,
     isDataReq,
     params,
     previewProps,
     basePath,
     devOnlyCacheBusterQueryString,
-    requireStaticHTML,
-    concurrentFeatures,
+    supportsDynamicHTML,
+    images,
+    reactRoot,
+    runtime,
   } = renderOpts
+
+  const hasConcurrentFeatures = !!runtime
+
+  const isServerComponent = !!serverComponentManifest && hasConcurrentFeatures
+  const OriginalComponent = renderOpts.Component
+
+  let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
+    renderOpts.Component
+  let serverComponentsInlinedTransformStream: TransformStream<any, any> | null =
+    null
+
+  if (isServerComponent) {
+    serverComponentsInlinedTransformStream = new TransformStream()
+    Component = createServerComponentRenderer(App, OriginalComponent, {
+      cachePrefix: pathname + '?' + stringifyQuery(query),
+      transformStream: serverComponentsInlinedTransformStream,
+      serverComponentManifest,
+      runtime,
+    })
+  }
 
   const getFontDefinition = (url: string): string => {
     if (fontManifest) {
       return getFontDefinitionFromManifest(url, fontManifest)
     }
     return ''
+  }
+
+  let { renderServerComponentData } = renderOpts
+  if (isServerComponent && query.__flight__) {
+    renderServerComponentData = true
+    delete query.__flight__
   }
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
@@ -348,7 +540,8 @@ export async function renderToHTML(
     !hasPageGetInitialProps &&
     defaultAppGetInitialProps &&
     !isSSG &&
-    !getServerSideProps
+    !getServerSideProps &&
+    !hasConcurrentFeatures
 
   for (const methodName of [
     'getStaticProps',
@@ -397,7 +590,7 @@ export async function renderToHTML(
   let asPath: string = renderOpts.resolvedAsPath || (req.url as string)
 
   if (dev) {
-    const { isValidElementType } = require('react-is')
+    const { isValidElementType } = require('next/dist/compiled/react-is')
     if (!isValidElementType(Component)) {
       throw new Error(
         `The default export is not a React Component in page: "${pathname}"`
@@ -452,7 +645,7 @@ export async function renderToHTML(
   let isPreview
   let previewData: PreviewData
 
-  if ((isSSG || getServerSideProps) && !isFallback) {
+  if ((isSSG || getServerSideProps) && !isFallback && !process.browser) {
     // Reads of this are cached on the `req` object, so this should resolve
     // instantly. There's no need to pass this data down from a previous
     // invoke, where we'd have to consider server & serverless.
@@ -480,8 +673,9 @@ export async function renderToHTML(
     renderOpts.defaultLocale,
     renderOpts.domainLocales,
     isPreview,
-    (req as any).__nextIsLocaleDomain
+    getRequestMeta(req, '__nextIsLocaleDomain')
   )
+  const jsxStyleRegistry = createStyleRegistry()
   const ctx = {
     err,
     req: isAutoExport ? undefined : req,
@@ -494,10 +688,22 @@ export async function renderToHTML(
     defaultLocale: renderOpts.defaultLocale,
     AppTree: (props: any) => {
       return (
-        <AppContainer>
+        <AppContainerWithIsomorphicFiberStructure>
           <App {...props} Component={Component} router={router} />
-        </AppContainer>
+        </AppContainerWithIsomorphicFiberStructure>
       )
+    },
+    defaultGetInitialProps: async (
+      docCtx: DocumentContext,
+      options: { nonce?: string } = {}
+    ): Promise<DocumentInitialProps> => {
+      const enhanceApp = (AppComp: any) => {
+        return (props: any) => <AppComp {...props} />
+      }
+
+      const { html, head } = await docCtx.renderPage({ enhanceApp })
+      const styles = jsxStyleRegistry.styles({ nonce: options.nonce })
+      return { html, head, styles }
     },
   }
   let props: any
@@ -508,7 +714,8 @@ export async function renderToHTML(
     hybrid: pageConfig.amp === 'hybrid',
   }
 
-  const inAmpMode = isInAmpMode(ampState)
+  // Disable AMP under the web environment
+  const inAmpMode = !process.browser && isInAmpMode(ampState)
 
   const reactLoadableModules: string[] = []
 
@@ -536,297 +743,360 @@ export async function renderToHTML(
           <LoadableContext.Provider
             value={(moduleName) => reactLoadableModules.push(moduleName)}
           >
-            {children}
+            <StyleRegistry registry={jsxStyleRegistry}>
+              <ImageConfigContext.Provider value={images}>
+                {children}
+              </ImageConfigContext.Provider>
+            </StyleRegistry>
           </LoadableContext.Provider>
         </HeadManagerContext.Provider>
       </AmpStateContext.Provider>
     </RouterContext.Provider>
   )
 
-  try {
-    props = await loadGetInitialProps(App, {
-      AppTree: ctx.AppTree,
-      Component,
-      router,
-      ctx,
-    })
+  // The `useId` API uses the path indexes to generate an ID for each node.
+  // To guarantee the match of hydration, we need to ensure that the structure
+  // of wrapper nodes is isomorphic in server and client.
+  // TODO: With `enhanceApp` and `enhanceComponents` options, this approach may
+  // not be useful.
+  // https://github.com/facebook/react/pull/22644
+  const Noop = () => null
+  const AppContainerWithIsomorphicFiberStructure: React.FC<{
+    children: JSX.Element
+  }> = ({ children }) => {
+    return (
+      <>
+        {/* <Head/> */}
+        <Noop />
+        <AppContainer>
+          <>
+            {/* <ReactDevOverlay/> */}
+            {dev ? (
+              <>
+                {children}
+                <Noop />
+              </>
+            ) : (
+              children
+            )}
+            {/* <RouteAnnouncer/> */}
+            <Noop />
+          </>
+        </AppContainer>
+      </>
+    )
+  }
 
-    if ((isSSG || getServerSideProps) && isPreview) {
-      props.__N_PREVIEW = true
+  props = await loadGetInitialProps(App, {
+    AppTree: ctx.AppTree,
+    Component,
+    router,
+    ctx,
+  })
+
+  if ((isSSG || getServerSideProps) && isPreview) {
+    props.__N_PREVIEW = true
+  }
+
+  if (isSSG) {
+    props[STATIC_PROPS_ID] = true
+  }
+
+  if (isSSG && !isFallback) {
+    let data: UnwrapPromise<ReturnType<GetStaticProps>>
+
+    try {
+      data = await getStaticProps!({
+        ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
+        ...(isPreview
+          ? { preview: true, previewData: previewData }
+          : undefined),
+        locales: renderOpts.locales,
+        locale: renderOpts.locale,
+        defaultLocale: renderOpts.defaultLocale,
+      })
+    } catch (staticPropsError: any) {
+      // remove not found error code to prevent triggering legacy
+      // 404 rendering
+      if (staticPropsError && staticPropsError.code === 'ENOENT') {
+        delete staticPropsError.code
+      }
+      throw staticPropsError
     }
 
-    if (isSSG) {
-      props[STATIC_PROPS_ID] = true
+    if (data == null) {
+      throw new Error(GSP_NO_RETURNED_VALUE)
     }
 
-    if (isSSG && !isFallback) {
-      let data: UnwrapPromise<ReturnType<GetStaticProps>>
+    const invalidKeys = Object.keys(data).filter(
+      (key) =>
+        key !== 'revalidate' &&
+        key !== 'props' &&
+        key !== 'redirect' &&
+        key !== 'notFound'
+    )
 
-      try {
-        data = await getStaticProps!({
-          ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
-          ...(isPreview
-            ? { preview: true, previewData: previewData }
-            : undefined),
-          locales: renderOpts.locales,
-          locale: renderOpts.locale,
-          defaultLocale: renderOpts.defaultLocale,
-        })
-      } catch (staticPropsError) {
-        // remove not found error code to prevent triggering legacy
-        // 404 rendering
-        if (staticPropsError.code === 'ENOENT') {
-          delete staticPropsError.code
-        }
-        throw staticPropsError
-      }
+    if (invalidKeys.includes('unstable_revalidate')) {
+      throw new Error(UNSTABLE_REVALIDATE_RENAME_ERROR)
+    }
 
-      if (data == null) {
-        throw new Error(GSP_NO_RETURNED_VALUE)
-      }
+    if (invalidKeys.length) {
+      throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
+    }
 
-      const invalidKeys = Object.keys(data).filter(
-        (key) =>
-          key !== 'revalidate' &&
-          key !== 'props' &&
-          key !== 'redirect' &&
-          key !== 'notFound'
-      )
-
-      if (invalidKeys.includes('unstable_revalidate')) {
-        throw new Error(UNSTABLE_REVALIDATE_RENAME_ERROR)
-      }
-
-      if (invalidKeys.length) {
-        throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
-      }
-
-      if (process.env.NODE_ENV !== 'production') {
-        if (
-          typeof (data as any).notFound !== 'undefined' &&
-          typeof (data as any).redirect !== 'undefined'
-        ) {
-          throw new Error(
-            `\`redirect\` and \`notFound\` can not both be returned from ${
-              isSSG ? 'getStaticProps' : 'getServerSideProps'
-            } at the same time. Page: ${pathname}\nSee more info here: https://nextjs.org/docs/messages/gssp-mixed-not-found-redirect`
-          )
-        }
-      }
-
-      if ('notFound' in data && data.notFound) {
-        if (pathname === '/404') {
-          throw new Error(
-            `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
-          )
-        }
-
-        ;(renderOpts as any).isNotFound = true
-      }
-
+    if (process.env.NODE_ENV !== 'production') {
       if (
-        'redirect' in data &&
-        data.redirect &&
-        typeof data.redirect === 'object'
+        typeof (data as any).notFound !== 'undefined' &&
+        typeof (data as any).redirect !== 'undefined'
       ) {
-        checkRedirectValues(data.redirect as Redirect, req, 'getStaticProps')
-
-        if (isBuildTimeSSG) {
-          throw new Error(
-            `\`redirect\` can not be returned from getStaticProps during prerendering (${req.url})\n` +
-              `See more info here: https://nextjs.org/docs/messages/gsp-redirect-during-prerender`
-          )
-        }
-
-        ;(data as any).props = {
-          __N_REDIRECT: data.redirect.destination,
-          __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
-        }
-        if (typeof data.redirect.basePath !== 'undefined') {
-          ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
-        }
-        ;(renderOpts as any).isRedirect = true
-      }
-
-      if (
-        (dev || isBuildTimeSSG) &&
-        !(renderOpts as any).isNotFound &&
-        !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
-      ) {
-        // this fn should throw an error instead of ever returning `false`
         throw new Error(
-          'invariant: getStaticProps did not return valid props. Please report this.'
+          `\`redirect\` and \`notFound\` can not both be returned from ${
+            isSSG ? 'getStaticProps' : 'getServerSideProps'
+          } at the same time. Page: ${pathname}\nSee more info here: https://nextjs.org/docs/messages/gssp-mixed-not-found-redirect`
+        )
+      }
+    }
+
+    if ('notFound' in data && data.notFound) {
+      if (pathname === '/404') {
+        throw new Error(
+          `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
         )
       }
 
-      if ('revalidate' in data) {
-        if (typeof data.revalidate === 'number') {
-          if (!Number.isInteger(data.revalidate)) {
-            throw new Error(
-              `A page's revalidate option must be seconds expressed as a natural number for ${req.url}. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
-                `\nTry changing the value to '${Math.ceil(
-                  data.revalidate
-                )}' or using \`Math.ceil()\` if you're computing the value.`
-            )
-          } else if (data.revalidate <= 0) {
-            throw new Error(
-              `A page's revalidate option can not be less than or equal to zero for ${req.url}. A revalidate option of zero means to revalidate after _every_ request, and implies stale data cannot be tolerated.` +
-                `\n\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).` +
-                `\nTo revalidate as soon as possible, you can set the value to \`1\`.`
-            )
-          } else if (data.revalidate > 31536000) {
-            // if it's greater than a year for some reason error
-            console.warn(
-              `Warning: A page's revalidate option was set to more than a year for ${req.url}. This may have been done in error.` +
-                `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
-            )
-          }
-        } else if (data.revalidate === true) {
-          // When enabled, revalidate after 1 second. This value is optimal for
-          // the most up-to-date page possible, but without a 1-to-1
-          // request-refresh ratio.
-          data.revalidate = 1
-        } else if (
-          data.revalidate === false ||
-          typeof data.revalidate === 'undefined'
-        ) {
-          // By default, we never revalidate.
-          data.revalidate = false
-        } else {
+      ;(renderOpts as any).isNotFound = true
+    }
+
+    if (
+      'redirect' in data &&
+      data.redirect &&
+      typeof data.redirect === 'object'
+    ) {
+      checkRedirectValues(data.redirect as Redirect, req, 'getStaticProps')
+
+      if (isBuildTimeSSG) {
+        throw new Error(
+          `\`redirect\` can not be returned from getStaticProps during prerendering (${req.url})\n` +
+            `See more info here: https://nextjs.org/docs/messages/gsp-redirect-during-prerender`
+        )
+      }
+
+      ;(data as any).props = {
+        __N_REDIRECT: data.redirect.destination,
+        __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
+      }
+      if (typeof data.redirect.basePath !== 'undefined') {
+        ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
+      }
+      ;(renderOpts as any).isRedirect = true
+    }
+
+    if (
+      (dev || isBuildTimeSSG) &&
+      !(renderOpts as any).isNotFound &&
+      !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
+    ) {
+      // this fn should throw an error instead of ever returning `false`
+      throw new Error(
+        'invariant: getStaticProps did not return valid props. Please report this.'
+      )
+    }
+
+    if ('revalidate' in data) {
+      if (typeof data.revalidate === 'number') {
+        if (!Number.isInteger(data.revalidate)) {
           throw new Error(
-            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers and strings cannot be used. Received '${JSON.stringify(
-              data.revalidate
-            )}' for ${req.url}`
+            `A page's revalidate option must be seconds expressed as a natural number for ${req.url}. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
+              `\nTry changing the value to '${Math.ceil(
+                data.revalidate
+              )}' or using \`Math.ceil()\` if you're computing the value.`
+          )
+        } else if (data.revalidate <= 0) {
+          throw new Error(
+            `A page's revalidate option can not be less than or equal to zero for ${req.url}. A revalidate option of zero means to revalidate after _every_ request, and implies stale data cannot be tolerated.` +
+              `\n\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).` +
+              `\nTo revalidate as soon as possible, you can set the value to \`1\`.`
+          )
+        } else if (data.revalidate > 31536000) {
+          // if it's greater than a year for some reason error
+          console.warn(
+            `Warning: A page's revalidate option was set to more than a year for ${req.url}. This may have been done in error.` +
+              `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
           )
         }
-      } else {
+      } else if (data.revalidate === true) {
+        // When enabled, revalidate after 1 second. This value is optimal for
+        // the most up-to-date page possible, but without a 1-to-1
+        // request-refresh ratio.
+        data.revalidate = 1
+      } else if (
+        data.revalidate === false ||
+        typeof data.revalidate === 'undefined'
+      ) {
         // By default, we never revalidate.
-        ;(data as any).revalidate = false
+        data.revalidate = false
+      } else {
+        throw new Error(
+          `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers and strings cannot be used. Received '${JSON.stringify(
+            data.revalidate
+          )}' for ${req.url}`
+        )
       }
-
-      props.pageProps = Object.assign(
-        {},
-        props.pageProps,
-        'props' in data ? data.props : undefined
-      )
-
-      // pass up revalidate and props for export
-      // TODO: change this to a different passing mechanism
-      ;(renderOpts as any).revalidate =
-        'revalidate' in data ? data.revalidate : undefined
-      ;(renderOpts as any).pageData = props
-
-      // this must come after revalidate is added to renderOpts
-      if ((renderOpts as any).isNotFound) {
-        return null
-      }
+    } else {
+      // By default, we never revalidate.
+      ;(data as any).revalidate = false
     }
 
-    if (getServerSideProps) {
-      props[SERVER_PROPS_ID] = true
+    props.pageProps = Object.assign(
+      {},
+      props.pageProps,
+      'props' in data ? data.props : undefined
+    )
+
+    // pass up revalidate and props for export
+    // TODO: change this to a different passing mechanism
+    ;(renderOpts as any).revalidate =
+      'revalidate' in data ? data.revalidate : undefined
+    ;(renderOpts as any).pageData = props
+
+    // this must come after revalidate is added to renderOpts
+    if ((renderOpts as any).isNotFound) {
+      return null
+    }
+  }
+
+  if (getServerSideProps) {
+    props[SERVER_PROPS_ID] = true
+  }
+
+  if (getServerSideProps && !isFallback) {
+    let data: UnwrapPromise<ReturnType<GetServerSideProps>>
+
+    let canAccessRes = true
+    let resOrProxy = res
+    let deferredContent = false
+    if (process.env.NODE_ENV !== 'production') {
+      resOrProxy = new Proxy<ServerResponse>(res, {
+        get: function (obj, prop, receiver) {
+          if (!canAccessRes) {
+            const message =
+              `You should not access 'res' after getServerSideProps resolves.` +
+              `\nRead more: https://nextjs.org/docs/messages/gssp-no-mutating-res`
+
+            if (deferredContent) {
+              throw new Error(message)
+            } else {
+              warn(message)
+            }
+          }
+          const value = Reflect.get(obj, prop, receiver)
+
+          // since ServerResponse uses internal fields which
+          // proxy can't map correctly we need to ensure functions
+          // are bound correctly while being proxied
+          if (typeof value === 'function') {
+            return value.bind(obj)
+          }
+          return value
+        },
+      })
     }
 
-    if (getServerSideProps && !isFallback) {
-      let data: UnwrapPromise<ReturnType<GetServerSideProps>>
-
-      try {
-        data = await getServerSideProps({
-          req: req as IncomingMessage & {
-            cookies: NextApiRequestCookies
-          },
-          res,
-          query,
-          resolvedUrl: renderOpts.resolvedUrl as string,
-          ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
-          ...(previewData !== false
-            ? { preview: true, previewData: previewData }
-            : undefined),
-          locales: renderOpts.locales,
-          locale: renderOpts.locale,
-          defaultLocale: renderOpts.defaultLocale,
-        })
-      } catch (serverSidePropsError) {
-        // remove not found error code to prevent triggering legacy
-        // 404 rendering
-        if (serverSidePropsError.code === 'ENOENT') {
-          delete serverSidePropsError.code
-        }
-        throw serverSidePropsError
-      }
-
-      if (data == null) {
-        throw new Error(GSSP_NO_RETURNED_VALUE)
-      }
-
-      const invalidKeys = Object.keys(data).filter(
-        (key) => key !== 'props' && key !== 'redirect' && key !== 'notFound'
-      )
-
-      if ((data as any).unstable_notFound) {
-        throw new Error(
-          `unstable_notFound has been renamed to notFound, please update the field to continue. Page: ${pathname}`
-        )
-      }
-      if ((data as any).unstable_redirect) {
-        throw new Error(
-          `unstable_redirect has been renamed to redirect, please update the field to continue. Page: ${pathname}`
-        )
-      }
-
-      if (invalidKeys.length) {
-        throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
-      }
-
-      if ('notFound' in data && data.notFound) {
-        if (pathname === '/404') {
-          throw new Error(
-            `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
-          )
-        }
-
-        ;(renderOpts as any).isNotFound = true
-        return null
-      }
-
-      if ('redirect' in data && typeof data.redirect === 'object') {
-        checkRedirectValues(
-          data.redirect as Redirect,
-          req,
-          'getServerSideProps'
-        )
-        ;(data as any).props = {
-          __N_REDIRECT: data.redirect.destination,
-          __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
-        }
-        if (typeof data.redirect.basePath !== 'undefined') {
-          ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
-        }
-        ;(renderOpts as any).isRedirect = true
-      }
-
-      if ((data as any).props instanceof Promise) {
-        ;(data as any).props = await (data as any).props
-      }
-
+    try {
+      data = await getServerSideProps({
+        req: req as IncomingMessage & {
+          cookies: NextApiRequestCookies
+        },
+        res: resOrProxy,
+        query,
+        resolvedUrl: renderOpts.resolvedUrl as string,
+        ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
+        ...(previewData !== false
+          ? { preview: true, previewData: previewData }
+          : undefined),
+        locales: renderOpts.locales,
+        locale: renderOpts.locale,
+        defaultLocale: renderOpts.defaultLocale,
+      })
+      canAccessRes = false
+    } catch (serverSidePropsError: any) {
+      // remove not found error code to prevent triggering legacy
+      // 404 rendering
       if (
-        (dev || isBuildTimeSSG) &&
-        !isSerializableProps(
-          pathname,
-          'getServerSideProps',
-          (data as any).props
-        )
+        isError(serverSidePropsError) &&
+        serverSidePropsError.code === 'ENOENT'
       ) {
-        // this fn should throw an error instead of ever returning `false`
+        delete serverSidePropsError.code
+      }
+      throw serverSidePropsError
+    }
+
+    if (data == null) {
+      throw new Error(GSSP_NO_RETURNED_VALUE)
+    }
+
+    if ((data as any).props instanceof Promise) {
+      deferredContent = true
+    }
+
+    const invalidKeys = Object.keys(data).filter(
+      (key) => key !== 'props' && key !== 'redirect' && key !== 'notFound'
+    )
+
+    if ((data as any).unstable_notFound) {
+      throw new Error(
+        `unstable_notFound has been renamed to notFound, please update the field to continue. Page: ${pathname}`
+      )
+    }
+    if ((data as any).unstable_redirect) {
+      throw new Error(
+        `unstable_redirect has been renamed to redirect, please update the field to continue. Page: ${pathname}`
+      )
+    }
+
+    if (invalidKeys.length) {
+      throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
+    }
+
+    if ('notFound' in data && data.notFound) {
+      if (pathname === '/404') {
         throw new Error(
-          'invariant: getServerSideProps did not return valid props. Please report this.'
+          `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
         )
       }
 
-      props.pageProps = Object.assign({}, props.pageProps, (data as any).props)
-      ;(renderOpts as any).pageData = props
+      ;(renderOpts as any).isNotFound = true
+      return null
     }
-  } catch (dataFetchError) {
-    throw dataFetchError
+
+    if ('redirect' in data && typeof data.redirect === 'object') {
+      checkRedirectValues(data.redirect as Redirect, req, 'getServerSideProps')
+      ;(data as any).props = {
+        __N_REDIRECT: data.redirect.destination,
+        __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
+      }
+      if (typeof data.redirect.basePath !== 'undefined') {
+        ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
+      }
+      ;(renderOpts as any).isRedirect = true
+    }
+
+    if (deferredContent) {
+      ;(data as any).props = await (data as any).props
+    }
+
+    if (
+      (dev || isBuildTimeSSG) &&
+      !isSerializableProps(pathname, 'getServerSideProps', (data as any).props)
+    ) {
+      // this fn should throw an error instead of ever returning `false`
+      throw new Error(
+        'invariant: getServerSideProps did not return valid props. Please report this.'
+      )
+    }
+
+    props.pageProps = Object.assign({}, props.pageProps, (data as any).props)
+    ;(renderOpts as any).pageData = props
   }
 
   if (
@@ -844,7 +1114,7 @@ export async function renderToHTML(
   // Avoid rendering page un-necessarily for getServerSideProps data request
   // and getServerSideProps/getStaticProps redirects
   if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
-    return Observable.of(JSON.stringify(props))
+    return RenderResult.fromStatic(JSON.stringify(props))
   }
 
   // We don't call getStaticProps or getServerSideProps while generating
@@ -853,8 +1123,26 @@ export async function renderToHTML(
     props.pageProps = {}
   }
 
+  // Pass router to the Server Component as a temporary workaround.
+  if (isServerComponent) {
+    props.pageProps = Object.assign({}, props.pageProps, { router })
+  }
+
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSSG) return null
+
+  if (renderServerComponentData) {
+    const stream: ReadableStream = renderToReadableStream(
+      renderFlight(App, OriginalComponent, {
+        ...props.pageProps,
+        ...serverComponentProps,
+      }),
+      serverComponentManifest
+    )
+    return new RenderResult(
+      pipeThrough(stream, createBufferedTransformStream())
+    )
+  }
 
   // we preload the buildManifest for auto-export dynamic pages
   // to speed up hydrating query values
@@ -883,62 +1171,38 @@ export async function renderToHTML(
     }
   }
 
-  const generateStaticHTML = requireStaticHTML || inAmpMode
-  const renderToStream = (element: React.ReactElement) =>
-    new Promise<RenderResult>((resolve, reject) => {
-      const stream = new PassThrough()
-      let resolved = false
-      const doResolve = () => {
-        if (!resolved) {
-          resolved = true
+  const Body = ({ children }: { children: JSX.Element }) => {
+    return inAmpMode ? children : <div id="__next">{children}</div>
+  }
 
-          resolve(
-            new Observable((observer) => {
-              stream.on('data', (chunk) => {
-                observer.next(chunk.toString('utf-8'))
-              })
-              stream.once('end', () => {
-                observer.complete()
-              })
+  const ReactDOMServer = reactRoot
+    ? require('react-dom/server.browser')
+    : require('react-dom/server')
 
-              startWriting()
-              return () => {
-                abort()
-              }
-            })
-          )
-        }
-      }
-
-      const { abort, startWriting } = (
-        ReactDOMServer as any
-      ).pipeToNodeWritable(element, stream, {
-        onError(error: Error) {
-          if (!resolved) {
-            resolved = true
-            reject(error)
-          }
-          abort()
-        },
-        onReadyToStream() {
-          if (!generateStaticHTML) {
-            doResolve()
-          }
-        },
-        onCompleteAll() {
-          doResolve()
-        },
-      })
-    }).then(multiplexResult)
-
+  /**
+   * Rules of Static & Dynamic HTML:
+   *
+   *    1.) We must generate static HTML unless the caller explicitly opts
+   *        in to dynamic HTML support.
+   *
+   *    2.) If dynamic HTML support is requested, we must honor that request
+   *        or throw an error. It is the sole responsibility of the caller to
+   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+   *
+   * These rules help ensure that other existing features like request caching,
+   * coalescing, and ISR continue working as intended.
+   */
+  const generateStaticHTML = supportsDynamicHTML !== true
   const renderDocument = async () => {
-    if (Document.getInitialProps) {
+    if (!runtime && Document.getInitialProps) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
       ): RenderPageResult | Promise<RenderPageResult> => {
         if (ctx.err && ErrorDebug) {
           const html = ReactDOMServer.renderToString(
-            <ErrorDebug error={ctx.err} />
+            <Body>
+              <ErrorDebug error={ctx.err} />
+            </Body>
           )
           return { html, head }
         }
@@ -953,13 +1217,15 @@ export async function renderToHTML(
           enhanceComponents(options, App, Component)
 
         const html = ReactDOMServer.renderToString(
-          <AppContainer>
-            <EnhancedApp
-              Component={EnhancedComponent}
-              router={router}
-              {...props}
-            />
-          </AppContainer>
+          <Body>
+            <AppContainerWithIsomorphicFiberStructure>
+              <EnhancedApp
+                Component={EnhancedComponent}
+                router={router}
+                {...props}
+              />
+            </AppContainerWithIsomorphicFiberStructure>
+          </Body>
         )
         return { html, head }
       }
@@ -979,7 +1245,8 @@ export async function renderToHTML(
       }
 
       return {
-        bodyResult: Observable.of(docProps.html),
+        bodyResult: (suffix: string) =>
+          streamFromArray([docProps.html, suffix]),
         documentElement: (htmlProps: HtmlProps) => (
           <Document {...htmlProps} {...docProps} />
         ),
@@ -988,25 +1255,56 @@ export async function renderToHTML(
         styles: docProps.styles,
       }
     } else {
-      const content =
-        ctx.err && ErrorDebug ? (
-          <ErrorDebug error={ctx.err} />
+      let bodyResult
+
+      const renderContent = () => {
+        return ctx.err && ErrorDebug ? (
+          <Body>
+            <ErrorDebug error={ctx.err} />
+          </Body>
         ) : (
-          <AppContainer>
-            <App {...props} Component={Component} router={router} />
-          </AppContainer>
+          <Body>
+            <AppContainerWithIsomorphicFiberStructure>
+              {renderOpts.serverComponents && (App as any).__next_rsc__ ? (
+                <Component {...props.pageProps} router={router} />
+              ) : (
+                <App {...props} Component={Component} router={router} />
+              )}
+            </AppContainerWithIsomorphicFiberStructure>
+          </Body>
         )
-      const bodyResult = concurrentFeatures
-        ? await renderToStream(content)
-        : Observable.of(ReactDOMServer.renderToString(content))
+      }
+
+      if (reactRoot) {
+        bodyResult = async (suffix: string) => {
+          // this must be called inside bodyResult so appWrappers is
+          // up to date when getWrappedApp is called
+
+          const content = renderContent()
+          return await renderToStream(
+            ReactDOMServer,
+            content,
+            suffix,
+            serverComponentsInlinedTransformStream?.readable ??
+              streamFromArray([]),
+            generateStaticHTML || !hasConcurrentFeatures
+          )
+        }
+      } else {
+        const content = renderContent()
+        // for non-concurrent rendering we need to ensure App is rendered
+        // before _document so that updateHead is called/collected before
+        // rendering _document's head
+        const result = ReactDOMServer.renderToString(content)
+        bodyResult = (suffix: string) => streamFromArray([result, suffix])
+      }
 
       return {
         bodyResult,
         documentElement: () => (Document as any)(),
         head,
         headTags: [],
-        // TODO: Experimental styled-jsx 5 support
-        styles: [...flush()],
+        styles: jsxStyleRegistry.styles(),
       }
     }
   }
@@ -1031,8 +1329,8 @@ export async function renderToHTML(
   }
 
   const hybridAmp = ampState.hybrid
-
   const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
+
   const {
     assetPrefix,
     buildId,
@@ -1044,7 +1342,7 @@ export async function renderToHTML(
     locales,
     runtimeConfig,
   } = renderOpts
-  const htmlProps: any = {
+  const htmlProps: HtmlProps = {
     __NEXT_DATA__: {
       props, // The result of getInitialProps
       page: pathname, // The rendered page
@@ -1062,6 +1360,7 @@ export async function renderToHTML(
       err: renderOpts.err ? serializeError(dev, renderOpts.err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
       gsp: !!getStaticProps ? true : undefined, // whether the page is getStaticProps
       gssp: !!getServerSideProps ? true : undefined, // whether the page is getServerSideProps
+      rsc: isServerComponent ? true : undefined, // whether the page is a server components page
       customServer, // whether the user is using a custom server
       gip: hasPageGetInitialProps ? true : undefined, // whether the page has getInitialProps
       appGip: !defaultAppGetInitialProps ? true : undefined, // whether the _app has getInitialProps
@@ -1075,7 +1374,7 @@ export async function renderToHTML(
     docComponentsRendered,
     dangerousAsPath: router.asPath,
     canonicalBase:
-      !renderOpts.ampPath && (req as any).__nextStrippedLocale
+      !renderOpts.ampPath && getRequestMeta(req, '__nextStrippedLocale')
         ? `${renderOpts.canonicalBase || ''}/${renderOpts.locale}`
         : renderOpts.canonicalBase,
     ampPath,
@@ -1095,16 +1394,37 @@ export async function renderToHTML(
     locale,
     disableOptimizedLoading,
     head: documentResult.head,
-    headTags: documentResult?.headTags,
+    headTags: documentResult.headTags,
     styles: documentResult.styles,
+    useMaybeDeferContent,
+    crossOrigin: renderOpts.crossOrigin,
+    optimizeCss: renderOpts.optimizeCss,
+    optimizeFonts: renderOpts.optimizeFonts,
+    optimizeImages: renderOpts.optimizeImages,
+    runtime,
   }
-  const documentHTML = ReactDOMServer.renderToStaticMarkup(
+
+  const document = (
     <AmpStateContext.Provider value={ampState}>
       <HtmlContext.Provider value={htmlProps}>
         {documentResult.documentElement(htmlProps)}
       </HtmlContext.Provider>
     </AmpStateContext.Provider>
   )
+
+  let documentHTML: string
+  if (hasConcurrentFeatures) {
+    const documentStream = await renderToStream(
+      ReactDOMServer,
+      document,
+      null,
+      streamFromArray([]),
+      true
+    )
+    documentHTML = await streamToString(documentStream)
+  } else {
+    documentHTML = ReactDOMServer.renderToStaticMarkup(document)
+  }
 
   if (process.env.NODE_ENV !== 'production') {
     const nonRenderedComponents = []
@@ -1115,13 +1435,13 @@ export async function renderToHTML(
         nonRenderedComponents.push(comp)
       }
     }
-    const plural = nonRenderedComponents.length !== 1 ? 's' : ''
 
     if (nonRenderedComponents.length) {
       const missingComponentList = nonRenderedComponents
         .map((e) => `<${e} />`)
         .join(', ')
-      warn(
+      const plural = nonRenderedComponents.length !== 1 ? 's' : ''
+      console.warn(
         `Your custom Document (pages/_document) did not render all the required subcomponent${plural}.\n` +
           `Missing component${plural}: ${missingComponentList}\n` +
           'Read how to fix here: https://nextjs.org/docs/messages/missing-document-component'
@@ -1129,22 +1449,23 @@ export async function renderToHTML(
     }
   }
 
-  let results: Array<RenderResult> = []
-  const renderTargetIdx = documentHTML.indexOf(BODY_RENDER_TARGET)
-  results.push(
-    Observable.of(
-      '<!DOCTYPE html>' + documentHTML.substring(0, renderTargetIdx)
-    )
+  const [renderTargetPrefix, renderTargetSuffix] = documentHTML.split(
+    '<next-js-internal-body-render-target></next-js-internal-body-render-target>'
   )
-  if (inAmpMode) {
-    results.push(Observable.of('<!-- __NEXT_DATA__ -->'))
+
+  const prefix: Array<string> = []
+  if (!documentHTML.startsWith(DOCTYPE)) {
+    prefix.push(DOCTYPE)
   }
-  results.push(documentResult.bodyResult)
-  results.push(
-    Observable.of(
-      documentHTML.substring(renderTargetIdx + BODY_RENDER_TARGET.length)
-    )
-  )
+  prefix.push(renderTargetPrefix)
+  if (inAmpMode) {
+    prefix.push('<!-- __NEXT_DATA__ -->')
+  }
+
+  let streams: Array<ReadableStream> = [
+    streamFromArray(prefix),
+    await documentResult.bodyResult(renderTargetSuffix),
+  ]
 
   const postProcessors: Array<((html: string) => Promise<string>) | null> = (
     generateStaticHTML
@@ -1158,8 +1479,9 @@ export async function renderToHTML(
                 return html
               }
             : null,
-          process.env.__NEXT_OPTIMIZE_FONTS ||
-          process.env.__NEXT_OPTIMIZE_IMAGES
+          !process.browser &&
+          (process.env.__NEXT_OPTIMIZE_FONTS ||
+            process.env.__NEXT_OPTIMIZE_IMAGES)
             ? async (html: string) => {
                 return await postProcess(
                   html,
@@ -1171,7 +1493,7 @@ export async function renderToHTML(
                 )
               }
             : null,
-          renderOpts.optimizeCss
+          !process.browser && renderOpts.optimizeCss
             ? async (html: string) => {
                 // eslint-disable-next-line import/no-extraneous-dependencies
                 const Critters = require('critters')
@@ -1196,70 +1518,26 @@ export async function renderToHTML(
       : []
   ).filter(Boolean)
 
-  if (postProcessors.length > 0) {
-    let html = await resultsToString(results)
+  if (generateStaticHTML || postProcessors.length > 0) {
+    let html = await streamToString(chainStreams(streams))
     for (const postProcessor of postProcessors) {
       if (postProcessor) {
         html = await postProcessor(html)
       }
     }
-    results = [Observable.of(html)]
+    return new RenderResult(html)
   }
 
-  return mergeResults(results)
+  return new RenderResult(chainStreams(streams))
 }
 
-function multiplexResult(result: RenderResult): RenderResult {
-  const chunks: Array<string> = []
-  const subscribers: Set<ZenObservable.SubscriptionObserver<string>> = new Set()
-  let terminator:
-    | ((subscriber: ZenObservable.SubscriptionObserver<string>) => void)
-    | null = null
-
-  result.subscribe({
-    next(chunk) {
-      chunks.push(chunk)
-      subscribers.forEach((subscriber) => subscriber.next(chunk))
-    },
-    error(error) {
-      if (!terminator) {
-        terminator = (subscriber) => subscriber.error(error)
-        subscribers.forEach(terminator)
-        subscribers.clear()
-      }
-    },
-    complete() {
-      if (!terminator) {
-        terminator = (subscriber) => subscriber.complete()
-        subscribers.forEach(terminator)
-        subscribers.clear()
-      }
-    },
-  })
-
-  return new Observable((observer) => {
-    for (const chunk of chunks) {
-      if (observer.closed) {
-        return
-      }
-      observer.next(chunk)
-    }
-
-    if (terminator) {
-      terminator(observer)
-      return
-    }
-
-    subscribers.add(observer)
-    return () => {
-      subscribers.delete(observer)
-    }
-  })
-}
-
-function errorToJSON(err: Error): Error {
-  const { name, message, stack } = err
-  return { name, message, stack }
+function errorToJSON(err: Error) {
+  return {
+    name: err.name,
+    message: err.message,
+    stack: err.stack,
+    middleware: (err as any).middleware,
+  }
 }
 
 function serializeError(
@@ -1275,4 +1553,320 @@ function serializeError(
     message: '500 - Internal Server Error.',
     statusCode: 500,
   }
+}
+
+function createTransformStream({
+  flush,
+  transform,
+}: {
+  flush?: (controller: TransformStreamDefaultController) => Promise<void> | void
+  transform?: (
+    chunk: Uint8Array,
+    controller: TransformStreamDefaultController
+  ) => void
+}): TransformStream {
+  const source = new TransformStream()
+  const sink = new TransformStream()
+  const reader = source.readable.getReader()
+  const writer = sink.writable.getWriter()
+
+  const controller = {
+    enqueue(chunk: Uint8Array) {
+      writer.write(chunk)
+    },
+
+    error(reason: Error) {
+      writer.abort(reason)
+      reader.cancel()
+    },
+
+    terminate() {
+      writer.close()
+      reader.cancel()
+    },
+
+    get desiredSize() {
+      return writer.desiredSize
+    },
+  }
+
+  ;(async () => {
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+
+        if (done) {
+          const maybePromise = flush?.(controller)
+          if (maybePromise) {
+            await maybePromise
+          }
+          writer.close()
+          return
+        }
+
+        if (transform) {
+          transform(value, controller)
+        } else {
+          controller.enqueue(value)
+        }
+      }
+    } catch (err) {
+      writer.abort(err)
+    }
+  })()
+
+  return {
+    readable: sink.readable,
+    writable: source.writable,
+  }
+}
+
+function createBufferedTransformStream(): TransformStream {
+  const decoder = new TextDecoder()
+  const encoder = new TextEncoder()
+
+  let bufferedString = ''
+  let pendingFlush: Promise<void> | null = null
+
+  const flushBuffer = (controller: TransformStreamDefaultController) => {
+    if (!pendingFlush) {
+      pendingFlush = new Promise((resolve) => {
+        setTimeout(() => {
+          controller.enqueue(encoder.encode(bufferedString))
+          bufferedString = ''
+          pendingFlush = null
+          resolve()
+        }, 0)
+      })
+    }
+    return pendingFlush
+  }
+
+  return createTransformStream({
+    transform(chunk, controller) {
+      bufferedString += decoder.decode(chunk)
+      flushBuffer(controller)
+    },
+
+    flush() {
+      if (pendingFlush) {
+        return pendingFlush
+      }
+    },
+  })
+}
+
+function renderToStream(
+  ReactDOMServer: typeof import('react-dom/server'),
+  element: React.ReactElement,
+  suffix: string | null,
+  dataStream: ReadableStream,
+  generateStaticHTML: boolean
+): Promise<ReadableStream> {
+  return new Promise((resolve, reject) => {
+    let resolved = false
+
+    const closeTagString = '</body></html>'
+    const encoder = new TextEncoder()
+    const suffixState = suffix
+      ? {
+          closeTag: encoder.encode(closeTagString),
+          suffixUnclosed: encoder.encode(suffix.split(closeTagString)[0]),
+        }
+      : null
+
+    const doResolve = () => {
+      if (!resolved) {
+        resolved = true
+
+        // React will call our callbacks synchronously, so we need to
+        // defer to a microtask to ensure `stream` is set.
+        Promise.resolve().then(() =>
+          resolve(
+            pipeThrough(
+              pipeThrough(
+                pipeThrough(stream, createBufferedTransformStream()),
+                createInlineDataStream(
+                  pipeThrough(
+                    dataStream,
+                    createPrefixStream(suffixState?.suffixUnclosed ?? null)
+                  )
+                )
+              ),
+              createSuffixStream(suffixState?.closeTag ?? null)
+            )
+          )
+        )
+      }
+    }
+
+    const stream: ReadableStream = (
+      ReactDOMServer as any
+    ).renderToReadableStream(element, {
+      onError(err: Error) {
+        if (!resolved) {
+          resolved = true
+          reject(err)
+        }
+      },
+      onCompleteShell() {
+        if (!generateStaticHTML) {
+          doResolve()
+        }
+      },
+      onCompleteAll() {
+        doResolve()
+      },
+    })
+  })
+}
+
+function createSuffixStream(suffix: Uint8Array | null) {
+  return createTransformStream({
+    flush(controller) {
+      if (suffix) {
+        controller.enqueue(suffix)
+      }
+    },
+  })
+}
+
+function createPrefixStream(prefix: Uint8Array | null) {
+  let prefixFlushed = false
+  return createTransformStream({
+    transform(chunk, controller) {
+      if (!prefixFlushed && prefix) {
+        prefixFlushed = true
+        controller.enqueue(prefix)
+      }
+      controller.enqueue(chunk)
+    },
+    flush(controller) {
+      if (!prefixFlushed && prefix) {
+        prefixFlushed = true
+        controller.enqueue(prefix)
+      }
+    },
+  })
+}
+
+function createInlineDataStream(
+  dataStream: ReadableStream | null
+): TransformStream {
+  let dataStreamFinished: Promise<void> | null = null
+  return createTransformStream({
+    transform(chunk, controller) {
+      controller.enqueue(chunk)
+
+      if (!dataStreamFinished && dataStream) {
+        const dataStreamReader = dataStream.getReader()
+        dataStreamFinished = (async () => {
+          try {
+            while (true) {
+              const { done, value } = await dataStreamReader.read()
+              if (done) {
+                return
+              }
+              controller.enqueue(value)
+            }
+          } catch (err) {
+            controller.error(err)
+          }
+        })()
+      }
+    },
+    flush() {
+      if (dataStreamFinished) {
+        return dataStreamFinished
+      }
+    },
+  })
+}
+
+function pipeTo(
+  readable: ReadableStream,
+  writable: WritableStream,
+  options?: { preventClose: boolean }
+) {
+  let resolver: () => void
+  const promise = new Promise<void>((resolve) => (resolver = resolve))
+
+  const reader = readable.getReader()
+  const writer = writable.getWriter()
+  function process() {
+    reader.read().then(({ done, value }) => {
+      if (done) {
+        if (options?.preventClose) {
+          writer.releaseLock()
+        } else {
+          writer.close()
+        }
+        resolver()
+      } else {
+        writer.write(value)
+        process()
+      }
+    })
+  }
+  process()
+  return promise
+}
+
+function pipeThrough(
+  readable: ReadableStream,
+  transformStream: TransformStream
+) {
+  pipeTo(readable, transformStream.writable)
+  return transformStream.readable
+}
+
+function chainStreams(streams: ReadableStream[]): ReadableStream {
+  const { readable, writable } = new TransformStream()
+
+  let promise = Promise.resolve()
+  for (let i = 0; i < streams.length; ++i) {
+    promise = promise.then(() =>
+      pipeTo(streams[i], writable, {
+        preventClose: i + 1 < streams.length,
+      })
+    )
+  }
+
+  return readable
+}
+
+function streamFromArray(strings: string[]): ReadableStream {
+  const encoder = new TextEncoder()
+  const chunks = Array.from(strings.map((str) => encoder.encode(str)))
+
+  return new ReadableStream({
+    start(controller) {
+      chunks.forEach((chunk) => controller.enqueue(chunk))
+      controller.close()
+    },
+  })
+}
+
+async function streamToString(stream: ReadableStream): Promise<string> {
+  const reader = stream.getReader()
+  const decoder = new TextDecoder()
+
+  let bufferedString = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+
+    if (done) {
+      return bufferedString
+    }
+
+    bufferedString += decoder.decode(value)
+  }
+}
+
+export function useMaybeDeferContent(
+  _name: string,
+  contentFn: () => JSX.Element
+): [boolean, JSX.Element] {
+  return [false, contentFn()]
 }

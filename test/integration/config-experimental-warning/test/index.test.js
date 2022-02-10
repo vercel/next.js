@@ -3,7 +3,6 @@
 import { join } from 'path'
 import { nextBuild, File } from 'next-test-utils'
 
-jest.setTimeout(1000 * 30)
 const appDir = join(__dirname, '..')
 const configFile = new File(join(appDir, '/next.config.js'))
 

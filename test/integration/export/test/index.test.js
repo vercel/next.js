@@ -20,8 +20,6 @@ import { promises } from 'fs'
 import dynamic from './dynamic'
 import apiRoutes from './api-routes'
 
-jest.setTimeout(1000 * 60 * 5)
-
 const { access, mkdir, writeFile } = promises
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')

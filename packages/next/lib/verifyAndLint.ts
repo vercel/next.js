@@ -1,11 +1,12 @@
-import chalk from 'chalk'
-import { Worker } from 'jest-worker'
+import chalk from 'next/dist/compiled/chalk'
+import { Worker } from 'next/dist/compiled/jest-worker'
 import { existsSync } from 'fs'
 import { join } from 'path'
 import { ESLINT_DEFAULT_DIRS } from './constants'
 import { Telemetry } from '../telemetry/storage'
 import { eventLintCheckCompleted } from '../telemetry/events'
 import { CompileError } from './compile-error'
+import isError from './is-error'
 
 export async function verifyAndLint(
   dir: string,
@@ -62,13 +63,15 @@ export async function verifyAndLint(
 
     lintWorkers.end()
   } catch (err) {
-    if (err.type === 'CompileError' || err instanceof CompileError) {
-      console.error(chalk.red('\nFailed to compile.'))
-      console.error(err.message)
-      process.exit(1)
-    } else if (err.type === 'FatalError') {
-      console.error(err.message)
-      process.exit(1)
+    if (isError(err)) {
+      if (err.type === 'CompileError' || err instanceof CompileError) {
+        console.error(chalk.red('\nFailed to compile.'))
+        console.error(err.message)
+        process.exit(1)
+      } else if (err.type === 'FatalError') {
+        console.error(err.message)
+        process.exit(1)
+      }
     }
     throw err
   }

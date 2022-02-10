@@ -10,7 +10,6 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '../')
 let appPort
 let app
@@ -24,7 +23,8 @@ describe('Handle ESM externals with esmExternals: true', () => {
   })
   afterAll(() => killApp(app))
 
-  const expected = /Hello <!-- -->World<!-- -->\+<!-- -->World/
+  const expected =
+    /Hello <!-- -->World<!-- -->\+<!-- -->World<!-- -->\+<!-- -->World<!-- -->\+<!-- -->World\+World\+World/
 
   it('should render the static page', async () => {
     const html = await renderViaHTTP(appPort, '/static')

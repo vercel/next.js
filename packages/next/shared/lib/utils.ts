@@ -1,4 +1,3 @@
-import { formatUrl } from './router/utils/format-url'
 import type { BuildManifest } from '../../server/get-page-files'
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../server/config'
@@ -9,6 +8,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
 import type { UrlObject } from 'url'
 import { createContext } from 'react'
+import { formatUrl } from './router/utils/format-url'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -77,7 +77,7 @@ export type RenderPageResult = {
 
 export type RenderPage = (
   options?: ComponentsEnhancer
-) => RenderPageResult | Promise<RenderPageResult>
+) => DocumentInitialProps | Promise<DocumentInitialProps>
 
 export type BaseContext = {
   res?: ServerResponse
@@ -107,6 +107,7 @@ export type NEXT_DATA = {
   domainLocales?: DomainLocale[]
   scriptLoader?: any[]
   isPreview?: boolean
+  rsc?: boolean
 }
 
 /**
@@ -174,10 +175,12 @@ export type AppPropsType<
   router: R
   __N_SSG?: boolean
   __N_SSP?: boolean
+  __N_RSC?: boolean
 }
 
 export type DocumentContext = NextPageContext & {
   renderPage: RenderPage
+  defaultGetInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps>
 }
 
 export type DocumentInitialProps = RenderPageResult & {
@@ -185,6 +188,11 @@ export type DocumentInitialProps = RenderPageResult & {
 }
 
 export type DocumentProps = DocumentInitialProps & HtmlProps
+
+export type MaybeDeferContentHook = (
+  name: string,
+  contentFn: () => JSX.Element
+) => [boolean, JSX.Element]
 
 export type HtmlProps = {
   __NEXT_DATA__: NEXT_DATA
@@ -212,6 +220,12 @@ export type HtmlProps = {
   disableOptimizedLoading?: boolean
   styles?: React.ReactElement[] | React.ReactFragment
   head?: Array<JSX.Element | null>
+  useMaybeDeferContent: MaybeDeferContentHook
+  crossOrigin?: string
+  optimizeCss?: boolean
+  optimizeFonts?: boolean
+  optimizeImages?: boolean
+  runtime?: 'edge' | 'nodejs'
 }
 
 /**
@@ -279,6 +293,8 @@ export type NextApiResponse<T = any> = ServerResponse & {
     }
   ) => NextApiResponse<T>
   clearPreviewData: () => NextApiResponse<T>
+
+  unstable_revalidate: (urlPath: string) => Promise<void>
 }
 
 /**
@@ -436,4 +452,12 @@ export class DecodeError extends Error {}
 export const HtmlContext = createContext<HtmlProps>(null as any)
 if (process.env.NODE_ENV !== 'production') {
   HtmlContext.displayName = 'HtmlContext'
+}
+
+export interface CacheFs {
+  readFile(f: string): Promise<string>
+  readFileSync(f: string): string
+  writeFile(f: string, d: any): Promise<void>
+  mkdir(dir: string): Promise<void | string>
+  stat(f: string): Promise<{ mtime: Date }>
 }
