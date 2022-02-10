@@ -11,7 +11,6 @@
     "@nestjs/core": "^8.2.6",
     "@nestjs/mapped-types": "*",
     "@nestjs/platform-express": "^8.2.6",
-    "cross-env": "^7.0.3",
     "next": "latest",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
@@ -20,6 +19,7 @@
     "rxjs": "^7.2.0"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "@nestjs/cli": "^8.2.0",
     "@nestjs/schematics": "^8.0.5",
     "@types/express": "^4.17.13",
