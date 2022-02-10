@@ -155,7 +155,23 @@ The above generates the following `HTML`:
 </ul>
 ```
 
-When you want to style your own elements to give a custom feel to your website or application, you can pass in shortcodes. These are your own custom components that map to `HTML` elements. To do this you use the `MDXProvider` and pass a components object as a prop. Each object key in the components object maps to a `HTML` element name. You also need to specify `providerImportSource: "@mdx-js/react"` in `next.config.js`.
+When you want to style your own elements to give a custom feel to your website or application, you can pass in shortcodes. These are your own custom components that map to `HTML` elements. To do this you use the `MDXProvider` and pass a components object as a prop. Each object key in the components object maps to a `HTML` element name. 
+
+To enable you need to specify `providerImportSource: "@mdx-js/react"` in `next.config.js`.
+
+```js
+// next.config.js
+
+const withMDX = require("@next/mdx")({
+   // ...
+  options: {
+    providerImportSource: "@mdx-js/react",
+  },
+});
+
+```
+
+Then setup the provider in your page
 
 ```jsx
 // pages/index.js
@@ -185,6 +201,8 @@ export default function Post(props) {
   )
 }
 ```
+
+If you use it across the site you may want to add the provider to `_app.js` so all MDX pages pick up the custom element config.
 
 ## Helpful Links
 
