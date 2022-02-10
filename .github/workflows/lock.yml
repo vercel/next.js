@@ -2,8 +2,8 @@ name: 'Lock Threads'
 
 on:
   schedule:
-    # This runs every hour: https://crontab.guru/every-1-hour
-    - cron: '0 * * * *'
+    # This runs twice a day: https://crontab.guru/#0_0,12_*_*_*
+    - cron: '0 0,12 * * *'
   workflow_dispatch:
 
 permissions:
