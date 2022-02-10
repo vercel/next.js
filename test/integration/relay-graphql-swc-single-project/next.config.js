@@ -1,7 +1,7 @@
 const relay = require('./relay.config')
 
 module.exports = {
-  experimental: {
+  compiler: {
     relay,
   },
 }

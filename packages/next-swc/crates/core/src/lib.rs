@@ -120,7 +120,7 @@ pub fn custom_before_pass(
 
     chain!(
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
-        styled_jsx::styled_jsx(cm.clone()),
+        styled_jsx::styled_jsx(cm.clone(), file.name.clone()),
         hook_optimizer::hook_optimizer(),
         match &opts.styled_components {
             Some(config) => {
