@@ -3,7 +3,7 @@ import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 import { renderViaHTTP, check } from 'next-test-utils'
 
-export default function (context) {
+export default function (context, runtime) {
   it('should render server components correctly', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/', null, {
       headers: {
@@ -52,13 +52,16 @@ export default function (context) {
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
-  it('should suspense next/image in server components', async () => {
-    const imageHTML = await renderViaHTTP(context.appPort, '/next-api/image')
-    const $ = cheerio.load(imageHTML)
-    const imageTag = $('div[hidden] > span > span > img')
+  // Disable next/image for nodejs runtime temporarily
+  if (runtime === 'edge') {
+    it('should suspense next/image in server components', async () => {
+      const imageHTML = await renderViaHTTP(context.appPort, '/next-api/image')
+      const $ = cheerio.load(imageHTML)
+      const imageTag = $('div[hidden] > span > span > img')
 
-    expect(imageTag.attr('src')).toContain('data:image')
-  })
+      expect(imageTag.attr('src')).toContain('data:image')
+    })
+  }
 
   it('should handle multiple named exports correctly', async () => {
     const clientExportsHTML = await renderViaHTTP(
