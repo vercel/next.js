@@ -31,6 +31,13 @@ describe('should set-up next', () => {
         'data.txt': new FileRef(
           join(__dirname, 'required-server-files/data.txt')
         ),
+        '.env': new FileRef(join(__dirname, 'required-server-files/.env')),
+        '.env.local': new FileRef(
+          join(__dirname, 'required-server-files/.env.local')
+        ),
+        '.env.production': new FileRef(
+          join(__dirname, 'required-server-files/.env.production')
+        ),
       },
       nextConfig: {
         eslint: {
@@ -721,5 +728,15 @@ describe('should set-up next', () => {
     const html = await res.text()
     const $ = cheerio.load(html)
     expect($('#slug-page').text()).toBe('[slug] page')
+  })
+
+  it('should copy and read .env file', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/env')
+
+    const envVariables = await res.json()
+
+    expect(envVariables.env).not.toBeUndefined()
+    expect(envVariables.envProd).not.toBeUndefined()
+    expect(envVariables.envLocal).toBeUndefined()
   })
 })

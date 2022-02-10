@@ -427,7 +427,7 @@ export default async function build(
       pages404: boolean
       basePath: string
       redirects: Array<ReturnType<typeof buildCustomRoute>>
-      rewrites:
+      rewrites?:
         | Array<ReturnType<typeof buildCustomRoute>>
         | {
             beforeFiles: Array<ReturnType<typeof buildCustomRoute>>
@@ -2036,6 +2036,12 @@ export default async function build(
       for (const file of [
         ...requiredServerFiles.files,
         path.join(config.distDir, SERVER_FILES_MANIFEST),
+        ...loadedEnvFiles.reduce<string[]>((acc, envFile) => {
+          if (['.env', '.env.production'].includes(envFile.path)) {
+            acc.push(envFile.path)
+          }
+          return acc
+        }, []),
       ]) {
         const filePath = path.join(dir, file)
         await promises.copyFile(

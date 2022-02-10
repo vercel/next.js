@@ -17,8 +17,7 @@ function Data() {
 export default function Page404() {
   return (
     <Suspense fallback={null}>
-      custom-404-page
-      <br />
+      <span id="text">custom-404-page</span>
       <Data />
     </Suspense>
   )

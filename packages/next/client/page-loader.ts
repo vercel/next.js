@@ -148,7 +148,7 @@ export default class PageLoader {
 
     const getHrefForSlug = (path: string) => {
       if (rsc) {
-        return path + search + (search ? `&` : '?') + '__flight__'
+        return path + search + (search ? `&` : '?') + '__flight__=1'
       }
 
       const dataRoute = getAssetPathFromRoute(
