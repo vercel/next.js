@@ -301,8 +301,6 @@ function checkRedirectValues(
 const rscCache = new Map()
 
 function createRSCHook() {
-  const decoder = new TextDecoder()
-
   return (
     writable: WritableStream<string>,
     id: string,
@@ -1811,31 +1809,32 @@ function renderToStream({
 
             return transforms.reduce(
               (readable, transform) => pipeThrough(readable, transform),
-              pipeThrough(renderStream, createTextDecoderStream())
+              renderStream
             )
           })
         )
       }
     }
 
-    const renderStream: ReadableStream<Uint8Array> = (
-      ReactDOMServer as any
-    ).renderToReadableStream(element, {
-      onError(err: Error) {
-        if (!resolved) {
-          resolved = true
-          reject(err)
-        }
-      },
-      onCompleteShell() {
-        if (!generateStaticHTML) {
+    const renderStream = pipeThrough(
+      (ReactDOMServer as any).renderToReadableStream(element, {
+        onError(err: Error) {
+          if (!resolved) {
+            resolved = true
+            reject(err)
+          }
+        },
+        onCompleteShell() {
+          if (!generateStaticHTML) {
+            doResolve()
+          }
+        },
+        onCompleteAll() {
           doResolve()
-        }
-      },
-      onCompleteAll() {
-        doResolve()
-      },
-    })
+        },
+      }),
+      createTextDecoderStream()
+    )
   })
 }
 
@@ -1902,9 +1901,9 @@ function createInlineDataStream(
   })
 }
 
-function pipeTo(
-  readable: ReadableStream,
-  writable: WritableStream,
+function pipeTo<T>(
+  readable: ReadableStream<T>,
+  writable: WritableStream<T>,
   options?: { preventClose: boolean }
 ) {
   let resolver: () => void
@@ -1955,12 +1954,15 @@ function chainStreams<T>(streams: ReadableStream<T>[]): ReadableStream<T> {
 }
 
 function streamFromArray(strings: string[]): ReadableStream<string> {
-  return new ReadableStream({
-    start(controller) {
-      strings.forEach((str) => controller.enqueue(str))
-      controller.close()
-    },
-  })
+  // Note: we use a TransformStream here instead of instantiating a ReadableStream
+  // because the built-in ReadableStream polyfill runs strings through TextEncoder.
+  const { readable, writable } = new TransformStream()
+
+  const writer = writable.getWriter()
+  strings.forEach((str) => writer.write(str))
+  writer.close()
+
+  return readable
 }
 
 async function streamToString(stream: ReadableStream<string>): Promise<string> {
