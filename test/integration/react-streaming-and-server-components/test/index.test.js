@@ -146,18 +146,27 @@ describe('Edge runtime - prod', () => {
     await killApp(context.server)
   })
 
-  it('should generate rsc middleware manifests', async () => {
+  it('should generate middleware SSR manifests for edge runtime', async () => {
     const distServerDir = join(distDir, 'server')
-    const hasFile = (filename) => fs.existsSync(join(distServerDir, filename))
-
     const files = [
       'middleware-build-manifest.js',
       'middleware-flight-manifest.js',
       'middleware-ssr-runtime.js',
       'middleware-manifest.json',
     ]
+
+    const requiredServerFiles = (
+      await fs.readJSON(join(distDir, 'required-server-files.json'))
+    ).files
+
     files.forEach((file) => {
-      expect(hasFile(file)).toBe(true)
+      const filepath = join(distServerDir, file)
+      expect(fs.existsSync(filepath)).toBe(true)
+    })
+
+    requiredServerFiles.forEach((file) => {
+      const requiredFilePath = join(appDir, file)
+      expect(fs.existsSync(requiredFilePath)).toBe(true)
     })
   })
 
@@ -246,6 +255,32 @@ const nodejsRuntimeBasicSuite = {
   runTests: (context, env) => {
     basic(context, env)
     streaming(context)
+
+    if (env === 'prod') {
+      it('should generate middleware SSR manifests for Node.js', async () => {
+        const distServerDir = join(distDir, 'server')
+
+        const requiredServerFiles = (
+          await fs.readJSON(join(distDir, 'required-server-files.json'))
+        ).files
+
+        const files = [
+          'middleware-build-manifest.js',
+          'middleware-flight-manifest.json',
+          'middleware-manifest.json',
+        ]
+
+        files.forEach((file) => {
+          const filepath = join(distServerDir, file)
+          expect(fs.existsSync(filepath)).toBe(true)
+        })
+
+        requiredServerFiles.forEach((file) => {
+          const requiredFilePath = join(appDir, file)
+          expect(fs.existsSync(requiredFilePath)).toBe(true)
+        })
+      })
+    }
   },
   beforeAll: () => nextConfig.replace("runtime: 'edge'", "runtime: 'nodejs'"),
   afterAll: () => nextConfig.restore(),
