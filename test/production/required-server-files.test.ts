@@ -21,6 +21,9 @@ describe('should set-up next', () => {
   let requiredFilesManifest
 
   beforeAll(async () => {
+    // test build against environment with next support
+    process.env.NOW_BUILDER = '1'
+
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'required-server-files/pages')),
