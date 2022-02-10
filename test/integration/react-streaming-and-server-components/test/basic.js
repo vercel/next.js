@@ -31,9 +31,8 @@ export default async function basic(context) {
 
   it('should handle suspense error page correctly (node stream)', async () => {
     const browser = await webdriver(context.appPort, '/404')
-    const hydrationContent = await browser.eval(
-      `document.querySelector('#__next').textContent`
-    )
+    const hydrationContent = await browser.waitForElementByCss('#__next').text()
+
     expect(hydrationContent).toBe('custom-404-pagenext_streaming_data')
   })
 }

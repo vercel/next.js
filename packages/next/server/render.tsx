@@ -477,8 +477,9 @@ export async function renderToHTML(
 
   if (isServerComponent) {
     serverComponentsInlinedTransformStream = new TransformStream()
+    const search = stringifyQuery(query)
     Component = createServerComponentRenderer(App, OriginalComponent, {
-      cachePrefix: pathname + '?' + stringifyQuery(query),
+      cachePrefix: pathname + (search ? `?${search}` : ''),
       transformStream: serverComponentsInlinedTransformStream,
       serverComponentManifest,
       runtime,

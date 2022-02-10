@@ -3,6 +3,11 @@ import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 import { renderViaHTTP, check } from 'next-test-utils'
 
+function getNodeBySelector(html, selector) {
+  const $ = cheerio.load(html)
+  return $(selector)
+}
+
 export default function (context, runtime) {
   it('should render server components correctly', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/', null, {
@@ -29,8 +34,10 @@ export default function (context, runtime) {
 
   it('should support next/link in server components', async () => {
     const linkHTML = await renderViaHTTP(context.appPort, '/next-api/link')
-    const $ = cheerio.load(linkHTML)
-    const linkText = $('div[hidden] > a[href="/"]').text()
+    const linkText = getNodeBySelector(
+      linkHTML,
+      'div[hidden] > a[href="/"]'
+    ).text()
 
     expect(linkText).toContain('go home')
 
@@ -56,8 +63,10 @@ export default function (context, runtime) {
   if (runtime === 'edge') {
     it('should suspense next/image in server components', async () => {
       const imageHTML = await renderViaHTTP(context.appPort, '/next-api/image')
-      const $ = cheerio.load(imageHTML)
-      const imageTag = $('div[hidden] > span > span > img')
+      const imageTag = getNodeBySelector(
+        imageHTML,
+        'div[hidden] > span > span > img'
+      )
 
       expect(imageTag.attr('src')).toContain('data:image')
     })
@@ -68,12 +77,18 @@ export default function (context, runtime) {
       context.appPort,
       '/client-exports'
     )
-    const $clientExports = cheerio.load(clientExportsHTML)
-    expect($clientExports('div[hidden] > div > #named-exports').text()).toBe(
-      'abcde'
-    )
+
     expect(
-      $clientExports('div[hidden] > div > #default-exports-arrow').text()
+      getNodeBySelector(
+        clientExportsHTML,
+        'div[hidden] > div > #named-exports'
+      ).text()
+    ).toBe('abcde')
+    expect(
+      getNodeBySelector(
+        clientExportsHTML,
+        'div[hidden] > div > #default-exports-arrow'
+      ).text()
     ).toBe('client-default-export-arrow')
 
     const browser = await webdriver(context.appPort, '/client-exports')
@@ -85,5 +100,23 @@ export default function (context, runtime) {
       .text()
     expect(textNamedExports).toBe('abcde')
     expect(textDefaultExportsArrow).toBe('client-default-export-arrow')
+  })
+
+  it('should handle 404 requests and missing routes correctly', async () => {
+    const id = '#text'
+    const content = 'custom-404-page'
+    const page404HTML = await renderViaHTTP(context.appPort, '/404')
+    const pageUnknownHTML = await renderViaHTTP(context.appPort, '/no.where')
+
+    const page404Browser = await webdriver(context.appPort, '/404')
+    const pageUnknownBrowser = await webdriver(context.appPort, '/no.where')
+
+    expect(await page404Browser.waitForElementByCss(id).text()).toBe(content)
+    expect(await pageUnknownBrowser.waitForElementByCss(id).text()).toBe(
+      content
+    )
+
+    expect(getNodeBySelector(page404HTML, id).text()).toBe(content)
+    expect(getNodeBySelector(pageUnknownHTML, id).text()).toBe(content)
   })
 }
