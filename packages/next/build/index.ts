@@ -444,12 +444,18 @@ export default async function build(
         namedRegex?: string
         routeKeys?: { [key: string]: string }
       }>
-      dynamicRoutes: Array<{
-        page: string
-        regex: string
-        namedRegex?: string
-        routeKeys?: { [key: string]: string }
-      }>
+      dynamicRoutes: Array<
+        | {
+            page: string
+            regex: string
+            namedRegex?: string
+            routeKeys?: { [key: string]: string }
+          }
+        | {
+            page: string
+            isMiddleware: true
+          }
+      >
       dataRoutes: Array<{
         page: string
         routeKeys?: { [key: string]: string }
