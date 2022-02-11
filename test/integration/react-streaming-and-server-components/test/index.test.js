@@ -153,14 +153,9 @@ describe('Edge runtime - prod', () => {
     expect(html).toContain('foo.client')
   })
 
-  it('should render 500 error correctly', async () => {
-    const path500HTML = await renderViaHTTP(context.appPort, '/err')
-    expect(path500HTML).toContain('custom-500-page')
-  })
-
-  basic(context)
-  rsc(context, 'edge')
+  basic(context, { env: 'prod' })
   streaming(context)
+  rsc(context, { runtime: 'edge' })
 })
 
 describe('Edge runtime - dev', () => {
@@ -197,23 +192,16 @@ describe('Edge runtime - dev', () => {
     expect(bundle).not.toContain('moment')
   })
 
-  it('should render 500 error correctly', async () => {
-    const path500HTML = await renderViaHTTP(context.appPort, '/err')
-
-    // In dev mode it should show the error popup.
-    expect(path500HTML).toContain('Error: oops')
-  })
-
-  basic(context)
-  rsc(context, 'edge')
+  basic(context, { env: 'dev' })
   streaming(context)
+  rsc(context, { runtime: 'edge' })
 })
 
 const nodejsRuntimeBasicSuite = {
   runTests: (context, env) => {
-    basic(context)
+    basic(context, { env })
     streaming(context)
-    rsc(context, 'nodejs')
+    rsc(context, { runtime: 'nodejs' })
 
     if (env === 'prod') {
       it('should generate middleware SSR manifests for Node.js', async () => {

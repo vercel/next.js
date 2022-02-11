@@ -8,7 +8,7 @@ function getNodeBySelector(html, selector) {
   return $(selector)
 }
 
-export default function (context, runtime) {
+export default function (context, { runtime }) {
   it('should render server components correctly', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/', null, {
       headers: {

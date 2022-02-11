@@ -1,7 +1,7 @@
 import webdriver from 'next-webdriver'
 import { renderViaHTTP } from 'next-test-utils'
 
-export default async function basic(context) {
+export default async function basic(context, { env }) {
   it('should render 404 error correctly', async () => {
     const path404HTML = await renderViaHTTP(context.appPort, '/404')
     const pathNotFoundHTML = await renderViaHTTP(context.appPort, '/not-found')
@@ -34,5 +34,16 @@ export default async function basic(context) {
     const hydrationContent = await browser.waitForElementByCss('#__next').text()
 
     expect(hydrationContent).toBe('custom-404-pagenext_streaming_data')
+  })
+
+  it('should render 500 error correctly', async () => {
+    const path500HTML = await renderViaHTTP(context.appPort, '/err')
+
+    if (env === 'dev') {
+      // In dev mode it should show the error popup.
+      expect(path500HTML).toContain('Error: oops')
+    } else {
+      expect(path500HTML).toContain('custom-500-page')
+    }
   })
 }
