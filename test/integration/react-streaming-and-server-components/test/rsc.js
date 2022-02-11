@@ -2,6 +2,8 @@
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 import { renderViaHTTP, check } from 'next-test-utils'
+import { join } from 'path'
+import fs from 'fs-extra'
 
 import { distDir } from './utils'
 
