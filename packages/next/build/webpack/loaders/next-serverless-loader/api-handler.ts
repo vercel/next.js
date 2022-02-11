@@ -1,9 +1,12 @@
 import { parse as parseUrl } from 'url'
 import { IncomingMessage, ServerResponse } from 'http'
-import { apiResolver } from '../../../../server/api-resolver'
+import { apiResolver } from '../../../../server/api-utils/node'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 import { DecodeError } from '../../../../shared/lib/utils'
-import { NodeNextResponse, NodeNextRequest } from '../../../../server/base-http'
+import {
+  NodeNextResponse,
+  NodeNextRequest,
+} from '../../../../server/base-http/node'
 
 export function getApiHandler(ctx: ServerlessHandlerCtx) {
   const { pageModule, encodedPreviewProps, pageIsDynamic } = ctx

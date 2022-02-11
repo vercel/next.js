@@ -1,22 +1,22 @@
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { NextApiRequest, NextApiResponse } from '../shared/lib/utils'
+import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
 import type { PageConfig } from 'next/types'
-import type { __ApiPreviewProps } from './api-utils'
-import type { BaseNextRequest } from './base-http'
+import type { __ApiPreviewProps } from '.'
+import type { BaseNextRequest } from '../base-http'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 
-import { encryptWithSecret } from './crypto-utils'
+import { encryptWithSecret } from '../crypto-utils'
 import generateETag from 'next/dist/compiled/etag'
-import { sendEtagResponse } from './send-payload'
+import { sendEtagResponse } from '../send-payload'
 import { Stream } from 'stream'
-import isError from '../lib/is-error'
-import { isResSent } from '../shared/lib/utils'
-import { interopDefault } from '../lib/interop-default'
+import { parse } from 'next/dist/compiled/content-type'
+import isError from '../../lib/is-error'
+import { isResSent } from '../../shared/lib/utils'
+import { interopDefault } from '../../lib/interop-default'
 import {
   getCookieParser,
   setLazyProp,
   tryGetPreviewData,
-  parseBody,
   sendStatusCode,
   redirect,
   clearPreviewData,
@@ -25,7 +25,50 @@ import {
   PRERENDER_REVALIDATE_HEADER,
   COOKIE_NAME_PRERENDER_BYPASS,
   COOKIE_NAME_PRERENDER_DATA,
-} from './api-utils'
+} from './index'
+
+/**
+ * Parse incoming message like `json` or `urlencoded`
+ * @param req request object
+ */
+export async function parseBody(
+  req: IncomingMessage,
+  limit: string | number
+): Promise<any> {
+  let contentType
+  try {
+    contentType = parse(req.headers['content-type'] || 'text/plain')
+  } catch {
+    contentType = parse('text/plain')
+  }
+  const { type, parameters } = contentType
+  const encoding = parameters.charset || 'utf-8'
+
+  let buffer
+
+  try {
+    const getRawBody =
+      require('next/dist/compiled/raw-body') as typeof import('next/dist/compiled/raw-body')
+    buffer = await getRawBody(req, { encoding, limit })
+  } catch (e) {
+    if (isError(e) && e.type === 'entity.too.large') {
+      throw new ApiError(413, `Body exceeded ${limit} limit`)
+    } else {
+      throw new ApiError(400, 'Invalid body')
+    }
+  }
+
+  const body = buffer.toString()
+
+  if (type === 'application/json' || type === 'application/ld+json') {
+    return parseJson(body)
+  } else if (type === 'application/x-www-form-urlencoded') {
+    const qs = require('querystring')
+    return qs.decode(body)
+  } else {
+    return body
+  }
+}
 
 export async function apiResolver(
   req: IncomingMessage,
@@ -187,6 +230,23 @@ async function unstable_revalidate(
     }
   } catch (err) {
     throw new Error(`Failed to revalidate ${urlPath}`)
+  }
+}
+
+/**
+ * Parse `JSON` and handles invalid `JSON` strings
+ * @param str `JSON` string
+ */
+function parseJson(str: string): object {
+  if (str.length === 0) {
+    // special-case empty json body, as it's a common client-side mistake
+    return {}
+  }
+
+  try {
+    return JSON.parse(str)
+  } catch (e) {
+    throw new ApiError(400, 'Invalid JSON')
   }
 }
 
