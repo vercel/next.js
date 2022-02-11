@@ -4,30 +4,27 @@ import { join } from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 
-import {
-  File,
-  fetchViaHTTP,
-  findPort,
-  killApp,
-  renderViaHTTP,
-} from 'next-test-utils'
+import { fetchViaHTTP, findPort, killApp, renderViaHTTP } from 'next-test-utils'
 
-import { nextBuild, nextStart, nextDev } from './utils'
+import {
+  nextBuild,
+  nextStart,
+  nextDev,
+  appDir,
+  nativeModuleTestAppDir,
+  distDir,
+  documentPage,
+  appPage,
+  appServerPage,
+  error500Page,
+  nextConfig,
+} from './utils'
 
 import css from './css'
 import rsc from './rsc'
 import streaming from './streaming'
 import basic from './basic'
 import functions from './functions'
-
-const appDir = join(__dirname, '../app')
-const nativeModuleTestAppDir = join(__dirname, '../unsupported-native-module')
-const distDir = join(__dirname, '../app/.next')
-const documentPage = new File(join(appDir, 'pages/_document.jsx'))
-const appPage = new File(join(appDir, 'pages/_app.js'))
-const appServerPage = new File(join(appDir, 'pages/_app.server.js'))
-const error500Page = new File(join(appDir, 'pages/500.js'))
-const nextConfig = new File(join(appDir, 'next.config.js'))
 
 const documentWithGip = `
 import { Html, Head, Main, NextScript } from 'next/document'
@@ -153,14 +150,9 @@ describe('Edge runtime - prod', () => {
     expect(html).toContain('foo.client')
   })
 
-  it('should render 500 error correctly', async () => {
-    const path500HTML = await renderViaHTTP(context.appPort, '/err')
-    expect(path500HTML).toContain('custom-500-page')
-  })
-
-  basic(context)
-  rsc(context, 'edge')
+  basic(context, { env: 'prod' })
   streaming(context)
+  rsc(context, { runtime: 'edge', env: 'prod' })
 })
 
 describe('Edge runtime - dev', () => {
@@ -185,35 +177,16 @@ describe('Edge runtime - dev', () => {
     expect(content).toMatchInlineSnapshot('"foo.client"')
   })
 
-  it('should not bundle external imports into client builds for RSC', async () => {
-    const html = await renderViaHTTP(context.appPort, '/external-imports')
-    expect(html).toContain('date:')
-
-    const distServerDir = join(distDir, 'static', 'chunks', 'pages')
-    const bundle = fs
-      .readFileSync(join(distServerDir, 'external-imports.js'))
-      .toString()
-
-    expect(bundle).not.toContain('moment')
-  })
-
-  it('should render 500 error correctly', async () => {
-    const path500HTML = await renderViaHTTP(context.appPort, '/err')
-
-    // In dev mode it should show the error popup.
-    expect(path500HTML).toContain('Error: oops')
-  })
-
-  basic(context)
-  rsc(context, 'edge')
+  basic(context, { env: 'dev' })
   streaming(context)
+  rsc(context, { runtime: 'edge', env: 'dev' })
 })
 
 const nodejsRuntimeBasicSuite = {
   runTests: (context, env) => {
-    basic(context)
+    basic(context, { env })
     streaming(context)
-    rsc(context, 'nodejs')
+    rsc(context, { runtime: 'nodejs' })
 
     if (env === 'prod') {
       it('should generate middleware SSR manifests for Node.js', async () => {
@@ -241,8 +214,14 @@ const nodejsRuntimeBasicSuite = {
       })
     }
   },
-  beforeAll: () => nextConfig.replace("runtime: 'edge'", "runtime: 'nodejs'"),
-  afterAll: () => nextConfig.restore(),
+  beforeAll: () => {
+    error500Page.write(page500)
+    nextConfig.replace("runtime: 'edge'", "runtime: 'nodejs'")
+  },
+  afterAll: () => {
+    error500Page.delete()
+    nextConfig.restore()
+  },
 }
 
 const customAppPageSuite = {
