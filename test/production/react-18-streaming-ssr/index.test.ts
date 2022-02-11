@@ -32,7 +32,10 @@ describe('react-18-streaming-ssr in minimal mode', () => {
 
     await next.start()
   })
-  afterAll(() => next.destroy())
+  afterAll(() => {
+    delete process.env.NEXT_PRIVATE_MINIMAL_MODE
+    next.destroy()
+  })
 
   it('should generate html response by streaming correctly', async () => {
     const html = await renderViaHTTP(next.url, '/')
