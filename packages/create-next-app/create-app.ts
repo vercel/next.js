@@ -29,12 +29,14 @@ export async function createApp({
   example,
   examplePath,
   typescript,
+  skipInstall
 }: {
   appPath: string
   useNpm: boolean
   example?: string
   examplePath?: string
   typescript?: boolean
+  skipInstall: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const template = typescript ? 'typescript' : 'default'
@@ -124,7 +126,8 @@ export async function createApp({
   const originalDirectory = process.cwd()
 
   const displayedCommand = useYarn ? 'yarn' : 'npm'
-  console.log(`Creating a new Next.js app in ${chalk.green(root)}.`)
+  if(!skipInstall)
+    console.log(`Creating a new Next.js app in ${chalk.green(root)}.`);
   console.log()
 
   await makeDir(root)
@@ -186,12 +189,13 @@ export async function createApp({
         path.join(root, 'next-env.d.ts')
       )
     }
+    if(!skipInstall) {
+      console.log('Installing packages. This might take a couple of minutes.')
+      console.log()
 
-    console.log('Installing packages. This might take a couple of minutes.')
-    console.log()
-
-    await install(root, null, { useYarn, isOnline })
-    console.log()
+      await install(root, null, { useYarn, isOnline })
+      console.log()
+    }
   } else {
     /**
      * Otherwise, if an example repository is not provided for cloning, proceed
@@ -238,9 +242,9 @@ export async function createApp({
       devDependencies.push('typescript', '@types/react', '@types/node')
     }
     /**
-     * Install package.json dependencies if they exist.
+     * Install package.json dependencies if they exist and the skipInstall flag is not present.
      */
-    if (dependencies.length) {
+    if (dependencies.length && !skipInstall) {
       console.log()
       console.log('Installing dependencies:')
       for (const dependency of dependencies) {
@@ -251,9 +255,9 @@ export async function createApp({
       await install(root, dependencies, installFlags)
     }
     /**
-     * Install package.json devDependencies if they exist.
+     * Install package.json devDependencies if they exist and the skipInstall flag is not presen.
      */
-    if (devDependencies.length) {
+    if (devDependencies.length && !skipInstall) {
       console.log()
       console.log('Installing devDependencies:')
       for (const devDependency of devDependencies) {

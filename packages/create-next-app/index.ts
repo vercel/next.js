@@ -34,6 +34,14 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--skip-install',
+    `
+
+  Explicitly tell the CLI to bootstrap the app without installing 
+  the dependencies.
+`
+  )
+  .option(
     '-e, --example [name]|[github-url]',
     `
 
@@ -127,6 +135,7 @@ async function run(): Promise<void> {
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
       typescript: program.typescript,
+      skipInstall: !!program.skipInstall,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -149,6 +158,7 @@ async function run(): Promise<void> {
       appPath: resolvedProjectPath,
       useNpm: !!program.useNpm,
       typescript: program.typescript,
+      skipInstall: !!program.skipInstall,
     })
   }
 }
