@@ -220,7 +220,7 @@ You can also [generate a solid color Data URL](https://png-pixel.com) to match t
 
 A string (with similar syntax to the margin property) that acts as the bounding box used to detect the intersection of the viewport with the image and trigger lazy [loading](#loading). Defaults to `"200px"`.
 
-If the image is nested in a scrollable parent element other than the root document, you will also need to assign the [lazyRoot](#lazyRoot) prop.
+If the image is nested in a scrollable parent element other than the root document, you will also need to assign the [lazyRoot](#lazyroot) prop.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/rootMargin)
 
