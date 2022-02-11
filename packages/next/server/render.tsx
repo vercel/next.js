@@ -467,8 +467,13 @@ export async function renderToHTML(
 
   const hasConcurrentFeatures = !!runtime
 
-  const isServerComponent = !!serverComponentManifest && hasConcurrentFeatures
   const OriginalComponent = renderOpts.Component
+
+  // We don't need to opt-into the flight inlining logic if the page isn't a RSC.
+  const isServerComponent =
+    !!serverComponentManifest &&
+    hasConcurrentFeatures &&
+    (OriginalComponent as any).__next_rsc__
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component

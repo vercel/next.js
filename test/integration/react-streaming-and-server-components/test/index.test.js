@@ -245,6 +245,7 @@ describe('Edge runtime - dev', () => {
 const nodejsRuntimeBasicSuite = {
   runTests: (context, env) => {
     basic(context, env)
+    rsc(context)
     streaming(context)
 
     if (env === 'prod') {
