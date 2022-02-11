@@ -6,7 +6,7 @@ import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import type { PreviewData } from 'next/types'
 
-import jsonwebtoken from 'jsonwebtoken'
+import jsonwebtoken from 'next/dist/compiled/jsonwebtoken'
 import { decryptWithSecret, encryptWithSecret } from '../crypto-utils'
 import generateETag from 'next/dist/compiled/etag'
 import { sendEtagResponse } from '../send-payload'
