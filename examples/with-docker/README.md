@@ -23,16 +23,17 @@ You can view your images created with `docker images`.
 ### In existing projects
 
 To add support for Docker to an existing project, just copy the `Dockerfile` into the root of the project and add the following to the `next.config.js` file:
+
 ```js
 // next.config.js
 module.exports = {
   // ... rest of the configuration.
   experimental: {
     outputStandalone: true,
-  }
+  },
 }
-
 ```
+
 This will build the project as a standalone app inside the Docker image.
 
 ## Deploying to Google Cloud Run

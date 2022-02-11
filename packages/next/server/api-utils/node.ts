@@ -295,10 +295,17 @@ async function unstable_revalidate(
     ? `https://${req.headers.host}`
     : `http://${context.hostname}:${context.port}`
 
+  const extraHeaders: Record<string, string | undefined> = {}
+
+  if (context.trustHostHeader) {
+    extraHeaders.cookie = req.headers.cookie
+  }
+
   try {
     const res = await fetch(`${baseUrl}${urlPath}`, {
       headers: {
         [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
+        ...extraHeaders,
       },
     })
 
