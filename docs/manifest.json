@@ -317,8 +317,7 @@
               "path": "/docs/migrating/from-react-router.md"
             }
           ]
-        },
-        { "title": "FAQ", "path": "/docs/faq.md" }
+        }
       ]
     },
     {
