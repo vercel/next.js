@@ -240,14 +240,18 @@ export class ImageOptimizerCache {
       Math.max(revalidate, this.nextConfig.images.minimumCacheTTL) * 1000 +
       Date.now()
 
-    await writeToCacheDir(
-      join(this.cacheDir, cacheKey),
-      value.extension,
-      revalidate,
-      expireAt,
-      value.buffer,
-      value.etag
-    )
+    try {
+      await writeToCacheDir(
+        join(this.cacheDir, cacheKey),
+        value.extension,
+        revalidate,
+        expireAt,
+        value.buffer,
+        value.etag
+      )
+    } catch (err) {
+      console.error(`Failed to write image to cache ${cacheKey}`, err)
+    }
   }
 }
 export class ImageError extends Error {
@@ -543,7 +547,16 @@ async function writeToCacheDir(
   etag: string
 ) {
   const filename = join(dir, `${maxAge}.${expireAt}.${etag}.${extension}`)
-  await promises.rmdir(dir, { recursive: true })
+
+  // Added in: v14.14.0 https://nodejs.org/api/fs.html#fspromisesrmpath-options
+  // attempt cleaning up existing stale cache
+  if ((promises as any).rm) {
+    await (promises as any)
+      .rm(dir, { force: true, recursive: true })
+      .catch(() => {})
+  } else {
+    await promises.rmdir(dir, { recursive: true }).catch(() => {})
+  }
   await promises.mkdir(dir, { recursive: true })
   await promises.writeFile(filename, buffer)
 }
