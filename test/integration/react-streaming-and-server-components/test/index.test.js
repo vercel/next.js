@@ -214,8 +214,14 @@ const nodejsRuntimeBasicSuite = {
       })
     }
   },
-  beforeAll: () => nextConfig.replace("runtime: 'edge'", "runtime: 'nodejs'"),
-  afterAll: () => nextConfig.restore(),
+  beforeAll: () => {
+    error500Page.write(page500)
+    nextConfig.replace("runtime: 'edge'", "runtime: 'nodejs'")
+  },
+  afterAll: () => {
+    error500Page.delete()
+    nextConfig.restore()
+  },
 }
 
 const customAppPageSuite = {
