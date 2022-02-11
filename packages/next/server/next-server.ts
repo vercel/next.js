@@ -1335,7 +1335,7 @@ export default class NextNodeServer extends BaseServer {
 
     if (missingKeys.length > 0) {
       Log.warn(
-        `Query params are no longer automatically merged for rewrites in middleware, see more info here: https://nextjs.org/docs/messages/errors/deleting-query-params-in-middlewares`
+        `Query params are no longer automatically merged for rewrites in middleware, see more info here: https://nextjs.org/docs/messages/deleting-query-params-in-middlewares`
       )
       this.warnIfQueryParametersWereDeleted = () => {}
     }
