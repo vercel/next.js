@@ -366,13 +366,14 @@ export function getUtils({
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery,
     routeNoAssetPath: string,
-    shouldNotRedirect: boolean
+    shouldNotRedirect: boolean,
+    cookieName: string
   ) {
     if (!i18n) return
     const pathname = parsedUrl.pathname || '/'
 
     let defaultLocale = i18n.defaultLocale
-    let detectedLocale = detectLocaleCookie(req, i18n.locales)
+    let detectedLocale = detectLocaleCookie(req, i18n.locales, cookieName)
     let acceptPreferredLocale
     try {
       acceptPreferredLocale =
@@ -457,7 +458,7 @@ export function getUtils({
         shouldAddLocalePrefix ||
         shouldStripDefaultLocale)
     ) {
-      // set the NEXT_LOCALE cookie when a user visits the default locale
+      // set the `cookieName` cookie when a user visits the default locale
       // with the locale prefix so that they aren't redirected back to
       // their accept-language preferred locale
       if (shouldStripDefaultLocale && acceptPreferredLocale !== defaultLocale) {
@@ -469,7 +470,7 @@ export function getUtils({
             : Array.isArray(previous)
             ? previous
             : []),
-          cookie.serialize('NEXT_LOCALE', defaultLocale, {
+          cookie.serialize(cookieName, defaultLocale, {
             httpOnly: true,
             path: '/',
           }),

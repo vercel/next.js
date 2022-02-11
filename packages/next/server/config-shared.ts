@@ -20,6 +20,7 @@ export interface I18NConfig {
   domains?: DomainLocale[]
   localeDetection?: false
   locales: string[]
+  cookieName?: string
 }
 
 export interface DomainLocale {

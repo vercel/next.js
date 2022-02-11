@@ -1,10 +1,15 @@
 import { IncomingMessage } from 'http'
 
-export function detectLocaleCookie(req: IncomingMessage, locales: string[]) {
-  const { NEXT_LOCALE } = (req as any).cookies || {}
-  return NEXT_LOCALE
+export function detectLocaleCookie(
+  req: IncomingMessage,
+  locales: string[],
+  cookieName: string
+) {
+  const { [cookieName]: cookie } = (req as any).cookies || {}
+
+  return cookie
     ? locales.find(
-        (locale: string) => NEXT_LOCALE.toLowerCase() === locale.toLowerCase()
+        (locale: string) => cookie.toLowerCase() === locale.toLowerCase()
       )
     : undefined
 }

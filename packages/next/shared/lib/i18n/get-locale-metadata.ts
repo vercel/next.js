@@ -50,9 +50,12 @@ function getLocaleFromCookie(
   i18n: I18NConfig,
   cookies: () => { [key: string]: string }
 ) {
-  const nextLocale = cookies()?.NEXT_LOCALE?.toLowerCase()
-  return nextLocale
-    ? i18n.locales.find((locale) => nextLocale === locale.toLowerCase())
+  const cookieName = i18n.cookieName || 'NEXT_LOCALE'
+  const { [cookieName]: cookie } = cookies() || {}
+  return cookie
+    ? i18n.locales.find(
+        (locale) => cookie.toLocaleLowerCase() === locale.toLowerCase()
+      )
     : undefined
 }
 

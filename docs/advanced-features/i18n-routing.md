@@ -290,6 +290,8 @@ Next.js supports overriding the accept-language header with a `NEXT_LOCALE=the-l
 
 For example, if a user prefers the locale `fr` in their accept-language header but a `NEXT_LOCALE=en` cookie is set the `en` locale when visiting `/` the user will be redirected to the `en` locale location until the cookie is removed or expired.
 
+The default cookie name is `NEXT_LOCALE` but it can also be customized by setting the `cookieName` option in the `next.config.js` file.
+
 ## Search Engine Optimization
 
 Since Next.js knows what language the user is visiting it will automatically add the `lang` attribute to the `<html>` tag.

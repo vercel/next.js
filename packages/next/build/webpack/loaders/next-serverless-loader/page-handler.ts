@@ -123,6 +123,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
     let _nextData = false
     let defaultLocale = i18n?.defaultLocale
     let detectedLocale = i18n?.defaultLocale
+    let cookieName = i18n?.cookieName || 'NEXT_LOCALE'
     let parsedUrl: UrlWithParsedQuery
 
     try {
@@ -170,7 +171,8 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
         res,
         parsedUrl,
         routeNoAssetPath,
-        fromExport || nextStartMode
+        fromExport || nextStartMode,
+        cookieName
       )
       defaultLocale = localeResult?.defaultLocale || defaultLocale
       detectedLocale = localeResult?.detectedLocale || detectedLocale
