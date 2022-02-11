@@ -1162,7 +1162,6 @@ export default abstract class Server {
         !isSSG &&
         !isLikeServerless &&
         !query.amp &&
-        !this.minimalMode &&
         typeof components.Document?.getInitialProps !== 'function'
     }
 
