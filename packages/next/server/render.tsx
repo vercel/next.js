@@ -66,7 +66,7 @@ import { ImageConfigComplete } from './image-config'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
-let tryGetPreviewData: typeof import('./api-utils').tryGetPreviewData
+let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
 let postProcess: typeof import('../shared/lib/post-process').default
 
@@ -77,7 +77,7 @@ if (!process.browser) {
   optimizeAmp = require('./optimize-amp').default
   getFontDefinitionFromManifest =
     require('./font-utils').getFontDefinitionFromManifest
-  tryGetPreviewData = require('./api-utils').tryGetPreviewData
+  tryGetPreviewData = require('./api-utils/node').tryGetPreviewData
   warn = require('../build/output/log').warn
   postProcess = require('../shared/lib/post-process').default
 } else {

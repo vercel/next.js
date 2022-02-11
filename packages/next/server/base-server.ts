@@ -36,7 +36,6 @@ import {
 import {
   setLazyProp,
   getCookieParser,
-  tryGetPreviewData,
   checkIsManualRevalidate,
 } from './api-utils'
 import * as envConfig from '../shared/lib/runtime-config'
@@ -1181,8 +1180,13 @@ export default abstract class Server {
     let isPreviewMode = false
 
     if (hasServerProps || isSSG) {
-      previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
-      isPreviewMode = previewData !== false
+      // For the edge runtime, we don't support preview mode in SSG.
+      if (!process.browser) {
+        const { tryGetPreviewData } =
+          require('./api-utils/node') as typeof import('./api-utils/node')
+        previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
+        isPreviewMode = previewData !== false
+      }
     }
 
     let isManualRevalidate = false

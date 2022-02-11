@@ -2,10 +2,12 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
 import type { PageConfig } from 'next/types'
 import type { __ApiPreviewProps } from '.'
-import type { BaseNextRequest } from '../base-http'
+import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
+import type { PreviewData } from 'next/types'
 
-import { encryptWithSecret } from '../crypto-utils'
+import jsonwebtoken from 'jsonwebtoken'
+import { decryptWithSecret, encryptWithSecret } from '../crypto-utils'
 import generateETag from 'next/dist/compiled/etag'
 import { sendEtagResponse } from '../send-payload'
 import { Stream } from 'stream'
@@ -16,16 +18,91 @@ import { interopDefault } from '../../lib/interop-default'
 import {
   getCookieParser,
   setLazyProp,
-  tryGetPreviewData,
   sendStatusCode,
   redirect,
   clearPreviewData,
   sendError,
   ApiError,
+  NextApiRequestCookies,
   PRERENDER_REVALIDATE_HEADER,
   COOKIE_NAME_PRERENDER_BYPASS,
   COOKIE_NAME_PRERENDER_DATA,
+  SYMBOL_PREVIEW_DATA,
 } from './index'
+
+export function tryGetPreviewData(
+  req: IncomingMessage | BaseNextRequest,
+  res: ServerResponse | BaseNextResponse,
+  options: __ApiPreviewProps
+): PreviewData {
+  // Read cached preview data if present
+  if (SYMBOL_PREVIEW_DATA in req) {
+    return (req as any)[SYMBOL_PREVIEW_DATA] as any
+  }
+
+  const getCookies = getCookieParser(req.headers)
+  let cookies: NextApiRequestCookies
+  try {
+    cookies = getCookies()
+  } catch {
+    // TODO: warn
+    return false
+  }
+
+  const hasBypass = COOKIE_NAME_PRERENDER_BYPASS in cookies
+  const hasData = COOKIE_NAME_PRERENDER_DATA in cookies
+
+  // Case: neither cookie is set.
+  if (!(hasBypass || hasData)) {
+    return false
+  }
+
+  // Case: one cookie is set, but not the other.
+  if (hasBypass !== hasData) {
+    clearPreviewData(res as NextApiResponse)
+    return false
+  }
+
+  // Case: preview session is for an old build.
+  if (cookies[COOKIE_NAME_PRERENDER_BYPASS] !== options.previewModeId) {
+    clearPreviewData(res as NextApiResponse)
+    return false
+  }
+
+  const tokenPreviewData = cookies[COOKIE_NAME_PRERENDER_DATA]
+
+  let encryptedPreviewData: {
+    data: string
+  }
+  try {
+    encryptedPreviewData = jsonwebtoken.verify(
+      tokenPreviewData,
+      options.previewModeSigningKey
+    ) as typeof encryptedPreviewData
+  } catch {
+    // TODO: warn
+    clearPreviewData(res as NextApiResponse)
+    return false
+  }
+
+  const decryptedPreviewData = decryptWithSecret(
+    Buffer.from(options.previewModeEncryptionKey),
+    encryptedPreviewData.data
+  )
+
+  try {
+    // TODO: strict runtime type checking
+    const data = JSON.parse(decryptedPreviewData)
+    // Cache lookup
+    Object.defineProperty(req, SYMBOL_PREVIEW_DATA, {
+      value: data,
+      enumerable: false,
+    })
+    return data
+  } catch {
+    return false
+  }
+}
 
 /**
  * Parse incoming message like `json` or `urlencoded`
@@ -345,9 +422,6 @@ function setPreviewData<T>(
   if (isNotValidData(options.previewModeSigningKey)) {
     throw new Error('invariant: invalid previewModeSigningKey')
   }
-
-  const jsonwebtoken =
-    require('next/dist/compiled/jsonwebtoken') as typeof import('jsonwebtoken')
 
   const payload = jsonwebtoken.sign(
     {
