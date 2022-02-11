@@ -33,9 +33,14 @@ import {
   getSortedRoutes,
   isDynamicRoute,
 } from '../shared/lib/router/utils'
+import {
+  setLazyProp,
+  getCookieParser,
+  tryGetPreviewData,
+  checkIsManualRevalidate,
+} from './api-utils'
 import * as envConfig from '../shared/lib/runtime-config'
 import { DecodeError, normalizeRepeatedSlashes } from '../shared/lib/utils'
-import { setLazyProp, getCookieParser, tryGetPreviewData } from './api-utils'
 import { isTargetLikeServerless } from './utils'
 import Router, { replaceBasePath, route } from './router'
 import { PayloadOptions, setRevalidateHeaders } from './send-payload'
@@ -59,7 +64,6 @@ import { addRequestMeta, getRequestMeta } from './request-meta'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
 import { ImageConfigComplete } from './image-config'
-import { checkIsManualRevalidate } from '../server/api-utils'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType

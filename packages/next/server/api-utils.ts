@@ -1,16 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'http'
+import type { PreviewData } from 'next/types'
+import type { BaseNextRequest, BaseNextResponse } from './base-http'
 
 import { parse } from 'next/dist/compiled/content-type'
-import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
-import { PageConfig, PreviewData } from 'next/types'
-import { Stream } from 'stream'
-import { isResSent, NextApiRequest, NextApiResponse } from '../shared/lib/utils'
-import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
-import { sendEtagResponse } from './send-payload'
-import generateETag from 'next/dist/compiled/etag'
+import { NextApiRequest, NextApiResponse } from '../shared/lib/utils'
+import { decryptWithSecret } from './crypto-utils'
 import isError from '../lib/is-error'
-import { interopDefault } from '../lib/interop-default'
-import { BaseNextRequest, BaseNextResponse } from './base-http'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -19,128 +14,6 @@ export type __ApiPreviewProps = {
   previewModeId: string
   previewModeEncryptionKey: string
   previewModeSigningKey: string
-}
-
-export async function apiResolver(
-  req: IncomingMessage,
-  res: ServerResponse,
-  query: any,
-  resolverModule: any,
-  apiContext: __ApiPreviewProps & {
-    trustHostHeader?: boolean
-    hostname?: string
-    port?: number
-  },
-  propagateError: boolean,
-  dev?: boolean,
-  page?: string
-): Promise<void> {
-  const apiReq = req as NextApiRequest
-  const apiRes = res as NextApiResponse
-
-  try {
-    if (!resolverModule) {
-      res.statusCode = 404
-      res.end('Not Found')
-      return
-    }
-    const config: PageConfig = resolverModule.config || {}
-    const bodyParser = config.api?.bodyParser !== false
-    const externalResolver = config.api?.externalResolver || false
-
-    // Parsing of cookies
-    setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req.headers))
-    // Parsing query string
-    apiReq.query = query
-    // Parsing preview data
-    setLazyProp({ req: apiReq }, 'previewData', () =>
-      tryGetPreviewData(req, res, apiContext)
-    )
-    // Checking if preview mode is enabled
-    setLazyProp({ req: apiReq }, 'preview', () =>
-      apiReq.previewData !== false ? true : undefined
-    )
-
-    // Parsing of body
-    if (bodyParser && !apiReq.body) {
-      apiReq.body = await parseBody(
-        apiReq,
-        config.api && config.api.bodyParser && config.api.bodyParser.sizeLimit
-          ? config.api.bodyParser.sizeLimit
-          : '1mb'
-      )
-    }
-
-    let contentLength = 0
-    const writeData = apiRes.write
-    const endResponse = apiRes.end
-    apiRes.write = (...args: any[2]) => {
-      contentLength += Buffer.byteLength(args[0] || '')
-      return writeData.apply(apiRes, args)
-    }
-    apiRes.end = (...args: any[2]) => {
-      if (args.length && typeof args[0] !== 'function') {
-        contentLength += Buffer.byteLength(args[0] || '')
-      }
-
-      if (contentLength >= 4 * 1024 * 1024) {
-        console.warn(
-          `API response for ${req.url} exceeds 4MB. This will cause the request to fail in a future version. https://nextjs.org/docs/messages/api-routes-body-size-limit`
-        )
-      }
-
-      endResponse.apply(apiRes, args)
-    }
-    apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
-    apiRes.send = (data) => sendData(apiReq, apiRes, data)
-    apiRes.json = (data) => sendJson(apiRes, data)
-    apiRes.redirect = (statusOrUrl: number | string, url?: string) =>
-      redirect(apiRes, statusOrUrl, url)
-    apiRes.setPreviewData = (data, options = {}) =>
-      setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
-    apiRes.clearPreviewData = () => clearPreviewData(apiRes)
-    apiRes.unstable_revalidate = (urlPath: string) =>
-      unstable_revalidate(urlPath, req, apiContext)
-
-    const resolver = interopDefault(resolverModule)
-    let wasPiped = false
-
-    if (process.env.NODE_ENV !== 'production') {
-      // listen for pipe event and don't show resolve warning
-      res.once('pipe', () => (wasPiped = true))
-    }
-
-    // Call API route method
-    await resolver(req, res)
-
-    if (
-      process.env.NODE_ENV !== 'production' &&
-      !externalResolver &&
-      !isResSent(res) &&
-      !wasPiped
-    ) {
-      console.warn(
-        `API resolved without sending a response for ${req.url}, this may result in stalled requests.`
-      )
-    }
-  } catch (err) {
-    if (err instanceof ApiError) {
-      sendError(apiRes, err.statusCode, err.message)
-    } else {
-      if (dev) {
-        if (isError(err)) {
-          err.page = page
-        }
-        throw err
-      }
-
-      console.error(err)
-      if (propagateError) {
-        throw err
-      }
-      sendError(apiRes, 500, 'Internal Server Error')
-    }
-  }
 }
 
 /**
@@ -190,7 +63,7 @@ export async function parseBody(
  * Parse `JSON` and handles invalid `JSON` strings
  * @param str `JSON` string
  */
-function parseJson(str: string): object {
+export function parseJson(str: string): object {
   if (str.length === 0) {
     // special-case empty json body, as it's a common client-side mistake
     return {}
@@ -261,86 +134,7 @@ export function redirect(
   return res
 }
 
-/**
- * Send `any` body to response
- * @param req request object
- * @param res response object
- * @param body of response
- */
-export function sendData(
-  req: NextApiRequest,
-  res: NextApiResponse,
-  body: any
-): void {
-  if (body === null || body === undefined) {
-    res.end()
-    return
-  }
-
-  // strip irrelevant headers/body
-  if (res.statusCode === 204 || res.statusCode === 304) {
-    res.removeHeader('Content-Type')
-    res.removeHeader('Content-Length')
-    res.removeHeader('Transfer-Encoding')
-
-    if (process.env.NODE_ENV === 'development' && body) {
-      console.warn(
-        `A body was attempted to be set with a 204 statusCode for ${req.url}, this is invalid and the body was ignored.\n` +
-          `See more info here https://nextjs.org/docs/messages/invalid-api-status-body`
-      )
-    }
-    res.end()
-    return
-  }
-
-  const contentType = res.getHeader('Content-Type')
-
-  if (body instanceof Stream) {
-    if (!contentType) {
-      res.setHeader('Content-Type', 'application/octet-stream')
-    }
-    body.pipe(res)
-    return
-  }
-
-  const isJSONLike = ['object', 'number', 'boolean'].includes(typeof body)
-  const stringifiedBody = isJSONLike ? JSON.stringify(body) : body
-  const etag = generateETag(stringifiedBody)
-  if (sendEtagResponse(req, res, etag)) {
-    return
-  }
-
-  if (Buffer.isBuffer(body)) {
-    if (!contentType) {
-      res.setHeader('Content-Type', 'application/octet-stream')
-    }
-    res.setHeader('Content-Length', body.length)
-    res.end(body)
-    return
-  }
-
-  if (isJSONLike) {
-    res.setHeader('Content-Type', 'application/json; charset=utf-8')
-  }
-
-  res.setHeader('Content-Length', Buffer.byteLength(stringifiedBody))
-  res.end(stringifiedBody)
-}
-
-/**
- * Send `JSON` object
- * @param res response object
- * @param jsonBody of data
- */
-export function sendJson(res: NextApiResponse, jsonBody: any): void {
-  // Set header to application/json
-  res.setHeader('Content-Type', 'application/json; charset=utf-8')
-
-  // Use send to handle request
-  res.send(jsonBody)
-}
-
-const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
+export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
 
 export function checkIsManualRevalidate(
   req: IncomingMessage | BaseNextRequest,
@@ -349,49 +143,8 @@ export function checkIsManualRevalidate(
   return req.headers[PRERENDER_REVALIDATE_HEADER] === previewProps.previewModeId
 }
 
-async function unstable_revalidate(
-  urlPath: string,
-  req: IncomingMessage | BaseNextRequest,
-  context: {
-    hostname?: string
-    port?: number
-    previewModeId: string
-    trustHostHeader?: boolean
-  }
-) {
-  if (!context.trustHostHeader && (!context.hostname || !context.port)) {
-    throw new Error(
-      `"hostname" and "port" must be provided when starting next to use "unstable_revalidate". See more here https://nextjs.org/docs/advanced-features/custom-server`
-    )
-  }
-
-  if (typeof urlPath !== 'string' || !urlPath.startsWith('/')) {
-    throw new Error(
-      `Invalid urlPath provided to revalidate(), must be a path e.g. /blog/post-1, received ${urlPath}`
-    )
-  }
-
-  const baseUrl = context.trustHostHeader
-    ? `https://${req.headers.host}`
-    : `http://${context.hostname}:${context.port}`
-
-  try {
-    const res = await fetch(`${baseUrl}${urlPath}`, {
-      headers: {
-        [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
-      },
-    })
-
-    if (!res.ok) {
-      throw new Error(`Invalid response ${res.status}`)
-    }
-  } catch (err) {
-    throw new Error(`Failed to revalidate ${urlPath}`)
-  }
-}
-
-const COOKIE_NAME_PRERENDER_BYPASS = `__prerender_bypass`
-const COOKIE_NAME_PRERENDER_DATA = `__next_preview_data`
+export const COOKIE_NAME_PRERENDER_BYPASS = `__prerender_bypass`
+export const COOKIE_NAME_PRERENDER_DATA = `__next_preview_data`
 
 export const SYMBOL_PREVIEW_DATA = Symbol(COOKIE_NAME_PRERENDER_DATA)
 export const SYMBOL_CLEARED_COOKIES = Symbol(COOKIE_NAME_PRERENDER_BYPASS)
@@ -472,86 +225,9 @@ export function tryGetPreviewData(
   }
 }
 
-function isNotValidData(str: string): boolean {
-  return typeof str !== 'string' || str.length < 16
-}
-
-function setPreviewData<T>(
-  res: NextApiResponse<T>,
-  data: object | string, // TODO: strict runtime type checking
-  options: {
-    maxAge?: number
-  } & __ApiPreviewProps
+export function clearPreviewData<T>(
+  res: NextApiResponse<T>
 ): NextApiResponse<T> {
-  if (isNotValidData(options.previewModeId)) {
-    throw new Error('invariant: invalid previewModeId')
-  }
-  if (isNotValidData(options.previewModeEncryptionKey)) {
-    throw new Error('invariant: invalid previewModeEncryptionKey')
-  }
-  if (isNotValidData(options.previewModeSigningKey)) {
-    throw new Error('invariant: invalid previewModeSigningKey')
-  }
-
-  const jsonwebtoken =
-    require('next/dist/compiled/jsonwebtoken') as typeof import('jsonwebtoken')
-
-  const payload = jsonwebtoken.sign(
-    {
-      data: encryptWithSecret(
-        Buffer.from(options.previewModeEncryptionKey),
-        JSON.stringify(data)
-      ),
-    },
-    options.previewModeSigningKey,
-    {
-      algorithm: 'HS256',
-      ...(options.maxAge !== undefined
-        ? { expiresIn: options.maxAge }
-        : undefined),
-    }
-  )
-
-  // limit preview mode cookie to 2KB since we shouldn't store too much
-  // data here and browsers drop cookies over 4KB
-  if (payload.length > 2048) {
-    throw new Error(
-      `Preview data is limited to 2KB currently, reduce how much data you are storing as preview data to continue`
-    )
-  }
-
-  const { serialize } =
-    require('next/dist/compiled/cookie') as typeof import('cookie')
-  const previous = res.getHeader('Set-Cookie')
-  res.setHeader(`Set-Cookie`, [
-    ...(typeof previous === 'string'
-      ? [previous]
-      : Array.isArray(previous)
-      ? previous
-      : []),
-    serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
-      httpOnly: true,
-      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
-      secure: process.env.NODE_ENV !== 'development',
-      path: '/',
-      ...(options.maxAge !== undefined
-        ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
-        : undefined),
-    }),
-    serialize(COOKIE_NAME_PRERENDER_DATA, payload, {
-      httpOnly: true,
-      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
-      secure: process.env.NODE_ENV !== 'development',
-      path: '/',
-      ...(options.maxAge !== undefined
-        ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
-        : undefined),
-    }),
-  ])
-  return res
-}
-
-function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
   if (SYMBOL_CLEARED_COOKIES in res) {
     return res
   }

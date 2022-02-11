@@ -1,6 +1,6 @@
 import { parse as parseUrl } from 'url'
 import { IncomingMessage, ServerResponse } from 'http'
-import { apiResolver } from '../../../../server/api-utils'
+import { apiResolver } from '../../../../server/api-resolver'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 import { DecodeError } from '../../../../shared/lib/utils'
 import { NodeNextResponse, NodeNextRequest } from '../../../../server/base-http'

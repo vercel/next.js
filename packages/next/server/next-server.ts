@@ -50,7 +50,7 @@ import {
 import { PayloadOptions, sendRenderResult } from './send-payload'
 import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
-import { apiResolver } from './api-utils'
+import { apiResolver } from './api-resolver'
 import { RenderOpts, renderToHTML } from './render'
 import { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
