@@ -1,3 +1,5 @@
+export type Event = 'request'
+
 // This is the base Browser interface all browser
 // classes should build off of, it is the bare
 // methods we aim to support across tests
@@ -68,6 +70,8 @@ export class BrowserInterface {
   deleteCookies(): BrowserInterface {
     return this
   }
+  on(event: Event, cb: (...args: any[]) => void) {}
+  off(event: Event, cb: (...args: any[]) => void) {}
   async loadPage(url: string, { disableCache: boolean }): Promise<any> {}
   async get(url: string): Promise<void> {}
 
