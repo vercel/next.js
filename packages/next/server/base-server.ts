@@ -33,9 +33,13 @@ import {
   getSortedRoutes,
   isDynamicRoute,
 } from '../shared/lib/router/utils'
+import {
+  setLazyProp,
+  getCookieParser,
+  checkIsManualRevalidate,
+} from './api-utils'
 import * as envConfig from '../shared/lib/runtime-config'
 import { DecodeError, normalizeRepeatedSlashes } from '../shared/lib/utils'
-import { setLazyProp, getCookieParser, tryGetPreviewData } from './api-utils'
 import { isTargetLikeServerless } from './utils'
 import Router, { replaceBasePath, route } from './router'
 import { PayloadOptions, setRevalidateHeaders } from './send-payload'
@@ -59,7 +63,6 @@ import { addRequestMeta, getRequestMeta } from './request-meta'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
 import { ImageConfigComplete } from './image-config'
-import { checkIsManualRevalidate } from '../server/api-utils'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1176,8 +1179,13 @@ export default abstract class Server {
     let isPreviewMode = false
 
     if (hasServerProps || isSSG) {
-      previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
-      isPreviewMode = previewData !== false
+      // For the edge runtime, we don't support preview mode in SSG.
+      if (!process.browser) {
+        const { tryGetPreviewData } =
+          require('./api-utils/node') as typeof import('./api-utils/node')
+        previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
+        isPreviewMode = previewData !== false
+      }
     }
 
     let isManualRevalidate = false
