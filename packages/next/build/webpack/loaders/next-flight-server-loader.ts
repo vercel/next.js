@@ -104,6 +104,12 @@ async function parseImportsInfo(
         }
         break
       }
+      case 'ExportDefaultExpression':
+        const exp = node.expression
+        if (exp.type === 'Identifier') {
+          defaultExportName = exp.value
+        }
+        break
       default:
         break
     }
@@ -157,11 +163,18 @@ export default async function transformSource(
    */
 
   const noop = `export const __rsc_noop__=()=>{${imports.join(';')}}`
-  const defaultExportNoop = isClientCompilation
-    ? `export default function ${defaultExportName}(){}\n${defaultExportName}.__next_rsc__=1;`
-    : defaultExportName
-    ? `${defaultExportName}.__next_rsc__=1;${defaultExportName}.__webpack_require__=__webpack_require__;`
-    : ''
+
+  let defaultExportNoop = ''
+  if (isClientCompilation) {
+    defaultExportNoop = `export default function ${
+      defaultExportName || 'ServerComponent'
+    }(){}\n${defaultExportName || 'ServerComponent'}.__next_rsc__=1;`
+  } else {
+    if (defaultExportName) {
+      // It's required to have the default export for pages. For other components, it's fine to leave it as is.
+      defaultExportNoop = `${defaultExportName}.__next_rsc__=1;${defaultExportName}.__webpack_require__=__webpack_require__;`
+    }
+  }
 
   const transformed = transformedSource + '\n' + noop + '\n' + defaultExportNoop
 

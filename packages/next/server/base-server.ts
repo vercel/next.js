@@ -292,7 +292,7 @@ export default abstract class Server {
     } = this.nextConfig
 
     this.buildId = this.getBuildId()
-    this.minimalMode = minimalMode
+    this.minimalMode = minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
 
     const serverComponents = this.nextConfig.experimental.serverComponents
     this.serverComponentManifest = serverComponents
@@ -1165,7 +1165,6 @@ export default abstract class Server {
         !isSSG &&
         !isLikeServerless &&
         !query.amp &&
-        !this.minimalMode &&
         typeof components.Document?.getInitialProps !== 'function'
     }
 
