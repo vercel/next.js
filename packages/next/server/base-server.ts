@@ -1126,9 +1126,13 @@ export default abstract class Server {
     // Toggle whether or not this is a Data request
     const isDataReq = !!query._nextDataReq && (isSSG || hasServerProps)
     delete query._nextDataReq
+    // Don't delete query.__flight__ yet, it still needs to be used in renderToHTML later
+    const isFlightRequest = Boolean(
+      this.serverComponentManifest && query.__flight__
+    )
 
     // we need to ensure the status code if /404 is visited directly
-    if (is404Page && !isDataReq) {
+    if (is404Page && !isDataReq && !isFlightRequest) {
       res.statusCode = 404
     }
 

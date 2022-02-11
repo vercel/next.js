@@ -27,7 +27,6 @@ const documentPage = new File(join(appDir, 'pages/_document.jsx'))
 const appPage = new File(join(appDir, 'pages/_app.js'))
 const appServerPage = new File(join(appDir, 'pages/_app.server.js'))
 const error500Page = new File(join(appDir, 'pages/500.js'))
-const error404Page = new File(join(appDir, 'pages/404.js'))
 const nextConfig = new File(join(appDir, 'next.config.js'))
 
 const documentWithGip = `
@@ -73,33 +72,6 @@ export default function Page500() {
 }
 `
 
-const suspense404 = `
-import { Suspense } from 'react'
-
-let result
-let promise
-function Data() {
-  if (result) return result
-  if (!promise)
-    promise = new Promise((res) => {
-      setTimeout(() => {
-        result = 'next_streaming_data'
-        res()
-      }, 500)
-    })
-  throw promise
-}
-
-export default function Page404() {
-  return (
-    <Suspense fallback={null}>
-      custom-404-page
-      <Data />
-    </Suspense>
-  )
-}
-`
-
 describe('Edge runtime - basic', () => {
   it('should warn user for experimental risk with server components', async () => {
     const edgeRuntimeWarning =
@@ -115,20 +87,6 @@ describe('Edge runtime - basic', () => {
       'Native Node.js APIs are not supported in the Edge Runtime. Found `dns` imported.'
     const { stderr } = await nextBuild(nativeModuleTestAppDir)
     expect(stderr).toContain(fsImportedErrorMessage)
-  })
-
-  it('should handle suspense error page correctly (node stream)', async () => {
-    error404Page.write(suspense404)
-    const appPort = await findPort()
-    await nextBuild(appDir)
-    await nextStart(appDir, appPort)
-    const browser = await webdriver(appPort, '/404')
-    const hydrationContent = await browser.eval(
-      `document.querySelector('#__next').textContent`
-    )
-    expect(hydrationContent).toBe('custom-404-pagenext_streaming_data')
-
-    error404Page.restore()
   })
 })
 
@@ -148,16 +106,25 @@ describe('Edge runtime - prod', () => {
 
   it('should generate middleware SSR manifests for edge runtime', async () => {
     const distServerDir = join(distDir, 'server')
-    const hasFile = (filename) => fs.existsSync(join(distServerDir, filename))
-
     const files = [
       'middleware-build-manifest.js',
       'middleware-flight-manifest.js',
       'middleware-ssr-runtime.js',
       'middleware-manifest.json',
     ]
+
+    const requiredServerFiles = (
+      await fs.readJSON(join(distDir, 'required-server-files.json'))
+    ).files
+
     files.forEach((file) => {
-      expect(hasFile(file)).toBe(true)
+      const filepath = join(distServerDir, file)
+      expect(fs.existsSync(filepath)).toBe(true)
+    })
+
+    requiredServerFiles.forEach((file) => {
+      const requiredFilePath = join(appDir, file)
+      expect(fs.existsSync(requiredFilePath)).toBe(true)
     })
   })
 
@@ -191,8 +158,8 @@ describe('Edge runtime - prod', () => {
     expect(path500HTML).toContain('custom-500-page')
   })
 
-  basic(context, 'prod')
-  rsc(context)
+  basic(context)
+  rsc(context, 'edge')
   streaming(context)
 })
 
@@ -237,31 +204,39 @@ describe('Edge runtime - dev', () => {
     expect(path500HTML).toContain('Error: oops')
   })
 
-  basic(context, 'dev')
-  rsc(context)
+  basic(context)
+  rsc(context, 'edge')
   streaming(context)
 })
 
 const nodejsRuntimeBasicSuite = {
   runTests: (context, env) => {
-    basic(context, env)
-    rsc(context)
+    basic(context)
     streaming(context)
+    rsc(context, 'nodejs')
 
     if (env === 'prod') {
       it('should generate middleware SSR manifests for Node.js', async () => {
         const distServerDir = join(distDir, 'server')
-        const hasFile = (filename) =>
-          fs.existsSync(join(distServerDir, filename))
+
+        const requiredServerFiles = (
+          await fs.readJSON(join(distDir, 'required-server-files.json'))
+        ).files
 
         const files = [
           'middleware-build-manifest.js',
           'middleware-flight-manifest.json',
           'middleware-manifest.json',
         ]
+
         files.forEach((file) => {
-          if (!hasFile(file)) console.log(file)
-          expect(hasFile(file)).toBe(true)
+          const filepath = join(distServerDir, file)
+          expect(fs.existsSync(filepath)).toBe(true)
+        })
+
+        requiredServerFiles.forEach((file) => {
+          const requiredFilePath = join(appDir, file)
+          expect(fs.existsSync(requiredFilePath)).toBe(true)
         })
       })
     }

@@ -95,7 +95,7 @@ export interface NodeRequestHandler {
 }
 
 export default class NextNodeServer extends BaseServer {
-  private imageResponseCache: ResponseCache
+  private imageResponseCache?: ResponseCache
 
   constructor(options: Options) {
     // Initialize super class
@@ -117,15 +117,28 @@ export default class NextNodeServer extends BaseServer {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
 
-    const { ImageOptimizerCache } =
-      require('./image-optimizer') as typeof import('./image-optimizer')
+    if (!this.minimalMode) {
+      const { ImageOptimizerCache } =
+        require('./image-optimizer') as typeof import('./image-optimizer')
 
-    this.imageResponseCache = new ResponseCache(
-      new ImageOptimizerCache({
-        distDir: this.distDir,
-        nextConfig: this.nextConfig,
-      })
-    )
+      this.imageResponseCache = new ResponseCache(
+        new ImageOptimizerCache({
+          distDir: this.distDir,
+          nextConfig: this.nextConfig,
+        })
+      )
+    }
+
+    if (!this.renderOpts.dev) {
+      // pre-warm _document and _app as these will be
+      // needed for most requests
+      loadComponents(this.distDir, '/_document', this._isLikeServerless).catch(
+        () => {}
+      )
+      loadComponents(this.distDir, '/_app', this._isLikeServerless).catch(
+        () => {}
+      )
+    }
   }
 
   private compression =
@@ -170,8 +183,6 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected generateImageRoutes(): Route[] {
-    const { getHash, ImageOptimizerCache, sendResponse, ImageError } =
-      require('./image-optimizer') as typeof import('./image-optimizer')
     return [
       {
         match: route('/_next/image'),
@@ -185,6 +196,15 @@ export default class NextNodeServer extends BaseServer {
               finished: true,
             }
           }
+          const { getHash, ImageOptimizerCache, sendResponse, ImageError } =
+            require('./image-optimizer') as typeof import('./image-optimizer')
+
+          if (!this.imageResponseCache) {
+            throw new Error(
+              'invariant image optimizer cache was not initialized'
+            )
+          }
+
           const imagesConfig = this.nextConfig.images
 
           if (imagesConfig.loader !== 'default') {

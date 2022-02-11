@@ -86,6 +86,7 @@ const devtoolRevertWarning = execOnce(
 )
 
 let loggedSwcDisabled = false
+let loggedIgnoredCompilerOptions = false
 
 function getOptimizedAliases(): { [pkg: string]: string } {
   const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch', 'index.js')
@@ -434,6 +435,13 @@ export default async function getBaseWebpackConfig(
       )}" https://nextjs.org/docs/messages/swc-disabled`
     )
     loggedSwcDisabled = true
+  }
+
+  if (!loggedIgnoredCompilerOptions && !useSWCLoader && config.compiler) {
+    Log.info(
+      '`compiler` options in `next.config.js` will be ignored while using Babel https://next.js.org/docs/messages/ignored-compiler-options'
+    )
+    loggedIgnoredCompilerOptions = true
   }
 
   const getBabelOrSwcLoader = (isMiddleware: boolean) => {
@@ -1517,6 +1525,18 @@ export default async function getBaseWebpackConfig(
           new Map([
             ['swcLoader', useSWCLoader],
             ['swcMinify', config.swcMinify],
+            ['swcRelay', !!config.compiler?.relay],
+            ['swcStyledComponents', !!config.compiler?.styledComponents],
+            [
+              'swcReactRemoveProperties',
+              !!config.compiler?.reactRemoveProperties,
+            ],
+            [
+              'swcExperimentalDecorators',
+              !!jsConfig?.compilerOptions?.experimentalDecorators,
+            ],
+            ['swcRemoveConsole', !!config.compiler?.removeConsole],
+            ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
           ])
         ),
     ].filter(Boolean as any as ExcludesFalse),
@@ -1627,10 +1647,10 @@ export default async function getBaseWebpackConfig(
     runtime,
     swcMinify: config.swcMinify,
     swcLoader: useSWCLoader,
-    removeConsole: config.experimental.removeConsole,
-    reactRemoveProperties: config.experimental.reactRemoveProperties,
-    styledComponents: config.experimental.styledComponents,
-    relay: config.experimental.relay,
+    removeConsole: config.compiler?.removeConsole,
+    reactRemoveProperties: config.compiler?.reactRemoveProperties,
+    styledComponents: config.compiler?.styledComponents,
+    relay: config.compiler?.relay,
   })
 
   const cache: any = {

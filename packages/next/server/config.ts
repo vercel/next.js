@@ -365,6 +365,48 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     result.swcMinify = (result.experimental as any).swcMinify
   }
 
+  if (result.experimental && 'relay' in (result.experimental as any)) {
+    Log.warn(
+      `\`relay\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.relay = (result.experimental as any).relay
+  }
+
+  if (
+    result.experimental &&
+    'styledComponents' in (result.experimental as any)
+  ) {
+    Log.warn(
+      `\`styledComponents\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.styledComponents = (
+      result.experimental as any
+    ).styledComponents
+  }
+
+  if (
+    result.experimental &&
+    'reactRemoveProperties' in (result.experimental as any)
+  ) {
+    Log.warn(
+      `\`reactRemoveProperties\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.reactRemoveProperties = (
+      result.experimental as any
+    ).reactRemoveProperties
+  }
+
+  if (result.experimental && 'removeConsole' in (result.experimental as any)) {
+    Log.warn(
+      `\`removeConsole\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.removeConsole = (result.experimental as any).removeConsole
+  }
+
   if (result.swcMinify) {
     Log.warn(
       'SWC minify release candidate enabled. https://nextjs.org/docs/messages/swc-minify-enabled'

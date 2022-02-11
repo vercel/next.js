@@ -48,7 +48,7 @@ module.exports = (phase, { defaultConfig }) => {
 }
 ```
 
-Since Next.js 12.0.10, you can use an async function:
+Since Next.js 12.1.0, you can use an async function:
 
 ```js
 module.exports = async (phase, { defaultConfig }) => {
