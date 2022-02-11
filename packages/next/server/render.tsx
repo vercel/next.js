@@ -63,7 +63,7 @@ import isError from '../lib/is-error'
 import { readableStreamTee } from './web/utils'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from './image-config'
-import { FlushEffectContext, useFlushEffect } from '../shared/lib/flush-effect'
+import { FlushEffectsContext } from '../shared/lib/flush-effects'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
@@ -727,53 +727,45 @@ export async function renderToHTML(
   const nextExport =
     !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
 
-  const flushEffectState: {
-    effects: Array<() => React.ReactNode>
-    sealed: boolean
-  } = { effects: [], sealed: false }
+  const styledJsxFlushEffect = () => {
+    const styles = jsxStyleRegistry.styles()
+    jsxStyleRegistry.flush()
+    return (
+      <>
+        {React.Children.map(styles, (element, i) =>
+          React.cloneElement(element, {
+            key: i,
+          })
+        )}
+      </>
+    )
+  }
 
+  let flushEffects: Array<() => React.ReactNode> | null = null
   function FlushEffectContainer({ children }: { children: JSX.Element }) {
     // If the client tree suspends, this component will be rendered multiple
     // times before we flush. To ensure we don't call old callbacks corresponding
     // to a previous render, we clear any registered callbacks whenever we render.
-    flushEffectState.effects.length = 0
+    flushEffects = null
 
-    const flushEffectImpl = React.useCallback(
-      (callback: () => React.ReactNode) => {
-        if (flushEffectState.sealed) {
+    const flushEffectsImpl = React.useCallback(
+      (callbacks: Array<() => React.ReactNode>) => {
+        if (flushEffects) {
           throw new Error(
-            '`useFlushEffect` was called after flushing started. Did you use it inside a <Suspense> boundary?' +
-              '\nRead more: https://nextjs.org/docs/messages/flush-after-start'
+            'The `useFlushEffects` hook cannot be called more than once.' +
+              '\nRead more: https://nextjs.org/docs/messages/multiple-flush-effects'
           )
         }
-        flushEffectState.effects.push(callback)
+        flushEffects = callbacks
       },
       []
     )
 
     return (
-      <FlushEffectContext.Provider value={flushEffectImpl}>
+      <FlushEffectsContext.Provider value={flushEffectsImpl}>
         {children}
-      </FlushEffectContext.Provider>
+      </FlushEffectsContext.Provider>
     )
-  }
-
-  function StyleRegistryFlusher({ children }: { children: JSX.Element }) {
-    useFlushEffect(() => {
-      const styles = jsxStyleRegistry.styles()
-      jsxStyleRegistry.flush()
-      return (
-        <>
-          {React.Children.map(styles, (element, i) =>
-            React.cloneElement(element, {
-              key: i,
-            })
-          )}
-        </>
-      )
-    })
-
-    return <StyleRegistry registry={jsxStyleRegistry}>{children}</StyleRegistry>
   }
 
   const AppContainer = ({ children }: { children: JSX.Element }) => (
@@ -795,11 +787,11 @@ export async function renderToHTML(
             <LoadableContext.Provider
               value={(moduleName) => reactLoadableModules.push(moduleName)}
             >
-              <StyleRegistryFlusher>
+              <StyleRegistry registry={jsxStyleRegistry}>
                 <ImageConfigContext.Provider value={images}>
                   {children}
                 </ImageConfigContext.Provider>
-              </StyleRegistryFlusher>
+              </StyleRegistry>
             </LoadableContext.Provider>
           </HeadManagerContext.Provider>
         </AmpStateContext.Provider>
@@ -1340,15 +1332,16 @@ export async function renderToHTML(
           // up to date when getWrappedApp is called
 
           const content = renderContent()
-          const handleFlushEffect = async () => {
-            // Prevent additional flush effects from being registered
-            flushEffectState.sealed = true
-
+          const flushEffectHandler = async () => {
+            const allFlushEffects = [
+              styledJsxFlushEffect,
+              ...(flushEffects || []),
+            ]
             const flushEffectStream = await renderToStream({
               ReactDOMServer,
               element: (
                 <>
-                  {flushEffectState.effects.map((flushEffect, i) => (
+                  {allFlushEffects.map((flushEffect, i) => (
                     <React.Fragment key={i}>{flushEffect()}</React.Fragment>
                   ))}
                 </>
@@ -1365,7 +1358,7 @@ export async function renderToHTML(
             suffix,
             dataStream: serverComponentsInlinedTransformStream?.readable,
             generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
-            handleFlushEffect,
+            flushEffectHandler,
           })
         }
       } else {
@@ -1774,14 +1767,14 @@ function renderToStream({
   suffix,
   dataStream,
   generateStaticHTML,
-  handleFlushEffect,
+  flushEffectHandler,
 }: {
   ReactDOMServer: typeof import('react-dom/server')
   element: React.ReactElement
   suffix?: string
   dataStream?: ReadableStream<string>
   generateStaticHTML: boolean
-  handleFlushEffect?: () => Promise<string>
+  flushEffectHandler?: () => Promise<string>
 }): Promise<ReadableStream<string>> {
   return new Promise((resolve, reject) => {
     let resolved = false
@@ -1799,8 +1792,8 @@ function renderToStream({
           Promise.resolve().then(() => {
             const transforms: Array<TransformStream<string, string>> = [
               createBufferedTransformStream(),
-              handleFlushEffect
-                ? createFlushEffectStream(handleFlushEffect)
+              flushEffectHandler
+                ? createFlushEffectStream(flushEffectHandler)
                 : null,
               suffixUnclosed ? createPrefixStream(suffixUnclosed) : null,
               dataStream ? createInlineDataStream(dataStream) : null,
