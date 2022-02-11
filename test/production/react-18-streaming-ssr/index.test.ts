@@ -1,5 +1,3 @@
-import fs from 'fs-extra'
-import { join } from 'path'
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { renderViaHTTP } from 'next-test-utils'
@@ -8,6 +6,8 @@ describe('react-18-streaming-ssr in minimal mode', () => {
   let next: NextInstance
 
   beforeAll(async () => {
+    process.env.NEXT_PRIVATE_MINIMAL_MODE = '1'
+
     next = await createNext({
       files: {
         'pages/index.server.js': `
@@ -29,16 +29,6 @@ describe('react-18-streaming-ssr in minimal mode', () => {
       },
       skipStart: true,
     })
-
-    // Enable minimal mode
-    const baseServerPath = join(
-      next.testDir,
-      'node_modules/next/dist/server/base-server.js'
-    )
-    const minimalModeBaseServerCode = fs
-      .readFileSync(baseServerPath, { encoding: 'utf-8' })
-      .replace(/this.minimalMode = minimalMode/, 'this.minimalMode = true')
-    fs.writeFileSync(baseServerPath, minimalModeBaseServerCode)
 
     await next.start()
   })
