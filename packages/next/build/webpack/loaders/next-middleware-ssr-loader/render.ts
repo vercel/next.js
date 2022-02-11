@@ -7,7 +7,10 @@ import { NextRequest } from '../../../../server/web/spec-extension/request'
 import { toNodeHeaders } from '../../../../server/web/utils'
 
 import WebServer from '../../../../server/web-server'
-import { WebNextRequest, WebNextResponse } from '../../../../server/base-http'
+import {
+  WebNextRequest,
+  WebNextResponse,
+} from '../../../../server/base-http/web'
 
 const createHeaders = (args?: any) => ({
   ...args,
@@ -69,8 +72,8 @@ export function getRender({
     webServerConfig: {
       extendRenderOpts: {
         buildId,
+        runtime: 'edge',
         supportsDynamicHTML: true,
-        concurrentFeatures: true,
         disableOptimizedLoading: true,
         serverComponentManifest,
       },
@@ -139,7 +142,7 @@ export function getRender({
     // @TODO: We should move this into server/render.
     if (Document.getInitialProps) {
       const err = new Error(
-        '`getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
+        '`getInitialProps` in Document component is not supported with the Edge Runtime.'
       )
       return sendError(req, err)
     }

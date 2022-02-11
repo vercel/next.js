@@ -113,7 +113,15 @@ fn styled_jsx_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
-        &|t| chain!(resolver(), styled_jsx(t.cm.clone())),
+        &|t| {
+            chain!(
+                resolver(),
+                styled_jsx(
+                    t.cm.clone(),
+                    FileName::Real(PathBuf::from("/some-project/src/some-file.js"))
+                )
+            )
+        },
         &input,
         &output,
     );
@@ -130,7 +138,13 @@ fn styled_jsx_fixture(input: PathBuf) {
                 let _mark = Mark::fresh(Mark::root());
             }
 
-            chain!(resolver(), styled_jsx(t.cm.clone()))
+            chain!(
+                resolver(),
+                styled_jsx(
+                    t.cm.clone(),
+                    FileName::Real(PathBuf::from("/some-project/src/some-file.js"))
+                )
+            )
         },
         &input,
         &output,

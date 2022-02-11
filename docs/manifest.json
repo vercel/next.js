@@ -23,6 +23,12 @@
                   }
                 },
                 {
+                  "path": "/docs/basic-features/data-fetching/index",
+                  "redirect": {
+                    "destination": "/docs/basic-features/data-fetching/overview"
+                  }
+                },
+                {
                   "title": "Overview",
                   "path": "/docs/basic-features/data-fetching/overview.md"
                 },

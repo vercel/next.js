@@ -7,6 +7,7 @@ import type {
   GetStaticPaths,
   GetStaticProps,
 } from '../../../../types'
+import type { BaseNextRequest } from '../../../../server/base-http'
 
 import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
@@ -26,7 +27,6 @@ import { denormalizePagePath } from '../../../../server/denormalize-page-path'
 import cookie from 'next/dist/compiled/cookie'
 import { TEMPORARY_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 import { addRequestMeta } from '../../../../server/request-meta'
-import { BaseNextRequest } from '../../../../server/base-http'
 
 const getCustomRouteMatcher = pathMatch(true)
 
