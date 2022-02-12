@@ -61,7 +61,7 @@ description: Get to know more about Next.js with the frequently asked questions.
 
 <details>
   <summary>How can I change the internal webpack config?</summary>
-  <p>Next.js tries its best to remove the overhead of webpack configurations through supporting the most popular use cases. For advanced cases where more control is needed, refer to the <a href="/docs/api-reference/next.config.js/custom-webpack-config.md">custom webpack config documentation</a>.</p>
+  <p>In most cases, no manual webpack configuration is necessary since Next.js automatically configures webpack. For advanced cases where more control is needed, refer to the <a href="/docs/api-reference/next.config.js/custom-webpack-config.md">custom webpack config documentation</a>.</p>
 </details>
 
 <details>
