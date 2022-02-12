@@ -24,7 +24,7 @@ description: Get to know more about Next.js with the frequently asked questions.
 
 <details>
   <summary>Why does Next.js have its own Router?</summary>
-  Next.js ships with a built-in router for a few reasons:
+  Next.js includes a built-in router for a few reasons:
   <ul>
     <li>It uses a file-system based router which reduces configuration</li>
     <li>It supports shallow routing which allows you to change the URL without running data fetching methods</li>
@@ -35,12 +35,12 @@ description: Get to know more about Next.js with the frequently asked questions.
 
 <details>
   <summary>Can I use Next.js with my favorite JavaScript library?</summary>
-  <p>Yes! We have hundreds of examples of this in action in our <a href="https://github.com/vercel/next.js/tree/canary/examples">examples directory</a>.</p>
+  <p>Yes! We have hundreds of examples in our <a href="https://github.com/vercel/next.js/tree/canary/examples">examples directory</a>.</p>
 </details>
 
 <details>
   <summary>Can I use Next.js with GraphQL?</summary>
-  <p>Yes! Here's an <a href="https://github.com/vercel/next.js/tree/canary/examples/with-apollo">example with Apollo</a> and an <a href="https://github.com/vercel/next.js/tree/canary/examples/api-routes-graphql">example API route with GraphQL</a>.</p>
+  <p>Yes! Here's an <a href="https://github.com/vercel/next.js/tree/canary/examples/with-apollo">example with Apollo</a> and an <a href="https://github.com/vercel/next.js/tree/canary/examples/api-routes-graphql">example API Route with GraphQL</a>.</p>
 </details>
 
 <details>
