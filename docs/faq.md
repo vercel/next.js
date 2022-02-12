@@ -31,7 +31,7 @@ description: Get to know more about Next.js with the frequently asked questions.
     <li>Routes don’t need to be known ahead of time so we don't ship a route manifest</li>
     <li>Routes are always lazy-loadable</li>
   </ul>
-    If you're migrating from React Router, see the <a href="/docs/migrating/from-react-router">migration documentation</a>.
+    If you're migrating from React Router, see the <a href="/docs/migrating/from-react-router.md">migration documentation</a>.
 </details>
 
 <details>
