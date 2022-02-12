@@ -60,7 +60,7 @@ description: Get to know more about Next.js with the frequently asked questions.
 </details>
 
 <details>
-  <summary>How can I change the internal webpack configs?</summary>
+  <summary>How can I change the internal webpack config?</summary>
   <p>Next.js tries its best to remove the overhead of webpack configurations through supporting the most popular use cases. For advanced cases where more control is needed, refer to the <a href="/docs/api-reference/next.config.js/custom-webpack-config.md">custom webpack config documentation</a>.</p>
 </details>
 
