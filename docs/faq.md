@@ -56,7 +56,7 @@ description: Get to know more about Next.js with the frequently asked questions.
 
 <details>
   <summary>Can I use a CDN for static assets?</summary>
-  <p>Yes! You can read more about how to do it <a href="/docs/api-reference/next.config.js/cdn-support-with-asset-prefix.md">here</a>.</p>
+  <p>Yes! When you deploy your Next.js application to <a href="https://vercel.com">Vercel</a>, your static assets are automatically detected and served by the Edge Network. If you self-host Next.js, you can learn how to manually configure the asset prefix <a href="/docs/api-reference/next.config.js/cdn-support-with-asset-prefix.md">here</a>.</p>
 </details>
 
 <details>
