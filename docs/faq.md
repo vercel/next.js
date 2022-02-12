@@ -19,7 +19,7 @@ description: Get to know more about Next.js with the frequently asked questions.
     <li> Static-site generation with <a href="/docs/basic-features/data-fetching/get-static-props">getStaticProps</a></li>
     <li> Incremental Static Regeneration by <a href="/docs/basic-features/data-fetching/incremental-static-regeneration">adding the `revalidate` prop to getStaticProps</a></li>
   </ul>
-  To learn more about data fetching, visit our <a href="/docs/basic-features/data-fetching/overview">data fetching documentation</a>.
+  To learn more about data fetching, visit our <a href="/docs/basic-features/data-fetching/overview.md">data fetching documentation</a>.
 </details>
 
 <details>
