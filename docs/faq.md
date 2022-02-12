@@ -17,7 +17,7 @@ description: Get to know more about Next.js with the frequently asked questions.
     <li> Client-side rendering: Fetch data with <a href="/docs/basic-features/data-fetching/client-side#client-side-data-fetching-with-useeffect">useEffect</a> or <a href="/docs/basic-features/data-fetching/client-side#client-side-data-fetching-with-swr">SWR</a> inside your React components</li>
     <li> Server-side rendering with <a href="/docs/basic-features/data-fetching/get-server-side-props">getServerSideProps</a></li>
     <li> Static-site generation with <a href="/docs/basic-features/data-fetching/get-static-props">getStaticProps</a></li>
-    <li> Incremental Static Regeneration by <a href="/docs/basic-features/data-fetching/incremental-static-regeneration">adding the `revalidate` prop to getStaticProps</a></li>
+    <li> Incremental Static Regeneration by <a href="/docs/basic-features/data-fetching/incremental-static-regeneration.md">adding the `revalidate` prop to getStaticProps</a></li>
   </ul>
   To learn more about data fetching, visit our <a href="/docs/basic-features/data-fetching/overview.md">data fetching documentation</a>.
 </details>
