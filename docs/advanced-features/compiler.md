@@ -103,7 +103,7 @@ NOTE: In Next.js all JavaScript files in `pages` directory are considered routes
 
 ### Remove React Properties
 
-Allows to remove JSX properties. This is often used for testing. Similar to `babel-plugin-react-remove-properties`.
+Allows removing JSX properties. This is often used for testing. Similar to `babel-plugin-react-remove-properties`.
 
 To remove properties matching the default regex `^data-test`:
 

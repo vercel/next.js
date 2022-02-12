@@ -11,7 +11,7 @@ Congratulations, you are ready to deploy your Next.js application to production.
 `next build` generates an optimized version of your application for production. This standard output includes:
 
 - HTML files for pages using `getStaticProps` or [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md)
-- CSS files for global styles or for individually scoped styles
+- CSS files for global styles or individually scoped styles
 - JavaScript for pre-rendering dynamic content from the Next.js server
 - JavaScript for interactivity on the client-side through React
 
