@@ -24,7 +24,7 @@ description: Get to know more about Next.js with the frequently asked questions.
 
 <details>
   <summary>Why does Next.js have its own Router?</summary>
-  Next.js is special in that:
+  Next.js ships with a built-in router for a few reasons:
   <ul>
     <li>It uses a file-system based router which simplifies the app structure</li>
     <li>It supports shallow routing which allows you to change the URL without running data fetching methods</li>
