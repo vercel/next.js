@@ -584,21 +584,42 @@ export default class HotReloader {
     const trackPageChanges =
       (pageHashMap: Map<string, string>, changedItems: Set<string>) =>
       (stats: webpack5.Compilation) => {
-        stats.entrypoints.forEach((entry, key) => {
-          if (key.startsWith('pages/')) {
-            // TODO this doesn't handle on demand loaded chunks
-            entry.chunks.forEach((chunk: any) => {
-              if (chunk.id === key) {
-                const prevHash = pageHashMap.get(key)
+        try {
+          stats.entrypoints.forEach((entry, key) => {
+            if (key.startsWith('pages/')) {
+              // TODO this doesn't handle on demand loaded chunks
+              entry.chunks.forEach((chunk) => {
+                if (chunk.id === key) {
+                  const modsIterable: any =
+                    stats.chunkGraph.getChunkModulesIterable(chunk)
 
-                if (prevHash && prevHash !== chunk.hash) {
-                  changedItems.add(key)
+                  modsIterable.forEach((mod: any) => {
+                    if (mod.resource && mod.resource.includes(key)) {
+                      const prevHash = pageHashMap.get(key)
+
+                      // use original source to calculate hash since mod.hash
+                      // seems to be unstable, we don't want to include
+                      // source maps in this calculate since that will change
+                      // for both server and client
+                      const hash = require('crypto')
+                        .createHash('sha256')
+                        .update(mod.originalSource().buffer())
+                        .digest()
+                        .toString('hex')
+
+                      if (prevHash && prevHash !== hash) {
+                        changedItems.add(key)
+                      }
+                      pageHashMap.set(key, hash)
+                    }
+                  })
                 }
-                pageHashMap.set(key, chunk.hash)
-              }
-            })
-          }
-        })
+              })
+            }
+          })
+        } catch (err) {
+          console.error(err)
+        }
       }
 
     multiCompiler.compilers[0].hooks.emit.tap(
