@@ -6,7 +6,7 @@ description: Get started with Next.js in the official documentation, and learn m
 
 Welcome to the Next.js documentation!
 
-If you're new to Next.js we recommend that you start with the [learn course](https://nextjs.org/learn/basics/create-nextjs-app).
+If you're new to Next.js, we recommend that you start with the [learn course](https://nextjs.org/learn/basics/create-nextjs-app).
 
 The interactive course with quizzes will guide you through everything you need to know to use Next.js.
 
@@ -17,7 +17,7 @@ If you have questions about anything related to Next.js, you're always welcome t
 - [Node.js 12.22.0](https://nodejs.org/) or later
 - MacOS, Windows (including WSL), and Linux are supported
 
-## Setup
+## Automatic Setup
 
 We recommend creating a new Next.js app using `create-next-app`, which sets up everything automatically for you. To create a project, run:
 
@@ -89,12 +89,12 @@ export default HomePage
 
 So far, we get:
 
-- Automatic compilation and bundling (with webpack and babel)
+- Automatic compilation and bundling (with webpack and [SWC](https://nextjs.org/blog/next-12#faster-builds-and-fast-refresh-with-rust-compiler))
 - [React Fast Refresh](https://nextjs.org/blog/next-9-4#fast-refresh)
 - [Static generation and server-side rendering](/docs/basic-features/data-fetching/overview.md) of [`./pages/`](/docs/basic-features/pages.md)
 - [Static file serving](/docs/basic-features/static-file-serving.md). `./public/` is mapped to `/`
 
-In addition, any Next.js application is ready for production from the start, read more in our [Deployment documentation](/docs/deployment.md).
+In addition, any Next.js application is ready for production from the start. Read more in our [Deployment documentation](/docs/deployment.md).
 
 ## Related
 
@@ -110,7 +110,7 @@ For more information on what to do next, we recommend the following sections:
 <div class="card">
   <a href="/docs/basic-features/built-in-css-support.md">
     <b>CSS Support:</b>
-    <small>Use the built-in CSS support to add custom styles to your app.</small>
+    <small>Learn more about how to use the built-in CSS support to add custom styles to your app.</small>
   </a>
 </div>
 
