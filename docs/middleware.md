@@ -4,7 +4,7 @@ description: Learn how to use Middleware in Next.js to run code before a request
 
 # Middleware
 
-<details>
+<details open>
   <summary><b>Version History</b></summary>
 
 | Version   | Changes                                                                                    |
