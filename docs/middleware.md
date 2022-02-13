@@ -4,6 +4,16 @@ description: Learn how to use Middleware in Next.js to run code before a request
 
 # Middleware
 
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes                                                                                    |
+| --------- | ------------------------------------------------------------------------------------------ |
+| `v12.0.9` | Enforce absolute URLs in Edge Runtime ([PR](https://github.com/vercel/next.js/pull/33410)) |
+| `v12.0.0` | Middleware (beta) added.                                                                   |
+
+</details>
+
 Middleware enables you to use code over configuration. This gives you full flexibility in Next.js, because you can run code before a request is completed. Based on the user's incoming request, you can modify the response by rewriting, redirecting, adding headers, or even streaming HTML.
 
 ## Usage
@@ -50,7 +60,7 @@ export type Middleware = (
 
 The function can be a default export and as such, does **not** have to be named `middleware`. Though this is a convention. Also note that you only need to make the function `async` if you are running asynchronous code.
 
-**Note:** Edge Functions are currently in Beta. The API might change as we look to continually make improvements.
+[Read the full Middleware API reference.](/docs/api-reference/next/server.md)
 
 ## Examples
 
