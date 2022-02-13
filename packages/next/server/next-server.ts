@@ -8,6 +8,8 @@ import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { PrerenderManifest } from '../build'
 import type { Rewrite } from '../lib/load-custom-routes'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
+import type { ReadableStream } from 'next/dist/compiled/web-streams-polyfill/ponyfill'
+import { TransformStream } from 'next/dist/compiled/web-streams-polyfill/ponyfill'
 
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -1236,6 +1238,11 @@ export default class NextNodeServer extends BaseServer {
 
     const allHeaders = new Headers()
     let result: FetchEventResult | null = null
+    const method = (params.request.method || 'GET').toUpperCase()
+    let originalBody =
+      method !== 'GET' && method !== 'HEAD'
+        ? teeableStream(requestToBodyStream(params.request.body))
+        : undefined
 
     for (const middleware of this.middleware || []) {
       if (middleware.match(params.parsedUrl.pathname)) {
@@ -1245,6 +1252,7 @@ export default class NextNodeServer extends BaseServer {
         }
 
         await this.ensureMiddleware(middleware.page, middleware.ssr)
+        const currentBody = originalBody?.duplicate()
 
         const middlewareInfo = this.getMiddlewareInfo(middleware.page)
 
@@ -1254,7 +1262,7 @@ export default class NextNodeServer extends BaseServer {
           env: middlewareInfo.env,
           request: {
             headers: params.request.headers,
-            method: params.request.method || 'GET',
+            method,
             nextConfig: {
               basePath: this.nextConfig.basePath,
               i18n: this.nextConfig.i18n,
@@ -1262,6 +1270,7 @@ export default class NextNodeServer extends BaseServer {
             },
             url: url,
             page: page,
+            body: currentBody,
           },
           useCache: !this.nextConfig.experimental.runtime,
           onWarning: (warning: Error) => {
@@ -1332,5 +1341,38 @@ export default class NextNodeServer extends BaseServer {
       )
       this.warnIfQueryParametersWereDeleted = () => {}
     }
+  }
+}
+
+/**
+ * Creates a ReadableStream from a Node.js HTTP request
+ */
+function requestToBodyStream(
+  request: IncomingMessage
+): ReadableStream<Uint8Array> {
+  const transform = new TransformStream<Uint8Array, Uint8Array>({
+    start(controller) {
+      request.on('data', (chunk) => controller.enqueue(chunk))
+      request.on('end', () => controller.terminate())
+      request.on('error', (err) => controller.error(err))
+    },
+  })
+
+  return transform.readable
+}
+
+/**
+ * A simple utility to take an original stream and have
+ * an API to duplicate it without closing it or mutate any variables
+ */
+function teeableStream<T>(originalStream: ReadableStream<T>): {
+  duplicate(): ReadableStream<T>
+} {
+  return {
+    duplicate() {
+      const [stream1, stream2] = originalStream.tee()
+      originalStream = stream1
+      return stream2
+    },
   }
 }
