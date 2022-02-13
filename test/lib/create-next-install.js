@@ -6,7 +6,11 @@ const childProcess = require('child_process')
 const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
-async function createNextInstall(dependencies, installCommand) {
+async function createNextInstall(
+  dependencies,
+  installCommand,
+  packageJson = {}
+) {
   const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
   const origRepoDir = path.join(__dirname, '../../')
   const installDir = path.join(tmpDir, `next-install-${Date.now()}`)
@@ -56,6 +60,7 @@ async function createNextInstall(dependencies, installCommand) {
     path.join(installDir, 'package.json'),
     JSON.stringify(
       {
+        ...packageJson,
         dependencies: combinedDependencies,
         private: true,
       },

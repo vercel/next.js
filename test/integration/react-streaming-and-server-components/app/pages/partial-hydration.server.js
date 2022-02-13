@@ -5,7 +5,14 @@ import Counter from '../components/partial-hydration-counter.client'
 let result
 let promise
 function Data() {
-  if (result) return result
+  if (result) {
+    try {
+      return result
+    } finally {
+      promise = null
+      result = null
+    }
+  }
   if (!promise)
     promise = new Promise((res) => {
       setTimeout(() => {
@@ -19,6 +26,13 @@ function Data() {
 export default function Page() {
   return (
     <>
+      Current Runtime:{' '}
+      {typeof window === 'undefined'
+        ? typeof ReadableStream === 'undefined'
+          ? 'node-server'
+          : 'edge-server'
+        : 'browser'}
+      <br />
       <div className="suspense">
         <Suspense fallback="next_streaming_fallback">
           <Data />

@@ -281,7 +281,8 @@ const createJestConfig = nextJest({
 
 // Add any custom config to be passed to Jest
 const customJestConfig = {
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  // Add more setup options before each test is run
+  // setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   // if using TypeScript with a baseUrl set to the root directory then you need the below for alias' to work
   moduleDirectories: ['node_modules', '<rootDir>/'],
   testEnvironment: 'jest-environment-jsdom',
@@ -329,7 +330,8 @@ module.exports = {
     // Handle module aliases
     '^@/components/(.*)$': '<rootDir>/components/$1',
   },
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  // Add more setup options before each test is run
+  // setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
   testEnvironment: 'jsdom',
   transform: {
@@ -341,7 +343,6 @@ module.exports = {
     '/node_modules/',
     '^.+\\.module\\.(css|sass|scss)$',
   ],
-  testEnvironment: 'jest-environment-jsdom',
 }
 ```
 
@@ -349,7 +350,7 @@ You can learn more about each configuration option in the [Jest docs](https://je
 
 **Handling stylesheets and image imports**
 
-Styleheets and images aren't used in the tests but importing them may cause errors, so they will need to be mocked. Create the mock files referenced in the configuration above - `fileMock.js` and `styleMock.js` - inside a `__mocks__` directory:
+Stylesheets and images aren't used in the tests but importing them may cause errors, so they will need to be mocked. Create the mock files referenced in the configuration above - `fileMock.js` and `styleMock.js` - inside a `__mocks__` directory:
 
 ```js
 // __mocks__/fileMock.js
