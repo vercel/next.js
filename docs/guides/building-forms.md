@@ -49,7 +49,7 @@ Though both of these types are equally important, this guide will focus on clien
 
 Client-side validation is further categorized as:
 
-- **Built-in**: Uses HTML-based attributes like `required`, `type`, `minLength`, `maxLength`, `pattern` etc.
+- **Built-in**: Uses HTML-based attributes like `required`, `type`, `minLength`, `maxLength`, `pattern`, etc.
 - **JavaScript-based**: Validation that's coded with JavaScript.
 
 ### Built-in Form Validation Using `required`, `type`, `minLength`, `maxLength`
