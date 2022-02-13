@@ -52,7 +52,7 @@ const runTests = (isDev = false) => {
     `
     )
     expect(await getStderr()).toContain(
-      `getStaticProps can not be attached to a page's component and must be exported from the page`
+      `getStaticProps does not have a default export page component`
     )
   })
 
@@ -76,7 +76,7 @@ const runTests = (isDev = false) => {
     `
     )
     expect(await getStderr()).toContain(
-      `getServerSideProps can not be attached to a page's component and must be exported from the page`
+      `getServerSideProps does not have a default export page component`
     )
   })
 
@@ -90,7 +90,7 @@ const runTests = (isDev = false) => {
     `
     )
     expect(await getStderr()).toContain(
-      `getStaticPaths can not be attached to a page's component and must be exported from the page`
+      `getStaticPaths does not have a default export page component`
     )
   })
 

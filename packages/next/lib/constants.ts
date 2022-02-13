@@ -46,7 +46,7 @@ export const UNSTABLE_REVALIDATE_RENAME_ERROR =
   'The `unstable_revalidate` property is available for general use.\n' +
   'Please use `revalidate` instead.'
 
-export const GSSP_COMPONENT_MEMBER_ERROR = `can not be attached to a page's component and must be exported from the page. See more info here: https://nextjs.org/docs/messages/gssp-component-member`
+export const GSSP_COMPONENT_MEMBER_ERROR = `does not have a default export page component. If the page won't ever render, export a function that returns null. See more info here: https://nextjs.org/docs/messages/gssp-component-member`
 
 export const NON_STANDARD_NODE_ENV = `You are using a non-standard "NODE_ENV" value in your environment. This creates inconsistencies in the project and is strongly advised against. Read more: https://nextjs.org/docs/messages/non-standard-node-env`
 
