@@ -1,6 +1,8 @@
-# React Server Components
+# React Server Components (Alpha)
 
 This examples shows a basic "hello world" Next.js application using React Server Components.
+
+TODO: Link back to docs.
 
 ## Preview
 
