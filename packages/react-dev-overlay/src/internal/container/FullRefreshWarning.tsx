@@ -51,7 +51,8 @@ export const FullRefreshWarning: React.FC<FullRefreshWarningProps> =
                   .
                 </p>
                 <label>
-                  <input type="checkbox" onChange={change} /> Don't show again for session
+                  <input type="checkbox" onChange={change} /> Don't show again
+                  for session
                 </label>
                 <button onClick={reload}>Reload</button>
               </footer>
