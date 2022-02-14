@@ -3,7 +3,7 @@ const url = 'https://nextjs.org/docs/messages/no-img-element'
 module.exports = {
   meta: {
     docs: {
-      description: 'Prevent usage of `<img>` element.',
+      description: 'Prevent usage of `<img>` element to prevent layout shift.',
       category: 'HTML',
       recommended: true,
       url,

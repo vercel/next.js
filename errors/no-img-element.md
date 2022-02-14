@@ -1,6 +1,6 @@
 # No Img Element
 
-> Prevent usage of `<img>` element.
+> Prevent usage of `<img>` element to prevent layout shift.
 
 ### Why This Error Occurred
 
