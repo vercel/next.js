@@ -4,8 +4,6 @@ import webdriver from 'next-webdriver'
 import {
   check,
   renderViaHTTP,
-  hasRedbox,
-  getRedboxSource,
 } from 'next-test-utils'
 
 export default (context) => {
