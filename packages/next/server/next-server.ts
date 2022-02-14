@@ -7,6 +7,7 @@ import type { FetchEventResult } from './web/types'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { PrerenderManifest } from '../build'
 import type { Rewrite } from '../lib/load-custom-routes'
+import type { BaseNextRequest, BaseNextResponse } from './base-http'
 
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -41,16 +42,11 @@ import Proxy from 'next/dist/compiled/http-proxy'
 import { route } from './router'
 import { run } from './web/sandbox'
 
-import {
-  BaseNextRequest,
-  BaseNextResponse,
-  NodeNextRequest,
-  NodeNextResponse,
-} from './base-http'
+import { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import { PayloadOptions, sendRenderResult } from './send-payload'
 import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
-import { apiResolver } from './api-utils'
+import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
 import { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
@@ -1335,7 +1331,7 @@ export default class NextNodeServer extends BaseServer {
 
     if (missingKeys.length > 0) {
       Log.warn(
-        `Query params are no longer automatically merged for rewrites in middleware, see more info here: https://nextjs.org/docs/messages/errors/deleting-query-params-in-middlewares`
+        `Query params are no longer automatically merged for rewrites in middleware, see more info here: https://nextjs.org/docs/messages/deleting-query-params-in-middlewares`
       )
       this.warnIfQueryParametersWereDeleted = () => {}
     }

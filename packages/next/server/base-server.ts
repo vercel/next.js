@@ -33,9 +33,13 @@ import {
   getSortedRoutes,
   isDynamicRoute,
 } from '../shared/lib/router/utils'
+import {
+  setLazyProp,
+  getCookieParser,
+  checkIsManualRevalidate,
+} from './api-utils'
 import * as envConfig from '../shared/lib/runtime-config'
 import { DecodeError, normalizeRepeatedSlashes } from '../shared/lib/utils'
-import { setLazyProp, getCookieParser, tryGetPreviewData } from './api-utils'
 import { isTargetLikeServerless } from './utils'
 import Router, { replaceBasePath, route } from './router'
 import { PayloadOptions, setRevalidateHeaders } from './send-payload'
@@ -59,7 +63,6 @@ import { addRequestMeta, getRequestMeta } from './request-meta'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
 import { ImageConfigComplete } from './image-config'
-import { checkIsManualRevalidate } from '../server/api-utils'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -289,7 +292,7 @@ export default abstract class Server {
     } = this.nextConfig
 
     this.buildId = this.getBuildId()
-    this.minimalMode = minimalMode
+    this.minimalMode = minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
 
     const serverComponents = this.nextConfig.experimental.serverComponents
     this.serverComponentManifest = serverComponents
@@ -1126,9 +1129,13 @@ export default abstract class Server {
     // Toggle whether or not this is a Data request
     const isDataReq = !!query._nextDataReq && (isSSG || hasServerProps)
     delete query._nextDataReq
+    // Don't delete query.__flight__ yet, it still needs to be used in renderToHTML later
+    const isFlightRequest = Boolean(
+      this.serverComponentManifest && query.__flight__
+    )
 
     // we need to ensure the status code if /404 is visited directly
-    if (is404Page && !isDataReq) {
+    if (is404Page && !isDataReq && !isFlightRequest) {
       res.statusCode = 404
     }
 
@@ -1158,7 +1165,6 @@ export default abstract class Server {
         !isSSG &&
         !isLikeServerless &&
         !query.amp &&
-        !this.minimalMode &&
         typeof components.Document?.getInitialProps !== 'function'
     }
 
@@ -1173,8 +1179,13 @@ export default abstract class Server {
     let isPreviewMode = false
 
     if (hasServerProps || isSSG) {
-      previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
-      isPreviewMode = previewData !== false
+      // For the edge runtime, we don't support preview mode in SSG.
+      if (!process.browser) {
+        const { tryGetPreviewData } =
+          require('./api-utils/node') as typeof import('./api-utils/node')
+        previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
+        isPreviewMode = previewData !== false
+      }
     }
 
     let isManualRevalidate = false
