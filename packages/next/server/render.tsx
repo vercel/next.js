@@ -377,12 +377,9 @@ function createServerComponentRenderer(
   const writable = transformStream.writable
   const ServerComponentWrapper = (props: any) => {
     const id = (React as any).useId()
-    const reqStream = pipeThrough(
-      renderToReadableStream(
-        renderFlight(App, OriginalComponent, props),
-        serverComponentManifest
-      ),
-      createTextDecoderStream()
+    const reqStream: ReadableStream<string> = renderToReadableStream(
+      renderFlight(App, OriginalComponent, props),
+      serverComponentManifest
     )
 
     const response = useRSCResponse(
@@ -1183,15 +1180,12 @@ export async function renderToHTML(
   if (isResSent(res) && !isSSG) return null
 
   if (renderServerComponentData) {
-    const stream = pipeThrough(
-      renderToReadableStream(
-        renderFlight(App, OriginalComponent, {
-          ...props.pageProps,
-          ...serverComponentProps,
-        }),
-        serverComponentManifest
-      ),
-      createTextDecoderStream()
+    const stream: ReadableStream<string> = renderToReadableStream(
+      renderFlight(App, OriginalComponent, {
+        ...props.pageProps,
+        ...serverComponentProps,
+      }),
+      serverComponentManifest
     )
     return new RenderResult(
       pipeThrough(
