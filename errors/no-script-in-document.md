@@ -8,7 +8,7 @@ You should not use the `next/script` component in `pages/_document.js`. That's b
 
 #### Possible Ways to Fix It
 
-If you want a global script, `pages/_app.js` instead.
+If you want a global script, use `next/script` in `pages/_app.js` instead.
 
 ```jsx
 import Script from 'next/script'
