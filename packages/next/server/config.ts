@@ -1,9 +1,11 @@
-import chalk from '../lib/chalk'
-import findUp from 'next/dist/compiled/find-up'
 import { basename, extname, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
+import semver from 'next/dist/compiled/semver'
+import findUp from 'next/dist/compiled/find-up'
+import chalk from '../lib/chalk'
+import { getPackageVersion } from '../lib/get-package-version'
 import * as Log from '../build/output/log'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
@@ -16,6 +18,7 @@ import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 import { loadEnvConfig } from '@next/env'
 import { hasNextSupport } from '../telemetry/ci-info'
+import type { NextConfig } from './config-shared'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -653,6 +656,11 @@ export default async function loadConfig(
       )
     }
 
+    const hasReactRoot = enableReactRoot()
+    if (hasReactRoot) {
+      userConfig.experimental.reactRoot = true
+    }
+
     if (userConfig.amp?.canonicalBase) {
       const { canonicalBase } = userConfig.amp || ({} as any)
       userConfig.amp = userConfig.amp || {}
@@ -696,6 +704,19 @@ export default async function loadConfig(
   completeConfig.configFileName = configFileName
   setHttpAgentOptions(completeConfig.httpAgentOptions)
   return completeConfig
+}
+
+export function enableReactRoot() {
+  const reactDomVersion = require('react-dom').version
+  const isReactExperimental = Boolean(
+    reactDomVersion && /0\.0\.0-experimental/.test(reactDomVersion)
+  )
+  const hasReact18: boolean =
+    Boolean(reactDomVersion) &&
+    (semver.gte(reactDomVersion!, '18.0.0') ||
+      semver.coerce(reactDomVersion)?.version === '18.0.0')
+
+  return hasReact18 || isReactExperimental
 }
 
 export function setHttpAgentOptions(
