@@ -14,16 +14,16 @@ description: Enable Image Optimization with the built-in Image component.
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                                                                           |
-| --------- | ------------------------------------------------------------------------------------------------- |
-| `v12.0.11`| `raw` layout added                                                                             |
-| `v12.0.9` | `lazyRoot` prop added                                                                             |
-| `v12.0.0` | `formats` configuration added.<br/>AVIF support added.<br/>Wrapper `<div>` changed to `<span>`.   |
-| `v11.1.0` | `onLoadingComplete` and `lazyBoundary` props added.                                               |
-| `v11.0.0` | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added. |
-| `v10.0.5` | `loader` prop added.                                                                              |
-| `v10.0.1` | `layout` prop added.                                                                              |
-| `v10.0.0` | `next/image` introduced.                                                                          |
+| Version    | Changes                                                                                           |
+| ---------- | ------------------------------------------------------------------------------------------------- |
+| `v12.0.11` | `raw` layout added                                                                                |
+| `v12.0.9`  | `lazyRoot` prop added                                                                             |
+| `v12.0.0`  | `formats` configuration added.<br/>AVIF support added.<br/>Wrapper `<div>` changed to `<span>`.   |
+| `v11.1.0`  | `onLoadingComplete` and `lazyBoundary` props added.                                               |
+| `v11.0.0`  | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added. |
+| `v10.0.5`  | `loader` prop added.                                                                              |
+| `v10.0.1`  | `layout` prop added.                                                                              |
+| `v10.0.0`  | `next/image` introduced.                                                                          |
 
 </details>
 
@@ -73,7 +73,6 @@ The layout behavior of the image as the viewport changes size.
 | `fill`                | Grow in both X and Y axes to fill container              | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` |
 | `raw`                 | Insert the image element with no responsive behavior     | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` |
 
-
 - [Demo the `intrinsic` layout (default)](https://image-component.nextjs.gallery/layout-intrinsic)
   - When `intrinsic`, the image will scale the dimensions down for smaller viewports, but maintain the original dimensions for larger viewports.
 - [Demo the `fixed` layout](https://image-component.nextjs.gallery/layout-fixed)
@@ -85,7 +84,7 @@ The layout behavior of the image as the viewport changes size.
   - When `fill`, the image will stretch both width and height to the dimensions of the parent element, provided the parent element is relative.
   - This is usually paired with the [`objectFit`](#objectFit) property.
   - Ensure the parent element has `position: relative` in their stylesheet.
-- When `raw`, the image will be rendered as a single image element with no wrappers, sizers or other responsive behavior. 
+- When `raw`, the image will be rendered as a single image element with no wrappers, sizers or other responsive behavior.
   - Unlike other layout modes, a `raw` image will pass through the `style` property to the underlying image.
   - If your image styling will change the size of a `raw` image, you should include the `sizes` property for proper image serving.
   - The other layout modes are optimized for performance and should cover nearly all use cases. It is recommended to try to use those modes before using `raw`.
