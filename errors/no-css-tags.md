@@ -1,3 +1,5 @@
+# No CSS Tags
+
 > Prevent manual stylesheet tags.
 
 ### Why This Error Occurred
