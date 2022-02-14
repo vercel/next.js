@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "bench/nested-deps"
   ],
   "scripts": {
     "new-error": "plop error",
@@ -38,7 +39,7 @@
     "next": "node --trace-deprecation --enable-source-maps packages/next/dist/bin/next",
     "next-react-18": "node --trace-deprecation --enable-source-maps -r ./test/integration/react-18/test/require-hook.js packages/next/dist/bin/next",
     "next-no-sourcemaps": "node --trace-deprecation packages/next/dist/bin/next",
-    "clean-trace-jaeger": "rm -rf test/integration/basic/.next && TRACE_TARGET=JAEGER node --trace-deprecation --enable-source-maps packages/next/dist/bin/next build test/integration/basic",
+    "clean-trace-jaeger": "yarn --cwd bench/nested-deps prepare && rm -rf bench/nested-deps/.next && cross-env TRACE_TARGET=JAEGER node --trace-deprecation --enable-source-maps packages/next/dist/bin/next build bench/nested-deps",
     "debug": "node --inspect packages/next/dist/bin/next",
     "postinstall": "git config feature.manyFiles true && node scripts/install-native.mjs"
   },
@@ -148,9 +149,9 @@
     "react-dom": "17.0.2",
     "react-dom-18": "npm:react-dom@18.0.0-rc.0",
     "react-ssr-prepass": "1.0.8",
+    "react-virtualized": "9.22.3",
     "relay-compiler": "13.0.2",
     "relay-runtime": "13.0.2",
-    "react-virtualized": "9.22.3",
     "release": "6.3.0",
     "request-promise-core": "1.1.2",
     "resolve-from": "5.0.0",
@@ -169,6 +170,7 @@
     "web-streams-polyfill": "2.1.1",
     "webpack": "link:./node_modules/webpack5",
     "webpack-bundle-analyzer": "4.3.0",
+    "webpack-sources": "link:./node_modules/webpack-sources3",
     "worker-loader": "3.0.7"
   },
   "resolutions": {

@@ -1,4 +1,7 @@
 {
+  "name": "nested-deps",
+  "version": "0.0.0",
+  "private": true,
   "scripts": {
     "prepare": "rimraf components && mkdir components && node ./fuzzponent.js -d 2 -s 206 -o components",
     "dev": "cross-env NEXT_PRIVATE_LOCAL_WEBPACK5=1 node ../../node_modules/next/dist/bin/next dev",
