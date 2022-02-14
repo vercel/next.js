@@ -337,6 +337,37 @@ module.exports = (context) => {
           if (browser) await browser.close()
         }
       })
+
+      it('should not execute iframe embedded inside svg image', async () => {
+        let wasInvoked = false
+        const server = http
+          .createServer((req, res) => {
+            const { method, pathname } = req
+            res.setHeader('Access-Control-Allow-Credentials', 'true')
+            res.setHeader('Access-Control-Allow-Origin', '*')
+            res.setHeader('Access-Control-Allow-Headers', '*')
+            if (method === 'OPTIONS') {
+              res.end(200)
+              return
+            }
+            wasInvoked = true
+            console.log(JSON.stringify({ method, pathname }))
+            res.end(JSON.stringify({ method, pathname }))
+          })
+          .listen(5243)
+        try {
+          const browser = await webdriver(
+            context.appPort,
+            '/_next/image?url=%2Fiframe.svg&w=256&q=75'
+          )
+          expect(await browser.elementById('iframe').getAttribute('src')).toBe(
+            'http://127.0.0.1:5243/embed'
+          )
+          expect(wasInvoked).toBe(false)
+        } finally {
+          server.close()
+        }
+      })
     }
   })
 }

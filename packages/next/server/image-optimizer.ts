@@ -608,7 +608,10 @@ export function setResponseHeaders(
     )
   }
 
-  res.setHeader('Content-Security-Policy', `script-src 'none'; sandbox;`)
+  res.setHeader(
+    'Content-Security-Policy',
+    `script-src 'none'; frame-src 'none'; sandbox;`
+  )
   res.setHeader('X-Nextjs-Cache', xCache)
 
   return { finished: false }

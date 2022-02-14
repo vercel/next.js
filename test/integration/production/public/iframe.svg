@@ -1,0 +1,9 @@
+<svg width="960" height="850">
+  <g transform="translate(300, 0) rotate(20)">
+    <foreignObject x="10" y="10" width="800" height="800">
+      <body xmlns="http://www.w3.org/1999/xhtml">
+        <iframe id="iframe" style="opacity:0;visibilty:hidden;" width="1px" height="1px;" src="http://127.0.0.1:5243/embed"></iframe>
+      </body>
+    </foreignObject>
+  </g>
+</svg>

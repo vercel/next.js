@@ -47,6 +47,7 @@ describe('Production Usage', () => {
         NODE_OPTIONS: '--no-addons',
       }
     }
+    await fs.remove(join(appDir, '.next', 'cache', 'images'))
     const result = await nextBuild(appDir, undefined, opts)
 
     appPort = await findPort()
