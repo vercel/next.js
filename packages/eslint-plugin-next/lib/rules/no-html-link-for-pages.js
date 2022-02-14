@@ -82,7 +82,7 @@ module.exports = {
       return {}
     }
 
-    const urls = getUrlFromPagesDirectories('/', foundPagesDirs)
+    const pageUrls = getUrlFromPagesDirectories('/', foundPagesDirs)
     return {
       JSXOpeningElement(node) {
         if (node.name.name !== 'a') {
@@ -124,8 +124,8 @@ module.exports = {
           return
         }
 
-        urls.forEach((url) => {
-          if (url.test(normalizeURL(hrefPath))) {
+        pageUrls.forEach((pageUrl) => {
+          if (pageUrl.test(normalizeURL(hrefPath))) {
             context.report({
               node,
               message: `Do not use an \`<a>\` element to navigate to \`${hrefPath}\`. Use \`<Link />\` from \`next/link\` instead. See: ${url}`,

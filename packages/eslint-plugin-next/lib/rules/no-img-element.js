@@ -24,7 +24,7 @@ module.exports = {
 
         context.report({
           node,
-          message: `Do not use \`<img>\` element. Use \`<Image />\` from \`next/image\' instead. See: ${url}`,
+          message: `Do not use \`<img>\` element. Use \`<Image />\` from \`next/image\` instead. See: ${url}`,
         })
       },
     }
