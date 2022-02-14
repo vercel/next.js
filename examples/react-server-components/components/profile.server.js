@@ -1,8 +1,7 @@
-import { fetch } from 'react-fetch'
+import { useData } from '../lib/use-data'
 
 export default function Profile() {
-  const repo = fetch('https://api.github.com/repos/vercel/next.js').json()
-
+  const repo = useData('/api/repo', (key) => fetch(key).then((r) => r.json()))
   return (
     <p>
       <strong>Next.js: </strong>

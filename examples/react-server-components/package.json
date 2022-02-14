@@ -7,8 +7,7 @@
   },
   "dependencies": {
     "next": "canary",
-    "react": "experimental",
-    "react-dom": "experimental",
-    "react-fetch": "experimental"
+    "react": "18.0.0-rc.0",
+    "react-dom": "18.0.0-rc.0"
   }
 }
