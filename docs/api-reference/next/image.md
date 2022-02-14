@@ -252,7 +252,7 @@ const Example = () => (
 import Image from 'next/image'
 import React from 'react'
 
-const Container = React.forwardRef((props, ref) =>
+const Container = React.forwardRef((props, ref) => {
   <div ref={ref} style={{ overflowX: 'scroll', width: '500px' }}>
     {props.children}
   </div>
