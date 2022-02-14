@@ -16,6 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                           |
 | --------- | ------------------------------------------------------------------------------------------------- |
+| `v12.0.11`| `raw` layout added                                                                             |
 | `v12.0.9` | `lazyRoot` prop added                                                                             |
 | `v12.0.0` | `formats` configuration added.<br/>AVIF support added.<br/>Wrapper `<div>` changed to `<span>`.   |
 | `v11.1.0` | `onLoadingComplete` and `lazyBoundary` props added.                                               |
@@ -70,6 +71,8 @@ The layout behavior of the image as the viewport changes size.
 | `fixed`               | Sized to `width` and `height` exactly                    | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A     |
 | `responsive`          | Scale to fit width of container                          | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` |
 | `fill`                | Grow in both X and Y axes to fill container              | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` |
+| `raw`                 | Insert the image element with no responsive behavior     | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` |
+
 
 - [Demo the `intrinsic` layout (default)](https://image-component.nextjs.gallery/layout-intrinsic)
   - When `intrinsic`, the image will scale the dimensions down for smaller viewports, but maintain the original dimensions for larger viewports.
@@ -82,6 +85,10 @@ The layout behavior of the image as the viewport changes size.
   - When `fill`, the image will stretch both width and height to the dimensions of the parent element, provided the parent element is relative.
   - This is usually paired with the [`objectFit`](#objectFit) property.
   - Ensure the parent element has `position: relative` in their stylesheet.
+- When `raw`, the image will be rendered as a single image element with no wrappers, sizers or other responsive behavior. 
+  - Unlike other layout modes, a `raw` image will pass through the `style` property to the underlying image.
+  - If your image styling will change the size of a `raw` image, you should include the `sizes` property for proper image serving.
+  - The other layout modes are optimized for performance and should cover nearly all use cases. It is recommended to try to use those modes before using `raw`.
 - [Demo background image](https://image-component.nextjs.gallery/background)
 
 ### loader
@@ -120,7 +127,7 @@ const MyImage = (props) => {
 
 A string that provides information about how wide the image will be at different breakpoints. Defaults to `100vw` (the full width of the screen) when using `layout="responsive"` or `layout="fill"`.
 
-If you are using `layout="fill"` or `layout="responsive"`, it's important to assign `sizes` for any image that takes up less than the full viewport width.
+If you are using `layout="fill"`, `layout="responsive"`, or `layout="raw"` it's important to assign `sizes` for any image that takes up less than the full viewport width.
 
 For example, when the parent element will constrain the image to always be less than half the viewport width, use `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
 
@@ -284,7 +291,7 @@ size, or format. Defaults to `false`.
 Other properties on the `<Image />` component will be passed to the underlying
 `img` element with the exception of the following:
 
-- `style`. Use `className` instead.
+- `style`. Only allowed on `layout="raw"` images. For others, use `className` instead.
 - `srcSet`. Use
   [Device Sizes](#device-sizes)
   instead.

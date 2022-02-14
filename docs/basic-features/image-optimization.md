@@ -181,7 +181,8 @@ The image component has several different [layout modes](/docs/api-reference/nex
 
 **Target the image with className, not based on DOM structure**
 
-Regardless of the layout mode used, the Image component will have a consistent DOM structure of one `<img>` tag wrapped by exactly one `<span>`. For some modes, it may also have a sibling `<span>` for spacing. These additional `<span>` elements are critical to allow the component to prevent layout shifts.
+For all of the standard layout modes, the Image component will have a consistent DOM structure of one `<img>` tag wrapped by exactly one `<span>`. For some modes, it may also have a sibling `<span>` for spacing. These additional `<span>` elements are critical to allow the component to prevent layout shifts.
+
 
 The recommended way to style the inner `<img>` is to set the `className` prop on the Image component to the value of an imported [CSS Module](/docs/basic-features/built-in-css-support.md#adding-component-level-css). The value of `className` will be automatically applied to the underlying `<img>` element.
 
@@ -190,6 +191,8 @@ Alternatively, you can import a [global stylesheet](/docs/basic-features/built-i
 You cannot use [styled-jsx](/docs/basic-features/built-in-css-support.md#css-in-js) because it's scoped to the current component.
 
 You cannot use the `style` prop because the `<Image>` component does not pass it through to the underlying `<img>`.
+
+> An additional `raw` layout mode is provided which removes the wrapper element and allows the `style` prop. This mode still requires `height` and `width` and is recommended only for advanced use cases that aren't covered by the primary layout modes.
 
 **When using `layout='fill'`, the parent element must have `position: relative`**
 
