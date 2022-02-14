@@ -15,7 +15,7 @@ let app
 let appPort
 
 const runTest = () => {
-  it('Has correct initial ref values', async () => {
+  it('Does not crash on API call including import', async () => {
     const res = await fetchViaHTTP(appPort, '/api/server')
     expect(await res.json()).toBe(true)
   })
