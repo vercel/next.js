@@ -41,7 +41,7 @@ The `context` parameter is an object containing the following keys:
 
 ## getStaticProps return values
 
-The `getStaticProps` function should return an object with the following **optional** properties:
+The `getStaticProps` function should return an object containing either `props`, `redirect`, or `notFound` followed by an **optional** `revalidate` property.
 
 ### `props`
 
@@ -237,7 +237,7 @@ export default Blog
 For more information on what to do next, we recommend the following sections:
 
 <div class="card">
-  <a href="/docs/basic-features/data-fetching/index.md">
+  <a href="/docs/basic-features/data-fetching/overview.md">
     <b>Data Fetching:</b>
     <small>Learn more about data fetching in Next.js.</small>
   </a>
