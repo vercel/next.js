@@ -1,10 +1,7 @@
 /* eslint-env jest */
 
 import webdriver from 'next-webdriver'
-import {
-  check,
-  renderViaHTTP,
-} from 'next-test-utils'
+import { check, renderViaHTTP } from 'next-test-utils'
 
 export default (context) => {
   async function withBrowser(path, cb) {
