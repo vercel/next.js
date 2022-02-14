@@ -775,9 +775,11 @@ if (process.env.__NEXT_RSC) {
     serialized?: string
     _fresh?: boolean
   }) => {
+    React.useEffect(() => {
+      rscCache.delete(cacheKey)
+    })
     const response = useServerResponse(cacheKey, serialized)
     const root = response.readRoot()
-    rscCache.delete(cacheKey)
     return root
   }
 
