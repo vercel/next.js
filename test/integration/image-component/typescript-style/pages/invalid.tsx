@@ -9,7 +9,7 @@ const Invalid = () => {
         width={500}
         height={500}
         src="https://via.placeholder.com/500"
-        style={{ objectFit: 'cover' }}
+        style={{ padding: '12px' }}
       ></Image>
       <p id="stubtext">This is the invalid usage</p>
     </div>
