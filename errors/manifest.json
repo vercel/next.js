@@ -549,8 +549,26 @@
           "path": "/errors/sharp-version-avif.md"
         },
         {
+          "path": "/errors/no-script-in-document-page.md",
+          "redirect": {
+            "destination": "/errors/no-script-in-document.md"
+          }
+        },
+        {
           "title": "no-script-in-document",
           "path": "/errors/no-script-in-document.md"
+        },
+        {
+          "path": "/errors/no-script-in-head-component.md",
+          "redirect": {
+            "destination": "/errors/no-script-component-in-head.md"
+          }
+        },
+        {
+          "path": "/errors/no-script-component-in-head-component.md",
+          "redirect": {
+            "destination": "/errors/no-script-component-in-head.md"
+          }
         },
         {
           "title": "no-script-component-in-head",
