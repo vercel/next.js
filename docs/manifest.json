@@ -23,6 +23,12 @@
                   }
                 },
                 {
+                  "path": "/docs/basic-features/data-fetching/index",
+                  "redirect": {
+                    "destination": "/docs/basic-features/data-fetching/overview"
+                  }
+                },
+                {
                   "title": "Overview",
                   "path": "/docs/basic-features/data-fetching/overview.md"
                 },
@@ -137,15 +143,6 @@
           ]
         },
         {
-          "title": "Guides",
-          "routes": [
-            {
-              "title": "Building Forms",
-              "path": "/docs/guides/building-forms.md"
-            }
-          ]
-        },
-        {
           "title": "Middleware",
           "path": "/docs/middleware.md"
         },
@@ -164,6 +161,15 @@
         {
           "title": "Testing",
           "path": "/docs/testing.md"
+        },
+        {
+          "title": "Guides",
+          "routes": [
+            {
+              "title": "Building Forms",
+              "path": "/docs/guides/building-forms.md"
+            }
+          ]
         },
         {
           "title": "Advanced Features",
