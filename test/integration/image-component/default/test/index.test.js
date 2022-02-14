@@ -273,6 +273,10 @@ function runTests(mode) {
         () => browser.eval(`document.getElementById("img8").currentSrc`),
         /test-rect.jpg/
       )
+      await check(
+        () => browser.eval(`document.getElementById("msg9").textContent`),
+        'loaded 1 img9 with dimensions 266x266'
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -577,6 +581,40 @@ function runTests(mode) {
         getRatio(width, height),
         1
       )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should render no wrappers or sizers and minimal styling with layout-raw', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/layout-raw')
+
+      const numberOfChildren = await browser.eval(
+        `document.getElementById('image-container1').children.length`
+      )
+      expect(numberOfChildren).toBe(1)
+      const childElementType = await browser.eval(
+        `document.getElementById('image-container1').children[0].nodeName`
+      )
+      expect(childElementType).toBe('IMG')
+
+      expect(await browser.elementById('raw1').getAttribute('style')).toBe(
+        'object-fit:cover'
+      )
+
+      expect(await browser.elementById('raw2').getAttribute('style')).toBe(
+        'object-fit:cover;object-position:30% 30%;padding-left:4rem;width:100%'
+      )
+
+      expect(await browser.elementById('raw3').getAttribute('style')).toBeNull()
+
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
     } finally {
       if (browser) {
         await browser.close()

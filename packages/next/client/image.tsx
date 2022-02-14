@@ -48,6 +48,7 @@ const VALID_LAYOUT_VALUES = [
   'fixed',
   'intrinsic',
   'responsive',
+  'raw',
   undefined,
 ] as const
 type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
@@ -107,7 +108,15 @@ export type ImageProps = Omit<
   objectFit?: ImgElementStyle['objectFit']
   objectPosition?: ImgElementStyle['objectPosition']
   onLoadingComplete?: OnLoadingComplete
-}
+} & (
+    | {
+        layout?: Omit<LayoutValue, 'raw'>
+      }
+    | {
+        layout: 'raw'
+        style: ImgElementStyle
+      }
+  )
 
 function getWidths(
   { deviceSizes, allSizes }: ImageConfig,
@@ -115,7 +124,10 @@ function getWidths(
   layout: LayoutValue,
   sizes: string | undefined
 ): { widths: number[]; kind: 'w' | 'x' } {
-  if (sizes && (layout === 'fill' || layout === 'responsive')) {
+  if (
+    sizes &&
+    (layout === 'fill' || layout === 'responsive' || layout === 'raw')
+  ) {
     // Find all the "vw" percent sizes used in the sizes prop
     const viewportWidthRe = /(^|\s)(1?\d?\d)vw/g
     const percentSizes = []
@@ -134,7 +146,8 @@ function getWidths(
   if (
     typeof width !== 'number' ||
     layout === 'fill' ||
-    layout === 'responsive'
+    layout === 'responsive' ||
+    layout === 'raw'
   ) {
     return { widths: deviceSizes, kind: 'w' }
   }
@@ -425,9 +438,14 @@ export default function Image({
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
-    if (sizes && layout !== 'fill' && layout !== 'responsive') {
+    if (
+      sizes &&
+      layout !== 'fill' &&
+      layout !== 'responsive' &&
+      layout !== 'raw'
+    ) {
       console.warn(
-        `Image with src "${src}" has "sizes" property but it will be ignored. Only use "sizes" with "layout='fill'" or "layout='responsive'".`
+        `Image with src "${src}" has "sizes" property but it will be ignored. Only use "sizes" with 'fill,' 'responsive,' or 'raw' layout modes.`
       )
     }
     if (placeholder === 'blur') {
@@ -456,7 +474,7 @@ export default function Image({
         `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
       )
     }
-    if ('style' in rest) {
+    if ('style' in rest && layout !== 'raw') {
       console.warn(
         `Image with src "${src}" is using unsupported "style" property. Please use the "className" property instead.`
       )
@@ -638,6 +656,22 @@ export default function Image({
     })
   }
 
+  let isRaw = false
+  const rawStyle: ImgElementStyle = {}
+
+  if (layout === 'raw') {
+    isRaw = true
+    const styleProp = 'style' in rest && rest.style ? rest.style : {}
+    Object.assign(
+      rawStyle,
+      {
+        ...(objectFit ? { objectFit } : {}),
+        ...(objectPosition ? { objectPosition } : {}),
+      },
+      styleProp
+    )
+  }
+
   let srcString: string = src
 
   if (process.env.NODE_ENV !== 'production') {
@@ -680,7 +714,46 @@ export default function Image({
     handleLoading(imgRef, srcString, layout, placeholder, onLoadingCompleteRef)
   }, [srcString, layout, placeholder, isVisible])
 
-  return (
+  return isRaw ? (
+    <>
+      <img
+        {...rest}
+        {...imgAttributes}
+        decoding="async"
+        data-nimg={layout}
+        height={heightInt}
+        width={widthInt}
+        className={className}
+        ref={imgRef}
+        style={{ ...blurStyle, ...rawStyle }}
+      />
+      {isLazy && (
+        <noscript>
+          <img
+            {...rest}
+            {...generateImgAttrs({
+              config,
+              src,
+              unoptimized,
+              layout,
+              width: widthInt,
+              quality: qualityInt,
+              sizes,
+              loader,
+            })}
+            decoding="async"
+            data-nimg={layout}
+            height={heightInt}
+            width={widthInt}
+            style={rawStyle}
+            className={className}
+            // @ts-ignore - TODO: upgrade to `@types/react@17`
+            loading={loading || 'lazy'}
+          />
+        </noscript>
+      )}
+    </>
+  ) : (
     <span style={wrapperStyle}>
       {hasSizer ? (
         <span style={sizerStyle}>
