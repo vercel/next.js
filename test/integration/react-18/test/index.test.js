@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import fs from 'fs-extra'
 
 import {
   File,
@@ -58,12 +57,11 @@ async function getDevOutput(dir) {
 
 describe('React 18 Support', () => {
   describe('Use legacy render', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, 'node_modules'))
+    beforeAll(() => {
       nextConfig.replace('reactRoot: true', 'reactRoot: false')
     })
     afterAll(() => {
-      nextConfig.replace('reactRoot: false', 'reactRoot: true')
+      nextConfig.restore()
     })
 
     test('supported version of react in dev', async () => {
@@ -76,15 +74,17 @@ describe('React 18 Support', () => {
       expect(output).not.toMatch(USING_CREATE_ROOT)
     })
 
-    test('suspense is not allowed in blocking rendering mode (prod)', async () => {
+    test('suspense is not allowed in blocking rendering mode', async () => {
+      nextConfig.replace('withReact18({', '/*withReact18*/({')
       const { stderr, code } = await nextBuild(appDir, [], {
-        nodeArgs,
         stderr: true,
       })
-      expect(code).toBe(1)
+      nextConfig.replace('/*withReact18*/({', 'withReact18({')
+
       expect(stderr).toContain(
         'Invalid suspense option usage in next/dynamic. Read more: https://nextjs.org/docs/messages/invalid-dynamic-suspense'
       )
+      expect(code).toBe(1)
     })
   })
 })
@@ -140,56 +140,58 @@ describe('Blocking mode', () => {
   )
 })
 
-describe('Concurrent mode in the edge runtime', () => {
-  beforeAll(async () => {
-    nextConfig.replace("// runtime: 'edge'", "runtime: 'edge'")
-    dynamicHello.replace('suspense = false', `suspense = true`)
-    // `noSSR` mode will be ignored by suspense
-    dynamicHello.replace('let ssr', `let ssr = false`)
-  })
-  afterAll(async () => {
-    nextConfig.restore()
-    dynamicHello.restore()
-  })
-
-  runTests('`runtime` is set to `edge`', (context) => {
-    concurrent(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-
-    it('should stream to users', async () => {
-      const res = await fetchViaHTTP(context.appPort, '/ssr')
-      expect(res.headers.get('etag')).toBeNull()
+function runTestsAgainstRuntime(runtime) {
+  describe(`Concurrent mode in the ${runtime} runtime`, () => {
+    beforeAll(async () => {
+      nextConfig.replace("// runtime: 'edge'", `runtime: '${runtime}'`)
+      dynamicHello.replace('suspense = false', `suspense = true`)
+      // `noSSR` mode will be ignored by suspense
+      dynamicHello.replace('let ssr', `let ssr = false`)
+    })
+    afterAll(async () => {
+      nextConfig.restore()
+      dynamicHello.restore()
     })
 
-    it('should not stream to bots', async () => {
-      const res = await fetchViaHTTP(
-        context.appPort,
-        '/ssr',
-        {},
-        {
-          headers: {
-            'user-agent': 'Googlebot',
-          },
-        }
-      )
-      expect(res.headers.get('etag')).toBeDefined()
-    })
+    runTests(`runtime is set to '${runtime}'`, (context) => {
+      concurrent(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
-    it('should not stream to google pagerender bot', async () => {
-      const res = await fetchViaHTTP(
-        context.appPort,
-        '/ssr',
-        {},
-        {
-          headers: {
-            'user-agent':
-              'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36 Google-PageRenderer Google (+https://developers.google.com/+/web/snippet/)',
-          },
-        }
-      )
-      expect(res.headers.get('etag')).toBeDefined()
+      it('should stream to users', async () => {
+        const res = await fetchViaHTTP(context.appPort, '/ssr')
+        expect(res.headers.get('etag')).toBeNull()
+      })
+
+      it('should not stream to bots', async () => {
+        const res = await fetchViaHTTP(
+          context.appPort,
+          '/ssr',
+          {},
+          {
+            headers: {
+              'user-agent': 'Googlebot',
+            },
+          }
+        )
+        expect(res.headers.get('etag')).toBeDefined()
+      })
+
+      it('should not stream to google pagerender bot', async () => {
+        const res = await fetchViaHTTP(
+          context.appPort,
+          '/ssr',
+          {},
+          {
+            headers: {
+              'user-agent':
+                'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36 Google-PageRenderer Google (+https://developers.google.com/+/web/snippet/)',
+            },
+          }
+        )
+        expect(res.headers.get('etag')).toBeDefined()
+      })
     })
   })
-})
+}
 
 function runTest(mode, name, fn) {
   const context = { appDir }
@@ -220,6 +222,9 @@ function runTest(mode, name, fn) {
     fn(context)
   })
 }
+
+runTestsAgainstRuntime('edge')
+runTestsAgainstRuntime('nodejs')
 
 function runTests(name, fn) {
   runTest('dev', name, fn)
