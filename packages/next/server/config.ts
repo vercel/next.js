@@ -654,7 +654,7 @@ export default async function loadConfig(
       )
     }
 
-    const hasReactRoot = enableReactRoot()
+    const hasReactRoot = shouldUseReactRoot()
     if (hasReactRoot) {
       userConfig.experimental.reactRoot = true
     }
@@ -704,7 +704,7 @@ export default async function loadConfig(
   return completeConfig
 }
 
-export function enableReactRoot() {
+export function shouldUseReactRoot() {
   const reactDomVersion = require('react-dom').version
   const isReactExperimental = Boolean(
     reactDomVersion && /0\.0\.0-experimental/.test(reactDomVersion)

@@ -50,7 +50,7 @@ import type { Span } from '../trace'
 import { getRawPageExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
-import { enableReactRoot } from '../server/config'
+import { shouldUseReactRoot } from '../server/config'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -336,7 +336,7 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
   const hasReactRefresh: boolean = dev && !isServer
-  const hasReactRoot = enableReactRoot()
+  const hasReactRoot = shouldUseReactRoot()
   const runtime = config.experimental.runtime
 
   // Make sure reactRoot is enabled when react 18 is detected
