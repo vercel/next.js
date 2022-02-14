@@ -15,6 +15,7 @@ import {
 import blocking from './blocking'
 import concurrent from './concurrent'
 import basics from './basics'
+import strictMode from './strict-mode'
 import common from './common'
 
 // overrides react and react-dom to v18
@@ -105,6 +106,26 @@ describe('Basics', () => {
       'A React component suspended while rendering, but no fallback UI was specified'
     )
   })
+})
+
+// React 18 with Strict Mode enabled might cause double invocation of lifecycle methods.
+describe('Strict mode - dev', () => {
+  const context = { appDir }
+
+  beforeAll(async () => {
+    nextConfig.replace('// reactStrictMode: true,', 'reactStrictMode: true,')
+    context.appPort = await findPort()
+    context.server = await launchApp(context.appDir, context.appPort, {
+      nodeArgs,
+    })
+  })
+
+  afterAll(() => {
+    nextConfig.restore()
+    killApp(context.server)
+  })
+
+  strictMode(context)
 })
 
 describe('Blocking mode', () => {
