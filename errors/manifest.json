@@ -553,7 +553,7 @@
           "path": "/errors/no-script-in-document.md"
         },
         {
-          "title": "script-component-in-head",
+          "title": "no-script-component-in-head",
           "path": "/errors/no-script-component-in-head.md"
         },
         {
