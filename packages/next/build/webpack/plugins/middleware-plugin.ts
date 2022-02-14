@@ -38,28 +38,35 @@ const middlewareManifest: MiddlewareManifest = {
   version: 1,
 }
 
+function getPageFromEntrypointName(pagePath: string) {
+  const ssrEntryInfo = ssrEntries.get(pagePath)
+  const result = MIDDLEWARE_FULL_ROUTE_REGEX.exec(pagePath)
+  const page = result
+    ? `/${result[1]}`
+    : ssrEntryInfo
+    ? pagePath.slice('pages'.length).replace(/\/index$/, '') || '/'
+    : null
+  return page
+}
+
 export function getEntrypointInfo(
   compilation: webpack5.Compilation,
   envPerRoute: Map<string, string[]>,
-  webServerRuntime: boolean
+  isEdgeRuntime: boolean
 ) {
   const entrypoints = compilation.entrypoints
   const infos = []
   for (const entrypoint of entrypoints.values()) {
     if (!entrypoint.name) continue
-    const result = MIDDLEWARE_FULL_ROUTE_REGEX.exec(entrypoint.name)
+
     const ssrEntryInfo = ssrEntries.get(entrypoint.name)
 
-    if (ssrEntryInfo && !webServerRuntime) continue
-    if (!ssrEntryInfo && webServerRuntime) continue
+    if (ssrEntryInfo && !isEdgeRuntime) continue
+    if (!ssrEntryInfo && isEdgeRuntime) continue
 
-    const location = result
-      ? `/${result[1]}`
-      : ssrEntryInfo
-      ? entrypoint.name.slice('pages'.length).replace(/\/index$/, '') || '/'
-      : null
+    const page = getPageFromEntrypointName(entrypoint.name)
 
-    if (!location) {
+    if (!page) {
       continue
     }
 
@@ -82,8 +89,8 @@ export function getEntrypointInfo(
       env: envPerRoute.get(entrypoint.name) || [],
       files,
       name: entrypoint.name,
-      page: location,
-      regexp: getMiddlewareRegex(location, !ssrEntryInfo).namedRegex!,
+      page,
+      regexp: getMiddlewareRegex(page, !ssrEntryInfo).namedRegex!,
     })
   }
   return infos
@@ -91,26 +98,26 @@ export function getEntrypointInfo(
 
 export default class MiddlewarePlugin {
   dev: boolean
-  webServerRuntime: boolean
+  isEdgeRuntime: boolean
 
   constructor({
     dev,
-    webServerRuntime,
+    isEdgeRuntime,
   }: {
     dev: boolean
-    webServerRuntime: boolean
+    isEdgeRuntime: boolean
   }) {
     this.dev = dev
-    this.webServerRuntime = webServerRuntime
+    this.isEdgeRuntime = isEdgeRuntime
   }
 
   createAssets(
     compilation: webpack5.Compilation,
     assets: any,
     envPerRoute: Map<string, string[]>,
-    webServerRuntime: boolean
+    isEdgeRuntime: boolean
   ) {
-    const infos = getEntrypointInfo(compilation, envPerRoute, webServerRuntime)
+    const infos = getEntrypointInfo(compilation, envPerRoute, isEdgeRuntime)
     infos.forEach((info) => {
       middlewareManifest.middleware[info.page] = info
     })
@@ -127,9 +134,7 @@ export default class MiddlewarePlugin {
     )
 
     assets[
-      this.webServerRuntime
-        ? MIDDLEWARE_MANIFEST
-        : `server/${MIDDLEWARE_MANIFEST}`
+      this.isEdgeRuntime ? MIDDLEWARE_MANIFEST : `server/${MIDDLEWARE_MANIFEST}`
     ] = new sources.RawSource(JSON.stringify(middlewareManifest, null, 2))
   }
 
@@ -137,7 +142,7 @@ export default class MiddlewarePlugin {
     collectAssets(compiler, this.createAssets.bind(this), {
       dev: this.dev,
       pluginName: PLUGIN_NAME,
-      webServerRuntime: this.webServerRuntime,
+      isEdgeRuntime: this.isEdgeRuntime,
     })
   }
 }
@@ -148,12 +153,12 @@ export function collectAssets(
     compilation: webpack5.Compilation,
     assets: any,
     envPerRoute: Map<string, string[]>,
-    webServerRuntime: boolean
+    isEdgeRuntime: boolean
   ) => void,
   options: {
     dev: boolean
     pluginName: string
-    webServerRuntime: boolean
+    isEdgeRuntime: boolean
   }
 ) {
   const wp = compiler.webpack
@@ -370,12 +375,7 @@ export function collectAssets(
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => {
-          createAssets(
-            compilation,
-            assets,
-            envPerRoute,
-            options.webServerRuntime
-          )
+          createAssets(compilation, assets, envPerRoute, options.isEdgeRuntime)
         }
       )
     }

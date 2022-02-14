@@ -33,8 +33,13 @@ import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
-import { trackWebVitalMetric } from './vitals'
-import { RefreshContext } from './rsc/refresh'
+import {
+  flushBufferedVitalsMetrics,
+  trackWebVitalMetric,
+} from './streaming/vitals'
+import { RefreshContext } from './streaming/refresh'
+import { ImageConfigContext } from '../shared/lib/image-config-context'
+import { ImageConfigComplete } from '../server/image-config'
 
 /// <reference types="react-dom/experimental" />
 
@@ -268,7 +273,9 @@ class Container extends React.Component<{
 export const emitter: MittEmitter<string> = mitt()
 let CachedComponent: React.ComponentType
 
-export async function initNext(opts: { webpackHMR?: any } = {}) {
+export async function initNext(
+  opts: { webpackHMR?: any; beforeRender?: () => Promise<void> } = {}
+) {
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = opts.webpackHMR
@@ -422,15 +429,14 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     err: initialErr,
   }
 
-  if (process.env.NODE_ENV === 'production') {
-    render(renderCtx)
-    return emitter
-  } else {
-    return { emitter, renderCtx }
+  if (opts.beforeRender) {
+    await opts.beforeRender()
   }
+
+  render(renderCtx)
 }
 
-export async function render(renderingProps: RenderRouteInfo): Promise<void> {
+async function render(renderingProps: RenderRouteInfo): Promise<void> {
   if (renderingProps.err) {
     await renderError(renderingProps)
     return
@@ -458,7 +464,7 @@ export async function render(renderingProps: RenderRouteInfo): Promise<void> {
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
-export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
+function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
   const { App, err } = renderErrorProps
 
   // In development runtime errors are caught by our overlay
@@ -622,7 +628,11 @@ function AppContainer({
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
         <HeadManagerContext.Provider value={headManager}>
-          {children}
+          <ImageConfigContext.Provider
+            value={process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete}
+          >
+            {children}
+          </ImageConfigContext.Provider>
         </HeadManagerContext.Provider>
       </RouterContext.Provider>
     </Container>
@@ -734,7 +744,7 @@ if (process.env.__NEXT_RSC) {
     let response = rscCache.get(cacheKey)
     if (response) return response
 
-    const bufferCacheKey = cacheKey + ',' + id
+    const bufferCacheKey = cacheKey + ',' + router.route + ',' + id
     if (serverDataBuffer.has(bufferCacheKey)) {
       const t = new TransformStream()
       const writer = t.writable.getWriter()
@@ -1010,7 +1020,10 @@ function Root({
   // don't cause any hydration delay:
   React.useEffect(() => {
     measureWebVitals(onPerfEntry)
+
+    flushBufferedVitalsMetrics()
   }, [])
+
   return children as React.ReactElement
 }
 

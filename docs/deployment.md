@@ -28,9 +28,9 @@ All JavaScript code inside `.next` has been **compiled** and browser bundles hav
 
 ## Managed Next.js with Vercel
 
-[Vercel](https://vercel.com/) is a frontend cloud platform from the creators of Next.js. It's the fastest way to deploy your managed Next.js application with zero configuration.
+[Vercel](https://vercel.com?utm_source=github.com&utm_medium=referral&utm_campaign=deployment) is the fastest way to deploy your Next.js application with zero configuration.
 
-When deploying to Vercel, the platform automatically detects Next.js, runs `next build`, and optimizes the build output for you, including:
+When deploying to Vercel, the platform [automatically detects Next.js](https://vercel.com/solutions/nextjs?utm_source=github.com&utm_medium=referral&utm_campaign=deployment), runs `next build`, and optimizes the build output for you, including:
 
 - Persisting cached assets across deployments if unchanged
 - [Immutable deployments](https://vercel.com/features/previews) with a unique URL for every commit
@@ -49,9 +49,7 @@ In addition, Vercel provides features like:
 - Support for [Image Optimization](/docs/basic-features/image-optimization.md) with `next/image`
 - Instant global deployments via `git push`
 
-You can start using Vercel (for free) through a personal hobby account, or create a team to start the next big thing. Learn more about [Next.js on Vercel](https://vercel.com/solutions/nextjs) or read the [Vercel Documentation](https://vercel.com/docs).
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world&project-name=hello-world&repository-name=hello-world&utm_source=github.com&utm_medium=referral&utm_campaign=deployment)
+[Deploy a Next.js application to Vercel](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world&project-name=hello-world&repository-name=hello-world&utm_source=github.com&utm_medium=referral&utm_campaign=deployment) for free to try it out.
 
 ## Self-Hosting
 

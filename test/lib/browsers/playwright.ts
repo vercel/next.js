@@ -1,4 +1,4 @@
-import { BrowserInterface } from './base'
+import { BrowserInterface, Event } from './base'
 import fs from 'fs-extra'
 import {
   chromium,
@@ -28,6 +28,23 @@ export async function quit() {
 
 class Playwright extends BrowserInterface {
   private activeTrace?: string
+  private eventCallbacks: Record<Event, Set<(...args: any[]) => void>> = {
+    request: new Set(),
+  }
+
+  on(event: Event, cb: (...args: any[]) => void) {
+    if (!this.eventCallbacks[event]) {
+      throw new Error(
+        `Invalid event passed to browser.on, received ${event}. Valid events are ${Object.keys(
+          event
+        )}`
+      )
+    }
+    this.eventCallbacks[event]?.add(cb)
+  }
+  off(event: Event, cb: (...args: any[]) => void) {
+    this.eventCallbacks[event]?.delete(cb)
+  }
 
   async setup(browserName: string) {
     if (browser) return
@@ -83,6 +100,9 @@ class Playwright extends BrowserInterface {
     })
     page.on('pageerror', (error) => {
       console.error('page error', error)
+    })
+    page.on('request', (req) => {
+      this.eventCallbacks.request.forEach((cb) => cb(req))
     })
 
     if (opts?.disableCache) {
@@ -165,6 +185,10 @@ class Playwright extends BrowserInterface {
     return this.chain(async () => context.clearCookies())
   }
 
+  focusPage() {
+    return this.chain(() => page.bringToFront())
+  }
+
   private wrapElement(el: ElementHandle, selector: string) {
     ;(el as any).selector = selector
     ;(el as any).text = () => el.innerText()
@@ -235,6 +259,18 @@ class Playwright extends BrowserInterface {
 
   async hasElementByCssSelector(selector: string) {
     return this.eval(`!!document.querySelector('${selector}')`) as any
+  }
+
+  keydown(key: string): BrowserInterface {
+    return this.chain((el) => {
+      return page.keyboard.down(key).then(() => el)
+    })
+  }
+
+  keyup(key: string): BrowserInterface {
+    return this.chain((el) => {
+      return page.keyboard.up(key).then(() => el)
+    })
   }
 
   click() {
