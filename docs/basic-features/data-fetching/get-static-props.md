@@ -74,6 +74,20 @@ This means that instead of fetching an **API route** from `getStaticProps` (that
 
 Take the following example. An API route is used to fetch some data from a CMS. That API route is then called directly from `getStaticProps`. This produces an additional call, reducing performance. Instead, the logic for fetching the data from the CMS can be moved to `getStaticProps`.
 
+```jsx
+// pages/page.js
+
+// This function runs only on the server side
+export async function getStaticProps() {
+  // Call an external API endpoint to get posts
+  const res = await fetch('https://.../posts/')
+  const posts = await res.json()
+
+  // Props returned will be passed to the page component
+  return { props: { posts } }
+}
+```
+
 Alternatively, if you are **not** using API routes to fetch data, then the [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) API _can_ be used directly in `getStaticProps` to fetch data.
 
 To verify what Next.js eliminates from the client-side bundle, you can use the [next-code-elimination tool](https://next-code-elimination.vercel.app/).
