@@ -246,7 +246,7 @@ describe('no-html-link-for-pages', function () {
     assert.notEqual(report, undefined, 'No lint errors found.')
     assert.equal(
       report.message,
-      "Do not use the HTML <a> tag to navigate to /. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages"
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
 
@@ -257,7 +257,7 @@ describe('no-html-link-for-pages', function () {
     assert.notEqual(report, undefined, 'No lint errors found.')
     assert.equal(
       report.message,
-      "Do not use the HTML <a> tag to navigate to /list/foo/bar/. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages"
+      'Do not use an `<a>` element to navigate to `/list/foo/bar/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
     const [secondReport] = linter.verify(
       secondInvalidDynamicCode,
@@ -269,7 +269,7 @@ describe('no-html-link-for-pages', function () {
     assert.notEqual(secondReport, undefined, 'No lint errors found.')
     assert.equal(
       secondReport.message,
-      "Do not use the HTML <a> tag to navigate to /list/foo/. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages"
+      'Do not use an `<a>` element to navigate to `/list/foo/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
     const [thirdReport] = linter.verify(thirdInvalidDynamicCode, linterConfig, {
       filename: 'foo.js',
@@ -277,7 +277,7 @@ describe('no-html-link-for-pages', function () {
     assert.notEqual(thirdReport, undefined, 'No lint errors found.')
     assert.equal(
       thirdReport.message,
-      "Do not use the HTML <a> tag to navigate to /list/lorem-ipsum/. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages"
+      'Do not use an `<a>` element to navigate to `/list/lorem-ipsum/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
 })

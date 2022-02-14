@@ -98,7 +98,7 @@ ruleTester.run('no-server-import-in-page', rule, {
       errors: [
         {
           message:
-            'next/server should not be imported outside of pages/_middleware.js. See: https://nextjs.org/docs/messages/no-server-import-in-page',
+            '`next/server` should not be used outside of `pages/_middleware.js`. See: https://nextjs.org/docs/messages/no-server-import-in-page',
           type: 'ImportDeclaration',
         },
       ],
@@ -112,7 +112,7 @@ ruleTester.run('no-server-import-in-page', rule, {
       errors: [
         {
           message:
-            'next/server should not be imported outside of pages/_middleware.js. See: https://nextjs.org/docs/messages/no-server-import-in-page',
+            '`next/server` should not be used outside of `pages/_middleware.js`. See: https://nextjs.org/docs/messages/no-server-import-in-page',
           type: 'ImportDeclaration',
         },
       ],
@@ -126,7 +126,7 @@ ruleTester.run('no-server-import-in-page', rule, {
       errors: [
         {
           message:
-            'next/server should not be imported outside of pages/_middleware.js. See: https://nextjs.org/docs/messages/no-server-import-in-page',
+            '`next/server` should not be used outside of `pages/_middleware.js`. See: https://nextjs.org/docs/messages/no-server-import-in-page',
           type: 'ImportDeclaration',
         },
       ],

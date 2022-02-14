@@ -30,7 +30,7 @@ module.exports = {
         ) {
           context.report({
             node,
-            message: `\`next/head\` should not be imported in \`pages/_document.js\`. Use \`<Head />\` from \`next/document\` instead. See: ${url}`,
+            message: `\`next/head\` should not be imported in \`pages${document}\`. Use \`<Head />\` from \`next/document\` instead. See: ${url}`,
           })
         }
       },

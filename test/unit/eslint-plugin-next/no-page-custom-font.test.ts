@@ -148,7 +148,7 @@ ruleTester.run('no-page-custom-font', rule, {
       errors: [
         {
           message:
-            'Custom fonts not added at the document level will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font',
+            'Custom fonts not added in `pages/_document.js` will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font',
           type: 'JSXOpeningElement',
         },
       ],
@@ -188,11 +188,11 @@ ruleTester.run('no-page-custom-font', rule, {
       errors: [
         {
           message:
-            'Rendering this <link /> not inline within <Head> of Document disables font optimization. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font',
+            'Using `<link />` outside of `<Head>` will disable automatic font optimization. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font',
         },
         {
           message:
-            'Rendering this <link /> not inline within <Head> of Document disables font optimization. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font',
+            'Using `<link />` outside of `<Head>` will disable automatic font optimization. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font',
         },
       ],
     },

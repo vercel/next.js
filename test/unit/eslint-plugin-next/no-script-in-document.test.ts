@@ -21,7 +21,7 @@ ruleTester.run('no-script-import-in-document', rule, {
         static async getInitialProps(ctx) {
           //...
         }
-      
+
         render() {
           return (
             <Html>
@@ -30,7 +30,7 @@ ruleTester.run('no-script-import-in-document', rule, {
           )
         }
       }
-      
+
       export default MyDocument
     `,
       filename: 'pages/_document.js',
@@ -38,7 +38,7 @@ ruleTester.run('no-script-import-in-document', rule, {
     {
       code: `import Document, { Html, Head, Main, NextScript } from 'next/document'
 
-      class MyDocument extends Document {      
+      class MyDocument extends Document {
         render() {
           return (
             <Html>
@@ -49,7 +49,7 @@ ruleTester.run('no-script-import-in-document', rule, {
           )
         }
       }
-      
+
       export default MyDocument
     `,
       filename: 'pages/_document.tsx',
@@ -60,7 +60,7 @@ ruleTester.run('no-script-import-in-document', rule, {
       code: `
       import Document, { Html, Main, NextScript } from 'next/document'
       import Script from 'next/script'
-      
+
       class MyDocument extends Document {
         render() {
           return (
@@ -70,13 +70,13 @@ ruleTester.run('no-script-import-in-document', rule, {
           )
         }
       }
-      
+
       export default MyDocument
       `,
       filename: 'pages/_document.js',
       errors: [
         {
-          message: `next/script should not be used in pages/_document.js. See: https://nextjs.org/docs/messages/no-script-in-document-page`,
+          message: `\`<Script />\` from \`next/script\` should not be used in \`pages/_document.js\`. Use in \`pages/_app.js\` instead. See: https://nextjs.org/docs/messages/no-script-in-document`,
         },
       ],
     },
@@ -84,7 +84,7 @@ ruleTester.run('no-script-import-in-document', rule, {
       code: `
       import Document, { Html, Main, NextScript } from 'next/document'
       import NextScriptTag from 'next/script'
-      
+
       class MyDocument extends Document {
         render() {
           return (
@@ -101,13 +101,13 @@ ruleTester.run('no-script-import-in-document', rule, {
           )
         }
       }
-      
+
       export default MyDocument
       `,
       filename: 'pages/_document.js',
       errors: [
         {
-          message: `next/script should not be used in pages/_document.js. See: https://nextjs.org/docs/messages/no-script-in-document-page`,
+          message: `\`<Script />\` from \`next/script\` should not be used in \`pages/_document.js\`. Use in \`pages/_app.js\` instead. See: https://nextjs.org/docs/messages/no-script-in-document`,
         },
       ],
     },
