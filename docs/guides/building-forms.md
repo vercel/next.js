@@ -118,7 +118,6 @@ The following example shows using JavaScript to validate a form:
 </script>
 ```
 
-<!--- Why is this here? If you don't know what the <script> tag is I don't think you would be diving into full-stack with Next... -->
 The HTML [script](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script) tag is used to embed any client-side JavaScript. It can either contain inline scripting statements (as shown in the example above) or point to an external script file via the `src` attribute.
 This example validates the name and roll number of a user. The `validateFormWithJS()` function does not allow an empty name field, and the roll number must be at least three digits long. The validation is performed when you hit the Submit button. You are not redirected to the next page until the given values are correct.
 
@@ -184,15 +183,13 @@ export default function handler(req, res) {
   // Guard clause checks for first and last name,
   // and returns early if they are not found
   if (!body.first || !body.last) {
-    return res.json({ data: 'First or last name not found' })
     // Sends a HTTP bad request error code
-    return res.status(400)
+    return res.status(400).json({ data: 'First or last name not found' })
   }
 
   // Found the name.
-  res.json({ data: `${body.first} ${body.last}` })
   // Sends a HTTP success code
-  res.status(200)
+  res.status(200).json({ data: `${body.first} ${body.last}` })
 }
 ```
 
