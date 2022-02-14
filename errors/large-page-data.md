@@ -10,4 +10,4 @@ Reduce the amount of data returned from `getStaticProps`, `getServerSideProps`, 
 
 ### Useful Links
 
-- [Data Fetching Documentation](https://nextjs.org/docs/basic-features/data-fetching/index)
+- [Data Fetching Documentation](https://nextjs.org/docs/basic-features/data-fetching/overview)
