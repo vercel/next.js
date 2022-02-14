@@ -2,11 +2,11 @@
 
 [React 18](https://reactjs.org/blog/2021/06/08/the-plan-for-react-18.html) adds new features including Suspense, automatic batching of updates, APIs like `startTransition`, and a new streaming API for server rendering with support for `React.lazy`.
 
-React 18 is in RC now. Read more about React 18's [release plan](https://reactjs.org/blog/2021/06/08/the-plan-for-react-18.html) and discussions from the [working group](https://github.com/reactwg/react-18/discussions).
+React 18 is now in Release Candidate (RC). Read more about React 18's [release plan](https://reactjs.org/blog/2021/06/08/the-plan-for-react-18.html) and discussions from the [working group](https://github.com/reactwg/react-18/discussions).
 
 ## Using React 18 with Next.js
 
-Install the Release Candidate version of React 18:
+Install the RC version of React 18:
 
 ```jsx
 npm install next@latest react@rc react-dom@rc

@@ -4,7 +4,10 @@ Server Components allow us to render React components on the server. This is fun
 
 ### Enable React Server Components
 
-To use React Server Components, ensure you have React 18 installed. Then enable the `serverComponents` option and specify the global `runtime` (can be either `'nodejs'` or `'edge'`) in `next.config.js`:
+To use React Server Components, ensure you have React 18 installed. 
+
+```jsx
+npm install next@latest react@rc react-dom@rc
 
 ```jsx
 // next.config.js
@@ -16,9 +19,9 @@ module.exports = {
 }
 ```
 
-Note that the `runtime` option also enables [Streaming SSR](/docs/advanced-features/react-18/streaming). When setting to `'edge'`, the server will be running entirely in the [Edge Runtime](https://nextjs.org/docs/api-reference/edge-runtime).
+Using `runtime` also enables [Streaming SSR](/docs/advanced-features/react-18/streaming). When setting `runtime` to `'edge'`, the server will be running entirely in the [Edge Runtime](https://nextjs.org/docs/api-reference/edge-runtime).
 
-Once you've made this change, you can start using React Server Components. [See our example](https://github.com/vercel/next-rsc-demo) for more information.
+Now, you can start using React Server Components in Next.js. [See our example](https://github.com/vercel/next-rsc-demo) for more information.
 
 ### Server Components Conventions
 
@@ -49,7 +52,7 @@ export default function Home() {
 }
 ```
 
-The `<Home>` and `<Profile>` components will always be server-side rendered and streamed to the client, and will not be included by the client runtime. However, `<Content>` will still be hydrated on the client-side, like normal React components.
+The `<Home>` and `<Profile>` components will always be server-side rendered and streamed to the client, and will not be included by the client-side JavaScript. However, `<Content>` will still be hydrated on the client-side, like normal React components.
 
 > Make sure you're using default imports and exports for server components (`.server.js`). The support of named exports are a work in progress!
 
