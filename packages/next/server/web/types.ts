@@ -1,5 +1,4 @@
 import type { I18NConfig } from '../config-shared'
-import type { ReadableStream } from 'next/dist/compiled/web-streams-polyfill/ponyfill'
 import type { NextRequest } from '../web/spec-extension/request'
 import type { NextFetchEvent } from '../web/spec-extension/fetch-event'
 import type { NextResponse } from './spec-extension/response'

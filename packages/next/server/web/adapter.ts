@@ -16,7 +16,7 @@ export async function adapter(params: {
     page: params.page,
     input: params.request.url,
     init: {
-      body: params.request.body as unknown as ReadableStream<Uint8Array>,
+      body: params.request.body,
       geo: params.request.geo,
       headers: fromNodeHeaders(params.request.headers),
       ip: params.request.ip,

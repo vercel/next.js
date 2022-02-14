@@ -8,7 +8,7 @@ import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { PrerenderManifest } from '../build'
 import type { Rewrite } from '../lib/load-custom-routes'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
-import type { ReadableStream } from 'next/dist/compiled/web-streams-polyfill/ponyfill'
+import type { ReadableStream as ReadableStreamPolyfill } from 'next/dist/compiled/web-streams-polyfill/ponyfill'
 import { TransformStream } from 'next/dist/compiled/web-streams-polyfill/ponyfill'
 
 import { execOnce } from '../shared/lib/utils'
@@ -1270,7 +1270,7 @@ export default class NextNodeServer extends BaseServer {
             },
             url: url,
             page: page,
-            body: currentBody,
+            body: currentBody as unknown as ReadableStream<Uint8Array>,
           },
           useCache: !this.nextConfig.experimental.runtime,
           onWarning: (warning: Error) => {
@@ -1349,7 +1349,7 @@ export default class NextNodeServer extends BaseServer {
  */
 function requestToBodyStream(
   request: IncomingMessage
-): ReadableStream<Uint8Array> {
+): ReadableStreamPolyfill<Uint8Array> {
   const transform = new TransformStream<Uint8Array, Uint8Array>({
     start(controller) {
       request.on('data', (chunk) => controller.enqueue(chunk))
@@ -1365,8 +1365,8 @@ function requestToBodyStream(
  * A simple utility to take an original stream and have
  * an API to duplicate it without closing it or mutate any variables
  */
-function teeableStream<T>(originalStream: ReadableStream<T>): {
-  duplicate(): ReadableStream<T>
+function teeableStream<T>(originalStream: ReadableStreamPolyfill<T>): {
+  duplicate(): ReadableStreamPolyfill<T>
 } {
   return {
     duplicate() {
