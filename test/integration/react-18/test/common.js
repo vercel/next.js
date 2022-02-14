@@ -30,9 +30,9 @@ export default (context) => {
 
   it('throws if useFlushEffects is called on the client', async () => {
     await withBrowser('/use-flush-effect/client', async (browser) => {
-      expect(await hasRedbox(browser)).toBe(true)
-      expect(await getRedboxSource(browser)).toMatch(
-        /Error: useFlushEffects can not be called on the client/
+      await check(
+        () => browser.waitForElementByCss('#error').text(),
+        /useFlushEffects can not be called on the client/
       )
     })
   })
