@@ -439,6 +439,21 @@ module.exports = {
 }
 ```
 
+### Dangerously Allow SVG
+
+The default [loader](#loader) does not optimize SVG images for a few reasons. First, SVG is a vector format meaning it can be resized losslessly. Second, SVG has many of the same features as HTML/CSS which opens the door to additional attack vectors.
+
+If you need to serve SVG images with the default Image Optimization API, you can set `dangerouslyAllowSVG` and `contentSecurityPolicy` inside your `next.config.js`:
+
+```js
+module.exports = {
+  images: {
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self' https://example.com;",
+  },
+}
+```
+
 ## Related
 
 For an overview of the Image component features and usage guidelines, see:
