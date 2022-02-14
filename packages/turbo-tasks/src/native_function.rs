@@ -1,4 +1,4 @@
-use crate::{self as turbo_tasks, task::NativeTaskFn, NodeRef};
+use crate::{self as turbo_tasks, task::NativeTaskFn, SlotRef, TaskArgumentOptions};
 use anyhow::Result;
 use std::hash::Hash;
 
@@ -6,7 +6,9 @@ use std::hash::Hash;
 pub struct NativeFunction {
     pub name: String,
     #[trace_ignore]
-    pub bind_fn: Box<dyn (Fn(Vec<NodeRef>) -> Result<NativeTaskFn>) + Send + Sync + 'static>,
+    pub task_argument_options: Vec<TaskArgumentOptions>,
+    #[trace_ignore]
+    pub bind_fn: Box<dyn (Fn(Vec<SlotRef>) -> Result<NativeTaskFn>) + Send + Sync + 'static>,
 }
 
 #[turbo_tasks::value_impl]
@@ -14,15 +16,17 @@ impl NativeFunction {
     #[turbo_tasks::constructor]
     pub fn new(
         name: String,
-        bind_fn: impl (Fn(Vec<NodeRef>) -> Result<NativeTaskFn>) + Send + Sync + 'static,
+        task_argument_options: Vec<TaskArgumentOptions>,
+        bind_fn: impl (Fn(Vec<SlotRef>) -> Result<NativeTaskFn>) + Send + Sync + 'static,
     ) -> Self {
         Self {
             name,
+            task_argument_options,
             bind_fn: Box::new(bind_fn),
         }
     }
 
-    pub fn bind(&self, inputs: Vec<NodeRef>) -> Result<NativeTaskFn> {
+    pub fn bind(&self, inputs: Vec<SlotRef>) -> Result<NativeTaskFn> {
         (self.bind_fn)(inputs)
     }
 }

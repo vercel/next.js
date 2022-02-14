@@ -1,26 +1,28 @@
-use std::{any::Any, hash::Hash};
+use std::{any::Any, hash::Hash, sync::Arc};
 
-use crate::{turbo_tasks::intern, NodeRef};
+use crate::{slot::Slot, turbo_tasks::intern, SlotRef, SlotValueType};
+
+pub use crate::slot::SlotReadResult;
 
 pub fn new_node_intern<
     T: Any + ?Sized,
     K: Hash + PartialEq + Eq + Send + Sync + 'static,
-    F: FnOnce() -> NodeRef,
+    F: FnOnce() -> (&'static SlotValueType, Arc<dyn Any + Send + Sync>),
 >(
     key: K,
     fallback: F,
-) -> NodeRef {
+) -> SlotRef {
     intern::<T, K, F>(key, fallback)
 }
 
 pub fn new_node_auto_intern<
     T: Any + ?Sized,
     K: Hash + PartialEq + Eq + Send + Sync + 'static,
-    F: FnOnce() -> NodeRef,
+    F: FnOnce() -> (&'static SlotValueType, Arc<dyn Any + Send + Sync>),
 >(
     key: K,
     fallback: F,
-) -> NodeRef {
+) -> SlotRef {
     // TODO implement decision if intern or not
     intern::<T, K, F>(key, fallback)
 }
@@ -28,16 +30,14 @@ pub fn new_node_auto_intern<
 pub fn match_previous_node_by_key<
     T: Any + ?Sized,
     K: Hash + PartialEq + Eq + Send + Sync + 'static,
-    F: FnOnce(Option<NodeRef>) -> NodeRef,
+    F: FnOnce(&mut Slot),
 >(
     key: K,
     functor: F,
-) -> NodeRef {
+) -> SlotRef {
     crate::task::match_previous_node_by_key::<T, K, F>(key, functor)
 }
 
-pub fn match_previous_node_by_type<T: Any + ?Sized, F: FnOnce(Option<NodeRef>) -> NodeRef>(
-    functor: F,
-) -> NodeRef {
+pub fn match_previous_node_by_type<T: Any + ?Sized, F: FnOnce(&mut Slot)>(functor: F) -> SlotRef {
     crate::task::match_previous_node_by_type::<T, F>(functor)
 }

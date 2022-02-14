@@ -15,11 +15,19 @@ use async_std::{
 };
 use chashmap::CHashMap;
 
-use crate::{task::NativeTaskFuture, viz::Visualizable, NativeFunction, NodeRef, Task};
+use crate::{
+    slot::SlotRef, task::NativeTaskFuture, viz::Visualizable, NativeFunction, SlotValueType, Task,
+    TraitType,
+};
 
 pub struct TurboTasks {
-    interning_map: CHashMap<Box<dyn AnyHash + Send + Sync>, NodeRef>,
-    task_cache: CHashMap<(&'static NativeFunction, Vec<NodeRef>), Arc<Task>>,
+    interning_map: CHashMap<
+        Box<dyn AnyHash + Send + Sync>,
+        (&'static SlotValueType, Arc<dyn Any + Sync + Send>),
+    >,
+    resolve_task_cache: CHashMap<(&'static NativeFunction, Vec<SlotRef>), Arc<Task>>,
+    native_task_cache: CHashMap<(&'static NativeFunction, Vec<SlotRef>), Arc<Task>>,
+    trait_task_cache: CHashMap<(&'static TraitType, String, Vec<SlotRef>), Arc<Task>>,
 }
 
 task_local! {
@@ -35,7 +43,9 @@ impl TurboTasks {
     pub fn new() -> &'static Self {
         Box::leak(Box::new(Self {
             interning_map: CHashMap::new(),
-            task_cache: CHashMap::new(),
+            resolve_task_cache: CHashMap::new(),
+            native_task_cache: CHashMap::new(),
+            trait_task_cache: CHashMap::new(),
         }))
     }
 
@@ -48,13 +58,13 @@ impl TurboTasks {
         task
     }
 
-    pub fn dynamic_call(
+    pub(crate) fn native_call(
         self: &'static TurboTasks,
         func: &'static NativeFunction,
-        inputs: Vec<NodeRef>,
-    ) -> Result<Pin<Box<dyn Future<Output = Option<NodeRef>> + Sync + Send>>> {
+        inputs: Vec<SlotRef>,
+    ) -> Result<SlotRef> {
         let mut result_task = Err(anyhow!("Unreachable"));
-        self.task_cache
+        self.native_task_cache
             .alter((func, inputs.clone()), |old| match old {
                 Some(t) => {
                     result_task = Ok(t.clone());
@@ -75,7 +85,61 @@ impl TurboTasks {
             });
         let task = result_task?;
         task.ensure_scheduled(self);
-        return Ok(Box::pin(task.into_output(self)));
+        return Ok(SlotRef::TaskOutput(task));
+    }
+
+    pub fn dynamic_call(
+        self: &'static TurboTasks,
+        func: &'static NativeFunction,
+        inputs: Vec<SlotRef>,
+    ) -> Result<SlotRef> {
+        let mut result_task = Err(anyhow!("Unreachable"));
+        self.resolve_task_cache
+            .alter((func, inputs.clone()), |old| match old {
+                Some(t) => {
+                    result_task = Ok(t.clone());
+                    Some(t)
+                }
+                None => {
+                    let task = Task::new_resolve_native(inputs, func);
+                    let new_task = Arc::new(task);
+                    self.schedule(new_task.clone());
+                    result_task = Ok(new_task.clone());
+                    Some(new_task)
+                }
+            });
+        let task = result_task?;
+        task.ensure_scheduled(self);
+        return Ok(SlotRef::TaskOutput(task));
+    }
+
+    pub fn trait_call(
+        self: &'static TurboTasks,
+        trait_type: &'static TraitType,
+        trait_fn_name: String,
+        inputs: Vec<SlotRef>,
+    ) -> Result<SlotRef> {
+        let mut result_task = Err(anyhow!("Unreachable"));
+        self.trait_task_cache
+            .alter(
+                (trait_type, trait_fn_name.clone(), inputs.clone()),
+                |old| match old {
+                    Some(t) => {
+                        result_task = Ok(t.clone());
+                        Some(t)
+                    }
+                    None => {
+                        let task = Task::new_resolve_trait(trait_type, trait_fn_name, inputs);
+                        let new_task = Arc::new(task);
+                        self.schedule(new_task.clone());
+                        result_task = Ok(new_task.clone());
+                        Some(new_task)
+                    }
+                },
+            );
+        let task = result_task?;
+        task.ensure_scheduled(self);
+        return Ok(SlotRef::TaskOutput(task));
     }
 
     pub(crate) fn schedule(&'static self, task: Arc<Task>) -> JoinHandle<()> {
@@ -85,7 +149,7 @@ impl TurboTasks {
                 Task::set_current(task.clone());
                 TURBO_TASKS.with(|c| c.set(Some(self)));
                 task.execution_started();
-                let result = task.execute().await;
+                let result = task.execute(self).await;
                 task.finalize_execution();
                 task.execution_completed(result, self);
             })
@@ -99,60 +163,65 @@ impl TurboTasks {
     pub(crate) fn intern<
         T: Any + ?Sized,
         K: Hash + PartialEq + Eq + Send + Sync + 'static,
-        F: FnOnce() -> NodeRef,
+        F: FnOnce() -> (&'static SlotValueType, Arc<dyn Any + Send + Sync>),
     >(
         &self,
         key: K,
         fallback: F,
-    ) -> NodeRef {
-        let mut node1 = None;
-        let mut node2 = None;
-        self.interning_map.upsert(
+    ) -> SlotRef {
+        let mut result = None;
+        self.interning_map.alter(
             Box::new((TypeId::of::<T>(), key)) as Box<dyn AnyHash + Send + Sync>,
-            || {
-                let new_node = fallback();
-                node1 = Some(new_node.clone());
-                new_node
-            },
-            |existing_node| {
-                node2 = Some(existing_node.clone());
+            |entry| match entry {
+                Some((ty, value)) => {
+                    result = Some(SlotRef::SharedReference(ty, value.clone()));
+                    Some((ty, value))
+                }
+                None => {
+                    let (ty, value) = fallback();
+                    result = Some(SlotRef::SharedReference(ty, value.clone()));
+                    Some((ty, value))
+                }
             },
         );
-        // TODO ugly
-        if let Some(n) = node1 {
-            return n;
-        }
-        node2.unwrap()
+        result.unwrap()
     }
 }
 
-pub fn dynamic_call(
-    func: &'static NativeFunction,
-    inputs: Vec<NodeRef>,
-) -> Result<Pin<Box<dyn Future<Output = Option<NodeRef>> + Sync + Send>>> {
+pub fn dynamic_call(func: &'static NativeFunction, inputs: Vec<SlotRef>) -> Result<SlotRef> {
     let tt = TurboTasks::current()
         .ok_or_else(|| anyhow!("tried to call dynamic_call outside of turbo tasks"))?;
     tt.dynamic_call(func, inputs)
 }
 
+pub fn trait_call(
+    trait_type: &'static TraitType,
+    trait_fn_name: String,
+    inputs: Vec<SlotRef>,
+) -> Result<SlotRef> {
+    let tt = TurboTasks::current()
+        .ok_or_else(|| anyhow!("tried to call trait_call outside of turbo tasks"))?;
+    tt.trait_call(trait_type, trait_fn_name, inputs)
+}
+
 pub(crate) fn intern<
     T: Any + ?Sized,
     K: Hash + PartialEq + Eq + Send + Sync + 'static,
-    F: FnOnce() -> NodeRef,
+    F: FnOnce() -> (&'static SlotValueType, Arc<dyn Any + Send + Sync>),
 >(
     key: K,
     fallback: F,
-) -> NodeRef {
+) -> SlotRef {
     let tt = TurboTasks::current()
         .ok_or_else(|| anyhow!("tried to call intern outside of turbo tasks"))
         .unwrap();
     tt.intern::<T, K, F>(key, fallback)
 }
 
-impl Visualizable for &'static TurboTasks {
-    fn visualize(&self, visualizer: &mut impl crate::viz::Visualizer) {
-        for (_key, task) in self.task_cache.clone().into_iter() {
-            task.visualize(visualizer);
-        }
-    }
-}
+// impl Visualizable for &'static TurboTasks {
+//     fn visualize(&self, visualizer: &mut impl crate::viz::Visualizer) {
+//         for (_key, task) in self.task_cache.clone().into_iter() {
+//             task.visualize(visualizer);
+//         }
+//     }
+// }
