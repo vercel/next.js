@@ -8,31 +8,15 @@ describe('reading request body in middleware', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'src/readBody.js': `
-          export async function readBody(reader, input = reader.read(), body = "") {
-            const { value, done } = await input;
-            const inputText = new TextDecoder().decode(value);
-            body += inputText;
-            if (done) {
-              return body;
-            }
-            const next = await reader.read();
-            return readBody(reader, next, body);
-          }
-        `,
-
         'pages/_middleware.js': `
           const { NextResponse } = require('next/server');
-          import { readBody } from '../src/readBody';
 
           export default async function middleware(request) {
             if (!request.body) {
               return new Response('No body', { status: 400 });
             }
 
-            const reader = await request.body.getReader();
-            const body = await readBody(reader);
-            const json = JSON.parse(body);
+            const json = await request.json();
 
             if (request.nextUrl.searchParams.has("next")) {
               return NextResponse.next();
@@ -52,16 +36,13 @@ describe('reading request body in middleware', () => {
 
         'pages/nested/_middleware.js': `
           const { NextResponse } = require('next/server');
-          import { readBody } from '../../src/readBody';
 
           export default async function middleware(request) {
             if (!request.body) {
               return new Response('No body', { status: 400 });
             }
 
-            const reader = await request.body.getReader();
-            const body = await readBody(reader);
-            const json = JSON.parse(body);
+            const json = await request.json();
 
             return new Response(JSON.stringify({
               root: false,
