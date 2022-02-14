@@ -253,6 +253,10 @@
               "path": "/docs/advanced-features/debugging.md"
             },
             {
+              "title": "Error Handling",
+              "path": "/docs/advanced-features/error-handling.md"
+            },
+            {
               "title": "Source Maps",
               "path": "/docs/advanced-features/source-maps.md"
             },
