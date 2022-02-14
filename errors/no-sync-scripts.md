@@ -28,8 +28,8 @@ export default Home
 #### Use `async` or `defer`
 
 ```html
-<script src="https://third-party-script.js" async></script>
-<script src="https://third-party-script.js" defer></script>
+<script src="https://third-party-script.js" async />
+<script src="https://third-party-script.js" defer />
 ```
 
 ### Useful Links
