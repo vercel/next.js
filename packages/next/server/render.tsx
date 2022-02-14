@@ -67,7 +67,7 @@ import { FlushEffectsContext } from '../shared/lib/flush-effects'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
-let tryGetPreviewData: typeof import('./api-utils').tryGetPreviewData
+let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
 let postProcess: typeof import('../shared/lib/post-process').default
 
@@ -78,7 +78,7 @@ if (!process.browser) {
   optimizeAmp = require('./optimize-amp').default
   getFontDefinitionFromManifest =
     require('./font-utils').getFontDefinitionFromManifest
-  tryGetPreviewData = require('./api-utils').tryGetPreviewData
+  tryGetPreviewData = require('./api-utils/node').tryGetPreviewData
   warn = require('../build/output/log').warn
   postProcess = require('../shared/lib/post-process').default
 } else {
@@ -467,8 +467,13 @@ export async function renderToHTML(
 
   const hasConcurrentFeatures = !!runtime
 
-  const isServerComponent = !!serverComponentManifest && hasConcurrentFeatures
   const OriginalComponent = renderOpts.Component
+
+  // We don't need to opt-into the flight inlining logic if the page isn't a RSC.
+  const isServerComponent =
+    !!serverComponentManifest &&
+    hasConcurrentFeatures &&
+    (OriginalComponent as any).__next_rsc__
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
@@ -479,8 +484,9 @@ export async function renderToHTML(
 
   if (isServerComponent) {
     serverComponentsInlinedTransformStream = new TransformStream()
+    const search = stringifyQuery(query)
     Component = createServerComponentRenderer(App, OriginalComponent, {
-      cachePrefix: pathname + '?' + stringifyQuery(query),
+      cachePrefix: pathname + (search ? `?${search}` : ''),
       transformStream: serverComponentsInlinedTransformStream,
       serverComponentManifest,
       runtime,

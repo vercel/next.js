@@ -744,7 +744,7 @@ if (process.env.__NEXT_RSC) {
     let response = rscCache.get(cacheKey)
     if (response) return response
 
-    const bufferCacheKey = cacheKey + ',' + id
+    const bufferCacheKey = cacheKey + ',' + router.route + ',' + id
     if (serverDataBuffer.has(bufferCacheKey)) {
       const t = new TransformStream()
       const writer = t.writable.getWriter()

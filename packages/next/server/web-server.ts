@@ -1,4 +1,4 @@
-import type { WebNextRequest, WebNextResponse } from './base-http'
+import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type { RenderOpts } from './render'
 import type RenderResult from './render-result'
 import type { NextParsedUrlQuery } from './request-meta'
