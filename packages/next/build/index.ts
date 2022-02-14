@@ -535,7 +535,7 @@ export default async function build(
     // Ensure commonjs handling is used for files in the distDir (generally .next)
     // Files outside of the distDir can be "type": "module"
     await promises.writeFile(
-      path.join(config.distDir, 'package.json'),
+      path.join(distDir, 'package.json'),
       '{"type": "commonjs"}'
     )
 
