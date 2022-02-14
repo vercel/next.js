@@ -15,6 +15,7 @@ import {
 import blocking from './blocking'
 import concurrent from './concurrent'
 import basics from './basics'
+import common from './common'
 
 // overrides react and react-dom to v18
 const nodeArgs = ['-r', join(__dirname, 'require-hook.js')]
@@ -114,9 +115,10 @@ describe('Blocking mode', () => {
     dynamicHello.restore()
   })
 
-  runTests('`runtime` is disabled', (context) =>
+  runTests('`runtime` is disabled', (context) => {
     blocking(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  )
+    common(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+  })
 })
 
 function runTestsAgainstRuntime(runtime) {
@@ -134,6 +136,7 @@ function runTestsAgainstRuntime(runtime) {
 
     runTests(`runtime is set to '${runtime}'`, (context) => {
       concurrent(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+      common(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
       it('should stream to users', async () => {
         const res = await fetchViaHTTP(context.appPort, '/ssr')
