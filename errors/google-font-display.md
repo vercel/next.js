@@ -1,8 +1,10 @@
 # Google Font Display
 
+> Enforce font-display behavior with Google Fonts.
+
 ### Why This Error Occurred
 
-For a Google Font, the `display` descriptor was either not assigned or set to `auto`, `fallback`, or `block`.
+For a Google Font, the font-display descriptor was either missing or set to `auto`, `block`, or `fallback`, which are not recommended.
 
 ### Possible Ways to Fix It
 
@@ -29,8 +31,9 @@ Specifying `display=optional` minimizes the risk of invisible text or layout shi
 
 ### When Not To Use It
 
-If you want to specifically display a font using a `block` or `fallback` strategy, then you can disable this rule.
+If you want to specifically display a font using a `auto, `block`, or `fallback` strategy, then you can disable this rule.
 
 ### Useful Links
 
-- [Font-display](https://font-display.glitch.me/)
+- [Controlling Font Performance with font-display](https://developers.google.com/web/updates/2016/02/font-display)
+- [Font-display: a small explainer on web fonts and performance](https://font-display.glitch.me/)

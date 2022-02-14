@@ -1,11 +1,13 @@
 const path = require('path')
 
+const url = 'https://nextjs.org/docs/messages/no-script-in-document'
+
 module.exports = {
   meta: {
     docs: {
-      description: 'Disallow importing next/script inside pages/_document.js',
+      description: 'Prevent usage of `next/script` in `pages/_document.js`.',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/no-script-in-document-page',
+      url,
     },
   },
   create: function (context) {
@@ -22,7 +24,7 @@ module.exports = {
 
         context.report({
           node,
-          message: `next/script should not be used in pages/_document.js. See: https://nextjs.org/docs/messages/no-script-in-document-page`,
+          message: `\`<Script />\` from \`next/script\` should not be used in \`pages/_document.js\`. Use in \`pages/_app.js\` instead. See: ${url}`,
         })
       },
     }

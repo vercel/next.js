@@ -1,12 +1,14 @@
-# Script component inside \_document.js
+# No Script in Document
+
+> Prevent usage of `next/script` in `pages/_document.js`.
 
 #### Why This Error Occurred
 
-You can't use the `next/script` component inside the `_document.js` page. That's because the `_document.js` page only runs on the server and `next/script` has client-side functionality to ensure loading order.
+You should not use the `next/script` component in `pages/_document.js`. That's because the `pages/_document.js` page only runs on the server and `next/script` has client-side functionality to ensure loading order.
 
 #### Possible Ways to Fix It
 
-If you want a global script, instead use the `_app.js` page.
+If you want a global script, `pages/_app.js` instead.
 
 ```jsx
 import Script from 'next/script'

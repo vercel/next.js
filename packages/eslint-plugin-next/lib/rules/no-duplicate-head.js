@@ -1,9 +1,12 @@
+const url = 'https://nextjs.org/docs/messages/no-duplicate-head'
+
 module.exports = {
   meta: {
     docs: {
-      description: 'Enforce no duplicate usage of <Head> in pages/document.js',
+      description:
+        'Prevent duplicate usage of `<Head>` in `pages/_document.js`.',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/no-duplicate-head',
+      url,
     },
   },
   create: function (context) {
@@ -44,8 +47,7 @@ module.exports = {
             for (let i = 1; i < headComponents.length; i++) {
               context.report({
                 node: headComponents[i],
-                message:
-                  'Do not include multiple instances of <Head/>. See: https://nextjs.org/docs/messages/no-duplicate-head',
+                message: `Do not include multiple instances of \`<Head/>\`. See: ${url}`,
               })
             }
           }

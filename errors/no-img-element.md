@@ -1,8 +1,10 @@
 # No Img Element
 
+> Prevent usage of `<img>` element.
+
 ### Why This Error Occurred
 
-An HTML `<img>` element was used to display an image. For better performance and automatic Image Optimization, use Next.js' built-in image component instead.
+An `<img>` element was used to display an image. For better performance and automatic Image Optimization, use `next/image` instead.
 
 ### Possible Ways to Fix It
 

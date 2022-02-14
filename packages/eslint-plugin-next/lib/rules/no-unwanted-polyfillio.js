@@ -59,19 +59,20 @@ const NEXT_POLYFILLED_FEATURES = [
   'es7', // Should be covered by babel-preset-env instead.
 ]
 
+const url = 'https://nextjs.org/docs/messages/no-unwanted-polyfillio'
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 module.exports = {
   meta: {
     docs: {
-      description:
-        'Prohibit unwanted features to be listed in Polyfill.io tag.',
+      description: 'Prevent duplicate polyfills from Polyfill.io.',
       category: 'HTML',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/no-unwanted-polyfillio',
+      url,
     },
-    fixable: null, // or "code" or "whitespace"
+    fixable: null,
   },
 
   create: function (context) {
@@ -118,7 +119,7 @@ module.exports = {
                 ', '
               )} ${
                 unwantedFeatures.length > 1 ? 'are' : 'is'
-              } already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio`,
+              } already shipped with Next.js. See: ${url}`,
             })
           }
         }

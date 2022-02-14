@@ -42,7 +42,7 @@ function minDistance(a, b) {
 module.exports = {
   meta: {
     docs: {
-      description: 'Prevent common typos',
+      description: 'Prevent common typos in Next.js data fetching functions.',
       category: 'Stylistic Issues',
       recommended: true,
     },

@@ -1,9 +1,11 @@
 # No Page Custom Font
 
+> Prevent page-only custom fonts.
+
 ### Why This Error Occurred
 
 - The custom font you're adding was added to a page - this only adds the font to the specific page and not the entire application.
-- The custom font you're adding was added to a separate component within `Document` - this disables automatic font optimization.
+- The custom font you're adding was added to a separate component within `pages/_document.js` - this disables automatic font optimization.
 
 ### Possible Ways to Fix It
 

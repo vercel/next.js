@@ -1,12 +1,14 @@
-# Script component inside Head component
+# No Script Component in Head
+
+> Prevent usage of `next/script` in `next/head` component.
 
 #### Why This Error Occurred
 
-The `next/script` component shouldn't be placed inside the `next/head` component
+The `next/script` component should not be used in a `next/head` component.
 
 #### Possible Ways to Fix It
 
-Move the `<Script />` component outside of `<Head>...</Head>`
+Move the `<Script />` component outside of `<Head>` instead.
 
 **Before**
 

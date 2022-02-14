@@ -1,5 +1,7 @@
 # No Document Import in Page
 
+> Prevent importing `next/document` outside of `pages/_document.js`.
+
 ### Why This Error Occurred
 
 `next/document` was imported in a page outside of `pages/_document.js` (or `pages/_document.tsx` if you are using TypeScript). This can cause unexpected issues in your application.

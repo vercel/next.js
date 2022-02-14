@@ -1,12 +1,14 @@
 const path = require('path')
 
+const url = 'https://nextjs.org/docs/messages/no-server-import-in-page'
+
 module.exports = {
   meta: {
     docs: {
       description:
-        'Disallow importing next/server outside of pages/_middleware.js',
+        'Prevent usage of `next/server` outside of `pages/_middleware.js`.',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/no-server-import-in-page',
+      url,
     },
   },
   create: function (context) {
@@ -29,7 +31,7 @@ module.exports = {
 
         context.report({
           node,
-          message: `next/server should not be imported outside of pages/_middleware.js. See: https://nextjs.org/docs/messages/no-server-import-in-page`,
+          message: `\`next/server\` should not be used outside of \`pages/_middleware.js\`. See: ${url}`,
         })
       },
     }

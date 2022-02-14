@@ -8,8 +8,10 @@ const SUPPORTED_HTML_CONTENT_URLS = [
   'www.google-analytics.com/analytics.js',
   'www.googletagmanager.com/gtm.js',
 ]
-const ERROR_MSG =
-  'Use the `next/script` component for loading third party scripts. See: https://nextjs.org/docs/messages/next-script-for-ga'
+const description =
+  'Prefer `next/script` component when using the inline script for Google Analytics.'
+const url = 'https://nextjs.org/docs/messages/next-script-for-ga'
+const ERROR_MSG = `${description} See: ${url}`
 
 // Check if one of the items in the list is a substring of the passed string
 const containsStr = (str, strList) => {
@@ -19,12 +21,12 @@ const containsStr = (str, strList) => {
 module.exports = {
   meta: {
     docs: {
-      description:
-        'Prefer next script component when using the inline script for Google Analytics',
+      description,
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/next-script-for-ga',
+      url,
     },
   },
+  schema: [],
   create: function (context) {
     return {
       JSXOpeningElement(node) {
@@ -74,5 +76,3 @@ module.exports = {
     }
   },
 }
-
-module.exports.schema = []
