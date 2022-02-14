@@ -285,8 +285,14 @@
               "title": "React 18",
               "routes": [
                 {
-                  "title": "Basic",
-                  "path": "/docs/advanced-features/react-18/basic.md"
+                  "path": "/docs/advanced-features/react-18",
+                  "redirect": {
+                    "destination": "/docs/advanced-features/react-18/overview"
+                  }
+                },
+                {
+                  "title": "Overview",
+                  "path": "/docs/advanced-features/react-18/overview.md"
                 },
                 {
                   "title": "Streaming SSR",
