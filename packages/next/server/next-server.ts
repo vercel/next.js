@@ -8,8 +8,8 @@ import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { PrerenderManifest } from '../build'
 import type { Rewrite } from '../lib/load-custom-routes'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
-import type { ReadableStream as ReadableStreamPolyfill } from 'next/dist/compiled/web-streams-polyfill/ponyfill'
 import { TransformStream } from 'next/dist/compiled/web-streams-polyfill/ponyfill'
+import NodeStreams from 'stream'
 
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -40,7 +40,7 @@ import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
 import compression from 'next/dist/compiled/compression'
-import Proxy from 'next/dist/compiled/http-proxy'
+import HttpProxy from 'next/dist/compiled/http-proxy'
 import { route } from './router'
 import { run } from './web/sandbox'
 
@@ -91,6 +91,8 @@ export interface NodeRequestHandler {
     parsedUrl?: NextUrlWithParsedQuery | undefined
   ): Promise<void>
 }
+
+type BodyStream = ReadableStream<Uint8Array>
 
 export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
@@ -487,7 +489,7 @@ export default class NextNodeServer extends BaseServer {
     parsedUrl.search = stringifyQuery(req, query)
 
     const target = formatUrl(parsedUrl)
-    const proxy = new Proxy({
+    const proxy = new HttpProxy({
       target,
       changeOrigin: true,
       ignorePath: true,
@@ -1307,6 +1309,14 @@ export default class NextNodeServer extends BaseServer {
       }
     }
 
+    if (originalBody) {
+      const noderequest = params.request as NodeNextRequest
+      noderequest.originalRequest = enhanceIncomingMessage(
+        noderequest.originalRequest,
+        originalBody.original()
+      )
+    }
+
     return result
   }
 
@@ -1347,9 +1357,7 @@ export default class NextNodeServer extends BaseServer {
 /**
  * Creates a ReadableStream from a Node.js HTTP request
  */
-function requestToBodyStream(
-  request: IncomingMessage
-): ReadableStreamPolyfill<Uint8Array> {
+function requestToBodyStream(request: IncomingMessage): BodyStream {
   const transform = new TransformStream<Uint8Array, Uint8Array>({
     start(controller) {
       request.on('data', (chunk) => controller.enqueue(chunk))
@@ -1358,15 +1366,16 @@ function requestToBodyStream(
     },
   })
 
-  return transform.readable
+  return transform.readable as unknown as ReadableStream<Uint8Array>
 }
 
 /**
  * A simple utility to take an original stream and have
  * an API to duplicate it without closing it or mutate any variables
  */
-function teeableStream<T>(originalStream: ReadableStreamPolyfill<T>): {
-  duplicate(): ReadableStreamPolyfill<T>
+function teeableStream<T>(originalStream: ReadableStream<T>): {
+  duplicate(): ReadableStream<T>
+  original(): ReadableStream<T>
 } {
   return {
     duplicate() {
@@ -1374,5 +1383,44 @@ function teeableStream<T>(originalStream: ReadableStreamPolyfill<T>): {
       originalStream = stream1
       return stream2
     },
+    original() {
+      return originalStream
+    },
   }
+}
+
+function bodyStreamToNodeStream(bodyStream: BodyStream): NodeStreams.Readable {
+  const reader = bodyStream.getReader()
+  return NodeStreams.Readable.from(
+    (async function* () {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) {
+          return
+        }
+        yield value
+      }
+    })()
+  )
+}
+
+function enhanceIncomingMessage<T extends IncomingMessage>(
+  base: T,
+  body: BodyStream
+): T {
+  const stream = bodyStreamToNodeStream(body)
+  return new Proxy<T>(base, {
+    get(target, name) {
+      if (name in stream) {
+        const v = stream[name]
+        if (typeof v === 'function') {
+          return v.bind(stream)
+        } else {
+          return v
+        }
+      }
+
+      return target[name]
+    },
+  })
 }

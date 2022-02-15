@@ -19,7 +19,9 @@ describe('reading request body in middleware', () => {
             const json = await request.json();
 
             if (request.nextUrl.searchParams.has("next")) {
-              return NextResponse.next();
+              const res = NextResponse.next();
+              res.headers.set('x-from-root-middleware', '1');
+              return res;
             }
 
             return new Response(JSON.stringify({
@@ -52,6 +54,15 @@ describe('reading request body in middleware', () => {
               headers: {
                 'content-type': 'application/json',
               },
+            })
+          }
+        `,
+
+        'pages/api/hi.js': `
+          export default function hi(req, res) {
+            res.json({
+              ...req.body,
+              api: true,
             })
           }
         `,
@@ -104,5 +115,30 @@ describe('reading request body in middleware', () => {
       foo: 'bar',
       root: false,
     })
+  })
+
+  it('passes the body to the api endpoint', async () => {
+    const response = await fetchViaHTTP(
+      next.url,
+      '/api/hi',
+      {
+        next: '1',
+      },
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          foo: 'bar',
+        }),
+      }
+    )
+    expect(response.status).toEqual(200)
+    expect(await response.json()).toEqual({
+      foo: 'bar',
+      api: true,
+    })
+    expect(response.headers.get('x-from-root-middleware')).toEqual('1')
   })
 })
