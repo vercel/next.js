@@ -4,7 +4,7 @@ description: Fetch data and generate static pages with `getStaticProps`. Learn m
 
 # getStaticProps
 
-<details open>
+<details>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-wordpress">WordPress Example</a> (<a href="https://next-blog-wordpress.vercel.app">Demo</a>)</li>
@@ -41,7 +41,7 @@ export async function getStaticProps(context) {
 
 We recommend using Static Generation whenever possible because your page can be built once and served by CDN, which makes it much faster than having a server render the page on every request.
 
-You can use Static Generation for many types of pages, including marketing pages, blog posts, and docs sites.
+You can use Static Generation for many types of pages including marketing pages, blog posts, and docs.
 
 You should use `getStaticProps` if:
 
