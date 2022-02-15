@@ -2,7 +2,7 @@ use std::{any::Any, hash::Hash, sync::Arc};
 
 use crate::{slot::Slot, turbo_tasks::intern, SlotRef, SlotValueType};
 
-pub use crate::slot::SlotReadResult;
+pub use crate::slot::SlotRefReadResult;
 
 pub fn new_node_intern<
     T: Any + ?Sized,

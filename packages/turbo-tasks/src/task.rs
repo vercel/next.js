@@ -1,5 +1,5 @@
 use crate::{
-    slot::{Slot, SlotRef, WeakSlotRef},
+    slot::{Slot, SlotContent, SlotRef, WeakSlotRef},
     viz::TaskSnapshot,
     NativeFunction, SlotValueType, TraitType, TurboTasks,
 };
@@ -11,7 +11,7 @@ use std::{
     any::{Any, TypeId},
     cell::Cell,
     collections::HashMap,
-    fmt::{self, Debug, Formatter},
+    fmt::{self, Debug, Display, Formatter},
     future::Future,
     hash::Hash,
     pin::Pin,
@@ -273,9 +273,7 @@ impl Task {
                 state.event.notify(usize::MAX);
                 let parents: Vec<Arc<Task>> =
                     state.parents.iter().filter_map(|p| p.upgrade()).collect();
-                state
-                    .output_slot
-                    .assign_link(SlotRef::TaskOutput(self.clone()), result);
+                state.output_slot.assign_value(SlotContent::Link(result));
                 drop(state);
                 for parent in parents.iter() {
                     parent.child_done(turbo_tasks);
@@ -283,9 +281,7 @@ impl Task {
             }
             InProgressLocallyOutdated => {
                 state.state_type = Scheduled;
-                state
-                    .output_slot
-                    .assign_link(SlotRef::TaskOutput(self.clone()), result);
+                // TODO should we assign the slot here?
                 drop(state);
                 turbo_tasks.schedule(self);
             }
@@ -532,12 +528,10 @@ impl Task {
             TaskType::ResolveNative(ref native_fn) => {
                 let native_fn = *native_fn;
                 let inputs = self.inputs.clone();
-                let task = self.clone();
                 Box::pin(async move {
                     let mut resolved_inputs = Vec::new();
-                    // TODO into_iter
-                    for input in inputs.iter() {
-                        resolved_inputs.push(input.resolve_with_reader(&task))
+                    for input in inputs.into_iter() {
+                        resolved_inputs.push(input.resolve().await)
                     }
                     tt.native_call(native_fn, resolved_inputs).unwrap()
                 })
@@ -546,12 +540,11 @@ impl Task {
                 let trait_type = *trait_type;
                 let name = name.clone();
                 let inputs = self.inputs.clone();
-                let task = self.clone();
                 Box::pin(async move {
                     let mut resolved_inputs = Vec::new();
                     let mut iter = inputs.into_iter();
                     if let Some(this) = iter.next() {
-                        let this = this.resolve_with_reader(&task);
+                        let this = this.resolve().await;
                         // TODO avoid unwrap
                         let native_fn = this.get_trait_method(trait_type, name).unwrap();
                         resolved_inputs.push(this);
@@ -611,7 +604,9 @@ impl Task {
                 }
             } {
                 Some(listener) => listener.await,
-                None => {}
+                None => {
+                    return;
+                }
             }
         }
     }
@@ -742,6 +737,32 @@ impl Task {
     //         }
     //     }
     // }
+}
+
+impl Display for Task {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Task({}, {})",
+            match &self.ty {
+                TaskType::Root(_) => "root".to_string(),
+                TaskType::Native(native_fn, _) => native_fn.name.clone(),
+                TaskType::ResolveNative(native_fn) => format!("resolve {}", native_fn.name),
+                TaskType::ResolveTrait(trait_type, fn_name) => {
+                    format!("resolve {} in trait {}", fn_name, trait_type.name)
+                }
+            },
+            match self.state.lock().unwrap().state_type {
+                Scheduled => "scheduled".to_string(),
+                InProgressLocally => "in progress (locally)".to_string(),
+                InProgressLocallyOutdated => "in progress (locally, outdated)".to_string(),
+                Done => "done".to_string(),
+                Dirty => "dirty".to_string(),
+                SomeChildrenDirty => "some children dirty".to_string(),
+                SomeChildrenScheduled => "some children scheduled".to_string(),
+            }
+        )
+    }
 }
 
 pub struct Invalidator {

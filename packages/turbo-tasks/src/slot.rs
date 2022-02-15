@@ -1,6 +1,6 @@
 use std::{
     any::Any,
-    fmt::Debug,
+    fmt::{Debug, Display},
     hash::{Hash, Hasher},
     sync::{Arc, Weak},
 };
@@ -15,8 +15,6 @@ pub struct Slot {
     content: SlotContent,
     updates: i32,
     dependent_tasks: Vec<Weak<Task>>,
-    linked_slots: Vec<SlotRef>,
-    linked_to_slot: Option<SlotRef>,
 }
 
 impl Slot {
@@ -25,8 +23,6 @@ impl Slot {
             content: SlotContent::Empty,
             updates: 0,
             dependent_tasks: Vec::new(),
-            linked_slots: Vec::new(),
-            linked_to_slot: None,
         }
     }
 
@@ -41,7 +37,7 @@ impl Slot {
         let change;
         let mut _type_change = false;
         match &self.content {
-            SlotContent::Empty => {
+            SlotContent::Empty | SlotContent::Link(_) => {
                 _type_change = true;
                 change = functor(None);
             }
@@ -100,6 +96,7 @@ pub enum SlotContent {
     Empty,
     SharedReference(&'static SlotValueType, Arc<dyn Any + Send + Sync>),
     Cloneable(&'static SlotValueType, Box<dyn CloneableData>),
+    Link(SlotRef),
 }
 
 pub trait CloneableData: Debug + Any + Send + Sync {
@@ -149,31 +146,33 @@ impl Default for SlotContent {
     }
 }
 
-impl ToString for SlotContent {
-    fn to_string(&self) -> String {
+impl Display for SlotContent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SlotContent::Empty => format!("empty"),
-            SlotContent::SharedReference(ty, _) => format!("shared {}", ty.name),
-            SlotContent::Cloneable(ty, _) => format!("cloneable {}", ty.name),
+            SlotContent::Empty => write!(f, "empty"),
+            SlotContent::SharedReference(ty, _) => write!(f, "shared {}", ty.name),
+            SlotContent::Cloneable(ty, _) => write!(f, "cloneable {}", ty.name),
+            SlotContent::Link(slot_ref) => write!(f, "link {}", slot_ref),
         }
     }
 }
 
 impl Slot {
-    pub fn read<T: Any + Send + Sync>(&mut self, reader: &Arc<Task>) -> SlotReadResult<T> {
+    fn read<T: Any + Send + Sync>(&mut self, reader: &Arc<Task>) -> SlotReadResult<T> {
         self.dependent_tasks.push(Arc::downgrade(reader));
         match &self.content {
-            SlotContent::Empty => SlotReadResult::Nothing,
+            SlotContent::Empty => SlotReadResult::Final(SlotRefReadResult::Nothing),
             SlotContent::SharedReference(_, data) => match Arc::downcast(data.clone()) {
-                Ok(data) => SlotReadResult::SharedReference(data),
-                Err(_) => SlotReadResult::InvalidType,
+                Ok(data) => SlotReadResult::Final(SlotRefReadResult::SharedReference(data)),
+                Err(_) => SlotReadResult::Final(SlotRefReadResult::InvalidType),
             },
             SlotContent::Cloneable(_, data) => {
                 match Box::<dyn Any + Send + Sync>::downcast(data.as_any()) {
-                    Ok(data) => SlotReadResult::ClonedData(data),
-                    Err(_) => SlotReadResult::InvalidType,
+                    Ok(data) => SlotReadResult::Final(SlotRefReadResult::ClonedData(data)),
+                    Err(_) => SlotReadResult::Final(SlotRefReadResult::InvalidType),
                 }
             }
+            SlotContent::Link(slot_ref) => SlotReadResult::Link(slot_ref.clone()),
         }
     }
 
@@ -183,94 +182,97 @@ impl Slot {
             SlotContent::Empty => SlotRef::Nothing,
             SlotContent::SharedReference(ty, data) => SlotRef::SharedReference(ty, data.clone()),
             SlotContent::Cloneable(ty, data) => SlotRef::CloneableData(ty, data.clone()),
+            SlotContent::Link(slot_ref) => slot_ref.clone(),
         }
     }
 
     pub fn assign_value(&mut self, content: SlotContent) {
-        // TODO disconnect
-        self.linked_to_slot = None;
         self.assign_inner(content);
     }
 
-    pub fn assign_link(&mut self, self_ref: SlotRef, slot_ref: SlotRef) {
-        if self_ref == slot_ref {
-            panic!("self assign");
-        }
-        assert!(self_ref != slot_ref);
-        match slot_ref {
-            SlotRef::TaskOutput(task) => {
-                task.clone().with_output_slot(move |slot| {
-                    let slot_ref = SlotRef::TaskOutput(task);
-                    let changed = if let Some(linked_slot_ref) = &self.linked_to_slot {
-                        *linked_slot_ref != slot_ref
-                    } else {
-                        true
-                    };
-                    if changed {
-                        // TODO disconnect
-                        self.linked_to_slot = None;
-                        slot.linked_slots.push(self_ref.clone());
-                        self.linked_to_slot = Some(slot_ref.clone());
-                    }
-                    self.assign_inner(slot.content.clone());
-                })
-            }
-            SlotRef::TaskCreated(task, index) => {
-                task.clone().with_created_slot(index, move |slot| {
-                    let slot_ref = SlotRef::TaskCreated(task, index);
-                    let changed = if let Some(linked_slot_ref) = &self.linked_to_slot {
-                        *linked_slot_ref != slot_ref
-                    } else {
-                        true
-                    };
-                    if changed {
-                        // TODO disconnect
-                        self.linked_to_slot = None;
-                        slot.linked_slots.push(self_ref.clone());
-                        self.linked_to_slot = Some(slot_ref.clone());
-                    }
-                    self.assign_inner(slot.content.clone());
-                });
-            }
-            SlotRef::SharedReference(node_type, data) => {
-                // TODO disconnect
-                self.linked_to_slot = None;
-                self.assign_inner(SlotContent::SharedReference(node_type, data.clone()));
-            }
-            SlotRef::CloneableData(node_type, data) => {
-                // TODO disconnect
-                self.linked_to_slot = None;
-                self.assign_inner(SlotContent::Cloneable(node_type, data.clone()));
-            }
-            SlotRef::Nothing => self.assign_inner(SlotContent::Empty),
-        };
-    }
+    // pub fn assign_link(&mut self, self_ref: SlotRef, slot_ref: SlotRef) {
+    //     if self_ref == slot_ref {
+    //         panic!("self assign");
+    //     }
+    //     assert!(self_ref != slot_ref);
+    //     match slot_ref {
+    //         SlotRef::TaskOutput(task) => {
+    //             task.clone().with_output_slot(move |slot| {
+    //                 let slot_ref = SlotRef::TaskOutput(task);
+    //                 let changed = if let Some(linked_slot_ref) = &self.linked_to_slot {
+    //                     *linked_slot_ref != slot_ref
+    //                 } else {
+    //                     true
+    //                 };
+    //                 if changed {
+    //                     // TODO disconnect
+    //                     self.linked_to_slot = None;
+    //                     slot.linked_slots.push(self_ref.clone());
+    //                     self.linked_to_slot = Some(slot_ref.clone());
+    //                 }
+    //                 self.assign_inner(slot.content.clone());
+    //             })
+    //         }
+    //         SlotRef::TaskCreated(task, index) => {
+    //             task.clone().with_created_slot(index, move |slot| {
+    //                 let slot_ref = SlotRef::TaskCreated(task, index);
+    //                 let changed = if let Some(linked_slot_ref) = &self.linked_to_slot {
+    //                     *linked_slot_ref != slot_ref
+    //                 } else {
+    //                     true
+    //                 };
+    //                 if changed {
+    //                     // TODO disconnect
+    //                     self.linked_to_slot = None;
+    //                     slot.linked_slots.push(self_ref.clone());
+    //                     self.linked_to_slot = Some(slot_ref.clone());
+    //                 }
+    //                 self.assign_inner(slot.content.clone());
+    //             });
+    //         }
+    //         SlotRef::SharedReference(node_type, data) => {
+    //             // TODO disconnect
+    //             self.linked_to_slot = None;
+    //             self.assign_inner(SlotContent::SharedReference(node_type, data.clone()));
+    //         }
+    //         SlotRef::CloneableData(node_type, data) => {
+    //             // TODO disconnect
+    //             self.linked_to_slot = None;
+    //             self.assign_inner(SlotContent::Cloneable(node_type, data.clone()));
+    //         }
+    //         SlotRef::Nothing => self.assign_inner(SlotContent::Empty),
+    //     };
+    // }
 
     fn assign_inner(&mut self, content: SlotContent) {
         self.content = content;
-        // TODO notify self.linked_slots
         // TODO notify self.dependent_tasks
     }
 }
 
-pub enum SlotReadResult<T: Any + Send + Sync> {
+enum SlotReadResult<T: Any + Send + Sync> {
+    Final(SlotRefReadResult<T>),
+    Link(SlotRef),
+}
+
+pub enum SlotRefReadResult<T: Any + Send + Sync> {
     Nothing,
     SharedReference(Arc<T>),
     ClonedData(Box<T>),
     InvalidType,
 }
 
-impl<T: Any + Send + Sync> std::ops::Deref for SlotReadResult<T> {
+impl<T: Any + Send + Sync> std::ops::Deref for SlotRefReadResult<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
         match self {
-            SlotReadResult::Nothing => {
+            SlotRefReadResult::Nothing => {
                 panic!("Nothing in slot")
             }
-            SlotReadResult::SharedReference(a) => a,
-            SlotReadResult::ClonedData(a) => a,
-            SlotReadResult::InvalidType => {
+            SlotRefReadResult::SharedReference(a) => a,
+            SlotRefReadResult::ClonedData(a) => a,
+            SlotRefReadResult::InvalidType => {
                 panic!("Invalid type")
             }
         }
@@ -296,49 +298,59 @@ impl SlotRef {
         TaskArgumentOptions::Unresolved
     }
 
-    pub async fn into_read<T: Any + Send + Sync>(self) -> SlotReadResult<T> {
-        self.read().await
-    }
-
-    pub async fn read<T: Any + Send + Sync>(&self) -> SlotReadResult<T> {
-        match self {
-            SlotRef::TaskOutput(task) => {
-                task.wait_output().await;
-                Task::with_current(|reader| {
-                    reader.add_dependency(WeakSlotRef::TaskOutput(Arc::downgrade(task)));
-                    task.with_output_slot(|slot| slot.read(reader))
-                })
-            }
-            SlotRef::TaskCreated(task, index) => Task::with_current(|reader| {
-                reader.add_dependency(WeakSlotRef::TaskCreated(Arc::downgrade(task), *index));
-                task.with_created_slot(*index, |slot| slot.read(reader))
-            }),
-            SlotRef::SharedReference(_, data) => match Arc::downcast(data.clone()) {
-                Ok(data) => SlotReadResult::SharedReference(data),
-                Err(_) => SlotReadResult::InvalidType,
-            },
-            SlotRef::CloneableData(_, data) => {
-                match Box::<dyn Any + Send + Sync>::downcast(data.as_any()) {
-                    Ok(data) => SlotReadResult::ClonedData(data),
-                    Err(_) => SlotReadResult::InvalidType,
+    pub async fn into_read<T: Any + Send + Sync>(self) -> SlotRefReadResult<T> {
+        let mut current = self;
+        loop {
+            match match current {
+                SlotRef::TaskOutput(task) => {
+                    task.wait_output().await;
+                    Task::with_current(|reader| {
+                        reader.add_dependency(WeakSlotRef::TaskOutput(Arc::downgrade(&task)));
+                        task.with_output_slot(|slot| slot.read(reader))
+                    })
                 }
+                SlotRef::TaskCreated(task, index) => Task::with_current(|reader| {
+                    reader.add_dependency(WeakSlotRef::TaskCreated(Arc::downgrade(&task), index));
+                    task.with_created_slot(index, |slot| slot.read(reader))
+                }),
+                SlotRef::SharedReference(_, data) => match Arc::downcast(data.clone()) {
+                    Ok(data) => SlotReadResult::Final(SlotRefReadResult::SharedReference(data)),
+                    Err(_) => SlotReadResult::Final(SlotRefReadResult::InvalidType),
+                },
+                SlotRef::CloneableData(_, data) => {
+                    match Box::<dyn Any + Send + Sync>::downcast(data.as_any()) {
+                        Ok(data) => SlotReadResult::Final(SlotRefReadResult::ClonedData(data)),
+                        Err(_) => SlotReadResult::Final(SlotRefReadResult::InvalidType),
+                    }
+                }
+                SlotRef::Nothing => SlotReadResult::Final(SlotRefReadResult::Nothing),
+            } {
+                SlotReadResult::Final(result) => {
+                    return result;
+                }
+                SlotReadResult::Link(slot_ref) => current = slot_ref,
             }
-            SlotRef::Nothing => SlotReadResult::Nothing,
         }
     }
 
-    pub(crate) fn resolve_with_reader(&self, reader: &Arc<Task>) -> SlotRef {
-        match self {
-            SlotRef::TaskOutput(task) => {
-                reader.add_dependency(WeakSlotRef::TaskOutput(Arc::downgrade(task)));
-                task.with_output_slot(|slot| slot.resolve(reader))
-            }
-            SlotRef::TaskCreated(task, index) => {
-                reader.add_dependency(WeakSlotRef::TaskCreated(Arc::downgrade(task), *index));
-                task.with_created_slot(*index, |slot| slot.resolve(reader))
-            }
-            SlotRef::Nothing | SlotRef::SharedReference(_, _) | SlotRef::CloneableData(_, _) => {
-                self.clone()
+    pub async fn resolve(self) -> SlotRef {
+        let mut current = self;
+        loop {
+            current = match current {
+                SlotRef::TaskOutput(task) => {
+                    task.wait_output().await;
+                    Task::with_current(|reader| {
+                        reader.add_dependency(WeakSlotRef::TaskOutput(Arc::downgrade(&task)));
+                        task.with_output_slot(|slot| slot.resolve(reader))
+                    })
+                }
+                SlotRef::TaskCreated(task, index) => Task::with_current(|reader| {
+                    reader.add_dependency(WeakSlotRef::TaskCreated(Arc::downgrade(&task), index));
+                    task.with_created_slot(index, |slot| slot.resolve(reader))
+                }),
+                SlotRef::Nothing
+                | SlotRef::SharedReference(_, _)
+                | SlotRef::CloneableData(_, _) => return current.clone(),
             }
         }
     }
@@ -394,19 +406,26 @@ impl SlotRef {
     }
 
     pub fn get_snapshot_for_visualization(&self) -> SlotSnapshot {
+        fn content_to_linked(content: &SlotContent) -> Option<SlotRef> {
+            if let SlotContent::Link(slot_ref) = content {
+                Some(slot_ref.clone())
+            } else {
+                None
+            }
+        }
         match self {
             SlotRef::TaskOutput(task) => task.with_output_slot(|slot| SlotSnapshot {
                 name: "output".to_string(),
                 content: slot.content.to_string(),
                 updates: slot.updates,
-                linked_to_slot: slot.linked_to_slot.clone(),
+                linked_to_slot: content_to_linked(&slot.content),
             }),
             SlotRef::TaskCreated(task, index) => {
                 task.with_created_slot(*index, |slot| SlotSnapshot {
                     name: format!("{}", index),
                     content: slot.content.to_string(),
                     updates: slot.updates,
-                    linked_to_slot: slot.linked_to_slot.clone(),
+                    linked_to_slot: content_to_linked(&slot.content),
                 })
             }
             SlotRef::Nothing => SlotSnapshot {
@@ -448,6 +467,28 @@ impl PartialEq<SlotRef> for SlotRef {
 }
 
 impl Eq for SlotRef {}
+
+impl Display for SlotRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SlotRef::TaskOutput(task) => {
+                write!(f, "task output {}", task)
+            }
+            SlotRef::TaskCreated(task, index) => {
+                write!(f, "task created {} {}", task, index)
+            }
+            SlotRef::Nothing => {
+                write!(f, "nothing")
+            }
+            SlotRef::SharedReference(ty, _) => {
+                write!(f, "shared {}", ty.name)
+            }
+            SlotRef::CloneableData(ty, _) => {
+                write!(f, "cloneable {}", ty.name)
+            }
+        }
+    }
+}
 
 impl Hash for SlotRef {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
