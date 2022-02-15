@@ -43,7 +43,7 @@ if (typeof afterAll === 'function') {
  * @param options.waitHydration whether to wait for react hydration to finish
  * @param options.retryWaitHydration allow retrying hydration wait if reload occurs
  * @param options.disableCache disable cache for page load
- * @param options.beforePageLoad the callback receive browser itself before loading page
+ * @param options.beforePageLoad the callback receiving page instance before loading page
  * @returns thenable browser instance
  */
 export default async function webdriver(
@@ -53,7 +53,7 @@ export default async function webdriver(
     waitHydration?: boolean
     retryWaitHydration?: boolean
     disableCache?: boolean
-    beforePageLoad?: (browser: any) => void
+    beforePageLoad?: (page: any) => void
   }
 ): Promise<BrowserInterface> {
   let CurrentInterface: typeof BrowserInterface
@@ -66,6 +66,7 @@ export default async function webdriver(
   options = Object.assign(defaultOptions, options)
   const { waitHydration, retryWaitHydration, disableCache, beforePageLoad } =
     options
+  console.log('beforePageLoad', options)
 
   // we import only the needed interface
   if (
@@ -95,8 +96,7 @@ export default async function webdriver(
 
   console.log(`\n> Loading browser with ${fullUrl}\n`)
 
-  await beforePageLoad?.(browser)
-  await browser.loadPage(fullUrl, { disableCache })
+  await browser.loadPage(fullUrl, { disableCache, beforePageLoad })
   console.log(`\n> Loaded browser with ${fullUrl}\n`)
 
   // Wait for application to hydrate
