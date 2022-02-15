@@ -152,7 +152,6 @@ export default abstract class Server {
     optimizeFonts: boolean
     images: ImageConfigComplete
     fontManifest?: FontManifest
-    optimizeImages: boolean
     disableOptimizedLoading?: boolean
     optimizeCss: any
     locale?: string
@@ -314,7 +313,6 @@ export default abstract class Server {
         this.nextConfig.optimizeFonts && !dev
           ? this.getFontManifest()
           : undefined,
-      optimizeImages: !!this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
       disableOptimizedLoading: this.nextConfig.experimental.runtime
         ? true

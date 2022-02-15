@@ -2,7 +2,6 @@ import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-ut
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { stringify } from 'querystring'
-import semver from 'next/dist/compiled/semver'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import path, { join as pathJoin, relative as relativePath } from 'path'
@@ -15,7 +14,6 @@ import {
   MIDDLEWARE_ROUTE,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
-import { getPackageVersion } from '../lib/get-package-version'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -52,6 +50,7 @@ import type { Span } from '../trace'
 import { getRawPageExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
+import { shouldUseReactRoot } from '../server/config'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -337,21 +336,7 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
   const hasReactRefresh: boolean = dev && !isServer
-  const reactDomVersion = await getPackageVersion({
-    cwd: dir,
-    name: 'react-dom',
-  })
-  const isReactExperimental = Boolean(
-    reactDomVersion && /0\.0\.0-experimental/.test(reactDomVersion)
-  )
-  const hasReact18: boolean =
-    Boolean(reactDomVersion) &&
-    (semver.gte(reactDomVersion!, '18.0.0') ||
-      semver.coerce(reactDomVersion)?.version === '18.0.0')
-
-  const hasReactRoot: boolean =
-    config.experimental.reactRoot || hasReact18 || isReactExperimental
-
+  const hasReactRoot = shouldUseReactRoot()
   const runtime = config.experimental.runtime
 
   // Make sure reactRoot is enabled when react 18 is detected
@@ -360,11 +345,7 @@ export default async function getBaseWebpackConfig(
   }
 
   // Only inform during one of the builds
-  if (
-    !isServer &&
-    config.experimental.reactRoot &&
-    !(hasReact18 || isReactExperimental)
-  ) {
+  if (!isServer && config.experimental.reactRoot && !hasReactRoot) {
     // It's fine to only mention React 18 here as we don't recommend people to try experimental.
     Log.warn('You have to use React 18 to use `experimental.reactRoot`.')
   }
@@ -1365,9 +1346,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
           config.optimizeFonts && !dev
         ),
-        'process.env.__NEXT_OPTIMIZE_IMAGES': JSON.stringify(
-          config.experimental.optimizeImages
-        ),
         'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
           config.experimental.optimizeCss && !dev
         ),
@@ -1630,7 +1608,6 @@ export default async function getBaseWebpackConfig(
     reactStrictMode: config.reactStrictMode,
     reactMode: config.experimental.reactMode,
     optimizeFonts: config.optimizeFonts,
-    optimizeImages: config.experimental.optimizeImages,
     optimizeCss: config.experimental.optimizeCss,
     scrollRestoration: config.experimental.scrollRestoration,
     basePath: config.basePath,
