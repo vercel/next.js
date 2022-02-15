@@ -21,7 +21,7 @@ use tracing::{debug, trace};
 use super::{hash_string, string_literal_expr, LocalStyle};
 
 pub fn transform_css(
-    cm: Arc<SourceMap>,
+    _cm: Arc<SourceMap>,
     style_info: &LocalStyle,
     is_global: bool,
     class_name: &Option<String>,
@@ -61,7 +61,6 @@ pub fn transform_css(
     };
     // ? Do we need to support optionally prefixing?
     ss.visit_mut_with(&mut prefixer());
-    ss.visit_mut_with(&mut CssPlaceholderFixer { cm });
     ss.visit_mut_with(&mut Namespacer {
         class_name: match class_name {
             Some(s) => s.clone(),
@@ -128,19 +127,6 @@ fn read_number(s: &str) -> (usize, usize) {
     }
 
     unreachable!("read_number(`{}`) is invalid because it is empty", s)
-}
-
-/// This fixes invalid css which is created from interpolated expressions.
-///
-/// `__styled-jsx-placeholder-` is handled at here.
-struct CssPlaceholderFixer {
-    cm: Arc<SourceMap>,
-}
-
-impl VisitMut for CssPlaceholderFixer {
-    fn visit_mut_media_query(&mut self, q: &mut MediaQuery) {
-        q.visit_mut_children_with(self);
-    }
 }
 
 struct Namespacer {
@@ -247,7 +233,7 @@ impl Namespacer {
 
             // One off global selector
             if &name.value == "global" {
-                let mut args = args.clone();
+                let args = args.clone();
                 let mut args = {
                     let lo = args.first().map(|v| v.span.lo).unwrap_or(BytePos(0));
                     let hi = args.last().map(|v| v.span.hi).unwrap_or(BytePos(0));
