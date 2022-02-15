@@ -5,8 +5,9 @@ use std::hash::Hash;
 #[turbo_tasks::value]
 pub struct NativeFunction {
     pub name: String,
+    // TODO avoid a function to avoid allocting many vectors
     #[trace_ignore]
-    pub task_argument_options: Vec<TaskArgumentOptions>,
+    pub task_argument_options: Box<dyn Fn() -> Vec<TaskArgumentOptions> + Send + Sync + 'static>,
     #[trace_ignore]
     pub bind_fn: Box<dyn (Fn(Vec<SlotRef>) -> Result<NativeTaskFn>) + Send + Sync + 'static>,
 }
@@ -16,12 +17,12 @@ impl NativeFunction {
     #[turbo_tasks::constructor]
     pub fn new(
         name: String,
-        task_argument_options: Vec<TaskArgumentOptions>,
+        task_argument_options: impl Fn() -> Vec<TaskArgumentOptions> + Send + Sync + 'static,
         bind_fn: impl (Fn(Vec<SlotRef>) -> Result<NativeTaskFn>) + Send + Sync + 'static,
     ) -> Self {
         Self {
             name,
-            task_argument_options,
+            task_argument_options: Box::new(task_argument_options),
             bind_fn: Box::new(bind_fn),
         }
     }

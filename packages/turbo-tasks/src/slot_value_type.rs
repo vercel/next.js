@@ -1,5 +1,5 @@
 use std::{
-    any::{Any, TypeId},
+    any::Any,
     collections::{HashMap, HashSet},
     fmt::{self, Debug, Formatter},
     hash::Hash,
@@ -34,7 +34,7 @@ impl Debug for SlotValueType {
         let mut d = f.debug_struct("SlotValueType");
         d.field("name", &self.name);
         d.field("id", &self.id);
-        for ((trait_type, name), _value) in self.trait_methods.iter() {
+        for ((_trait_type, name), _value) in self.trait_methods.iter() {
             d.field(name, &"(trait fn)");
         }
         d.finish()

@@ -152,16 +152,16 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             // }
 
             pub async fn get(&self) -> impl std::ops::Deref<Target = #ident> {
-                self.node.read::<#ident>()
+                self.node.clone().into_read::<#ident>().await
             }
         }
 
         // #[cfg(feature = "into_future")]
         impl std::future::IntoFuture for #ref_ident {
             type Output = turbo_tasks::macro_helpers::SlotReadResult<#ident>;
-            type Future = std::future::Ready<turbo_tasks::macro_helpers::SlotReadResult<#ident>>;
+            type Future = std::pin::Pin<std::boxed::Box<dyn std::future::Future<Output = turbo_tasks::macro_helpers::SlotReadResult<#ident>> + Send + Sync + 'static>>;
             fn into_future(self) -> Self::Future {
-                std::future::ready(self.node.read::<#ident>())
+                Box::pin(self.node.clone().into_read::<#ident>())
             }
         }
 
@@ -936,7 +936,7 @@ fn gen_native_function_code(
     };
     quote! {
         lazy_static::lazy_static! {
-            static ref #function_ident: turbo_tasks::NativeFunction = turbo_tasks::NativeFunction::new(#name_code.to_string(), vec![#(#task_argument_options),*], |inputs| {
+            static ref #function_ident: turbo_tasks::NativeFunction = turbo_tasks::NativeFunction::new(#name_code.to_string(), || vec![#(#task_argument_options),*], |inputs| {
                 let mut __iter = inputs.into_iter();
                 #(#input_extraction)*
                 if __iter.next().is_some() {

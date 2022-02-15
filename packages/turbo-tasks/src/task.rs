@@ -1,6 +1,6 @@
 use crate::{
     slot::{Slot, SlotRef, WeakSlotRef},
-    viz::Visualizable,
+    viz::TaskSnapshot,
     NativeFunction, SlotValueType, TraitType, TurboTasks,
 };
 use any_key::AnyHash;
@@ -10,8 +10,7 @@ use event_listener::Event;
 use std::{
     any::{Any, TypeId},
     cell::Cell,
-    collections::{hash_map::Entry, HashMap},
-    error::Error,
+    collections::HashMap,
     fmt::{self, Debug, Formatter},
     future::Future,
     hash::Hash,
@@ -420,7 +419,7 @@ impl Task {
         }
     }
 
-    pub(crate) fn dependent_node_updated(self: &Arc<Self>, turbo_tasks: &'static TurboTasks) {
+    pub(crate) fn dependent_slot_updated(self: &Arc<Self>, turbo_tasks: &'static TurboTasks) {
         self.make_dirty(turbo_tasks)
     }
 
@@ -536,7 +535,8 @@ impl Task {
                 let task = self.clone();
                 Box::pin(async move {
                     let mut resolved_inputs = Vec::new();
-                    for input in inputs.into_iter() {
+                    // TODO into_iter
+                    for input in inputs.iter() {
                         resolved_inputs.push(input.resolve_with_reader(&task))
                     }
                     tt.native_call(native_fn, resolved_inputs).unwrap()
@@ -640,6 +640,38 @@ impl Task {
                     child.schedule_dirty_children(turbo_tasks);
                 }
             }
+        }
+    }
+
+    pub fn get_snapshot_for_visualization(self: &Arc<Self>) -> TaskSnapshot {
+        let state = self.state.lock().unwrap();
+        TaskSnapshot {
+            children: state.children.clone(),
+            dependencies: self.dependencies.read().unwrap().clone(),
+            name: match &self.ty {
+                TaskType::Root(_) => "root".to_string(),
+                TaskType::Native(native_fn, _) => native_fn.name.clone(),
+                TaskType::ResolveNative(native_fn) => format!("resolve {}", native_fn.name),
+                TaskType::ResolveTrait(trait_type, fn_name) => {
+                    format!("resolve {} in trait {}", fn_name, trait_type.name)
+                }
+            },
+            state: match state.state_type {
+                Scheduled => "scheduled".to_string(),
+                InProgressLocally => "in progress (locally)".to_string(),
+                InProgressLocallyOutdated => "in progress (locally, outdated)".to_string(),
+                Done => "done".to_string(),
+                Dirty => "dirty".to_string(),
+                SomeChildrenDirty => "some children dirty".to_string(),
+                SomeChildrenScheduled => "some children scheduled".to_string(),
+            },
+            output_slot: SlotRef::TaskOutput(self.clone()),
+            slots: state
+                .created_slots
+                .iter()
+                .enumerate()
+                .map(|(i, _)| SlotRef::TaskCreated(self.clone(), i))
+                .collect(),
         }
     }
 

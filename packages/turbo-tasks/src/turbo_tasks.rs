@@ -1,9 +1,7 @@
 use std::{
     any::{Any, TypeId},
     cell::Cell,
-    future::Future,
     hash::Hash,
-    pin::Pin,
     sync::Arc,
 };
 
@@ -16,8 +14,7 @@ use async_std::{
 use chashmap::CHashMap;
 
 use crate::{
-    slot::SlotRef, task::NativeTaskFuture, viz::Visualizable, NativeFunction, SlotValueType, Task,
-    TraitType,
+    slot::SlotRef, task::NativeTaskFuture, NativeFunction, SlotValueType, Task, TraitType,
 };
 
 pub struct TurboTasks {
@@ -32,6 +29,7 @@ pub struct TurboTasks {
 
 task_local! {
     static TURBO_TASKS: Cell<Option<&'static TurboTasks>> = Cell::new(None);
+    static TASKS_TO_NOTIFY: Cell<Vec<Arc<Task>>> = Default::default();
 }
 
 impl TurboTasks {
@@ -63,6 +61,7 @@ impl TurboTasks {
         func: &'static NativeFunction,
         inputs: Vec<SlotRef>,
     ) -> Result<SlotRef> {
+        debug_assert!(inputs.iter().all(|i| i.is_resolved() && !i.is_nothing()));
         let mut result_task = Err(anyhow!("Unreachable"));
         self.native_task_cache
             .alter((func, inputs.clone()), |old| match old {
@@ -152,12 +151,26 @@ impl TurboTasks {
                 let result = task.execute(self).await;
                 task.finalize_execution();
                 task.execution_completed(result, self);
+                TASKS_TO_NOTIFY.with(|tasks| {
+                    for task in tasks.take().iter() {
+                        task.dependent_slot_updated(self);
+                    }
+                })
             })
             .unwrap()
     }
 
     pub(crate) fn current() -> Option<&'static Self> {
         TURBO_TASKS.with(|c| c.get())
+    }
+
+    pub(crate) fn schedule_notify_task(task: Arc<Task>) {
+        TASKS_TO_NOTIFY.with(|tasks| {
+            let mut temp = Vec::new();
+            tasks.swap(Cell::from_mut(&mut temp));
+            temp.push(task);
+            tasks.swap(Cell::from_mut(&mut temp));
+        });
     }
 
     pub(crate) fn intern<

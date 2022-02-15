@@ -1,36 +1,175 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
-use crate::Task;
+use crate::{SlotRef, Task, WeakSlotRef};
 
-pub trait Visualizable {
-    fn visualize(&self, visualizer: &mut impl Visualizer);
+pub struct TaskSnapshot {
+    pub name: String,
+    pub state: String,
+    pub children: Vec<Arc<Task>>,
+    pub dependencies: Vec<WeakSlotRef>,
+    pub slots: Vec<SlotRef>,
+    pub output_slot: SlotRef,
 }
 
-pub trait Visualizer {
-    fn task(&mut self, task: *const Task, name: &str, state: &str) -> bool;
-    // fn node(&mut self, node: *const Node, type_name: &str, state: &str) -> bool;
-    // fn input(&mut self, task: *const Task, node: *const Node);
-    // fn output(&mut self, task: *const Task, node: *const Node);
-    fn children_start(&mut self, parent_task: *const Task);
-    fn child(&mut self, parent_task: *const Task, child_task: *const Task);
-    fn children_end(&mut self, parent_task: *const Task);
-    // fn nested_start(&mut self, parent_node: *const Node);
-    // fn nested(&mut self, parent_node: *const Node, nested_node: *const Node);
-    // fn nested_end(&mut self, parent_node: *const Node);
-    // fn dependency(&mut self, task: *const Task, node: *const Node);
-    // fn created(&mut self, task: *const Task, node: *const Node);
+pub struct SlotSnapshot {
+    pub name: String,
+    pub content: String,
+    pub updates: i32,
+    pub linked_to_slot: Option<SlotRef>,
 }
 
-// pub struct GraphViz {
-//     include_nodes: bool,
-//     visited: HashSet<usize>,
-//     output_has_task: HashSet<usize>,
-//     id_map: HashMap<usize, usize>,
-//     output: String,
-//     edges: Vec<(usize, usize, String)>,
-// }
+fn escape(s: &str) -> String {
+    s.replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+}
 
-// impl GraphViz {
+#[derive(Hash, PartialEq, Eq)]
+enum EdgeType {
+    ChildTask,
+    Slot,
+    Dependency,
+    LinkedSlot,
+}
+
+#[derive(Hash, PartialEq, Eq)]
+enum NodeType {
+    Task(String, String),
+    Slot(String, String, i32),
+}
+
+#[derive(Default)]
+pub struct GraphViz {
+    visited: HashSet<String>,
+    id_map: HashMap<usize, usize>,
+    nodes: HashSet<(String, NodeType)>,
+    edges: HashSet<(String, String, EdgeType)>,
+}
+
+impl GraphViz {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    fn get_id<T>(&mut self, ptr: *const T) -> String {
+        let ptr = ptr as usize;
+        match self.id_map.get(&ptr) {
+            Some(id) => id.to_string(),
+            None => {
+                let id = self.id_map.len() + 1;
+                self.id_map.insert(ptr, id);
+                id.to_string()
+            }
+        }
+    }
+
+    fn get_slot_id(&mut self, slot_ref: &SlotRef) -> String {
+        match slot_ref {
+            SlotRef::TaskOutput(task) => self.get_id(&**task as *const Task) + "_output",
+            SlotRef::TaskCreated(task, index) => {
+                format!("{}_{}", self.get_id(&**task as *const Task), index)
+            }
+            SlotRef::Nothing | SlotRef::SharedReference(_, _) | SlotRef::CloneableData(_, _) => {
+                panic!("no ids for immutable data")
+            }
+        }
+    }
+
+    pub fn add_task(&mut self, task: &Arc<Task>) {
+        let id = self.get_id(&**task as *const Task);
+        if self.visited.contains(&id) {
+            return;
+        }
+        self.visited.insert(id.clone());
+        let snapshot = task.get_snapshot_for_visualization();
+        self.nodes
+            .insert((id.clone(), NodeType::Task(snapshot.name, snapshot.state)));
+        for slot in snapshot.slots.iter() {
+            let slot_id = self.get_slot_id(slot);
+            self.edges.insert((id.clone(), slot_id, EdgeType::Slot));
+        }
+        for child in snapshot.children.iter() {
+            self.add_task(child);
+            let child_id = self.get_id(&**child as *const Task);
+            self.edges
+                .insert((id.clone(), child_id, EdgeType::ChildTask));
+        }
+        for dependency in snapshot.dependencies.iter().filter_map(|sr| sr.upgrade()) {
+            let dep_id = self.get_slot_id(&dependency);
+            self.edges
+                .insert((id.clone(), dep_id, EdgeType::Dependency));
+        }
+    }
+
+    pub fn add_slot_ref(&mut self, slot_ref: &SlotRef) {
+        let id = self.get_slot_id(slot_ref);
+        if self.visited.contains(&id) {
+            return;
+        }
+        self.visited.insert(id.clone());
+        let snapshot = slot_ref.get_snapshot_for_visualization();
+        self.nodes.insert((
+            id.clone(),
+            NodeType::Slot(snapshot.name, snapshot.content, snapshot.updates),
+        ));
+        if let Some(linked) = &snapshot.linked_to_slot {
+            let linked_id = self.get_slot_id(linked);
+            self.edges
+                .insert((id.clone(), linked_id, EdgeType::LinkedSlot));
+        }
+    }
+
+    pub fn get_graph(&self) -> String {
+        format!(
+            "digraph {{
+            rankdir=LR
+            {}
+            {}
+        }}",
+            self.nodes
+                .iter()
+                .map(|(id, node)| match node {
+                    NodeType::Task(name, state) =>
+                        format!("{} [shape=box, label=\"{}\\n{}\"]\n", id, name, state),
+                    NodeType::Slot(name, content, updates) => format!(
+                        "{} [label=\"{}\\n{}\\n{} updates\"]\n",
+                        id, name, content, updates
+                    ),
+                })
+                .collect::<String>(),
+            self.edges
+                .iter()
+                .map(|(from, to, edge)| match edge {
+                    EdgeType::ChildTask=>format!("{} {} [style=dashed, color=lightgray]\n", from ,to),
+                    EdgeType::Dependency=>format!("{} {} [style=dotted, weight=0, arrowhead=empty, color=gray, constraint=false]\n", from ,to),
+                    EdgeType::LinkedSlot=>format!("{} {} [color=\"#990000\", constraint=false]\n", from ,to),
+                    EdgeType::Slot=>format!("{} {} [weight=0, arrowhead=empty, color=gray, constraint=false]\n", from ,to)
+                })
+                .collect::<String>()
+        )
+    }
+
+    pub fn wrap_html(graph: &str) -> String {
+        format!("<!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset=\"utf-8\">
+            <title>Graph</title>
+          </head>
+          <body>
+            <script src=\"https://cdn.jsdelivr.net/npm/viz.js@2.1.2-pre.1/viz.js\"></script>
+            <script src=\"https://cdn.jsdelivr.net/npm/viz.js@2.1.2-pre.1/full.render.js\"></script>
+            <script>
+              const s = `{}`;
+              new Viz().renderSVGElement(s).then(el => document.body.appendChild(el)).catch(e => console.error(e));
+            </script>
+          </body>
+          </html>", escape(graph))
+    }
+}
 //     pub fn new(include_nodes: bool) -> Self {
 //         Self {
 //             include_nodes,
@@ -42,35 +181,8 @@ pub trait Visualizer {
 //         }
 //     }
 
-//     fn get_id<T>(&mut self, ptr: *const T) -> usize {
-//         let ptr = ptr as usize;
-//         match self.id_map.get(&ptr) {
-//             Some(id) => *id,
-//             None => {
-//                 let id = self.id_map.len() + 1;
-//                 self.id_map.insert(ptr, id);
-//                 id
-//             }
-//         }
-//     }
+//
 
-//     pub fn wrap_html(graph: &str) -> String {
-//         format!("<!DOCTYPE html>
-//           <html>
-//           <head>
-//             <meta charset=\"utf-8\">
-//             <title>Graph</title>
-//           </head>
-//           <body>
-//             <script src=\"https://cdn.jsdelivr.net/npm/viz.js@2.1.2-pre.1/viz.js\"></script>
-//             <script src=\"https://cdn.jsdelivr.net/npm/viz.js@2.1.2-pre.1/full.render.js\"></script>
-//             <script>
-//               const s = `{}`;
-//               new Viz().renderSVGElement(s).then(el => document.body.appendChild(el)).catch(e => console.error(e));
-//             </script>
-//           </body>
-//           </html>", escape(graph))
-//     }
 // }
 
 // impl ToString for GraphViz {
