@@ -32,12 +32,15 @@ export default function (context, { runtime, env }) {
 
   it('should reuse the inline flight response without sending extra requests', async () => {
     let hasFlightRequest = false
-    const browser = await webdriver(context.appPort, '/')
-    browser.on('request', (request) => {
-      const url = request.url()
-      if (/__flight__=1/.test(url)) {
-        hasFlightRequest = true
-      }
+    await webdriver(context.appPort, '/', true, false, false, {
+      beforePageLoad(_browser) {
+        _browser.on('request', (request) => {
+          const url = request.url()
+          if (/__flight__=1/.test(url)) {
+            hasFlightRequest = true
+          }
+        })
+      },
     })
     expect(hasFlightRequest).toBe(false)
   })
