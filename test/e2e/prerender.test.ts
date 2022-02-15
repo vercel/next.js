@@ -422,6 +422,14 @@ describe('Prerender', () => {
   const runTests = (dev = false) => {
     navigateTest(dev)
 
+    it('should respond with 405 for POST to static page', async () => {
+      const res = await fetchViaHTTP(next.url, '/', undefined, {
+        method: 'POST',
+      })
+      expect(res.status).toBe(405)
+      expect(await res.text()).toContain('Method Not Allowed')
+    })
+
     it('should SSR normal page correctly', async () => {
       const html = await renderViaHTTP(next.url, '/')
       expect(html).toMatch(/hello.*?world/)
