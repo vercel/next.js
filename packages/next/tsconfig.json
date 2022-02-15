@@ -7,5 +7,5 @@
     "moduleResolution": "node",
     "jsx": "react"
   },
-  "exclude": ["dist", "./*.d.ts"]
+  "exclude": ["dist", "./*.d.ts", "image-types/global.d.ts"]
 }

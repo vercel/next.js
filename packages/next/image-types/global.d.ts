@@ -1,12 +1,7 @@
 // this file is conditionally added/removed to next-env.d.ts
 // if the static image import handling is enabled
 
-interface StaticImageData {
-  src: string
-  height: number
-  width: number
-  blurDataURL?: string
-}
+import type { StaticImageData } from '../dist/client/image'
 
 declare module '*.png' {
   const content: StaticImageData
