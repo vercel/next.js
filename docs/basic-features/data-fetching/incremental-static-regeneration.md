@@ -87,7 +87,7 @@ When a request is made to a path that hasn’t been generated, Next.js will serv
 
 ## Error Handling and Revalidation
 
-If there is an error inside `getStaticProps`/`getStaticPaths` when handling background regeneration, or you manually throw an error, the last successfully generated page will continue to show. On the next subsequent request, Next.js will retry calling `getStaticProps`/`getStaticPaths`.
+If there is an error inside `getStaticProps` when handling background regeneration, or you manually throw an error, the last successfully generated page will continue to show. On the next subsequent request, Next.js will retry calling `getStaticProps`.
 
 ```jsx
 export async function getStaticProps() {
