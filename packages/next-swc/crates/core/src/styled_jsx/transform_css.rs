@@ -250,23 +250,22 @@ impl Namespacer {
     ) -> Result<Vec<ComplexSelectorChildren>, Error> {
         let mut pseudo_index = None;
 
-        let empty_tokens = Tokens {
-            span: node.span,
-            tokens: vec![],
-        };
+        let empty_tokens = vec![];
         let mut arg_tokens;
 
         for (i, selector) in node.subclass_selectors.iter().enumerate() {
             let (name, args) = match selector {
                 SubclassSelector::PseudoClass(PseudoClassSelector { name, children, .. }) => {
-                    match children {
-                        Some(PseudoSelectorChildren::Nth(v)) => {
-                            arg_tokens = nth_to_tokens(&v);
-                            (name, &arg_tokens)
-                        }
-                        Some(PseudoSelectorChildren::Tokens(v)) => (name, v),
-                        None => (name, &empty_tokens),
-                    }
+                    arg_tokens = children
+                        .iter()
+                        .flatten()
+                        .flat_map(|v| match v {
+                            PseudoSelectorChildren::Nth(v) => nth_to_tokens(v).tokens,
+                            PseudoSelectorChildren::PreservedToken(v) => vec![v.clone()],
+                        })
+                        .collect::<Vec<_>>();
+
+                    (name, &arg_tokens)
                 }
                 SubclassSelector::PseudoElement(PseudoElementSelector {
                     name, children, ..
@@ -279,9 +278,19 @@ impl Namespacer {
 
             // One off global selector
             if &name.value == "global" {
+                let mut args = args.clone();
+                let mut args = {
+                    let lo = args.first().map(|v| v.span.lo).unwrap_or(BytePos(0));
+                    let hi = args.last().map(|v| v.span.hi).unwrap_or(BytePos(0));
+
+                    Tokens {
+                        span: Span::new(lo, hi, Default::default()),
+                        tokens: args,
+                    }
+                };
+
                 let block_tokens = get_block_tokens(&args);
                 let mut front_tokens = get_front_selector_tokens(&args);
-                let mut args = args.clone();
                 front_tokens.extend(args.tokens);
                 front_tokens.extend(block_tokens);
                 args.tokens = front_tokens;
