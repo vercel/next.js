@@ -401,8 +401,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/another?mark_as=root`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await browser.eval(`(function () {
@@ -428,8 +429,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/another?mark_as=root`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await browser.eval(`(function () {
@@ -455,8 +457,9 @@ const runTests = (isDev) => {
     const browser = await webdriver(
       appPort,
       `${basePath}/another?mark_as=root`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
 
     await browser.eval(`(function () {
