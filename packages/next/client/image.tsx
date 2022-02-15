@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useContext, useMemo } from 'react'
 import Head from '../shared/lib/head'
 import {
   ImageConfigComplete,
@@ -7,7 +7,9 @@ import {
   VALID_LOADERS,
 } from '../server/image-config'
 import { useIntersection } from './use-intersection'
+import { ImageConfigContext } from '../shared/lib/image-config-context'
 
+const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
   string,
@@ -23,21 +25,17 @@ if (typeof window === 'undefined') {
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
-
+type ImageConfig = ImageConfigComplete & { allSizes: number[] }
 export type ImageLoader = (resolverProps: ImageLoaderProps) => string
 
 export type ImageLoaderProps = {
+  config: Readonly<ImageConfig>
   src: string
   width: number
   quality?: number
 }
 
-type DefaultImageLoaderProps = ImageLoaderProps & { root: string }
-
-const loaders = new Map<
-  LoaderValue,
-  (props: DefaultImageLoaderProps) => string
->([
+const loaders = new Map<LoaderValue, (props: ImageLoaderProps) => string>([
   ['default', defaultLoader],
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
@@ -111,20 +109,8 @@ export type ImageProps = Omit<
   onLoadingComplete?: OnLoadingComplete
 }
 
-const {
-  deviceSizes: configDeviceSizes,
-  imageSizes: configImageSizes,
-  loader: configLoader,
-  path: configPath,
-  domains: configDomains,
-} = (process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete) ||
-imageConfigDefault
-// sort smallest to largest
-const allSizes = [...configDeviceSizes, ...configImageSizes]
-configDeviceSizes.sort((a, b) => a - b)
-allSizes.sort((a, b) => a - b)
-
 function getWidths(
+  { deviceSizes, allSizes }: ImageConfig,
   width: number | undefined,
   layout: LayoutValue,
   sizes: string | undefined
@@ -139,9 +125,7 @@ function getWidths(
     if (percentSizes.length) {
       const smallestRatio = Math.min(...percentSizes) * 0.01
       return {
-        widths: allSizes.filter(
-          (s) => s >= configDeviceSizes[0] * smallestRatio
-        ),
+        widths: allSizes.filter((s) => s >= deviceSizes[0] * smallestRatio),
         kind: 'w',
       }
     }
@@ -152,7 +136,7 @@ function getWidths(
     layout === 'fill' ||
     layout === 'responsive'
   ) {
-    return { widths: configDeviceSizes, kind: 'w' }
+    return { widths: deviceSizes, kind: 'w' }
   }
 
   const widths = [
@@ -174,6 +158,7 @@ function getWidths(
 }
 
 type GenImgAttrsData = {
+  config: ImageConfig
   src: string
   unoptimized: boolean
   layout: LayoutValue
@@ -190,6 +175,7 @@ type GenImgAttrsResult = {
 }
 
 function generateImgAttrs({
+  config,
   src,
   unoptimized,
   layout,
@@ -202,7 +188,7 @@ function generateImgAttrs({
     return { src, srcSet: undefined, sizes: undefined }
   }
 
-  const { widths, kind } = getWidths(width, layout, sizes)
+  const { widths, kind } = getWidths(config, width, layout, sizes)
   const last = widths.length - 1
 
   return {
@@ -210,7 +196,7 @@ function generateImgAttrs({
     srcSet: widths
       .map(
         (w, i) =>
-          `${loader({ src, quality, width: w })} ${
+          `${loader({ config, src, quality, width: w })} ${
             kind === 'w' ? w : i + 1
           }${kind}`
       )
@@ -222,7 +208,7 @@ function generateImgAttrs({
     // updated by React. That causes multiple unnecessary requests if `srcSet`
     // and `sizes` are defined.
     // This bug cannot be reproduced in Chrome or Firefox.
-    src: loader({ src, quality, width: widths[last] }),
+    src: loader({ config, src, quality, width: widths[last] }),
   }
 }
 
@@ -237,14 +223,15 @@ function getInt(x: unknown): number | undefined {
 }
 
 function defaultImageLoader(loaderProps: ImageLoaderProps) {
-  const load = loaders.get(configLoader)
+  const loaderKey = loaderProps.config?.loader || 'default'
+  const load = loaders.get(loaderKey)
   if (load) {
-    return load({ root: configPath, ...loaderProps })
+    return load(loaderProps)
   }
   throw new Error(
     `Unknown "loader" found in "next.config.js". Expected: ${VALID_LOADERS.join(
       ', '
-    )}. Received: ${configLoader}`
+    )}. Received: ${loaderKey}`
   )
 }
 
@@ -337,6 +324,15 @@ export default function Image({
   ...all
 }: ImageProps) {
   const imgRef = useRef<HTMLImageElement>(null)
+
+  const configContext = useContext(ImageConfigContext)
+  const config: ImageConfig = useMemo(() => {
+    const c = configEnv || configContext || imageConfigDefault
+    const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
+    const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
+    return { ...c, allSizes, deviceSizes }
+  }, [configContext])
+
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
   if ('layout' in rest) {
@@ -468,6 +464,7 @@ export default function Image({
 
     if (!unoptimized) {
       const urlStr = loader({
+        config,
         src,
         width: widthInt || 400,
         quality: qualityInt || 75,
@@ -630,6 +627,7 @@ export default function Image({
 
   if (isVisible) {
     imgAttributes = generateImgAttrs({
+      config,
       src,
       unoptimized,
       layout,
@@ -720,6 +718,7 @@ export default function Image({
           <img
             {...rest}
             {...generateImgAttrs({
+              config,
               src,
               unoptimized,
               layout,
@@ -768,13 +767,13 @@ function normalizeSrc(src: string): string {
 }
 
 function imgixLoader({
-  root,
+  config,
   src,
   width,
   quality,
-}: DefaultImageLoaderProps): string {
+}: ImageLoaderProps): string {
   // Demo: https://static.imgix.net/daisy.png?auto=format&fit=max&w=300
-  const url = new URL(`${root}${normalizeSrc(src)}`)
+  const url = new URL(`${config.path}${normalizeSrc(src)}`)
   const params = url.searchParams
 
   params.set('auto', params.get('auto') || 'format')
@@ -788,23 +787,23 @@ function imgixLoader({
   return url.href
 }
 
-function akamaiLoader({ root, src, width }: DefaultImageLoaderProps): string {
-  return `${root}${normalizeSrc(src)}?imwidth=${width}`
+function akamaiLoader({ config, src, width }: ImageLoaderProps): string {
+  return `${config.path}${normalizeSrc(src)}?imwidth=${width}`
 }
 
 function cloudinaryLoader({
-  root,
+  config,
   src,
   width,
   quality,
-}: DefaultImageLoaderProps): string {
+}: ImageLoaderProps): string {
   // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
   const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
   const paramsString = params.join(',') + '/'
-  return `${root}${paramsString}${normalizeSrc(src)}`
+  return `${config.path}${paramsString}${normalizeSrc(src)}`
 }
 
-function customLoader({ src }: DefaultImageLoaderProps): string {
+function customLoader({ src }: ImageLoaderProps): string {
   throw new Error(
     `Image with src "${src}" is missing "loader" prop.` +
       `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader`
@@ -812,11 +811,11 @@ function customLoader({ src }: DefaultImageLoaderProps): string {
 }
 
 function defaultLoader({
-  root,
+  config,
   src,
   width,
   quality,
-}: DefaultImageLoaderProps): string {
+}: ImageLoaderProps): string {
   if (process.env.NODE_ENV !== 'production') {
     const missingValues = []
 
@@ -840,7 +839,7 @@ function defaultLoader({
       )
     }
 
-    if (!src.startsWith('/') && configDomains) {
+    if (!src.startsWith('/') && config.domains) {
       let parsedSrc: URL
       try {
         parsedSrc = new URL(src)
@@ -853,7 +852,7 @@ function defaultLoader({
 
       if (
         process.env.NODE_ENV !== 'test' &&
-        !configDomains.includes(parsedSrc.hostname)
+        !config.domains.includes(parsedSrc.hostname)
       ) {
         throw new Error(
           `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
@@ -863,5 +862,7 @@ function defaultLoader({
     }
   }
 
-  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}`
+  return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${
+    quality || 75
+  }`
 }

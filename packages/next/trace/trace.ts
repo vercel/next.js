@@ -85,7 +85,7 @@ export class Span {
     this.attrs[key] = String(value)
   }
 
-  traceFn(fn: any) {
+  traceFn<T>(fn: () => T): T {
     try {
       return fn()
     } finally {
