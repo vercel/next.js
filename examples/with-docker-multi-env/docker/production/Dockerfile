@@ -10,8 +10,8 @@ RUN yarn install --frozen-lockfile
 # 2. Rebuild the source code only when needed
 FROM node:16-alpine AS builder
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+COPY --from=deps /app/node_modules ./node_modules
 # This will do the trick, use the corresponding env file for each environment.
 COPY .env.production.sample .env.production
 RUN yarn build
