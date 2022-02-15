@@ -16,10 +16,10 @@ export default (context) => {
     }
   }
 
-  it('throws if useFlushEffects is called more than once', async () => {
+  it('throws if useFlushEffects is used more than once', async () => {
     await renderViaHTTP(context.appPort, '/use-flush-effect/multiple-calls')
     expect(context.stderr).toContain(
-      'Error: The `useFlushEffects` hook cannot be called more than once.'
+      'Error: The `useFlushEffects` hook cannot be used more than once.'
     )
   })
 

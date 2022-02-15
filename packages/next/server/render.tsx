@@ -309,7 +309,9 @@ function createRSCHook() {
     let entry = rscCache.get(id)
     if (!entry) {
       const [renderStream, forwardStream] = readableStreamTee(req)
-      entry = createFromReadableStream(renderStream)
+      entry = createFromReadableStream(
+        pipeThrough(renderStream, createTextEncoderStream())
+      )
       rscCache.set(id, entry)
 
       let bootstrapped = false
@@ -757,7 +759,7 @@ export async function renderToHTML(
       (callbacks: Array<() => React.ReactNode>) => {
         if (flushEffects) {
           throw new Error(
-            'The `useFlushEffects` hook cannot be called more than once.' +
+            'The `useFlushEffects` hook cannot be used more than once.' +
               '\nRead more: https://nextjs.org/docs/messages/multiple-flush-effects'
           )
         }

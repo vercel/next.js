@@ -619,6 +619,14 @@
         {
           "title": "ignored-compiler-options",
           "path": "/errors/ignored-compiler-options.md"
+        },
+        {
+          "title": "multiple-flush-effects",
+          "path": "/errors/multiple-flush-effects.md"
+        },
+        {
+          "title": "client-flush-effects",
+          "path": "/errors/client-flush-effects.md"
         }
       ]
     }
