@@ -30,7 +30,7 @@ module.exports = {
     // enable dangerous use of SVG images
     dangerouslyAllowSVG: false,
     // set the Content-Security-Policy header
-    contentSecurityPolicy: "default-src 'self' https://example.com;",
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 }
 ```

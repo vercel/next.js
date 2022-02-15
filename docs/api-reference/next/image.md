@@ -450,7 +450,7 @@ If you need to serve SVG images with the default Image Optimization API, you can
 module.exports = {
   images: {
     dangerouslyAllowSVG: true,
-    contentSecurityPolicy: "default-src 'self' https://example.com;",
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 }
 ```
