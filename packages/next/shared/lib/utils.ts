@@ -224,7 +224,6 @@ export type HtmlProps = {
   crossOrigin?: string
   optimizeCss?: boolean
   optimizeFonts?: boolean
-  optimizeImages?: boolean
   runtime?: 'edge' | 'nodejs'
 }
 
