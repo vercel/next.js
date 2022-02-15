@@ -33,7 +33,6 @@ pub fn transform_css(
         style_info.css_span.lo,
         style_info.css_span.hi,
         ParserConfig {
-            parse_values: false,
             allow_wrong_line_comments: true,
         },
         // We ignore errors because we inject placeholders for expressions which is
@@ -291,7 +290,6 @@ impl Namespacer {
                     let x: ComplexSelector = parse_tokens(
                         &args,
                         ParserConfig {
-                            parse_values: false,
                             allow_wrong_line_comments: true,
                         },
                         // TODO(kdy1): We might be able to report syntax errors.
@@ -522,7 +520,6 @@ fn nth_to_tokens(nth: &Nth) -> Tokens {
     let mut lexer = swc_css::parser::lexer::Lexer::new(
         StringInput::new(&s, nth.span.lo, nth.span.hi),
         ParserConfig {
-            parse_values: false,
             allow_wrong_line_comments: true,
             ..Default::default()
         },
