@@ -612,7 +612,10 @@ export default function Image({
     }
   } else {
     // <Image src="i.png" />
-    if (process.env.NODE_ENV !== 'production') {
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      process.env.NODE_ENV !== 'test'
+    ) {
       throw new Error(
         `Image with src "${src}" must use "width" and "height" properties or "layout='fill'" property.`
       )
