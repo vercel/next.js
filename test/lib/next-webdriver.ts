@@ -66,7 +66,6 @@ export default async function webdriver(
   options = Object.assign(defaultOptions, options)
   const { waitHydration, retryWaitHydration, disableCache, beforePageLoad } =
     options
-  console.log('beforePageLoad', options)
 
   // we import only the needed interface
   if (

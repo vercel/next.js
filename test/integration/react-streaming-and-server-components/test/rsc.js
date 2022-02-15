@@ -44,7 +44,8 @@ export default function (context, { runtime, env }) {
         })
       },
     })
-    expect(requestsCount).toBeGreaterThan(1)
+
+    expect(requestsCount).toBeGreaterThan(0)
     expect(hasFlightRequest).toBe(false)
   })
 
