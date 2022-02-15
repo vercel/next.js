@@ -16,3 +16,8 @@ export default function MultipleCalls() {
     </>
   )
 }
+
+export async function getServerSideProps() {
+  // disable exporting this page
+  return { props: {} }
+}

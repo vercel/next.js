@@ -29,3 +29,8 @@ export default function Client() {
     </ErrorBoundary>
   )
 }
+
+export async function getServerSideProps() {
+  // disable exporting this page
+  return { props: {} }
+}
