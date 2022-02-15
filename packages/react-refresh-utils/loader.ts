@@ -2,10 +2,12 @@ import type { LoaderDefinition } from 'webpack'
 import RefreshModuleRuntime from './internal/ReactRefreshModule.runtime'
 
 let refreshModuleRuntime = RefreshModuleRuntime.toString()
-refreshModuleRuntime = refreshModuleRuntime.slice(
-  refreshModuleRuntime.indexOf('{') + 1,
-  refreshModuleRuntime.lastIndexOf('}')
-)
+refreshModuleRuntime = refreshModuleRuntime
+  .slice(
+    refreshModuleRuntime.indexOf('{') + 1,
+    refreshModuleRuntime.lastIndexOf('}')
+  )
+  .replace('global.importMeta', 'import.meta')
 
 const ReactRefreshLoader: LoaderDefinition = function ReactRefreshLoader(
   source,

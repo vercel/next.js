@@ -5,7 +5,7 @@ declare const self: Window & RefreshRuntimeGlobals
 type Dictionary = { [key: string]: unknown }
 declare const __webpack_module__: {
   id: string
-  __proto__: { exports: unknown }
+  exports: unknown
   hot: {
     accept: () => void
     dispose: (onDispose: (data: Dictionary) => void) => void
@@ -28,7 +28,7 @@ export default function () {
       '$RefreshHelpers$' in self
     ) {
       // @ts-ignore __webpack_module__ is global
-      var currentExports = __webpack_module__.__proto__.exports
+      var currentExports = __webpack_module__.exports
       // @ts-ignore __webpack_module__ is global
       var prevExports = __webpack_module__.hot.data?.prevExports ?? null
 
@@ -49,7 +49,8 @@ export default function () {
         })
         // Unconditionally accept an update to this module, we'll check if it's
         // still a Refresh Boundary later.
-        __webpack_module__.hot.accept()
+        // @ts-ignore importMeta is replaced in the loader
+        global.importMeta.webpackHot.accept()
 
         // This field is set when the previous version of this module was a
         // Refresh Boundary, letting us know we need to check for invalidation or
