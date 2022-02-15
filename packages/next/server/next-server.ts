@@ -1412,7 +1412,7 @@ function enhanceIncomingMessage<T extends IncomingMessage>(
   return new Proxy<T>(base, {
     get(target, name) {
       if (name in stream) {
-        const v = stream[name]
+        const v = stream[name as keyof NodeStreams.Readable]
         if (typeof v === 'function') {
           return v.bind(stream)
         } else {
@@ -1420,7 +1420,7 @@ function enhanceIncomingMessage<T extends IncomingMessage>(
         }
       }
 
-      return target[name]
+      return target[name as keyof T]
     },
   })
 }
