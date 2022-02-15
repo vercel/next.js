@@ -72,7 +72,7 @@ export class BrowserInterface {
   }
   on(event: Event, cb: (...args: any[]) => void) {}
   off(event: Event, cb: (...args: any[]) => void) {}
-  async loadPage(url: string, { disableCache: boolean }): Promise<any> {}
+  async loadPage(url: string, { disableCache: boolean }): Promise<void> {}
   async get(url: string): Promise<void> {}
 
   async getValue(): Promise<any> {}
