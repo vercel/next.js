@@ -350,5 +350,6 @@ function hasAlreadyWarnedAboutFullRefresh() {
 }
 
 function clearFullRefreshStorage() {
-  sessionStorage.removeItem(FULL_REFRESH_STORAGE_KEY)
+  if (sessionStorage.getItem(FULL_REFRESH_STORAGE_KEY) !== 'ignore')
+    sessionStorage.removeItem(FULL_REFRESH_STORAGE_KEY)
 }

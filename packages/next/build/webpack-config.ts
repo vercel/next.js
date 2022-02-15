@@ -1346,9 +1346,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
           config.optimizeFonts && !dev
         ),
-        'process.env.__NEXT_OPTIMIZE_IMAGES': JSON.stringify(
-          config.experimental.optimizeImages
-        ),
         'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
           config.experimental.optimizeCss && !dev
         ),
@@ -1611,7 +1608,6 @@ export default async function getBaseWebpackConfig(
     reactStrictMode: config.reactStrictMode,
     reactMode: config.experimental.reactMode,
     optimizeFonts: config.optimizeFonts,
-    optimizeImages: config.experimental.optimizeImages,
     optimizeCss: config.experimental.optimizeCss,
     scrollRestoration: config.experimental.scrollRestoration,
     basePath: config.basePath,
