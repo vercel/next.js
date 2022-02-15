@@ -95,4 +95,4 @@ You can learn more about [Error Boundaries](https://reactjs.org/docs/error-bound
 
 ### Reporting Errors
 
-To monitor client errors, use a service like [Sentry](https://docs.sentry.io/platforms/javascript/guides/nextjs/). Here is an example on [how to integrate Sentry SDK with Next.js](https://github.com/vercel/next.js/tree/canary/examples/with-sentry).
+To monitor client errors, use a service like [Sentry](https://github.com/vercel/next.js/tree/canary/examples/with-sentry), Bugsnag or Datadog.
