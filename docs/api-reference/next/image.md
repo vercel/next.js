@@ -252,19 +252,23 @@ const Example = () => (
 import Image from 'next/image'
 import React from 'react'
 
-const Container = React.forwardRef((props, ref) =>
-  <div ref={ref} style={{ overflowX: 'scroll', width: '500px' }}>
-    {props.children}
-  </div>
+const Container = React.forwardRef((props, ref) => {
+  return (
+    <div ref={ref} style={{ overflowX: 'scroll', width: '500px' }}>
+      {props.children}
+    </div>
+  )
 })
 
 const Example = () => {
   const lazyRoot = React.useRef(null)
 
-  return (<Container ref={lazyRoot}>
-    <Image lazyRoot={lazyRoot} src="/one.jpg" width="500" height="500" />
-    <Image lazyRoot={lazyRoot} src="/two.jpg" width="500" height="500" />
-  </Container>)
+  return (
+    <Container ref={lazyRoot}>
+      <Image lazyRoot={lazyRoot} src="/one.jpg" width="500" height="500" />
+      <Image lazyRoot={lazyRoot} src="/two.jpg" width="500" height="500" />
+    </Container>
+  )
 }
 ```
 
@@ -319,7 +323,7 @@ module.exports = {
 The following Image Optimization cloud providers are included:
 
 - Default: Works automatically with `next dev`, `next start`, or a custom server
-- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary. [Learn more](https://vercel.com/docs/next.js/image-optimization)
+- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary. [Learn more](https://vercel.com/docs/concepts/image-optimization)
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
