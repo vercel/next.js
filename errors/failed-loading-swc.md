@@ -8,7 +8,9 @@ SWC requires a binary be downloaded that is compatible specific to your system. 
 
 #### Possible Ways to Fix It
 
-You might need to allow optional packages to be installed by your package manager (remove `--no-optional` flag) for the package to download correctly.
+If you are working from an M1 mac and running a node version above 14.x (such as 16), trying to install dependencies may result in an `SWC` error. Try removing your `node_modules` and downgrading your node version to 14.x, then installing dependencies again.
+
+Alternatively, you might need to allow optional packages to be installed by your package manager (remove `--no-optional` flag) for the package to download correctly.
 
 If SWC continues to fail to load you can opt-out by disabling `swcMinify` in your `next.config.js` or by adding a `.babelrc` to your project with the following content:
 
