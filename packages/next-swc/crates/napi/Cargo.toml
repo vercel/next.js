@@ -18,7 +18,7 @@ serde_json = "1"
 next-swc = { version = "0.0.0", path = "../core" }
 swc = "0.125.0"
 swc_atoms = "0.2.7"
-swc_bundler = { version = "0.105.0", features = ["concurrent"] }
+swc_bundler = { version = "0.106.0", features = ["concurrent"] }
 swc_common = { version = "0.17.0", features = ["concurrent", "sourcemap"] }
 swc_ecma_loader = { version = "0.28.0", features = ["node", "lru"] }
 swc_ecmascript = { version = "0.113.4", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
