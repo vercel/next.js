@@ -26,7 +26,10 @@ export default async (page) => {
       if (
         payload.event === 'pong' &&
         payload.invalid &&
-        !self.__NEXT_DATA__.err
+        !self.__NEXT_DATA__.err &&
+        // don't attempt fetching the page if we're already showing
+        // the not found page, as this can cause unnecessary data fetching
+        self.__NEXT_DATA__.props.pageProps.statusCode !== 404
       ) {
         // Payload can be invalid even if the page does exist.
         // So, we check if it can be created.
