@@ -8,7 +8,7 @@ SWC requires a binary be downloaded that is compatible specific to your system. 
 
 #### Possible Ways to Fix It
 
-If you are working from an M1 mac and running a node version above 14.x (such as 16), trying to install dependencies may result in an `SWC` error. Try removing your `node_modules` and downgrading your node version to 14.x, then installing dependencies again.
+When on an M1 Mac and switching from a Node.js version without M1 support e.g. v14 to a version with e.g. v16, you may need a different swc dependency which can require re-installing `node_modules` (`npm i --force` or `yarn install --force`).
 
 Alternatively, you might need to allow optional packages to be installed by your package manager (remove `--no-optional` flag) for the package to download correctly.
 
