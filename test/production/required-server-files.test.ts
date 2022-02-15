@@ -21,12 +21,22 @@ describe('should set-up next', () => {
   let requiredFilesManifest
 
   beforeAll(async () => {
+    // test build against environment with next support
+    process.env.NOW_BUILDER = '1'
+
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'required-server-files/pages')),
         lib: new FileRef(join(__dirname, 'required-server-files/lib')),
         'data.txt': new FileRef(
           join(__dirname, 'required-server-files/data.txt')
+        ),
+        '.env': new FileRef(join(__dirname, 'required-server-files/.env')),
+        '.env.local': new FileRef(
+          join(__dirname, 'required-server-files/.env.local')
+        ),
+        '.env.production': new FileRef(
+          join(__dirname, 'required-server-files/.env.production')
         ),
       },
       nextConfig: {
@@ -718,5 +728,15 @@ describe('should set-up next', () => {
     const html = await res.text()
     const $ = cheerio.load(html)
     expect($('#slug-page').text()).toBe('[slug] page')
+  })
+
+  it('should copy and read .env file', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/env')
+
+    const envVariables = await res.json()
+
+    expect(envVariables.env).not.toBeUndefined()
+    expect(envVariables.envProd).not.toBeUndefined()
+    expect(envVariables.envLocal).toBeUndefined()
   })
 })

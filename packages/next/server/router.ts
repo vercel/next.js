@@ -1,13 +1,13 @@
 import type { ParsedUrlQuery } from 'querystring'
-import type { NextUrlWithParsedQuery } from './request-meta'
+import type { BaseNextRequest, BaseNextResponse } from './base-http'
 
+import { getNextInternalQuery, NextUrlWithParsedQuery } from './request-meta'
 import pathMatch from '../shared/lib/router/utils/path-match'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { RouteHas } from '../lib/load-custom-routes'
 import { matchHas } from '../shared/lib/router/utils/prepare-destination'
 import { getRequestMeta } from './request-meta'
-import { BaseNextRequest, BaseNextResponse } from './base-http'
 
 export const route = pathMatch()
 
@@ -400,7 +400,7 @@ export default class Router {
 
         if (result.query) {
           parsedUrlUpdated.query = {
-            ...parsedUrlUpdated.query,
+            ...getNextInternalQuery(parsedUrlUpdated.query),
             ...result.query,
           }
         }

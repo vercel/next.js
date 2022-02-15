@@ -8,6 +8,7 @@ on:
 jobs:
   stale:
     runs-on: ubuntu-latest
+    if: github.repository_owner == 'vercel'
     steps:
       - uses: actions/stale@v4
         id: stale
@@ -21,4 +22,4 @@ jobs:
           days-before-pr-close: -1
           days-before-pr-stale: -1
           exempt-issue-labels: 'blocked,must,should,keep'
-          operation-per-run: 300 # 1 operation per 100 issues, the rest is to label/comment/close
+          operations-per-run: 300 # 1 operation per 100 issues, the rest is to label/comment/close
