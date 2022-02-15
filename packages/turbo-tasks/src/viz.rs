@@ -12,12 +12,13 @@ pub struct TaskSnapshot {
     pub dependencies: Vec<WeakSlotRef>,
     pub slots: Vec<SlotRef>,
     pub output_slot: SlotRef,
+    pub executions: u32,
 }
 
 pub struct SlotSnapshot {
     pub name: String,
     pub content: String,
-    pub updates: i32,
+    pub updates: u32,
     pub linked_to_slot: Option<SlotRef>,
 }
 
@@ -27,18 +28,24 @@ fn escape(s: &str) -> String {
         .replace("\n", "\\n")
 }
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Clone, Hash, PartialEq, Eq)]
 enum EdgeType {
     ChildTask,
-    Slot,
     Dependency,
     LinkedSlot,
 }
 
 #[derive(Hash, PartialEq, Eq)]
+struct Slot {
+    id: String,
+    name: String,
+    content: String,
+    updates: u32,
+}
+
+#[derive(Hash, PartialEq, Eq)]
 enum NodeType {
-    Task(String, String),
-    Slot(String, String, i32),
+    Task(String, String, u32, Vec<Slot>),
 }
 
 #[derive(Default)]
@@ -68,9 +75,11 @@ impl GraphViz {
 
     fn get_slot_id(&mut self, slot_ref: &SlotRef) -> String {
         match slot_ref {
-            SlotRef::TaskOutput(task) => self.get_id(&**task as *const Task) + "_output",
+            SlotRef::TaskOutput(task) => {
+                format!("slot_{}_output", self.get_id(&**task as *const Task))
+            }
             SlotRef::TaskCreated(task, index) => {
-                format!("{}_{}", self.get_id(&**task as *const Task), index)
+                format!("slot_{}_{}", self.get_id(&**task as *const Task), index)
             }
             SlotRef::Nothing | SlotRef::SharedReference(_, _) | SlotRef::CloneableData(_, _) => {
                 panic!("no ids for immutable data")
@@ -85,12 +94,26 @@ impl GraphViz {
         }
         self.visited.insert(id.clone());
         let snapshot = task.get_snapshot_for_visualization();
-        self.nodes
-            .insert((id.clone(), NodeType::Task(snapshot.name, snapshot.state)));
+        let mut slots = Vec::new();
         for slot in snapshot.slots.iter() {
+            let snapshot = slot.get_snapshot_for_visualization();
             let slot_id = self.get_slot_id(slot);
-            self.edges.insert((id.clone(), slot_id, EdgeType::Slot));
+            slots.push(Slot {
+                id: slot_id.clone(),
+                name: snapshot.name,
+                content: snapshot.content,
+                updates: snapshot.updates,
+            });
+            if let Some(linked) = &snapshot.linked_to_slot {
+                let linked_id = self.get_slot_id(linked);
+                self.edges
+                    .insert((slot_id.clone(), linked_id, EdgeType::LinkedSlot));
+            }
         }
+        self.nodes.insert((
+            id.clone(),
+            NodeType::Task(snapshot.name, snapshot.state, snapshot.executions, slots),
+        ));
         for child in snapshot.children.iter() {
             self.add_task(child);
             let child_id = self.get_id(&**child as *const Task);
@@ -104,51 +127,121 @@ impl GraphViz {
         }
     }
 
-    pub fn add_slot_ref(&mut self, slot_ref: &SlotRef) {
-        let id = self.get_slot_id(slot_ref);
-        if self.visited.contains(&id) {
-            return;
+    // pub fn add_slot_ref(&mut self, slot_ref: &SlotRef) {
+    //     let id = self.get_slot_id(slot_ref);
+    //     if self.visited.contains(&id) {
+    //         return;
+    //     }
+    //     self.visited.insert(id.clone());
+    //     let snapshot = slot_ref.get_snapshot_for_visualization();
+    //     self.nodes.insert((
+    //         id.clone(),
+    //         NodeType::Slot(snapshot.name, snapshot.content, snapshot.updates),
+    //     ));
+    //     if let Some(linked) = &snapshot.linked_to_slot {
+    //         let linked_id = self.get_slot_id(linked);
+    //         self.edges
+    //             .insert((id.clone(), linked_id, EdgeType::LinkedSlot));
+    //     }
+    // }
+
+    pub fn drop_unchanged_slots(&mut self) {
+        let mut dropped_ids = HashSet::new();
+        for (id, node) in self.nodes.drain().collect::<Vec<_>>() {
+            match node {
+                NodeType::Task(name, state, executions, mut slots) => {
+                    for slot in slots.drain(..).collect::<Vec<_>>() {
+                        if slot.updates <= 1 {
+                            dropped_ids.insert(slot.id);
+                        } else {
+                            slots.push(slot);
+                        }
+                    }
+                    self.nodes.insert((id, NodeType::Task(name, state, executions, slots)));
+                },
+            }
         }
-        self.visited.insert(id.clone());
-        let snapshot = slot_ref.get_snapshot_for_visualization();
-        self.nodes.insert((
-            id.clone(),
-            NodeType::Slot(snapshot.name, snapshot.content, snapshot.updates),
-        ));
-        if let Some(linked) = &snapshot.linked_to_slot {
-            let linked_id = self.get_slot_id(linked);
-            self.edges
-                .insert((id.clone(), linked_id, EdgeType::LinkedSlot));
+        self.edges.retain(|(from, to, _)| !dropped_ids.contains(from) && !dropped_ids.contains(to));
+    }
+
+    pub fn skip_loney_resolve(&mut self) {
+        self.skip_loney("[resolve] ");
+        self.skip_loney("[resolve trait] ");
+    }
+
+    fn skip_loney(&mut self, prefix: &str) {
+        let mut map = self.nodes.iter().filter_map(|(id, node)| match node {
+            NodeType::Task(name, _, _, _) => {
+                if name.starts_with(prefix) {
+                    Some((id.clone(), (Vec::new(), Vec::new())))
+                } else {
+                    None
+                }
+            },
+        }).collect::<HashMap<_, _>>();
+        for (from, to, edge) in self.edges.iter() {
+            if let Some(entry) = map.get_mut(from) {
+                entry.1.push((to.clone(), edge.clone()));
+            }
+            if let Some(entry) = map.get_mut(to) {
+                entry.0.push((from.clone(), edge.clone()));
+            }
         }
+        let skipped_nodes = map.drain().filter_map(|(id, (a, b))| {
+            if a.len() == 1 && b.len() == 1 && a[0].1 == b[0].1 {
+                self.edges.insert((a[0].0.clone(), b[0].0.clone(), a[0].1.clone()));
+                Some(id)
+            } else {
+                None
+            }
+        }).collect::<HashSet<_>>();
+        self.nodes.retain(|(id, _)| !skipped_nodes.contains(id));
+        self.edges.retain(|(from, to, _)| !skipped_nodes.contains(from) && !skipped_nodes.contains(to));
     }
 
     pub fn get_graph(&self) -> String {
+        let nodes_info = self.nodes
+            .iter()
+            .map(|(id, node)| match node {
+                NodeType::Task(name, state, executions, slots) => { 
+                    let slots_info = slots.iter().map(|Slot{ id, name, content, updates }| if *updates > 1 {
+                        format!(
+                            "{} [label=\"{}\\n{}\\n{} updates\"]\n",
+                            id, escape(name), escape(content), updates
+                        )
+                    } else {
+                        format!(
+                            "{} [label=\"{}\\n{}\"]\n",
+                            id, escape(name), escape(content)
+                        )
+                    }).collect::<String>();
+                    let label = if *executions > 1 {
+                        format!("{}\\n{}\\n{} executions", escape(name), escape(state), executions)
+                    } else if state == "done" {
+                        format!("{}", escape(name))
+                    } else {
+                        format!("{}\\n{}", escape(name), escape(state))
+                    };
+                    format!("subgraph cluster_{} {{\ncolor=lightgray;\n{} [shape=box, label=\"{}\"]\n{}}}", id, id, label, slots_info)
+                },
+            })
+            .collect::<String>();
+        let edges_info = self.edges
+            .iter()
+            .map(|(from, to, edge)| match edge {
+                EdgeType::ChildTask => format!("{} -> {} [style=dashed, color=lightgray]\n", from, to),
+                EdgeType::Dependency => format!("{} -> {} [color=\"#009129\", weight=0, constraint=false]\n", to, from),
+                EdgeType::LinkedSlot => format!("{} -> {} [color=\"#990000\", constraint=false]\n", to, from),
+            })
+            .collect::<String>();
         format!(
             "digraph {{
             rankdir=LR
             {}
             {}
         }}",
-            self.nodes
-                .iter()
-                .map(|(id, node)| match node {
-                    NodeType::Task(name, state) =>
-                        format!("{} [shape=box, label=\"{}\\n{}\"]\n", id, name, state),
-                    NodeType::Slot(name, content, updates) => format!(
-                        "{} [label=\"{}\\n{}\\n{} updates\"]\n",
-                        id, name, content, updates
-                    ),
-                })
-                .collect::<String>(),
-            self.edges
-                .iter()
-                .map(|(from, to, edge)| match edge {
-                    EdgeType::ChildTask=>format!("{} {} [style=dashed, color=lightgray]\n", from ,to),
-                    EdgeType::Dependency=>format!("{} {} [style=dotted, weight=0, arrowhead=empty, color=gray, constraint=false]\n", from ,to),
-                    EdgeType::LinkedSlot=>format!("{} {} [color=\"#990000\", constraint=false]\n", from ,to),
-                    EdgeType::Slot=>format!("{} {} [weight=0, arrowhead=empty, color=gray, constraint=false]\n", from ,to)
-                })
-                .collect::<String>()
+            nodes_info,
+            edges_info
         )
     }
 

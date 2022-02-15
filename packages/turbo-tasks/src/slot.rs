@@ -13,82 +13,8 @@ use crate::{
 #[derive(Default, Debug)]
 pub struct Slot {
     content: SlotContent,
-    updates: i32,
+    updates: u32,
     dependent_tasks: Vec<Weak<Task>>,
-}
-
-impl Slot {
-    pub fn new() -> Self {
-        Self {
-            content: SlotContent::Empty,
-            updates: 0,
-            dependent_tasks: Vec::new(),
-        }
-    }
-
-    pub fn conditional_update_shared<
-        T: Send + Sync + 'static,
-        F: FnOnce(Option<&T>) -> Option<T>,
-    >(
-        &mut self,
-        ty: &'static SlotValueType,
-        functor: F,
-    ) {
-        let change;
-        let mut _type_change = false;
-        match &self.content {
-            SlotContent::Empty | SlotContent::Link(_) => {
-                _type_change = true;
-                change = functor(None);
-            }
-            SlotContent::SharedReference(old_ty, old_content) => {
-                if *old_ty != ty {
-                    _type_change = true;
-                    change = functor(None);
-                } else {
-                    if let Some(old_content) = old_content.downcast_ref::<T>() {
-                        change = functor(Some(old_content));
-                    } else {
-                        panic!("This can't happen as the type is compared");
-                    }
-                }
-            }
-            SlotContent::Cloneable(old_ty, old_content) => {
-                if *old_ty != ty {
-                    _type_change = true;
-                    change = functor(None);
-                } else {
-                    if let Ok(old_content) = old_content.as_any().downcast::<T>() {
-                        change = functor(Some(&*old_content));
-                    } else {
-                        panic!("This can't happen as the type is compared");
-                    }
-                }
-            }
-        };
-        if let Some(new_content) = change {
-            self.content = SlotContent::SharedReference(ty, Arc::new(new_content));
-            // notify
-            for task in self.dependent_tasks.iter().filter_map(|t| t.upgrade()) {
-                TurboTasks::schedule_notify_task(task);
-            }
-        }
-    }
-
-    pub fn compare_and_update_shared<T: PartialEq + Send + Sync + 'static>(
-        &mut self,
-        ty: &'static SlotValueType,
-        new_content: T,
-    ) {
-        self.conditional_update_shared(ty, |old_content| {
-            if let Some(old_content) = old_content {
-                if PartialEq::eq(&new_content, old_content) {
-                    return None;
-                }
-            }
-            Some(new_content)
-        });
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -158,6 +84,74 @@ impl Display for SlotContent {
 }
 
 impl Slot {
+    pub fn new() -> Self {
+        Self {
+            content: SlotContent::Empty,
+            updates: 0,
+            dependent_tasks: Vec::new(),
+        }
+    }
+
+    pub fn conditional_update_shared<
+        T: Send + Sync + 'static,
+        F: FnOnce(Option<&T>) -> Option<T>,
+    >(
+        &mut self,
+        ty: &'static SlotValueType,
+        functor: F,
+    ) {
+        let change;
+        let mut _type_change = false;
+        match &self.content {
+            SlotContent::Empty | SlotContent::Link(_) => {
+                _type_change = true;
+                change = functor(None);
+            }
+            SlotContent::SharedReference(old_ty, old_content) => {
+                if *old_ty != ty {
+                    _type_change = true;
+                    change = functor(None);
+                } else {
+                    if let Some(old_content) = old_content.downcast_ref::<T>() {
+                        change = functor(Some(old_content));
+                    } else {
+                        panic!("This can't happen as the type is compared");
+                    }
+                }
+            }
+            SlotContent::Cloneable(old_ty, old_content) => {
+                if *old_ty != ty {
+                    _type_change = true;
+                    change = functor(None);
+                } else {
+                    if let Ok(old_content) = old_content.as_any().downcast::<T>() {
+                        change = functor(Some(&*old_content));
+                    } else {
+                        panic!("This can't happen as the type is compared");
+                    }
+                }
+            }
+        };
+        if let Some(new_content) = change {
+            self.assign(SlotContent::SharedReference(ty, Arc::new(new_content)))
+        }
+    }
+
+    pub fn compare_and_update_shared<T: PartialEq + Send + Sync + 'static>(
+        &mut self,
+        ty: &'static SlotValueType,
+        new_content: T,
+    ) {
+        self.conditional_update_shared(ty, |old_content| {
+            if let Some(old_content) = old_content {
+                if PartialEq::eq(&new_content, old_content) {
+                    return None;
+                }
+            }
+            Some(new_content)
+        });
+    }
+
     fn read<T: Any + Send + Sync>(&mut self, reader: &Arc<Task>) -> SlotReadResult<T> {
         self.dependent_tasks.push(Arc::downgrade(reader));
         match &self.content {
@@ -186,67 +180,43 @@ impl Slot {
         }
     }
 
-    pub fn assign_value(&mut self, content: SlotContent) {
-        self.assign_inner(content);
+    pub fn link(&mut self, target: SlotRef) {
+        let change;
+        let mut _type_change = false;
+        match &self.content {
+            SlotContent::Link(old_slot_ref) => {
+                if match (old_slot_ref, &target) {
+                    (SlotRef::TaskOutput(old_task), SlotRef::TaskOutput(new_task)) => {
+                        Arc::ptr_eq(old_task, new_task)
+                    }
+                    (
+                        SlotRef::TaskCreated(old_task, old_index),
+                        SlotRef::TaskCreated(new_task, new_index),
+                    ) => Arc::ptr_eq(old_task, new_task) && *old_index == *new_index,
+                    (SlotRef::Nothing, SlotRef::Nothing) => true,
+                    _ => false,
+                } {
+                    change = None;
+                } else {
+                    change = Some(target);
+                }
+            }
+            SlotContent::Empty
+            | SlotContent::SharedReference(_, _)
+            | SlotContent::Cloneable(_, _) => {
+                change = Some(target);
+            }
+        };
+        if let Some(target) = change {
+            self.assign(SlotContent::Link(target))
+        }
     }
 
-    // pub fn assign_link(&mut self, self_ref: SlotRef, slot_ref: SlotRef) {
-    //     if self_ref == slot_ref {
-    //         panic!("self assign");
-    //     }
-    //     assert!(self_ref != slot_ref);
-    //     match slot_ref {
-    //         SlotRef::TaskOutput(task) => {
-    //             task.clone().with_output_slot(move |slot| {
-    //                 let slot_ref = SlotRef::TaskOutput(task);
-    //                 let changed = if let Some(linked_slot_ref) = &self.linked_to_slot {
-    //                     *linked_slot_ref != slot_ref
-    //                 } else {
-    //                     true
-    //                 };
-    //                 if changed {
-    //                     // TODO disconnect
-    //                     self.linked_to_slot = None;
-    //                     slot.linked_slots.push(self_ref.clone());
-    //                     self.linked_to_slot = Some(slot_ref.clone());
-    //                 }
-    //                 self.assign_inner(slot.content.clone());
-    //             })
-    //         }
-    //         SlotRef::TaskCreated(task, index) => {
-    //             task.clone().with_created_slot(index, move |slot| {
-    //                 let slot_ref = SlotRef::TaskCreated(task, index);
-    //                 let changed = if let Some(linked_slot_ref) = &self.linked_to_slot {
-    //                     *linked_slot_ref != slot_ref
-    //                 } else {
-    //                     true
-    //                 };
-    //                 if changed {
-    //                     // TODO disconnect
-    //                     self.linked_to_slot = None;
-    //                     slot.linked_slots.push(self_ref.clone());
-    //                     self.linked_to_slot = Some(slot_ref.clone());
-    //                 }
-    //                 self.assign_inner(slot.content.clone());
-    //             });
-    //         }
-    //         SlotRef::SharedReference(node_type, data) => {
-    //             // TODO disconnect
-    //             self.linked_to_slot = None;
-    //             self.assign_inner(SlotContent::SharedReference(node_type, data.clone()));
-    //         }
-    //         SlotRef::CloneableData(node_type, data) => {
-    //             // TODO disconnect
-    //             self.linked_to_slot = None;
-    //             self.assign_inner(SlotContent::Cloneable(node_type, data.clone()));
-    //         }
-    //         SlotRef::Nothing => self.assign_inner(SlotContent::Empty),
-    //     };
-    // }
-
-    fn assign_inner(&mut self, content: SlotContent) {
+    pub fn assign(&mut self, content: SlotContent) {
         self.content = content;
-        // TODO notify self.dependent_tasks
+        self.updates += 1;
+        // notify
+        TurboTasks::schedule_notify_tasks(self.dependent_tasks.iter().filter_map(|t| t.upgrade()));
     }
 }
 
@@ -303,11 +273,13 @@ impl SlotRef {
         loop {
             match match current {
                 SlotRef::TaskOutput(task) => {
-                    task.wait_output().await;
-                    Task::with_current(|reader| {
-                        reader.add_dependency(WeakSlotRef::TaskOutput(Arc::downgrade(&task)));
-                        task.with_output_slot(|slot| slot.read(reader))
+                    task.with_done_output_slot(|slot| {
+                        Task::with_current(|reader| {
+                            reader.add_dependency(WeakSlotRef::TaskOutput(Arc::downgrade(&task)));
+                            slot.read(reader)
+                        })
                     })
+                    .await
                 }
                 SlotRef::TaskCreated(task, index) => Task::with_current(|reader| {
                     reader.add_dependency(WeakSlotRef::TaskCreated(Arc::downgrade(&task), index));
@@ -333,16 +305,39 @@ impl SlotRef {
         }
     }
 
-    pub async fn resolve(self) -> SlotRef {
+    pub async fn resolve_to_slot(self) -> SlotRef {
         let mut current = self;
         loop {
             current = match current {
                 SlotRef::TaskOutput(task) => {
-                    task.wait_output().await;
-                    Task::with_current(|reader| {
-                        reader.add_dependency(WeakSlotRef::TaskOutput(Arc::downgrade(&task)));
-                        task.with_output_slot(|slot| slot.resolve(reader))
+                    task.with_done_output_slot(|slot| {
+                        Task::with_current(|reader| {
+                            reader.add_dependency(WeakSlotRef::TaskOutput(Arc::downgrade(&task)));
+                            slot.resolve(reader)
+                        })
                     })
+                    .await
+                }
+                SlotRef::Nothing
+                | SlotRef::SharedReference(_, _)
+                | SlotRef::CloneableData(_, _)
+                | SlotRef::TaskCreated(_, _) => return current.clone(),
+            }
+        }
+    }
+
+    pub async fn resolve_to_value(self) -> SlotRef {
+        let mut current = self;
+        loop {
+            current = match current {
+                SlotRef::TaskOutput(task) => {
+                    task.with_done_output_slot(|slot| {
+                        Task::with_current(|reader| {
+                            reader.add_dependency(WeakSlotRef::TaskOutput(Arc::downgrade(&task)));
+                            slot.resolve(reader)
+                        })
+                    })
+                    .await
                 }
                 SlotRef::TaskCreated(task, index) => Task::with_current(|reader| {
                     reader.add_dependency(WeakSlotRef::TaskCreated(Arc::downgrade(&task), index));
@@ -408,21 +403,26 @@ impl SlotRef {
     pub fn get_snapshot_for_visualization(&self) -> SlotSnapshot {
         fn content_to_linked(content: &SlotContent) -> Option<SlotRef> {
             if let SlotContent::Link(slot_ref) = content {
-                Some(slot_ref.clone())
+                match slot_ref {
+                    SlotRef::TaskOutput(_) | SlotRef::TaskCreated(_, _) => Some(slot_ref.clone()),
+                    SlotRef::Nothing
+                    | SlotRef::SharedReference(_, _)
+                    | SlotRef::CloneableData(_, _) => None,
+                }
             } else {
                 None
             }
         }
         match self {
             SlotRef::TaskOutput(task) => task.with_output_slot(|slot| SlotSnapshot {
-                name: "output".to_string(),
+                name: "output slot".to_string(),
                 content: slot.content.to_string(),
                 updates: slot.updates,
                 linked_to_slot: content_to_linked(&slot.content),
             }),
             SlotRef::TaskCreated(task, index) => {
                 task.with_created_slot(*index, |slot| SlotSnapshot {
-                    name: format!("{}", index),
+                    name: format!("slot {}", index),
                     content: slot.content.to_string(),
                     updates: slot.updates,
                     linked_to_slot: content_to_linked(&slot.content),
@@ -541,7 +541,7 @@ impl WeakSlotRef {
         match self {
             WeakSlotRef::TaskOutput(task) => {
                 if let Some(task) = task.upgrade() {
-                    task.with_output_slot(|slot| remove_all(&mut slot.dependent_tasks, reader))
+                    task.with_output_slot_mut(|slot| remove_all(&mut slot.dependent_tasks, reader))
                 }
             }
             WeakSlotRef::TaskCreated(task, index) => {

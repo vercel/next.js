@@ -83,6 +83,7 @@ impl TurboTasks {
                 },
             });
         let task = result_task?;
+        Task::with_current(|parent| task.connect_parent(parent));
         task.ensure_scheduled(self);
         return Ok(SlotRef::TaskOutput(task));
     }
@@ -108,6 +109,7 @@ impl TurboTasks {
                 }
             });
         let task = result_task?;
+        Task::with_current(|parent| task.connect_parent(parent));
         task.ensure_scheduled(self);
         return Ok(SlotRef::TaskOutput(task));
     }
@@ -137,6 +139,7 @@ impl TurboTasks {
                 },
             );
         let task = result_task?;
+        Task::with_current(|parent| task.connect_parent(parent));
         task.ensure_scheduled(self);
         return Ok(SlotRef::TaskOutput(task));
     }
@@ -173,6 +176,17 @@ impl TurboTasks {
         });
     }
 
+    pub(crate) fn schedule_notify_tasks(tasks_iter: impl Iterator<Item = Arc<Task>>) {
+        TASKS_TO_NOTIFY.with(|tasks| {
+            let mut temp = Vec::new();
+            tasks.swap(Cell::from_mut(&mut temp));
+            for task in tasks_iter {
+                temp.push(task);
+            }
+            tasks.swap(Cell::from_mut(&mut temp));
+        });
+    }
+
     pub(crate) fn intern<
         T: Any + ?Sized,
         K: Hash + PartialEq + Eq + Send + Sync + 'static,
@@ -198,6 +212,20 @@ impl TurboTasks {
             },
         );
         result.unwrap()
+    }
+
+    pub fn cached_tasks_iter(&self) -> impl Iterator<Item = Arc<Task>> {
+        let mut tasks = Vec::new();
+        for (_, task) in self.resolve_task_cache.clone().into_iter() {
+            tasks.push(task);
+        }
+        for (_, task) in self.native_task_cache.clone().into_iter() {
+            tasks.push(task);
+        }
+        for (_, task) in self.trait_task_cache.clone().into_iter() {
+            tasks.push(task);
+        }
+        tasks.into_iter()
     }
 }
 

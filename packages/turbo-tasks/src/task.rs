@@ -6,7 +6,7 @@ use crate::{
 use any_key::AnyHash;
 use anyhow::{anyhow, Result};
 use async_std::task_local;
-use event_listener::Event;
+use event_listener::{Event, EventListener};
 use std::{
     any::{Any, TypeId},
     cell::Cell,
@@ -42,7 +42,7 @@ enum TaskType {
 pub struct Task {
     inputs: Vec<SlotRef>,
     ty: TaskType,
-    state: Mutex<TaskState>,
+    state: RwLock<TaskState>,
     // TODO use a concurrent set instead
     dependencies: RwLock<Vec<WeakSlotRef>>,
     previous_nodes: Mutex<PreviousNodesMap>,
@@ -57,16 +57,16 @@ impl Debug for Task {
             .iter()
             .filter_map(|i| i.upgrade())
             .collect();
-        let state = self.state.lock().unwrap();
+        let state = self.state.read().unwrap();
         let mut result = f.debug_struct("Task");
         result.field("state", &state.state_type);
-        result.field("output", &state.output_slot);
-        if state.children.len() > 0 {
-            result.field("children", &state.children);
-        }
-        if deps.len() > 0 {
-            result.field("dependencies", &deps);
-        }
+        // result.field("output", &state.output_slot);
+        // if state.children.len() > 0 {
+        //     result.field("children", &state.children);
+        // }
+        // if deps.len() > 0 {
+        //     result.field("dependencies", &deps);
+        // }
         result.finish()
     }
 }
@@ -86,7 +86,7 @@ struct TaskState {
     output_slot: Slot,
     created_slots: Vec<Slot>,
     event: Event,
-    executions: i32,
+    executions: u32,
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -216,7 +216,7 @@ impl Task {
     }
 
     pub(crate) fn execution_started(self: &Arc<Task>) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.write().unwrap();
         state.executions += 1;
         match state.state_type {
             Scheduled | InProgressLocallyOutdated => {
@@ -244,7 +244,7 @@ impl Task {
                 }
                 let weak_self = Arc::downgrade(self);
                 for child in children {
-                    let mut state = child.state.lock().unwrap();
+                    let mut state = child.state.write().unwrap();
                     remove_all(&mut state.parents, &weak_self);
                 }
 
@@ -266,14 +266,14 @@ impl Task {
         result: SlotRef,
         turbo_tasks: &'static TurboTasks,
     ) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.write().unwrap();
         match state.state_type {
             InProgressLocally => {
                 state.state_type = Done;
                 state.event.notify(usize::MAX);
                 let parents: Vec<Arc<Task>> =
                     state.parents.iter().filter_map(|p| p.upgrade()).collect();
-                state.output_slot.assign_value(SlotContent::Link(result));
+                state.output_slot.link(result);
                 drop(state);
                 for parent in parents.iter() {
                     parent.child_done(turbo_tasks);
@@ -296,7 +296,7 @@ impl Task {
 
     #[must_use]
     pub(crate) fn child_dirty(self: &Arc<Self>, turbo_tasks: &'static TurboTasks) -> bool {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.write().unwrap();
         match state.state_type {
             Dirty | Scheduled | InProgressLocallyOutdated => false,
             InProgressLocally => {
@@ -357,7 +357,7 @@ impl Task {
                     }
                     if !schedule {
                         // revert back to SomeChildrenDirty when no parent asked for scheduling
-                        let mut state = self.state.lock().unwrap();
+                        let mut state = self.state.write().unwrap();
                         state.state_type = SomeChildrenDirty;
                         drop(state);
                         false
@@ -370,7 +370,7 @@ impl Task {
     }
 
     pub(crate) fn child_done(&self, turbo_tasks: &'static TurboTasks) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.write().unwrap();
         match state.state_type {
             SomeChildrenDirty | SomeChildrenScheduled => {
                 state.dirty_children_count -= 1;
@@ -388,13 +388,14 @@ impl Task {
             }
             Dirty | InProgressLocally | InProgressLocallyOutdated | Scheduled => {}
             Done => {
-                panic!("Task child has become done while parent task was already done")
+                // TODO
+                // panic!("Task child has become done while parent task was already done")
             }
         }
     }
 
     fn schedule_dirty_children(self: Arc<Self>, turbo_tasks: &'static TurboTasks) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.write().unwrap();
         match state.state_type {
             Dirty => {
                 state.state_type = Scheduled;
@@ -420,11 +421,11 @@ impl Task {
     }
 
     fn make_dirty(self: &Arc<Self>, turbo_tasks: &'static TurboTasks) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.write().unwrap();
         match state.state_type {
             Dirty | Scheduled => {}
             SomeChildrenDirty => {
-                if state.has_side_effect || state.child_has_side_effect {
+                if state.has_side_effect || state.child_has_side_effect || true {
                     state.state_type = Scheduled;
                     drop(state);
                     turbo_tasks.schedule(self.clone());
@@ -437,7 +438,7 @@ impl Task {
                 state.state_type = InProgressLocallyOutdated;
             }
             Done => {
-                let has_side_effect = state.has_side_effect || state.child_has_side_effect;
+                let has_side_effect = state.has_side_effect || state.child_has_side_effect || true;
                 if has_side_effect {
                     state.state_type = Scheduled;
                 } else {
@@ -455,7 +456,7 @@ impl Task {
                 if has_side_effect {
                     turbo_tasks.schedule(self.clone());
                 } else if schedule {
-                    let mut state = self.state.lock().unwrap();
+                    let mut state = self.state.write().unwrap();
                     state.state_type = Scheduled;
                     drop(state);
                     turbo_tasks.schedule(self.clone());
@@ -531,7 +532,7 @@ impl Task {
                 Box::pin(async move {
                     let mut resolved_inputs = Vec::new();
                     for input in inputs.into_iter() {
-                        resolved_inputs.push(input.resolve().await)
+                        resolved_inputs.push(input.resolve_to_slot().await)
                     }
                     tt.native_call(native_fn, resolved_inputs).unwrap()
                 })
@@ -544,7 +545,7 @@ impl Task {
                     let mut resolved_inputs = Vec::new();
                     let mut iter = inputs.into_iter();
                     if let Some(this) = iter.next() {
-                        let this = this.resolve().await;
+                        let this = this.resolve_to_value().await;
                         // TODO avoid unwrap
                         let native_fn = this.get_trait_method(trait_type, name).unwrap();
                         resolved_inputs.push(this);
@@ -571,7 +572,7 @@ impl Task {
         let task = Task::current()
             .ok_or_else(|| anyhow!("tried to call Task::side_effect outside of a task"))
             .unwrap();
-        let mut state = task.state.lock().unwrap();
+        let mut state = task.state.write().unwrap();
         state.has_side_effect = true;
     }
 
@@ -579,8 +580,13 @@ impl Task {
         self.make_dirty(turbo_tasks)
     }
 
-    pub(crate) fn with_output_slot<T>(&self, func: impl FnOnce(&mut Slot) -> T) -> T {
-        let mut state = self.state.lock().unwrap();
+    pub(crate) fn with_output_slot<T>(&self, func: impl FnOnce(&Slot) -> T) -> T {
+        let state = self.state.read().unwrap();
+        func(&state.output_slot)
+    }
+
+    pub(crate) fn with_output_slot_mut<T>(&self, func: impl FnOnce(&mut Slot) -> T) -> T {
+        let mut state = self.state.write().unwrap();
         func(&mut state.output_slot)
     }
 
@@ -589,14 +595,14 @@ impl Task {
         index: usize,
         func: impl FnOnce(&mut Slot) -> T,
     ) -> T {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.write().unwrap();
         func(&mut state.created_slots[index])
     }
 
-    pub async fn wait_output(self: &Arc<Self>) {
+    pub async fn wait_done(self: &Arc<Self>) {
         loop {
             match {
-                let state = self.state.lock().unwrap();
+                let state = self.state.read().unwrap();
                 if state.state_type == TaskStateType::Done {
                     None
                 } else {
@@ -612,7 +618,7 @@ impl Task {
     }
 
     pub(crate) fn ensure_scheduled(self: &Arc<Self>, turbo_tasks: &'static TurboTasks) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.write().unwrap();
         match state.state_type {
             Done
             | InProgressLocally
@@ -639,16 +645,23 @@ impl Task {
     }
 
     pub fn get_snapshot_for_visualization(self: &Arc<Self>) -> TaskSnapshot {
-        let state = self.state.lock().unwrap();
+        let state = self.state.read().unwrap();
+        let mut slots: Vec<_> = state
+            .created_slots
+            .iter()
+            .enumerate()
+            .map(|(i, _)| SlotRef::TaskCreated(self.clone(), i))
+            .collect();
+        slots.push(SlotRef::TaskOutput(self.clone()));
         TaskSnapshot {
             children: state.children.clone(),
             dependencies: self.dependencies.read().unwrap().clone(),
             name: match &self.ty {
                 TaskType::Root(_) => "root".to_string(),
                 TaskType::Native(native_fn, _) => native_fn.name.clone(),
-                TaskType::ResolveNative(native_fn) => format!("resolve {}", native_fn.name),
+                TaskType::ResolveNative(native_fn) => format!("[resolve] {}", native_fn.name),
                 TaskType::ResolveTrait(trait_type, fn_name) => {
-                    format!("resolve {} in trait {}", fn_name, trait_type.name)
+                    format!("[resolve trait] {} in trait {}", fn_name, trait_type.name)
                 }
             },
             state: match state.state_type {
@@ -661,82 +674,77 @@ impl Task {
                 SomeChildrenScheduled => "some children scheduled".to_string(),
             },
             output_slot: SlotRef::TaskOutput(self.clone()),
-            slots: state
-                .created_slots
-                .iter()
-                .enumerate()
-                .map(|(i, _)| SlotRef::TaskCreated(self.clone(), i))
-                .collect(),
+            slots,
+            executions: state.executions,
         }
     }
 
-    // pub(crate) async fn into_output(
-    //     self: Arc<Self>,
-    //     turbo_tasks: &'static TurboTasks,
-    // ) -> Option<NodeRef> {
-    //     fn get_or_schedule(
-    //         this: &Arc<Task>,
-    //         turbo_tasks: &'static TurboTasks,
-    //     ) -> Result<Option<NodeRef>, EventListener> {
-    //         {
-    //             let mut state = this.state.lock().unwrap();
-    //             match state.state_type {
-    //                 Done => {
-    //                     let parent = Task::current()
-    //                         .ok_or_else(|| anyhow!("tried to call wait_output outside of a task"))
-    //                         .unwrap();
+    pub(crate) fn connect_parent(self: &Arc<Self>, parent: &Arc<Self>) {
+        let mut state = self.state.write().unwrap();
+        state.parents.push(Arc::downgrade(&parent));
+        drop(state);
 
-    //                     state.parents.push(Arc::downgrade(&parent));
-    //                     let arc = state.output.clone();
-    //                     let has_side_effect = state.has_side_effect || state.child_has_side_effect;
-    //                     drop(state);
+        let mut state = parent.state.write().unwrap();
+        state.children.push(self.clone());
+    }
 
-    //                     let mut parent_state = parent.state.lock().unwrap();
-    //                     parent_state.children.push(this.clone());
+    pub(crate) async fn with_done_output_slot<T>(
+        self: &Arc<Self>,
+        mut func: impl FnOnce(&mut Slot) -> T,
+    ) -> T {
+        fn get_or_schedule<T, F: FnOnce(&mut Slot) -> T>(
+            this: &Arc<Task>,
+            func: F,
+        ) -> Result<T, (F, EventListener)> {
+            {
+                let mut state = this.state.write().unwrap();
+                match state.state_type {
+                    Done => {
+                        let result = func(&mut state.output_slot);
+                        drop(state);
 
-    //                     // propagate side effect
-    //                     if has_side_effect {
-    //                         parent_state.child_has_side_effect = true;
-    //                     }
-
-    //                     Ok(arc)
-    //                 }
-    //                 InProgressLocally
-    //                 | InProgressLocallyOutdated
-    //                 | Scheduled
-    //                 | SomeChildrenScheduled => {
-    //                     let listener = state.event.listen();
-    //                     drop(state);
-    //                     Err(listener)
-    //                 }
-    //                 Dirty => {
-    //                     state.state_type = Scheduled;
-    //                     let listener = state.event.listen();
-    //                     drop(state);
-    //                     turbo_tasks.schedule(this.clone());
-    //                     Err(listener)
-    //                 }
-    //                 SomeChildrenDirty => {
-    //                     state.state_type = SomeChildrenScheduled;
-    //                     let listener = state.event.listen();
-    //                     let children: Vec<Arc<Task>> =
-    //                         state.children.iter().map(|arc| arc.clone()).collect();
-    //                     drop(state);
-    //                     for child in children.into_iter() {
-    //                         child.schedule_dirty_children(turbo_tasks);
-    //                     }
-    //                     Err(listener)
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     loop {
-    //         match get_or_schedule(&self, turbo_tasks) {
-    //             Ok(arc) => return arc,
-    //             Err(listener) => listener.await,
-    //         }
-    //     }
-    // }
+                        Ok(result)
+                    }
+                    InProgressLocally
+                    | InProgressLocallyOutdated
+                    | Scheduled
+                    | SomeChildrenScheduled => {
+                        let listener = state.event.listen();
+                        drop(state);
+                        Err((func, listener))
+                    }
+                    Dirty => {
+                        state.state_type = Scheduled;
+                        let listener = state.event.listen();
+                        drop(state);
+                        TurboTasks::current().unwrap().schedule(this.clone());
+                        Err((func, listener))
+                    }
+                    SomeChildrenDirty => {
+                        state.state_type = SomeChildrenScheduled;
+                        let listener = state.event.listen();
+                        let children: Vec<Arc<Task>> =
+                            state.children.iter().map(|arc| arc.clone()).collect();
+                        drop(state);
+                        let turbo_tasks = TurboTasks::current().unwrap();
+                        for child in children.into_iter() {
+                            child.schedule_dirty_children(turbo_tasks);
+                        }
+                        Err((func, listener))
+                    }
+                }
+            }
+        }
+        loop {
+            match get_or_schedule(&self, func) {
+                Ok(result) => return result,
+                Err((func_back, listener)) => {
+                    func = func_back;
+                    listener.await;
+                }
+            }
+        }
+    }
 }
 
 impl Display for Task {
@@ -747,12 +755,12 @@ impl Display for Task {
             match &self.ty {
                 TaskType::Root(_) => "root".to_string(),
                 TaskType::Native(native_fn, _) => native_fn.name.clone(),
-                TaskType::ResolveNative(native_fn) => format!("resolve {}", native_fn.name),
+                TaskType::ResolveNative(native_fn) => format!("[resolve] {}", native_fn.name),
                 TaskType::ResolveTrait(trait_type, fn_name) => {
-                    format!("resolve {} in trait {}", fn_name, trait_type.name)
+                    format!("[resolve trait] {} in trait {}", fn_name, trait_type.name)
                 }
             },
-            match self.state.lock().unwrap().state_type {
+            match self.state.read().unwrap().state_type {
                 Scheduled => "scheduled".to_string(),
                 InProgressLocally => "in progress (locally)".to_string(),
                 InProgressLocallyOutdated => "in progress (locally, outdated)".to_string(),
@@ -794,7 +802,7 @@ pub(crate) fn match_previous_node_by_key<
                 map.by_key
                     .entry(Box::new((TypeId::of::<T>(), key))
                         as Box<dyn AnyHash + Sync + Send + 'static>);
-            let mut state = task.state.lock().unwrap();
+            let mut state = task.state.write().unwrap();
             let index = entry.or_insert_with(|| {
                 let index = state.created_slots.len();
                 state.created_slots.push(Slot::new());
@@ -821,12 +829,13 @@ pub(crate) fn match_previous_node_by_type<T: Any + ?Sized, F: FnOnce(&mut Slot)>
                 .entry(TypeId::of::<T>())
                 .or_insert_with(Default::default);
             let (ref mut index, ref mut list) = list;
-            let mut state = task.state.lock().unwrap();
+            let mut state = task.state.write().unwrap();
             let slot_index = match list.get_mut(*index) {
                 Some(slot_index) => *slot_index,
                 None => {
                     let index = state.created_slots.len();
                     state.created_slots.push(Slot::new());
+                    list.push(index);
                     index
                 }
             };
@@ -842,13 +851,14 @@ pub(crate) fn match_previous_node_by_type<T: Any + ?Sized, F: FnOnce(&mut Slot)>
 
 pub enum TaskArgumentOptions {
     Unresolved,
+    Slot,
     Resolved(&'static SlotValueType),
     Trait(&'static TraitType),
 }
 
 // impl Visualizable for Task {
 //     fn visualize(&self, visualizer: &mut impl crate::viz::Visualizer) {
-//         let state = self.state.lock().unwrap();
+//         let state = self.state.read().unwrap();
 //         let state_str = if state.state_type == Done && state.executions <= 1 {
 //             "".to_string()
 //         } else {
