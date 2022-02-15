@@ -92,7 +92,7 @@ async function parseImportsInfo(
         }
 
         lastIndex = node.source.span.end - beginPos
-        imports.push(`require(${JSON.stringify(importSource)})`)
+        imports.push(importSource)
         continue
       }
       case 'ExportDefaultDeclaration': {
@@ -154,7 +154,12 @@ export default async function transformSource(
    *
    * Server compilation output:
    *   export default function ServerComponent() { ... }
-   *   export const __rsc_noop__ = () => { ... }
+   *
+   *   export const __rsc_noop__ = () => {
+   *     import(/* webpackMode: "eager" *\/ 'dependency1')
+   *     import(/* webpackMode: "eager" *\/ 'dependency2')
+   *   }
+   *
    *   ServerComponent.__next_rsc__ = 1
    *   ServerComponent.__webpack_require__ = __webpack_require__
    *
@@ -162,7 +167,18 @@ export default async function transformSource(
    *   The function body of Server Component will be removed
    */
 
-  const noop = `export const __rsc_noop__=()=>{${imports.join(';')}}`
+  const noop = imports.length
+    ? `export const __rsc_noop__ = () => {` +
+      imports
+        .map(
+          (importSource) =>
+            `import(/* webpackMode: "eager" */ ${JSON.stringify(
+              importSource
+            )});`
+        )
+        .join('\n') +
+      `\n}\n`
+    : ''
 
   let defaultExportNoop = ''
   if (isClientCompilation) {

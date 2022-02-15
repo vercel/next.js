@@ -1,5 +1,8 @@
-export default function foo() {
-  return 'foo.client'
+import { useState } from 'react'
+
+export default function Foo() {
+  const [value] = useState('foo.client')
+  return value
 }
 
 export const config = 'this is not page config'
