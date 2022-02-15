@@ -39,8 +39,9 @@ import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
-import isError from '../../lib/is-error'
+import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
+import { promises as fs } from 'fs'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -148,7 +149,7 @@ export default class HotReloader {
   private pagesDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
   private config: NextConfigComplete
-  private webServerRuntime: boolean
+  private runtime?: 'nodejs' | 'edge'
   private hasServerComponents: boolean
   public clientStats: webpack5.Stats | null
   public serverStats: webpack5.Stats | null
@@ -189,10 +190,9 @@ export default class HotReloader {
     this.serverPrevDocumentHash = null
 
     this.config = config
-    this.webServerRuntime = !!config.experimental.concurrentFeatures
+    this.runtime = config.experimental.runtime
     this.hasServerComponents = !!(
-      config.experimental.concurrentFeatures &&
-      config.experimental.serverComponents
+      this.runtime && config.experimental.serverComponents
     )
     this.previewProps = previewProps
     this.rewrites = rewrites
@@ -249,10 +249,7 @@ export default class HotReloader {
         try {
           await this.ensurePage(page, true)
         } catch (error) {
-          await renderScriptError(
-            pageBundleRes,
-            isError(error) ? error : new Error(error + '')
-          )
+          await renderScriptError(pageBundleRes, getProperError(error))
           return { finished: true }
         }
 
@@ -320,7 +317,7 @@ export default class HotReloader {
             this.config.pageExtensions,
             {
               isDev: true,
-              hasConcurrentFeatures: this.webServerRuntime,
+              runtime: this.config.experimental.runtime,
               hasServerComponents: this.hasServerComponents,
             }
           )
@@ -364,16 +361,18 @@ export default class HotReloader {
                 entrypoints: entrypoints.server,
                 runWebpackSpan: this.hotReloaderSpan,
               }),
-              this.webServerRuntime
+              // For the edge runtime, we need an extra compiler to generate the
+              // web-targeted server bundle for now.
+              this.runtime === 'edge'
                 ? getBaseWebpackConfig(this.dir, {
                     dev: true,
                     isServer: true,
-                    webServerRuntime: true,
+                    isEdgeRuntime: true,
                     config: this.config,
                     buildId: this.buildId,
                     pagesDir: this.pagesDir,
                     rewrites: this.rewrites,
-                    entrypoints: entrypoints.serverWeb,
+                    entrypoints: entrypoints.edgeServer,
                     runWebpackSpan: this.hotReloaderSpan,
                   })
                 : null,
@@ -434,6 +433,15 @@ export default class HotReloader {
     startSpan.stop() // Stop immediately to create an artificial parent span
 
     await this.clean(startSpan)
+    // Ensure distDir exists before writing package.json
+    await fs.mkdir(this.config.distDir, { recursive: true })
+
+    // Ensure commonjs handling is used for files in the distDir (generally .next)
+    // Files outside of the distDir can be "type": "module"
+    await fs.writeFile(
+      join(this.config.distDir, 'package.json'),
+      '{"type": "commonjs"}'
+    )
 
     const configs = await this.getWebpackConfig(startSpan)
 
@@ -443,20 +451,22 @@ export default class HotReloader {
         // @ts-ignore entry is always a function
         const entrypoints = await defaultEntry(...args)
         const isClientCompilation = config.name === 'client'
-        const isServerCompilation = config.name === 'server'
-        const isServerWebCompilation = config.name === 'server-web'
+        const isNodeServerCompilation = config.name === 'server'
+        const isEdgeServerCompilation = config.name === 'edge-server'
 
         await Promise.all(
           Object.keys(entries).map(async (pageKey) => {
             const isClientKey = pageKey.startsWith('client')
-            const isServerWebKey = pageKey.startsWith('server-web')
+            const isEdgeServerKey = pageKey.startsWith('edge-server')
+
             if (isClientKey !== isClientCompilation) return
-            if (isServerWebKey !== isServerWebCompilation) return
+            if (isEdgeServerKey !== isEdgeServerCompilation) return
+
             const page = pageKey.slice(
               isClientKey
                 ? 'client'.length
-                : isServerWebKey
-                ? 'server-web'.length
+                : isEdgeServerKey
+                ? 'edge-server'.length
                 : 'server'.length
             )
             const isMiddleware = !!page.match(MIDDLEWARE_ROUTE)
@@ -486,8 +496,8 @@ export default class HotReloader {
               isFlightPage(this.config, absolutePagePath)
 
             if (
-              isServerCompilation &&
-              this.webServerRuntime &&
+              isNodeServerCompilation &&
+              this.runtime === 'edge' &&
               !isApiRoute &&
               !isCustomError
             ) {
@@ -517,18 +527,20 @@ export default class HotReloader {
               if (isServerComponent) {
                 ssrEntries.set(bundlePath, { requireFlightManifest: true })
               } else if (
-                this.webServerRuntime &&
+                this.runtime === 'edge' &&
                 !isReserved &&
                 !isCustomError
               ) {
                 ssrEntries.set(bundlePath, { requireFlightManifest: false })
               }
-            } else if (isServerWebCompilation) {
+            } else if (isEdgeServerCompilation) {
               if (!isReserved) {
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   name: '[name].js',
                   value: `next-middleware-ssr-loader?${stringify({
+                    dev: true,
                     page,
+                    stringifiedConfig: JSON.stringify(this.config),
                     absoluteAppPath: this.pagesMapping['/_app'],
                     absoluteDocumentPath: this.pagesMapping['/_document'],
                     absoluteErrorPath: this.pagesMapping['/_error'],
@@ -536,16 +548,9 @@ export default class HotReloader {
                     absolutePagePath,
                     isServerComponent,
                     buildId: this.buildId,
-                    basePath: this.config.basePath,
-                    assetPrefix: this.config.assetPrefix,
-                    generateEtags: this.config.generateEtags,
-                    poweredByHeader: this.config.poweredByHeader,
-                    canonicalBase: this.config.amp.canonicalBase,
-                    i18n: this.config.i18n,
-                    previewProps: this.previewProps,
                   } as any)}!`,
                   isServer: false,
-                  isServerWeb: true,
+                  isEdgeServer: true,
                 })
               }
             } else {

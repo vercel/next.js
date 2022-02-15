@@ -30,9 +30,9 @@ DB_USER=myuser
 DB_PASS=mypassword
 ```
 
-This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in [Next.js data fetching methods](/docs/basic-features/data-fetching.md) and [API routes](/docs/api-routes/introduction.md).
+This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in [Next.js data fetching methods](/docs/basic-features/data-fetching/overview.md) and [API routes](/docs/api-routes/introduction.md).
 
-For example, using [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation):
+For example, using [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md):
 
 ```js
 // pages/index.js
@@ -112,7 +112,7 @@ Next.js allows you to set defaults in `.env` (all environments), `.env.developme
 
 `.env.local` always overrides the defaults set.
 
-> **Note**: `.env`, `.env.development`, and `.env.production` files should be included in your repository as they define defaults. **`.env.*.local` should be added to `.gitignore`**, as those files are intended to be ignored. `.env.local` is where secrets can be stored.
+> **Note**: `.env`, `.env.development`, and `.env.production` files should be included in your repository as they define defaults. **`.env*.local` should be added to `.gitignore`**, as those files are intended to be ignored. `.env.local` is where secrets can be stored.
 
 ## Environment Variables on Vercel
 
@@ -149,3 +149,29 @@ export default async () => {
   loadEnvConfig(projectDir)
 }
 ```
+
+## Environment Variable Load Order
+
+Depending on the environment (as set by `NODE_ENV`), Environment Variables are loaded from the following sources in top-to-bottom order. In all environments, the existing `env` is not overridden by following sources:
+
+`NODE_ENV=production`
+
+1. `.env.production.local`
+1. `.env.local`
+1. `.env.production`
+1. `.env`
+
+`NODE_ENV=development`
+
+1. `.env.development.local`
+1. `.env.local`
+1. `.env.development`
+1. `.env`
+
+`NODE_ENV=test`
+
+1. `.env.test.local`
+1. `.env.test`
+1. `.env`
+
+> **Note:** `.env.local` is not loaded when `NODE_ENV=test`.

@@ -494,9 +494,10 @@ export class Head extends Component<
       useMaybeDeferContent,
       optimizeCss,
       optimizeFonts,
-      optimizeImages,
-      concurrentFeatures,
+      runtime,
     } = this.context
+
+    const hasConcurrentFeatures = !!runtime
 
     const disableRuntimeJS = unstable_runtimeJS === false
     const disableJsPreload =
@@ -663,7 +664,7 @@ export class Head extends Component<
 
       return (
         <head {...this.props}>
-          {!concurrentFeatures && this.context.isDevelopment && (
+          {!hasConcurrentFeatures && this.context.isDevelopment && (
             <>
               <style
                 data-next-hide-fouc
@@ -684,10 +685,10 @@ export class Head extends Component<
               </noscript>
             </>
           )}
+          {!isDeferred && getDynamicHeadContent()}
+
           {children}
           {optimizeFonts && <meta name="next-font-preconnect" />}
-
-          {!isDeferred && getDynamicHeadContent()}
 
           {inAmpMode && (
             <>
@@ -735,7 +736,6 @@ export class Head extends Component<
               )}
               {!optimizeCss && this.getCssLinks(files)}
               {!optimizeCss && <noscript data-n-css={this.props.nonce ?? ''} />}
-              {optimizeImages && <meta name="next-image-preload" />}
 
               {!isDeferred && getDynamicScriptPreloads()}
 
@@ -816,7 +816,7 @@ export class NextScript extends Component<OriginProps> {
 
       return htmlEscapeJsonString(data)
     } catch (err) {
-      if (isError(err) && err.message.indexOf('circular structure')) {
+      if (isError(err) && err.message.indexOf('circular structure') !== -1) {
         throw new Error(
           `Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://nextjs.org/docs/messages/circular-structure`
         )

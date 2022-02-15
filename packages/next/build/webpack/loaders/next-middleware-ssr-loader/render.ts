@@ -1,11 +1,21 @@
+import type { NextConfig } from '../../../../server/config-shared'
+import type { DocumentType, AppType } from '../../../../shared/lib/utils'
+import type { BuildManifest } from '../../../../server/get-page-files'
+import type { ReactLoadableManifest } from '../../../../server/load-components'
+
 import { NextRequest } from '../../../../server/web/spec-extension/request'
-import { renderToHTML } from '../../../../server/web/render'
-import RenderResult from '../../../../server/render-result'
 import { toNodeHeaders } from '../../../../server/web/utils'
+
+import WebServer from '../../../../server/web-server'
+import {
+  WebNextRequest,
+  WebNextResponse,
+} from '../../../../server/base-http/web'
 
 const createHeaders = (args?: any) => ({
   ...args,
   'x-middleware-ssr': '1',
+  'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
 })
 
 function sendError(req: any, error: Error) {
@@ -16,27 +26,102 @@ function sendError(req: any, error: Error) {
   })
 }
 
+// Polyfilled for `path-browserify` inside the Web Server.
+process.cwd = () => ''
+
 export function getRender({
-  App,
-  Document,
+  dev,
+  page,
   pageMod,
   errorMod,
-  rscManifest,
+  error500Mod,
+  Document,
+  App,
   buildManifest,
   reactLoadableManifest,
+  serverComponentManifest,
   isServerComponent,
-  restRenderOpts,
+  config,
+  buildId,
 }: {
-  App: any
-  Document: any
+  dev: boolean
+  page: string
   pageMod: any
   errorMod: any
-  rscManifest: object
-  buildManifest: any
-  reactLoadableManifest: any
+  error500Mod: any
+  Document: DocumentType
+  App: AppType
+  buildManifest: BuildManifest
+  reactLoadableManifest: ReactLoadableManifest
+  serverComponentManifest: any | null
   isServerComponent: boolean
-  restRenderOpts: any
+  config: NextConfig
+  buildId: string
 }) {
+  const baseLoadComponentResult = {
+    dev,
+    buildManifest,
+    reactLoadableManifest,
+    Document,
+    App,
+  }
+
+  const server = new WebServer({
+    conf: config,
+    minimalMode: true,
+    webServerConfig: {
+      extendRenderOpts: {
+        buildId,
+        reactRoot: true,
+        runtime: 'edge',
+        supportsDynamicHTML: true,
+        disableOptimizedLoading: true,
+        serverComponentManifest,
+      },
+      loadComponent: async (pathname) => {
+        if (pathname === page) {
+          return {
+            ...baseLoadComponentResult,
+            Component: pageMod.default,
+            pageConfig: pageMod.config || {},
+            getStaticProps: pageMod.getStaticProps,
+            getServerSideProps: pageMod.getServerSideProps,
+            getStaticPaths: pageMod.getStaticPaths,
+            ComponentMod: pageMod,
+          }
+        }
+
+        // If there is a custom 500 page, we need to handle it separately.
+        if (pathname === '/500' && error500Mod) {
+          return {
+            ...baseLoadComponentResult,
+            Component: error500Mod.default,
+            pageConfig: error500Mod.config || {},
+            getStaticProps: error500Mod.getStaticProps,
+            getServerSideProps: error500Mod.getServerSideProps,
+            getStaticPaths: error500Mod.getStaticPaths,
+            ComponentMod: error500Mod,
+          }
+        }
+
+        if (pathname === '/_error') {
+          return {
+            ...baseLoadComponentResult,
+            Component: errorMod.default,
+            pageConfig: errorMod.config || {},
+            getStaticProps: errorMod.getStaticProps,
+            getServerSideProps: errorMod.getServerSideProps,
+            getStaticPaths: errorMod.getStaticPaths,
+            ComponentMod: errorMod,
+          }
+        }
+
+        return null
+      },
+    },
+  })
+  const requestHandler = server.getRequestHandler()
+
   return async function render(request: NextRequest) {
     const { nextUrl: url, cookies, headers } = request
     const { pathname, searchParams } = url
@@ -55,9 +140,10 @@ export function getRender({
       })
     }
 
+    // @TODO: We should move this into server/render.
     if (Document.getInitialProps) {
       const err = new Error(
-        '`getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
+        '`getInitialProps` in Document component is not supported with the Edge Runtime.'
       )
       return sendError(req, err)
     }
@@ -71,92 +157,15 @@ export function getRender({
         ? JSON.parse(query.__props__)
         : undefined
 
-    delete query.__flight__
-    delete query.__props__
-
-    const renderOpts = {
-      ...restRenderOpts,
-      // Locales are not supported yet.
-      // locales: i18n?.locales,
-      // locale: detectedLocale,
-      // defaultLocale,
-      // domainLocales: i18n?.domains,
-      dev: process.env.NODE_ENV !== 'production',
-      App,
-      Document,
-      buildManifest,
-      Component: pageMod.default,
-      pageConfig: pageMod.config || {},
-      getStaticProps: pageMod.getStaticProps,
-      getServerSideProps: pageMod.getServerSideProps,
-      getStaticPaths: pageMod.getStaticPaths,
-      reactLoadableManifest,
-      env: process.env,
-      supportsDynamicHTML: true,
-      concurrentFeatures: true,
-      // When streaming, opt-out the `defer` behavior for script tags.
-      disableOptimizedLoading: true,
+    // Extend the render options.
+    server.updateRenderOpts({
       renderServerComponentData,
       serverComponentProps,
-      serverComponentManifest: isServerComponent ? rscManifest : null,
-      ComponentMod: null,
-    }
-
-    const transformStream = new TransformStream()
-    const writer = transformStream.writable.getWriter()
-    const encoder = new TextEncoder()
-
-    let result: RenderResult | null
-    let renderError: any
-    try {
-      result = await renderToHTML(
-        req as any,
-        {} as any,
-        pathname,
-        query,
-        renderOpts
-      )
-    } catch (err: any) {
-      console.error(
-        'An error occurred while rendering the initial result:',
-        err
-      )
-      const errorRes = { statusCode: 500, err }
-      renderError = err
-      try {
-        req.url = '/_error'
-        result = await renderToHTML(
-          req as any,
-          errorRes as any,
-          '/_error',
-          query,
-          {
-            ...renderOpts,
-            err,
-            Component: errorMod.default,
-            getStaticProps: errorMod.getStaticProps,
-            getServerSideProps: errorMod.getServerSideProps,
-            getStaticPaths: errorMod.getStaticPaths,
-          }
-        )
-      } catch (err2: any) {
-        return sendError(req, err2)
-      }
-    }
-
-    if (!result) {
-      return sendError(req, new Error('No result returned from render.'))
-    }
-
-    result.pipe({
-      write: (str: string) => writer.write(encoder.encode(str)),
-      end: () => writer.close(),
-      // Not implemented: cork/uncork/on/removeListener
-    } as any)
-
-    return new Response(transformStream.readable, {
-      headers: createHeaders(),
-      status: renderError ? 500 : 200,
     })
+
+    const extendedReq = new WebNextRequest(request)
+    const extendedRes = new WebNextResponse()
+    requestHandler(extendedReq, extendedRes)
+    return await extendedRes.toResponse()
   }
 }

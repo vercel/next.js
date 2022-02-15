@@ -15,7 +15,44 @@
             },
             {
               "title": "Data Fetching",
-              "path": "/docs/basic-features/data-fetching.md"
+              "routes": [
+                {
+                  "path": "/docs/basic-features/data-fetching",
+                  "redirect": {
+                    "destination": "/docs/basic-features/data-fetching/overview"
+                  }
+                },
+                {
+                  "path": "/docs/basic-features/data-fetching/index",
+                  "redirect": {
+                    "destination": "/docs/basic-features/data-fetching/overview"
+                  }
+                },
+                {
+                  "title": "Overview",
+                  "path": "/docs/basic-features/data-fetching/overview.md"
+                },
+                {
+                  "title": "getServerSideProps",
+                  "path": "/docs/basic-features/data-fetching/get-server-side-props.md"
+                },
+                {
+                  "title": "getStaticPaths",
+                  "path": "/docs/basic-features/data-fetching/get-static-paths.md"
+                },
+                {
+                  "title": "getStaticProps",
+                  "path": "/docs/basic-features/data-fetching/get-static-props.md"
+                },
+                {
+                  "title": "Incremental Static Regeneration",
+                  "path": "/docs/basic-features/data-fetching/incremental-static-regeneration.md"
+                },
+                {
+                  "title": "Client side",
+                  "path": "/docs/basic-features/data-fetching/client-side.md"
+                }
+              ]
             },
             {
               "title": "Built-in CSS Support",
@@ -32,10 +69,6 @@
             {
               "title": "Font Optimization",
               "path": "/docs/basic-features/font-optimization.md"
-            },
-            {
-              "title": "Script Optimization",
-              "path": "/docs/basic-features/script.md"
             },
             {
               "title": "Static File Serving",
@@ -60,6 +93,10 @@
             {
               "title": "Supported Browsers and Features",
               "path": "/docs/basic-features/supported-browsers-features.md"
+            },
+            {
+              "title": "Handling Scripts",
+              "path": "/docs/basic-features/script.md"
             }
           ]
         },
@@ -124,6 +161,15 @@
         {
           "title": "Testing",
           "path": "/docs/testing.md"
+        },
+        {
+          "title": "Guides",
+          "routes": [
+            {
+              "title": "Building Forms",
+              "path": "/docs/guides/building-forms.md"
+            }
+          ]
         },
         {
           "title": "Advanced Features",
@@ -321,7 +367,19 @@
           "routes": [
             {
               "title": "getInitialProps",
-              "path": "/docs/api-reference/data-fetching/getInitialProps.md"
+              "path": "/docs/api-reference/data-fetching/get-initial-props.md"
+            },
+            {
+              "title": "getServerSideProps",
+              "path": "/docs/api-reference/data-fetching/get-server-side-props.md"
+            },
+            {
+              "title": "getStaticPaths",
+              "path": "/docs/api-reference/data-fetching/get-static-paths.md"
+            },
+            {
+              "title": "getStaticProps",
+              "path": "/docs/api-reference/data-fetching/get-static-props.md"
             }
           ]
         },
