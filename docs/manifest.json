@@ -33,16 +33,16 @@
                   "path": "/docs/basic-features/data-fetching/overview.md"
                 },
                 {
+                  "title": "getStaticProps",
+                  "path": "/docs/basic-features/data-fetching/get-static-props.md"
+                },
+                {
                   "title": "getServerSideProps",
                   "path": "/docs/basic-features/data-fetching/get-server-side-props.md"
                 },
                 {
                   "title": "getStaticPaths",
                   "path": "/docs/basic-features/data-fetching/get-static-paths.md"
-                },
-                {
-                  "title": "getStaticProps",
-                  "path": "/docs/basic-features/data-fetching/get-static-props.md"
                 },
                 {
                   "title": "Incremental Static Regeneration",

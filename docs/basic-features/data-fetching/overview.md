@@ -23,10 +23,11 @@ description: 'Next.js allows you to fetch data in multiple ways, with pre-render
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-graphcms">GraphCMS Example</a> (<a href="https://next-blog-graphcms.vercel.app/">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-kontent">Kontent Example</a> (<a href="https://next-blog-kontent.vercel.app/">Demo</a>)</li>
     <li><a href="https://static-tweet.vercel.app/">Static Tweet Demo</a></li>
+    <li><a href="https://reactions-demo.vercel.app/">GitHub Reactions Demo</a></li>
   </ul>
 </details>
 
-Data fetching in Next.js allows you to render your content in different ways, depending on your application's use case. These include pre-rendering with **Server-side Rendering** or **Static Generation**, and updating or creating content at runtime with **Incremental Static Regeneration**.
+Data fetching in Next.js allows you to render your content in different ways, depending on your application's use case. These include pre-rendering with **Server-side Rendering** or **Static Generation**, updating or creating content at runtime with **Incremental Static Regeneration**, and traditional fetching on the client side.
 
 <div class="card">
   <a href="/docs/basic-features/data-fetching/get-server-side-props.md">

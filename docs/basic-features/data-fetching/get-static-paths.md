@@ -35,7 +35,7 @@ You should use `getStaticPaths` if you’re statically pre-rendering pages that 
 
 ## When does getStaticPaths run
 
-`getStaticPaths` only runs at build time on server-side. If you're using [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md), `getStaticPaths` can also be run on-demand _in the background_, but still only on the server-side.
+`getStaticPaths` only runs at build time on the server-side. If you're using [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md), `getStaticPaths` can also be run on-demand _in the background_, but still only on the server-side.
 
 ## Where can I use getStaticPaths
 

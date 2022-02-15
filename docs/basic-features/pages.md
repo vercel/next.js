@@ -6,7 +6,7 @@ description: Next.js pages are React Components exported in a file in the pages 
 
 > This document is for Next.js versions 9.3 and up. If you're using older versions of Next.js, refer to our [previous documentation](https://nextjs.org/docs/tag/v9.2.2/basic-features/pages).
 
-In Next.js, a **page** is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.jsx`, `.ts`, or `.tsx` file in the `pages` directory. Each page is associated with a route based on its file name.
+In Next.js, a **page** is a [React Component](https://beta.reactjs.org/learn/your-first-component) exported from a `.js`, `.jsx`, `.ts`, or `.tsx` file in the `pages` directory. Each page is associated with a route based on its file name.
 
 **Example**: If you create `pages/about.js` that exports a React component like below, it will be accessible at `/about`.
 
@@ -22,13 +22,13 @@ export default About
 
 Next.js supports pages with dynamic routes. For example, if you create a file called `pages/posts/[id].js`, then it will be accessible at `posts/1`, `posts/2`, etc.
 
-> To learn more about dynamic routing, check the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md).
+> To learn more about dynamic routing, check the [Dynamic Routes documentation](/docs/routing/dynamic-routes.md).
 
 ## Pre-rendering
 
 By default, Next.js **pre-renders** every page. This means that Next.js generates HTML for each page in advance, instead of having it all done by client-side JavaScript. Pre-rendering can result in better performance and SEO.
 
-Each generated HTML is associated with minimal JavaScript code necessary for that page. When a page is loaded by the browser, its JavaScript code runs and makes the page fully interactive. (This process is called _hydration_.)
+Each generated HTML is associated with minimal JavaScript code necessary for that page. When a page is loaded by the browser, its JavaScript code runs and makes the page fully interactive (This process is called _hydration_).
 
 ### Two forms of Pre-rendering
 
@@ -37,9 +37,9 @@ Next.js has two forms of pre-rendering: **Static Generation** and **Server-side 
 - [**Static Generation (Recommended)**](#static-generation-recommended): The HTML is generated at **build time** and will be reused on each request.
 - [**Server-side Rendering**](#server-side-rendering): The HTML is generated on **each request**.
 
-Importantly, Next.js lets you **choose** which pre-rendering form you'd like to use for each page. You can create a "hybrid" Next.js app by using Static Generation for most pages and using Server-side Rendering for others.
+Next.js conveniently lets you **choose** which pre-rendering form you'd like to use for each page. You can create a "hybrid" Next.js app by using Static Generation for most pages and using Server-side Rendering for others.
 
-We **recommend** using **Static Generation** over Server-side Rendering for performance reasons. Statically generated pages can be cached by CDN with no extra configuration to boost performance. However, in some cases, Server-side Rendering might be the only option.
+We **recommend** using **Static Generation** over Server-side Rendering for performance reasons. Statically generated pages can be cached by a CDN with no extra configuration to boost performance. However, in some cases, Server-side Rendering might be the only option.
 
 You can also use **Client-side Rendering** along with Static Generation or Server-side Rendering. That means some parts of a page can be rendered entirely by client side JavaScript. To learn more, take a look at the [Data Fetching](/docs/basic-features/data-fetching/client-side.md) documentation.
 
@@ -144,7 +144,7 @@ To learn more about how `getStaticProps` works, check out the [Data Fetching doc
 
 Next.js allows you to create pages with **dynamic routes**. For example, you can create a file called `pages/posts/[id].js` to show a single blog post based on `id`. This will allow you to show a blog post with `id: 1` when you access `posts/1`.
 
-> To learn more about dynamic routing, check the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md).
+> To learn more about dynamic routing, check the [Dynamic Routes documentation](/docs/routing/dynamic-routes.md).
 
 However, which `id` you want to pre-render at build time might depend on external data.
 
@@ -201,7 +201,7 @@ To learn more about how `getStaticPaths` works, check out the [Data Fetching doc
 
 ### When should I use Static Generation?
 
-We recommend using **Static Generation** (with and without data) whenever possible because your page can be built once and served by CDN, which makes it much faster than having a server render the page on every request.
+We recommend using **Static Generation** (with and without data) whenever possible because your page can be built once and served by a CDN, which makes it much faster than having a server render the page on every request.
 
 You can use Static Generation for many types of pages, including:
 
@@ -249,7 +249,7 @@ export default Page
 
 As you can see, `getServerSideProps` is similar to `getStaticProps`, but the difference is that `getServerSideProps` is run on every request instead of on build time.
 
-To learn more about how `getServerSideProps` works, check out our [Data Fetching documentation](/docs/basic-features/data-fetching/get-server-side-props.md)
+To learn more about how `getServerSideProps` works, check out our [Data Fetching documentation](/docs/basic-features/data-fetching/get-server-side-props.md).
 
 ## Summary
 
@@ -286,6 +286,6 @@ We recommend you to read the following sections next:
 <div class="card">
   <a href="/docs/basic-features/typescript.md#pages">
     <b>TypeScript:</b>
-    <small>Add TypeScript to your pages.</small>
+    <small>Learn how to add TypeScript to your pages.</small>
   </a>
 </div>

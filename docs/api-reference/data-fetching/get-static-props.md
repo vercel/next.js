@@ -60,7 +60,7 @@ export async function getStaticProps(context) {
 The `revalidate` property is the amount in seconds after which a page re-generation can occur (defaults to `false` or no revalidation).
 
 ```js
-// This function gets called at build time on server-side.
+// This function gets called at build time on the server-side.
 // It may be called again, on a serverless function, if
 // revalidation is enabled and a new request comes in
 export async function getStaticProps() {
@@ -161,7 +161,7 @@ function Blog({ posts }) {
   )
 }
 
-// This function gets called at build time on server-side.
+// This function gets called at build time on the server-side.
 // It won't be called on client-side, so you can even do
 // direct database queries.
 export async function getStaticProps() {
