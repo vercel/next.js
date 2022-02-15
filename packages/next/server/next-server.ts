@@ -8,8 +8,6 @@ import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { PrerenderManifest } from '../build'
 import type { Rewrite } from '../lib/load-custom-routes'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
-import { TransformStream } from 'next/dist/compiled/web-streams-polyfill/ponyfill'
-import NodeStreams from 'stream'
 
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -75,6 +73,7 @@ import { loadEnvConfig } from '@next/env'
 import { getCustomRoute } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
+import { clonableBodyForRequest } from './body-streams'
 
 export * from './base-server'
 
@@ -91,8 +90,6 @@ export interface NodeRequestHandler {
     parsedUrl?: NextUrlWithParsedQuery | undefined
   ): Promise<void>
 }
-
-type BodyStream = ReadableStream<Uint8Array>
 
 export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
@@ -1243,7 +1240,7 @@ export default class NextNodeServer extends BaseServer {
     const method = (params.request.method || 'GET').toUpperCase()
     let originalBody =
       method !== 'GET' && method !== 'HEAD'
-        ? teeableStream(requestToBodyStream(params.request.body))
+        ? clonableBodyForRequest(params.request.body)
         : undefined
 
     for (const middleware of this.middleware || []) {
@@ -1254,8 +1251,6 @@ export default class NextNodeServer extends BaseServer {
         }
 
         await this.ensureMiddleware(middleware.page, middleware.ssr)
-        const currentBody = originalBody?.duplicate()
-
         const middlewareInfo = this.getMiddlewareInfo(middleware.page)
 
         result = await run({
@@ -1272,7 +1267,7 @@ export default class NextNodeServer extends BaseServer {
             },
             url: url,
             page: page,
-            body: currentBody as unknown as ReadableStream<Uint8Array>,
+            body: originalBody?.cloneBodyStream(),
           },
           useCache: !this.nextConfig.experimental.runtime,
           onWarning: (warning: Error) => {
@@ -1309,13 +1304,7 @@ export default class NextNodeServer extends BaseServer {
       }
     }
 
-    if (originalBody) {
-      const noderequest = params.request as NodeNextRequest
-      noderequest.originalRequest = enhanceIncomingMessage(
-        noderequest.originalRequest,
-        originalBody.original()
-      )
-    }
+    originalBody?.finalize()
 
     return result
   }
@@ -1352,75 +1341,4 @@ export default class NextNodeServer extends BaseServer {
       this.warnIfQueryParametersWereDeleted = () => {}
     }
   }
-}
-
-/**
- * Creates a ReadableStream from a Node.js HTTP request
- */
-function requestToBodyStream(request: IncomingMessage): BodyStream {
-  const transform = new TransformStream<Uint8Array, Uint8Array>({
-    start(controller) {
-      request.on('data', (chunk) => controller.enqueue(chunk))
-      request.on('end', () => controller.terminate())
-      request.on('error', (err) => controller.error(err))
-    },
-  })
-
-  return transform.readable as unknown as ReadableStream<Uint8Array>
-}
-
-/**
- * A simple utility to take an original stream and have
- * an API to duplicate it without closing it or mutate any variables
- */
-function teeableStream<T>(originalStream: ReadableStream<T>): {
-  duplicate(): ReadableStream<T>
-  original(): ReadableStream<T>
-} {
-  return {
-    duplicate() {
-      const [stream1, stream2] = originalStream.tee()
-      originalStream = stream1
-      return stream2
-    },
-    original() {
-      return originalStream
-    },
-  }
-}
-
-function bodyStreamToNodeStream(bodyStream: BodyStream): NodeStreams.Readable {
-  const reader = bodyStream.getReader()
-  return NodeStreams.Readable.from(
-    (async function* () {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) {
-          return
-        }
-        yield value
-      }
-    })()
-  )
-}
-
-function enhanceIncomingMessage<T extends IncomingMessage>(
-  base: T,
-  body: BodyStream
-): T {
-  const stream = bodyStreamToNodeStream(body)
-  return new Proxy<T>(base, {
-    get(target, name) {
-      if (name in stream) {
-        const v = stream[name as keyof NodeStreams.Readable]
-        if (typeof v === 'function') {
-          return v.bind(stream)
-        } else {
-          return v
-        }
-      }
-
-      return target[name as keyof T]
-    },
-  })
 }
