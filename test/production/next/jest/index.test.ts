@@ -14,7 +14,7 @@ describe('next/jest', () => {
           import Image from "next/image"
           import img from "../public/vercel.svg"
           export function Img() {
-            return <Image src={img} alt="logo" width={24} height={24} />
+            return <Image src={img} alt="logo"/>
           }
         `,
         'components/comp.js': `
