@@ -6,6 +6,16 @@ import { NextResponse } from 'next/server'
 export async function middleware(request) {
   const url = request.nextUrl
 
+  if (
+    url.pathname.startsWith('/rewrites/about') &&
+    url.searchParams.has('override')
+  ) {
+    const isExternal = url.searchParams.get('override') === 'external'
+    return NextResponse.rewrite(
+      isExternal ? 'https://vercel.com' : '/rewrites/a'
+    )
+  }
+
   if (url.pathname.startsWith('/rewrites/to-blog')) {
     const slug = url.pathname.split('/').pop()
     url.pathname = `/rewrites/fallback-true-blog/${slug}`

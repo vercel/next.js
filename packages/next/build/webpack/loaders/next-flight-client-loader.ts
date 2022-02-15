@@ -62,6 +62,7 @@ async function parseExportNamesInto(
     switch (node.type) {
       // TODO: support export * from module path
       // case 'ExportAllDeclaration':
+      case 'ExportDefaultExpression':
       case 'ExportDefaultDeclaration':
         names.push('default')
         continue

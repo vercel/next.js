@@ -19,7 +19,7 @@ export type ManifestItem = {
   files: string[]
 }
 
-type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
+export type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 
 export type LoadComponentsReturnType = {
   Component: React.ComponentType
@@ -34,8 +34,14 @@ export type LoadComponentsReturnType = {
   ComponentMod: any
 }
 
-export async function loadDefaultErrorComponents(distDir: string) {
-  const Document = interopDefault(require('next/dist/pages/_document'))
+export async function loadDefaultErrorComponents(
+  distDir: string,
+  { hasConcurrentFeatures }: { hasConcurrentFeatures: boolean }
+) {
+  const Document = interopDefault(
+    require(`next/dist/pages/_document` +
+      (hasConcurrentFeatures ? '-concurrent' : ''))
+  )
   const App = interopDefault(require('next/dist/pages/_app'))
   const ComponentMod = require('next/dist/pages/_error')
   const Component = interopDefault(ComponentMod)

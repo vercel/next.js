@@ -224,8 +224,7 @@ export type HtmlProps = {
   crossOrigin?: string
   optimizeCss?: boolean
   optimizeFonts?: boolean
-  optimizeImages?: boolean
-  concurrentFeatures?: boolean
+  runtime?: 'edge' | 'nodejs'
 }
 
 /**
@@ -293,6 +292,8 @@ export type NextApiResponse<T = any> = ServerResponse & {
     }
   ) => NextApiResponse<T>
   clearPreviewData: () => NextApiResponse<T>
+
+  unstable_revalidate: (urlPath: string) => Promise<void>
 }
 
 /**
