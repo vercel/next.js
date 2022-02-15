@@ -1265,26 +1265,15 @@ export default async function getBaseWebpackConfig(
               use: getBabelOrSwcLoader(true),
             },
             {
-              rules: [
-                hasReactRefresh && {
-                  ...codeCondition,
-                  exclude: (excludePath: string) => {
-                    // Unlike the normal code condition react-refresh-utils should only be applied to first-party code
-                    // Because of this Next.js internals are excluded as well in this condition
-                    if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
-                      return true
-                    }
-                    return codeCondition.exclude(excludePath)
-                  },
-                  use: require.resolve(
-                    'next/dist/compiled/@next/react-refresh-utils/loader'
-                  ),
-                },
-                {
-                  ...codeCondition,
-                  use: defaultLoaders.babel,
-                },
-              ].filter(Boolean),
+              ...codeCondition,
+              use: hasReactRefresh
+                ? [
+                    require.resolve(
+                      'next/dist/compiled/@next/react-refresh-utils/loader'
+                    ),
+                    defaultLoaders.babel,
+                  ]
+                : defaultLoaders.babel,
             },
           ],
         },
