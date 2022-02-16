@@ -21,7 +21,7 @@ export default class {
 
           <_JSXStyle id={"e359801ddd3b3cb6"} dynamic={[
             inputSize ? "height: calc(2 * var(--a)) !important;" : ""
-        ]}>{`@media only screen{a.__jsx-style-dynamic-selector{${inputSize ? "height: calc(2 * var(--a)) !important;" : ""}
+        ]}>{`@media only screen {a.__jsx-style-dynamic-selector{${inputSize ? "height: calc(2 * var(--a)) !important;" : ""}
                 }}`}</_JSXStyle>
 
         </div>;
