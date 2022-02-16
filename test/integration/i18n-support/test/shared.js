@@ -2354,12 +2354,9 @@ export function runTests(ctx) {
   })
 
   it('should render 404 for fallback page that returned 404 on client transition', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath}/en`,
-      true,
-      true
-    )
+    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/en`, {
+      retryWaitHydration: true,
+    })
     await browser.eval(`(function() {
       next.router.push('/not-found/fallback/first')
     })()`)
@@ -2395,8 +2392,9 @@ export function runTests(ctx) {
     const browser = await webdriver(
       ctx.appPort,
       `${ctx.basePath}/en/not-found/fallback/first`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
     await browser.waitForElementByCss('h1')
     await browser.eval('window.beforeNav = 1')
@@ -2427,12 +2425,9 @@ export function runTests(ctx) {
   })
 
   it('should render 404 for blocking fallback page that returned 404 on client transition', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath}/en`,
-      true,
-      true
-    )
+    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/en`, {
+      retryWaitHydration: true,
+    })
     await browser.eval(`(function() {
       next.router.push('/not-found/blocking-fallback/first')
     })()`)
@@ -2468,8 +2463,9 @@ export function runTests(ctx) {
     const browser = await webdriver(
       ctx.appPort,
       `${ctx.basePath}/en/not-found/blocking-fallback/first`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
     await browser.waitForElementByCss('h1')
     await browser.eval('window.beforeNav = 1')

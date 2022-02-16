@@ -289,7 +289,26 @@
             },
             {
               "title": "React 18",
-              "path": "/docs/advanced-features/react-18.md"
+              "routes": [
+                {
+                  "path": "/docs/advanced-features/react-18",
+                  "redirect": {
+                    "destination": "/docs/advanced-features/react-18/overview"
+                  }
+                },
+                {
+                  "title": "Overview",
+                  "path": "/docs/advanced-features/react-18/overview.md"
+                },
+                {
+                  "title": "Streaming SSR",
+                  "path": "/docs/advanced-features/react-18/streaming.md"
+                },
+                {
+                  "title": "React Server Components",
+                  "path": "/docs/advanced-features/react-18/server-components.md"
+                }
+              ]
             }
           ]
         },
@@ -357,6 +376,10 @@
         {
           "title": "next/server",
           "path": "/docs/api-reference/next/server.md"
+        },
+        {
+          "title": "next/streaming",
+          "path": "/docs/api-reference/next/streaming.md"
         },
         {
           "title": "Edge Runtime",
