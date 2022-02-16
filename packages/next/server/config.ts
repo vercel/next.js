@@ -65,7 +65,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         return currentConfig
       }
 
-      if (key === 'experimental' && value !== defaultConfig[key]) {
+      if (
+        key === 'experimental' &&
+        value !== defaultConfig[key] &&
+        typeof value === 'object' &&
+        Object.keys(value).length > 0
+      ) {
         experimentalWarning()
       }
 
