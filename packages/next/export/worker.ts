@@ -55,7 +55,6 @@ interface ExportPageInput {
   subFolders?: boolean
   serverless: boolean
   optimizeFonts: boolean
-  optimizeImages?: boolean
   optimizeCss: any
   disableOptimizedLoading: any
   parentSpanId: any
@@ -77,7 +76,6 @@ interface RenderOpts {
   ampValidatorPath?: string
   ampSkipValidation?: boolean
   optimizeFonts?: boolean
-  optimizeImages?: boolean
   disableOptimizedLoading?: boolean
   optimizeCss?: any
   fontManifest?: FontManifest
@@ -105,7 +103,6 @@ export default async function exportPage({
   subFolders,
   serverless,
   optimizeFonts,
-  optimizeImages,
   optimizeCss,
   disableOptimizedLoading,
   httpAgentOptions,
@@ -304,8 +301,6 @@ export default async function exportPage({
               /// @ts-ignore
               optimizeFonts,
               /// @ts-ignore
-              optimizeImages,
-              /// @ts-ignore
               optimizeCss,
               disableOptimizedLoading,
               distDir,
@@ -367,9 +362,6 @@ export default async function exportPage({
           if (optimizeFonts) {
             process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
           }
-          if (optimizeImages) {
-            process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
-          }
           if (optimizeCss) {
             process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
           }
@@ -379,7 +371,6 @@ export default async function exportPage({
             ampPath: renderAmpPath,
             params,
             optimizeFonts,
-            optimizeImages,
             optimizeCss,
             disableOptimizedLoading,
             fontManifest: optimizeFonts
