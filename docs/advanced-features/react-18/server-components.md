@@ -8,6 +8,9 @@ To use React Server Components, ensure you have React 18 installed:
 
 ```jsx
 npm install next@latest react@rc react-dom@rc
+```
+
+Then, update your `next.config.js`:
 
 ```jsx
 // next.config.js
@@ -29,7 +32,7 @@ To run a component on the server, append `.server.js` to the end of the filename
 
 For client components, append `.client.js` to the filename. For example, `./components/avatar.client.js`.
 
-You can then import other server or client components from any server component. Note: a server component **can not** be imported by a client component. Components without "server/client" extensions will be treated as "universal components" and can be used and rendered by both sides, depending on where it is imported. For example:
+You can then import other server or client components from any server component. Note: a server component **can not** be imported by a client component. Components without "server/client" extensions will be treated as shared components and can be used and rendered by both sides, depending on where it is imported. For example:
 
 ```jsx
 // pages/home.server.js
