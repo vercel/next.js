@@ -54,13 +54,13 @@ export default function Home() {
 }
 ```
 
-Check out [next/streaming](/docs/api-reference/next/streaming.md) for more details for building Next.js apps in streaming SSR mode.
+Check out [`next/streaming`](/docs/api-reference/next/streaming.md) for more details on building Next.js apps in streaming SSR mode.
 
 ## Important Notes
 
 #### `next/head` and `next/script`
 
-Using resource tags (e.g. scripts or stylesheets) in `next/head` won't work as intended with streaming, as the loading order and timing of `next/head` tags can no longer be guaranteed once you add Suspense boundaries. For this reason, we suggest moving resource tags to `next/script` with the `afterInteractive` or `lazyOnload` strategy, or the `_document`. For similar reasons, we suggest migrating `next/script` instances with the `beforeInteractive` strategy to the `_document` as well.
+Using resource tags (e.g. scripts or stylesheets) in `next/head` won't work as intended with streaming, as the loading order and timing of `next/head` tags can no longer be guaranteed once you add Suspense boundaries. We suggest moving resource tags to `next/script` with the `afterInteractive` or `lazyOnload` strategy, or to `_document`. For similar reasons, we also suggest migrating `next/script` instances with the `beforeInteractive` strategy to `_document`.
 
 #### Data Fetching
 
@@ -68,4 +68,4 @@ Currently, data fetching within `Suspense` boundaries on the server side is not 
 
 #### Styling
 
-The Next.js team is still working on support for styled-jsx and CSS modules in streaming SSR. Please stay tuned for updates!
+The Next.js team is working on support for `styled-jsx` and CSS modules in streaming SSR. Stay tuned for updates.

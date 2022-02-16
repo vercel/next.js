@@ -8,9 +8,9 @@ The experimental `next/streaming` module provides streaming related APIs to port
 
 ## unstable_useWebVitalsReport
 
-Next.js provides an `_app` component level function, [`reportWebVitals`](docs/advanced-features/measuring-performance), for tracking performance metrics. With server components, you may have a pure server-side custom `_app` component which doesn't run client effects, so this existing API won't work.
+Next.js provides an `_app` component-level function, [`reportWebVitals`](docs/advanced-features/measuring-performance), for tracking performance metrics. With Server Components, you may have a pure server-side custom `_app` component (which doesn't run client effects) so the existing API won't work.
 
-With the new `unstable_useWebVitalsReport` API, you're able to track web vitals metrics in client components.
+With the new `unstable_useWebVitalsReport` API, you're able to track [Core Web Vitals](https://nextjs.org/learn/seo/web-performance) in client components:
 
 ```jsx
 // pages/_app.js
@@ -25,7 +25,7 @@ export default function Home() {
 }
 ```
 
-This method could also be used to replace static exported `reportWebVitals` functions in your existing `_app`.
+This method could also be used to replace statically exported `reportWebVitals` functions in your existing `_app`:
 
 ```jsx
 // pages/_app.server.js
@@ -38,10 +38,10 @@ export default function App({ children }) {
 
 ```jsx
 // components/layout.client.js
-import { unstable_useWebVitalsReport as useWebVitalsReport } from 'next/streaming'
+import { unstable_useWebVitalsReport } from 'next/streaming'
 
 export default function Layout() {
-  useWebVitalsReport((data) => {
+  unstable_useWebVitalsReport((data) => {
     console.log(data)
   })
 
@@ -56,11 +56,11 @@ export default function Layout() {
 
 ## unstable_useRefreshRoot
 
-Since server components are rendered on the server side when requesting to server, in some cases you might need to partially refresh server rendered content.
+Since Server Components are rendered on the server-side, in some cases you might need to partially refresh content from the server.
 
-For instance, let's say you build a search bar in a client component and display search results through server components. You'd want to update the search results while typing and re-render the results list with a certain frequency (e.g. with each keystroke or on a debounce).
+For example, a search bar (client component) which displays search results as server components. You'd want to update the search results while typing and rerender the results list with a certain frequency (e.g. with each keystroke or on a debounce).
 
-The `unstable_useRefreshRoot` hook returns a `refresh` API to let you re-render the React tree smoothly without flickering. This is only allowed to be used on the client side and will only affect server components at the moment.
+The `unstable_useRefreshRoot` hook returns a `refresh` API to let you re-render the React tree smoothly without flickering. This is only allowed for use on the client-side and will only affect Server Components at the moment.
 
 ```jsx
 // pages/index.server.js

@@ -56,7 +56,7 @@ The `<Home>` and `<Profile>` components will always be server-side rendered and 
 
 > Make sure you're using default imports and exports for server components (`.server.js`). The support of named exports are a work in progress!
 
-To see a full example, check out the [vercel/next-rsc-demo demo](https://github.com/vercel/next-rsc-demo).
+To see a full example, check out the [hello world example](https://github.com/vercel/next.js/tree/canary/examples/react-server-components) or the larger [vercel/next-rsc-demo demo](https://github.com/vercel/next-rsc-demo).
 
 ## Supported Next.js APIs
 
@@ -66,7 +66,7 @@ You can use `next/link` and `next/image` like before and they will be treated as
 
 ### `next/document`
 
-If you have a custom `_document`, you have to change your `_document` to a functional component like below to use server components. If you don't have one, Next.js will provide a functional fallback `_document` component for you.
+If you have a custom `_document`, you have to change your `_document` to a functional component like below to use server components. If you don't have one, Next.js will use the default `_document` component for you.
 
 ```jsx
 // pages/_document.js
@@ -88,7 +88,7 @@ export default function Document() {
 ### `next/app`
 
 If you're using `_app.js`, the usage is the same as [Custom App](/docs/advanced-features/custom-app).
-If you're using `_app.server.js` as a server component, the signature is changed as below where it only receives the `children` prop as elements. You can wrap any other client or server components around `children` to customize the layout of your app.
+If you're using `_app.server.js` as a server component, see the example below where it only receives the `children` prop as React elements. You can wrap any other client or server components around `children` to customize the layout of your app.
 
 ```js
 // pages/_app.server.js
@@ -112,7 +112,7 @@ export default function Index({ router }) {
 
 ### Unsupported Next.js APIs
 
-While RSC and SSR streaming are still in the alpha stage, not all Next.js APIs are supported. The following Next.js APIs have limited functionality within server components. Note that React 18 use without SSR streaming isn't affected.
+While RSC and SSR streaming are still in the alpha stage, not all Next.js APIs are supported. The following Next.js APIs have limited functionality within Server Components. React 18 use without SSR streaming is not affected.
 
 #### React internals
 
@@ -126,4 +126,4 @@ Page level exported methods like `getInitialProps`, `getStaticProps` and `getSta
 
 #### `next/head` and I18n
 
-We're still working on them!
+We are still working on support for these features.
