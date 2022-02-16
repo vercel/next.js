@@ -69,6 +69,14 @@ describe('Production Usage', () => {
     )
   })
 
+  it('should respond with 405 for POST to static page', async () => {
+    const res = await fetchViaHTTP(appPort, '/', undefined, {
+      method: 'POST',
+    })
+    expect(res.status).toBe(405)
+    expect(await res.text()).toContain('Method Not Allowed')
+  })
+
   it('should contain generated page count in output', async () => {
     const pageCount = 40
     expect(output).toContain(`Generating static pages (0/${pageCount})`)
@@ -369,7 +377,7 @@ describe('Production Usage', () => {
     it('should render 200 for POST on page', async () => {
       const res = await fetchViaHTTP(
         `http://localhost:${appPort}`,
-        '/about',
+        '/fully-dynamic',
         undefined,
         {
           method: 'POST',
