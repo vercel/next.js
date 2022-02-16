@@ -1,4 +1,4 @@
-import type { WebNextRequest, WebNextResponse } from './base-http'
+import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type { RenderOpts } from './render'
 import type RenderResult from './render-result'
 import type { NextParsedUrlQuery } from './request-meta'
@@ -109,6 +109,10 @@ export default class NextWebServer extends BaseServer {
       },
     }
   }
+  protected getServerComponentManifest() {
+    // @TODO: Need to return `extendRenderOpts.serverComponentManifest` here.
+    return undefined
+  }
   protected async renderHTML(
     req: WebNextRequest,
     _res: WebNextResponse,
@@ -128,8 +132,8 @@ export default class NextWebServer extends BaseServer {
       {
         ...renderOpts,
         supportsDynamicHTML: true,
-        concurrentFeatures: true,
         disableOptimizedLoading: true,
+        runtime: 'edge',
       }
     )
   }
@@ -146,19 +150,20 @@ export default class NextWebServer extends BaseServer {
   ): Promise<void> {
     // @TODO
     const writer = res.transformStream.writable.getWriter()
-    const encoder = new TextEncoder()
-    options.result.pipe({
-      write: (str: string) => writer.write(encoder.encode(str)),
-      end: () => writer.close(),
-      // Not implemented: cork/uncork/on/removeListener
-    } as any)
 
-    // To prevent Safari's bfcache caching the "shell", we have to add the
-    // `no-cache` header to document responses.
-    res.setHeader(
-      'Cache-Control',
-      'no-cache, no-store, max-age=0, must-revalidate'
-    )
+    if (options.result.isDynamic()) {
+      options.result.pipe({
+        write: (chunk: Uint8Array) => writer.write(chunk),
+        end: () => writer.close(),
+        destroy: (err: Error) => writer.abort(err),
+        cork: () => {},
+        uncork: () => {},
+        // Not implemented: on/removeListener
+      } as any)
+    } else {
+      res.body(await options.result.toUnchunkedString())
+    }
+
     res.send()
   }
   protected async runApi() {

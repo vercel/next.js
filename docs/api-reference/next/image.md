@@ -220,11 +220,57 @@ You can also [generate a solid color Data URL](https://png-pixel.com) to match t
 
 A string (with similar syntax to the margin property) that acts as the bounding box used to detect the intersection of the viewport with the image and trigger lazy [loading](#loading). Defaults to `"200px"`.
 
+If the image is nested in a scrollable parent element other than the root document, you will also need to assign the [lazyRoot](#lazyroot) prop.
+
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/rootMargin)
 
 ### lazyRoot
 
-A React [Ref](https://reactjs.org/docs/refs-and-the-dom.html) pointing to the Element which the [lazyBoundary](#lazyBoundary) calculates for the Intersection detection. Defaults to `null`, referring to the document viewport.
+A React [Ref](https://reactjs.org/docs/refs-and-the-dom.html) pointing to the scrollable parent element. Defaults to `null` (the document viewport).
+
+The Ref must point to a DOM element or a React component that [forwards the Ref](https://reactjs.org/docs/forwarding-refs.html) to the underlying DOM element.
+
+**Example pointing to a DOM element**
+
+```jsx
+import Image from 'next/image'
+import React from 'react'
+
+const lazyRoot = React.useRef(null)
+
+const Example = () => (
+  <div ref={lazyRoot} style={{ overflowX: 'scroll', width: '500px' }}>
+    <Image lazyRoot={lazyRoot} src="/one.jpg" width="500" height="500" />
+    <Image lazyRoot={lazyRoot} src="/two.jpg" width="500" height="500" />
+  </div>
+)
+```
+
+**Example pointing to a React component**
+
+```jsx
+import Image from 'next/image'
+import React from 'react'
+
+const Container = React.forwardRef((props, ref) => {
+  return (
+    <div ref={ref} style={{ overflowX: 'scroll', width: '500px' }}>
+      {props.children}
+    </div>
+  )
+})
+
+const Example = () => {
+  const lazyRoot = React.useRef(null)
+
+  return (
+    <Container ref={lazyRoot}>
+      <Image lazyRoot={lazyRoot} src="/one.jpg" width="500" height="500" />
+      <Image lazyRoot={lazyRoot} src="/two.jpg" width="500" height="500" />
+    </Container>
+  )
+}
+```
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/root)
 
@@ -277,7 +323,7 @@ module.exports = {
 The following Image Optimization cloud providers are included:
 
 - Default: Works automatically with `next dev`, `next start`, or a custom server
-- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary. [Learn more](https://vercel.com/docs/next.js/image-optimization)
+- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary. [Learn more](https://vercel.com/docs/concepts/image-optimization)
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`

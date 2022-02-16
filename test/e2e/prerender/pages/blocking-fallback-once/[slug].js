@@ -32,7 +32,7 @@ export default ({ post, time, params }) => {
   return (
     <>
       <p>Post: {post}</p>
-      <span>time: {time}</span>
+      <span id="time">time: {time}</span>
       <div id="params">{JSON.stringify(params)}</div>
       <div id="query">{JSON.stringify(useRouter().query)}</div>
       <Link href="/">

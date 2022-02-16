@@ -21,6 +21,9 @@ export function getBaseSWCOptions({
   const enableDecorators = Boolean(
     jsConfig?.compilerOptions?.experimentalDecorators
   )
+  const emitDecoratorMetadata = Boolean(
+    jsConfig?.compilerOptions?.emitDecoratorMetadata
+  )
   return {
     jsc: {
       ...(resolvedBaseUrl && paths
@@ -47,6 +50,7 @@ export function getBaseSWCOptions({
             }
           : {}),
         legacyDecorator: enableDecorators,
+        decoratorMetadata: emitDecoratorMetadata,
         react: {
           importSource: jsConfig?.compilerOptions?.jsxImportSource || 'react',
           runtime: 'automatic',
@@ -77,14 +81,14 @@ export function getBaseSWCOptions({
       },
     },
     sourceMaps: jest ? 'inline' : undefined,
-    styledComponents: nextConfig?.experimental?.styledComponents
+    styledComponents: nextConfig?.compiler?.styledComponents
       ? {
           displayName: Boolean(development),
         }
       : null,
-    removeConsole: nextConfig?.experimental?.removeConsole,
-    reactRemoveProperties: nextConfig?.experimental?.reactRemoveProperties,
-    relay: nextConfig?.experimental?.relay,
+    removeConsole: nextConfig?.compiler?.removeConsole,
+    reactRemoveProperties: nextConfig?.compiler?.reactRemoveProperties,
+    relay: nextConfig?.compiler?.relay,
   }
 }
 
@@ -117,6 +121,13 @@ export function getJestSWCOptions({
         // Targets the current version of Node.js
         node: process.versions.node,
       },
+      // we always transpile optional chaining and nullish coalescing
+      // since it can cause issues with webpack even if the node target
+      // supports them
+      include: [
+        'proposal-optional-chaining',
+        'proposal-nullish-coalescing-operator',
+      ],
     },
     module: {
       type: esm && !isNextDist ? 'es6' : 'commonjs',
@@ -165,6 +176,13 @@ export function getLoaderSWCOptions({
           // Targets the current version of Node.js
           node: process.versions.node,
         },
+        // we always transpile optional chaining and nullish coalescing
+        // since it can cause issues with webpack even if the node target
+        // supports them
+        include: [
+          'proposal-optional-chaining',
+          'proposal-nullish-coalescing-operator',
+        ],
       },
     }
   } else {

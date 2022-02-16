@@ -38,6 +38,8 @@ import {
   trackWebVitalMetric,
 } from './streaming/vitals'
 import { RefreshContext } from './streaming/refresh'
+import { ImageConfigContext } from '../shared/lib/image-config-context'
+import { ImageConfigComplete } from '../server/image-config'
 
 /// <reference types="react-dom/experimental" />
 
@@ -434,7 +436,7 @@ export async function initNext(
   render(renderCtx)
 }
 
-export async function render(renderingProps: RenderRouteInfo): Promise<void> {
+async function render(renderingProps: RenderRouteInfo): Promise<void> {
   if (renderingProps.err) {
     await renderError(renderingProps)
     return
@@ -462,7 +464,7 @@ export async function render(renderingProps: RenderRouteInfo): Promise<void> {
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
-export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
+function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
   const { App, err } = renderErrorProps
 
   // In development runtime errors are caught by our overlay
@@ -626,7 +628,11 @@ function AppContainer({
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
         <HeadManagerContext.Provider value={headManager}>
-          {children}
+          <ImageConfigContext.Provider
+            value={process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete}
+          >
+            {children}
+          </ImageConfigContext.Provider>
         </HeadManagerContext.Provider>
       </RouterContext.Provider>
     </Container>
@@ -738,7 +744,7 @@ if (process.env.__NEXT_RSC) {
     let response = rscCache.get(cacheKey)
     if (response) return response
 
-    const bufferCacheKey = cacheKey + ',' + id
+    const bufferCacheKey = cacheKey + ',' + router.route + ',' + id
     if (serverDataBuffer.has(bufferCacheKey)) {
       const t = new TransformStream()
       const writer = t.writable.getWriter()
@@ -769,9 +775,11 @@ if (process.env.__NEXT_RSC) {
     serialized?: string
     _fresh?: boolean
   }) => {
+    React.useEffect(() => {
+      rscCache.delete(cacheKey)
+    })
     const response = useServerResponse(cacheKey, serialized)
     const root = response.readRoot()
-    rscCache.delete(cacheKey)
     return root
   }
 
