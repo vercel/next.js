@@ -24,7 +24,9 @@ export default class {
           <_JSXStyle id={"97886c1e9511aafa"} dynamic={[
             a || "var(--c)",
             b || "inherit"
-        ]}>{`.a:hover .b.__jsx-style-dynamic-selector{display:inline-block;padding:0 ${a || "var(--c)"};color:${b || "inherit"}}`}</_JSXStyle>
+        ]}>{`.a:hover .b.__jsx-style-dynamic-selector{display:inline-block;
+padding:0 ${a || "var(--c)"};
+color:${b || "inherit"}}`}</_JSXStyle>
 
         </div>;
     }

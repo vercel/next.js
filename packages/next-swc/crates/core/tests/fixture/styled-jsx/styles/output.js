@@ -11,18 +11,21 @@ export const uh = bar;
 export const foo = new String(`div.jsx-945eaa83250ed332{color:${color}}`);
 foo.__hash = "945eaa83250ed332";
 ({
-    styles: <_JSXStyle id={"c107a919a5b2943d"}>{`div.jsx-c107a919a5b2943d{color:${colors.green.light}}a.jsx-c107a919a5b2943d{color:red}`}</_JSXStyle>,
+    styles: <_JSXStyle id={"c107a919a5b2943d"}>{`div.jsx-c107a919a5b2943d{color:${colors.green.light}}
+a.jsx-c107a919a5b2943d{color:red}`}</_JSXStyle>,
     className: "jsx-c107a919a5b2943d"
 });
 const b = {
-    styles: <_JSXStyle id={"c107a919a5b2943d"}>{`div.jsx-c107a919a5b2943d{color:${colors.green.light}}a.jsx-c107a919a5b2943d{color:red}`}</_JSXStyle>,
+    styles: <_JSXStyle id={"c107a919a5b2943d"}>{`div.jsx-c107a919a5b2943d{color:${colors.green.light}}
+a.jsx-c107a919a5b2943d{color:red}`}</_JSXStyle>,
     className: "jsx-c107a919a5b2943d"
 };
 const dynamic = (colors1)=>{
     const b = {
         styles: <_JSXStyle id={"60132422fc87f1d1"} dynamic={[
             colors1.green.light
-        ]}>{`div.__jsx-style-dynamic-selector{color:${colors1.green.light}}a.__jsx-style-dynamic-selector{color:red}`}</_JSXStyle>,
+        ]}>{`div.__jsx-style-dynamic-selector{color:${colors1.green.light}}
+a.__jsx-style-dynamic-selector{color:red}`}</_JSXStyle>,
         className: _JSXStyle.dynamic([
             [
                 "60132422fc87f1d1",
@@ -34,6 +37,7 @@ const dynamic = (colors1)=>{
     };
 };
 export default {
-    styles: <_JSXStyle id={"e5da8dd7ff5c7f39"}>{`div.jsx-e5da8dd7ff5c7f39{font-size:3em}p.jsx-e5da8dd7ff5c7f39{color:${color}}`}</_JSXStyle>,
+    styles: <_JSXStyle id={"e5da8dd7ff5c7f39"}>{`div.jsx-e5da8dd7ff5c7f39{font-size:3em}
+p.jsx-e5da8dd7ff5c7f39{color:${color}}`}</_JSXStyle>,
     className: "jsx-e5da8dd7ff5c7f39"
 };
