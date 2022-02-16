@@ -124,7 +124,7 @@ export default async function handler(req, res) {
 }
 ```
 
-Inside `getStaticProps`, you do not need to specific `revalidate` to use on-demand revalidation. If `revalidate` is omitted, Next.js will use the default value of `false` (no revalidation) and only ever revalidate the page on-demand when `unstable_revalidate()` is used.
+Inside `getStaticProps`, you do not need to specify `revalidate` to use on-demand revalidation. If `revalidate` is omitted, Next.js will use the default value of `false` (no revalidation) and only revalidate the page on-demand when `unstable_revalidate()` is called.
 
 [View our demo](https://on-demand-isr.vercel.app) to see on-demand revalidation in action and provide feedback.
 
