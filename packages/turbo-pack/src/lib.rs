@@ -2,7 +2,6 @@
 #![feature(into_future)]
 
 use asset::{AssetRef, AssetSource, AssetSourceRef, AssetsSet, AssetsSetRef};
-use async_trait::async_trait;
 use module::ModuleRef;
 use resolve::referenced_modules;
 use turbo_tasks_fs::{FileContentRef, FileSystemPathRef};
@@ -17,11 +16,11 @@ mod utils;
 
 #[turbo_tasks::function]
 pub async fn emit(module: ModuleRef, input_dir: FileSystemPathRef, output_dir: FileSystemPathRef) {
-    let asset = nft_asset(module, input_dir, output_dir).await;
+    let asset = nft_asset(module, input_dir, output_dir);
     visit(
         asset,
         |asset| async move {
-            emit_asset(asset).await;
+            emit_asset(asset);
         },
         |asset| async move {
             let assets_set = asset.await.source.references().await;
@@ -41,8 +40,7 @@ pub async fn nft_asset(
         module.get().await.path.clone(),
         input_dir.clone(),
         output_dir.clone(),
-    )
-    .await;
+    );
     AssetRef::new(
         new_path,
         NftAssetSource {
@@ -63,24 +61,20 @@ struct NftAssetSource {
 }
 
 #[turbo_tasks::value_impl]
-#[async_trait]
 impl AssetSource for NftAssetSource {
     async fn content(&self) -> FileContentRef {
         self.module.get().await.path.clone().read().await
     }
 
     async fn references(&self) -> AssetsSetRef {
-        let modules = referenced_modules(self.module.clone()).await;
+        let modules = referenced_modules(self.module.clone());
         let mut assets = Vec::new();
         for module in modules.await.modules.iter() {
-            assets.push(
-                nft_asset(
-                    module.clone(),
-                    self.input_dir.clone(),
-                    self.output_dir.clone(),
-                )
-                .await,
-            );
+            assets.push(nft_asset(
+                module.clone(),
+                self.input_dir.clone(),
+                self.output_dir.clone(),
+            ));
         }
         AssetsSet { assets }.into()
     }

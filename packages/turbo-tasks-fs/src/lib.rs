@@ -18,12 +18,11 @@ use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher
 use turbo_tasks::{Invalidator, Task};
 
 #[turbo_tasks::value_trait]
-#[async_trait::async_trait]
 pub trait FileSystem {
-    async fn read(&self, fs_path: FileSystemPathRef) -> FileContentRef;
-    async fn read_dir(&self, fs_path: FileSystemPathRef) -> DirectoryContentRef;
-    async fn parent_path(&self, fs_path: FileSystemPathRef) -> FileSystemPathRef;
-    async fn write(&self, from: FileSystemPathRef, content: FileContentRef);
+    fn read(&self, fs_path: FileSystemPathRef) -> FileContentRef;
+    fn read_dir(&self, fs_path: FileSystemPathRef) -> DirectoryContentRef;
+    fn parent_path(&self, fs_path: FileSystemPathRef) -> FileSystemPathRef;
+    fn write(&self, from: FileSystemPathRef, content: FileContentRef);
 }
 
 #[turbo_tasks::value(FileSystem)]
@@ -165,7 +164,6 @@ impl fmt::Debug for DiskFileSystem {
 }
 
 #[turbo_tasks::value_impl]
-#[async_trait::async_trait]
 impl FileSystem for DiskFileSystem {
     async fn read(&self, fs_path: FileSystemPathRef) -> FileContentRef {
         let full_path = Path::new(&self.root).join(
@@ -306,12 +304,12 @@ impl FileSystemPathRef {
         let this = self.get().await;
         this.fs.parent_path(self).await
     }
-    pub async fn rebase(
+    pub fn rebase(
         fs_path: FileSystemPathRef,
         old_base: FileSystemPathRef,
         new_base: FileSystemPathRef,
     ) -> FileSystemPathRef {
-        rebase(fs_path, old_base, new_base).await
+        rebase(fs_path, old_base, new_base)
     }
 }
 

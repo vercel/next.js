@@ -27,6 +27,13 @@ fn get_internal_function_ident(ident: &Ident) -> Ident {
     Ident::new(&(ident.to_string() + "_inline"), ident.span())
 }
 
+fn get_internal_trait_impl_function_ident(trait_ident: &Ident, ident: &Ident) -> Ident {
+    Ident::new(
+        &("__trait_call_".to_string() + &trait_ident.to_string() + "_" + &ident.to_string()),
+        ident.span(),
+    )
+}
+
 fn get_trait_mod_ident(ident: &Ident) -> Ident {
     Ident::new(&(ident.to_string() + "TurboTasksMethods"), ident.span())
 }
@@ -380,7 +387,7 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
             trait_fns.push(quote! {
                 pub fn #method_ident(#(#method_args),*) -> impl std::future::Future<Output = #output_type> {
                     // TODO use const string
-                    let result = turbo_tasks::trait_call(&#trait_type_ident, stringify!(#method_ident).to_string(), vec![self.clone().into(), #(#args),*]).unwrap();
+                    let result = turbo_tasks::trait_call(&#trait_type_ident, stringify!(#method_ident).to_string(), vec![self.node.clone(), #(#args),*]).unwrap();
                     async { #convert_result_code }
                 }
             })
@@ -640,17 +647,19 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
         for item in items.iter() {
             match item {
                 ImplItem::Method(ImplItemMethod {
-                    sig:
-                        Signature {
-                            ident,
-                            inputs,
-                            output,
-                            ..
-                        },
-                    ..
+                    sig, attrs, block, ..
                 }) => {
+                    let Signature {
+                        ident,
+                        inputs,
+                        output,
+                        asyncness,
+                        ..
+                    } = sig;
                     let output_type = get_return_type(output);
                     let function_ident = get_trait_impl_function_ident(struct_ident, ident);
+                    let internal_function_ident =
+                        get_internal_trait_impl_function_ident(trait_ident, ident);
                     trait_registers.push(quote! {
                         slot_value_type.register_trait_method(#trait_ident.__type(), stringify!(#ident).to_string(), &*#function_ident);
                     });
@@ -658,13 +667,22 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                         Literal::string(&(struct_ident.to_string() + "::" + &ident.to_string()));
                     let native_function_code = gen_native_function_code(
                         quote! { #name },
-                        quote! { #trait_ident::#ident },
+                        quote! { #struct_ident::#internal_function_ident },
                         &function_ident,
+                        asyncness.is_some(),
                         inputs,
                         &output_type,
                         Some(&ref_ident),
                     );
+                    let mut new_sig = sig.clone();
+                    new_sig.ident = internal_function_ident;
                     impl_functions.push(quote! {
+                        impl #struct_ident {
+                            #(#attrs)*
+                            #[allow(non_snake_case)]
+                            #new_sig #block
+                        }
+
                         #native_function_code
                     })
                 }
@@ -714,8 +732,6 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                             {
                                 let code = generate_for_trait_impl(trait_ident, ident, &item.items);
                                 return quote! {
-                                    #item
-
                                     #code
                                 }
                                 .into();
@@ -762,7 +778,7 @@ pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
 
     let mut external_sig = sig.clone();
     external_sig.asyncness = None;
-    external_sig.output = parse_quote! { -> impl std::future::Future<Output = #output_type> };
+    // external_sig.output = parse_quote! { -> impl std::future::Future<Output = #output_type> };
 
     let mut input_extraction = Vec::new();
     let mut input_verification = Vec::new();
@@ -811,6 +827,7 @@ pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
         quote! { stringify!(#ident) },
         quote! { #inline_ident },
         &function_ident,
+        sig.asyncness.is_some(),
         &sig.inputs,
         &output_type,
         None,
@@ -826,7 +843,7 @@ pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
         #(#attrs)*
         #vis #external_sig {
             let result = turbo_tasks::dynamic_call(&#function_ident, vec![#(#input_node_arguments),*]).unwrap();
-            async { #convert_result_code }
+            #convert_result_code
         }
 
         #(#attrs)*
@@ -850,6 +867,7 @@ fn gen_native_function_code(
     name_code: TokenStream2,
     original_function: TokenStream2,
     function_ident: &Ident,
+    async_function: bool,
     inputs: &Punctuated<FnArg, Token![,]>,
     output_type: &Type,
     self_ref_type: Option<&Ident>,
@@ -909,13 +927,18 @@ fn gen_native_function_code(
             }
         }
     }
+    let original_call_code = if async_function {
+        quote! { #original_function(#(#input_arguments),*).await }
+    } else {
+        quote! { #original_function(#(#input_arguments),*) }
+    };
     let original_call_code = if is_empty_type(output_type) {
         quote! {
-            #original_function(#(#input_arguments),*).await;
+            #original_call_code;
             turbo_tasks::SlotRef::Nothing
         }
     } else {
-        quote! { #original_function(#(#input_arguments),*).await.into() }
+        quote! { #original_call_code.into() }
     };
     quote! {
         lazy_static::lazy_static! {

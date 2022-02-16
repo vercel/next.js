@@ -9,7 +9,7 @@ use super::parse::{parse, ParseResult};
 
 #[turbo_tasks::function]
 pub async fn module_references(module: ModuleRef) -> ModuleReferencesSetRef {
-    let parsed = parse(module).await.await;
+    let parsed = parse(module).await;
     match &*parsed {
         ParseResult::Ok(module) => {
             let mut references = Vec::new();

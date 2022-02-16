@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use turbo_tasks_fs::{FileContentRef, FileSystemPathRef};
 
 #[turbo_tasks::value]
@@ -8,10 +7,9 @@ pub struct AssetsSet {
 }
 
 #[turbo_tasks::value_trait]
-#[async_trait]
 pub trait AssetSource {
-    async fn content(&self) -> FileContentRef;
-    async fn references(&self) -> AssetsSetRef;
+    fn content(&self) -> FileContentRef;
+    fn references(&self) -> AssetsSetRef;
 }
 
 #[turbo_tasks::value]

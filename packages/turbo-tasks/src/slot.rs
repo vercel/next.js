@@ -254,7 +254,7 @@ trait SlotConsumer {
     fn content_type_changed();
 }
 
-#[derive(Clone, Debug)]
+// #[derive(Clone)]
 pub enum SlotRef {
     TaskOutput(Arc<Task>),
     TaskCreated(Arc<Task>, usize),
@@ -455,6 +455,18 @@ impl SlotRef {
     }
 }
 
+impl Clone for SlotRef {
+    fn clone(&self) -> Self {
+        match self {
+            Self::TaskOutput(arg0) => Self::TaskOutput(arg0.clone()),
+            Self::TaskCreated(arg0, arg1) => Self::TaskCreated(arg0.clone(), arg1.clone()),
+            Self::Nothing => Self::Nothing,
+            Self::SharedReference(arg0, arg1) => Self::SharedReference(arg0.clone(), arg1.clone()),
+            Self::CloneableData(arg0, arg1) => Self::CloneableData(arg0.clone(), arg1.clone()),
+        }
+    }
+}
+
 impl PartialEq<SlotRef> for SlotRef {
     fn eq(&self, other: &SlotRef) -> bool {
         match (self, other) {
@@ -491,6 +503,31 @@ impl Display for SlotRef {
             SlotRef::CloneableData(ty, _) => {
                 write!(f, "cloneable {}", ty.name)
             }
+        }
+    }
+}
+
+impl Debug for SlotRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SlotRef::TaskOutput(task) => f
+                .debug_struct("SlotRef::TaskOutput")
+                .field("task", task)
+                .finish(),
+            SlotRef::TaskCreated(task, index) => f
+                .debug_struct("SlotRef::TaskCreated")
+                .field("task", task)
+                .field("index", index)
+                .finish(),
+            SlotRef::Nothing => f.debug_tuple("SlotRef::Nothing").finish(),
+            SlotRef::SharedReference(ty, _) => f
+                .debug_struct("SlotRef::SharedReference")
+                .field("ty", ty)
+                .finish_non_exhaustive(),
+            SlotRef::CloneableData(ty, _) => f
+                .debug_struct("SlotRef::CloneableData")
+                .field("ty", ty)
+                .finish_non_exhaustive(),
         }
     }
 }

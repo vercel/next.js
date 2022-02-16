@@ -8,11 +8,11 @@ use crate::{
 
 #[turbo_tasks::function]
 pub async fn referenced_modules(module: ModuleRef) -> ModulesSetRef {
-    let references_set = module_references(module.clone()).await.await;
+    let references_set = module_references(module.clone()).await;
     let mut modules = Vec::new();
     let context = module.await.path.clone().parent().await;
     for reference in references_set.references.iter() {
-        let resolve_result = resolve(context.clone(), reference.clone()).await;
+        let resolve_result = resolve(context.clone(), reference.clone());
         if let ResolveResult::Module(module) = &*resolve_result.await {
             modules.push(module.clone());
         }
