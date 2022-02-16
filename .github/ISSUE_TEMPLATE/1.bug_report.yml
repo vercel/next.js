@@ -23,16 +23,12 @@ body:
       required: false
   - type: input
     attributes:
-      label: What browser are you using?
-      description: 'For example: Chrome, Safari'
-    validations:
-      required: true
+      label: What browser are you using? (if relevant)
+      description: 'Please specify the exact version. For example: Chrome 100.0.4878.0'
   - type: input
     attributes:
-      label: How are you deploying your application?
+      label: How are you deploying your application? (if relevant)
       description: 'For example: next start, next export, Vercel, Other platform'
-    validations:
-      required: true
   - type: textarea
     attributes:
       label: Describe the Bug
