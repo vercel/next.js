@@ -592,11 +592,7 @@ export default class HotReloader {
     const prevServerPageHashes = new Map<string, string>()
 
     const trackPageChanges =
-      (
-        pageHashMap: Map<string, string>,
-        changedItems: Set<string>,
-        _type: 'server' | 'client'
-      ) =>
+      (pageHashMap: Map<string, string>, changedItems: Set<string>) =>
       (stats: webpack5.Compilation) => {
         try {
           stats.entrypoints.forEach((entry, key) => {
@@ -652,11 +648,11 @@ export default class HotReloader {
 
     multiCompiler.compilers[0].hooks.emit.tap(
       'NextjsHotReloaderForClient',
-      trackPageChanges(prevClientPageHashes, changedClientPages, 'client')
+      trackPageChanges(prevClientPageHashes, changedClientPages)
     )
     multiCompiler.compilers[1].hooks.emit.tap(
       'NextjsHotReloaderForServer',
-      trackPageChanges(prevServerPageHashes, changedServerPages, 'server')
+      trackPageChanges(prevServerPageHashes, changedServerPages)
     )
 
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
