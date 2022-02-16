@@ -1550,6 +1550,7 @@ export default abstract class Server {
         res.body('{"notFound":true}').send()
         return null
       } else {
+        query.__nextNotFoundSrcPage = pathname
         await this.render404(
           req,
           res,

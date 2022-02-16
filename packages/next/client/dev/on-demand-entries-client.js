@@ -11,7 +11,17 @@ export default async (page) => {
   } else {
     Router.ready(() => {
       setInterval(() => {
-        sendMessage(JSON.stringify({ event: 'ping', page: Router.pathname }))
+        // when notFound: true is returned we should use the notFoundPage
+        // as the Router.pathname will point to the 404 page but we want
+        // to ping the source page that returned notFound: true instead
+        const notFoundSrcPage = self.__NEXT_DATA__.notFoundSrcPage
+        const pathname =
+          (Router.pathname === '/404' || Router.pathname === '/_error') &&
+          notFoundSrcPage
+            ? notFoundSrcPage
+            : Router.pathname
+
+        sendMessage(JSON.stringify({ event: 'ping', page: pathname }))
       }, 2500)
     })
   }
@@ -26,10 +36,7 @@ export default async (page) => {
       if (
         payload.event === 'pong' &&
         payload.invalid &&
-        !self.__NEXT_DATA__.err &&
-        // don't attempt fetching the page if we're already showing
-        // the not found page, as this can cause unnecessary data fetching
-        self.__NEXT_DATA__.props.pageProps.statusCode !== 404
+        !self.__NEXT_DATA__.err
       ) {
         // Payload can be invalid even if the page does exist.
         // So, we check if it can be created.
