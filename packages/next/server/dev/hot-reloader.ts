@@ -604,7 +604,10 @@ export default class HotReloader {
                     stats.chunkGraph.getChunkModulesIterable(chunk)
 
                   modsIterable.forEach((mod: any) => {
-                    if (mod.resource && mod.resource.includes(key)) {
+                    if (
+                      mod.resource &&
+                      mod.resource.replace(/\\/g, '/').includes(key)
+                    ) {
                       const prevHash = pageHashMap.get(key)
 
                       // use original source to calculate hash since mod.hash
