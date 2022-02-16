@@ -24,7 +24,7 @@ description: 'Learn how to create or update static pages at runtime with Increme
 
 Next.js allows you to create or update static pages _after_ you’ve built your site. Incremental Static Regeneration (ISR) enables you to use static-generation on a per-page basis, **without needing to rebuild the entire site**. With ISR, you can retain the benefits of static while scaling to millions of pages.
 
-To use ISR add the `revalidate` prop to `getStaticProps`:
+To use ISR, add the `revalidate` prop to `getStaticProps`:
 
 ```jsx
 function Blog({ posts }) {
@@ -81,8 +81,36 @@ When a request is made to a page that was pre-rendered at build time, it will in
 - Any requests to the page after the initial request and before 10 seconds are also cached and instantaneous.
 - After the 10-second window, the next request will still show the cached (stale) page
 - Next.js triggers a regeneration of the page in the background.
-- Once the page has been successfully generated, Next.js will invalidate the cache and show the updated page. If the background regeneration fails, the old page would still be unaltered.
+- Once the page generates successfully, Next.js will invalidate the cache and show the updated page. If the background regeneration fails, the old page would still be unaltered.
 
-When a request is made to a path that hasn’t been generated, Next.js will server-render the page on the first request. Future requests will serve the static file from the cache.
+When a request is made to a path that hasn’t been generated, Next.js will server-render the page on the first request. Future requests will serve the static file from the cache. ISR on Vercel [persists the cache globally and handles rollbacks](https://vercel.com/docs/concepts/next.js/incremental-static-regeneration).
 
-[Incremental Static Regeneration](https://vercel.com/docs/concepts/next.js/incremental-static-regeneration) covers how to persist the cache globally and handle rollbacks.
+## Error Handling and Revalidation
+
+If there is an error inside `getStaticProps` when handling background regeneration, or you manually throw an error, the last successfully generated page will continue to show. On the next subsequent request, Next.js will retry calling `getStaticProps`.
+
+```jsx
+export async function getStaticProps() {
+  // If this request throws an uncaught error, Next.js will
+  // not invalidate the currently shown page and
+  // retry getStaticProps on the next request.
+  const res = await fetch('https://.../posts')
+  const posts = await res.json()
+
+  if (!res.ok) {
+    // If there is a server error, you might want to
+    // throw an error instead of returning so that the cache is not updated
+    // until the next successful request.
+    throw new Error(`Failed to fetch posts, received status ${res.status}`)
+  }
+
+  // If the request was successful, return the posts
+  // and revalidate every 10 seconds.
+  return {
+    props: {
+      posts,
+    },
+    revalidate: 10,
+  }
+}
+```

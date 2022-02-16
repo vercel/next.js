@@ -494,7 +494,6 @@ export class Head extends Component<
       useMaybeDeferContent,
       optimizeCss,
       optimizeFonts,
-      optimizeImages,
       runtime,
     } = this.context
 
@@ -737,7 +736,6 @@ export class Head extends Component<
               )}
               {!optimizeCss && this.getCssLinks(files)}
               {!optimizeCss && <noscript data-n-css={this.props.nonce ?? ''} />}
-              {optimizeImages && <meta name="next-image-preload" />}
 
               {!isDeferred && getDynamicScriptPreloads()}
 

@@ -72,6 +72,7 @@ export function getRender({
     webServerConfig: {
       extendRenderOpts: {
         buildId,
+        reactRoot: true,
         runtime: 'edge',
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
