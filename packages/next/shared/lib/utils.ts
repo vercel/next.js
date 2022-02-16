@@ -107,6 +107,7 @@ export type NEXT_DATA = {
   domainLocales?: DomainLocale[]
   scriptLoader?: any[]
   isPreview?: boolean
+  notFoundSrcPage?: string
   rsc?: boolean
 }
 
