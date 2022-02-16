@@ -366,8 +366,6 @@ impl SlotRef {
         }
     }
 
-    // pub fn get_trait_method(&self, (id, name): (TypeId, &'static str)) -> &'static NativeFunction {}
-
     pub fn downgrade(&self) -> Option<WeakSlotRef> {
         match self {
             SlotRef::TaskOutput(task) => Some(WeakSlotRef::TaskOutput(Arc::downgrade(task))),

@@ -15,7 +15,7 @@ use std::{
     future::Future,
     hash::Hash,
     pin::Pin,
-    sync::{Arc, Mutex, RwLock, Weak},
+    sync::{Arc, Mutex, RwLock, RwLockWriteGuard, Weak},
 };
 
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = SlotRef> + Send>>;
@@ -68,24 +68,10 @@ pub struct Task {
 
 impl Debug for Task {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        // let deps: Vec<_> = self
-        //     .dependencies
-        //     .read()
-        //     .unwrap()
-        //     .iter()
-        //     .filter_map(|i| i.upgrade())
-        //     .collect();
         let state = self.state.read().unwrap();
         let mut result = f.debug_struct("Task");
         result.field("type", &self.ty);
         result.field("state", &state.state_type);
-        // result.field("output", &state.output_slot);
-        // if state.children.len() > 0 {
-        //     result.field("children", &state.children);
-        // }
-        // if deps.len() > 0 {
-        //     result.field("dependencies", &deps);
-        // }
         result.finish()
     }
 }
@@ -108,6 +94,8 @@ struct TaskState {
 #[derive(PartialEq, Eq, Debug)]
 enum TaskStateType {
     /// task is scheduled for execution
+    ///
+    /// In this state the task shouldn't have children
     ///
     /// it will soon move to InProgressLocally
     Scheduled,
@@ -146,18 +134,20 @@ enum TaskStateType {
     ///
     /// the goal is to keep this task dirty until access
     ///
+    /// In this state the task shouldn't have children
+    ///
     /// on access it will move to Scheduled
     Dirty,
 
-    /// some child tasks has been flagged as dirty
+    /// some child tasks has been flagged as not done
     ///
     /// the goal is to keep this task dirty until access
     ///
     /// on access it will move to SomeChildrenScheduled
-    /// and schedule these dirty children
+    /// and schedule these not done children
     SomeChildrenDirty,
 
-    /// some child tasks has been flagged as dirty
+    /// some child tasks has been flagged as not done
     ///
     /// but with the goal is to get everything up to date again
     ///
@@ -231,6 +221,37 @@ impl Task {
         }
     }
 
+    fn clear_children_and_dependencies(self: &Arc<Self>, mut state: RwLockWriteGuard<TaskState>) {
+        let children = state.children.clone();
+        state.children.clear();
+        state.dirty_children_count = 0;
+        drop(state);
+
+        let mut deps_guard = self.dependencies.write().unwrap();
+        let dependencies = deps_guard.clone();
+        deps_guard.clear();
+        drop(deps_guard);
+
+        // TODO this is inefficient
+        // use HashSet instead
+        fn remove_all(vec: &mut Vec<Weak<Task>>, item: &Weak<Task>) {
+            for i in 0..vec.len() {
+                while i < vec.len() && Weak::ptr_eq(&vec[i], item) {
+                    vec.swap_remove(i);
+                }
+            }
+        }
+        let weak_self = Arc::downgrade(self);
+        for child in children {
+            let mut state = child.state.write().unwrap();
+            remove_all(&mut state.parents, &weak_self);
+        }
+
+        for dep in dependencies {
+            dep.remove_dependency(&weak_self);
+        }
+    }
+
     pub(crate) fn execution_started(self: &Arc<Task>) {
         self.assert_state();
         {
@@ -247,34 +268,7 @@ impl Task {
         match state.state_type {
             Scheduled | InProgressLocallyOutdated => {
                 state.state_type = InProgressLocally;
-                let children = state.children.clone();
-                state.children.clear();
-                state.dirty_children_count = 0;
-                drop(state);
-
-                let mut deps_guard = self.dependencies.write().unwrap();
-                let dependencies = deps_guard.clone();
-                deps_guard.clear();
-                drop(deps_guard);
-
-                // TODO this is inefficient
-                // use HashSet instead
-                fn remove_all(vec: &mut Vec<Weak<Task>>, item: &Weak<Task>) {
-                    for i in 0..vec.len() {
-                        while i < vec.len() && Weak::ptr_eq(&vec[i], item) {
-                            vec.swap_remove(i);
-                        }
-                    }
-                }
-                let weak_self = Arc::downgrade(self);
-                for child in children {
-                    let mut state = child.state.write().unwrap();
-                    remove_all(&mut state.parents, &weak_self);
-                }
-
-                for dep in dependencies {
-                    dep.remove_dependency(&weak_self);
-                }
+                self.clear_children_and_dependencies(state);
 
                 self.assert_state();
                 {
@@ -332,8 +326,11 @@ impl Task {
             }
             InProgressLocallyOutdated => {
                 state.state_type = Scheduled;
-                // TODO should we assign the slot here?
-                drop(state);
+                // We don't want to assign the output slot here
+                // as we want to avoid unnecessary updates
+                // TODO maybe this should be controlled by a heuristic
+                self.clear_children_and_dependencies(state);
+
                 turbo_tasks.schedule(self);
             }
             _ => {
@@ -349,7 +346,17 @@ impl Task {
     pub(crate) fn child_dirty(self: &Arc<Self>, turbo_tasks: &'static TurboTasks) -> bool {
         let mut state = self.state.write().unwrap();
         match state.state_type {
-            Dirty | Scheduled | InProgressLocallyOutdated => false,
+            Dirty | Scheduled => {
+                // In these states the task shouldn't have children
+                // but there is a short moment where is might happen
+                // and we want to ignore events from children there
+                false
+            }
+            InProgressLocallyOutdated => {
+                // The children are subject of clearing soon
+                // so we don't have to track the count
+                false
+            }
             InProgressLocally => {
                 state.dirty_children_count += 1;
                 false
@@ -432,9 +439,20 @@ impl Task {
 
     pub(crate) fn child_done(&self, turbo_tasks: &'static TurboTasks) {
         let mut state = self.state.write().unwrap();
-        state.dirty_children_count -= 1;
         match &state.state_type {
+            Dirty | Scheduled => {
+                // In these states the task shouldn't have children
+                // but there is a short moment where is might happen
+                // and we want to ignore events from children there
+                drop(state);
+            }
+            InProgressLocallyOutdated => {
+                // The children are subject of clearing soon
+                // so we don't have to track the count
+                drop(state);
+            }
             SomeChildrenDirty | SomeChildrenScheduled => {
+                state.dirty_children_count -= 1;
                 if state.dirty_children_count == 0 {
                     state.state_type = Done;
                     state.event.notify(usize::MAX);
@@ -448,7 +466,9 @@ impl Task {
                     drop(state);
                 }
             }
-            InProgressLocally | Dirty | InProgressLocallyOutdated | Scheduled => {
+            InProgressLocally => {
+                // we track the count but don't move to Done when it's 0
+                state.dirty_children_count -= 1;
                 drop(state);
             }
             Done => {
@@ -483,7 +503,9 @@ impl Task {
     fn assert_state(&self) {
         let state = self.state.read().unwrap();
         match state.state_type {
-            Scheduled => {}
+            Scheduled => {
+                assert!(state.children.is_empty());
+            }
             InProgressLocally => {}
             InProgressLocallyOutdated => {}
             Done => {
@@ -492,7 +514,9 @@ impl Task {
                     assert_eq!(child_state.state_type, Done);
                 }
             }
-            Dirty => {}
+            Dirty => {
+                assert!(state.children.is_empty());
+            }
             SomeChildrenDirty => {
                 let mut count = 0;
                 for child in state.children.iter() {
@@ -524,10 +548,14 @@ impl Task {
             SomeChildrenDirty => {
                 if let TaskType::Root(_) = self.ty {
                     state.state_type = Scheduled;
-                    drop(state);
+
+                    self.clear_children_and_dependencies(state);
+
                     turbo_tasks.schedule(self.clone());
                 } else {
                     state.state_type = Dirty;
+
+                    self.clear_children_and_dependencies(state);
                 }
             }
             InProgressLocallyOutdated => {}
@@ -547,7 +575,9 @@ impl Task {
                 }
                 let parents: Vec<Arc<Task>> =
                     state.parents.iter().filter_map(|p| p.upgrade()).collect();
-                drop(state);
+
+                self.clear_children_and_dependencies(state);
+
                 let mut schedule = false;
                 for parent in parents.iter() {
                     if parent.child_dirty(turbo_tasks) {
@@ -575,7 +605,7 @@ impl Task {
             }
             SomeChildrenScheduled => {
                 state.state_type = Scheduled;
-                drop(state);
+                self.clear_children_and_dependencies(state);
                 turbo_tasks.schedule(self.clone());
             }
         }
@@ -779,9 +809,11 @@ impl Task {
                 InProgressLocallyOutdated => "in progress (locally, outdated)".to_string(),
                 Done => "done".to_string(),
                 Dirty => "dirty".to_string(),
-                SomeChildrenDirty => "some children dirty".to_string(),
-                SomeChildrenScheduled => "some children scheduled".to_string(),
-            } + &format!(" {} dirty childen", state.dirty_children_count),
+                SomeChildrenDirty => format!("{} children dirty", state.dirty_children_count),
+                SomeChildrenScheduled => {
+                    format!("{} children dirty (scheduled)", state.dirty_children_count)
+                }
+            },
             output_slot: SlotRef::TaskOutput(self.clone()),
             slots,
             executions: state.executions,
@@ -792,6 +824,7 @@ impl Task {
         self.assert_state();
         {
             let mut parent_state = parent.state.write().unwrap();
+            assert!(parent_state.state_type != Dirty && parent_state.state_type != Scheduled);
             let mut state = self.state.write().unwrap();
             parent_state.children.push(self.clone());
             state.parents.push(Arc::downgrade(&parent));
@@ -862,9 +895,7 @@ impl Task {
                 Ok(result) => return result,
                 Err((func_back, listener)) => {
                     func = func_back;
-                    println!("waiting for {:?}", self);
                     listener.await;
-                    println!("done waiting for {:?}", self);
                 }
             }
         }
@@ -891,7 +922,7 @@ impl Display for Task {
                 Done => "done".to_string(),
                 Dirty => "dirty".to_string(),
                 SomeChildrenDirty => "some children dirty".to_string(),
-                SomeChildrenScheduled => "some children scheduled".to_string(),
+                SomeChildrenScheduled => "some children dirty (scheduled)".to_string(),
             }
         )
     }
@@ -979,83 +1010,3 @@ pub enum TaskArgumentOptions {
     Resolved(&'static SlotValueType),
     Trait(&'static TraitType),
 }
-
-// impl Visualizable for Task {
-//     fn visualize(&self, visualizer: &mut impl crate::viz::Visualizer) {
-//         let state = self.state.read().unwrap();
-//         let state_str = if state.state_type == Done && state.executions <= 1 {
-//             "".to_string()
-//         } else {
-//             match state.state_type {
-//                 Scheduled => "scheduled",
-//                 InProgressLocally => "in progress (locally)",
-//                 InProgressLocallyOutdated => "in progress (locally, outdated)",
-//                 Done => "done",
-//                 Dirty => "dirty",
-//                 SomeChildrenDirty => "some children dirty",
-//                 SomeChildrenScheduled => "some children scheduled",
-//             }
-//             .to_string()
-//                 + &format!(" ({}x executed)", state.executions)
-//         };
-//         if visualizer.task(
-//             self as *const Task,
-//             self.native_fn
-//                 .map_or_else(|| "unnamed", |native_fn| &native_fn.name),
-//             &state_str,
-//         ) {
-//             let children = state.children.clone();
-//             // let output = state.output_slot.clone();
-//             drop(state);
-//             // for input in self.inputs.iter() {
-//             //     input.visualize(visualizer);
-//             //     visualizer.input(self as *const Task, &**input as *const Node);
-//             // }
-//             if !children.is_empty() {
-//                 visualizer.children_start(self as *const Task);
-//                 for child in children.iter() {
-//                     child.visualize(visualizer);
-//                     visualizer.child(self as *const Task, &**child as *const Task);
-//                 }
-//                 visualizer.children_end(self as *const Task);
-//             }
-//             // if let Some(output) = output {
-//             //     output.visualize(visualizer);
-//             //     visualizer.output(self as *const Task, &*output as *const Node);
-//             // }
-//             {
-//                 let previous_nodes = self.previous_nodes.lock().unwrap();
-//                 for (_, nodes) in previous_nodes.by_type.values() {
-//                     for node in nodes {
-//                         node.visualize(visualizer);
-//                         visualizer.created(self as *const Task, &**node as *const Node);
-//                     }
-//                 }
-//                 for node in previous_nodes.by_key.values() {
-//                     node.visualize(visualizer);
-//                     visualizer.created(self as *const Task, &**node as *const Node);
-//                 }
-//             }
-//             let deps = self.dependencies.read().unwrap();
-//             if !deps.is_empty() {
-//                 if children.is_empty() {
-//                     for dependency in deps.iter() {
-//                         if let Some(dependency) = dependency.upgrade() {
-//                             dependency.visualize(visualizer);
-//                             visualizer.dependency(self as *const Task, &*dependency as *const Node);
-//                         }
-//                     }
-//                 } else {
-//                     visualizer.children_start(self as *const Task);
-//                     for dependency in deps.iter() {
-//                         if let Some(dependency) = dependency.upgrade() {
-//                             dependency.visualize(visualizer);
-//                             visualizer.dependency(self as *const Task, &*dependency as *const Node);
-//                         }
-//                     }
-//                     visualizer.children_end(self as *const Task);
-//                 }
-//             }
-//         }
-//     }
-// }

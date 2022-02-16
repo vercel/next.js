@@ -249,11 +249,3 @@ pub(crate) fn intern<
         .unwrap();
     tt.intern::<T, K, F>(key, fallback)
 }
-
-// impl Visualizable for &'static TurboTasks {
-//     fn visualize(&self, visualizer: &mut impl crate::viz::Visualizer) {
-//         for (_key, task) in self.task_cache.clone().into_iter() {
-//             task.visualize(visualizer);
-//         }
-//     }
-// }

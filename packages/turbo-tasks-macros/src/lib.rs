@@ -131,25 +131,8 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             pub fn get_default_task_argument_options() -> turbo_tasks::TaskArgumentOptions { turbo_tasks::TaskArgumentOptions::Resolved(&#slot_value_type_ident) }
 
             pub fn from_slot_ref(node: turbo_tasks::SlotRef) -> Self {
-                // if node.is_slot_value_type(&#slot_value_type_ident) {
-                //     Some(Self { node })
-                // } else {
-                //     None
-                // }
                 Self { node }
             }
-
-            // pub fn verify(node: &turbo_tasks::SlotRef) -> anyhow::Result<()> {
-                // if node.is_slot_value_type(&#slot_value_type_ident) {
-                //     Ok(())
-                // } else {
-                //     Err(anyhow::anyhow!(
-                //         "expected {:?} but got {:?}",
-                //         *#slot_value_type_ident,
-                //         node.get_slot_value_type()
-                //     ))
-                // }
-            // }
 
             pub async fn get(&self) -> impl std::ops::Deref<Target = #ident> {
                 self.node.clone().into_read::<#ident>().await
@@ -411,25 +394,8 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
             pub fn get_default_task_argument_options() -> turbo_tasks::TaskArgumentOptions { turbo_tasks::TaskArgumentOptions::Trait(&#trait_type_ident) }
 
             pub fn from_slot_ref(node: turbo_tasks::SlotRef) -> Self {
-                // if node.has_trait_type(&#trait_type_ident) {
-                //     Some(Self { node })
-                // } else {
-                //     None
-                // }
                 Self { node }
             }
-
-            // pub fn verify(node: &turbo_tasks::SlotRef) -> anyhow::Result<()> {
-                // if node.has_trait_type(&#trait_type_ident) {
-                //     Ok(())
-                // } else {
-                //     Err(anyhow::anyhow!(
-                //         "expected {:?} but got {:?}",
-                //         &*#trait_type_ident,
-                //         node.get_slot_value_type()
-                //     ))
-                // }
-            // }
 
             #(#trait_fns)*
         }
@@ -866,7 +832,6 @@ fn gen_native_function_code(
 ) -> TokenStream2 {
     let mut task_argument_options = Vec::new();
     let mut input_extraction = Vec::new();
-    let mut input_verification = Vec::new();
     let mut input_clone = Vec::new();
     let mut input_from_node = Vec::new();
     let mut input_arguments = Vec::new();
@@ -888,9 +853,6 @@ fn gen_native_function_code(
                         .next()
                         .ok_or_else(|| anyhow::anyhow!(concat!(#name_code, "() self argument missing")))?;
                 });
-                input_verification.push(quote! {
-                    // anyhow::Context::context(#self_ref_type::verify(&__self), concat!(#name_code, "() self argument invalid"))?;
-                });
                 input_clone.push(quote! {
                     let __self = std::clone::Clone::clone(&__self);
                 });
@@ -909,9 +871,6 @@ fn gen_native_function_code(
                     let #pat = __iter
                         .next()
                         .ok_or_else(|| anyhow::anyhow!(concat!(#name_code, "() argument ", stringify!(#index), " (", stringify!(#pat), ") missing")))?;
-                });
-                input_verification.push(quote! {
-                    // anyhow::Context::context(#ty::verify(&#pat), concat!(#name_code, "() argument ", stringify!(#index), " (", stringify!(#pat), ") invalid"))?;
                 });
                 input_clone.push(quote! {
                     let #pat = std::clone::Clone::clone(&#pat);
@@ -942,7 +901,6 @@ fn gen_native_function_code(
                 if __iter.next().is_some() {
                     return Err(anyhow::anyhow!(concat!(#name_code, "() called with too many arguments")));
                 }
-                #(#input_verification)*
                 Ok(Box::new(move || {
                     #(#input_clone)*
                     Box::pin(async move {

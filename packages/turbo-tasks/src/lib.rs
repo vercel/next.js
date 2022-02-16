@@ -3,7 +3,6 @@
 
 pub mod macro_helpers;
 mod native_function;
-// mod native_function_expand;
 pub(crate) mod slot;
 pub(crate) mod slot_value_type;
 mod task;
