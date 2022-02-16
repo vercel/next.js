@@ -1,0 +1,15 @@
+import Link from 'next/link'
+
+export default function NavigationPage() {
+  return (
+    <div>
+      <p>
+        Navigating between pages will trigger a pageview event in Facebook
+        Pixel, but will not reinitialize the pixel.
+      </p>
+      <Link href="/">
+        <a>Return to home</a>
+      </Link>
+    </div>
+  )
+}
