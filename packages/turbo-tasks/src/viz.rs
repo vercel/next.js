@@ -186,8 +186,8 @@ impl GraphViz {
 
     fn skip_loney(&mut self, prefix: &str) {
         let mut map = self.nodes.iter().filter_map(|(id, node)| match node {
-            NodeType::Task(name, _, _, _) => {
-                if name.starts_with(prefix) {
+            NodeType::Task(name, _, _, slots) => {
+                if name.starts_with(prefix) && slots.len() == 0 {
                     Some((id.clone(), (Vec::new(), Vec::new())))
                 } else {
                     None

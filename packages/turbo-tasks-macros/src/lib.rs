@@ -100,6 +100,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let ref_ident = get_ref_ident(&ident);
     let slot_value_type_ident = get_slot_value_type_ident(&ident);
+    let trait_refs: Vec<_> = traits.iter().map(|ident| get_ref_ident(&ident)).collect();
     let trait_registrations: Vec<_> = traits
         .iter()
         .map(|trait_ident| {
@@ -154,6 +155,12 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
 
+        #(impl From<#ref_ident> for #trait_refs {
+            fn from(node_ref: #ref_ident) -> Self {
+                #trait_refs::from_slot_ref(node_ref.into())
+            }
+        })*
+
         // #[cfg(feature = "trivial_bounds")]
         impl From<#ident> for #ref_ident where #ident: std::cmp::PartialEq<#ident> {
             fn from(content: #ident) -> Self {
@@ -164,6 +171,17 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 ) }
             }
         }
+
+        #(// #[cfg(feature = "trivial_bounds")]
+        impl From<#ident> for #trait_refs where #ident: std::cmp::PartialEq<#ident> {
+            fn from(content: #ident) -> Self {
+                Self::from_slot_ref(turbo_tasks::macro_helpers::match_previous_node_by_type::<dyn #traits, _>(
+                    |__slot| {
+                        __slot.compare_and_update_shared(&#slot_value_type_ident, content);
+                    }
+                ))
+            }
+        })*
 
         // #[cfg(feature = "trivial_bounds")]
         impl #ref_ident where #ident: std::cmp::Eq + std::hash::Hash + Send + Sync + 'static {
@@ -176,6 +194,12 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                         arc
                     )
                 ) }
+            }
+        }
+
+        impl #ref_ident where #ident: std::fmt::Debug + std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'static {
+            pub fn value(this: #ident) -> #ref_ident {
+                Self { node: turbo_tasks::SlotRef::CloneableData(&#slot_value_type_ident, Box::new(this)) }
             }
         }
 
@@ -921,7 +945,7 @@ pub fn constructor(_args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_derive(TraceSlotRefs, attributes(trace_ignore))]
 pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
     fn ignore_field(field: &Field) -> bool {
-        !field
+        field
             .attrs
             .iter()
             .any(|attr| attr.path.is_ident("trace_ignore"))
@@ -938,7 +962,7 @@ pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
                 match &variant.fields {
                     Fields::Named(FieldsNamed{ named, ..}) => {
                         let idents: Vec<_> = named.iter()
-                            .filter(|field| ignore_field(field))
+                            .filter(|field| !ignore_field(field))
                             .filter_map(|field| field.ident.clone())
                             .collect();
                         quote! {
@@ -952,13 +976,19 @@ pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
                     Fields::Unnamed(FieldsUnnamed{ unnamed, .. }) => {
                         let idents: Vec<_> = unnamed.iter()
                             .enumerate()
-                            .filter(|(_, field)| ignore_field(field))
-                            .map(|(i, field)| Ident::new(&format!("tuple_item_{}", i), field.span()))
+                            .map(|(i, field)| if ignore_field(field) {
+                                Ident::new("_", field.span())
+                            } else {
+                                Ident::new(&format!("tuple_item_{}", i), field.span())
+                            })
+                            .collect();
+                        let active_idents: Vec<_> = idents.iter()
+                            .filter(|ident| ident.to_string() != "_")
                             .collect();
                         quote! {
-                            #ident::#variant_ident( #(ref #idents),* ) => {
+                            #ident::#variant_ident( #(#idents),* ) => {
                                 #(
-                                    turbo_tasks::trace::TraceSlotRefs::trace_node_refs(#idents, context);
+                                    turbo_tasks::trace::TraceSlotRefs::trace_node_refs(#active_idents, context);
                                 )*
                             }
                         }
@@ -980,7 +1010,7 @@ pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
                 Fields::Named(FieldsNamed { named, .. }) => {
                     let idents: Vec<_> = named
                         .iter()
-                        .filter(|field| ignore_field(field))
+                        .filter(|field| !ignore_field(field))
                         .filter_map(|field| field.ident.clone())
                         .collect();
                     quote! {
@@ -993,7 +1023,7 @@ pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
                     let indicies: Vec<_> = unnamed
                         .iter()
                         .enumerate()
-                        .filter(|(_, field)| ignore_field(field))
+                        .filter(|(_, field)| !ignore_field(field))
                         .map(|(i, _)| Literal::usize_unsuffixed(i))
                         .collect();
                     quote! {

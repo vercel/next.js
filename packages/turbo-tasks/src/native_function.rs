@@ -1,6 +1,6 @@
 use crate::{self as turbo_tasks, task::NativeTaskFn, SlotRef, TaskArgumentOptions};
 use anyhow::Result;
-use std::hash::Hash;
+use std::{fmt::Debug, hash::Hash};
 
 #[turbo_tasks::value]
 pub struct NativeFunction {
@@ -10,6 +10,14 @@ pub struct NativeFunction {
     pub task_argument_options: Box<dyn Fn() -> Vec<TaskArgumentOptions> + Send + Sync + 'static>,
     #[trace_ignore]
     pub bind_fn: Box<dyn (Fn(Vec<SlotRef>) -> Result<NativeTaskFn>) + Send + Sync + 'static>,
+}
+
+impl Debug for NativeFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NativeFunction")
+            .field("name", &self.name)
+            .finish_non_exhaustive()
+    }
 }
 
 #[turbo_tasks::value_impl]

@@ -22,6 +22,7 @@ use turbo_tasks::{Invalidator, Task};
 pub trait FileSystem {
     async fn read(&self, fs_path: FileSystemPathRef) -> FileContentRef;
     async fn read_dir(&self, fs_path: FileSystemPathRef) -> DirectoryContentRef;
+    async fn parent_path(&self, fs_path: FileSystemPathRef) -> FileSystemPathRef;
     async fn write(&self, from: FileSystemPathRef, content: FileContentRef);
 }
 
@@ -247,6 +248,15 @@ impl FileSystem for DiskFileSystem {
             }
         }
     }
+    async fn parent_path(&self, fs_path: FileSystemPathRef) -> FileSystemPathRef {
+        let fs_path = fs_path.await;
+        let mut p: String = fs_path.path.clone();
+        match str::rfind(&p, '/') {
+            Some(index) => p.replace_range(index.., ""),
+            None => p.clear(),
+        }
+        FileSystemPathRef::new(fs_path.fs.clone(), p)
+    }
 }
 
 #[turbo_tasks::value]
@@ -274,7 +284,7 @@ pub async fn rebase(
     let old_base = &*old_base.await;
     let new_base = &*new_base.await;
     FileSystemPathRef::new(
-        fs_path.fs.clone(),
+        new_base.fs.clone(),
         [new_base.path.as_str(), &fs_path.path[old_base.path.len()..]].concat(),
     )
 }
@@ -291,6 +301,10 @@ impl FileSystemPathRef {
     pub async fn write(self, content: FileContentRef) {
         let this = self.get().await;
         this.fs.write(self, content).await
+    }
+    pub async fn parent(self) -> FileSystemPathRef {
+        let this = self.get().await;
+        this.fs.parent_path(self).await
     }
     pub async fn rebase(
         fs_path: FileSystemPathRef,

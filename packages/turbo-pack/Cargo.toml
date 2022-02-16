@@ -1,0 +1,22 @@
+[package]
+name = "turbo-pack"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+lazy_static = "1.4.0"
+anyhow = "1.0.47"
+async-trait = "0.1.52"
+"turbo-tasks" = { path = "../turbo-tasks" }
+"turbo-tasks-fs" = { path = "../turbo-tasks-fs" }
+async-std = "1.10.0"
+
+[dependencies.swc_common]
+version = "0.17.5"
+features = ["tty-emitter"]
+
+[dependencies.swc_ecmascript]
+version = "0.114.2"
+features = ["parser"]

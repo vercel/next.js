@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     sync::{atomic::*, Arc},
     time::Duration,
 };
@@ -62,7 +62,24 @@ impl<T: TraceSlotRefs> TraceSlotRefs for HashSet<T> {
     }
 }
 
+impl<T: TraceSlotRefs> TraceSlotRefs for BTreeSet<T> {
+    fn trace_node_refs(&self, context: &mut TraceSlotRefsContext) {
+        for item in self.iter() {
+            TraceSlotRefs::trace_node_refs(item, context);
+        }
+    }
+}
+
 impl<K: TraceSlotRefs, V: TraceSlotRefs> TraceSlotRefs for HashMap<K, V> {
+    fn trace_node_refs(&self, context: &mut TraceSlotRefsContext) {
+        for (key, value) in self.iter() {
+            TraceSlotRefs::trace_node_refs(key, context);
+            TraceSlotRefs::trace_node_refs(value, context);
+        }
+    }
+}
+
+impl<K: TraceSlotRefs, V: TraceSlotRefs> TraceSlotRefs for BTreeMap<K, V> {
     fn trace_node_refs(&self, context: &mut TraceSlotRefsContext) {
         for (key, value) in self.iter() {
             TraceSlotRefs::trace_node_refs(key, context);
