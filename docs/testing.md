@@ -354,19 +354,12 @@ Stylesheets and images aren't used in the tests but importing them may cause err
 
 ```js
 // __mocks__/fileMock.js
-module.exports = 'test-file-stub'
+module.exports = { src: '/img.jpg', height: 24, width: 24 }
 ```
 
 ```js
 // __mocks__/styleMock.js
 module.exports = {}
-```
-
-If you're running into the issue `"Failed to parse src "test-file-stub" on 'next/image'"`, add a '/' to your fileMock.
-
-```js
-// __mocks__/fileMock.js
-module.exports = '/test-file-stub'
 ```
 
 For more information on handling static assets, please refer to the [Jest Docs](https://jestjs.io/docs/webpack#handling-static-assets).
