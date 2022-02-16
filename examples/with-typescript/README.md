@@ -1,6 +1,8 @@
 # TypeScript Next.js example
 
-This is a really simple project that shows the usage of Next.js with TypeScript.
+This examples is part of the `create-next-app` CLI as an official TypeScript template and can be used with the `--ts` or `--typescript` flag.
+
+You can find its source code here: https://github.com/vercel/next.js/tree/canary/packages/create-next-app/templates/typescript
 
 ## Preview
 
@@ -18,29 +20,33 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
-```bash
-npx create-next-app --example with-typescript with-typescript-app
+```sh
+npx create-next-app --typescript with-typescript-app
 # or
-yarn create next-app --example with-typescript with-typescript-app
+yarn create next-app --typescript with-typescript-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 ## Notes
 
-This example shows how to integrate the TypeScript type system into Next.js. Since TypeScript is supported out of the box with Next.js, all we have to do is to install TypeScript.
+This example shows how to integrate the TypeScript type system into Next.js. Since TypeScript is supported out of the box with Next.js, all we have to do is to install TypeScript. (Installing this template will do this for you)
 
-```
+```sh
 npm install --save-dev typescript
+# or
+yarn add --dev typescript
 ```
 
 To enable TypeScript's features, we install the type declarations for React and Node.
 
-```
+```sh
 npm install --save-dev @types/react @types/react-dom @types/node
+# or
+yarn add --dev @types/react @types/react-dom @types/node
 ```
 
-When we run `next dev` the next time, Next.js will start looking for any `.ts` or `.tsx` files in our project and builds it. It even automatically creates a `tsconfig.json` file for our project with the recommended settings.
+When we run `next dev` the next time, Next.js will start looking for any `.ts` or `.tsx` files in our project and builds it. It even automatically creates/updates a `tsconfig.json` file for our project with the recommended settings.
 
 Next.js has built-in TypeScript declarations, so we'll get autocompletion for Next.js' modules straight away.
 
