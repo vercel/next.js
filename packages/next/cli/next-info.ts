@@ -4,6 +4,7 @@ import childProcess from 'child_process'
 
 import chalk from 'next/dist/compiled/chalk'
 import arg from 'next/dist/compiled/arg/index.js'
+import fetch from 'next/dist/compiled/node-fetch'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 import isError from '../lib/is-error'
@@ -41,6 +42,8 @@ const nextInfo: cliCommand = async (argv) => {
     return
   }
 
+  const installedRelease = getPackageVersion('next')
+
   console.log(`
     Operating System:
       Platform: ${os.platform()}
@@ -52,9 +55,26 @@ const nextInfo: cliCommand = async (argv) => {
       Yarn: ${getBinaryVersion('yarn')}
       pnpm: ${getBinaryVersion('pnpm')}
     Relevant packages:
-      next: ${getPackageVersion('next')}
+      next: ${installedRelease}
       react: ${getPackageVersion('react')}
-      react-dom: ${getPackageVersion('react-dom')}`)
+      react-dom: ${getPackageVersion('react-dom')}
+`)
+
+  const res = await fetch(
+    'https://api.github.com/repos/vercel/next.js/releases'
+  )
+  const releases = await res.json()
+  const newestRelease = releases[0].tag_name.replace(/^v/, '')
+
+  if (installedRelease !== newestRelease) {
+    console.warn(
+      `${chalk.yellow(
+        chalk.bold('warn')
+      )}  - Earlier Next.js release "${installedRelease}" detected. Newest: "${newestRelease}".
+        Before opening a new issue, verify that your issue still exists in Next.js canary releases (\`npm install next@canary\`).
+        Read more - https://nextjs.org/docs/messages/opening-an-issue`
+    )
+  }
 }
 
 export { nextInfo }
