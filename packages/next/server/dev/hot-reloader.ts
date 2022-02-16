@@ -3,7 +3,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute } from 'path'
 import { UrlObject } from 'url'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import {
   createEntrypoints,
@@ -592,7 +592,11 @@ export default class HotReloader {
     const prevServerPageHashes = new Map<string, string>()
 
     const trackPageChanges =
-      (pageHashMap: Map<string, string>, changedItems: Set<string>) =>
+      (
+        pageHashMap: Map<string, string>,
+        changedItems: Set<string>,
+        _type: 'server' | 'client'
+      ) =>
       (stats: webpack5.Compilation) => {
         try {
           stats.entrypoints.forEach((entry, key) => {
@@ -603,29 +607,40 @@ export default class HotReloader {
                   const modsIterable: any =
                     stats.chunkGraph.getChunkModulesIterable(chunk)
 
+                  let chunksHash = new StringXor()
+
                   modsIterable.forEach((mod: any) => {
                     if (
                       mod.resource &&
                       mod.resource.replace(/\\/g, '/').includes(key)
                     ) {
-                      const prevHash = pageHashMap.get(key)
-
                       // use original source to calculate hash since mod.hash
-                      // seems to be unstable, we don't want to include
-                      // source maps in this calculate since that will change
-                      // for both server and client
+                      // includes the source map in development which changes
+                      // every time for both server and client so we calculate
+                      // the hash without the source map for the page module
                       const hash = require('crypto')
                         .createHash('sha256')
                         .update(mod.originalSource().buffer())
                         .digest()
                         .toString('hex')
 
-                      if (prevHash && prevHash !== hash) {
-                        changedItems.add(key)
-                      }
-                      pageHashMap.set(key, hash)
+                      chunksHash.add(hash)
+                    } else {
+                      // for non-pages we can use the module hash directly
+                      const hash = stats.chunkGraph.getModuleHash(
+                        mod,
+                        chunk.runtime
+                      )
+                      chunksHash.add(hash)
                     }
                   })
+                  const prevHash = pageHashMap.get(key)
+                  const curHash = chunksHash._value?.toString('hex') || ''
+
+                  if (prevHash && prevHash !== curHash) {
+                    changedItems.add(key)
+                  }
+                  pageHashMap.set(key, curHash)
                 }
               })
             }
@@ -637,11 +652,11 @@ export default class HotReloader {
 
     multiCompiler.compilers[0].hooks.emit.tap(
       'NextjsHotReloaderForClient',
-      trackPageChanges(prevClientPageHashes, changedClientPages)
+      trackPageChanges(prevClientPageHashes, changedClientPages, 'client')
     )
     multiCompiler.compilers[1].hooks.emit.tap(
       'NextjsHotReloaderForServer',
-      trackPageChanges(prevServerPageHashes, changedServerPages)
+      trackPageChanges(prevServerPageHashes, changedServerPages, 'server')
     )
 
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page

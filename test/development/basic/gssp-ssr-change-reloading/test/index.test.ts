@@ -26,6 +26,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, '../pages')),
+        lib: new FileRef(join(__dirname, '../lib')),
       },
     })
   })
@@ -268,6 +269,39 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
       await next.patchFile(page, originalContent)
       expect(await hasRedbox(browser, false)).toBe(false)
+    } finally {
+      await next.patchFile(page, originalContent)
+    }
+  })
+
+  it('should refresh data when server import is updated', async () => {
+    const browser = await webdriver(next.url, '/')
+    await browser.eval(`window.beforeChange = 'hi'`)
+
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props.count).toBe(1)
+    expect(props.data).toEqual({ hello: 'world' })
+
+    const page = 'lib/data.json'
+    const originalContent = await next.readFile(page)
+
+    try {
+      await next.patchFile(page, JSON.stringify({ hello: 'replaced!!' }))
+      await check(async () => {
+        const props = JSON.parse(await browser.elementByCss('#props').text())
+        return props.count === 1 && props.data.hello === 'replaced!!'
+          ? 'success'
+          : JSON.stringify(props)
+      }, 'success')
+      expect(await browser.eval('window.beforeChange')).toBe('hi')
+
+      await next.patchFile(page, originalContent)
+      await check(async () => {
+        const props = JSON.parse(await browser.elementByCss('#props').text())
+        return props.count === 1 && props.data.hello === 'world'
+          ? 'success'
+          : JSON.stringify(props)
+      }, 'success')
     } finally {
       await next.patchFile(page, originalContent)
     }
