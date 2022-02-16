@@ -2,8 +2,6 @@
 setInterval(() => {}, 250)
 
 module.exports = {
-  // Make sure we have sane default CSP, even when SVG is enabled
-  dangerouslyAllowSVG: true,
   onDemandEntries: {
     // Make sure entries are not getting disposed.
     maxInactiveAge: 1000 * 60 * 60,
@@ -40,5 +38,9 @@ module.exports = {
         permanent: false,
       },
     ]
+  },
+  images: {
+    // Make sure we have sane default CSP, even when SVG is enabled
+    dangerouslyAllowSVG: true,
   },
 }
