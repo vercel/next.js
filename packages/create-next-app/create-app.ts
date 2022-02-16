@@ -37,6 +37,15 @@ export async function createApp({
   typescript?: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
+
+  if (
+    example === 'with-typescript' ||
+    examplePath?.includes('with-typescript')
+  ) {
+    example = undefined
+    typescript = true
+  }
+
   const template = typescript ? 'typescript' : 'default'
 
   if (example) {
@@ -153,7 +162,7 @@ export async function createApp({
           )}. This might take a moment.`
         )
         console.log()
-        await retry(() => downloadAndExtractExample(root, example), {
+        await retry(() => downloadAndExtractExample(root, example as string), {
           retries: 3,
         })
       }
@@ -201,7 +210,7 @@ export async function createApp({
     /**
      * Create a package.json for the new project.
      */
-    const packageJson = {
+    const packageJson: any = {
       name: appName,
       version: '0.1.0',
       private: true,
@@ -212,6 +221,11 @@ export async function createApp({
         lint: 'next lint',
       },
     }
+
+    if (typescript) {
+      packageJson.scripts['type-check'] = 'tsc'
+    }
+
     /**
      * Write it to disk.
      */
@@ -235,7 +249,12 @@ export async function createApp({
      * TypeScript projects will have type definitions and other devDependencies.
      */
     if (typescript) {
-      devDependencies.push('typescript', '@types/react', '@types/node')
+      devDependencies.push(
+        'typescript',
+        '@types/react',
+        '@types/react-dom',
+        '@types/node'
+      )
     }
     /**
      * Install package.json dependencies if they exist.
