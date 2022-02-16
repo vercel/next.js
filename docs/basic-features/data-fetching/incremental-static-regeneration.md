@@ -16,9 +16,11 @@ description: 'Learn how to create or update static pages at runtime with Increme
 <details>
   <summary><b>Version History</b></summary>
 
-| Version  | Changes          |
-| -------- | ---------------- |
-| `v9.5.0` | Base Path added. |
+| Version   | Changes                                                                                 |
+| --------- | --------------------------------------------------------------------------------------- |
+| `v12.1.0` | On-demand ISR added (beta).                                                             |
+| `v12.0.0` | [Bot-aware ISR fallback](https://nextjs.org/blog/next-12#bot-aware-isr-fallback) added. |
+| `v9.5.0`  | Base Path added.                                                                        |
 
 </details>
 
@@ -85,7 +87,59 @@ When a request is made to a page that was pre-rendered at build time, it will in
 
 When a request is made to a path that hasn’t been generated, Next.js will server-render the page on the first request. Future requests will serve the static file from the cache. ISR on Vercel [persists the cache globally and handles rollbacks](https://vercel.com/docs/concepts/next.js/incremental-static-regeneration).
 
-## Error Handling and Revalidation
+## On-demand revalidation (beta)
+
+If you set a `revalidate` time of `60`, all visitors will see the same generated version of your site for one minute. The only way to invalidate the cache is from someone visiting that page after the minute has passed.
+
+Starting with `v12.1.0`, Next.js supports on-demand Incremental Static Regeneration to manually purge the Next.js cache for a specific page. This makes it easier to update your site when:
+
+- Content from your headless CMS is created or updated
+- Ecommerce metadata changes (price, description, category, reviews, etc.)
+
+First, create a secret token only known by your Next.js app. This secret will be used to prevent unauthorized access to the revalidation API Route. You can access the route (either manually or with a webhook) with the following URL structure:
+
+```bash
+https://<your-site.com>/api/revalidate?secret=<token>
+```
+
+Next, add the secret as an [Environment Variable](/docs/basic-features/environment-variables.md) to your application. Finally, create the revalidation API Route:
+
+```jsx
+// pages/api/revalidate.js
+
+export default async function handler(req, res) {
+  // Check for secret to confirm this is a valid request
+  if (req.query.secret !== process.env.MY_SECRET_TOKEN) {
+    return res.status(401).json({ message: 'Invalid token' })
+  }
+
+  try {
+    await res.unstable_revalidate('/path-to-revalidate')
+    return res.json({ revalidated: true })
+  } catch (err) {
+    // If there was an error, Next.js will continue
+    // to show the last successfully generated page
+    return res.status(500).send('Error revalidating')
+  }
+}
+```
+
+Inside `getStaticProps`, you do not need to specific `revalidate` to use on-demand revalidation. If `revalidate` is omitted, Next.js will use the default value of `false` (no revalidation) and only ever revalidate the page on-demand when `unstable_revalidate()` is used.
+
+[View our demo](https://on-demand-isr.vercel.app) to see on-demand revalidation in action and provide feedback.
+
+### Testing on-demand ISR during development
+
+When running locally with `next dev`, `getStaticProps` is invoked on every request. To verify your on-demand ISR configuration is correct, you will need to create a [production build](/docs/api-reference/cli.md#build) and start the [production server](/docs/api-reference/cli.md#production):
+
+```bash
+$ next build
+$ next start
+```
+
+Then, you are able to validate static pages are successfully revalidated.
+
+## Error handling and revalidation
 
 If there is an error inside `getStaticProps` when handling background regeneration, or you manually throw an error, the last successfully generated page will continue to show. On the next subsequent request, Next.js will retry calling `getStaticProps`.
 
@@ -114,3 +168,14 @@ export async function getStaticProps() {
   }
 }
 ```
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/basic-features/data-fetching/get-static-paths.md">
+    <b>Dynamic routing</b>
+    <small>Learn more about dynamic routing in Next.js with getStaticPaths.</small>
+  </a>
+</div>
