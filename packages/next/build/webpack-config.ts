@@ -1146,6 +1146,7 @@ export default async function getBaseWebpackConfig(
         'noop-loader',
         'next-middleware-loader',
         'next-middleware-ssr-loader',
+        'next-middleware-wasm-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1528,6 +1529,12 @@ export default async function getBaseWebpackConfig(
   }
 
   const webpack5Config = webpackConfig as webpack5.Configuration
+
+  webpack5Config.module!.rules!.unshift({
+    test: /\.wasm$/,
+    issuerLayer: 'middleware',
+    loader: 'next-middleware-wasm-loader',
+  })
 
   webpack5Config.experiments = {
     layers: true,
