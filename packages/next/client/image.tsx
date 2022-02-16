@@ -462,7 +462,7 @@ export default function Image({
       )
     }
 
-    if (!unoptimized) {
+    if (!unoptimized && loader !== defaultImageLoader) {
       const urlStr = loader({
         config,
         src,
