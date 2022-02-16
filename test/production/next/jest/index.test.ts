@@ -10,13 +10,6 @@ describe('next/jest', () => {
       files: {
         'public/vercel.svg':
           '<svg width="24" height="24" xmlns="http://www.w3.org/2000/svg"/>',
-        'components/image.js': `
-          import Image from "next/image"
-          import img from "../public/vercel.svg"
-          export function Img() {
-            return <Image src={img} alt="logo"/>
-          }
-        `,
         'components/comp.js': `
           export default function Comp() {
             return <h1>Hello Dynamic</h1>;
@@ -24,7 +17,8 @@ describe('next/jest', () => {
         `,
         'pages/index.js': `
           import dynamic from "next/dynamic";
-          import { Img } from "../components/image";
+          import Image from "next/image";
+          import img from "../public/vercel.svg";
 
           const Comp = dynamic(() => import("../components/comp"), {
             loading: () => <h1>Loading...</h1>,
@@ -33,7 +27,7 @@ describe('next/jest', () => {
           export default function Page() { 
             return <>
               <Comp />
-              <Img/>
+              <Image src={img} alt="logo"/>
               <p>hello world</p>
             </>
           } 
