@@ -258,7 +258,10 @@ describe('GS(S)P Server-Side Change Reloading', () => {
     try {
       await next.patchFile(
         page,
-        originalContent.replace('const count', 'throw new Error("custom oops")')
+        originalContent.replace(
+          'const count',
+          'throw new Error("custom oops"); const count'
+        )
       )
       expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain('custom oops')
