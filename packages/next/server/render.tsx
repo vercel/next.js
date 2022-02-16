@@ -1800,9 +1800,11 @@ function renderToStream({
               flushEffectHandler
                 ? createFlushEffectStream(flushEffectHandler)
                 : null,
-              suffixUnclosed ? createPrefixStream(suffixUnclosed) : null,
+              suffixUnclosed != null
+                ? createPrefixStream(suffixUnclosed)
+                : null,
               dataStream ? createInlineDataStream(dataStream) : null,
-              suffixUnclosed ? createSuffixStream(closeTag) : null,
+              suffixUnclosed != null ? createSuffixStream(closeTag) : null,
             ].filter(Boolean) as any
 
             return transforms.reduce(
