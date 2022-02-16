@@ -1272,6 +1272,16 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
+      // Produce source maps for middlewares
+      new webpack.SourceMapDevToolPlugin({
+        filename: '[file].map',
+        include: [
+          // Middlewares are the only ones who have `server/pages/[name]` as their filename
+          /^server\/pages\//,
+          // All middleware chunks
+          /^server\/middleware-chunks\//,
+        ],
+      }),
       hasReactRefresh && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       targetWeb &&
