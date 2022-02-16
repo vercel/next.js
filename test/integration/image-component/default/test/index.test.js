@@ -208,7 +208,7 @@ function runTests(mode) {
       )
       await check(
         () => browser.eval(`document.getElementById("img3").currentSrc`),
-        /test(.*)svg/
+        /test\.svg/
       )
       await check(
         () => browser.eval(`document.getElementById("img4").currentSrc`),
@@ -224,7 +224,7 @@ function runTests(mode) {
       )
       await check(
         () => browser.eval(`document.getElementById("msg3").textContent`),
-        'loaded 1 img3 with dimensions 266x266'
+        'loaded 1 img3 with dimensions 400x400'
       )
       await check(
         () => browser.eval(`document.getElementById("msg4").textContent`),
@@ -1115,7 +1115,7 @@ function runTests(mode) {
       expect(
         await hasImageMatchingUrl(
           browser,
-          `http://localhost:${appPort}/_next/image?url=%2Ftest.svg&w=828&q=75`
+          `http://localhost:${appPort}/test.svg`
         )
       ).toBe(true)
       expect(

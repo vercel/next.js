@@ -107,6 +107,7 @@ export type NEXT_DATA = {
   domainLocales?: DomainLocale[]
   scriptLoader?: any[]
   isPreview?: boolean
+  notFoundSrcPage?: string
   rsc?: boolean
 }
 
@@ -224,7 +225,6 @@ export type HtmlProps = {
   crossOrigin?: string
   optimizeCss?: boolean
   optimizeFonts?: boolean
-  optimizeImages?: boolean
   runtime?: 'edge' | 'nodejs'
 }
 

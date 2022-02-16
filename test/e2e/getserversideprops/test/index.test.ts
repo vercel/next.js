@@ -290,6 +290,14 @@ const runTests = (dev = false) => {
     expect(await res.text()).toBe('hello from gssp')
   })
 
+  it('should allow POST request for getServerSideProps page', async () => {
+    const res = await fetchViaHTTP(next.url, '/', undefined, {
+      method: 'POST',
+    })
+    expect(res.status).toBe(200)
+    expect(await res.text()).toMatch(/hello.*?world/)
+  })
+
   it('should render correctly when notFound is false (non-dynamic)', async () => {
     const res = await fetchViaHTTP(next.url, '/not-found')
 

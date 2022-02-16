@@ -186,29 +186,39 @@ export function runTests(ctx) {
     expect(isAnimated(await res.buffer())).toBe(true)
   })
 
-  it('should maintain vector svg', async () => {
-    const query = { w: ctx.w, q: 90, url: '/test.svg' }
-    const opts = { headers: { accept: 'image/webp' } }
-    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
-    expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Type')).toContain('image/svg+xml')
-    expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
-    )
-    // SVG is compressible so will have accept-encoding set from
-    // compression
-    expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
-    expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toBe(
-      `inline; filename="test.svg"`
-    )
-    const actual = await res.text()
-    const expected = await fs.readFile(
-      join(ctx.appDir, 'public', 'test.svg'),
-      'utf8'
-    )
-    expect(actual).toMatch(expected)
-  })
+  if (ctx.dangerouslyAllowSVG) {
+    it('should maintain vector svg', async () => {
+      const query = { w: ctx.w, q: 90, url: '/test.svg' }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toContain('image/svg+xml')
+      expect(res.headers.get('Cache-Control')).toBe(
+        `public, max-age=0, must-revalidate`
+      )
+      // SVG is compressible so will have accept-encoding set from
+      // compression
+      expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
+      expect(res.headers.get('etag')).toBeTruthy()
+      expect(res.headers.get('Content-Disposition')).toBe(
+        `inline; filename="test.svg"`
+      )
+      const actual = await res.text()
+      const expected = await fs.readFile(
+        join(ctx.appDir, 'public', 'test.svg'),
+        'utf8'
+      )
+      expect(actual).toMatch(expected)
+    })
+  } else {
+    it('should not allow vector svg', async () => {
+      const query = { w: ctx.w, q: 35, url: '/test.svg' }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(400)
+      expect(await res.text()).toContain('valid but image type is not allowed')
+    })
+  }
 
   it('should maintain ico format', async () => {
     const query = { w: ctx.w, q: 90, url: `/test.ico` }
@@ -778,41 +788,43 @@ export function runTests(ctx) {
     }
   })
 
-  it('should use cached image file when parameters are the same for svg', async () => {
-    await cleanImagesDir(ctx)
+  if (ctx.dangerouslyAllowSVG) {
+    it('should use cached image file when parameters are the same for svg', async () => {
+      await cleanImagesDir(ctx)
 
-    const query = { url: '/test.svg', w: ctx.w, q: 80 }
-    const opts = { headers: { accept: 'image/webp' } }
+      const query = { url: '/test.svg', w: ctx.w, q: 80 }
+      const opts = { headers: { accept: 'image/webp' } }
 
-    const res1 = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
-    expect(res1.status).toBe(200)
-    expect(res1.headers.get('X-Nextjs-Cache')).toBe('MISS')
-    expect(res1.headers.get('Content-Type')).toBe('image/svg+xml')
-    expect(res1.headers.get('Content-Disposition')).toBe(
-      `inline; filename="test.svg"`
-    )
-    const etagOne = res1.headers.get('etag')
+      const res1 = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+      expect(res1.status).toBe(200)
+      expect(res1.headers.get('X-Nextjs-Cache')).toBe('MISS')
+      expect(res1.headers.get('Content-Type')).toBe('image/svg+xml')
+      expect(res1.headers.get('Content-Disposition')).toBe(
+        `inline; filename="test.svg"`
+      )
+      const etagOne = res1.headers.get('etag')
 
-    let json1
-    await check(async () => {
-      json1 = await fsToJson(ctx.imagesDir)
-      return Object.keys(json1).some((dir) => {
-        return Object.keys(json1[dir]).some((file) => file.includes(etagOne))
-      })
-        ? 'success'
-        : 'fail'
-    }, 'success')
+      let json1
+      await check(async () => {
+        json1 = await fsToJson(ctx.imagesDir)
+        return Object.keys(json1).some((dir) => {
+          return Object.keys(json1[dir]).some((file) => file.includes(etagOne))
+        })
+          ? 'success'
+          : 'fail'
+      }, 'success')
 
-    const res2 = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
-    expect(res2.status).toBe(200)
-    expect(res2.headers.get('X-Nextjs-Cache')).toBe('HIT')
-    expect(res2.headers.get('Content-Type')).toBe('image/svg+xml')
-    expect(res2.headers.get('Content-Disposition')).toBe(
-      `inline; filename="test.svg"`
-    )
-    const json2 = await fsToJson(ctx.imagesDir)
-    expect(json2).toStrictEqual(json1)
-  })
+      const res2 = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+      expect(res2.status).toBe(200)
+      expect(res2.headers.get('X-Nextjs-Cache')).toBe('HIT')
+      expect(res2.headers.get('Content-Type')).toBe('image/svg+xml')
+      expect(res2.headers.get('Content-Disposition')).toBe(
+        `inline; filename="test.svg"`
+      )
+      const json2 = await fsToJson(ctx.imagesDir)
+      expect(json2).toStrictEqual(json1)
+    })
+  }
 
   it('should use cached image file when parameters are the same for animated gif', async () => {
     await cleanImagesDir(ctx)

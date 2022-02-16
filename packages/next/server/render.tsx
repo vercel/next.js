@@ -215,7 +215,6 @@ export type RenderOptsPartial = {
   unstable_JsPreload?: false
   optimizeFonts: boolean
   fontManifest?: FontManifest
-  optimizeImages: boolean
   optimizeCss: any
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
@@ -529,9 +528,11 @@ export async function renderToHTML(
   const headTags = (...args: any) => callMiddleware('headTags', args)
 
   const isFallback = !!query.__nextFallback
+  const notFoundSrcPage = query.__nextNotFoundSrcPage
   delete query.__nextFallback
   delete query.__nextLocale
   delete query.__nextDefaultLocale
+  delete query.__nextIsNotFound
 
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
@@ -1375,6 +1376,7 @@ export async function renderToHTML(
       defaultLocale,
       domainLocales,
       isPreview: isPreview === true ? true : undefined,
+      notFoundSrcPage: notFoundSrcPage && dev ? notFoundSrcPage : undefined,
     },
     buildManifest: filteredBuildManifest,
     docComponentsRendered,
@@ -1406,7 +1408,6 @@ export async function renderToHTML(
     crossOrigin: renderOpts.crossOrigin,
     optimizeCss: renderOpts.optimizeCss,
     optimizeFonts: renderOpts.optimizeFonts,
-    optimizeImages: renderOpts.optimizeImages,
     runtime,
   }
 
@@ -1485,16 +1486,13 @@ export async function renderToHTML(
                 return html
               }
             : null,
-          !process.browser &&
-          (process.env.__NEXT_OPTIMIZE_FONTS ||
-            process.env.__NEXT_OPTIMIZE_IMAGES)
+          !process.browser && process.env.__NEXT_OPTIMIZE_FONTS
             ? async (html: string) => {
                 return await postProcess(
                   html,
                   { getFontDefinition },
                   {
                     optimizeFonts: renderOpts.optimizeFonts,
-                    optimizeImages: renderOpts.optimizeImages,
                   }
                 )
               }

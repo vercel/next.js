@@ -398,6 +398,10 @@ export default function Image({
     isLazy = false
   }
 
+  if (src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
+    unoptimized = true
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
       throw new Error(

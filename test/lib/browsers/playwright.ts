@@ -64,7 +64,10 @@ class Playwright extends BrowserInterface {
     return page.goto(url) as any
   }
 
-  async loadPage(url: string, opts?: { disableCache: boolean }) {
+  async loadPage(
+    url: string,
+    opts?: { disableCache: boolean; beforePageLoad?: (...args: any[]) => void }
+  ) {
     if (this.activeTrace) {
       const traceDir = path.join(__dirname, '../../traces')
       const traceOutputPath = path.join(
@@ -135,6 +138,8 @@ class Playwright extends BrowserInterface {
         }
       })
     })
+
+    opts?.beforePageLoad?.(page)
 
     if (tracePlaywright) {
       await context.tracing.start({
