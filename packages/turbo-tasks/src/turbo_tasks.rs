@@ -167,15 +167,6 @@ impl TurboTasks {
         TURBO_TASKS.with(|c| c.get())
     }
 
-    pub(crate) fn schedule_notify_task(task: Arc<Task>) {
-        TASKS_TO_NOTIFY.with(|tasks| {
-            let mut temp = Vec::new();
-            tasks.swap(Cell::from_mut(&mut temp));
-            temp.push(task);
-            tasks.swap(Cell::from_mut(&mut temp));
-        });
-    }
-
     pub(crate) fn schedule_notify_tasks(tasks_iter: impl Iterator<Item = Arc<Task>>) {
         TASKS_TO_NOTIFY.with(|tasks| {
             let mut temp = Vec::new();

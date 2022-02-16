@@ -7,6 +7,7 @@ use crate::{SlotRef, Task, WeakSlotRef};
 
 pub struct TaskSnapshot {
     pub name: String,
+    pub inputs: Vec<SlotRef>,
     pub state: String,
     pub children: Vec<Arc<Task>>,
     pub dependencies: Vec<WeakSlotRef>,
@@ -33,6 +34,8 @@ enum EdgeType {
     ChildTask,
     Dependency,
     LinkedSlot,
+    Input,
+    DependencyAndInput,
 }
 
 #[derive(Hash, PartialEq, Eq)]
@@ -95,6 +98,11 @@ impl GraphViz {
         self.visited.insert(id.clone());
         let snapshot = task.get_snapshot_for_visualization();
         let mut slots = Vec::new();
+        for input in snapshot.inputs.iter() {
+            let slot_id = self.get_slot_id(input);
+            self.edges
+            .insert((id.clone(), slot_id, EdgeType::Input));
+        }
         for slot in snapshot.slots.iter() {
             let snapshot = slot.get_snapshot_for_visualization();
             let slot_id = self.get_slot_id(slot);
@@ -164,6 +172,31 @@ impl GraphViz {
         self.edges.retain(|(from, to, _)| !dropped_ids.contains(from) && !dropped_ids.contains(to));
     }
 
+    pub fn merge_edges(&mut self) {
+        let mut new_edges = Vec::new();
+        let old_edges = self.edges.clone();
+        self.edges.retain(|(from, to, edge)| {
+            match edge {
+                EdgeType::Input => {
+                    if old_edges.contains(&(from.clone(), to.clone(), EdgeType::Dependency)) {
+                        new_edges.push((from.clone(), to.clone(), EdgeType::DependencyAndInput));
+                        return false;
+                    }
+                }
+                EdgeType::Dependency => {
+                    if old_edges.contains(&(from.clone(), to.clone(), EdgeType::Input)) {
+                        return false;
+                    }
+                }
+                _ => {}
+            }
+            true
+        });
+        for edge in new_edges {
+            self.edges.insert(edge);
+        }
+    }
+
     pub fn skip_loney_resolve(&mut self) {
         self.skip_loney("[resolve] ");
         self.skip_loney("[resolve trait] ");
@@ -206,7 +239,7 @@ impl GraphViz {
                 NodeType::Task(name, state, executions, slots) => { 
                     let slots_info = slots.iter().map(|Slot{ id, name, content, updates }| if *updates > 1 {
                         format!(
-                            "{} [label=\"{}\\n{}\\n{} updates\"]\n",
+                            "{} [style=filled, fillcolor=\"#77c199\", label=\"{}\\n{}\\n{} updates\"]\n",
                             id, escape(name), escape(content), updates
                         )
                     } else {
@@ -216,13 +249,13 @@ impl GraphViz {
                         )
                     }).collect::<String>();
                     let label = if *executions > 1 {
-                        format!("{}\\n{}\\n{} executions", escape(name), escape(state), executions)
+                        format!("style=filled, fillcolor=\"#77c199\", label=\"{}\\n{}\\n{} executions\"", escape(name), escape(state), executions)
                     } else if state == "done" {
-                        format!("{}", escape(name))
+                        format!("label=\"{}\"", escape(name))
                     } else {
-                        format!("{}\\n{}", escape(name), escape(state))
+                        format!("label=\"{}\\n{}\"", escape(name), escape(state))
                     };
-                    format!("subgraph cluster_{} {{\ncolor=lightgray;\n{} [shape=box, label=\"{}\"]\n{}}}", id, id, label, slots_info)
+                    format!("subgraph cluster_{} {{\ncolor=lightgray;\n{} [shape=box, {}]\n{}}}", id, id, label, slots_info)
                 },
             })
             .collect::<String>();
@@ -230,7 +263,9 @@ impl GraphViz {
             .iter()
             .map(|(from, to, edge)| match edge {
                 EdgeType::ChildTask => format!("{} -> {} [style=dashed, color=lightgray]\n", from, to),
-                EdgeType::Dependency => format!("{} -> {} [color=\"#009129\", weight=0, constraint=false]\n", to, from),
+                EdgeType::Input => format!("{} -> {} [constraint=false]\n", to, from),
+                EdgeType::Dependency => format!("{} -> {} [color=\"#77c199\", weight=0, constraint=false]\n", to, from),
+                EdgeType::DependencyAndInput => format!("{} -> {} [color=\"#009129\", weight=0, constraint=false]\n", to, from),
                 EdgeType::LinkedSlot => format!("{} -> {} [color=\"#990000\", constraint=false]\n", to, from),
             })
             .collect::<String>();

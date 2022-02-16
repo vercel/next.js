@@ -1,10 +1,10 @@
 use crate::{
-    slot::{Slot, SlotContent, SlotRef, WeakSlotRef},
+    slot::{Slot, SlotRef, WeakSlotRef},
     viz::TaskSnapshot,
     NativeFunction, SlotValueType, TraitType, TurboTasks,
 };
 use any_key::AnyHash;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use async_std::task_local;
 use event_listener::{Event, EventListener};
 use std::{
@@ -39,6 +39,24 @@ enum TaskType {
     ResolveTrait(&'static TraitType, String),
 }
 
+impl Debug for TaskType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Root(_) => f.debug_tuple("Root").finish(),
+            Self::Native(native_fn, _) => f.debug_tuple("Native").field(&native_fn.name).finish(),
+            Self::ResolveNative(native_fn) => f
+                .debug_tuple("ResolveNative")
+                .field(&native_fn.name)
+                .finish(),
+            Self::ResolveTrait(trait_type, name) => f
+                .debug_tuple("ResolveTrait")
+                .field(&trait_type.name)
+                .field(name)
+                .finish(),
+        }
+    }
+}
+
 pub struct Task {
     inputs: Vec<SlotRef>,
     ty: TaskType,
@@ -50,15 +68,16 @@ pub struct Task {
 
 impl Debug for Task {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let deps: Vec<_> = self
-            .dependencies
-            .read()
-            .unwrap()
-            .iter()
-            .filter_map(|i| i.upgrade())
-            .collect();
+        // let deps: Vec<_> = self
+        //     .dependencies
+        //     .read()
+        //     .unwrap()
+        //     .iter()
+        //     .filter_map(|i| i.upgrade())
+        //     .collect();
         let state = self.state.read().unwrap();
         let mut result = f.debug_struct("Task");
+        result.field("type", &self.ty);
         result.field("state", &state.state_type);
         // result.field("output", &state.output_slot);
         // if state.children.len() > 0 {
@@ -76,9 +95,6 @@ struct TaskState {
     // TODO using a Atomic might be possible here
     state_type: TaskStateType,
     dirty_children_count: usize,
-    // TODO do we want to keep that or solve it in a different way?
-    has_side_effect: bool,
-    child_has_side_effect: bool,
     // TODO use a concurrent set
     parents: Vec<Weak<Task>>,
     // TODO use a concurrent set
@@ -216,16 +232,24 @@ impl Task {
     }
 
     pub(crate) fn execution_started(self: &Arc<Task>) {
+        self.assert_state();
+        {
+            let state = self.state.read().unwrap();
+            let parents: Vec<Arc<Task>> =
+                state.parents.iter().filter_map(|p| p.upgrade()).collect();
+            drop(state);
+            for parent in parents.iter() {
+                parent.assert_state();
+            }
+        }
         let mut state = self.state.write().unwrap();
         state.executions += 1;
         match state.state_type {
             Scheduled | InProgressLocallyOutdated => {
                 state.state_type = InProgressLocally;
-                state.has_side_effect = false;
-                state.child_has_side_effect = false;
-                // TODO disconnect other sides too
                 let children = state.children.clone();
                 state.children.clear();
+                state.dirty_children_count = 0;
                 drop(state);
 
                 let mut deps_guard = self.dependencies.write().unwrap();
@@ -251,6 +275,17 @@ impl Task {
                 for dep in dependencies {
                     dep.remove_dependency(&weak_self);
                 }
+
+                self.assert_state();
+                {
+                    let state = self.state.read().unwrap();
+                    let parents: Vec<Arc<Task>> =
+                        state.parents.iter().filter_map(|p| p.upgrade()).collect();
+                    drop(state);
+                    for parent in parents.iter() {
+                        parent.assert_state();
+                    }
+                }
             }
             _ => {
                 panic!(
@@ -266,17 +301,33 @@ impl Task {
         result: SlotRef,
         turbo_tasks: &'static TurboTasks,
     ) {
+        self.assert_state();
+        {
+            let state = self.state.read().unwrap();
+            let parents: Vec<Arc<Task>> =
+                state.parents.iter().filter_map(|p| p.upgrade()).collect();
+            drop(state);
+            for parent in parents.iter() {
+                parent.assert_state();
+            }
+        }
         let mut state = self.state.write().unwrap();
         match state.state_type {
             InProgressLocally => {
-                state.state_type = Done;
-                state.event.notify(usize::MAX);
-                let parents: Vec<Arc<Task>> =
-                    state.parents.iter().filter_map(|p| p.upgrade()).collect();
-                state.output_slot.link(result);
-                drop(state);
-                for parent in parents.iter() {
-                    parent.child_done(turbo_tasks);
+                if state.dirty_children_count == 0 {
+                    state.state_type = Done;
+                    state.event.notify(usize::MAX);
+                    let parents: Vec<Arc<Task>> =
+                        state.parents.iter().filter_map(|p| p.upgrade()).collect();
+                    state.output_slot.link(result);
+                    drop(state);
+                    for parent in parents.iter() {
+                        parent.child_done(turbo_tasks);
+                    }
+                } else {
+                    state.state_type = SomeChildrenScheduled;
+                    state.output_slot.link(result);
+                    drop(state);
                 }
             }
             InProgressLocallyOutdated => {
@@ -300,7 +351,7 @@ impl Task {
         match state.state_type {
             Dirty | Scheduled | InProgressLocallyOutdated => false,
             InProgressLocally => {
-                state.state_type = InProgressLocallyOutdated;
+                state.dirty_children_count += 1;
                 false
             }
             SomeChildrenDirty => {
@@ -313,17 +364,7 @@ impl Task {
             }
             // for SomeChildrenDirtyUndetermined we would need to propagate to parents again
             Done => {
-                if state.has_side_effect {
-                    state.state_type = Scheduled;
-                    let parents: Vec<Arc<Task>> =
-                        state.parents.iter().filter_map(|p| p.upgrade()).collect();
-                    drop(state);
-                    for parent in parents.iter() {
-                        let _ignored = parent.child_dirty(turbo_tasks);
-                    }
-                    turbo_tasks.schedule(self.clone());
-                    false
-                } else if state.child_has_side_effect {
+                if let TaskType::Root(_) = self.ty {
                     state.state_type = SomeChildrenScheduled;
                     state.dirty_children_count = 1;
                     let parents: Vec<Arc<Task>> =
@@ -360,8 +401,28 @@ impl Task {
                         let mut state = self.state.write().unwrap();
                         state.state_type = SomeChildrenDirty;
                         drop(state);
+                        self.assert_state();
+                        {
+                            let state = self.state.read().unwrap();
+                            let parents: Vec<Arc<Task>> =
+                                state.parents.iter().filter_map(|p| p.upgrade()).collect();
+                            drop(state);
+                            for parent in parents.iter() {
+                                parent.assert_state();
+                            }
+                        }
                         false
                     } else {
+                        self.assert_state();
+                        {
+                            let state = self.state.read().unwrap();
+                            let parents: Vec<Arc<Task>> =
+                                state.parents.iter().filter_map(|p| p.upgrade()).collect();
+                            drop(state);
+                            for parent in parents.iter() {
+                                parent.assert_state();
+                            }
+                        }
                         true
                     }
                 }
@@ -371,11 +432,12 @@ impl Task {
 
     pub(crate) fn child_done(&self, turbo_tasks: &'static TurboTasks) {
         let mut state = self.state.write().unwrap();
-        match state.state_type {
+        state.dirty_children_count -= 1;
+        match &state.state_type {
             SomeChildrenDirty | SomeChildrenScheduled => {
-                state.dirty_children_count -= 1;
                 if state.dirty_children_count == 0 {
                     state.state_type = Done;
+                    state.event.notify(usize::MAX);
                     let parents: Vec<Arc<Task>> =
                         state.parents.iter().filter_map(|p| p.upgrade()).collect();
                     drop(state);
@@ -386,12 +448,14 @@ impl Task {
                     drop(state);
                 }
             }
-            Dirty | InProgressLocally | InProgressLocallyOutdated | Scheduled => {}
+            InProgressLocally | Dirty | InProgressLocallyOutdated | Scheduled => {
+                drop(state);
+            }
             Done => {
-                // TODO
-                // panic!("Task child has become done while parent task was already done")
+                panic!("Task child has become done while parent task was already done")
             }
         }
+        self.assert_state();
     }
 
     fn schedule_dirty_children(self: Arc<Self>, turbo_tasks: &'static TurboTasks) {
@@ -404,6 +468,7 @@ impl Task {
             }
             Done | InProgressLocally | InProgressLocallyOutdated => {}
             Scheduled => {}
+            SomeChildrenScheduled => {}
             SomeChildrenDirty => {
                 let children: Vec<Arc<Task>> =
                     state.children.iter().map(|arc| arc.clone()).collect();
@@ -411,6 +476,38 @@ impl Task {
                 for child in children.into_iter() {
                     child.schedule_dirty_children(turbo_tasks);
                 }
+            }
+        }
+    }
+
+    fn assert_state(&self) {
+        let state = self.state.read().unwrap();
+        match state.state_type {
+            Scheduled => {}
+            InProgressLocally => {}
+            InProgressLocallyOutdated => {}
+            Done => {
+                for child in state.children.iter() {
+                    let child_state = child.state.read().unwrap();
+                    assert_eq!(child_state.state_type, Done);
+                }
+            }
+            Dirty => {}
+            SomeChildrenDirty => {
+                let mut count = 0;
+                for child in state.children.iter() {
+                    let child_state = child.state.read().unwrap();
+                    match child_state.state_type {
+                        Scheduled
+                        | InProgressLocally
+                        | InProgressLocallyOutdated
+                        | Dirty
+                        | SomeChildrenDirty
+                        | SomeChildrenScheduled => count += 1,
+                        Done => {}
+                    }
+                }
+                assert_eq!(count, state.dirty_children_count);
             }
             SomeChildrenScheduled => {}
         }
@@ -425,7 +522,7 @@ impl Task {
         match state.state_type {
             Dirty | Scheduled => {}
             SomeChildrenDirty => {
-                if state.has_side_effect || state.child_has_side_effect || true {
+                if let TaskType::Root(_) = self.ty {
                     state.state_type = Scheduled;
                     drop(state);
                     turbo_tasks.schedule(self.clone());
@@ -438,8 +535,12 @@ impl Task {
                 state.state_type = InProgressLocallyOutdated;
             }
             Done => {
-                let has_side_effect = state.has_side_effect || state.child_has_side_effect || true;
-                if has_side_effect {
+                let is_root = if let TaskType::Root(_) = self.ty {
+                    true
+                } else {
+                    false
+                };
+                if is_root {
                     state.state_type = Scheduled;
                 } else {
                     state.state_type = Dirty;
@@ -453,13 +554,23 @@ impl Task {
                         schedule = true
                     }
                 }
-                if has_side_effect {
+                if is_root {
                     turbo_tasks.schedule(self.clone());
                 } else if schedule {
                     let mut state = self.state.write().unwrap();
                     state.state_type = Scheduled;
                     drop(state);
                     turbo_tasks.schedule(self.clone());
+                }
+                self.assert_state();
+                {
+                    let state = self.state.read().unwrap();
+                    let parents: Vec<Arc<Task>> =
+                        state.parents.iter().filter_map(|p| p.upgrade()).collect();
+                    drop(state);
+                    for parent in parents.iter() {
+                        parent.assert_state();
+                    }
                 }
             }
             SomeChildrenScheduled => {
@@ -568,14 +679,6 @@ impl Task {
         }
     }
 
-    pub fn side_effect() {
-        let task = Task::current()
-            .ok_or_else(|| anyhow!("tried to call Task::side_effect outside of a task"))
-            .unwrap();
-        let mut state = task.state.write().unwrap();
-        state.has_side_effect = true;
-    }
-
     fn invaldate(self: &Arc<Self>, turbo_tasks: &'static TurboTasks) {
         self.make_dirty(turbo_tasks)
     }
@@ -654,6 +757,12 @@ impl Task {
             .collect();
         slots.push(SlotRef::TaskOutput(self.clone()));
         TaskSnapshot {
+            inputs: self
+                .inputs
+                .iter()
+                .filter(|slot_ref| slot_ref.is_task_ref())
+                .map(|slot_ref| slot_ref.clone())
+                .collect(),
             children: state.children.clone(),
             dependencies: self.dependencies.read().unwrap().clone(),
             name: match &self.ty {
@@ -672,7 +781,7 @@ impl Task {
                 Dirty => "dirty".to_string(),
                 SomeChildrenDirty => "some children dirty".to_string(),
                 SomeChildrenScheduled => "some children scheduled".to_string(),
-            },
+            } + &format!(" {} dirty childen", state.dirty_children_count),
             output_slot: SlotRef::TaskOutput(self.clone()),
             slots,
             executions: state.executions,
@@ -680,12 +789,25 @@ impl Task {
     }
 
     pub(crate) fn connect_parent(self: &Arc<Self>, parent: &Arc<Self>) {
-        let mut state = self.state.write().unwrap();
-        state.parents.push(Arc::downgrade(&parent));
-        drop(state);
-
-        let mut state = parent.state.write().unwrap();
-        state.children.push(self.clone());
+        self.assert_state();
+        {
+            let mut parent_state = parent.state.write().unwrap();
+            let mut state = self.state.write().unwrap();
+            parent_state.children.push(self.clone());
+            state.parents.push(Arc::downgrade(&parent));
+            match state.state_type {
+                Scheduled
+                | InProgressLocally
+                | InProgressLocallyOutdated
+                | Dirty
+                | SomeChildrenDirty
+                | SomeChildrenScheduled => {
+                    parent_state.dirty_children_count += 1;
+                }
+                Done => {}
+            }
+        }
+        self.assert_state();
     }
 
     pub(crate) async fn with_done_output_slot<T>(
@@ -740,7 +862,9 @@ impl Task {
                 Ok(result) => return result,
                 Err((func_back, listener)) => {
                     func = func_back;
+                    println!("waiting for {:?}", self);
                     listener.await;
+                    println!("done waiting for {:?}", self);
                 }
             }
         }

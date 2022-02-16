@@ -246,7 +246,6 @@ impl FileSystem for DiskFileSystem {
                 }
             }
         }
-        Task::side_effect();
     }
 }
 

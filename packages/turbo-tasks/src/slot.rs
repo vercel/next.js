@@ -399,15 +399,22 @@ impl SlotRef {
             | SlotRef::CloneableData(_, _) => false,
         }
     }
+    pub fn is_task_ref(&self) -> bool {
+        match self {
+            SlotRef::TaskOutput(_) | SlotRef::TaskCreated(_, _) => true,
+            SlotRef::Nothing | SlotRef::SharedReference(_, _) | SlotRef::CloneableData(_, _) => {
+                false
+            }
+        }
+    }
 
     pub fn get_snapshot_for_visualization(&self) -> SlotSnapshot {
         fn content_to_linked(content: &SlotContent) -> Option<SlotRef> {
             if let SlotContent::Link(slot_ref) = content {
-                match slot_ref {
-                    SlotRef::TaskOutput(_) | SlotRef::TaskCreated(_, _) => Some(slot_ref.clone()),
-                    SlotRef::Nothing
-                    | SlotRef::SharedReference(_, _)
-                    | SlotRef::CloneableData(_, _) => None,
+                if slot_ref.is_task_ref() {
+                    Some(slot_ref.clone())
+                } else {
+                    None
                 }
             } else {
                 None
