@@ -82,7 +82,7 @@ module.exports = {
         },
         {
           source: '/proxy-me/:path*',
-          destination: 'http://localhost:__EXTERNAL_PORT__/:path*',
+          destination: 'http://localhost:42033/:path*',
         },
         {
           source: '/api-hello',
