@@ -1,19 +1,12 @@
-let endpoint = ''
-const publicUrl = process.env.NEXT_PUBLIC_VERCEL_URL
-
-if (publicUrl !== undefined && !publicUrl.includes('localhost')) {
-  endpoint = `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-} else {
-  endpoint = 'http://localhost:3000'
-}
-
 const cache = {}
 
+// This is temporary and will eventually be replaced
+// with react-fetch
 export function useData(key, fetcher, opts = {}) {
   const now = Date.now()
   function mutate() {
     cache[key].isValidating = true
-    return fetcher(endpoint + key).then(
+    return fetcher(key).then(
       (r) => {
         cache[key].isValidating = false
         cache[key].timestamp = Date.now()

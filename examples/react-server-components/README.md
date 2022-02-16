@@ -1,8 +1,14 @@
 # React Server Components (Alpha)
 
-This examples shows a basic "hello world" Next.js application using React Server Components.
+This examples shows a simple Next.js application using React Server Components.
 
-TODO: Link back to docs.
+Server Components are a new feature in React that let you reduce your JavaScript bundle size by separating server and client-side code. Server Components allow developers to build apps that span the server and client, combining the rich interactivity of client-side apps with the improved performance of traditional server rendering.
+
+Check out the documentation to learn more:
+
+- [React 18](https://nextjs.org/docs/advanced-features/react-18/overview)
+- [Streaming SSR](https://nextjs.org/docs/advanced-features/react-18/streaming)
+- [Server Components](https://nextjs.org/docs/advanced-features/react-18/server-components)
 
 ## Preview
 
