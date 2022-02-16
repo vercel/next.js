@@ -4,7 +4,7 @@ Server Components allow us to render React components on the server. This is fun
 
 ### Enable React Server Components
 
-To use React Server Components, ensure you have React 18 installed. 
+To use React Server Components, ensure you have React 18 installed:
 
 ```jsx
 npm install next@latest react@rc react-dom@rc
