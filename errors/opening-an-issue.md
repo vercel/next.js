@@ -4,9 +4,9 @@
 
 When `next info` was run, Next.js detected that it's was not on the latest canary release.
 
-`next@canary` is the beta version of Next.js. It includes all features and fixes that are pending to land on the stable release line.
+`next@canary` is the canary version of Next.js that ships daily. It includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta.
 
-Some issues might have already been fixed there, so before opening a new issue on the repository, make sure to verify if the issue hasn't been fixed there already.
+Some issues might have already been fixed there, so before opening a new issue on the repository, make sure to verify if the issue hasn't been fixed in the canary version already.
 
 Run the following in the codebase:
 
@@ -16,7 +16,7 @@ npm install next@canary
 
 or
 
-```
+```sh
 yarn add next@canary
 ```
 

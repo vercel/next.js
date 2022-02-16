@@ -23,7 +23,7 @@ body:
       required: false
   - type: input
     attributes:
-      label: "What example does this report relate to? See a complete list in the [examples folder](https://github.com/vercel/next.js/tree/canary/examples). Note: Examples not in the exmples folder might be maintained by the example's library author. Check out their projects before opening the issue on Next.js"
+      label: "What example does this report relate to? See a complete list in the [examples folder](https://github.com/vercel/next.js/tree/canary/examples). Note: Examples not in the examples folder might be maintained by the example's library author. Check out their projects before opening the issue on Next.js"
       description: 'For example: with-styled-components'
     validations:
       required: true

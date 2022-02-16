@@ -70,8 +70,8 @@ const nextInfo: cliCommand = async (argv) => {
     console.warn(
       `${chalk.yellow(
         chalk.bold('warn')
-      )}  - Earlier Next.js release "${installedRelease}" detected. Newest: "${newestRelease}".
-        Before opening a new issue, verify that your issue still exists in Next.js canary releases (\`npm install next@canary\`).
+      )}  - Next.js is outdated, detected: "${installedRelease}", newest: "${newestRelease}.
+        Please install the latest canary version (\`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
         Read more - https://nextjs.org/docs/messages/opening-an-issue`
     )
   }
