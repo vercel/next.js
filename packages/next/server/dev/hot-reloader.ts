@@ -635,7 +635,7 @@ export default class HotReloader {
                     }
                   })
                   const prevHash = pageHashMap.get(key)
-                  const curHash = chunksHash._value?.toString('hex') || ''
+                  const curHash = chunksHash.toString()
 
                   if (prevHash && prevHash !== curHash) {
                     changedItems.add(key)
