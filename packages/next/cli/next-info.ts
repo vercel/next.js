@@ -76,15 +76,7 @@ const nextInfo: cliCommand = async (argv) => {
         Read more - https://nextjs.org/docs/messages/opening-an-issue`
       )
     }
-  } catch {
-    console.warn(
-      `${chalk.yellow(
-        chalk.bold('warn')
-      )}  - Latest canary version not detected: "${installedRelease}", newest: "${newestRelease}.
-      Please try the latest canary version (\`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
-      Read more - https://nextjs.org/docs/messages/opening-an-issue`
-    )
-  }
+  } catch {}
 }
 
 export { nextInfo }
