@@ -37,8 +37,6 @@ import {
   DocumentInitialProps,
   DocumentProps,
   DocumentContext,
-  HtmlContext,
-  HtmlProps,
   getDisplayName,
   isResSent,
   loadGetInitialProps,
@@ -46,6 +44,10 @@ import {
   RenderPage,
   RenderPageResult,
 } from '../shared/lib/utils'
+
+import { HtmlContext } from '../shared/lib/html-context'
+import type { HtmlProps } from '../shared/lib/html-context'
+
 import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
 import { denormalizePagePath } from './denormalize-page-path'
 import type { FontManifest } from './font-utils'
@@ -532,9 +534,11 @@ export async function renderToHTML(
   const headTags = (...args: any) => callMiddleware('headTags', args)
 
   const isFallback = !!query.__nextFallback
+  const notFoundSrcPage = query.__nextNotFoundSrcPage
   delete query.__nextFallback
   delete query.__nextLocale
   delete query.__nextDefaultLocale
+  delete query.__nextIsNotFound
 
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
@@ -1450,6 +1454,7 @@ export async function renderToHTML(
       defaultLocale,
       domainLocales,
       isPreview: isPreview === true ? true : undefined,
+      notFoundSrcPage: notFoundSrcPage && dev ? notFoundSrcPage : undefined,
     },
     buildManifest: filteredBuildManifest,
     docComponentsRendered,
@@ -1878,19 +1883,28 @@ function createInlineDataStream(
 
       if (!dataStreamFinished) {
         const dataStreamReader = dataStream.getReader()
-        dataStreamFinished = (async () => {
-          try {
-            while (true) {
-              const { done, value } = await dataStreamReader.read()
-              if (done) {
-                return
+
+        // We are buffering here for the inlined data stream because the
+        // "shell" stream might be chunkenized again by the underlying stream
+        // implementation, e.g. with a specific high-water mark. To ensure it's
+        // the safe timing to pipe the data stream, this extra tick is
+        // necessary.
+        dataStreamFinished = new Promise((res) =>
+          setTimeout(async () => {
+            try {
+              while (true) {
+                const { done, value } = await dataStreamReader.read()
+                if (done) {
+                  return res()
+                }
+                controller.enqueue(value)
               }
-              controller.enqueue(value)
+            } catch (err) {
+              controller.error(err)
             }
-          } catch (err) {
-            controller.error(err)
-          }
-        })()
+            res()
+          }, 0)
+        )
       }
     },
     flush() {

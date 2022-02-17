@@ -319,7 +319,7 @@ module.exports = (context) => {
     })
 
     if (browserName !== 'internet explorer') {
-      it('should not execute script embedded inside svg image', async () => {
+      it('should not execute script embedded inside svg image, even if dangerouslyAllowSVG=true', async () => {
         let browser
         try {
           browser = await webdriver(context.appPort, '/svg-image')
