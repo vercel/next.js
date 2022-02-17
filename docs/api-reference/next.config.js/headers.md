@@ -387,7 +387,9 @@ export default function handler(req, res) {
 }
 ```
 
-You cannot use them in `next.config.js` file as these will be overwritten in production to ensure that static assets are cached effectively. If you need to revalidate the cache of a page that has been [statically generated](https://nextjs.org/docs/basic-features/pages#static-generation-recommended), you can do so by setting the `revalidate` prop in the page's [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) function.
+You cannot set `Cache-Control` headers in `next.config.js` file as these will be overwritten in production to ensure that API Routes and static assets are cached effectively.
+
+If you need to revalidate the cache of a page that has been [statically generated](https://nextjs.org/docs/basic-features/pages#static-generation-recommended), you can do so by setting the `revalidate` prop in the page's [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) function.
 
 ## Related
 
