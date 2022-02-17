@@ -1,9 +1,14 @@
+use std::collections::HashMap;
+
 use crate::{
     module::ModuleRef,
     reference::{ModuleReferenceRef, ModuleReferencesSet, ModuleReferencesSetRef},
 };
 use swc_ecmascript::{
-    ast::{CallExpr, Callee, ComputedPropName, Expr, ExprOrSpread, ImportDecl, Lit, MemberProp},
+    ast::{
+        CallExpr, Callee, ComputedPropName, Expr, ExprOrSpread, ImportDecl, ImportSpecifier, Lit,
+        MemberProp, ModuleExportName,
+    },
     visit::{self, Visit, VisitWith},
 };
 
@@ -33,7 +38,9 @@ enum StaticExpr {
 }
 
 #[derive(Default)]
-struct StaticAnalyser {}
+struct StaticAnalyser {
+    imports: HashMap<String, (String, Vec<String>)>,
+}
 
 impl StaticAnalyser {
     fn prop_to_name(&self, prop: &MemberProp) -> Option<String> {
@@ -52,7 +59,15 @@ impl StaticAnalyser {
     fn evaluate_expr(&self, expr: &Expr) -> StaticExpr {
         match expr {
             Expr::Lit(Lit::Str(str)) => StaticExpr::String(str.value.to_string()),
-            Expr::Ident(ident) => StaticExpr::FreeVar(vec![ident.sym.to_string()]),
+            Expr::Ident(ident) => {
+                let str = ident.sym.to_string();
+                match self.imports.get(&str) {
+                    Some((module, import)) => {
+                        StaticExpr::ImportedVar(module.clone(), import.clone())
+                    }
+                    None => StaticExpr::FreeVar(vec![str]),
+                }
+            }
             Expr::Member(member) => match self.evaluate_expr(&member.obj) {
                 StaticExpr::FreeVar(mut vec) => match self.prop_to_name(&member.prop) {
                     Some(name) => {
@@ -61,7 +76,13 @@ impl StaticAnalyser {
                     }
                     None => StaticExpr::Unknown,
                 },
-                StaticExpr::ImportedVar(_, _) => todo!(),
+                StaticExpr::ImportedVar(module, mut vec) => match self.prop_to_name(&member.prop) {
+                    Some(name) => {
+                        vec.push(name);
+                        StaticExpr::ImportedVar(module, vec)
+                    }
+                    None => StaticExpr::Unknown,
+                },
                 _ => StaticExpr::Unknown,
             },
             _ => StaticExpr::Unknown,
@@ -77,9 +98,42 @@ struct ModuleReferencesVisitor {
 
 impl Visit for ModuleReferencesVisitor {
     fn visit_import_decl(&mut self, import: &ImportDecl) {
-        self.references
-            .push(ModuleReferenceRef::new(import.src.value.to_string()));
+        let src = import.src.value.to_string();
+        self.references.push(ModuleReferenceRef::new(src.clone()));
         visit::visit_import_decl(self, import);
+        if import.type_only {
+            return;
+        }
+        for specifier in &import.specifiers {
+            match specifier {
+                ImportSpecifier::Named(named) => {
+                    if !named.is_type_only {
+                        self.analyser.imports.insert(
+                            named.local.sym.to_string(),
+                            (
+                                src.clone(),
+                                vec![match &named.imported {
+                                    Some(ModuleExportName::Ident(ident)) => ident.sym.to_string(),
+                                    Some(ModuleExportName::Str(str)) => str.value.to_string(),
+                                    None => named.local.sym.to_string(),
+                                }],
+                            ),
+                        );
+                    }
+                }
+                ImportSpecifier::Default(default_import) => {
+                    self.analyser.imports.insert(
+                        default_import.local.sym.to_string(),
+                        (src.clone(), vec!["default".to_string()]),
+                    );
+                }
+                ImportSpecifier::Namespace(namespace) => {
+                    self.analyser
+                        .imports
+                        .insert(namespace.local.sym.to_string(), (src.clone(), Vec::new()));
+                }
+            }
+        }
     }
 
     fn visit_call_expr(&mut self, call: &CallExpr) {
@@ -91,6 +145,7 @@ impl Visit for ModuleReferencesVisitor {
                     match evaled_expr {
                         StaticExpr::String(str) => {
                             self.references.push(ModuleReferenceRef::new(str));
+                            return;
                         }
                         _ => todo!(),
                     }
@@ -105,12 +160,28 @@ impl Visit for ModuleReferencesVisitor {
                             match evaled_expr {
                                 StaticExpr::String(str) => {
                                     self.references.push(ModuleReferenceRef::new(str));
+                                    return;
                                 }
                                 _ => todo!(),
                             }
                         }
                         _ => todo!(),
                     },
+                    [module, fn_name] if module == "fs" && fn_name == "readFileSync" => {
+                        match &call.args[..] {
+                            [ExprOrSpread { expr, spread: None }, ..] => {
+                                let evaled_expr = self.analyser.evaluate_expr(&*expr);
+                                match evaled_expr {
+                                    StaticExpr::String(str) => {
+                                        self.references.push(ModuleReferenceRef::new(str));
+                                        return;
+                                    }
+                                    _ => todo!(),
+                                }
+                            }
+                            _ => todo!(),
+                        }
+                    }
                     _ => {}
                 },
                 _ => {}

@@ -145,6 +145,14 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             pub async fn get(&self) -> impl std::ops::Deref<Target = #ident> {
                 self.node.clone().into_read::<#ident>().await
             }
+
+            pub async fn resolve_to_value(self) -> Self {
+                Self { node: self.node.resolve_to_value().await }
+            }
+
+            pub async fn resolve_to_slot(self) -> Self {
+                Self { node: self.node.resolve_to_slot().await }
+            }
         }
 
         // #[cfg(feature = "into_future")]
