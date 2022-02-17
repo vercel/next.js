@@ -678,6 +678,8 @@ export default async function loadConfig(
 
     const hasReactRoot = shouldUseReactRoot()
     if (hasReactRoot) {
+      // users might not have the `experimental` key in their config
+      userConfig.experimental = userConfig.experimental || {}
       userConfig.experimental.reactRoot = true
     }
 
