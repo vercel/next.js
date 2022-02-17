@@ -10,7 +10,9 @@ describe('TypeScript Image Component with Styles', () => {
     it('should fail to build when the `style` prop is passed to <Image />', async () => {
       const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
       expect(stderr).toMatch(/Failed to compile/)
-      expect(stderr).toMatch(/Type '\"fixed\"' is not assignable to type '\"raw\"/)
+      expect(stderr).toMatch(
+        /Type '"fixed"' is not assignable to type '"raw"/
+      )
       expect(code).toBe(1)
     })
   })

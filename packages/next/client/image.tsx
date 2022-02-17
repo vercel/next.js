@@ -442,7 +442,7 @@ export default function Image({
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
-    if (layout === 'raw' && objectFit || objectPosition) {
+    if ((layout === 'raw' && objectFit) || objectPosition) {
       throw new Error(
         `Image with src "${src}" has "layout='raw'" and 'objectFit' or 'objectPosition'. For raw images, these and other styles should be specified using the 'style' attribute.`
       )
@@ -706,7 +706,7 @@ export default function Image({
   useEffect(() => {
     handleLoading(imgRef, srcString, layout, placeholder, onLoadingCompleteRef)
   }, [srcString, layout, placeholder, isVisible])
- 
+
   let rawStyle = {}
   if (layout === 'raw' && 'style' in rest && rest.style) {
     rawStyle = rest.style
@@ -715,17 +715,17 @@ export default function Image({
   }
   const stringSrc = src
 
-  const ImageElement = ({raw}: {raw: boolean}) => 
-  <>
+  const ImageElement = ({ raw }: { raw: boolean }) => (
+    <>
       <img
         {...rest}
         {...imgAttributes}
-        {...(raw ? {height: heightInt, width: widthInt} : {})}
+        {...(raw ? { height: heightInt, width: widthInt } : {})}
         decoding="async"
         data-nimg={layout}
         className={className}
         ref={imgRef}
-        style={{ ...blurStyle, ...(raw ? rawStyle : imgStyle)}}
+        style={{ ...blurStyle, ...(raw ? rawStyle : imgStyle) }}
       />
       {isLazy && (
         <noscript>
@@ -741,10 +741,10 @@ export default function Image({
               sizes,
               loader,
             })}
-            {...(raw ? {height: heightInt, width: widthInt} : {})}
+            {...(raw ? { height: heightInt, width: widthInt } : {})}
             decoding="async"
             data-nimg={layout}
-            style={{...(raw ? rawStyle : imgStyle)}}
+            style={{ ...(raw ? rawStyle : imgStyle) }}
             className={className}
             // @ts-ignore - TODO: upgrade to `@types/react@17`
             loading={loading || 'lazy'}
@@ -752,6 +752,7 @@ export default function Image({
         </noscript>
       )}
     </>
+  )
 
   return layout === 'raw' ? (
     <ImageElement raw />
