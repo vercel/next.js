@@ -41,9 +41,6 @@ class MiddlewareSourceMapsPlugin {
       compilation.hooks.buildModule.tap(PLUGIN_NAME, (module) => {
         module.useSourceMap = module.layer === 'middleware'
       })
-      compilation.hooks.runtimeModule.tap(PLUGIN_NAME, (module) => {
-        module.useSourceMap = module.layer === 'middleware'
-      })
     })
   }
 }
