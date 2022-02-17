@@ -122,7 +122,7 @@ export default function (context, { runtime, env }) {
       expect(hasFlightRequest).toBe(true)
     }
     const refreshText = await browser.elementByCss(selector).text()
-    expect(refreshText)
+    expect(refreshText).toBe('refresh')
   })
 
   if (env === 'dev') {
