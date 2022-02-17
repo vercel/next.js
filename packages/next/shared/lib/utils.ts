@@ -1,4 +1,4 @@
-import type { BuildManifest } from '../../server/get-page-files'
+import type { HtmlProps } from './html-context'
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../server/config'
 import type { Env } from '@next/env'
@@ -7,7 +7,7 @@ import type { NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
 import type { UrlObject } from 'url'
-import { createContext } from 'react'
+
 import { formatUrl } from './router/utils/format-url'
 
 export type NextComponentType<
@@ -194,39 +194,6 @@ export type MaybeDeferContentHook = (
   name: string,
   contentFn: () => JSX.Element
 ) => [boolean, JSX.Element]
-
-export type HtmlProps = {
-  __NEXT_DATA__: NEXT_DATA
-  dangerousAsPath: string
-  docComponentsRendered: {
-    Html?: boolean
-    Main?: boolean
-    Head?: boolean
-    NextScript?: boolean
-  }
-  buildManifest: BuildManifest
-  ampPath: string
-  inAmpMode: boolean
-  hybridAmp: boolean
-  isDevelopment: boolean
-  dynamicImports: string[]
-  assetPrefix?: string
-  canonicalBase: string
-  headTags: any[]
-  unstable_runtimeJS?: false
-  unstable_JsPreload?: false
-  devOnlyCacheBusterQueryString: string
-  scriptLoader: { afterInteractive?: string[]; beforeInteractive?: any[] }
-  locale?: string
-  disableOptimizedLoading?: boolean
-  styles?: React.ReactElement[] | React.ReactFragment
-  head?: Array<JSX.Element | null>
-  useMaybeDeferContent: MaybeDeferContentHook
-  crossOrigin?: string
-  optimizeCss?: boolean
-  optimizeFonts?: boolean
-  runtime?: 'edge' | 'nodejs'
-}
 
 /**
  * Next `API` route request
@@ -448,11 +415,6 @@ export const ST =
   typeof performance.measure === 'function'
 
 export class DecodeError extends Error {}
-
-export const HtmlContext = createContext<HtmlProps>(null as any)
-if (process.env.NODE_ENV !== 'production') {
-  HtmlContext.displayName = 'HtmlContext'
-}
 
 export interface CacheFs {
   readFile(f: string): Promise<string>

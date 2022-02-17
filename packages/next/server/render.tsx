@@ -37,8 +37,6 @@ import {
   DocumentInitialProps,
   DocumentProps,
   DocumentContext,
-  HtmlContext,
-  HtmlProps,
   getDisplayName,
   isResSent,
   loadGetInitialProps,
@@ -46,6 +44,10 @@ import {
   RenderPage,
   RenderPageResult,
 } from '../shared/lib/utils'
+
+import { HtmlContext } from '../shared/lib/html-context'
+import type { HtmlProps } from '../shared/lib/html-context'
+
 import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
 import { denormalizePagePath } from './denormalize-page-path'
 import type { FontManifest } from './font-utils'
