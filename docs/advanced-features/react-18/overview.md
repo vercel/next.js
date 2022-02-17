@@ -19,10 +19,10 @@ You can now start using React 18's new APIs like `startTransition` and `Suspense
 
 Streaming server-rendering (SSR) is an experimental feature in Next.js 12. When enabled, SSR will use the same [Edge Runtime](/docs/api-reference/edge-runtime.md) as [Middleware](/docs/middleware.md).
 
-[Learn how to enable streaming in Next.js.](/docs/react-18/streaming.md)
+[Learn how to enable streaming in Next.js.](/docs/advanced-features/react-18/streaming.md)
 
 ## React Server Components (Alpha)
 
 Server Components are a new feature in React that let you reduce your JavaScript bundle size by separating server and client-side code. Server Components allow developers to build apps that span the server and client, combining the rich interactivity of client-side apps with the improved performance of traditional server rendering.
 
-Server Components are still in research and development. [Learn how to try Server Components](/docs/react-18/server-components.md) as an experimental feature in Next.js.
+Server Components are still in research and development. [Learn how to try Server Components](/docs/advanced-features/react-18/server-components.md) as an experimental feature in Next.js.
