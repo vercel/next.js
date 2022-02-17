@@ -10,13 +10,13 @@ Some issues may already be fixed in the canary version, so please verify that yo
 
 Run the following in the codebase:
 
-```sh
+```bash
 npm install next@canary
 ```
 
 or
 
-```sh
+```bash
 yarn add next@canary
 ```
 

@@ -37,8 +37,6 @@ import {
   DocumentInitialProps,
   DocumentProps,
   DocumentContext,
-  HtmlContext,
-  HtmlProps,
   getDisplayName,
   isResSent,
   loadGetInitialProps,
@@ -46,6 +44,10 @@ import {
   RenderPage,
   RenderPageResult,
 } from '../shared/lib/utils'
+
+import { HtmlContext } from '../shared/lib/html-context'
+import type { HtmlProps } from '../shared/lib/html-context'
+
 import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
 import { denormalizePagePath } from './denormalize-page-path'
 import type { FontManifest } from './font-utils'
@@ -1764,19 +1766,28 @@ function createInlineDataStream(
 
       if (!dataStreamFinished && dataStream) {
         const dataStreamReader = dataStream.getReader()
-        dataStreamFinished = (async () => {
-          try {
-            while (true) {
-              const { done, value } = await dataStreamReader.read()
-              if (done) {
-                return
+
+        // We are buffering here for the inlined data stream because the
+        // "shell" stream might be chunkenized again by the underlying stream
+        // implementation, e.g. with a specific high-water mark. To ensure it's
+        // the safe timing to pipe the data stream, this extra tick is
+        // necessary.
+        dataStreamFinished = new Promise((res) =>
+          setTimeout(async () => {
+            try {
+              while (true) {
+                const { done, value } = await dataStreamReader.read()
+                if (done) {
+                  return res()
+                }
+                controller.enqueue(value)
               }
-              controller.enqueue(value)
+            } catch (err) {
+              controller.error(err)
             }
-          } catch (err) {
-            controller.error(err)
-          }
-        })()
+            res()
+          }, 0)
+        )
       }
     },
     flush() {
