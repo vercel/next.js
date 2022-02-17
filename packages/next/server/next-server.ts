@@ -71,7 +71,6 @@ import { getMiddlewareRegex, getRouteMatcher } from '../shared/lib/router/utils'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { loadEnvConfig } from '@next/env'
 import { getCustomRoute } from './server-route-utils'
-import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
 import { clonableBodyForRequest } from './body-streams'
 
@@ -1128,12 +1127,6 @@ export default class NextNodeServer extends BaseServer {
             query: {},
           })
 
-          // TODO: remove after next minor version current `v12.0.9`
-          this.warnIfQueryParametersWereDeleted(
-            parsedUrl.query,
-            parsedDestination.query
-          )
-
           if (
             parsedDestination.protocol &&
             (parsedDestination.port
@@ -1320,25 +1313,5 @@ export default class NextNodeServer extends BaseServer {
 
   protected getRoutesManifest() {
     return require(join(this.distDir, ROUTES_MANIFEST))
-  }
-
-  // TODO: remove after next minor version current `v12.0.9`
-  private warnIfQueryParametersWereDeleted(
-    incoming: ParsedUrlQuery,
-    rewritten: ParsedUrlQuery
-  ): void {
-    const incomingQuery = urlQueryToSearchParams(incoming)
-    const rewrittenQuery = urlQueryToSearchParams(rewritten)
-
-    const missingKeys = [...incomingQuery.keys()].filter((key) => {
-      return !rewrittenQuery.has(key)
-    })
-
-    if (missingKeys.length > 0) {
-      Log.warn(
-        `Query params are no longer automatically merged for rewrites in middleware, see more info here: https://nextjs.org/docs/messages/deleting-query-params-in-middlewares`
-      )
-      this.warnIfQueryParametersWereDeleted = () => {}
-    }
   }
 }

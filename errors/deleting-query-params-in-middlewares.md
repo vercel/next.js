@@ -4,7 +4,7 @@
 
 In previous versions of Next.js, we were merging query parameters with the incoming request for rewrites happening in middlewares, to match the behavior of static rewrites declared in the config. This forced Next.js users to use empty query parameters values to delete keys.
 
-We are changing this behavior to allow extra flexibility and a more streamlined experience for users. So from now on, query parameters will not be merged and thus the warning.
+Since Next 12.1, this behavior is changed to allow extra flexibility and a more streamlined experience for users. So from now on, query parameters will not be merged and thus the warning.
 
 ```typescript
 import type { NextRequest } from 'next/server'

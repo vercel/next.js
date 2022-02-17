@@ -161,7 +161,7 @@ function urlTests(log, locale = '') {
   })
 }
 
-function rewriteTests(log, locale = '') {
+function rewriteTests(_log, locale = '') {
   it('should override with rewrite internally correctly', async () => {
     const res = await fetchViaHTTP(
       context.appPort,
@@ -280,17 +280,6 @@ function rewriteTests(log, locale = '') {
     expect(JSON.parse($('#my-query-params').text())).toEqual({
       allowed: 'kept',
     })
-  })
-
-  it(`warns about a query param deleted`, async () => {
-    await fetchViaHTTP(
-      context.appPort,
-      `${locale}/rewrites/clear-query-params`,
-      { a: '1', allowed: 'kept' }
-    )
-    expect(log.output).toContain(
-      'Query params are no longer automatically merged for rewrites in middleware'
-    )
   })
 
   it(`${locale} should rewrite to about page`, async () => {
