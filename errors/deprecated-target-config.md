@@ -6,7 +6,11 @@ The `target` property in `next.config.js` has been deprecated. Please migrate to
 
 #### Possible Ways to Fix It
 
-For serverless cases, leverage the new output file traces or deploy your application somewhere where they are leveraged automatically like [Vercel](https://vercel.com).
+Start by removing `target` in your `next.config.js`. Then look at one of the approaches below:
+
+- When deploying to [Vercel](https://vercel.com) there are no further steps.
+- When deploying to containers (e.g. using Docker) you can leverage [`outputStandalone`](https://nextjs.org/docs/advanced-features/output-file-tracing#automatically-copying-traced-files-experimental) to reduce image size
+- For serverless cases you can leverage [Output File Tracing](https://nextjs.org/docs/advanced-features/output-file-tracing)
 
 ### Useful Links
 

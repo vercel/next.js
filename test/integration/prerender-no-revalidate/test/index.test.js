@@ -19,12 +19,12 @@ let appPort
 let buildId
 let stderr
 
-function runTests(route, routePath, serverless) {
+function runTests(route, routePath) {
   it(`[${route}] should not revalidate when set to false`, async () => {
     const fileName = join(
       appDir,
       '.next',
-      serverless ? 'serverless' : 'server',
+      'server',
       getPageFileFromPagesManifest(appDir, routePath)
     )
     const initialHtml = await renderViaHTTP(appPort, route)
@@ -53,7 +53,7 @@ function runTests(route, routePath, serverless) {
     const fileName = join(
       appDir,
       '.next',
-      serverless ? 'serverless' : 'server',
+      'server',
       getPageFileFromPagesManifest(appDir, routePath)
     )
     const route = join(`/_next/data/${buildId}`, `${routePath}.json`)
@@ -78,32 +78,6 @@ function runTests(route, routePath, serverless) {
 
 describe('SSG Prerender No Revalidate', () => {
   afterAll(() => fs.remove(nextConfig))
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'experimental-serverless-trace' }`,
-        'utf8'
-      )
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir)
-      appPort = await findPort()
-      stderr = ''
-      app = await nextStart(appDir, appPort, {
-        onStderr: (msg) => {
-          stderr += msg
-        },
-      })
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(() => killApp(app))
-
-    runTests('/', '/', true)
-    runTests('/named', '/named', true)
-    runTests('/nested', '/nested', true)
-    runTests('/nested/named', '/nested/named', true)
-  })
 
   describe('production mode', () => {
     beforeAll(async () => {

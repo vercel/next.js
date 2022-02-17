@@ -1416,24 +1416,4 @@ describe('Dynamic Routing', () => {
 
     runTests({ dev: false, serverless: false })
   })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless' }`
-      )
-
-      await nextBuild(appDir)
-      buildId = await fs.readFile(buildIdPath, 'utf8')
-
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(nextConfig)
-    })
-    runTests({ dev: false, serverless: true })
-  })
 })

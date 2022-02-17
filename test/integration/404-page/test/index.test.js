@@ -16,11 +16,9 @@ import {
 
 const appDir = join(__dirname, '../')
 const pages404 = join(appDir, 'pages/404.js')
-const nextConfig = join(appDir, 'next.config.js')
 const gip404Err =
   /`pages\/404` can not have getInitialProps\/getServerSideProps/
 
-let nextConfigContent
 let appPort
 let app
 
@@ -90,29 +88,6 @@ describe('404 Page Support', () => {
     afterAll(() => killApp(app))
 
     runTests('server')
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      nextConfigContent = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          target: 'serverless'
-        }
-      `
-      )
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfig, nextConfigContent)
-      await killApp(app)
-    })
-
-    runTests('serverless')
   })
 
   it('should not cache for custom 404 page with gssp and revalidate disabled', async () => {

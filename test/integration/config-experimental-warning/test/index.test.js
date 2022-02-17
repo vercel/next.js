@@ -13,7 +13,6 @@ describe('Promise in next config', () => {
     configFile.write(`
       module.exports = (phase, { defaultConfig }) => {
         return {
-          target: 'server',
           ...defaultConfig,
         }
       }
@@ -25,9 +24,7 @@ describe('Promise in next config', () => {
 
   it('should not show warning with config from object', async () => {
     configFile.write(`
-      module.exports = {
-        target: 'server'
-      }
+      module.exports = {}
     `)
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
     expect(stderr).not.toMatch(/experimental feature/)
@@ -36,7 +33,6 @@ describe('Promise in next config', () => {
   it('should show warning with config from object with experimental', async () => {
     configFile.write(`
       module.exports = {
-        target: 'server',
         experimental: {
           something: true
         }
@@ -49,7 +45,6 @@ describe('Promise in next config', () => {
   it('should show warning with config from function with experimental', async () => {
     configFile.write(`
       module.exports = (phase) => ({
-        target: 'server',
         experimental: {
           something: true
         }

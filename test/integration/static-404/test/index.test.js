@@ -35,23 +35,6 @@ describe('Static 404 page', () => {
       expect(html).toContain('This page could not be found')
     })
 
-    it('should export 404 page without custom _error (serverless)', async () => {
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          target: 'experimental-serverless-trace'
-        }
-      `
-      )
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      const html = await renderViaHTTP(appPort, '/non-existent')
-      await killApp(app)
-      expect(html).toContain('This page could not be found')
-    })
-
     it('should not export 404 page with custom _error GIP', async () => {
       await fs.writeFile(
         errorPage,

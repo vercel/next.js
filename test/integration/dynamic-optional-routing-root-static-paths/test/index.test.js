@@ -65,27 +65,4 @@ describe('Dynamic Optional Routing', () => {
 
     runTests()
   })
-
-  describe('serverless mode', () => {
-    let origNextConfig
-
-    beforeAll(async () => {
-      origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless' }`
-      )
-
-      await nextBuild(appDir)
-
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfig, origNextConfig)
-      await killApp(app)
-    })
-
-    runTests()
-  })
 })

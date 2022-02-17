@@ -78,45 +78,6 @@ const runTests = (isServerless) => {
 }
 
 describe('Revalidate asPath Normalizing', () => {
-  describe('raw serverless mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await fs.writeFile(
-        nextConfigPath,
-        `
-          module.exports = {
-            target: 'experimental-serverless-trace'
-          }
-        `
-      )
-      appPort = await findPort()
-      await nextBuild(appDir)
-
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-
-      app = await initNextServerScript(
-        join(appDir, 'server.js'),
-        /ready on/,
-        {
-          ...process.env,
-          PORT: appPort,
-          BUILD_ID: buildId,
-        },
-        /error/,
-        {
-          onStdout(msg) {
-            stdout += msg || ''
-          },
-        }
-      )
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(nextConfigPath)
-    })
-    runTests()
-  })
-
   describe('server mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))

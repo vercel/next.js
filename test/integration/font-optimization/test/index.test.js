@@ -249,43 +249,6 @@ describe('Font Optimization', () => {
         runTests()
       })
 
-      describe('Font optimization for serverless apps', () => {
-        beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `module.exports = { target: 'serverless', cleanDistDir: false }`,
-            'utf8'
-          )
-          await nextBuild(appDir)
-          appPort = await findPort()
-          app = await nextStart(appDir, appPort)
-          builtServerPagesDir = join(appDir, '.next', 'serverless')
-          builtPage = (file) => join(builtServerPagesDir, file)
-        })
-        afterAll(() => killApp(app))
-        runTests()
-      })
-
-      describe('Font optimization for emulated serverless apps', () => {
-        beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `module.exports = { target: 'experimental-serverless-trace', cleanDistDir: false }`,
-            'utf8'
-          )
-          await nextBuild(appDir)
-          appPort = await findPort()
-          app = await startServerlessEmulator(appDir, appPort)
-          builtServerPagesDir = join(appDir, '.next', 'serverless')
-          builtPage = (file) => join(builtServerPagesDir, file)
-        })
-        afterAll(async () => {
-          await fs.remove(nextConfig)
-          await killApp(app)
-        })
-        runTests()
-      })
-
       describe('Font optimization for unreachable font definitions.', () => {
         beforeAll(async () => {
           await fs.writeFile(

@@ -64,24 +64,4 @@ describe('Fallback Dynamic Route Params', () => {
 
     runTests()
   })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      nextConfig.write(`
-        module.exports = {
-          target: 'experimental-serverless-trace'
-        }
-      `)
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir, [], { stdout: true })
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      nextConfig.delete()
-    })
-
-    runTests()
-  })
 })

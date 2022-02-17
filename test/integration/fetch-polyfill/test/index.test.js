@@ -122,28 +122,4 @@ describe('Fetch polyfill', () => {
 
     runTests()
   })
-
-  describe('Serverless support', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless' }`
-      )
-      await startApiServer()
-      await nextBuild(appDir, [], {
-        env: {
-          NEXT_PUBLIC_API_PORT: apiServerPort,
-        },
-      })
-      appPort = await findPort()
-      app = await startServerlessServer()
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(nextConfig)
-      await killApp(apiServer)
-    })
-
-    runTests()
-  })
 })

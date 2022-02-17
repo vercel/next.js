@@ -35,20 +35,4 @@ describe('Auto Export _error bail', () => {
   describe('server mode', () => {
     runTests()
   })
-
-  describe('serverless mode', () => {
-    beforeAll(() =>
-      fs.writeFile(
-        nextConfig,
-        `
-      module.exports = {
-        target: 'experimental-serverless-trace'
-      }
-    `
-      )
-    )
-    afterAll(() => fs.remove(nextConfig))
-
-    runTests()
-  })
 })

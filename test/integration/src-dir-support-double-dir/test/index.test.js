@@ -56,20 +56,4 @@ describe('Dynamic Routing', () => {
 
     runTests()
   })
-
-  describe('serverless production mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless' }`
-      )
-
-      await nextBuild(appDir)
-
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-    runTests()
-  })
 })

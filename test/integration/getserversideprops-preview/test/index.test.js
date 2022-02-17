@@ -293,32 +293,4 @@ describe('ServerSide Props Preview Mode', () => {
 
     runTests()
   })
-
-  describe('Serverless Mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfigPath,
-        `module.exports = { target: 'experimental-serverless-trace' }` + os.EOL
-      )
-    })
-    afterAll(async () => {
-      await fs.remove(nextConfigPath)
-    })
-
-    runTests()
-  })
-
-  describe('Emulated Serverless Mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfigPath,
-        `module.exports = { target: 'experimental-serverless-trace' }` + os.EOL
-      )
-    })
-    afterAll(async () => {
-      await fs.remove(nextConfigPath)
-    })
-
-    runTests(startServerlessEmulator)
-  })
 })

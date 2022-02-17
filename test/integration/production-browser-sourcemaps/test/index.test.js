@@ -50,25 +50,4 @@ describe('Production browser sourcemaps', () => {
 
     runTests()
   })
-
-  describe('Serverless support', () => {
-    beforeAll(async () => {
-      nextConfigContent = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          target: 'serverless',
-          productionBrowserSourceMaps: true
-        }
-      `
-      )
-      await nextBuild(appDir, [], {})
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfig, nextConfigContent)
-    })
-
-    runTests()
-  })
 })

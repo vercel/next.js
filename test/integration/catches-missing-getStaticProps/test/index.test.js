@@ -33,16 +33,4 @@ describe('Catches Missing getStaticProps', () => {
     })
     expect(stderr).toMatch(errorRegex)
   })
-
-  it('should catch it in serverless mode', async () => {
-    await fs.writeFile(
-      nextConfig,
-      `module.exports = { target: 'serverless' }`,
-      'utf8'
-    )
-    const { stderr } = await nextBuild(appDir, [], {
-      stderr: true,
-    })
-    expect(stderr).toMatch(errorRegex)
-  })
 })

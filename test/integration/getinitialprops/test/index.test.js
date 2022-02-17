@@ -52,21 +52,6 @@ describe('getInitialProps', () => {
     runTests()
   })
 
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      await nextConfig.replace('// replace me', `target: 'serverless', `)
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      nextConfig.restore()
-    })
-
-    runTests()
-  })
-
   describe('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)

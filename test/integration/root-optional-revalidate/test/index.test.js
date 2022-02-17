@@ -87,27 +87,4 @@ describe('Root Optional Catch-all Revalidate', () => {
 
     runTests()
   })
-
-  describe('raw serverless mode', () => {
-    beforeAll(async () => {
-      nextConfig.write(`
-        module.exports = {
-          target: 'experimental-serverless-trace'
-        }
-      `)
-      await nextBuild(appDir)
-      appPort = await findPort()
-
-      app = await initNextServerScript(join(appDir, 'server.js'), /ready on/i, {
-        ...process.env,
-        PORT: appPort,
-      })
-    })
-    afterAll(async () => {
-      nextConfig.delete()
-      await killApp(app)
-    })
-
-    runTests(true)
-  })
 })
