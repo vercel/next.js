@@ -104,6 +104,12 @@ async function parseImportsInfo(
         }
         break
       }
+      case 'ExportDefaultExpression':
+        const exp = node.expression
+        if (exp.type === 'Identifier') {
+          defaultExportName = exp.value
+        }
+        break
       default:
         break
     }
@@ -144,23 +150,31 @@ export default async function transformSource(
     )
 
   /**
-   * Server side component module output:
+   * For .server.js files, we handle this loader differently.
    *
-   * export default function ServerComponent() { ... }
-   * + export const __rsc_noop__=()=>{ ... }
-   * + ServerComponent.__next_rsc__=1;
+   * Server compilation output:
+   *   export default function ServerComponent() { ... }
+   *   export const __rsc_noop__ = () => { ... }
+   *   ServerComponent.__next_rsc__ = 1
+   *   ServerComponent.__webpack_require__ = __webpack_require__
    *
-   * Client side component module output:
-   *
-   * The function body of ServerComponent will be removed
+   * Client compilation output:
+   *   The function body of Server Component will be removed
    */
 
   const noop = `export const __rsc_noop__=()=>{${imports.join(';')}}`
-  const defaultExportNoop = isClientCompilation
-    ? `export default function ${defaultExportName}(){}\n${defaultExportName}.__next_rsc__=1;`
-    : defaultExportName
-    ? `${defaultExportName}.__next_rsc__=1;`
-    : ''
+
+  let defaultExportNoop = ''
+  if (isClientCompilation) {
+    defaultExportNoop = `export default function ${
+      defaultExportName || 'ServerComponent'
+    }(){}\n${defaultExportName || 'ServerComponent'}.__next_rsc__=1;`
+  } else {
+    if (defaultExportName) {
+      // It's required to have the default export for pages. For other components, it's fine to leave it as is.
+      defaultExportNoop = `${defaultExportName}.__next_rsc__=1;${defaultExportName}.__webpack_require__=__webpack_require__;`
+    }
+  }
 
   const transformed = transformedSource + '\n' + noop + '\n' + defaultExportNoop
 

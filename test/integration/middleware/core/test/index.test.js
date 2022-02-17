@@ -19,7 +19,7 @@ const context = {}
 context.appDir = join(__dirname, '../')
 
 const middlewareWarning = 'using beta Middleware (not covered by semver)'
-const urlsWarning = 'using relative URLs for Middleware will be deprecated soon'
+const urlsError = 'Please use only absolute URLs'
 
 describe('Middleware base tests', () => {
   describe('dev mode', () => {
@@ -110,7 +110,7 @@ describe('Middleware base tests', () => {
   })
 })
 
-function urlTests(log, locale = '') {
+function urlTests(_log, locale = '') {
   it('rewrites by default to a target location', async () => {
     const res = await fetchViaHTTP(context.appPort, `${locale}/urls`)
     const html = await res.text()
@@ -146,22 +146,95 @@ function urlTests(log, locale = '') {
   })
 
   it('warns when using Response.redirect with a relative URL', async () => {
-    await fetchViaHTTP(context.appPort, `${locale}/urls/relative-redirect`)
-    expect(log.output).toContain(urlsWarning)
+    const response = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-redirect`
+    )
+    expect(await response.json()).toEqual({
+      error: {
+        message: expect.stringContaining(urlsError),
+      },
+    })
   })
 
   it('warns when using NextResponse.redirect with a relative URL', async () => {
-    await fetchViaHTTP(context.appPort, `${locale}/urls/relative-next-redirect`)
-    expect(log.output).toContain(urlsWarning)
+    const response = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-next-redirect`
+    )
+    expect(await response.json()).toEqual({
+      error: {
+        message: expect.stringContaining(urlsError),
+      },
+    })
   })
 
-  it('warns when using NextResponse.rewrite with a relative URL', async () => {
-    await fetchViaHTTP(context.appPort, `${locale}/urls/relative-next-rewrite`)
-    expect(log.output).toContain(urlsWarning)
+  it('throws when using NextResponse.rewrite with a relative URL', async () => {
+    const response = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-next-rewrite`
+    )
+    expect(await response.json()).toEqual({
+      error: {
+        message: expect.stringContaining(urlsError),
+      },
+    })
   })
 }
 
 function rewriteTests(log, locale = '') {
+  it('should override with rewrite internally correctly', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/about`,
+      { override: 'internal' },
+      { redirect: 'manual' }
+    )
+
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('Welcome Page A')
+
+    const browser = await webdriver(context.appPort, `${locale}/rewrites`)
+    await browser.elementByCss('#override-with-internal-rewrite').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /Welcome Page A/
+    )
+    expect(await browser.eval('window.location.pathname')).toBe(
+      `${locale || ''}/rewrites/about`
+    )
+    expect(await browser.eval('window.location.search')).toBe(
+      '?override=internal'
+    )
+  })
+
+  it('should override with rewrite externally correctly', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/about`,
+      { override: 'external' },
+      { redirect: 'manual' }
+    )
+
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('Vercel')
+
+    const browser = await webdriver(context.appPort, `${locale}/rewrites`)
+    await browser.elementByCss('#override-with-external-rewrite').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /Vercel/
+    )
+    await check(
+      () => browser.eval('window.location.pathname'),
+      `${locale || ''}/rewrites/about`
+    )
+    await check(
+      () => browser.eval('window.location.search'),
+      '?override=external'
+    )
+  })
+
   it('should rewrite to fallback: true page successfully', async () => {
     const randomSlug = `another-${Date.now()}`
     const res2 = await fetchViaHTTP(

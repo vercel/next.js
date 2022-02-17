@@ -4,30 +4,10 @@ import LRUCache from 'next/dist/compiled/lru-cache'
 import path from 'path'
 import { PrerenderManifest } from '../build'
 import { normalizePagePath } from './normalize-page-path'
+import { IncrementalCacheValue, IncrementalCacheEntry } from './response-cache'
 
 function toRoute(pathname: string): string {
   return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
-}
-
-interface CachedRedirectValue {
-  kind: 'REDIRECT'
-  props: Object
-}
-
-interface CachedPageValue {
-  kind: 'PAGE'
-  html: string
-  pageData: Object
-}
-
-export type IncrementalCacheValue = CachedRedirectValue | CachedPageValue
-
-type IncrementalCacheEntry = {
-  curRevalidate?: number | false
-  // milliseconds to revalidate after
-  revalidateAfter: number | false
-  isStale?: boolean
-  value: IncrementalCacheValue | null
 }
 
 export class IncrementalCache {
@@ -82,7 +62,13 @@ export class IncrementalCache {
       this.cache = new LRUCache({
         max,
         length({ value }) {
-          if (!value || value.kind === 'REDIRECT') return 25
+          if (!value) {
+            return 25
+          } else if (value.kind === 'REDIRECT') {
+            return JSON.stringify(value.props).length
+          } else if (value.kind === 'IMAGE') {
+            throw new Error('invariant image should not be incremental-cache')
+          }
           // rough estimate of size of cache value
           return value.html.length + JSON.stringify(value.pageData).length
         },

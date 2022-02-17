@@ -78,6 +78,8 @@ export default Page
 
 If an error is thrown inside `getServerSideProps`, it will show the `pages/500.js` file. Check out the documentation for [500 page](/docs/advanced-features/custom-error-page#500-page) to learn more on how to create it. During development this file will not be used and the dev overlay will be shown instead. 
 
+## Related
+
 <div class="card">
   <a href="/docs/api-reference/data-fetching/get-server-side-props.md">
     <b>getServerSideProps API Reference</b>

@@ -1,8 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
-import type { Writable as WritableType } from 'stream'
 import React from 'react'
-import ReactDOMServer from 'react-dom/server'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
@@ -39,8 +37,6 @@ import {
   DocumentInitialProps,
   DocumentProps,
   DocumentContext,
-  HtmlContext,
-  HtmlProps,
   getDisplayName,
   isResSent,
   loadGetInitialProps,
@@ -48,6 +44,10 @@ import {
   RenderPage,
   RenderPageResult,
 } from '../shared/lib/utils'
+
+import { HtmlContext } from '../shared/lib/html-context'
+import type { HtmlProps } from '../shared/lib/html-context'
+
 import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
 import { denormalizePagePath } from './denormalize-page-path'
 import type { FontManifest } from './font-utils'
@@ -60,27 +60,26 @@ import {
   Redirect,
 } from '../lib/load-custom-routes'
 import { DomainLocale } from './config'
-import RenderResult, { NodeWritablePiper } from './render-result'
+import RenderResult from './render-result'
 import isError from '../lib/is-error'
 import { readableStreamTee } from './web/utils'
+import { ImageConfigContext } from '../shared/lib/image-config-context'
+import { ImageConfigComplete } from './image-config'
 
-let Writable: typeof import('stream').Writable
-let Buffer: typeof import('buffer').Buffer
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
-let tryGetPreviewData: typeof import('./api-utils').tryGetPreviewData
+let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
 let postProcess: typeof import('../shared/lib/post-process').default
 
 const DOCTYPE = '<!DOCTYPE html>'
 
 if (!process.browser) {
-  Writable = require('stream').Writable
-  Buffer = require('buffer').Buffer
+  require('./node-polyfill-web-streams')
   optimizeAmp = require('./optimize-amp').default
   getFontDefinitionFromManifest =
     require('./font-utils').getFontDefinitionFromManifest
-  tryGetPreviewData = require('./api-utils').tryGetPreviewData
+  tryGetPreviewData = require('./api-utils/node').tryGetPreviewData
   warn = require('../build/output/log').warn
   postProcess = require('../shared/lib/post-process').default
 } else {
@@ -218,7 +217,6 @@ export type RenderOptsPartial = {
   unstable_JsPreload?: false
   optimizeFonts: boolean
   fontManifest?: FontManifest
-  optimizeImages: boolean
   optimizeCss: any
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
@@ -233,10 +231,12 @@ export type RenderOptsPartial = {
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
   supportsDynamicHTML?: boolean
-  concurrentFeatures?: boolean
+  runtime?: 'nodejs' | 'edge'
   serverComponents?: boolean
   customServer?: boolean
   crossOrigin?: string
+  images: ImageConfigComplete
+  reactRoot: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -356,12 +356,28 @@ const useRSCResponse = createRSCHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
-  cachePrefix: string,
-  transformStream: TransformStream,
   App: AppType,
   OriginalComponent: React.ComponentType,
-  serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
+  {
+    cachePrefix,
+    transformStream,
+    serverComponentManifest,
+    runtime,
+  }: {
+    cachePrefix: string
+    transformStream: TransformStream
+    serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
+    runtime: 'nodejs' | 'edge'
+  }
 ) {
+  if (runtime === 'nodejs') {
+    // For the nodejs runtime, we need to expose the `__webpack_require__` API
+    // globally for react-server-dom-webpack.
+    // This is a hack until we find a better way.
+    // @ts-ignore
+    globalThis.__webpack_require__ = OriginalComponent.__webpack_require__
+  }
+
   const writable = transformStream.writable
   const ServerComponentWrapper = (props: any) => {
     const id = (React as any).useId()
@@ -438,7 +454,6 @@ export async function renderToHTML(
     getStaticPaths,
     getServerSideProps,
     serverComponentManifest,
-    renderServerComponentData,
     serverComponentProps,
     isDataReq,
     params,
@@ -446,30 +461,48 @@ export async function renderToHTML(
     basePath,
     devOnlyCacheBusterQueryString,
     supportsDynamicHTML,
-    concurrentFeatures,
+    images,
+    reactRoot,
+    runtime,
   } = renderOpts
 
-  const isServerComponent = !!serverComponentManifest
+  const hasConcurrentFeatures = !!runtime
+
   const OriginalComponent = renderOpts.Component
-  const serverComponentsInlinedTransformStream =
-    process.browser && isServerComponent ? new TransformStream() : null
-  const search = stringifyQuery(query)
-  const cachePrefix = pathname + '?' + search
-  const Component = isServerComponent
-    ? createServerComponentRenderer(
-        cachePrefix,
-        serverComponentsInlinedTransformStream!,
-        App,
-        OriginalComponent,
-        serverComponentManifest
-      )
-    : renderOpts.Component
+
+  // We don't need to opt-into the flight inlining logic if the page isn't a RSC.
+  const isServerComponent =
+    !!serverComponentManifest &&
+    hasConcurrentFeatures &&
+    (OriginalComponent as any).__next_rsc__
+
+  let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
+    renderOpts.Component
+  let serverComponentsInlinedTransformStream: TransformStream<any, any> | null =
+    null
+
+  if (isServerComponent) {
+    serverComponentsInlinedTransformStream = new TransformStream()
+    const search = stringifyQuery(query)
+    Component = createServerComponentRenderer(App, OriginalComponent, {
+      cachePrefix: pathname + (search ? `?${search}` : ''),
+      transformStream: serverComponentsInlinedTransformStream,
+      serverComponentManifest,
+      runtime,
+    })
+  }
 
   const getFontDefinition = (url: string): string => {
     if (fontManifest) {
       return getFontDefinitionFromManifest(url, fontManifest)
     }
     return ''
+  }
+
+  let { renderServerComponentData } = renderOpts
+  if (isServerComponent && query.__flight__) {
+    renderServerComponentData = true
+    delete query.__flight__
   }
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
@@ -497,9 +530,11 @@ export async function renderToHTML(
   const headTags = (...args: any) => callMiddleware('headTags', args)
 
   const isFallback = !!query.__nextFallback
+  const notFoundSrcPage = query.__nextNotFoundSrcPage
   delete query.__nextFallback
   delete query.__nextLocale
   delete query.__nextDefaultLocale
+  delete query.__nextIsNotFound
 
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
@@ -515,7 +550,7 @@ export async function renderToHTML(
     defaultAppGetInitialProps &&
     !isSSG &&
     !getServerSideProps &&
-    !concurrentFeatures
+    !hasConcurrentFeatures
 
   for (const methodName of [
     'getStaticProps',
@@ -718,7 +753,9 @@ export async function renderToHTML(
             value={(moduleName) => reactLoadableModules.push(moduleName)}
           >
             <StyleRegistry registry={jsxStyleRegistry}>
-              {children}
+              <ImageConfigContext.Provider value={images}>
+                {children}
+              </ImageConfigContext.Provider>
             </StyleRegistry>
           </LoadableContext.Provider>
         </HeadManagerContext.Provider>
@@ -1111,14 +1148,9 @@ export async function renderToHTML(
       }),
       serverComponentManifest
     )
-    const reader = stream.getReader()
-    const piper: NodeWritablePiper = (innerRes, next) => {
-      bufferedReadFromReadableStream(reader, (val) => innerRes.write(val)).then(
-        () => next(),
-        (innerErr) => next(innerErr)
-      )
-    }
-    return new RenderResult(chainPipers([piper]))
+    return new RenderResult(
+      pipeThrough(stream, createBufferedTransformStream())
+    )
   }
 
   // we preload the buildManifest for auto-export dynamic pages
@@ -1152,6 +1184,10 @@ export async function renderToHTML(
     return inAmpMode ? children : <div id="__next">{children}</div>
   }
 
+  const ReactDOMServer = reactRoot
+    ? require('react-dom/server.browser')
+    : require('react-dom/server')
+
   /**
    * Rules of Static & Dynamic HTML:
    *
@@ -1167,7 +1203,7 @@ export async function renderToHTML(
    */
   const generateStaticHTML = supportsDynamicHTML !== true
   const renderDocument = async () => {
-    if (!process.browser && Document.getInitialProps) {
+    if (!runtime && Document.getInitialProps) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
       ): RenderPageResult | Promise<RenderPageResult> => {
@@ -1218,7 +1254,8 @@ export async function renderToHTML(
       }
 
       return {
-        bodyResult: (suffix: string) => piperFromArray([docProps.html, suffix]),
+        bodyResult: (suffix: string) =>
+          streamFromArray([docProps.html, suffix]),
         documentElement: (htmlProps: HtmlProps) => (
           <Document {...htmlProps} {...docProps} />
         ),
@@ -1247,19 +1284,20 @@ export async function renderToHTML(
         )
       }
 
-      if (concurrentFeatures) {
+      if (reactRoot) {
         bodyResult = async (suffix: string) => {
           // this must be called inside bodyResult so appWrappers is
           // up to date when getWrappedApp is called
 
           const content = renderContent()
-          return process.browser
-            ? await renderToWebStream(
-                content,
-                suffix,
-                serverComponentsInlinedTransformStream
-              )
-            : await renderToNodeStream(content, suffix, generateStaticHTML)
+          return await renderToStream(
+            ReactDOMServer,
+            content,
+            suffix,
+            serverComponentsInlinedTransformStream?.readable ??
+              streamFromArray([]),
+            generateStaticHTML || !hasConcurrentFeatures
+          )
         }
       } else {
         const content = renderContent()
@@ -1267,7 +1305,7 @@ export async function renderToHTML(
         // before _document so that updateHead is called/collected before
         // rendering _document's head
         const result = ReactDOMServer.renderToString(content)
-        bodyResult = (suffix: string) => piperFromArray([result, suffix])
+        bodyResult = (suffix: string) => streamFromArray([result, suffix])
       }
 
       return {
@@ -1340,6 +1378,7 @@ export async function renderToHTML(
       defaultLocale,
       domainLocales,
       isPreview: isPreview === true ? true : undefined,
+      notFoundSrcPage: notFoundSrcPage && dev ? notFoundSrcPage : undefined,
     },
     buildManifest: filteredBuildManifest,
     docComponentsRendered,
@@ -1371,8 +1410,7 @@ export async function renderToHTML(
     crossOrigin: renderOpts.crossOrigin,
     optimizeCss: renderOpts.optimizeCss,
     optimizeFonts: renderOpts.optimizeFonts,
-    optimizeImages: renderOpts.optimizeImages,
-    concurrentFeatures: renderOpts.concurrentFeatures,
+    runtime,
   }
 
   const document = (
@@ -1384,25 +1422,15 @@ export async function renderToHTML(
   )
 
   let documentHTML: string
-  if (process.browser) {
-    // There is no `renderToStaticMarkup` exposed in the web environment, use
-    // blocking `renderToReadableStream` to get the similar result.
-    let result = ''
-    const readable = (ReactDOMServer as any).renderToReadableStream(document, {
-      onError: (e: any) => {
-        throw e
-      },
-    })
-    const reader = readable.getReader()
-    const decoder = new TextDecoder()
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) {
-        break
-      }
-      result += typeof value === 'string' ? value : decoder.decode(value)
-    }
-    documentHTML = result
+  if (hasConcurrentFeatures) {
+    const documentStream = await renderToStream(
+      ReactDOMServer,
+      document,
+      null,
+      streamFromArray([]),
+      true
+    )
+    documentHTML = await streamToString(documentStream)
   } else {
     documentHTML = ReactDOMServer.renderToStaticMarkup(document)
   }
@@ -1443,8 +1471,8 @@ export async function renderToHTML(
     prefix.push('<!-- __NEXT_DATA__ -->')
   }
 
-  let pipers: Array<NodeWritablePiper> = [
-    piperFromArray(prefix),
+  let streams: Array<ReadableStream> = [
+    streamFromArray(prefix),
     await documentResult.bodyResult(renderTargetSuffix),
   ]
 
@@ -1460,16 +1488,13 @@ export async function renderToHTML(
                 return html
               }
             : null,
-          !process.browser &&
-          (process.env.__NEXT_OPTIMIZE_FONTS ||
-            process.env.__NEXT_OPTIMIZE_IMAGES)
+          !process.browser && process.env.__NEXT_OPTIMIZE_FONTS
             ? async (html: string) => {
                 return await postProcess(
                   html,
                   { getFontDefinition },
                   {
                     optimizeFonts: renderOpts.optimizeFonts,
-                    optimizeImages: renderOpts.optimizeImages,
                   }
                 )
               }
@@ -1500,7 +1525,7 @@ export async function renderToHTML(
   ).filter(Boolean)
 
   if (generateStaticHTML || postProcessors.length > 0) {
-    let html = await piperToString(chainPipers(pipers))
+    let html = await streamToString(chainStreams(streams))
     for (const postProcessor of postProcessors) {
       if (postProcessor) {
         html = await postProcessor(html)
@@ -1509,7 +1534,7 @@ export async function renderToHTML(
     return new RenderResult(html)
   }
 
-  return new RenderResult(chainPipers(pipers))
+  return new RenderResult(chainStreams(streams))
 }
 
 function errorToJSON(err: Error) {
@@ -1536,176 +1561,150 @@ function serializeError(
   }
 }
 
-function renderToNodeStream(
-  element: React.ReactElement,
-  suffix: string,
-  generateStaticHTML: boolean
-): Promise<NodeWritablePiper> {
-  return new Promise((resolve, reject) => {
-    let underlyingStream: WritableType | null = null
-    let queuedCallbacks: Array<(error?: Error | null) => void> = []
-    let shellFlushed = false
+function createTransformStream({
+  flush,
+  transform,
+}: {
+  flush?: (controller: TransformStreamDefaultController) => Promise<void> | void
+  transform?: (
+    chunk: Uint8Array,
+    controller: TransformStreamDefaultController
+  ) => void
+}): TransformStream {
+  const source = new TransformStream()
+  const sink = new TransformStream()
+  const reader = source.readable.getReader()
+  const writer = sink.writable.getWriter()
 
-    const closeTag = '</body></html>'
-    const [suffixUnclosed] = suffix.split(closeTag)
+  const controller = {
+    enqueue(chunk: Uint8Array) {
+      writer.write(chunk)
+    },
 
-    // Based on the suggestion here:
-    // https://github.com/reactwg/react-18/discussions/110
-    let suffixFlushed = false
-    class NextWritable extends Writable {
-      _write(
-        chunk: any,
-        encoding: string,
-        callback: (error?: Error | null) => void
-      ) {
-        if (!underlyingStream) {
-          throw new Error(
-            'invariant: write called without an underlying stream. This is a bug in Next.js'
-          )
+    error(reason: Error) {
+      writer.abort(reason)
+      reader.cancel()
+    },
+
+    terminate() {
+      writer.close()
+      reader.cancel()
+    },
+
+    get desiredSize() {
+      return writer.desiredSize
+    },
+  }
+
+  ;(async () => {
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+
+        if (done) {
+          const maybePromise = flush?.(controller)
+          if (maybePromise) {
+            await maybePromise
+          }
+          writer.close()
+          return
         }
-        // The compression module (https://github.com/expressjs/compression) doesn't
-        // support callbacks, so we have to wait for a drain event.
-        if (!underlyingStream.write(chunk, encoding)) {
-          queuedCallbacks.push(callback)
+
+        if (transform) {
+          transform(value, controller)
         } else {
-          callback()
-        }
-
-        if (!shellFlushed) {
-          shellFlushed = true
-          // In the first round of streaming, all chunks will be finished in the micro task.
-          // We use setTimeout to guarantee the suffix is flushed after the micro task.
-          setTimeout(() => {
-            // Flush the suffix if stream is not closed.
-            if (underlyingStream) {
-              suffixFlushed = true
-              underlyingStream.write(suffixUnclosed)
-            }
-          })
+          controller.enqueue(value)
         }
       }
-
-      flush() {
-        if (!underlyingStream) {
-          throw new Error(
-            'invariant: flush called without an underlying stream. This is a bug in Next.js'
-          )
-        }
-
-        const anyWritable = underlyingStream as any
-        if (typeof anyWritable.flush === 'function') {
-          anyWritable.flush()
-        }
-      }
+    } catch (err) {
+      writer.abort(err)
     }
+  })()
 
-    const stream = new NextWritable()
-    stream.on('drain', () => {
-      const callbacks = queuedCallbacks
-      queuedCallbacks = []
-      callbacks.forEach((callback) => callback())
-    })
-
-    let resolved = false
-    const doResolve = (startWriting: any) => {
-      if (!resolved) {
-        resolved = true
-        resolve((res, next) => {
-          const doNext = (err?: Error) => {
-            // Some cases when the stream is closed too fast before setTimeout,
-            // have to ensure suffix is flushed anyway.
-            if (!suffixFlushed) {
-              res.write(suffixUnclosed)
-            }
-            if (!err) {
-              res.write(closeTag)
-            }
-            underlyingStream = null
-            queuedCallbacks = []
-            next(err)
-          }
-
-          stream.once('error', (err) => doNext(err))
-          stream.once('finish', () => doNext())
-
-          underlyingStream = res
-          startWriting()
-        })
-      }
-    }
-
-    const { abort, pipe } = (ReactDOMServer as any).renderToPipeableStream(
-      element,
-      {
-        onError(error: Error) {
-          if (!resolved) {
-            resolved = true
-            reject(error)
-          }
-          abort()
-        },
-        onCompleteShell() {
-          shellFlushed = true
-          if (!generateStaticHTML) {
-            doResolve(() => pipe(stream))
-          }
-        },
-        onCompleteAll() {
-          doResolve(() => pipe(stream))
-        },
-      }
-    )
-  })
+  return {
+    readable: sink.readable,
+    writable: source.writable,
+  }
 }
 
-async function bufferedReadFromReadableStream(
-  reader: ReadableStreamDefaultReader,
-  writeFn: (val: string) => void
-): Promise<void> {
+function createBufferedTransformStream(): TransformStream {
   const decoder = new TextDecoder()
+  const encoder = new TextEncoder()
+
   let bufferedString = ''
   let pendingFlush: Promise<void> | null = null
 
-  const flushBuffer = () => {
+  const flushBuffer = (controller: TransformStreamDefaultController) => {
     if (!pendingFlush) {
-      pendingFlush = new Promise((resolve) =>
+      pendingFlush = new Promise((resolve) => {
         setTimeout(() => {
-          writeFn(bufferedString)
+          controller.enqueue(encoder.encode(bufferedString))
           bufferedString = ''
           pendingFlush = null
           resolve()
         }, 0)
-      )
+      })
     }
+    return pendingFlush
   }
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) {
-      break
-    }
+  return createTransformStream({
+    transform(chunk, controller) {
+      bufferedString += decoder.decode(chunk)
+      flushBuffer(controller)
+    },
 
-    bufferedString += typeof value === 'string' ? value : decoder.decode(value)
-    flushBuffer()
-  }
-
-  // Make sure the promise resolves after any pending flushes
-  await pendingFlush
+    flush() {
+      if (pendingFlush) {
+        return pendingFlush
+      }
+    },
+  })
 }
 
-function renderToWebStream(
+function renderToStream(
+  ReactDOMServer: typeof import('react-dom/server'),
   element: React.ReactElement,
-  suffix: string,
-  serverComponentsInlinedTransformStream: TransformStream | null
-): Promise<NodeWritablePiper> {
+  suffix: string | null,
+  dataStream: ReadableStream,
+  generateStaticHTML: boolean
+): Promise<ReadableStream> {
   return new Promise((resolve, reject) => {
     let resolved = false
-    const inlinedDataReader = serverComponentsInlinedTransformStream
-      ? serverComponentsInlinedTransformStream.readable.getReader()
+
+    const closeTagString = '</body></html>'
+    const encoder = new TextEncoder()
+    const suffixState = suffix
+      ? {
+          closeTag: encoder.encode(closeTagString),
+          suffixUnclosed: encoder.encode(suffix.split(closeTagString)[0]),
+        }
       : null
 
-    const closeTag = '</body></html>'
-    const [suffixUnclosed] = suffix.split(closeTag)
+    const doResolve = () => {
+      if (!resolved) {
+        resolved = true
+
+        // React will call our callbacks synchronously, so we need to
+        // defer to a microtask to ensure `stream` is set.
+        Promise.resolve().then(() =>
+          resolve(
+            pipeThrough(
+              pipeThrough(
+                pipeThrough(stream, createBufferedTransformStream()),
+                createInlineDataStream(
+                  pipeThrough(
+                    dataStream,
+                    createPrefixStream(suffixState?.suffixUnclosed ?? null)
+                  )
+                )
+              ),
+              createSuffixStream(suffixState?.closeTag ?? null)
+            )
+          )
+        )
+      }
+    }
 
     const stream: ReadableStream = (
       ReactDOMServer as any
@@ -1717,77 +1716,167 @@ function renderToWebStream(
         }
       },
       onCompleteShell() {
-        if (!resolved) {
-          resolved = true
-          resolve((res, next) => {
-            let shellFlushed = false
-            Promise.all([
-              bufferedReadFromReadableStream(reader, (val) => {
-                if (!shellFlushed) {
-                  shellFlushed = true
-                  val += suffixUnclosed
-                }
-                res.write(val)
-              }),
-              inlinedDataReader &&
-                bufferedReadFromReadableStream(inlinedDataReader, res.write),
-            ]).then(
-              () => {
-                res.write(closeTag)
-                next()
-              },
-              (err) => next(err)
-            )
-          })
+        if (!generateStaticHTML) {
+          doResolve()
         }
       },
-    })
-    const reader = stream.getReader()
-  })
-}
-
-function chainPipers(pipers: NodeWritablePiper[]): NodeWritablePiper {
-  return pipers.reduceRight(
-    (lhs, rhs) => (res, next) => {
-      rhs(res, (err) => (err ? next(err) : lhs(res, next)))
-    },
-    (res, next) => {
-      res.end()
-      next()
-    }
-  )
-}
-
-function piperFromArray(chunks: string[]): NodeWritablePiper {
-  return (res, next) => {
-    if (typeof (res as any).cork === 'function') {
-      res.cork()
-    }
-    chunks.forEach((chunk) => res.write(chunk))
-    if (typeof (res as any).uncork === 'function') {
-      res.uncork()
-    }
-    next()
-  }
-}
-
-function piperToString(input: NodeWritablePiper): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const bufferedChunks: Buffer[] = []
-    const stream = new Writable({
-      writev(chunks, callback) {
-        chunks.forEach((chunk) => bufferedChunks.push(chunk.chunk))
-        callback()
+      onCompleteAll() {
+        doResolve()
       },
     })
-    input(stream, (err) => {
-      if (err) {
-        reject(err)
+  })
+}
+
+function createSuffixStream(suffix: Uint8Array | null) {
+  return createTransformStream({
+    flush(controller) {
+      if (suffix) {
+        controller.enqueue(suffix)
+      }
+    },
+  })
+}
+
+function createPrefixStream(prefix: Uint8Array | null) {
+  let prefixFlushed = false
+  return createTransformStream({
+    transform(chunk, controller) {
+      if (!prefixFlushed && prefix) {
+        prefixFlushed = true
+        controller.enqueue(prefix)
+      }
+      controller.enqueue(chunk)
+    },
+    flush(controller) {
+      if (!prefixFlushed && prefix) {
+        prefixFlushed = true
+        controller.enqueue(prefix)
+      }
+    },
+  })
+}
+
+function createInlineDataStream(
+  dataStream: ReadableStream | null
+): TransformStream {
+  let dataStreamFinished: Promise<void> | null = null
+  return createTransformStream({
+    transform(chunk, controller) {
+      controller.enqueue(chunk)
+
+      if (!dataStreamFinished && dataStream) {
+        const dataStreamReader = dataStream.getReader()
+
+        // We are buffering here for the inlined data stream because the
+        // "shell" stream might be chunkenized again by the underlying stream
+        // implementation, e.g. with a specific high-water mark. To ensure it's
+        // the safe timing to pipe the data stream, this extra tick is
+        // necessary.
+        dataStreamFinished = new Promise((res) =>
+          setTimeout(async () => {
+            try {
+              while (true) {
+                const { done, value } = await dataStreamReader.read()
+                if (done) {
+                  return res()
+                }
+                controller.enqueue(value)
+              }
+            } catch (err) {
+              controller.error(err)
+            }
+            res()
+          }, 0)
+        )
+      }
+    },
+    flush() {
+      if (dataStreamFinished) {
+        return dataStreamFinished
+      }
+    },
+  })
+}
+
+function pipeTo(
+  readable: ReadableStream,
+  writable: WritableStream,
+  options?: { preventClose: boolean }
+) {
+  let resolver: () => void
+  const promise = new Promise<void>((resolve) => (resolver = resolve))
+
+  const reader = readable.getReader()
+  const writer = writable.getWriter()
+  function process() {
+    reader.read().then(({ done, value }) => {
+      if (done) {
+        if (options?.preventClose) {
+          writer.releaseLock()
+        } else {
+          writer.close()
+        }
+        resolver()
       } else {
-        resolve(Buffer.concat(bufferedChunks).toString())
+        writer.write(value)
+        process()
       }
     })
+  }
+  process()
+  return promise
+}
+
+function pipeThrough(
+  readable: ReadableStream,
+  transformStream: TransformStream
+) {
+  pipeTo(readable, transformStream.writable)
+  return transformStream.readable
+}
+
+function chainStreams(streams: ReadableStream[]): ReadableStream {
+  const { readable, writable } = new TransformStream()
+
+  let promise = Promise.resolve()
+  for (let i = 0; i < streams.length; ++i) {
+    promise = promise.then(() =>
+      pipeTo(streams[i], writable, {
+        preventClose: i + 1 < streams.length,
+      })
+    )
+  }
+
+  return readable
+}
+
+function streamFromArray(strings: string[]): ReadableStream {
+  const encoder = new TextEncoder()
+  const chunks = Array.from(strings.map((str) => encoder.encode(str)))
+
+  return new ReadableStream({
+    start(controller) {
+      chunks.forEach((chunk) => controller.enqueue(chunk))
+      controller.close()
+    },
   })
+}
+
+async function streamToString(stream: ReadableStream): Promise<string> {
+  const reader = stream.getReader()
+  const decoder = new TextDecoder()
+
+  let bufferedString = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+
+    if (done) {
+      return bufferedString
+    }
+
+    bufferedString += decoder.decode(value)
+  }
 }
 
 export function useMaybeDeferContent(
