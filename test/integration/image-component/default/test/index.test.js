@@ -275,7 +275,7 @@ function runTests(mode) {
       )
       await check(
         () => browser.eval(`document.getElementById("msg9").textContent`),
-        'loaded 1 img9 with dimensions 266x266'
+        'loaded 1 img9 with dimensions 400x400'
       )
     } finally {
       if (browser) {
