@@ -111,6 +111,7 @@ export type ImageProps = Omit<
 } & (
     | {
         layout?: Omit<LayoutValue, 'raw'>
+        style?: never
       }
     | {
         layout: 'raw'
@@ -146,8 +147,7 @@ function getWidths(
   if (
     typeof width !== 'number' ||
     layout === 'fill' ||
-    layout === 'responsive' ||
-    layout === 'raw'
+    layout === 'responsive'
   ) {
     return { widths: deviceSizes, kind: 'w' }
   }
@@ -442,6 +442,11 @@ export default function Image({
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
+    if (layout === 'raw' && objectFit || objectPosition) {
+      throw new Error(
+        `Image with src "${src}" has "layout='raw'" and 'objectFit' or 'objectPosition'. For raw images, these and other styles should be specified using the 'style' attribute.`
+      )
+    }
     if (
       sizes &&
       layout !== 'fill' &&
@@ -449,7 +454,7 @@ export default function Image({
       layout !== 'raw'
     ) {
       console.warn(
-        `Image with src "${src}" has "sizes" property but it will be ignored. Only use "sizes" with 'fill,' 'responsive,' or 'raw' layout modes.`
+        `Image with src "${src}" has "sizes" property but it will be ignored. Only use "sizes" with "layout='fill'", "layout='responsive'", or "layout='raw'`
       )
     }
     if (placeholder === 'blur') {
@@ -660,22 +665,6 @@ export default function Image({
     })
   }
 
-  let isRaw = false
-  const rawStyle: ImgElementStyle = {}
-
-  if (layout === 'raw') {
-    isRaw = true
-    const styleProp = 'style' in rest && rest.style ? rest.style : {}
-    Object.assign(
-      rawStyle,
-      {
-        ...(objectFit ? { objectFit } : {}),
-        ...(objectPosition ? { objectPosition } : {}),
-      },
-      styleProp
-    )
-  }
-
   let srcString: string = src
 
   if (process.env.NODE_ENV !== 'production') {
@@ -717,19 +706,26 @@ export default function Image({
   useEffect(() => {
     handleLoading(imgRef, srcString, layout, placeholder, onLoadingCompleteRef)
   }, [srcString, layout, placeholder, isVisible])
+ 
+  let rawStyle = {}
+  if (layout === 'raw' && 'style' in rest && rest.style) {
+    rawStyle = rest.style
+    // rest gets spread as img attributes, but we add style manually
+    delete rest.style
+  }
+  const stringSrc = src
 
-  return isRaw ? (
-    <>
+  const ImageElement = ({raw}: {raw: boolean}) => 
+  <>
       <img
         {...rest}
         {...imgAttributes}
+        {...(raw ? {height: heightInt, width: widthInt} : {})}
         decoding="async"
         data-nimg={layout}
-        height={heightInt}
-        width={widthInt}
         className={className}
         ref={imgRef}
-        style={{ ...blurStyle, ...rawStyle }}
+        style={{ ...blurStyle, ...(raw ? rawStyle : imgStyle)}}
       />
       {isLazy && (
         <noscript>
@@ -737,7 +733,7 @@ export default function Image({
             {...rest}
             {...generateImgAttrs({
               config,
-              src,
+              src: stringSrc,
               unoptimized,
               layout,
               width: widthInt,
@@ -745,11 +741,10 @@ export default function Image({
               sizes,
               loader,
             })}
+            {...(raw ? {height: heightInt, width: widthInt} : {})}
             decoding="async"
             data-nimg={layout}
-            height={heightInt}
-            width={widthInt}
-            style={rawStyle}
+            style={{...(raw ? rawStyle : imgStyle)}}
             className={className}
             // @ts-ignore - TODO: upgrade to `@types/react@17`
             loading={loading || 'lazy'}
@@ -757,6 +752,9 @@ export default function Image({
         </noscript>
       )}
     </>
+
+  return layout === 'raw' ? (
+    <ImageElement raw />
   ) : (
     <span style={wrapperStyle}>
       {hasSizer ? (
@@ -781,39 +779,7 @@ export default function Image({
           ) : null}
         </span>
       ) : null}
-      <img
-        {...rest}
-        {...imgAttributes}
-        decoding="async"
-        data-nimg={layout}
-        className={className}
-        ref={imgRef}
-        style={{ ...imgStyle, ...blurStyle }}
-      />
-      {isLazy && (
-        <noscript>
-          <img
-            {...rest}
-            {...generateImgAttrs({
-              config,
-              src,
-              unoptimized,
-              layout,
-              width: widthInt,
-              quality: qualityInt,
-              sizes,
-              loader,
-            })}
-            decoding="async"
-            data-nimg={layout}
-            style={imgStyle}
-            className={className}
-            // @ts-ignore - TODO: upgrade to `@types/react@17`
-            loading={loading || 'lazy'}
-          />
-        </noscript>
-      )}
-
+      <ImageElement raw={false} />
       {priority ? (
         // Note how we omit the `href` attribute, as it would only be relevant
         // for browsers that do not support `imagesrcset`, and in those cases

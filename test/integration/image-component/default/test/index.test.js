@@ -588,7 +588,7 @@ function runTests(mode) {
     }
   })
 
-  it('should render no wrappers or sizers and minimal styling with layout-raw', async () => {
+  it.only('should render no wrappers or sizers and minimal styling with layout-raw', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/layout-raw')
@@ -602,12 +602,10 @@ function runTests(mode) {
       )
       expect(childElementType).toBe('IMG')
 
-      expect(await browser.elementById('raw1').getAttribute('style')).toBe(
-        'object-fit:cover'
-      )
+      expect(await browser.elementById('raw1').getAttribute('style')).toBeNull()
 
       expect(await browser.elementById('raw2').getAttribute('style')).toBe(
-        'object-fit:cover;object-position:30% 30%;padding-left:4rem;width:100%'
+        'padding-left: 4rem; width: 100%; object-position: 30% 30%;'
       )
 
       expect(await browser.elementById('raw3').getAttribute('style')).toBeNull()
@@ -1153,7 +1151,7 @@ function runTests(mode) {
 }
 
 describe('Image Component Tests', () => {
-  describe('dev mode', () => {
+  describe.skip('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -1178,7 +1176,7 @@ describe('Image Component Tests', () => {
     runTests('server')
   })
 
-  describe('serverless mode', () => {
+  describe.skip('serverless mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()

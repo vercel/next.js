@@ -12,7 +12,6 @@ const Page = () => {
           width="1200"
           height="700"
           layout="raw"
-          objectFit="cover"
           loading="eager"
         ></Image>
       </div>
@@ -22,8 +21,6 @@ const Page = () => {
           src="/wide.png"
           width="1200"
           height="700"
-          objectFit="cover"
-          objectPosition="50% 50%"
           style={{
             paddingLeft: '4rem',
             width: '100%',

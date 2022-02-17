@@ -10,6 +10,7 @@ const Invalid = () => {
         height={500}
         src="https://via.placeholder.com/500"
         style={{ padding: '12px' }}
+        layout="fixed"
       ></Image>
       <p id="stubtext">This is the invalid usage</p>
     </div>
