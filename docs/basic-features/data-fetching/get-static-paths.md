@@ -19,7 +19,7 @@ export async function getStaticPaths() {
 }
 ```
 
-Note that`getStaticProps` **must** be used with `getStaticPaths`, and that you **cannot** use it with [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md).
+`getStaticPaths` **must** be used with `getStaticProps`. You **cannot** use it with [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md).
 
 The [`getStaticPaths` API reference](/docs/api-reference/data-fetching/get-static-paths.md) covers all parameters and props that can be used with `getStaticPaths`.
 
@@ -35,7 +35,11 @@ You should use `getStaticPaths` if you’re statically pre-rendering pages that 
 
 ## When does getStaticPaths run
 
-`getStaticPaths` only runs at build time on server-side. If you're using [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md), `getStaticPaths` can also be run on-demand _in the background_, but still only on the server-side.
+`getStaticPaths` always runs on the server and never on the client. You can validate code written inside `getStaticPaths` is removed from the client-side bundle [with this tool](https://next-code-elimination.vercel.app/).
+
+- `getStaticPaths` runs during `next build` for Pages included in `paths`
+- `getStaticPaths` runs on-demand in the background when using `fallback: true`
+- `getStaticPaths` runs on-demand blocking rendering when using `fallback: blocking`
 
 ## Where can I use getStaticPaths
 
@@ -46,6 +50,10 @@ Note that you must use export `getStaticPaths` as a standalone function — it w
 ## Runs on every request in development
 
 In development (`next dev`), `getStaticPaths` will be called on every request.
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
 
 <div class="card">
   <a href="/docs/api-reference/data-fetching/get-static-paths.md">
