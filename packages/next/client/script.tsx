@@ -106,12 +106,12 @@ const loadScript = (props: ScriptProps): void => {
 
 export function handleClientScriptLoad(props: ScriptProps) {
   const { strategy = 'afterInteractive' } = props
-  if (strategy === 'afterInteractive' || strategy === 'beforeInteractive') {
-    loadScript(props)
-  } else if (strategy === 'lazyOnload') {
+  if (strategy === 'lazyOnload') {
     window.addEventListener('load', () => {
       requestIdleCallback(() => loadScript(props))
     })
+  } else {
+    loadScript(props)
   }
 }
 
@@ -126,11 +126,12 @@ function loadLazyScript(props: ScriptProps) {
 }
 
 function addBeforeInteractiveToCache() {
-  const scripts = document.querySelectorAll(
-    '[data-nscript="beforeInteractive"]'
-  )
+  const scripts = [
+    ...document.querySelectorAll('[data-nscript="beforeInteractive"]'),
+    ...document.querySelectorAll('[data-nscript="beforePageRender"]'),
+  ]
   scripts.forEach((script) => {
-    const cacheKey = script.id || script.src
+    const cacheKey = script.id || script.getAttribute('src')
     LoadCache.add(cacheKey)
   })
 }

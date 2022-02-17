@@ -729,12 +729,16 @@ export async function renderToHTML(
 
   let head: JSX.Element[] = defaultHead(inAmpMode)
 
-  let initialScripts = {}
+  let initialScripts: any = {}
   if (hasPageScripts) {
     initialScripts.beforeInteractive = []
       .concat(hasPageScripts())
-      .filter((script) => script.props.strategy === 'beforeInteractive')
-      .map((script) => script.props)
+      .filter(
+        (script: any) =>
+          script.props.strategy === 'beforeInteractive' ||
+          script.props.strategy === 'beforePageRender'
+      )
+      .map((script: any) => script.props)
   }
 
   let scriptLoader: any = {}

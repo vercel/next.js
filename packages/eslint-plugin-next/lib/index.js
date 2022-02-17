@@ -20,6 +20,7 @@ module.exports = {
     'no-duplicate-head': require('./rules/no-duplicate-head'),
     'inline-script-id': require('./rules/inline-script-id'),
     'next-script-for-ga': require('./rules/next-script-for-ga'),
+    'no-script-bi-outside-document': require('./rules/no-script-bi-outside-document'),
   },
   configs: {
     recommended: {
@@ -39,12 +40,13 @@ module.exports = {
         '@next/next/next-script-for-ga': 1,
         '@next/next/no-document-import-in-page': 2,
         '@next/next/no-head-import-in-document': 2,
-        '@next/next/no-script-in-document': 2,
+        '@next/next/no-script-in-document': 0,
         '@next/next/no-script-component-in-head': 2,
         '@next/next/no-server-import-in-page': 2,
         '@next/next/no-typos': 1,
         '@next/next/no-duplicate-head': 2,
         '@next/next/inline-script-id': 2,
+        '@next/next/no-script-bi-outside-document': 2,
       },
     },
     'core-web-vitals': {

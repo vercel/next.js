@@ -11,9 +11,9 @@ const Page = () => {
 Page.scriptLoader = () => {
   return (
     <Script
-      id="scriptBeforeInteractive"
-      src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
-      strategy="beforeInteractive"
+      id="scriptBeforePageRender"
+      src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforePageRender"
+      strategy="beforePageRender"
     ></Script>
   )
 }
