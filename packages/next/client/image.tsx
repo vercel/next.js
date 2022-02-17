@@ -398,10 +398,6 @@ export default function Image({
     isLazy = false
   }
 
-  if (src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
-    unoptimized = true
-  }
-
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
       throw new Error(
@@ -489,7 +485,7 @@ export default function Image({
       )
     }
 
-    if (!unoptimized) {
+    if (!unoptimized && loader !== defaultImageLoader) {
       const urlStr = loader({
         config,
         src,
@@ -904,6 +900,12 @@ function defaultLoader({
         )
       }
     }
+  }
+
+  if (src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
+    // Special case to make svg serve as-is to avoid proxying
+    // through the built-in Image Optimization API.
+    return src
   }
 
   return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${

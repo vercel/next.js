@@ -224,7 +224,7 @@ function runTests(mode) {
       )
       await check(
         () => browser.eval(`document.getElementById("msg3").textContent`),
-        'loaded 1 img3 with dimensions 400x400'
+        'loaded 1 img3 with dimensions 266x266'
       )
       await check(
         () => browser.eval(`document.getElementById("msg4").textContent`),
@@ -816,6 +816,30 @@ function runTests(mode) {
       expect(warnings).not.toMatch(
         /Image with src (.*)gif(.*) has "sizes" property but it will be ignored/gm
       )
+    })
+
+    it('should not warn when svg, even if with loader prop or without', async () => {
+      const browser = await webdriver(appPort, '/loader-svg')
+      await browser.eval(`document.querySelector("footer").scrollIntoView()`)
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).not.toMatch(
+        /Image with src (.*) has a "loader" property that does not implement width/gm
+      )
+      expect(await browser.elementById('with-loader').getAttribute('src')).toBe(
+        '/test.svg?size=256'
+      )
+      expect(
+        await browser.elementById('with-loader').getAttribute('srcset')
+      ).toBe('/test.svg?size=128 1x, /test.svg?size=256 2x')
+      expect(
+        await browser.elementById('without-loader').getAttribute('src')
+      ).toBe('/test.svg')
+      expect(
+        await browser.elementById('without-loader').getAttribute('srcset')
+      ).toBe('/test.svg 1x, /test.svg 2x')
     })
   } else {
     //server-only tests
