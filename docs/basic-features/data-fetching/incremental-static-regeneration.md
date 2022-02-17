@@ -98,7 +98,7 @@ Starting with `v12.1.0`, Next.js supports on-demand Incremental Static Regenerat
 
 Inside `getStaticProps`, you do not need to specify `revalidate` to use on-demand revalidation. If `revalidate` is omitted, Next.js will use the default value of `false` (no revalidation) and only revalidate the page on-demand when `unstable_revalidate` is called.
 
-### Usage
+### Using On-Demand Revalidation
 
 First, create a secret token only known by your Next.js app. This secret will be used to prevent unauthorized access to the revalidation API Route. You can access the route (either manually or with a webhook) with the following URL structure:
 
