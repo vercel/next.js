@@ -687,13 +687,35 @@ impl Task {
                     let mut iter = inputs.into_iter();
                     if let Some(this) = iter.next() {
                         let this = this.resolve_to_value().await;
-                        // TODO avoid unwrap
-                        let native_fn = this.get_trait_method(trait_type, name).unwrap();
-                        resolved_inputs.push(this);
-                        for input in iter {
-                            resolved_inputs.push(input)
+                        match this.get_trait_method(trait_type, name.clone()) {
+                            Some(native_fn) => {
+                                resolved_inputs.push(this);
+                                for input in iter {
+                                    resolved_inputs.push(input)
+                                }
+                                tt.dynamic_call(native_fn, resolved_inputs).unwrap()
+                            }
+                            None => {
+                                if !this.has_trait(trait_type) {
+                                    // TODO avoid panic
+                                    let traits = this
+                                        .traits()
+                                        .iter()
+                                        .map(|t| format!(" {}", t))
+                                        .collect::<String>();
+                                    panic!(
+                                        "{} doesn't implement trait {} (only{})",
+                                        this, trait_type, traits
+                                    );
+                                } else {
+                                    // TODO avoid panic
+                                    panic!(
+                                        "{} implements trait {}, but method {} is missing",
+                                        this, trait_type, name
+                                    );
+                                }
+                            }
                         }
-                        tt.dynamic_call(native_fn, resolved_inputs).unwrap()
                     } else {
                         panic!("No arguments for trait call");
                     }

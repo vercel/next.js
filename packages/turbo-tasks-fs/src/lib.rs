@@ -287,23 +287,30 @@ pub async fn rebase(
     )
 }
 
+#[turbo_tasks::value_impl]
 impl FileSystemPathRef {
     pub async fn read(self) -> FileContentRef {
         let this = self.get().await;
-        this.fs.read(self).await
+        this.fs.read(self)
     }
+
     pub async fn read_dir(self) -> DirectoryContentRef {
         let this = self.get().await;
-        this.fs.read_dir(self).await
+        this.fs.read_dir(self)
     }
+
     pub async fn write(self, content: FileContentRef) {
         let this = self.get().await;
-        this.fs.write(self, content).await
+        this.fs.write(self, content)
     }
+
     pub async fn parent(self) -> FileSystemPathRef {
         let this = self.get().await;
-        this.fs.parent_path(self).await
+        this.fs.parent_path(self)
     }
+}
+
+impl FileSystemPathRef {
     pub fn rebase(
         fs_path: FileSystemPathRef,
         old_base: FileSystemPathRef,

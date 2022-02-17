@@ -366,6 +366,30 @@ impl SlotRef {
         }
     }
 
+    pub fn has_trait(&self, trait_type: &'static TraitType) -> bool {
+        match self {
+            SlotRef::TaskOutput(_) | SlotRef::TaskCreated(_, _) => {
+                panic!("has_trait() must be called on a resolved SlotRef")
+            }
+            SlotRef::Nothing => false,
+            SlotRef::SharedReference(ty, _) | SlotRef::CloneableData(ty, _) => {
+                ty.traits.contains(&trait_type)
+            }
+        }
+    }
+
+    pub fn traits(&self) -> Vec<&'static TraitType> {
+        match self {
+            SlotRef::TaskOutput(_) | SlotRef::TaskCreated(_, _) => {
+                panic!("traits() must be called on a resolved SlotRef")
+            }
+            SlotRef::Nothing => Vec::new(),
+            SlotRef::SharedReference(ty, _) | SlotRef::CloneableData(ty, _) => {
+                ty.traits.iter().map(|t| *t).collect()
+            }
+        }
+    }
+
     pub fn downgrade(&self) -> Option<WeakSlotRef> {
         match self {
             SlotRef::TaskOutput(task) => Some(WeakSlotRef::TaskOutput(Arc::downgrade(task))),

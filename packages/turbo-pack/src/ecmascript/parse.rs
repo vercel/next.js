@@ -29,7 +29,7 @@ impl PartialEq for ParseResult {
 pub async fn parse(module: ModuleRef) -> ParseResultRef {
     let module = module.await;
     let path = module.path.get().await;
-    let content = module.path.clone().read().await;
+    let content = module.path.clone().read();
 
     match &*content.await {
         FileContent::NotFound => ParseResult::NotFound.into(),

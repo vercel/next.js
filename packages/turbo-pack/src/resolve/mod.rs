@@ -2,7 +2,7 @@ use turbo_tasks_fs::{FileContent, FileSystemPathRef};
 
 use crate::{
     ecmascript::references::module_references,
-    module::{Module, ModuleRef, ModulesSet, ModulesSetRef},
+    module::{module, ModuleRef, ModulesSet, ModulesSetRef},
     reference::ModuleReferenceRef,
 };
 
@@ -10,7 +10,7 @@ use crate::{
 pub async fn referenced_modules(module: ModuleRef) -> ModulesSetRef {
     let references_set = module_references(module.clone()).await;
     let mut modules = Vec::new();
-    let context = module.await.path.clone().parent().await;
+    let context = module.await.path.clone().parent();
     for reference in references_set.references.iter() {
         let resolve_result = resolve(context.clone(), reference.clone());
         if let ResolveResult::Module(module) = &*resolve_result.await {
@@ -39,20 +39,14 @@ pub async fn resolve(
         request.replace_range(0..1, "");
 
         let possible_path = FileSystemPathRef::new(path.fs.clone(), path.path.clone() + &request);
-        if let FileContent::Content(_) = &*possible_path.clone().read().await.await {
-            return ResolveResult::Module(ModuleRef::intern(Module {
-                path: possible_path,
-            }))
-            .into();
+        if let FileContent::Content(_) = &*possible_path.clone().read().await {
+            return ResolveResult::Module(module(possible_path)).into();
         }
 
         let possible_path =
             FileSystemPathRef::new(path.fs.clone(), path.path.clone() + &request + ".js");
-        if let FileContent::Content(_) = &*possible_path.clone().read().await.await {
-            return ResolveResult::Module(ModuleRef::intern(Module {
-                path: possible_path,
-            }))
-            .into();
+        if let FileContent::Content(_) = &*possible_path.clone().read().await {
+            return ResolveResult::Module(module(possible_path)).into();
         }
     }
 

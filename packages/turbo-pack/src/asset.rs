@@ -7,22 +7,8 @@ pub struct AssetsSet {
 }
 
 #[turbo_tasks::value_trait]
-pub trait AssetSource {
+pub trait Asset {
+    fn path(&self) -> FileSystemPathRef;
     fn content(&self) -> FileContentRef;
     fn references(&self) -> AssetsSetRef;
-}
-
-#[turbo_tasks::value]
-#[derive(Hash, PartialEq, Eq)]
-pub struct Asset {
-    pub path: FileSystemPathRef,
-    pub source: AssetSourceRef,
-}
-
-#[turbo_tasks::value_impl]
-impl Asset {
-    #[turbo_tasks::constructor]
-    pub fn new(path: FileSystemPathRef, source: AssetSourceRef) -> Self {
-        Self { path, source }
-    }
 }

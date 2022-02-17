@@ -1,7 +1,7 @@
 use std::{
     any::Any,
     collections::{HashMap, HashSet},
-    fmt::{self, Debug, Formatter},
+    fmt::{self, Debug, Display, Formatter},
     hash::Hash,
     sync::atomic::{AtomicU32, Ordering},
 };
@@ -11,7 +11,7 @@ use crate::NativeFunction;
 pub struct SlotValueType {
     pub name: String,
     pub(crate) id: u32,
-    traits: HashSet<&'static TraitType>,
+    pub(crate) traits: HashSet<&'static TraitType>,
     pub(crate) trait_methods: HashMap<(&'static TraitType, String), &'static NativeFunction>,
 }
 
@@ -78,6 +78,12 @@ pub struct TraitType {
 impl Hash for TraitType {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
+    }
+}
+
+impl Display for TraitType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "trait {}", self.name)
     }
 }
 

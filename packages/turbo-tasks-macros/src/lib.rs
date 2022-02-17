@@ -385,10 +385,10 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
                 quote! { #output_type::from_slot_ref(result) }
             };
             trait_fns.push(quote! {
-                pub fn #method_ident(#(#method_args),*) -> impl std::future::Future<Output = #output_type> {
+                pub fn #method_ident(#(#method_args),*) -> #output_type {
                     // TODO use const string
                     let result = turbo_tasks::trait_call(&#trait_type_ident, stringify!(#method_ident).to_string(), vec![self.node.clone(), #(#args),*]).unwrap();
-                    async { #convert_result_code }
+                    #convert_result_code
                 }
             })
         }
@@ -635,6 +635,72 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
         };
     }
 
+    fn generate_for_self_ref_impl(ref_ident: &Ident, items: &Vec<ImplItem>) -> TokenStream2 {
+        let mut functions = Vec::new();
+
+        for item in items.iter() {
+            match item {
+                ImplItem::Method(ImplItemMethod {
+                    attrs,
+                    vis,
+                    defaultness: _,
+                    sig,
+                    block,
+                }) => {
+                    let Signature { ident, output, .. } = sig;
+
+                    let output_type = get_return_type(output);
+                    let inline_ident = get_internal_function_ident(ident);
+                    let function_ident = get_trait_impl_function_ident(ref_ident, ident);
+
+                    let mut inline_sig = sig.clone();
+                    inline_sig.ident = inline_ident.clone();
+
+                    let mut external_sig = sig.clone();
+                    external_sig.asyncness = None;
+
+                    let (native_function_code, input_slot_ref_arguments) = gen_native_function_code(
+                        // use const string
+                        quote! { stringify!(#ref_ident::#ident) },
+                        quote! { #ref_ident::#inline_ident },
+                        &function_ident,
+                        sig.asyncness.is_some(),
+                        &sig.inputs,
+                        &output_type,
+                        Some(ref_ident),
+                        true,
+                    );
+
+                    let convert_result_code = if is_empty_type(&output_type) {
+                        quote! {}
+                    } else {
+                        quote! { #output_type::from_slot_ref(result) }
+                    };
+
+                    functions.push(quote! {
+                        impl #ref_ident {
+                            #(#attrs)*
+                            #vis #external_sig {
+                                let result = turbo_tasks::dynamic_call(&#function_ident, vec![#(#input_slot_ref_arguments),*]).unwrap();
+                                #convert_result_code
+                            }
+
+                            #(#attrs)*
+                            #vis #inline_sig #block
+                        }
+
+                        #native_function_code
+                    })
+                }
+                _ => {}
+            }
+        }
+
+        return quote! {
+            #(#functions)*
+        };
+    }
+
     fn generate_for_trait_impl(
         trait_ident: &Ident,
         struct_ident: &Ident,
@@ -665,7 +731,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     });
                     let name =
                         Literal::string(&(struct_ident.to_string() + "::" + &ident.to_string()));
-                    let native_function_code = gen_native_function_code(
+                    let (native_function_code, input_slot_ref_arguments) = gen_native_function_code(
                         quote! { #name },
                         quote! { #struct_ident::#internal_function_ident },
                         &function_ident,
@@ -673,6 +739,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                         inputs,
                         &output_type,
                         Some(&ref_ident),
+                        false,
                     );
                     let mut new_sig = sig.clone();
                     new_sig.ident = internal_function_ident;
@@ -715,13 +782,21 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
             {
                 match &item.trait_ {
                     None => {
-                        let code = generate_for_self_impl(ident, &item.items);
-                        return quote! {
-                            #item
+                        if ident.to_string().ends_with("Ref") {
+                            let code = generate_for_self_ref_impl(ident, &item.items);
+                            return quote! {
+                                #code
+                            }
+                            .into();
+                        } else {
+                            let code = generate_for_self_impl(ident, &item.items);
+                            return quote! {
+                                #item
 
-                            #code
+                                #code
+                            }
+                            .into();
                         }
-                        .into();
                     }
                     Some((_, Path { segments, .. }, _)) => {
                         if segments.len() == 1 {
@@ -778,52 +853,8 @@ pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
 
     let mut external_sig = sig.clone();
     external_sig.asyncness = None;
-    // external_sig.output = parse_quote! { -> impl std::future::Future<Output = #output_type> };
 
-    let mut input_extraction = Vec::new();
-    let mut input_verification = Vec::new();
-    let mut input_clone = Vec::new();
-    let mut input_from_node = Vec::new();
-    let mut input_arguments = Vec::new();
-    let mut input_node_arguments = Vec::new();
-
-    let mut index: i32 = 1;
-
-    for input in sig.inputs.iter() {
-        match input {
-            FnArg::Receiver(_) => {
-                item.span()
-                    .unwrap()
-                    .error("functions referencing self are not supported yet")
-                    .emit();
-            }
-            FnArg::Typed(PatType { pat, ty, .. }) => {
-                input_extraction.push(quote! {
-                        let #pat = __iter
-                            .next()
-                            .ok_or_else(|| anyhow::anyhow!(concat!(stringify!(#ident), "() argument ", stringify!(#index), " (", stringify!(#pat), ") missing")))?;
-                    });
-                input_verification.push(quote! {
-                        anyhow::Context::context(#ty::verify(&#pat), concat!(stringify!(#ident), "() argument ", stringify!(#index), " (", stringify!(#pat), ") invalid"))?;
-                    });
-                input_clone.push(quote! {
-                    let #pat = std::clone::Clone::clone(&#pat);
-                });
-                input_from_node.push(quote! {
-                    let #pat = #ty::from_slot_ref(#pat);
-                });
-                input_arguments.push(quote! {
-                    #pat
-                });
-                input_node_arguments.push(quote! {
-                    #pat.into()
-                });
-                index += 1;
-            }
-        }
-    }
-
-    let native_function_code = gen_native_function_code(
+    let (native_function_code, input_slot_ref_arguments) = gen_native_function_code(
         quote! { stringify!(#ident) },
         quote! { #inline_ident },
         &function_ident,
@@ -831,6 +862,7 @@ pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
         &sig.inputs,
         &output_type,
         None,
+        false,
     );
 
     let convert_result_code = if is_empty_type(&output_type) {
@@ -842,7 +874,7 @@ pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
     return quote! {
         #(#attrs)*
         #vis #external_sig {
-            let result = turbo_tasks::dynamic_call(&#function_ident, vec![#(#input_node_arguments),*]).unwrap();
+            let result = turbo_tasks::dynamic_call(&#function_ident, vec![#(#input_slot_ref_arguments),*]).unwrap();
             #convert_result_code
         }
 
@@ -871,12 +903,14 @@ fn gen_native_function_code(
     inputs: &Punctuated<FnArg, Token![,]>,
     output_type: &Type,
     self_ref_type: Option<&Ident>,
-) -> TokenStream2 {
+    self_is_ref_type: bool,
+) -> (TokenStream2, Vec<TokenStream2>) {
     let mut task_argument_options = Vec::new();
     let mut input_extraction = Vec::new();
     let mut input_clone = Vec::new();
     let mut input_from_node = Vec::new();
     let mut input_arguments = Vec::new();
+    let mut input_slot_ref_arguments = Vec::new();
 
     let mut index: i32 = 1;
 
@@ -898,11 +932,23 @@ fn gen_native_function_code(
                 input_clone.push(quote! {
                     let __self = std::clone::Clone::clone(&__self);
                 });
-                input_from_node.push(quote! {
-                    let __self = #self_ref_type::from_slot_ref(__self).await;
-                });
-                input_arguments.push(quote! {
-                    &*__self
+                if self_is_ref_type {
+                    input_from_node.push(quote! {
+                        let __self = #self_ref_type::from_slot_ref(__self);
+                    });
+                    input_arguments.push(quote! {
+                        __self
+                    });
+                } else {
+                    input_from_node.push(quote! {
+                        let __self = #self_ref_type::from_slot_ref(__self).await;
+                    });
+                    input_arguments.push(quote! {
+                        &*__self
+                    });
+                }
+                input_slot_ref_arguments.push(quote! {
+                    self.into()
                 });
             }
             FnArg::Typed(PatType { pat, ty, .. }) => {
@@ -923,6 +969,9 @@ fn gen_native_function_code(
                 input_arguments.push(quote! {
                     #pat
                 });
+                input_slot_ref_arguments.push(quote! {
+                    #pat.into()
+                });
                 index += 1;
             }
         }
@@ -940,24 +989,27 @@ fn gen_native_function_code(
     } else {
         quote! { #original_call_code.into() }
     };
-    quote! {
-        lazy_static::lazy_static! {
-            static ref #function_ident: turbo_tasks::NativeFunction = turbo_tasks::NativeFunction::new(#name_code.to_string(), || vec![#(#task_argument_options),*], |inputs| {
-                let mut __iter = inputs.into_iter();
-                #(#input_extraction)*
-                if __iter.next().is_some() {
-                    return Err(anyhow::anyhow!(concat!(#name_code, "() called with too many arguments")));
-                }
-                Ok(Box::new(move || {
-                    #(#input_clone)*
-                    Box::pin(async move {
-                        #(#input_from_node)*
-                        #original_call_code
-                    })
-                }))
-            });
-        }
-    }
+    (
+        quote! {
+            lazy_static::lazy_static! {
+                static ref #function_ident: turbo_tasks::NativeFunction = turbo_tasks::NativeFunction::new(#name_code.to_string(), || vec![#(#task_argument_options),*], |inputs| {
+                    let mut __iter = inputs.into_iter();
+                    #(#input_extraction)*
+                    if __iter.next().is_some() {
+                        return Err(anyhow::anyhow!(concat!(#name_code, "() called with too many arguments")));
+                    }
+                    Ok(Box::new(move || {
+                        #(#input_clone)*
+                        Box::pin(async move {
+                            #(#input_from_node)*
+                            #original_call_code
+                        })
+                    }))
+                });
+            }
+        },
+        input_slot_ref_arguments,
+    )
 }
 
 #[proc_macro_attribute]

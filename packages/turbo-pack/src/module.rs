@@ -11,3 +11,7 @@ pub struct Module {
 pub struct ModulesSet {
     pub modules: Vec<ModuleRef>,
 }
+
+pub fn module(path: FileSystemPathRef) -> ModuleRef {
+    ModuleRef::intern(Module { path })
+}

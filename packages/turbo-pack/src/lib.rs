@@ -1,7 +1,7 @@
 #![feature(trivial_bounds)]
 #![feature(into_future)]
 
-use asset::{AssetRef, AssetSource, AssetSourceRef, AssetsSet, AssetsSetRef};
+use asset::{Asset, AssetRef, AssetsSet, AssetsSetRef};
 use module::ModuleRef;
 use resolve::referenced_modules;
 use turbo_tasks_fs::{FileContentRef, FileSystemPathRef};
@@ -23,8 +23,8 @@ pub async fn emit(module: ModuleRef, input_dir: FileSystemPathRef, output_dir: F
             emit_asset(asset);
         },
         |asset| async move {
-            let assets_set = asset.await.source.references().await;
-            assets_set.await.assets.clone()
+            let assets_set = asset.references().await;
+            assets_set.assets.clone()
         },
     )
     .await;
@@ -41,29 +41,32 @@ pub async fn nft_asset(
         input_dir.clone(),
         output_dir.clone(),
     );
-    AssetRef::new(
-        new_path,
-        NftAssetSource {
-            module,
-            input_dir,
-            output_dir,
-        }
-        .into(),
-    )
+    NftAssetSource {
+        path: new_path,
+        module,
+        input_dir,
+        output_dir,
+    }
+    .into()
 }
 
-#[turbo_tasks::value(AssetSource)]
+#[turbo_tasks::value(Asset)]
 #[derive(Hash, PartialEq, Eq)]
 struct NftAssetSource {
+    path: FileSystemPathRef,
     module: ModuleRef,
     input_dir: FileSystemPathRef,
     output_dir: FileSystemPathRef,
 }
 
 #[turbo_tasks::value_impl]
-impl AssetSource for NftAssetSource {
+impl Asset for NftAssetSource {
+    async fn path(&self) -> FileSystemPathRef {
+        self.path.clone()
+    }
+
     async fn content(&self) -> FileContentRef {
-        self.module.get().await.path.clone().read().await
+        self.module.get().await.path.clone().read()
     }
 
     async fn references(&self) -> AssetsSetRef {
@@ -81,7 +84,6 @@ impl AssetSource for NftAssetSource {
 }
 
 #[turbo_tasks::function]
-pub async fn emit_asset(asset: AssetRef) {
-    let asset = asset.await;
-    asset.path.clone().write(asset.source.content().await).await;
+pub fn emit_asset(asset: AssetRef) {
+    asset.path().write(asset.content());
 }
