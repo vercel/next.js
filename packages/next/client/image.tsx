@@ -725,7 +725,7 @@ export default function Image({
         data-nimg={layout}
         className={className}
         ref={imgRef}
-        style={{...(raw ? rawStyle : imgStyle), ...blurStyle}}
+        style={{ ...(raw ? rawStyle : imgStyle), ...blurStyle }}
       />
       {isLazy && (
         <noscript>
