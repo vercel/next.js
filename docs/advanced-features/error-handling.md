@@ -16,6 +16,8 @@ Next.js provides a static 500 page by default to handle server-side errors that 
 
 Having a 500 page in your application does not show specific errors to the app user.
 
+You can also use [404 page](/docs/advanced-features/custom-error-page#404-page) to handle specific runtime error like `file not found`.
+
 ## Handling Client Errors
 
 React [Error Boundaries](https://reactjs.org/docs/error-boundaries.html) is a graceful way to handle a JavaScript error on the client so that the other parts of the application continue working. In addition to preventing the page from crashing, it allows you to provide a custom fallback component and even log error information.
