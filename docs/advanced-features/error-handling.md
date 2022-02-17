@@ -8,11 +8,11 @@ This documentation explains how you can handle development, server-side, and cli
 
 ## Handling Errors in Development
 
-When there is a runtime error during the development phase of your Next.js application, you will encounter an **overlay**. Fixing the error will automatically dismiss the overlay. It is only visible when the development server runs using `next dev`, `npm run dev`, or `yarn dev` and not in production.
+When there is a runtime error during the development phase of your Next.js application, you will encounter an **overlay**. It is a modal that covers the webpage. It is only visible when the development server runs using `next dev`, `npm run dev`, or `yarn dev` and not in production. Fixing the error will automatically dismiss the overlay.
 
 ## Handling Server Errors
 
-Next.js provides a static 500 page by default to handle server-side errors that occur in your application. This page generates at build time. You can also [customize this page](/docs/advanced-features/custom-error-page#customizing-the-500-page) by creating a `pages/500.js` file.
+Next.js provides a static 500 page by default to handle server-side errors that occur in your application. You can also [customize this page](/docs/advanced-features/custom-error-page#customizing-the-500-page) by creating a `pages/500.js` file.
 
 Having a 500 page in your application does not show specific errors to the app user.
 
