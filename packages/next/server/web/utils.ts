@@ -155,7 +155,10 @@ export function validateURL(url: string | URL): string {
   try {
     return String(new URL(String(url)))
   } catch (error: any) {
-    error.message = `URLs is malformed. Please use only absolute URLs - https://nextjs.org/docs/messages/middleware-relative-urls\n${error.message}`
-    throw error
+    throw new Error(
+      `URLs is malformed. Please use only absolute URLs - https://nextjs.org/docs/messages/middleware-relative-urls`,
+      // @ts-expect-error This will work for people who enable the error causes polyfill
+      { cause: error }
+    )
   }
 }
