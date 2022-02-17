@@ -110,9 +110,9 @@ To deploy Next.js as a static site to App platform, follow these steps:
 
 [Netlify](https://www.netlify.com/) is a cloud platform for building, deploying and scaling web projects.
 
-When you link a repository for a new site, Netlify detects the framework your project is using. If your project uses Next.js, Netlify automatically installs the [[Essential Next.js build plugin](https://docs.netlify.com/configure-builds/common-configurations/next-js/#essential-next-js-build-plugin)]([https://docs.netlify.com/configure-builds/common-configurations/next-js/#essential-next-js-build-plugin](https://docs.netlify.com/configure-builds/common-configurations/next-js/#essential-next-js-build-plugin)) and provides [[suggested configuration values](https://docs.netlify.com/configure-builds/common-configurations/next-js/#suggested-configuration-values)](https://docs.netlify.com/configure-builds/common-configurations/next-js/#suggested-configuration-values). 
+When you link a repository for a new site, Netlify detects the framework your project is using. If your project uses Next.js, Netlify automatically installs the [Essential Next.js build plugin](https://docs.netlify.com/configure-builds/common-configurations/next-js/#essential-next-js-build-plugin) and provides [suggested configuration values](https://docs.netlify.com/configure-builds/common-configurations/next-js/#suggested-configuration-values). 
 
-For existing sites already linked to Netlify, you can choose to [[install](http://app.netlify.com/plugins/@netlify/plugin-nextjs/install)](https://app.netlify.com/teams/danaiszuul/plugins/@netlify/plugin-nextjs/install) the plugin yourself.
+For existing sites already linked to Netlify, you can choose to [install](http://app.netlify.com/plugins/@netlify/plugin-nextjs/install) the plugin yourself.
 
 You can start using Netlify (for free) through a personal hobby account. Learn more about [Next.js on Netlify](https://docs.netlify.com/configure-builds/common-configurations/next-js/) or read the [Netlify Documentation](https://docs.netlify.com/).
 
