@@ -26,7 +26,7 @@ To use Error Boundaries for your Next.js application, you must create a class co
 - Provide a way to reset the Application's state
 - Log error information
 
-Using a class component from React library, you can create an `ErrorBoundary` component. Here is an example:
+You can create an `ErrorBoundary` class component by extending `React.Component`. For example:
 
 ```jsx
 class ErrorBoundary extends React.Component {
