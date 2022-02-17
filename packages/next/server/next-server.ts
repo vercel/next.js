@@ -7,6 +7,7 @@ import type { FetchEventResult } from './web/types'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { PrerenderManifest } from '../build'
 import type { Rewrite } from '../lib/load-custom-routes'
+import type { BaseNextRequest, BaseNextResponse } from './base-http'
 
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -41,16 +42,11 @@ import Proxy from 'next/dist/compiled/http-proxy'
 import { route } from './router'
 import { run } from './web/sandbox'
 
-import {
-  BaseNextRequest,
-  BaseNextResponse,
-  NodeNextRequest,
-  NodeNextResponse,
-} from './base-http'
+import { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import { PayloadOptions, sendRenderResult } from './send-payload'
 import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
-import { apiResolver } from './api-utils'
+import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
@@ -95,7 +91,7 @@ export interface NodeRequestHandler {
 }
 
 export default class NextNodeServer extends BaseServer {
-  private imageResponseCache: ResponseCache
+  private imageResponseCache?: ResponseCache
 
   constructor(options: Options) {
     // Initialize super class
@@ -104,28 +100,37 @@ export default class NextNodeServer extends BaseServer {
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
      * Using this from process.env allows targeting both serverless and SSR by calling
-     * `process.env.__NEXT_OPTIMIZE_IMAGES`.
-     * TODO(atcastle@): Remove this when experimental.optimizeImages are being cleaned up.
+     * `process.env.__NEXT_OPTIMIZE_CSS`.
      */
     if (this.renderOpts.optimizeFonts) {
       process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
-    }
-    if (this.renderOpts.optimizeImages) {
-      process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
     }
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
 
-    const { ImageOptimizerCache } =
-      require('./image-optimizer') as typeof import('./image-optimizer')
+    if (!this.minimalMode) {
+      const { ImageOptimizerCache } =
+        require('./image-optimizer') as typeof import('./image-optimizer')
 
-    this.imageResponseCache = new ResponseCache(
-      new ImageOptimizerCache({
-        distDir: this.distDir,
-        nextConfig: this.nextConfig,
-      })
-    )
+      this.imageResponseCache = new ResponseCache(
+        new ImageOptimizerCache({
+          distDir: this.distDir,
+          nextConfig: this.nextConfig,
+        })
+      )
+    }
+
+    if (!this.renderOpts.dev) {
+      // pre-warm _document and _app as these will be
+      // needed for most requests
+      loadComponents(this.distDir, '/_document', this._isLikeServerless).catch(
+        () => {}
+      )
+      loadComponents(this.distDir, '/_app', this._isLikeServerless).catch(
+        () => {}
+      )
+    }
   }
 
   private compression =
@@ -170,8 +175,6 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected generateImageRoutes(): Route[] {
-    const { getHash, ImageOptimizerCache, sendResponse, ImageError } =
-      require('./image-optimizer') as typeof import('./image-optimizer')
     return [
       {
         match: route('/_next/image'),
@@ -185,6 +188,15 @@ export default class NextNodeServer extends BaseServer {
               finished: true,
             }
           }
+          const { getHash, ImageOptimizerCache, sendResponse, ImageError } =
+            require('./image-optimizer') as typeof import('./image-optimizer')
+
+          if (!this.imageResponseCache) {
+            throw new Error(
+              'invariant image optimizer cache was not initialized'
+            )
+          }
+
           const imagesConfig = this.nextConfig.images
 
           if (imagesConfig.loader !== 'default') {
@@ -243,7 +255,8 @@ export default class NextNodeServer extends BaseServer {
               cacheEntry.value.extension,
               cacheEntry.value.buffer,
               paramsResult.isStatic,
-              cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT'
+              cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT',
+              imagesConfig.contentSecurityPolicy
             )
           } catch (err) {
             if (err instanceof ImageError) {
@@ -1315,7 +1328,7 @@ export default class NextNodeServer extends BaseServer {
 
     if (missingKeys.length > 0) {
       Log.warn(
-        `Query params are no longer automatically merged for rewrites in middleware, see more info here: https://nextjs.org/docs/messages/errors/deleting-query-params-in-middlewares`
+        `Query params are no longer automatically merged for rewrites in middleware, see more info here: https://nextjs.org/docs/messages/deleting-query-params-in-middlewares`
       )
       this.warnIfQueryParametersWereDeleted = () => {}
     }

@@ -20,9 +20,7 @@ export default function Home() {
 
   const createUser = async () => {
     const db = getFirestore()
-    await setDoc(doc(db, 'profile', profile.username), {
-      profile,
-    })
+    await setDoc(doc(db, 'profile', profile.username), profile)
 
     alert('User created!!')
   }

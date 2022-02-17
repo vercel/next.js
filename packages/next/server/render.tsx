@@ -37,8 +37,6 @@ import {
   DocumentInitialProps,
   DocumentProps,
   DocumentContext,
-  HtmlContext,
-  HtmlProps,
   getDisplayName,
   isResSent,
   loadGetInitialProps,
@@ -46,6 +44,10 @@ import {
   RenderPage,
   RenderPageResult,
 } from '../shared/lib/utils'
+
+import { HtmlContext } from '../shared/lib/html-context'
+import type { HtmlProps } from '../shared/lib/html-context'
+
 import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
 import { denormalizePagePath } from './denormalize-page-path'
 import type { FontManifest } from './font-utils'
@@ -66,7 +68,7 @@ import { ImageConfigComplete } from './image-config'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
-let tryGetPreviewData: typeof import('./api-utils').tryGetPreviewData
+let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
 let postProcess: typeof import('../shared/lib/post-process').default
 
@@ -77,7 +79,7 @@ if (!process.browser) {
   optimizeAmp = require('./optimize-amp').default
   getFontDefinitionFromManifest =
     require('./font-utils').getFontDefinitionFromManifest
-  tryGetPreviewData = require('./api-utils').tryGetPreviewData
+  tryGetPreviewData = require('./api-utils/node').tryGetPreviewData
   warn = require('../build/output/log').warn
   postProcess = require('../shared/lib/post-process').default
 } else {
@@ -215,7 +217,6 @@ export type RenderOptsPartial = {
   unstable_JsPreload?: false
   optimizeFonts: boolean
   fontManifest?: FontManifest
-  optimizeImages: boolean
   optimizeCss: any
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
@@ -467,8 +468,13 @@ export async function renderToHTML(
 
   const hasConcurrentFeatures = !!runtime
 
-  const isServerComponent = !!serverComponentManifest && hasConcurrentFeatures
   const OriginalComponent = renderOpts.Component
+
+  // We don't need to opt-into the flight inlining logic if the page isn't a RSC.
+  const isServerComponent =
+    !!serverComponentManifest &&
+    hasConcurrentFeatures &&
+    (OriginalComponent as any).__next_rsc__
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
@@ -477,8 +483,9 @@ export async function renderToHTML(
 
   if (isServerComponent) {
     serverComponentsInlinedTransformStream = new TransformStream()
+    const search = stringifyQuery(query)
     Component = createServerComponentRenderer(App, OriginalComponent, {
-      cachePrefix: pathname + '?' + stringifyQuery(query),
+      cachePrefix: pathname + (search ? `?${search}` : ''),
       transformStream: serverComponentsInlinedTransformStream,
       serverComponentManifest,
       runtime,
@@ -523,9 +530,11 @@ export async function renderToHTML(
   const headTags = (...args: any) => callMiddleware('headTags', args)
 
   const isFallback = !!query.__nextFallback
+  const notFoundSrcPage = query.__nextNotFoundSrcPage
   delete query.__nextFallback
   delete query.__nextLocale
   delete query.__nextDefaultLocale
+  delete query.__nextIsNotFound
 
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
@@ -1369,6 +1378,7 @@ export async function renderToHTML(
       defaultLocale,
       domainLocales,
       isPreview: isPreview === true ? true : undefined,
+      notFoundSrcPage: notFoundSrcPage && dev ? notFoundSrcPage : undefined,
     },
     buildManifest: filteredBuildManifest,
     docComponentsRendered,
@@ -1400,7 +1410,6 @@ export async function renderToHTML(
     crossOrigin: renderOpts.crossOrigin,
     optimizeCss: renderOpts.optimizeCss,
     optimizeFonts: renderOpts.optimizeFonts,
-    optimizeImages: renderOpts.optimizeImages,
     runtime,
   }
 
@@ -1479,16 +1488,13 @@ export async function renderToHTML(
                 return html
               }
             : null,
-          !process.browser &&
-          (process.env.__NEXT_OPTIMIZE_FONTS ||
-            process.env.__NEXT_OPTIMIZE_IMAGES)
+          !process.browser && process.env.__NEXT_OPTIMIZE_FONTS
             ? async (html: string) => {
                 return await postProcess(
                   html,
                   { getFontDefinition },
                   {
                     optimizeFonts: renderOpts.optimizeFonts,
-                    optimizeImages: renderOpts.optimizeImages,
                   }
                 )
               }
@@ -1760,19 +1766,28 @@ function createInlineDataStream(
 
       if (!dataStreamFinished && dataStream) {
         const dataStreamReader = dataStream.getReader()
-        dataStreamFinished = (async () => {
-          try {
-            while (true) {
-              const { done, value } = await dataStreamReader.read()
-              if (done) {
-                return
+
+        // We are buffering here for the inlined data stream because the
+        // "shell" stream might be chunkenized again by the underlying stream
+        // implementation, e.g. with a specific high-water mark. To ensure it's
+        // the safe timing to pipe the data stream, this extra tick is
+        // necessary.
+        dataStreamFinished = new Promise((res) =>
+          setTimeout(async () => {
+            try {
+              while (true) {
+                const { done, value } = await dataStreamReader.read()
+                if (done) {
+                  return res()
+                }
+                controller.enqueue(value)
               }
-              controller.enqueue(value)
+            } catch (err) {
+              controller.error(err)
             }
-          } catch (err) {
-            controller.error(err)
-          }
-        })()
+            res()
+          }, 0)
+        )
       }
     },
     flush() {

@@ -75,17 +75,6 @@ export interface NextJsWebpackConfig {
 
 export interface ExperimentalConfig {
   disablePostcssPresetEnv?: boolean
-  removeConsole?:
-    | boolean
-    | {
-        exclude?: string[]
-      }
-  reactRemoveProperties?:
-    | boolean
-    | {
-        properties?: string[]
-      }
-  styledComponents?: boolean
   swcMinify?: boolean
   swcFileReading?: boolean
   cpus?: number
@@ -96,7 +85,6 @@ export interface ExperimentalConfig {
   reactMode?: 'legacy' | 'concurrent' | 'blocking'
   workerThreads?: boolean
   pageEnv?: boolean
-  optimizeImages?: boolean
   optimizeCss?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
@@ -118,11 +106,6 @@ export interface ExperimentalConfig {
   urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
   outputStandalone?: boolean
-  relay?: {
-    src: string
-    artifactDirectory?: string
-    language?: 'typescript' | 'flow'
-  }
 }
 
 /**
@@ -377,6 +360,30 @@ export interface NextConfig extends Record<string, any> {
   swcMinify?: boolean
 
   /**
+   * Optionally enable compiler transforms
+   *
+   * @see [Supported Compiler Options](https://nextjs.org/docs/advanced-features/compiler#supported-features)
+   */
+  compiler?: {
+    reactRemoveProperties?:
+      | boolean
+      | {
+          properties?: string[]
+        }
+    relay?: {
+      src: string
+      artifactDirectory?: string
+      language?: 'typescript' | 'flow'
+    }
+    removeConsole?:
+      | boolean
+      | {
+          exclude?: string[]
+        }
+    styledComponents?: boolean
+  }
+
+  /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
    */
   experimental?: ExperimentalConfig
@@ -446,7 +453,6 @@ export const defaultConfig: NextConfig = {
     isrFlushToDisk: true,
     workerThreads: false,
     pageEnv: false,
-    optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
     externalDir: false,
