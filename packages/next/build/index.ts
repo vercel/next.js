@@ -481,7 +481,7 @@ export default async function build(
       headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
       dynamicRoutes: getSortedRoutes(pageKeys)
         .filter((page) => isDynamicRoute(page))
-        .map(pageToRoute),
+        .map(pageToRouteOrMiddleware),
       staticRoutes: getSortedRoutes(pageKeys)
         .filter(
           (page) =>
@@ -2172,13 +2172,6 @@ function isTelemetryPlugin(plugin: unknown): plugin is TelemetryPlugin {
 }
 
 function pageToRoute(page: string) {
-  if (page.match(MIDDLEWARE_ROUTE)) {
-    return {
-      page: page.replace(/\/_middleware$/, '') || '/',
-      isMiddleware: true,
-    }
-  }
-
   const routeRegex = getRouteRegex(page)
   return {
     page,
@@ -2186,4 +2179,15 @@ function pageToRoute(page: string) {
     routeKeys: routeRegex.routeKeys,
     namedRegex: routeRegex.namedRegex,
   }
+}
+
+function pageToRouteOrMiddleware(page: string) {
+  if (page.match(MIDDLEWARE_ROUTE)) {
+    return {
+      page: page.replace(/\/_middleware$/, '') || '/',
+      isMiddleware: true as const,
+    }
+  }
+
+  return pageToRoute(page)
 }
