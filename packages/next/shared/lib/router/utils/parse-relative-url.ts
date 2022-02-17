@@ -1,4 +1,4 @@
-import { getLocationOrigin } from '../../utils'
+import { getLocationOrigin, isServer } from '../../utils'
 import { searchParamsToUrlQuery } from './querystring'
 
 /**
@@ -8,9 +8,7 @@ import { searchParamsToUrlQuery } from './querystring'
  * the current origin will be parsed as relative
  */
 export function parseRelativeUrl(url: string, base?: string) {
-  const globalBase = new URL(
-    typeof window === 'undefined' ? 'http://n' : getLocationOrigin()
-  )
+  const globalBase = new URL(isServer ? 'http://n' : getLocationOrigin())
   const resolvedBase = base ? new URL(base, globalBase) : globalBase
   const { pathname, searchParams, search, hash, href, origin } = new URL(
     url,

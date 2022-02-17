@@ -1,7 +1,6 @@
 import React from 'react'
 import Loadable from './loadable'
-
-const isServerSide = typeof window === 'undefined'
+import { isServer } from './utils'
 
 export type LoaderComponent<P = {}> = Promise<
   React.ComponentType<P> | { default: React.ComponentType<P> }
@@ -58,7 +57,7 @@ export function noSSR<P = {}>(
   delete loadableOptions.modules
 
   // This check is necessary to prevent react-loadable from initializing on the server
-  if (!isServerSide) {
+  if (!isServer) {
     return LoadableInitializer(loadableOptions)
   }
 

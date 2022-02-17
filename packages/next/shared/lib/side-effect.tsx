@@ -1,6 +1,5 @@
 import React, { Component } from 'react'
-
-const isServer = typeof window === 'undefined'
+import { isServer } from '../../shared/lib/utils'
 
 type State = JSX.Element[] | undefined
 

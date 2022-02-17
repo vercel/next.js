@@ -9,6 +9,7 @@ import {
   PrefetchOptions,
   resolveHref,
 } from '../shared/lib/router/router'
+import { isBrowser, isServer } from '../shared/lib/utils'
 import { useRouter } from './router'
 import { useIntersection } from './use-intersection'
 
@@ -41,7 +42,7 @@ function prefetch(
   as: string,
   options?: PrefetchOptions
 ): void {
-  if (typeof window === 'undefined' || !router) return
+  if (isServer || !router) return
   if (!isLocalURL(href)) return
   // Prefetch the JSON page if asked (only in the client)
   // We need to handle a prefetch error here since we may be
@@ -113,7 +114,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     }) {
       return new Error(
         `Failed prop type: The prop \`${args.key}\` expects a ${args.expected} in \`<Link>\`, but got \`${args.actual}\` instead.` +
-          (typeof window !== 'undefined'
+          (isBrowser
             ? "\nOpen your browser's console to view the Component stack trace."
             : '')
       )
@@ -233,7 +234,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     } catch (err) {
       throw new Error(
         `Multiple children were passed to <Link> with \`href\` of \`${props.href}\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children` +
-          (typeof window !== 'undefined'
+          (isBrowser
             ? " \nOpen your browser's console to view the Component stack trace."
             : '')
       )

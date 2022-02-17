@@ -1,9 +1,9 @@
-/* global window */
 import React from 'react'
 import Router from '../shared/lib/router/router'
 import type { NextRouter } from '../shared/lib/router/router'
 import { RouterContext } from '../shared/lib/router-context'
 import isError from '../lib/is-error'
+import { isBrowser } from '../shared/lib/utils'
 
 type ClassArguments<T> = T extends new (...args: infer U) => any ? U : any
 
@@ -26,7 +26,7 @@ const singletonRouter: SingletonRouterBase = {
   readyCallbacks: [],
   ready(cb: () => void) {
     if (this.router) return cb()
-    if (typeof window !== 'undefined') {
+    if (isBrowser) {
       this.readyCallbacks.push(cb)
     }
   },

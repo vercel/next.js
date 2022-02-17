@@ -24,6 +24,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 import React from 'react'
 import { useSubscription } from 'use-subscription'
 import { LoadableContext } from './loadable-context'
+import { isBrowser, isServer } from '../shared/lib/utils'
 
 const ALL_INITIALIZERS = []
 const READY_INITIALIZERS = []
@@ -90,12 +91,12 @@ function createLoadableComponent(loadFn, options) {
   }
 
   // Server only
-  if (typeof window === 'undefined' && !opts.suspense) {
+  if (isServer && !opts.suspense) {
     ALL_INITIALIZERS.push(init)
   }
 
   // Client only
-  if (!initialized && typeof window !== 'undefined' && !opts.suspense) {
+  if (!initialized && isBrowser && !opts.suspense) {
     // require.resolveWeak check is needed for environments that don't have it available like Jest
     const moduleIds =
       opts.webpack && typeof require.resolveWeak === 'function'
@@ -281,7 +282,7 @@ Loadable.preloadReady = (ids = []) => {
   })
 }
 
-if (typeof window !== 'undefined') {
+if (isBrowser) {
   window.__NEXT_PRELOADREADY = Loadable.preloadReady
 }
 

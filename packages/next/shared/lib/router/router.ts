@@ -30,6 +30,7 @@ import {
   NextPageContext,
   ST,
   NEXT_DATA,
+  isBrowser,
 } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
@@ -503,7 +504,7 @@ type HistoryMethod = 'replaceState' | 'pushState'
 
 const manualScrollRestoration =
   process.env.__NEXT_SCROLL_RESTORATION &&
-  typeof window !== 'undefined' &&
+  isBrowser &&
   'scrollRestoration' in window.history &&
   !!(function () {
     try {
@@ -746,7 +747,7 @@ export default class Router implements BaseRouter {
       isFallback,
     }
 
-    if (typeof window !== 'undefined') {
+    if (isBrowser) {
       // make sure "as" doesn't start with double slashes or else it can
       // throw an error as it's considered invalid
       if (as.substr(0, 2) !== '//') {

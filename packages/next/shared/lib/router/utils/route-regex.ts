@@ -1,3 +1,5 @@
+import { isServer } from '../../utils'
+
 interface Group {
   pos: number
   repeat: boolean
@@ -41,7 +43,7 @@ export function getParametrizedRoute(route: string) {
 
   // dead code eliminate for browser since it's only needed
   // while generating routes-manifest
-  if (typeof window === 'undefined') {
+  if (isServer) {
     let routeKeyCharCode = 97
     let routeKeyCharLength = 1
 

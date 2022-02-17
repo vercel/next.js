@@ -441,6 +441,9 @@ export function formatWithValidation(url: UrlObject): string {
   return formatUrl(url)
 }
 
+export const isBrowser = typeof window !== 'undefined'
+export const isServer = !isBrowser
+
 export const SP = typeof performance !== 'undefined'
 export const ST =
   SP &&

@@ -8,6 +8,7 @@ import {
 } from '../server/image-config'
 import { useIntersection } from './use-intersection'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
+import { isBrowser, isServer } from '../shared/lib/utils'
 
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
@@ -19,7 +20,7 @@ let perfObserver: PerformanceObserver | undefined
 const emptyDataURL =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
-if (typeof window === 'undefined') {
+if (isServer) {
   ;(global as any).__NEXT_IMAGE_IMPORTED = true
 }
 
@@ -381,7 +382,7 @@ export default function Image({
     unoptimized = true
     isLazy = false
   }
-  if (typeof window !== 'undefined' && loadedImageURLs.has(src)) {
+  if (isBrowser && loadedImageURLs.has(src)) {
     isLazy = false
   }
 
@@ -481,11 +482,7 @@ export default function Image({
       }
     }
 
-    if (
-      typeof window !== 'undefined' &&
-      !perfObserver &&
-      window.PerformanceObserver
-    ) {
+    if (isBrowser && !perfObserver && window.PerformanceObserver) {
       perfObserver = new PerformanceObserver((entryList) => {
         for (const entry of entryList.getEntries()) {
           // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop
@@ -641,7 +638,7 @@ export default function Image({
   let srcString: string = src
 
   if (process.env.NODE_ENV !== 'production') {
-    if (typeof window !== 'undefined') {
+    if (isBrowser) {
       let fullUrl: URL
       try {
         fullUrl = new URL(imgAttributes.src)
@@ -664,8 +661,7 @@ export default function Image({
     [imageSizesPropName]: imgAttributes.sizes,
   }
 
-  const useLayoutEffect =
-    typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
+  const useLayoutEffect = isServer ? React.useEffect : React.useLayoutEffect
   const onLoadingCompleteRef = useRef(onLoadingComplete)
 
   useEffect(() => {
