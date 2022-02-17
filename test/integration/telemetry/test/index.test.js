@@ -259,32 +259,6 @@ describe('Telemetry CLI', () => {
     expect(event).toMatch(/"hasBabelConfig": true/)
   })
 
-  it('cli session: next config with target', async () => {
-    await fs.rename(
-      path.join(appDir, 'next.config.target'),
-      path.join(appDir, 'next.config.js')
-    )
-    const { stderr } = await runNextCommand(['build', appDir], {
-      stderr: true,
-      env: {
-        NEXT_TELEMETRY_DEBUG: 1,
-      },
-    })
-    await fs.rename(
-      path.join(appDir, 'next.config.js'),
-      path.join(appDir, 'next.config.target')
-    )
-
-    const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-      .exec(stderr)
-      .pop()
-
-    expect(event).toMatch(/"hasNextConfig": true/)
-    expect(event).toMatch(/"buildTarget": "experimental-serverless-trace"/)
-    expect(event).toMatch(/"hasWebpackConfig": false/)
-    expect(event).toMatch(/"hasBabelConfig": false/)
-  })
-
   it('cli session: next config with webpack', async () => {
     await fs.rename(
       path.join(appDir, 'next.config.webpack'),
