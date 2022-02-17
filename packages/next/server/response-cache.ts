@@ -88,7 +88,7 @@ export default class ResponseCache {
   public get(
     key: string | null,
     responseGenerator: ResponseGenerator,
-    context: { isManualRevalidate?: boolean }
+    context: { isManualRevalidate?: boolean; isPrefetch?: boolean }
   ): Promise<ResponseCacheEntry | null> {
     const pendingResponse = key ? this.pendingResponses.get(key) : null
     if (pendingResponse) {
@@ -138,7 +138,8 @@ export default class ResponseCache {
                   }
                 : cachedResponse.value,
           })
-          if (!cachedResponse.isStale) {
+          // for prefetch we do not trigger revalidation
+          if (!cachedResponse.isStale || context.isPrefetch) {
             // The cached value is still valid, so we don't need
             // to update it yet.
             return

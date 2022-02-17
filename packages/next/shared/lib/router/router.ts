@@ -518,7 +518,7 @@ const SSG_DATA_NOT_FOUND = Symbol('SSG_DATA_NOT_FOUND')
 function fetchRetry(
   url: string,
   attempts: number,
-  opts: { text?: boolean }
+  opts: { text?: boolean; isPrefetch?: boolean }
 ): Promise<any> {
   return fetch(url, {
     // Cookies are required to be present for Next.js' SSG "Preview Mode".
@@ -533,6 +533,11 @@ function fetchRetry(
     // > option instead of relying on the default.
     // https://github.com/github/fetch#caveats
     credentials: 'same-origin',
+    headers: opts.isPrefetch
+      ? {
+          'x-nextjs-prefetch': '1',
+        }
+      : {},
   }).then((res) => {
     if (!res.ok) {
       if (attempts > 1 && res.status >= 500) {
@@ -557,7 +562,8 @@ function fetchNextData(
   isServerRender: boolean,
   text: boolean | undefined,
   inflightCache: NextDataCache,
-  persistCache: boolean
+  persistCache: boolean,
+  isPrefetch: boolean
 ) {
   const { href: cacheKey } = new URL(dataHref, window.location.href)
 
@@ -567,7 +573,7 @@ function fetchNextData(
   return (inflightCache[cacheKey] = fetchRetry(
     dataHref,
     isServerRender ? 3 : 1,
-    { text }
+    { text, isPrefetch }
   )
     .catch((err: Error) => {
       // We should only trigger a server-side transition if this was caused
@@ -1560,7 +1566,8 @@ export default class Router implements BaseRouter {
               this.isSsr,
               false,
               __N_SSG ? this.sdc : this.sdr,
-              !!__N_SSG && !isPreview
+              !!__N_SSG && !isPreview,
+              false
             )
           : this.getInitialProps(
               Component,
@@ -1782,6 +1789,7 @@ export default class Router implements BaseRouter {
               false,
               false, // text
               this.sdc,
+              true,
               true
             )
           : false
@@ -1846,7 +1854,7 @@ export default class Router implements BaseRouter {
 
   _getFlightData(dataHref: string): Promise<object> {
     // Do not cache RSC flight response since it's not a static resource
-    return fetchNextData(dataHref, true, true, this.sdc, false).then(
+    return fetchNextData(dataHref, true, true, this.sdc, false, false).then(
       (serialized) => {
         return { fresh: true, data: serialized }
       }

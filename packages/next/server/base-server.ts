@@ -1512,6 +1512,7 @@ export default abstract class Server {
       },
       {
         isManualRevalidate,
+        isPrefetch: !!req.headers['x-nextjs-prefetch'],
       }
     )
 
