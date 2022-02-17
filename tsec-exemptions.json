@@ -13,5 +13,8 @@
     "packages/next/client/route-loader.ts",
     "packages/next/client/script.tsx"
   ],
-  "ban-window-stringfunctiondef": ["packages/next/lib/recursive-delete.ts"]
+  "ban-window-stringfunctiondef": [
+    "packages/next/lib/recursive-delete.ts",
+    "packages/next/client/dev/fouc.ts"
+  ]
 }
