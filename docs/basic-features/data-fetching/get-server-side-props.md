@@ -74,6 +74,10 @@ export async function getServerSideProps() {
 export default Page
 ```
 
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
 <div class="card">
   <a href="/docs/api-reference/data-fetching/get-server-side-props.md">
     <b>getServerSideProps API Reference</b>
