@@ -76,7 +76,7 @@ export default Page
 
 ## Does getServerSideProps render an error page
 
-If an error is thrown inside `getServerSideProps`, it will show an error page when using `next start`. To display an error page, you must create the `pages/500.js` file. Check out the documentation for [500 page](/docs/advanced-features/custom-error-page#500-page) to learn more on how to create it.
+If an error is thrown inside `getServerSideProps`, it will show the `pages/500.js` file. Check out the documentation for [500 page](/docs/advanced-features/custom-error-page#500-page) to learn more on how to create it. During development this file will not be used and the dev overlay will be shown instead. 
 
 <div class="card">
   <a href="/docs/api-reference/data-fetching/get-server-side-props.md">
