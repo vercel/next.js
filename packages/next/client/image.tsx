@@ -442,7 +442,7 @@ export default function Image({
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
-    if ((layout === 'raw' && objectFit) || objectPosition) {
+    if (layout === 'raw' && (objectFit || objectPosition)) {
       throw new Error(
         `Image with src "${src}" has "layout='raw'" and 'objectFit' or 'objectPosition'. For raw images, these and other styles should be specified using the 'style' attribute.`
       )
