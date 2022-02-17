@@ -18,4 +18,4 @@ features = ["tty-emitter"]
 
 [dependencies.swc_ecmascript]
 version = "0.114.2"
-features = ["parser"]
+features = ["parser", "visit"]
