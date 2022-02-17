@@ -13,7 +13,7 @@ export function useFlushEffects(callbacks: Array<() => React.ReactNode>): void {
         `\nRead more: https://nextjs.org/docs/messages/client-flush-effects`
     )
   }
-  return flushEffectsImpl!(callbacks)
+  return flushEffectsImpl(callbacks)
 }
 
 if (process.env.NODE_ENV !== 'production') {

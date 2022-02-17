@@ -1,4 +1,4 @@
-import { useFlushEffects } from 'next/streaming'
+import { unstable_useFlushEffects } from 'next/streaming'
 import React from 'react'
 
 class ErrorBoundary extends React.Component {
@@ -18,7 +18,7 @@ class ErrorBoundary extends React.Component {
 }
 
 function Component() {
-  useFlushEffects([])
+  unstable_useFlushEffects([])
   return null
 }
 

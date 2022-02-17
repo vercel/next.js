@@ -1,9 +1,9 @@
-import { useFlushEffects } from 'next/streaming'
+import { unstable_useFlushEffects } from 'next/streaming'
 
 function Component() {
   if (typeof window === 'undefined') {
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    useFlushEffects([])
+    unstable_useFlushEffects([])
   }
   return null
 }
