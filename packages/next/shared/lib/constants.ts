@@ -18,7 +18,6 @@ export const DEV_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
 export const FONT_MANIFEST = 'font-manifest.json'
 export const SERVER_DIRECTORY = 'server'
-export const SERVERLESS_DIRECTORY = 'serverless'
 export const CONFIG_FILES = ['next.config.js', 'next.config.mjs']
 export const BUILD_ID_FILE = 'BUILD_ID'
 export const BLOCKED_PAGES = ['/_document', '/_app', '/_error']

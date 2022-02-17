@@ -80,7 +80,6 @@ export interface ExperimentalConfig {
   cpus?: number
   sharedPool?: boolean
   plugins?: boolean
-  profiling?: boolean
   isrFlushToDisk?: boolean
   reactMode?: 'legacy' | 'concurrent' | 'blocking'
   workerThreads?: boolean
@@ -449,7 +448,6 @@ export const defaultConfig: NextConfig = {
     ),
     sharedPool: true,
     plugins: false,
-    profiling: false,
     isrFlushToDisk: true,
     workerThreads: false,
     pageEnv: false,

@@ -59,46 +59,12 @@ export async function loadDefaultErrorComponents(
 
 export async function loadComponents(
   distDir: string,
-  pathname: string,
-  serverless: boolean
+  pathname: string
 ): Promise<LoadComponentsReturnType> {
-  if (serverless) {
-    const ComponentMod = await requirePage(pathname, distDir, serverless)
-    if (typeof ComponentMod === 'string') {
-      return {
-        Component: ComponentMod as any,
-        pageConfig: {},
-        ComponentMod,
-      } as LoadComponentsReturnType
-    }
-
-    let {
-      default: Component,
-      getStaticProps,
-      getStaticPaths,
-      getServerSideProps,
-    } = ComponentMod
-
-    Component = await Component
-    getStaticProps = await getStaticProps
-    getStaticPaths = await getStaticPaths
-    getServerSideProps = await getServerSideProps
-    const pageConfig = (await ComponentMod.config) || {}
-
-    return {
-      Component,
-      pageConfig,
-      getStaticProps,
-      getStaticPaths,
-      getServerSideProps,
-      ComponentMod,
-    } as LoadComponentsReturnType
-  }
-
   const [DocumentMod, AppMod, ComponentMod] = await Promise.all([
-    requirePage('/_document', distDir, serverless),
-    requirePage('/_app', distDir, serverless),
-    requirePage(pathname, distDir, serverless),
+    requirePage('/_document', distDir, false),
+    requirePage('/_app', distDir, false),
+    requirePage(pathname, distDir, false),
   ])
 
   const [buildManifest, reactLoadableManifest] = await Promise.all([

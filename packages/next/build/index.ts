@@ -45,7 +45,6 @@ import {
   MIDDLEWARE_FLIGHT_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
-  SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   SERVER_FILES_MANIFEST,
   STATIC_STATUS_PAGES,
@@ -58,7 +57,6 @@ import {
 } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig from '../server/config'
-import { isTargetLikeServerless } from '../server/utils'
 import { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../server/normalize-page-path'
 import { getPagePath } from '../server/require'
@@ -159,7 +157,6 @@ export default async function build(
     const hasServerComponents =
       hasConcurrentFeatures && !!config.experimental.serverComponents
 
-    const { target } = config
     const buildId: string = await nextBuildSpan
       .traceChild('generate-buildid')
       .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
@@ -274,8 +271,6 @@ export default async function build(
       prefixText: `${Log.prefixes.info} Creating an optimized production build`,
     })
 
-    const isLikeServerless = isTargetLikeServerless(target)
-
     const pagePaths: string[] = await nextBuildSpan
       .traceChild('collect-pages')
       .traceAsyncFn(() => collectPages(pagesDir, config.pageExtensions))
@@ -305,7 +300,6 @@ export default async function build(
       .traceFn(() =>
         createEntrypoints(
           mappedPages,
-          target,
           buildId,
           previewProps,
           config,
@@ -551,11 +545,7 @@ export default async function build(
         )
       )
 
-    const manifestPath = path.join(
-      distDir,
-      isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-      PAGES_MANIFEST
-    )
+    const manifestPath = path.join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)
 
     const requiredServerFiles = nextBuildSpan
       .traceChild('generate-required-server-files')
@@ -585,10 +575,7 @@ export default async function build(
             : null,
           REACT_LOADABLE_MANIFEST,
           config.optimizeFonts
-            ? path.join(
-                isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-                FONT_MANIFEST
-              )
+            ? path.join(SERVER_DIRECTORY, FONT_MANIFEST)
             : null,
           BUILD_ID_FILE,
         ]
@@ -612,7 +599,6 @@ export default async function build(
               reactProductionProfiling,
               isServer: false,
               config,
-              target,
               pagesDir,
               entrypoints: entrypoints.client,
               rewrites,
@@ -623,7 +609,6 @@ export default async function build(
               reactProductionProfiling,
               isServer: true,
               config,
-              target,
               pagesDir,
               entrypoints: entrypoints.server,
               rewrites,
@@ -636,7 +621,6 @@ export default async function build(
                   isServer: true,
                   isEdgeRuntime: true,
                   config,
-                  target,
                   pagesDir,
                   entrypoints: entrypoints.edgeServer,
                   rewrites,
@@ -876,7 +860,6 @@ export default async function build(
             (await staticWorkers.hasCustomGetInitialProps(
               '/_error',
               distDir,
-              isLikeServerless,
               runtimeEnvConfig,
               false
             ))
@@ -888,7 +871,6 @@ export default async function build(
           staticWorkers.isPageStatic(
             '/_error',
             distDir,
-            isLikeServerless,
             configFileName,
             runtimeEnvConfig,
             config.httpAgentOptions,
@@ -897,23 +879,17 @@ export default async function build(
           )
       )
 
-      // we don't output _app in serverless mode so use _app export
-      // from _error instead
-      const appPageToCheck = isLikeServerless ? '/_error' : '/_app'
-
       const customAppGetInitialPropsPromise =
         staticWorkers.hasCustomGetInitialProps(
-          appPageToCheck,
+          '/_app',
           distDir,
-          isLikeServerless,
           runtimeEnvConfig,
           true
         )
 
       const namedExportsPromise = staticWorkers.getNamedExports(
-        appPageToCheck,
+        '/_app',
         distDir,
-        isLikeServerless,
         runtimeEnvConfig
       )
 
@@ -961,7 +937,6 @@ export default async function build(
                   return staticWorkers.isPageStatic(
                     page,
                     distDir,
-                    isLikeServerless,
                     configFileName,
                     runtimeEnvConfig,
                     config.httpAgentOptions,
@@ -1618,13 +1593,10 @@ export default async function build(
 
         // remove server bundles that were exported
         for (const page of staticPages) {
-          const serverBundle = getPagePath(page, distDir, isLikeServerless)
+          const serverBundle = getPagePath(page, distDir)
           await promises.unlink(serverBundle)
         }
-        const serverOutputDir = path.join(
-          distDir,
-          isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-        )
+        const serverOutputDir = path.join(distDir, SERVER_DIRECTORY)
 
         const moveExportedPage = async (
           originPage: string,
@@ -1639,11 +1611,7 @@ export default async function build(
             .traceAsyncFn(async () => {
               file = `${file}.${ext}`
               const orig = path.join(exportOptions.outdir, file)
-              const pagePath = getPagePath(
-                originPage,
-                distDir,
-                isLikeServerless
-              )
+              const pagePath = getPagePath(originPage, distDir)
 
               const relativeDest = path
                 .relative(
@@ -1664,11 +1632,7 @@ export default async function build(
                 )
                 .replace(/\\/g, '/')
 
-              const dest = path.join(
-                distDir,
-                isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-                relativeDest
-              )
+              const dest = path.join(distDir, SERVER_DIRECTORY, relativeDest)
 
               if (
                 !isSsg &&
@@ -1729,7 +1693,7 @@ export default async function build(
                   )
                   const updatedDest = path.join(
                     distDir,
-                    isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+                    SERVER_DIRECTORY,
                     updatedRelativeDest
                   )
 
@@ -2079,7 +2043,7 @@ export default async function build(
     })
 
     await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(() =>
-      printTreeView(Object.keys(mappedPages), allPageInfos, isLikeServerless, {
+      printTreeView(Object.keys(mappedPages), allPageInfos, {
         distPath: distDir,
         buildId: buildId,
         pagesDir,

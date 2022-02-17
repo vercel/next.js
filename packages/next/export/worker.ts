@@ -1,10 +1,7 @@
-import type { ComponentType } from 'react'
 import type { FontManifest } from '../server/font-utils'
-import type { GetStaticProps } from '../types'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { NextParsedUrlQuery } from '../server/request-meta'
-import url from 'url'
 import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from '../server/render'
 import { promises } from 'fs'
@@ -53,7 +50,6 @@ interface ExportPageInput {
   buildExport?: boolean
   serverRuntimeConfig: { [key: string]: any }
   subFolders?: boolean
-  serverless: boolean
   optimizeFonts: boolean
   optimizeCss: any
   disableOptimizedLoading: any
@@ -85,11 +81,6 @@ interface RenderOpts {
   trailingSlash?: boolean
 }
 
-type ComponentModule = ComponentType<{}> & {
-  renderReqToHTML: typeof renderToHTML
-  getStaticProps?: GetStaticProps
-}
-
 export default async function exportPage({
   parentSpanId,
   path,
@@ -101,7 +92,6 @@ export default async function exportPage({
   buildExport,
   serverRuntimeConfig,
   subFolders,
-  serverless,
   optimizeFonts,
   optimizeCss,
   disableOptimizedLoading,
@@ -164,12 +154,9 @@ export default async function exportPage({
       if (isDynamic && page !== nonLocalizedPath) {
         params = getRouteMatcher(getRouteRegex(page))(updatedPath) || undefined
         if (params) {
-          // we have to pass these separately for serverless
-          if (!serverless) {
-            query = {
-              ...query,
-              ...params,
-            }
+          query = {
+            ...query,
+            ...params,
           }
         } else {
           throw new Error(
@@ -223,8 +210,7 @@ export default async function exportPage({
         )
         // If the ssg path has .html extension, and it's not builtin paths, use it directly
         // Otherwise, use that as the filename instead
-        const isHtmlExtPath =
-          !serverless && !isBuiltinPaths && path.endsWith('.html')
+        const isHtmlExtPath = !isBuiltinPaths && path.endsWith('.html')
         htmlFilename = isHtmlExtPath ? getHtmlFilename(path) : path
       } else if (path === '/') {
         // If the path is the root, just use index.html
@@ -245,149 +231,68 @@ export default async function exportPage({
         return !buildExport && getStaticProps && !isDynamicRoute(path)
       }
 
-      if (serverless) {
-        const curUrl = url.parse(req.url!, true)
-        req.url = url.format({
-          ...curUrl,
-          query: {
-            ...curUrl.query,
-            ...query,
-          },
-        })
-        const {
-          Component,
-          ComponentMod,
-          getServerSideProps,
-          getStaticProps,
-          pageConfig,
-        } = await loadComponents(distDir, page, serverless)
-        const ampState = {
-          ampFirst: pageConfig?.amp === true,
-          hasQuery: Boolean(query.amp),
-          hybrid: pageConfig?.amp === 'hybrid',
-        }
-        inAmpMode = isInAmpMode(ampState)
-        hybridAmp = ampState.hybrid
-
-        if (getServerSideProps) {
-          throw new Error(
-            `Error for page ${page}: ${SERVER_PROPS_EXPORT_ERROR}`
-          )
-        }
-
-        // if it was auto-exported the HTML is loaded here
-        if (typeof Component === 'string') {
-          renderResult = RenderResult.fromStatic(Component)
-          queryWithAutoExportWarn()
-        } else {
-          // for non-dynamic SSG pages we should have already
-          // prerendered the file
-          if (renderedDuringBuild(getStaticProps))
-            return { ...results, duration: Date.now() - start }
-
-          if (getStaticProps && !htmlFilepath.endsWith('.html')) {
-            // make sure it ends with .html if the name contains a dot
-            htmlFilename += '.html'
-            htmlFilepath += '.html'
-          }
-
-          renderMethod = (ComponentMod as ComponentModule).renderReqToHTML
-          const result = await renderMethod(
-            req,
-            res,
-            'export',
-            {
-              ampPath: renderAmpPath,
-              /// @ts-ignore
-              optimizeFonts,
-              /// @ts-ignore
-              optimizeCss,
-              disableOptimizedLoading,
-              distDir,
-              fontManifest: optimizeFonts
-                ? requireFontManifest(distDir, serverless)
-                : null,
-              locale: locale!,
-              locales: renderOpts.locales!,
-            },
-            // @ts-ignore
-            params
-          )
-          curRenderOpts = (result as any).renderOpts || {}
-          renderResult = (result as any).html
-        }
-
-        if (!renderResult && !(curRenderOpts as any).isNotFound) {
-          throw new Error(`Failed to render serverless page`)
-        }
-      } else {
-        const components = await loadComponents(distDir, page, serverless)
-        const ampState = {
-          ampFirst: components.pageConfig?.amp === true,
-          hasQuery: Boolean(query.amp),
-          hybrid: components.pageConfig?.amp === 'hybrid',
-        }
-        inAmpMode = isInAmpMode(ampState)
-        hybridAmp = ampState.hybrid
-
-        if (components.getServerSideProps) {
-          throw new Error(
-            `Error for page ${page}: ${SERVER_PROPS_EXPORT_ERROR}`
-          )
-        }
-
-        // for non-dynamic SSG pages we should have already
-        // prerendered the file
-        if (renderedDuringBuild(components.getStaticProps)) {
-          return { ...results, duration: Date.now() - start }
-        }
-
-        // TODO: de-dupe the logic here between serverless and server mode
-        if (components.getStaticProps && !htmlFilepath.endsWith('.html')) {
-          // make sure it ends with .html if the name contains a dot
-          htmlFilepath += '.html'
-          htmlFilename += '.html'
-        }
-
-        if (typeof components.Component === 'string') {
-          renderResult = RenderResult.fromStatic(components.Component)
-          queryWithAutoExportWarn()
-        } else {
-          /**
-           * This sets environment variable to be used at the time of static export by head.tsx.
-           * Using this from process.env allows targeting both serverless and SSR by calling
-           * `process.env.__NEXT_OPTIMIZE_FONTS`.
-           * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being cleaned up.
-           */
-          if (optimizeFonts) {
-            process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
-          }
-          if (optimizeCss) {
-            process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
-          }
-          curRenderOpts = {
-            ...components,
-            ...renderOpts,
-            ampPath: renderAmpPath,
-            params,
-            optimizeFonts,
-            optimizeCss,
-            disableOptimizedLoading,
-            fontManifest: optimizeFonts
-              ? requireFontManifest(distDir, serverless)
-              : null,
-            locale: locale as string,
-          }
-          renderResult = await renderMethod(
-            req,
-            res,
-            page,
-            query,
-            // @ts-ignore
-            curRenderOpts
-          )
-        }
+      const components = await loadComponents(distDir, page)
+      const ampState = {
+        ampFirst: components.pageConfig?.amp === true,
+        hasQuery: Boolean(query.amp),
+        hybrid: components.pageConfig?.amp === 'hybrid',
       }
+      inAmpMode = isInAmpMode(ampState)
+      hybridAmp = ampState.hybrid
+
+      if (components.getServerSideProps) {
+        throw new Error(`Error for page ${page}: ${SERVER_PROPS_EXPORT_ERROR}`)
+      }
+
+      // for non-dynamic SSG pages we should have already
+      // prerendered the file
+      if (renderedDuringBuild(components.getStaticProps)) {
+        return { ...results, duration: Date.now() - start }
+      }
+
+      if (components.getStaticProps && !htmlFilepath.endsWith('.html')) {
+        // make sure it ends with .html if the name contains a dot
+        htmlFilepath += '.html'
+        htmlFilename += '.html'
+      }
+
+      if (typeof components.Component === 'string') {
+        renderResult = RenderResult.fromStatic(components.Component)
+        queryWithAutoExportWarn()
+      } else {
+        /**
+         * This sets environment variable to be used at the time of static export by head.tsx.
+         * Using this from process.env allows targeting both serverless and SSR by calling
+         * `process.env.__NEXT_OPTIMIZE_FONTS`.
+         * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being cleaned up.
+         */
+        if (optimizeFonts) {
+          process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+        }
+        if (optimizeCss) {
+          process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
+        }
+        curRenderOpts = {
+          ...components,
+          ...renderOpts,
+          ampPath: renderAmpPath,
+          params,
+          optimizeFonts,
+          optimizeCss,
+          disableOptimizedLoading,
+          fontManifest: optimizeFonts ? requireFontManifest(distDir) : null,
+          locale: locale as string,
+        }
+        renderResult = await renderMethod(
+          req,
+          res,
+          page,
+          query,
+          // @ts-ignore
+          curRenderOpts
+        )
+      }
+
       results.ssgNotFound = (curRenderOpts as any).isNotFound
 
       const validateAmp = async (
@@ -430,28 +335,15 @@ export default async function exportPage({
         } catch (_) {
           // make sure it doesn't exist from manual mapping
           let ampRenderResult
-          if (serverless) {
-            req.url += (req.url!.includes('?') ? '&' : '?') + 'amp=1'
+
+          ampRenderResult = await renderMethod(
+            req,
+            res,
+            page,
             // @ts-ignore
-            ampRenderResult = (
-              await (renderMethod as any)(
-                req,
-                res,
-                'export',
-                curRenderOpts,
-                params
-              )
-            ).html
-          } else {
-            ampRenderResult = await renderMethod(
-              req,
-              res,
-              page,
-              // @ts-ignore
-              { ...query, amp: '1' },
-              curRenderOpts as any
-            )
-          }
+            { ...query, amp: '1' },
+            curRenderOpts as any
+          )
 
           const ampHtml = ampRenderResult
             ? ampRenderResult.toUnchunkedString()

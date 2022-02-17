@@ -17,7 +17,6 @@ let workerWasUsed = false
 export async function loadStaticPaths(
   distDir: string,
   pathname: string,
-  serverless: boolean,
   config: RuntimeConfig,
   httpAgentOptions: NextConfigComplete['httpAgentOptions'],
   locales?: string[],
@@ -38,7 +37,7 @@ export async function loadStaticPaths(
   require('../../shared/lib/runtime-config').setConfig(config)
   setHttpAgentOptions(httpAgentOptions)
 
-  const components = await loadComponents(distDir, pathname, serverless)
+  const components = await loadComponents(distDir, pathname)
 
   if (!components.getStaticPaths) {
     // we shouldn't get to this point since the worker should

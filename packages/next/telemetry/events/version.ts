@@ -85,7 +85,8 @@ export function eventCliSession(
     hasNowJson: event.hasNowJson,
     isCustomServer: event.isCustomServer,
     hasNextConfig: nextConfig.configOrigin !== 'default',
-    buildTarget: nextConfig.target === 'server' ? 'default' : nextConfig.target,
+    // Previously this would report if target: 'serverless' was used but that flag was removed.
+    buildTarget: 'default',
     hasWebpackConfig: typeof nextConfig?.webpack === 'function',
     hasBabelConfig: hasBabelConfig(dir),
     imageEnabled: !!images,

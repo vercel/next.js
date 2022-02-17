@@ -23,7 +23,6 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   REACT_LOADABLE_MANIFEST,
-  SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
 } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
@@ -39,7 +38,7 @@ import { TraceEntryPointsPlugin } from './webpack/plugins/next-trace-entrypoints
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
-import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
+import { InlineAsyncChunksPlugin } from './webpack/plugins/inline-async-chunks-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
@@ -305,7 +304,6 @@ export default async function getBaseWebpackConfig(
     isServer = false,
     isEdgeRuntime = false,
     pagesDir,
-    target = 'server',
     reactProductionProfiling = false,
     entrypoints,
     rewrites,
@@ -318,7 +316,6 @@ export default async function getBaseWebpackConfig(
     isServer?: boolean
     isEdgeRuntime?: boolean
     pagesDir: string
-    target?: string
     reactProductionProfiling?: boolean
     entrypoints: webpack5.EntryObject
     rewrites: CustomRoutes['rewrites']
@@ -480,12 +477,7 @@ export default async function getBaseWebpackConfig(
     .split(process.platform === 'win32' ? ';' : ':')
     .filter((p) => !!p)
 
-  const isServerless = target === 'serverless'
-  const isServerlessTrace = target === 'experimental-serverless-trace'
-  // Intentionally not using isTargetLikeServerless helper
-  const isLikeServerless = isServerless || isServerlessTrace
-
-  const outputDir = isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+  const outputDir = SERVER_DIRECTORY
   const outputPath = path.join(distDir, isServer ? outputDir : '')
   const totalPages = Object.keys(entrypoints).length
   const clientEntries = !isServer
@@ -980,8 +972,7 @@ export default async function getBaseWebpackConfig(
               ]
             : []),
         ]
-      : !isServerless
-      ? [
+      : [
           ({
             context,
             request,
@@ -1021,15 +1012,6 @@ export default async function getBaseWebpackConfig(
                   )
                 })
             }),
-        ]
-      : [
-          // When the 'serverless' target is used all node_modules will be compiled into the output bundles
-          // So that the 'serverless' bundles have 0 runtime dependencies
-          'next/dist/compiled/@ampproject/toolbox-optimizer', // except this one
-
-          // Mark this as external if not enabled so it doesn't cause a
-          // webpack error from being missing
-          ...(config.experimental.optimizeCss ? [] : ['critters']),
         ],
     optimization: {
       // @ts-ignore: TODO remove ts-ignore when webpack 4 is removed
@@ -1144,7 +1126,6 @@ export default async function getBaseWebpackConfig(
         'next-swc-loader',
         'next-client-pages-loader',
         'next-image-loader',
-        'next-serverless-loader',
         'next-style-loader',
         'next-flight-client-loader',
         'next-flight-server-loader',
@@ -1405,7 +1386,6 @@ export default async function getBaseWebpackConfig(
         }),
       targetWeb && new DropClientPage(),
       config.outputFileTracing &&
-        !isLikeServerless &&
         isServer &&
         !dev &&
         new TraceEntryPointsPlugin({
@@ -1444,10 +1424,8 @@ export default async function getBaseWebpackConfig(
           resourceRegExp: /react-is/,
           contextRegExp: /next[\\/]dist[\\/]/,
         }),
-      ((isServerless && isServer) || isEdgeRuntime) && new ServerlessPlugin(),
-      isServer &&
-        !isEdgeRuntime &&
-        new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
+      isEdgeRuntime && new InlineAsyncChunksPlugin(),
+      isServer && !isEdgeRuntime && new PagesManifestPlugin({ dev }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
       (!isServer || isEdgeRuntime) &&
@@ -1477,9 +1455,7 @@ export default async function getBaseWebpackConfig(
             require('./webpack/plugins/font-stylesheet-gathering-plugin') as {
               FontStylesheetGatheringPlugin: typeof import('./webpack/plugins/font-stylesheet-gathering-plugin').FontStylesheetGatheringPlugin
             }
-          return new FontStylesheetGatheringPlugin({
-            isLikeServerless,
-          })
+          return new FontStylesheetGatheringPlugin()
         })(),
       new WellKnownErrorsPlugin(),
       !isServer &&
@@ -1615,7 +1591,6 @@ export default async function getBaseWebpackConfig(
     excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
     assetPrefix: config.assetPrefix,
     disableOptimizedLoading,
-    target,
     isEdgeRuntime,
     reactProductionProfiling,
     webpack: !!config.webpack,

@@ -25,11 +25,9 @@ import {
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
-  SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
-import { isTargetLikeServerless } from '../server/utils'
 import { NextConfigComplete } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
@@ -180,7 +178,6 @@ export default async function exportApp(
     }
 
     const subFolders = nextConfig.trailingSlash && !options.buildExport
-    const isLikeServerless = nextConfig.target !== 'server'
 
     if (!options.silent && !options.buildExport) {
       Log.info(`using build directory: ${distDir}`)
@@ -215,7 +212,7 @@ export default async function exportApp(
       !options.pages &&
       (require(join(
         distDir,
-        isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+        SERVER_DIRECTORY,
         PAGES_MANIFEST
       )) as PagesManifest)
 
@@ -580,7 +577,6 @@ export default async function exportApp(
             serverRuntimeConfig,
             subFolders,
             buildExport: options.buildExport,
-            serverless: isTargetLikeServerless(nextConfig.target),
             optimizeFonts: nextConfig.optimizeFonts,
             optimizeCss: nextConfig.experimental.optimizeCss,
             disableOptimizedLoading:
@@ -639,13 +635,13 @@ export default async function exportApp(
             return
           }
 
-          const pagePath = getPagePath(pageName, distDir, isLikeServerless)
+          const pagePath = getPagePath(pageName, distDir)
           const distPagesDir = join(
             pagePath,
             // strip leading / and then recurse number of nested dirs
             // to place from base folder
             pageName
-              .substr(1)
+              .substring(1)
               .split('/')
               .map(() => '..')
               .join('/')

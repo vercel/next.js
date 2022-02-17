@@ -1,17 +1,16 @@
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 
 /**
- * Makes sure there are no dynamic chunks when the target is serverless
- * The dynamic chunks are integrated back into their parent chunk
- * This is to make sure there is a single render bundle instead of that bundle importing dynamic chunks
+ * Makes sure there are no async chunks
+ * The async chunks are integrated back into their parent chunk
+ * This is to make sure there is a single bundle instead of that bundle importing async chunks
  */
-
-export class ServerlessPlugin {
+export class InlineAsyncChunksPlugin {
   apply(compiler: webpack.Compiler) {
-    compiler.hooks.compilation.tap('ServerlessPlugin', (compilation) => {
+    compiler.hooks.compilation.tap('InlineAsyncChunksPlugin', (compilation) => {
       const hook = compilation.hooks.optimizeChunks
 
-      hook.tap('ServerlessPlugin', (chunks) => {
+      hook.tap('InlineAsyncChunksPlugin', (chunks) => {
         for (const chunk of chunks) {
           // If chunk is not an entry point skip them
           // @ts-ignore TODO: Remove ignore when webpack 5 is stable

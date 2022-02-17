@@ -4,12 +4,10 @@ import { stringify } from 'querystring'
 import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { __ApiPreviewProps } from '../server/api-utils'
-import { isTargetLikeServerless } from '../server/utils'
 import { normalizePagePath } from '../server/normalize-page-path'
 import { warn } from './output/log'
 import { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
-import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
 import { NextConfigComplete } from '../server/config-shared'
 import { isCustomErrorPage, isFlightPage, isReservedPage } from './utils'
@@ -103,7 +101,6 @@ type Entrypoints = {
 
 export function createEntrypoints(
   pages: PagesMapping,
-  target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
   previewMode: __ApiPreviewProps,
   config: NextConfigComplete,
@@ -152,7 +149,6 @@ export function createEntrypoints(
     const clientBundlePath = posix.join('pages', bundleFile)
     const serverBundlePath = posix.join('pages', bundleFile)
 
-    const isLikeServerless = isTargetLikeServerless(target)
     const isReserved = isReservedPage(page)
     const isCustomError = isCustomErrorPage(page)
     const isFlight = isFlightPage(config, absolutePagePath)
@@ -189,33 +185,8 @@ export function createEntrypoints(
       })
     }
 
-    if (isApiRoute && isLikeServerless) {
-      const serverlessLoaderOptions: ServerlessLoaderQuery = {
-        page,
-        absolutePagePath,
-        ...defaultServerlessOptions,
-      }
-      server[serverBundlePath] = `next-serverless-loader?${stringify(
-        serverlessLoaderOptions
-      )}!`
-    } else if (isApiRoute || target === 'server') {
-      if (!edgeRuntime || isReserved || isCustomError) {
-        server[serverBundlePath] = [absolutePagePath]
-      }
-    } else if (
-      isLikeServerless &&
-      page !== '/_app' &&
-      page !== '/_document' &&
-      !edgeRuntime
-    ) {
-      const serverlessLoaderOptions: ServerlessLoaderQuery = {
-        page,
-        absolutePagePath,
-        ...defaultServerlessOptions,
-      }
-      server[serverBundlePath] = `next-serverless-loader?${stringify(
-        serverlessLoaderOptions
-      )}!`
+    if (!edgeRuntime || isReserved || isCustomError) {
+      server[serverBundlePath] = [absolutePagePath]
     }
 
     if (page === '/_document') {

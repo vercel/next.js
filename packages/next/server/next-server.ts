@@ -32,7 +32,6 @@ import {
   ROUTES_MANIFEST,
   MIDDLEWARE_FLIGHT_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
-  SERVERLESS_DIRECTORY,
 } from '../shared/lib/constants'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -54,7 +53,6 @@ import * as Log from '../build/output/log'
 import BaseServer, {
   Options,
   FindComponentsResult,
-  prepareServerlessUrl,
   stringifyQuery,
 } from './base-server'
 import { getMiddlewareInfo, getPagePath, requireFontManifest } from './require'
@@ -124,12 +122,8 @@ export default class NextNodeServer extends BaseServer {
     if (!this.renderOpts.dev) {
       // pre-warm _document and _app as these will be
       // needed for most requests
-      loadComponents(this.distDir, '/_document', this._isLikeServerless).catch(
-        () => {}
-      )
-      loadComponents(this.distDir, '/_app', this._isLikeServerless).catch(
-        () => {}
-      )
+      loadComponents(this.distDir, '/_document').catch(() => {})
+      loadComponents(this.distDir, '/_app').catch(() => {})
     }
   }
 
@@ -151,10 +145,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
-    const serverBuildDir = join(
-      this.distDir,
-      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-    )
+    const serverBuildDir = join(this.distDir, SERVER_DIRECTORY)
     const pagesManifestPath = join(serverBuildDir, PAGES_MANIFEST)
     return require(pagesManifestPath)
   }
@@ -532,14 +523,6 @@ export default class NextNodeServer extends BaseServer {
     delete query.__nextLocale
     delete query.__nextDefaultLocale
 
-    if (!this.renderOpts.dev && this._isLikeServerless) {
-      if (typeof pageModule.default === 'function') {
-        prepareServerlessUrl(req, query)
-        await pageModule.default(req, res)
-        return true
-      }
-    }
-
     await apiResolver(
       req.originalRequest,
       res.originalResponse,
@@ -607,13 +590,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getPagePath(pathname: string, locales?: string[]): string {
-    return getPagePath(
-      pathname,
-      this.distDir,
-      this._isLikeServerless,
-      this.renderOpts.dev,
-      locales
-    )
+    return getPagePath(pathname, this.distDir, locales)
   }
 
   protected async findPageComponents(
@@ -638,11 +615,7 @@ export default class NextNodeServer extends BaseServer {
 
     for (const pagePath of paths) {
       try {
-        const components = await loadComponents(
-          this.distDir,
-          pagePath!,
-          !this.renderOpts.dev && this._isLikeServerless
-        )
+        const components = await loadComponents(this.distDir, pagePath!)
 
         if (
           query.__nextLocale &&
@@ -676,7 +649,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getFontManifest(): FontManifest {
-    return requireFontManifest(this.distDir, this._isLikeServerless)
+    return requireFontManifest(this.distDir)
   }
 
   protected getServerComponentManifest() {
@@ -807,7 +780,6 @@ export default class NextNodeServer extends BaseServer {
           dev: this.renderOpts.dev,
           distDir: this.distDir,
           page: pathname,
-          serverless: this._isLikeServerless,
         }).paths.length > 0
       )
     } catch (_) {}
@@ -918,7 +890,6 @@ export default class NextNodeServer extends BaseServer {
       dev: this.renderOpts.dev,
       page,
       distDir: this.distDir,
-      serverless: this._isLikeServerless,
     })
   }
 

@@ -16,11 +16,8 @@ import {
 import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 import { loadEnvConfig } from '@next/env'
-import { hasNextSupport } from '../telemetry/ci-info'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
-
-const targets = ['server', 'serverless', 'experimental-serverless-trace']
 
 const experimentalWarning = execOnce(() => {
   Log.warn(chalk.bold('You have enabled experimental feature(s).'))
@@ -661,17 +658,9 @@ export default async function loadConfig(
       )
     }
 
-    if (userConfig.target && !targets.includes(userConfig.target)) {
+    if (userConfig.target) {
       throw new Error(
-        `Specified target is invalid. Provided: "${
-          userConfig.target
-        }" should be one of ${targets.join(', ')}`
-      )
-    }
-
-    if (userConfig.target && userConfig.target !== 'server') {
-      Log.warn(
-        'The `target` config is deprecated and will be removed in a future version.\n' +
+        'The `target` config has been removed.\n' +
           'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
       )
     }
@@ -688,10 +677,6 @@ export default async function loadConfig(
         (canonicalBase.endsWith('/')
           ? canonicalBase.slice(0, -1)
           : canonicalBase) || ''
-    }
-
-    if (process.env.NEXT_PRIVATE_TARGET || hasNextSupport) {
-      userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
     }
 
     return assignDefaults({

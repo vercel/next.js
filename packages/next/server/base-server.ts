@@ -22,7 +22,6 @@ import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/load-custom-routes'
 import {
-  SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
@@ -40,7 +39,6 @@ import {
 } from './api-utils'
 import * as envConfig from '../shared/lib/runtime-config'
 import { DecodeError, normalizeRepeatedSlashes } from '../shared/lib/utils'
-import { isTargetLikeServerless } from './utils'
 import Router, { replaceBasePath, route } from './router'
 import { PayloadOptions, setRevalidateHeaders } from './send-payload'
 import { IncrementalCache } from './incremental-cache'
@@ -93,7 +91,7 @@ export interface Options {
    */
   dir?: string
   /**
-   * Tells if Next.js is running in a Serverless platform
+   * Tells if Next.js is running in a platform with native Next.js support
    */
   minimalMode?: boolean
   /**
@@ -350,11 +348,7 @@ export default abstract class Server {
       fs: this.getCacheFilesystem(),
       dev,
       distDir: this.distDir,
-      pagesDir: join(
-        this.distDir,
-        this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-        'pages'
-      ),
+      pagesDir: join(this.distDir, SERVER_DIRECTORY, 'pages'),
       locales: this.nextConfig.i18n?.locales,
       max: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk: !minimalMode && this.nextConfig.experimental.isrFlushToDisk,
@@ -1116,9 +1110,6 @@ export default abstract class Server {
     const is404Page = pathname === '/404'
     const is500Page = pathname === '/500'
 
-    const isLikeServerless =
-      typeof components.ComponentMod === 'object' &&
-      typeof (components.ComponentMod as any).renderReqToHTML === 'function'
     const isSSG = !!components.getStaticProps
     const hasServerProps = !!components.getServerSideProps
     const hasStaticPaths = !!components.getStaticPaths
@@ -1178,7 +1169,6 @@ export default abstract class Server {
       // so that we can continue generating a cache key when possible.
       opts.supportsDynamicHTML =
         !isSSG &&
-        !isLikeServerless &&
         !query.amp &&
         typeof components.Document?.getInitialProps !== 'function'
     }
@@ -1319,73 +1309,52 @@ export default abstract class Server {
       let isNotFound: boolean | undefined
       let isRedirect: boolean | undefined
 
-      // handle serverless
-      if (isLikeServerless) {
-        const renderResult = await (
-          components.ComponentMod as any
-        ).renderReqToHTML(req, res, 'passthrough', {
-          locale,
-          locales,
-          defaultLocale,
-          optimizeCss: this.renderOpts.optimizeCss,
-          distDir: this.distDir,
-          fontManifest: this.renderOpts.fontManifest,
-          domainLocales: this.renderOpts.domainLocales,
-        })
+      const origQuery = parseUrl(req.url || '', true).query
+      const hadTrailingSlash =
+        urlPathname !== '/' && this.nextConfig.trailingSlash
 
-        body = renderResult.html
-        pageData = renderResult.renderOpts.pageData
-        sprRevalidate = renderResult.renderOpts.revalidate
-        isNotFound = renderResult.renderOpts.isNotFound
-        isRedirect = renderResult.renderOpts.isRedirect
-      } else {
-        const origQuery = parseUrl(req.url || '', true).query
-        const hadTrailingSlash =
-          urlPathname !== '/' && this.nextConfig.trailingSlash
+      const resolvedUrl = formatUrl({
+        pathname: `${resolvedUrlPathname}${hadTrailingSlash ? '/' : ''}`,
+        // make sure to only add query values from original URL
+        query: origQuery,
+      })
 
-        const resolvedUrl = formatUrl({
-          pathname: `${resolvedUrlPathname}${hadTrailingSlash ? '/' : ''}`,
-          // make sure to only add query values from original URL
-          query: origQuery,
-        })
-
-        const renderOpts: RenderOpts = {
-          ...components,
-          ...opts,
-          isDataReq,
-          resolvedUrl,
-          locale,
-          locales,
-          defaultLocale,
-          // For getServerSideProps and getInitialProps we need to ensure we use the original URL
-          // and not the resolved URL to prevent a hydration mismatch on
-          // asPath
-          resolvedAsPath:
-            hasServerProps || hasGetInitialProps
-              ? formatUrl({
-                  // we use the original URL pathname less the _next/data prefix if
-                  // present
-                  pathname: `${urlPathname}${hadTrailingSlash ? '/' : ''}`,
-                  query: origQuery,
-                })
-              : resolvedUrl,
-        }
-
-        const renderResult = await this.renderHTML(
-          req,
-          res,
-          pathname,
-          query,
-          renderOpts
-        )
-
-        body = renderResult
-        // TODO: change this to a different passing mechanism
-        pageData = (renderOpts as any).pageData
-        sprRevalidate = (renderOpts as any).revalidate
-        isNotFound = (renderOpts as any).isNotFound
-        isRedirect = (renderOpts as any).isRedirect
+      const renderOpts: RenderOpts = {
+        ...components,
+        ...opts,
+        isDataReq,
+        resolvedUrl,
+        locale,
+        locales,
+        defaultLocale,
+        // For getServerSideProps and getInitialProps we need to ensure we use the original URL
+        // and not the resolved URL to prevent a hydration mismatch on
+        // asPath
+        resolvedAsPath:
+          hasServerProps || hasGetInitialProps
+            ? formatUrl({
+                // we use the original URL pathname less the _next/data prefix if
+                // present
+                pathname: `${urlPathname}${hadTrailingSlash ? '/' : ''}`,
+                query: origQuery,
+              })
+            : resolvedUrl,
       }
+
+      const renderResult = await this.renderHTML(
+        req,
+        res,
+        pathname,
+        query,
+        renderOpts
+      )
+
+      body = renderResult
+      // TODO: change this to a different passing mechanism
+      pageData = (renderOpts as any).pageData
+      sprRevalidate = (renderOpts as any).revalidate
+      isNotFound = (renderOpts as any).isNotFound
+      isRedirect = (renderOpts as any).isRedirect
 
       let value: ResponseCacheValue | null
       if (isNotFound) {
@@ -1484,9 +1453,6 @@ export default abstract class Server {
             // We need to generate the fallback on-demand for development.
             else {
               query.__nextFallback = 'true'
-              if (isLikeServerless) {
-                prepareServerlessUrl(req, query)
-              }
               const result = await doRender()
               if (!result) {
                 return null
@@ -1870,25 +1836,6 @@ export default abstract class Server {
     res.statusCode = 404
     return this.renderError(null, req, res, pathname!, query, setHeaders)
   }
-
-  protected get _isLikeServerless(): boolean {
-    return isTargetLikeServerless(this.nextConfig.target)
-  }
-}
-
-export function prepareServerlessUrl(
-  req: BaseNextRequest,
-  query: ParsedUrlQuery
-): void {
-  const curUrl = parseUrl(req.url!, true)
-  req.url = formatUrl({
-    ...curUrl,
-    search: undefined,
-    query: {
-      ...curUrl.query,
-      ...query,
-    },
-  })
 }
 
 export { stringifyQuery } from './server-route-utils'
