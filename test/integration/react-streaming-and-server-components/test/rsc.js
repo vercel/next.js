@@ -38,7 +38,7 @@ export default function (context, { runtime, env }) {
         page.on('request', (request) => {
           requestsCount++
           const url = request.url()
-          if (/__flight__=1/.test(url)) {
+          if (/\?__flight__=1/.test(url)) {
             hasFlightRequest = true
           }
         })
@@ -95,9 +95,39 @@ export default function (context, { runtime, env }) {
     })
   }
 
-  // For prod build, the directory contains the build ID so it's not deterministic.
-  // Only enable it for dev for now.
+  it('should refresh correctly with next/link', async () => {
+    // Select the button which is not hidden but rendered
+    const selector = '#__next #refresh'
+    let hasFlightRequest = false
+    const browser = await webdriver(context.appPort, '/', {
+      beforePageLoad(page) {
+        page.on('request', (request) => {
+          const url = request.url()
+          if (/\?__flight__=1/.test(url)) {
+            hasFlightRequest = true
+          }
+        })
+      },
+    })
+
+    // wait for hydration
+    await new Promise((res) => setTimeout(res, 1000))
+    if (env === 'dev') {
+      expect(hasFlightRequest).toBe(false)
+    }
+    await browser.elementByCss(selector).click()
+    // wait for re-hydration
+    await new Promise((res) => setTimeout(res, 1000))
+    if (env === 'dev') {
+      expect(hasFlightRequest).toBe(true)
+    }
+    const refreshText = await browser.elementByCss(selector).text()
+    expect(refreshText)
+  })
+
   if (env === 'dev') {
+    // For prod build, the directory contains the build ID so it's not deterministic.
+    // Only enable it for dev for now.
     it('should not bundle external imports into client builds for RSC', async () => {
       const html = await renderViaHTTP(context.appPort, '/external-imports')
       expect(html).toContain('date:')
