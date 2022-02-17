@@ -33,7 +33,7 @@ You should use `getStaticProps` if:
 
 When combined with [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md), `getStaticProps` will run in the background while the stale page is being revalidated, and the fresh page served to the browser.
 
-`getStaticProps` does not have access to the incoming request (such as query parameters or `HTTP` headers) as it generates static `HTML`. If you need access to the request for your page, consider using [Middleware](/docs/middleware.md) in addition to `getStaticProps`.
+`getStaticProps` does not have access to the incoming request (such as query parameters or HTTP headers) as it generates static HTML. If you need access to the request for your page, consider using [Middleware](/docs/middleware.md) in addition to `getStaticProps`.
 
 ## Using getStaticProps to fetch data from a CMS
 
