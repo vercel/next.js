@@ -609,7 +609,6 @@ function runTests(mode) {
       )
 
       expect(await browser.elementById('raw3').getAttribute('style')).toBeNull()
-
     } finally {
       if (browser) {
         await browser.close()
