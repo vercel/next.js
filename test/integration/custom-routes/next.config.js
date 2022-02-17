@@ -1,5 +1,4 @@
 module.exports = {
-  // target: 'serverless',
   async rewrites() {
     // no-rewrites comment
     return {

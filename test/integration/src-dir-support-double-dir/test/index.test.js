@@ -42,11 +42,6 @@ describe('Dynamic Routing', () => {
 
   describe('production mode', () => {
     beforeAll(async () => {
-      const curConfig = await fs.readFile(nextConfig, 'utf8')
-
-      if (curConfig.includes('target')) {
-        await fs.remove(nextConfig)
-      }
       await nextBuild(appDir)
 
       appPort = await findPort()
