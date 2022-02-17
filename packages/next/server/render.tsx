@@ -741,15 +741,7 @@ export async function renderToHTML(
   const styledJsxFlushEffect = () => {
     const styles = jsxStyleRegistry.styles()
     jsxStyleRegistry.flush()
-    return (
-      <>
-        {React.Children.map(styles, (element, i) =>
-          React.cloneElement(element, {
-            key: i,
-          })
-        )}
-      </>
-    )
+    return <>{styles}</>
   }
 
   let flushEffects: Array<() => React.ReactNode> | null = null
