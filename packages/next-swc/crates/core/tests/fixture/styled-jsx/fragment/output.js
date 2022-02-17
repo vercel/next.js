@@ -28,7 +28,7 @@ export default (()=><>
 
     </>
 
-    <_JSXStyle id={"6dd5f97e085c0297"}>{"p.jsx-6dd5f97e085c0297{color:cyan}\n.foo.jsx-6dd5f97e085c0297{font-size:18px;\ncolor:hotpink}\n#head.jsx-6dd5f97e085c0297{text-decoration:underline}"}</_JSXStyle>
+    <_JSXStyle id={"6dd5f97e085c0297"}>{"p.jsx-6dd5f97e085c0297{color:cyan}.foo.jsx-6dd5f97e085c0297{font-size:18px;color:hotpink}#head.jsx-6dd5f97e085c0297{text-decoration:underline}"}</_JSXStyle>
 
   </>
 );
