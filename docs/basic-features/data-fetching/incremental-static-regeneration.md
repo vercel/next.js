@@ -18,7 +18,7 @@ description: 'Learn how to create or update static pages at runtime with Increme
 
 | Version   | Changes                                                                                 |
 | --------- | --------------------------------------------------------------------------------------- |
-| `v12.1.0` | On-demand ISR added (beta).                                                             |
+| `v12.1.0` | On-demand ISR added (Beta).                                                             |
 | `v12.0.0` | [Bot-aware ISR fallback](https://nextjs.org/blog/next-12#bot-aware-isr-fallback) added. |
 | `v9.5.0`  | Base Path added.                                                                        |
 
@@ -87,7 +87,7 @@ When a request is made to a page that was pre-rendered at build time, it will in
 
 When a request is made to a path that hasn’t been generated, Next.js will server-render the page on the first request. Future requests will serve the static file from the cache. ISR on Vercel [persists the cache globally and handles rollbacks](https://vercel.com/docs/concepts/next.js/incremental-static-regeneration).
 
-## On-demand revalidation (beta)
+## On-demand Revalidation (Beta)
 
 If you set a `revalidate` time of `60`, all visitors will see the same generated version of your site for one minute. The only way to invalidate the cache is from someone visiting that page after the minute has passed.
 
@@ -95,6 +95,10 @@ Starting with `v12.1.0`, Next.js supports on-demand Incremental Static Regenerat
 
 - Content from your headless CMS is created or updated
 - Ecommerce metadata changes (price, description, category, reviews, etc.)
+
+Inside `getStaticProps`, you do not need to specify `revalidate` to use on-demand revalidation. If `revalidate` is omitted, Next.js will use the default value of `false` (no revalidation) and only revalidate the page on-demand when `unstable_revalidate` is called.
+
+### Usage
 
 First, create a secret token only known by your Next.js app. This secret will be used to prevent unauthorized access to the revalidation API Route. You can access the route (either manually or with a webhook) with the following URL structure:
 
@@ -123,8 +127,6 @@ export default async function handler(req, res) {
   }
 }
 ```
-
-Inside `getStaticProps`, you do not need to specify `revalidate` to use on-demand revalidation. If `revalidate` is omitted, Next.js will use the default value of `false` (no revalidation) and only revalidate the page on-demand when `unstable_revalidate()` is called.
 
 [View our demo](https://on-demand-isr.vercel.app) to see on-demand revalidation in action and provide feedback.
 
