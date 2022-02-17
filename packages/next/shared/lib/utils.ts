@@ -6,9 +6,6 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
-import type { UrlObject } from 'url'
-
-import { formatUrl } from './router/utils/format-url'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -375,37 +372,6 @@ export async function loadGetInitialProps<
   }
 
   return props
-}
-
-export const urlObjectKeys = [
-  'auth',
-  'hash',
-  'host',
-  'hostname',
-  'href',
-  'path',
-  'pathname',
-  'port',
-  'protocol',
-  'query',
-  'search',
-  'slashes',
-]
-
-export function formatWithValidation(url: UrlObject): string {
-  if (process.env.NODE_ENV === 'development') {
-    if (url !== null && typeof url === 'object') {
-      Object.keys(url).forEach((key) => {
-        if (urlObjectKeys.indexOf(key) === -1) {
-          console.warn(
-            `Unknown key passed via urlObject into url.format: ${key}`
-          )
-        }
-      })
-    }
-  }
-
-  return formatUrl(url)
 }
 
 export const SP = typeof performance !== 'undefined'
