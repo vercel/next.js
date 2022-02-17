@@ -33,9 +33,13 @@ import {
   getSortedRoutes,
   isDynamicRoute,
 } from '../shared/lib/router/utils'
+import {
+  setLazyProp,
+  getCookieParser,
+  checkIsManualRevalidate,
+} from './api-utils'
 import * as envConfig from '../shared/lib/runtime-config'
 import { DecodeError, normalizeRepeatedSlashes } from '../shared/lib/utils'
-import { setLazyProp, getCookieParser, tryGetPreviewData } from './api-utils'
 import { isTargetLikeServerless } from './utils'
 import Router, { replaceBasePath, route } from './router'
 import { PayloadOptions, setRevalidateHeaders } from './send-payload'
@@ -58,6 +62,7 @@ import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
+import { ImageConfigComplete } from './image-config'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -145,9 +150,8 @@ export default abstract class Server {
     ampOptimizerConfig?: { [key: string]: any }
     basePath: string
     optimizeFonts: boolean
-    images: string
+    images: ImageConfigComplete
     fontManifest?: FontManifest
-    optimizeImages: boolean
     disableOptimizedLoading?: boolean
     optimizeCss: any
     locale?: string
@@ -155,9 +159,14 @@ export default abstract class Server {
     defaultLocale?: string
     domainLocales?: DomainLocale[]
     distDir: string
-    concurrentFeatures?: boolean
+    runtime?: 'nodejs' | 'edge'
     serverComponents?: boolean
     crossOrigin?: string
+    supportsDynamicHTML?: boolean
+    serverComponentManifest?: any
+    renderServerComponentData?: boolean
+    serverComponentProps?: any
+    reactRoot: boolean
   }
   private incrementalCache: IncrementalCache
   private responseCache: ResponseCache
@@ -166,6 +175,7 @@ export default abstract class Server {
   protected customRoutes: CustomRoutes
   protected middlewareManifest?: MiddlewareManifest
   protected middleware?: RoutingItem[]
+  protected serverComponentManifest?: any
   public readonly hostname?: string
   public readonly port?: number
 
@@ -175,7 +185,7 @@ export default abstract class Server {
   protected abstract getBuildId(): string
   protected abstract generatePublicRoutes(): Route[]
   protected abstract generateImageRoutes(): Route[]
-  protected abstract generateStaticRotes(): Route[]
+  protected abstract generateStaticRoutes(): Route[]
   protected abstract generateFsStaticRoutes(): Route[]
   protected abstract generateCatchAllMiddlewareRoute(): Route | undefined
   protected abstract generateRewrites({
@@ -210,6 +220,7 @@ export default abstract class Server {
   protected abstract getMiddlewareManifest(): MiddlewareManifest | undefined
   protected abstract getRoutesManifest(): CustomRoutes
   protected abstract getPrerenderManifest(): PrerenderManifest
+  protected abstract getServerComponentManifest(): any
 
   protected abstract sendRenderResult(
     req: BaseNextRequest,
@@ -280,7 +291,12 @@ export default abstract class Server {
     } = this.nextConfig
 
     this.buildId = this.getBuildId()
-    this.minimalMode = minimalMode
+    this.minimalMode = minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
+
+    const serverComponents = this.nextConfig.experimental.serverComponents
+    this.serverComponentManifest = serverComponents
+      ? this.getServerComponentManifest()
+      : undefined
 
     this.renderOpts = {
       poweredByHeader: this.nextConfig.poweredByHeader,
@@ -291,23 +307,24 @@ export default abstract class Server {
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
-      images: JSON.stringify(this.nextConfig.images),
+      images: this.nextConfig.images,
       optimizeFonts: !!this.nextConfig.optimizeFonts && !dev,
       fontManifest:
         this.nextConfig.optimizeFonts && !dev
           ? this.getFontManifest()
           : undefined,
-      optimizeImages: !!this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
-      disableOptimizedLoading:
-        this.nextConfig.experimental.disableOptimizedLoading,
+      disableOptimizedLoading: this.nextConfig.experimental.runtime
+        ? true
+        : this.nextConfig.experimental.disableOptimizedLoading,
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
-      concurrentFeatures: this.nextConfig.experimental.concurrentFeatures,
-      serverComponents: this.nextConfig.experimental.serverComponents,
+      runtime: this.nextConfig.experimental.runtime,
+      serverComponents,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
         : undefined,
+      reactRoot: this.nextConfig.experimental.reactRoot === true,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -643,7 +660,7 @@ export default abstract class Server {
   } {
     const publicRoutes = this.generatePublicRoutes()
     const imageRoutes = this.generateImageRoutes()
-    const staticFilesRoutes = this.generateStaticRotes()
+    const staticFilesRoutes = this.generateStaticRoutes()
 
     const fsRoutes: Route[] = [
       ...this.generateFsStaticRoutes(),
@@ -877,7 +894,7 @@ export default abstract class Server {
   ): Promise<boolean> {
     let page = pathname
     let params: Params | false = false
-    let pageFound = await this.hasPage(page)
+    let pageFound = !isDynamicRoute(page) && (await this.hasPage(page))
 
     if (!pageFound && this.dynamicRoutes) {
       for (const dynamicRoute of this.dynamicRoutes) {
@@ -1110,9 +1127,13 @@ export default abstract class Server {
     // Toggle whether or not this is a Data request
     const isDataReq = !!query._nextDataReq && (isSSG || hasServerProps)
     delete query._nextDataReq
+    // Don't delete query.__flight__ yet, it still needs to be used in renderToHTML later
+    const isFlightRequest = Boolean(
+      this.serverComponentManifest && query.__flight__
+    )
 
     // we need to ensure the status code if /404 is visited directly
-    if (is404Page && !isDataReq) {
+    if (is404Page && !isDataReq && !isFlightRequest) {
       res.statusCode = 404
     }
 
@@ -1120,6 +1141,23 @@ export default abstract class Server {
     // directly e.g. /500
     if (STATIC_STATUS_PAGES.includes(pathname)) {
       res.statusCode = parseInt(pathname.substr(1), 10)
+    }
+
+    // static pages can only respond to GET/HEAD
+    // requests so ensure we respond with 405 for
+    // invalid requests
+    if (
+      !is404Page &&
+      !is500Page &&
+      pathname !== '/_error' &&
+      req.method !== 'HEAD' &&
+      req.method !== 'GET' &&
+      (typeof components.Component === 'string' || isSSG)
+    ) {
+      res.statusCode = 405
+      res.setHeader('Allow', ['GET', 'HEAD'])
+      await this.renderError(null, req, res, pathname)
+      return null
     }
 
     // handle static page
@@ -1142,7 +1180,6 @@ export default abstract class Server {
         !isSSG &&
         !isLikeServerless &&
         !query.amp &&
-        !this.minimalMode &&
         typeof components.Document?.getInitialProps !== 'function'
     }
 
@@ -1157,8 +1194,22 @@ export default abstract class Server {
     let isPreviewMode = false
 
     if (hasServerProps || isSSG) {
-      previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
-      isPreviewMode = previewData !== false
+      // For the edge runtime, we don't support preview mode in SSG.
+      if (!process.browser) {
+        const { tryGetPreviewData } =
+          require('./api-utils/node') as typeof import('./api-utils/node')
+        previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
+        isPreviewMode = previewData !== false
+      }
+    }
+
+    let isManualRevalidate = false
+
+    if (isSSG) {
+      isManualRevalidate = checkIsManualRevalidate(
+        req,
+        this.renderOpts.previewProps
+      )
     }
 
     // Compute the iSSG cache key. We use the rewroteUrl since
@@ -1226,7 +1277,7 @@ export default abstract class Server {
 
     let ssgCacheKey =
       isPreviewMode || !isSSG || this.minimalMode || opts.supportsDynamicHTML
-        ? null // Preview mode bypasses the cache
+        ? null // Preview mode and manual revalidate bypasses the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
               ? ''
@@ -1352,7 +1403,7 @@ export default abstract class Server {
 
     const cacheEntry = await this.responseCache.get(
       ssgCacheKey,
-      async (hasResolved) => {
+      async (hasResolved, hadCache) => {
         const isProduction = !this.renderOpts.dev
         const isDynamicPathname = isDynamicRoute(pathname)
         const didRespond = hasResolved || res.sent
@@ -1365,6 +1416,12 @@ export default abstract class Server {
           fallbackMode === 'static' &&
           isBot(req.headers['user-agent'] || '')
         ) {
+          fallbackMode = 'blocking'
+        }
+
+        // only allow manual revalidate for fallback: true/blocking
+        // or for prerendered fallback: false paths
+        if (isManualRevalidate && (fallbackMode !== false || hadCache)) {
           fallbackMode = 'blocking'
         }
 
@@ -1452,6 +1509,9 @@ export default abstract class Server {
               ? result.revalidate
               : /* default to minimum revalidate (this should be an invariant) */ 1,
         }
+      },
+      {
+        isManualRevalidate,
       }
     )
 
@@ -1490,6 +1550,9 @@ export default abstract class Server {
         res.body('{"notFound":true}').send()
         return null
       } else {
+        if (this.renderOpts.dev) {
+          query.__nextNotFoundSrcPage = pathname
+        }
         await this.render404(
           req,
           res,
@@ -1512,6 +1575,8 @@ export default abstract class Server {
         await handleRedirect(cachedData.props)
         return null
       }
+    } else if (cachedData.kind === 'IMAGE') {
+      throw new Error('invariant SSG should not return an image cache value')
     } else {
       return {
         type: isDataReq ? 'json' : 'html',
@@ -1532,15 +1597,19 @@ export default abstract class Server {
     delete query._nextBubbleNoFallback
 
     try {
-      const result = await this.findPageComponents(pathname, query)
-      if (result) {
-        try {
-          return await this.renderToResponseWithComponents(ctx, result)
-        } catch (err) {
-          const isNoFallbackError = err instanceof NoFallbackError
+      // Ensure a request to the URL /accounts/[id] will be treated as a dynamic
+      // route correctly and not loaded immediately without parsing params.
+      if (!isDynamicRoute(pathname)) {
+        const result = await this.findPageComponents(pathname, query)
+        if (result) {
+          try {
+            return await this.renderToResponseWithComponents(ctx, result)
+          } catch (err) {
+            const isNoFallbackError = err instanceof NoFallbackError
 
-          if (!isNoFallbackError || (isNoFallbackError && bubbleNoFallback)) {
-            throw err
+            if (!isNoFallbackError || (isNoFallbackError && bubbleNoFallback)) {
+              throw err
+            }
           }
         }
       }

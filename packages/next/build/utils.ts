@@ -1116,7 +1116,7 @@ export function isFlightPage(
   if (
     !(
       nextConfig.experimental.serverComponents &&
-      nextConfig.experimental.concurrentFeatures
+      nextConfig.experimental.runtime
     )
   )
     return false
@@ -1232,6 +1232,10 @@ process.chdir(__dirname)
 const NextServer = require('next/dist/server/next-server').default
 const http = require('http')
 const path = require('path')
+
+// Make sure commands gracefully respect termination signals (e.g. from Docker)
+process.on('SIGTERM', () => process.exit(0))
+process.on('SIGINT', () => process.exit(0))
 
 let handler
 
