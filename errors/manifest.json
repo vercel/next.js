@@ -619,6 +619,10 @@
         {
           "title": "ignored-compiler-options",
           "path": "/errors/ignored-compiler-options.md"
+        },
+        {
+          "title": "opening-an-issue",
+          "path": "/errors/opening-an-issue.md"
         }
       ]
     }

@@ -21,7 +21,7 @@ use tracing::{debug, trace};
 use super::{hash_string, string_literal_expr, LocalStyle};
 
 pub fn transform_css(
-    _cm: Arc<SourceMap>,
+    cm: Arc<SourceMap>,
     style_info: &LocalStyle,
     is_global: bool,
     class_name: &Option<String>,
@@ -33,6 +33,7 @@ pub fn transform_css(
         style_info.css_span.lo,
         style_info.css_span.hi,
         ParserConfig {
+            parse_values: false,
             allow_wrong_line_comments: true,
         },
         // We ignore errors because we inject placeholders for expressions which is
@@ -61,6 +62,7 @@ pub fn transform_css(
     };
     // ? Do we need to support optionally prefixing?
     ss.visit_mut_with(&mut prefixer());
+    ss.visit_mut_with(&mut CssPlaceholderFixer { cm });
     ss.visit_mut_with(&mut Namespacer {
         class_name: match class_name {
             Some(s) => s.clone(),
@@ -129,6 +131,48 @@ fn read_number(s: &str) -> (usize, usize) {
     unreachable!("read_number(`{}`) is invalid because it is empty", s)
 }
 
+/// This fixes invalid css which is created from interpolated expressions.
+///
+/// `__styled-jsx-placeholder-` is handled at here.
+struct CssPlaceholderFixer {
+    cm: Arc<SourceMap>,
+}
+
+impl VisitMut for CssPlaceholderFixer {
+    fn visit_mut_media_query(&mut self, q: &mut MediaQuery) {
+        q.visit_mut_children_with(self);
+
+        match q {
+            MediaQuery::Ident(q) => {
+                if !q.raw.starts_with("__styled-jsx-placeholder-") {
+                    return;
+                }
+                // We need to support both of @media ($breakPoint) {} and @media $queryString {}
+                // This is complex because @media (__styled-jsx-placeholder-0__) {} is valid
+                // while @media __styled-jsx-placeholder-0__ {} is not
+                //
+                // So we check original source code to determine if we should inject
+                // parenthesis.
+
+                // TODO(kdy1): Avoid allocation.
+                // To remove allocation, we should patch swc_common to provide a way to get
+                // source code without allocation.
+                //
+                //
+                // We need
+                //
+                // fn with_source_code (self: &mut Self, f: impl FnOnce(&str) -> Ret) -> _ {}
+                if let Ok(source) = self.cm.span_to_snippet(q.span) {
+                    if source.starts_with('(') {
+                        q.raw = format!("({})", &q.value).into();
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 struct Namespacer {
     class_name: String,
     is_global: bool,
@@ -185,7 +229,9 @@ impl VisitMut for Namespacer {
                 }
                 ComplexSelectorChildren::Combinator(v) => match v.value {
                     CombinatorValue::Descendant => {}
-                    _ => {
+                    CombinatorValue::NextSibling
+                    | CombinatorValue::Child
+                    | CombinatorValue::LaterSibling => {
                         combinator = Some(v.clone());
 
                         new_selectors.push(sel);
@@ -205,22 +251,23 @@ impl Namespacer {
     ) -> Result<Vec<ComplexSelectorChildren>, Error> {
         let mut pseudo_index = None;
 
-        let empty_tokens = vec![];
+        let empty_tokens = Tokens {
+            span: node.span,
+            tokens: vec![],
+        };
         let mut arg_tokens;
 
         for (i, selector) in node.subclass_selectors.iter().enumerate() {
             let (name, args) = match selector {
                 SubclassSelector::PseudoClass(PseudoClassSelector { name, children, .. }) => {
-                    arg_tokens = children
-                        .iter()
-                        .flatten()
-                        .flat_map(|v| match v {
-                            PseudoSelectorChildren::Nth(v) => nth_to_tokens(v).tokens,
-                            PseudoSelectorChildren::PreservedToken(v) => vec![v.clone()],
-                        })
-                        .collect::<Vec<_>>();
-
-                    (name, &arg_tokens)
+                    match children {
+                        Some(PseudoSelectorChildren::Nth(v)) => {
+                            arg_tokens = nth_to_tokens(&v);
+                            (name, &arg_tokens)
+                        }
+                        Some(PseudoSelectorChildren::Tokens(v)) => (name, v),
+                        None => (name, &empty_tokens),
+                    }
                 }
                 SubclassSelector::PseudoElement(PseudoElementSelector {
                     name, children, ..
@@ -233,19 +280,9 @@ impl Namespacer {
 
             // One off global selector
             if &name.value == "global" {
-                let args = args.clone();
-                let mut args = {
-                    let lo = args.first().map(|v| v.span.lo).unwrap_or(BytePos(0));
-                    let hi = args.last().map(|v| v.span.hi).unwrap_or(BytePos(0));
-
-                    Tokens {
-                        span: Span::new(lo, hi, Default::default()),
-                        tokens: args,
-                    }
-                };
-
                 let block_tokens = get_block_tokens(&args);
                 let mut front_tokens = get_front_selector_tokens(&args);
+                let mut args = args.clone();
                 front_tokens.extend(args.tokens);
                 front_tokens.extend(block_tokens);
                 args.tokens = front_tokens;
@@ -254,6 +291,7 @@ impl Namespacer {
                     let x: ComplexSelector = parse_tokens(
                         &args,
                         ParserConfig {
+                            parse_values: false,
                             allow_wrong_line_comments: true,
                         },
                         // TODO(kdy1): We might be able to report syntax errors.
@@ -484,6 +522,7 @@ fn nth_to_tokens(nth: &Nth) -> Tokens {
     let mut lexer = swc_css::parser::lexer::Lexer::new(
         StringInput::new(&s, nth.span.lo, nth.span.hi),
         ParserConfig {
+            parse_values: false,
             allow_wrong_line_comments: true,
             ..Default::default()
         },
