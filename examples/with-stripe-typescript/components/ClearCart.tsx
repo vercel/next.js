@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useShoppingCart } from 'use-shopping-cart'
+import { useShoppingCart } from 'use-shopping-cart/react'
 
 export default function ClearCart() {
   const { clearCart } = useShoppingCart()

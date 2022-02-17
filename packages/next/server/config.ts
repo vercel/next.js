@@ -1,9 +1,10 @@
-import chalk from '../lib/chalk'
-import findUp from 'next/dist/compiled/find-up'
 import { basename, extname, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
+import semver from 'next/dist/compiled/semver'
+import findUp from 'next/dist/compiled/find-up'
+import chalk from '../lib/chalk'
 import * as Log from '../build/output/log'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
@@ -350,6 +351,28 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )
       }
     }
+
+    if (
+      typeof images.dangerouslyAllowSVG !== 'undefined' &&
+      typeof images.dangerouslyAllowSVG !== 'boolean'
+    ) {
+      throw new Error(
+        `Specified images.dangerouslyAllowSVG should be a boolean
+          ', '
+        )}), received  (${images.dangerouslyAllowSVG}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+      )
+    }
+
+    if (
+      typeof images.contentSecurityPolicy !== 'undefined' &&
+      typeof images.contentSecurityPolicy !== 'string'
+    ) {
+      throw new Error(
+        `Specified images.contentSecurityPolicy should be a string
+          ', '
+        )}), received  (${images.contentSecurityPolicy}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+      )
+    }
   }
 
   if (result.webpack5 === false) {
@@ -365,9 +388,51 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     result.swcMinify = (result.experimental as any).swcMinify
   }
 
+  if (result.experimental && 'relay' in (result.experimental as any)) {
+    Log.warn(
+      `\`relay\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.relay = (result.experimental as any).relay
+  }
+
+  if (
+    result.experimental &&
+    'styledComponents' in (result.experimental as any)
+  ) {
+    Log.warn(
+      `\`styledComponents\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.styledComponents = (
+      result.experimental as any
+    ).styledComponents
+  }
+
+  if (
+    result.experimental &&
+    'reactRemoveProperties' in (result.experimental as any)
+  ) {
+    Log.warn(
+      `\`reactRemoveProperties\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.reactRemoveProperties = (
+      result.experimental as any
+    ).reactRemoveProperties
+  }
+
+  if (result.experimental && 'removeConsole' in (result.experimental as any)) {
+    Log.warn(
+      `\`removeConsole\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.removeConsole = (result.experimental as any).removeConsole
+  }
+
   if (result.swcMinify) {
     Log.warn(
-      'SWC minify beta enabled. https://nextjs.org/docs/messages/swc-minify-enabled'
+      'SWC minify release candidate enabled. https://nextjs.org/docs/messages/swc-minify-enabled'
     )
   }
 
@@ -585,7 +650,7 @@ export default async function loadConfig(
       )
       throw err
     }
-    const userConfig = normalizeConfig(
+    const userConfig = await normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
     )
@@ -609,6 +674,13 @@ export default async function loadConfig(
         'The `target` config is deprecated and will be removed in a future version.\n' +
           'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
       )
+    }
+
+    const hasReactRoot = shouldUseReactRoot()
+    if (hasReactRoot) {
+      // users might not have the `experimental` key in their config
+      userConfig.experimental = userConfig.experimental || {}
+      userConfig.experimental.reactRoot = true
     }
 
     if (userConfig.amp?.canonicalBase) {
@@ -654,6 +726,19 @@ export default async function loadConfig(
   completeConfig.configFileName = configFileName
   setHttpAgentOptions(completeConfig.httpAgentOptions)
   return completeConfig
+}
+
+export function shouldUseReactRoot() {
+  const reactDomVersion = require('react-dom').version
+  const isReactExperimental = Boolean(
+    reactDomVersion && /0\.0\.0-experimental/.test(reactDomVersion)
+  )
+  const hasReact18: boolean =
+    Boolean(reactDomVersion) &&
+    (semver.gte(reactDomVersion!, '18.0.0') ||
+      semver.coerce(reactDomVersion)?.version === '18.0.0')
+
+  return hasReact18 || isReactExperimental
 }
 
 export function setHttpAgentOptions(

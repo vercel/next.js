@@ -30,7 +30,7 @@ function Profile() {
   }, [])
 
   if (isLoading) return <p>Loading...</p>
-  if (!profileData) return <p>No profile data</p>
+  if (!data) return <p>No profile data</p>
 
   return (
     <div>
@@ -68,3 +68,14 @@ function Profile() {
   )
 }
 ```
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/routing/introduction.md">
+    <b>Routing:</b>
+    <small>Learn more about routing in Next.js.</small>
+  </a>
+</div>

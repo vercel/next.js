@@ -13,29 +13,28 @@ function writeNextConfig(config) {
 }
 
 describe('Invalid react 18 webpack config', () => {
-  it('should enable `experimental.reactRoot` when `experimental.concurrentFeatures` enables', async () => {
+  it('should enable `experimental.reactRoot` when `experimental.runtime` is enabled', async () => {
     writeNextConfig({
-      concurrentFeatures: true,
+      runtime: 'edge',
     })
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
     nextConfig.restore()
 
     expect(stderr).toContain(
-      '`experimental.concurrentFeatures` requires `experimental.reactRoot` to be enabled along with React 18.'
+      '`experimental.runtime` requires `experimental.reactRoot` to be enabled along with React 18.'
     )
   })
 
-  it('should enable `experimental.concurrentFeatures` for server components', async () => {
+  it('should require `experimental.runtime` for server components', async () => {
     writeNextConfig({
       reactRoot: true,
-      concurrentFeatures: false,
       serverComponents: true,
     })
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
     nextConfig.restore()
 
     expect(stderr).toContain(
-      '`experimental.concurrentFeatures` is required to be enabled along with `experimental.serverComponents`.'
+      '`experimental.runtime` is required to be set along with `experimental.serverComponents`.'
     )
   })
 

@@ -156,11 +156,15 @@ describe('pnpm support', () => {
 
         await renderViaHTTP(appPort, '/')
 
-        browser = await webdriver(appPort, '/', false)
+        browser = await webdriver(appPort, '/', {
+          waitHydration: false,
+        })
         expect(await browser.waitForElementByCss('#world').text()).toBe('World')
         await browser.close()
 
-        browser = await webdriver(appPort, '/about', false)
+        browser = await webdriver(appPort, '/about', {
+          waitHydration: false,
+        })
         expect(await browser.waitForElementByCss('#world').text()).toBe('World')
         await browser.close()
       } finally {
