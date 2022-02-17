@@ -80,6 +80,8 @@ If an error is thrown inside `getServerSideProps`, it will show the `pages/500.j
 
 ## Related
 
+For more information on what to do next, we recommend the following sections:
+
 <div class="card">
   <a href="/docs/api-reference/data-fetching/get-server-side-props.md">
     <b>getServerSideProps API Reference</b>
