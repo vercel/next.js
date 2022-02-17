@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'http'
 import { Readable } from 'stream'
-import { TransformStream } from 'next/dist/compiled/web-streams-polyfill/ponyfill'
+import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
 
 type BodyStream = ReadableStream<Uint8Array>
 

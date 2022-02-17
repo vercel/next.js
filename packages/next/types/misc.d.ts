@@ -331,11 +331,6 @@ declare module 'next/dist/compiled/comment-json' {
   export = m
 }
 
-declare module 'next/dist/compiled/web-streams-polyfill/ponyfill' {
-  import m from 'web-streams-polyfill/ponyfill'
-  export = m
-}
-
 declare module 'pnp-webpack-plugin' {
   import webpack from 'webpack4'
 
