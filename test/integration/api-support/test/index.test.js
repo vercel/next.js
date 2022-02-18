@@ -19,7 +19,6 @@ import {
 import json from '../big.json'
 
 const appDir = join(__dirname, '../')
-const nextConfig = join(appDir, 'next.config.js')
 let appPort
 let stderr
 let mode

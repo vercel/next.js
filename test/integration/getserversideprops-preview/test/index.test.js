@@ -17,7 +17,6 @@ import { join } from 'path'
 import qs from 'querystring'
 
 const appDir = join(__dirname, '..')
-const nextConfigPath = join(appDir, 'next.config.js')
 
 async function getBuildId() {
   return fs.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')

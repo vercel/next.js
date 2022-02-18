@@ -7,13 +7,11 @@ import {
   nextStart,
   nextBuild,
   renderViaHTTP,
-  File,
 } from 'next-test-utils'
 
 let app
 let appPort
 const appDir = join(__dirname, '..')
-const nextConfig = new File(join(appDir, 'next.config.js'))
 
 const runTests = () => {
   it('should have gip in __NEXT_DATA__', async () => {

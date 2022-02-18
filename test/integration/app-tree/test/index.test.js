@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
 import path from 'path'
-import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import {
   nextBuild,
@@ -14,7 +13,6 @@ import {
 } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
-const nextConfig = path.join(appDir, 'next.config.js')
 let appPort
 let app
 

@@ -1,11 +1,9 @@
 /* eslint-env jest */
 
 import path from 'path'
-import fs from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
-const nextConfig = path.join(appDir, 'next.config.js')
 
 const runTests = () => {
   it('should not opt-out of auto static optimization from invalid _error', async () => {

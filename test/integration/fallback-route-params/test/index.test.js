@@ -11,11 +11,9 @@ import {
   nextStart,
   renderViaHTTP,
   launchApp,
-  File,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
-const nextConfig = new File(join(appDir, 'next.config.js'))
 let appPort
 let app
 

@@ -13,7 +13,6 @@ import {
 
 const appDir = join(__dirname, '..')
 const page404 = join(appDir, 'pages/404.js')
-const nextConfig = join(appDir, 'next.config.js')
 let appPort
 let app
 

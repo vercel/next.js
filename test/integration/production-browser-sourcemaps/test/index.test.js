@@ -5,8 +5,6 @@ import { nextBuild, getPageFileFromBuildManifest } from 'next-test-utils'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 
 const appDir = join(__dirname, '../')
-const nextConfig = join(appDir, 'next.config.js')
-let nextConfigContent
 
 function runTests() {
   it('includes sourcemaps for all browser files', async () => {

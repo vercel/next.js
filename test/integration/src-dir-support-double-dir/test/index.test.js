@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import fs from 'fs-extra'
 import {
   renderViaHTTP,
   findPort,
@@ -15,7 +14,7 @@ let app
 let appPort
 const appDir = join(__dirname, '../')
 
-function runTests(dev) {
+function runTests() {
   it('should render from pages', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/PAGES/)
@@ -26,8 +25,6 @@ function runTests(dev) {
     expect(html).toMatch(/404/)
   })
 }
-
-const nextConfig = join(appDir, 'next.config.js')
 
 describe('Dynamic Routing', () => {
   describe('dev mode', () => {

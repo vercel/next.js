@@ -1,5 +1,4 @@
 /* eslint-env jest */
-import http from 'http'
 import url from 'url'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
@@ -12,11 +11,9 @@ import {
   nextStart,
   fetchViaHTTP,
   check,
-  File,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
-const nextConfig = new File(join(appDir, 'next.config.js'))
 
 let app
 let appPort
