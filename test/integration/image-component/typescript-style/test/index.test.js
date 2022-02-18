@@ -7,7 +7,7 @@ const appDir = join(__dirname, '..')
 
 describe('TypeScript Image Component with Styles', () => {
   describe('next build', () => {
-    it('should fail to build when the `style` prop is passed to <Image />', async () => {
+    it.skip('should fail to build when the `style` prop is passed to <Image />', async () => {
       const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
       expect(stderr).toMatch(/Failed to compile/)
       expect(stderr).toMatch(/Type '"fixed"' is not assignable to type '"raw"/)
