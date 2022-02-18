@@ -4,7 +4,7 @@ use swc_common::sync::Lrc;
 use swc_common::{FileName, SourceMap};
 use swc_ecmascript::ast::Module;
 use swc_ecmascript::parser::lexer::Lexer;
-use swc_ecmascript::parser::{Parser, Syntax};
+use swc_ecmascript::parser::{EsConfig, Parser, Syntax};
 use turbo_tasks_fs::FileContent;
 
 use crate::module::ModuleRef;
@@ -44,7 +44,17 @@ pub async fn parse(module: ModuleRef) -> ParseResultRef {
                     let fm = cm.new_source_file(FileName::Custom(path.path.to_string()), string);
 
                     let lexer = Lexer::new(
-                        Syntax::Es(Default::default()),
+                        Syntax::Es(EsConfig {
+                            jsx: true,
+                            fn_bind: true,
+                            decorators: true,
+                            decorators_before_export: true,
+                            export_default_from: true,
+                            import_assertions: true,
+                            static_blocks: true,
+                            private_in_object: true,
+                            allow_super_outside_method: true,
+                        }),
                         Default::default(),
                         StringInput::from(&*fm),
                         None,

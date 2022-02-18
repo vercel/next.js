@@ -45,7 +45,7 @@ pub async fn resolve(
     let request = RequestRef::value(parse(request));
 
     let options = ResolveOptionsRef::intern(ResolveOptions {
-        extensions: vec![".js".to_string()],
+        extensions: vec![".jsx".to_string(), ".js".to_string()],
         modules: vec![],
     });
 

@@ -62,27 +62,27 @@ impl TurboTasks {
         inputs: Vec<SlotRef>,
     ) -> Result<SlotRef> {
         debug_assert!(inputs.iter().all(|i| i.is_resolved() && !i.is_nothing()));
-        let mut result_task = Err(anyhow!("Unreachable"));
+        let mut result_task = None;
         self.native_task_cache
             .alter((func, inputs.clone()), |old| match old {
                 Some(t) => {
-                    result_task = Ok(t.clone());
+                    result_task = Some(Ok(t.clone()));
                     Some(t)
                 }
                 None => match Task::new_native(inputs, func) {
                     Ok(task) => {
                         let new_task = Arc::new(task);
                         self.schedule(new_task.clone());
-                        result_task = Ok(new_task.clone());
+                        result_task = Some(Ok(new_task.clone()));
                         Some(new_task)
                     }
                     Err(err) => {
-                        result_task = Err(err);
+                        result_task = Some(Err(err));
                         None
                     }
                 },
             });
-        let task = result_task?;
+        let task = result_task.unwrap()?;
         Task::with_current(|parent| task.connect_parent(parent));
         task.ensure_scheduled(self);
         return Ok(SlotRef::TaskOutput(task));
@@ -93,22 +93,22 @@ impl TurboTasks {
         func: &'static NativeFunction,
         inputs: Vec<SlotRef>,
     ) -> Result<SlotRef> {
-        let mut result_task = Err(anyhow!("Unreachable"));
+        let mut result_task = None;
         self.resolve_task_cache
             .alter((func, inputs.clone()), |old| match old {
                 Some(t) => {
-                    result_task = Ok(t.clone());
+                    result_task = Some(t.clone());
                     Some(t)
                 }
                 None => {
                     let task = Task::new_resolve_native(inputs, func);
                     let new_task = Arc::new(task);
                     self.schedule(new_task.clone());
-                    result_task = Ok(new_task.clone());
+                    result_task = Some(new_task.clone());
                     Some(new_task)
                 }
             });
-        let task = result_task?;
+        let task = result_task.unwrap();
         Task::with_current(|parent| task.connect_parent(parent));
         task.ensure_scheduled(self);
         return Ok(SlotRef::TaskOutput(task));
@@ -120,25 +120,25 @@ impl TurboTasks {
         trait_fn_name: String,
         inputs: Vec<SlotRef>,
     ) -> Result<SlotRef> {
-        let mut result_task = Err(anyhow!("Unreachable"));
+        let mut result_task = None;
         self.trait_task_cache
             .alter(
                 (trait_type, trait_fn_name.clone(), inputs.clone()),
                 |old| match old {
                     Some(t) => {
-                        result_task = Ok(t.clone());
+                        result_task = Some(t.clone());
                         Some(t)
                     }
                     None => {
                         let task = Task::new_resolve_trait(trait_type, trait_fn_name, inputs);
                         let new_task = Arc::new(task);
                         self.schedule(new_task.clone());
-                        result_task = Ok(new_task.clone());
+                        result_task = Some(new_task.clone());
                         Some(new_task)
                     }
                 },
             );
-        let task = result_task?;
+        let task = result_task.unwrap();
         Task::with_current(|parent| task.connect_parent(parent));
         task.ensure_scheduled(self);
         return Ok(SlotRef::TaskOutput(task));

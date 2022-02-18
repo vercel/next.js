@@ -30,11 +30,12 @@ pub struct DiskFileSystem {
     pub name: String,
     pub root: String,
     #[trace_ignore]
-    pub invalidators: Arc<Mutex<HashMap<String, Invalidator>>>,
+    invalidators: Arc<Mutex<HashMap<String, Invalidator>>>,
     #[trace_ignore]
-    pub dir_invalidators: Arc<Mutex<HashMap<String, Invalidator>>>,
+    dir_invalidators: Arc<Mutex<HashMap<String, Invalidator>>>,
     #[trace_ignore]
-    pub watcher: RecommendedWatcher,
+    #[allow(dead_code)] // it's never read, but reference is kept for Drop
+    watcher: RecommendedWatcher,
 }
 
 fn path_to_key(path: &Path) -> String {

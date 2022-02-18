@@ -41,6 +41,7 @@ pub async fn nft_asset(
         input_dir.clone(),
         output_dir.clone(),
     );
+
     NftAssetSource {
         path: new_path,
         module,

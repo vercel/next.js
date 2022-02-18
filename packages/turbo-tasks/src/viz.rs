@@ -153,6 +153,31 @@ impl GraphViz {
         }
         self.edges.retain(|(from, to, _)| !dropped_ids.contains(from) && !dropped_ids.contains(to));
     }
+  
+    pub fn drop_inactive_tasks(&mut self) {
+        let mut nodes_with_edges = HashSet::new();
+        for (from, to, ty) in self.edges.iter() {
+            if ty != &EdgeType::ChildTask {
+                nodes_with_edges.insert(from.clone());
+                nodes_with_edges.insert(to.clone());
+            }
+        }
+        let mut dropped_ids = HashSet::new();
+        self.nodes.retain(|(id, node)| {
+            if nodes_with_edges.contains(id) { return true; }
+            match node {
+                NodeType::Task(name, state, executions, slots) => {
+                    if *executions <= 1 && state == "done" && slots.len() == 0 {
+                        dropped_ids.insert(id.clone());
+                        false
+                    } else {
+                        true
+                    }
+                },
+            }
+        });
+        self.edges.retain(|(from, to, _)| !dropped_ids.contains(from) && !dropped_ids.contains(to));
+    }
 
     pub fn merge_edges(&mut self) {
         let mut new_edges = Vec::new();
@@ -237,7 +262,7 @@ impl GraphViz {
                     } else {
                         format!("label=\"{}\\n{}\"", escape(name), escape(state))
                     };
-                    format!("subgraph cluster_{} {{\ncolor=lightgray;\n{} [shape=box, {}]\n{}}}", id, id, label, slots_info)
+                    format!("subgraph cluster_{} {{\ncolor=lightgray;\n{} [shape=box, {}]\n{}}}\n", id, id, label, slots_info)
                 },
             })
             .collect::<String>();
@@ -270,8 +295,8 @@ impl GraphViz {
             <title>Graph</title>
           </head>
           <body>
-            <script src=\"https://cdn.jsdelivr.net/npm/viz.js@2.1.2-pre.1/viz.js\"></script>
-            <script src=\"https://cdn.jsdelivr.net/npm/viz.js@2.1.2-pre.1/full.render.js\"></script>
+            <script src=\"https://cdn.jsdelivr.net/npm/viz.js@2.1.2/viz.js\"></script>
+            <script src=\"https://cdn.jsdelivr.net/npm/viz.js@2.1.2/full.render.js\"></script>
             <script>
               const s = `{}`;
               new Viz().renderSVGElement(s).then(el => document.body.appendChild(el)).catch(e => console.error(e));

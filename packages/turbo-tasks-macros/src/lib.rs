@@ -170,6 +170,12 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
 
+        impl From<&#ref_ident> for turbo_tasks::SlotRef {
+            fn from(node_ref: &#ref_ident) -> Self {
+                node_ref.node.clone()
+            }
+        }
+
         #(impl From<#ref_ident> for #trait_refs {
             fn from(node_ref: #ref_ident) -> Self {
                 #trait_refs::from_slot_ref(node_ref.into())
@@ -718,6 +724,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
         let ref_ident = get_ref_ident(struct_ident);
         let mut trait_registers = Vec::new();
         let mut impl_functions = Vec::new();
+        let mut trait_functions = Vec::new();
         for item in items.iter() {
             match item {
                 ImplItem::Method(ImplItemMethod {
@@ -751,6 +758,8 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     );
                     let mut new_sig = sig.clone();
                     new_sig.ident = internal_function_ident;
+                    let mut external_sig = sig.clone();
+                    external_sig.asyncness = None;
                     impl_functions.push(quote! {
                         impl #struct_ident {
                             #(#attrs)*
@@ -759,7 +768,21 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                         }
 
                         #native_function_code
-                    })
+                    });
+
+                    let convert_result_code = if is_empty_type(&output_type) {
+                        quote! {}
+                    } else {
+                        quote! { #output_type::from_slot_ref(result) }
+                    };
+
+                    trait_functions.push(quote!{
+                        #(#attrs)*
+                        #external_sig {
+                            let result = turbo_tasks::dynamic_call(&#function_ident, vec![#(#input_slot_ref_arguments),*]).unwrap();
+                            #convert_result_code                
+                        }
+                    });
                 }
                 _ => {}
             }
@@ -772,6 +795,10 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
             }
 
             #(#impl_functions)*
+
+            impl #trait_ident for #ref_ident {
+                #(#trait_functions)*
+            }
         }
     }
 
