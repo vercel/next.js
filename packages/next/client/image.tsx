@@ -110,6 +110,22 @@ export type ImageProps = Omit<
   onLoadingComplete?: OnLoadingComplete
 }
 
+type ImageElementProps = Omit<
+JSX.IntrinsicElements['img'],
+'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading'
+> & {
+  raw: boolean,
+  imgAttributes: GenImgAttrsResult,
+  heightInt: number | undefined,
+  widthInt: number | undefined,
+  layout: LayoutValue,
+  imgStyle: ImgElementStyle,
+  blurStyle: ImgElementStyle,
+  lazy: boolean,
+  imgRef: React.RefObject<HTMLImageElement>,
+  loading: LoadingValue
+}
+
 function getWidths(
   { deviceSizes, allSizes }: ImageConfig,
   width: number | undefined,
@@ -328,7 +344,7 @@ export default function Image({
   blurDataURL,
   ...all
 }: ImageProps) {
-  const imgRef = useRef<HTMLImageElement>(null)
+  
 
   const configContext = useContext(ImageConfigContext)
   const config: ImageConfig = useMemo(() => {
@@ -681,6 +697,7 @@ export default function Image({
     typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
   const onLoadingCompleteRef = useRef(onLoadingComplete)
 
+  const imgRef = useRef<HTMLImageElement>(null)
   useEffect(() => {
     onLoadingCompleteRef.current = onLoadingComplete
   }, [onLoadingComplete])
@@ -692,50 +709,14 @@ export default function Image({
   useEffect(() => {
     handleLoading(imgRef, srcString, layout, placeholder, onLoadingCompleteRef)
   }, [srcString, layout, placeholder, isVisible])
-
-  const stringSrc = src
-
-  const ImageElement = ({ raw }: { raw: boolean }) => (
-    <>
-      <img
-        {...rest}
-        {...imgAttributes}
-        {...(raw ? { height: heightInt, width: widthInt } : {})}
-        decoding="async"
-        data-nimg={layout}
-        className={className}
-        ref={imgRef}
-        style={{ ...imgStyle, ...blurStyle }}
-      />
-      {isLazy && (
-        <noscript>
-          <img
-            {...rest}
-            {...generateImgAttrs({
-              config,
-              src: stringSrc,
-              unoptimized,
-              layout,
-              width: widthInt,
-              quality: qualityInt,
-              sizes,
-              loader,
-            })}
-            {...(raw ? { height: heightInt, width: widthInt } : {})}
-            decoding="async"
-            data-nimg={layout}
-            style={imgStyle}
-            className={className}
-            // @ts-ignore - TODO: upgrade to `@types/react@17`
-            loading={loading || 'lazy'}
-          />
-        </noscript>
-      )}
-    </>
-  )
-
+  const imgElementArgs = {lazy: isLazy,
+  ...{imgAttributes, heightInt, widthInt, layout, className, imgStyle, blurStyle, imgRef, loading}, ...rest}
+  console.log(heightInt)
   return layout === 'raw' ? (
-    <ImageElement raw />
+    <ImageElement 
+      raw
+      {...imgElementArgs}
+      />
   ) : (
     <span style={wrapperStyle}>
       {hasSizer ? (
@@ -760,7 +741,10 @@ export default function Image({
           ) : null}
         </span>
       ) : null}
-      <ImageElement raw={false} />
+      <ImageElement 
+      raw={false}
+      {...imgElementArgs}
+      />
       {priority ? (
         // Note how we omit the `href` attribute, as it would only be relevant
         // for browsers that do not support `imagesrcset`, and in those cases
@@ -784,6 +768,50 @@ export default function Image({
       ) : null}
     </span>
   )
+}
+
+const ImageElement = ({ 
+  raw,
+  imgAttributes,
+  heightInt,
+  widthInt,
+  layout,
+  className,
+  imgStyle,
+  blurStyle,
+  lazy,
+  imgRef,
+  loading,
+  ...rest
+}: ImageElementProps) => {
+
+  return <>
+    <img
+      {...rest}
+      {...imgAttributes}
+      {...(raw ? { height: heightInt, width: widthInt } : {})}
+      decoding="async"
+      data-nimg={layout}
+      className={className}
+      ref={imgRef}
+      style={{ ...imgStyle, ...blurStyle }}
+    />
+    {lazy && (
+      <noscript>
+        <img
+          {...rest}
+          {...imgAttributes}
+          {...(raw ? { height: heightInt, width: widthInt } : {})}
+          decoding="async"
+          data-nimg={layout}
+          style={imgStyle}
+          className={className}
+          // @ts-ignore - TODO: upgrade to `@types/react@17`
+          loading={loading || 'lazy'}
+        />
+      </noscript>
+    )}
+  </>
 }
 
 function normalizeSrc(src: string): string {
