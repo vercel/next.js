@@ -546,7 +546,7 @@ export async function renderToHTML(
   const defaultAppGetInitialProps =
     App.getInitialProps === (App as any).origGetInitialProps
 
-  const hasPageGetInitialProps = !!(Component as any).getInitialProps
+  const hasPageGetInitialProps = !!(Component as any)?.getInitialProps
 
   const pageIsDynamic = isDynamicRoute(pathname)
 
@@ -562,7 +562,7 @@ export async function renderToHTML(
     'getServerSideProps',
     'getStaticPaths',
   ]) {
-    if ((Component as any)[methodName]) {
+    if ((Component as any)?.[methodName]) {
       throw new Error(
         `page ${pathname} ${methodName} ${GSSP_COMPONENT_MEMBER_ERROR}`
       )
@@ -1482,7 +1482,6 @@ export async function renderToHTML(
     head: documentResult.head,
     headTags: documentResult.headTags,
     styles: documentResult.styles,
-    useMaybeDeferContent,
     crossOrigin: renderOpts.crossOrigin,
     optimizeCss: renderOpts.optimizeCss,
     optimizeFonts: renderOpts.optimizeFonts,
@@ -1992,11 +1991,4 @@ async function streamToString(stream: ReadableStream<string>): Promise<string> {
 
     bufferedString += value
   }
-}
-
-export function useMaybeDeferContent(
-  _name: string,
-  contentFn: () => JSX.Element
-): [boolean, JSX.Element] {
-  return [false, contentFn()]
 }
