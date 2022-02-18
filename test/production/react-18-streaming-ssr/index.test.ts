@@ -1,8 +1,8 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 
-describe('react-18-streaming-ssr in minimal mode', () => {
+describe('react 18 streaming SSR in minimal mode', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -27,10 +27,7 @@ describe('react-18-streaming-ssr in minimal mode', () => {
         react: '18.0.0-rc.0',
         'react-dom': '18.0.0-rc.0',
       },
-      skipStart: true,
     })
-
-    await next.start()
   })
   afterAll(() => {
     delete process.env.NEXT_PRIVATE_MINIMAL_MODE
@@ -40,5 +37,42 @@ describe('react-18-streaming-ssr in minimal mode', () => {
   it('should generate html response by streaming correctly', async () => {
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('static streaming')
+  })
+})
+
+describe('react 18 streaming SSR with custom next configs', () => {
+  let next: NextInstance
+
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        'pages/hello.js': `
+          export default function Page() { 
+            return <p>hello</p>
+          }
+        `,
+      },
+      nextConfig: {
+        trailingSlash: true,
+        experimental: {
+          reactRoot: true,
+          runtime: 'edge',
+        },
+      },
+      dependencies: {
+        react: '18.0.0-rc.0',
+        'react-dom': '18.0.0-rc.0',
+      },
+    })
+  })
+  afterAll(() => next.destroy())
+
+  it('should redirect paths without trailing-slash and render when slash is appended', async () => {
+    const page = '/hello'
+    const html = await renderViaHTTP(next.url, page + '/')
+    const res = await fetchViaHTTP(next.url, page, {}, { redirect: 'manual' })
+
+    expect(html).toContain('hello')
+    expect(res.status).toBe(308)
   })
 })
