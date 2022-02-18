@@ -59,7 +59,7 @@ The `<Home>` and `<Profile>` components will always be server-side rendered and 
 
 > Make sure you're using default imports and exports for server components (`.server.js`). The support of named exports are a work in progress!
 
-To see a full example, check out the [hello world example](https://github.com/vercel/next.js/tree/canary/examples/react-server-components) or the larger [vercel/next-rsc-demo demo](https://github.com/vercel/next-rsc-demo).
+To see a full example, check out the [vercel/next-react-server-components demo](https://github.com/vercel/next-react-server-components).
 
 ## Supported Next.js APIs
 

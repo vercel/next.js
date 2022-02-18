@@ -702,6 +702,7 @@ if (process.env.__NEXT_RSC) {
         writer.write(encoder.encode(val))
       })
       buffer.length = 0
+      serverDataBuffer.delete(key)
     }
     serverDataWriter.set(key, writer)
   }
