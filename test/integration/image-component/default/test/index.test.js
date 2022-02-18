@@ -812,6 +812,36 @@ function runTests(mode) {
         await browser.elementById('without-loader').getAttribute('srcset')
       ).toBe('/test.svg 1x, /test.svg 2x')
     })
+
+    it('should warn at most once even after state change', async () => {
+      const browser = await webdriver(appPort, '/warning-once')
+      await browser.eval(`document.querySelector("footer").scrollIntoView()`)
+      await browser.eval(`document.querySelector("button").click()`)
+      await browser.eval(`document.querySelector("button").click()`)
+      const count = await browser.eval(
+        `document.querySelector("button").textContent`
+      )
+      expect(count).toBe('Count: 2')
+      await check(async () => {
+        const result = await browser.eval(
+          'document.getElementById("w").naturalWidth'
+        )
+        if (result < 1) {
+          throw new Error('Image not loaded')
+        }
+        return 'done'
+      }, 'done')
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .filter((log) => log !== 'Next.js page already hydrated')
+      expect(warnings[0]).toMatch(
+        'Image with src "/test.png" has "sizes" property but it will be ignored.'
+      )
+      expect(warnings[1]).toMatch(
+        'Image with src "/test.png" was detected as the Largest Contentful Paint (LCP).'
+      )
+      expect(warnings.length).toBe(2)
+    })
   } else {
     //server-only tests
     it('should not create an image folder in server/chunks', async () => {
