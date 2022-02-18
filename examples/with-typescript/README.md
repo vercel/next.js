@@ -38,7 +38,7 @@ npm install --save-dev typescript
 yarn add --dev typescript
 ```
 
-To enable TypeScript's features, we install the type declarations for React and Node.
+To enable TypeScript's features, you install the type declarations for React and Node.
 
 ```sh
 npm install --save-dev @types/react @types/react-dom @types/node
@@ -46,8 +46,8 @@ npm install --save-dev @types/react @types/react-dom @types/node
 yarn add --dev @types/react @types/react-dom @types/node
 ```
 
-When you run `next dev` the next time, Next.js will also start looking for any `.ts` or `.tsx` files. It even creates or updates the `tsconfig.json` file for your project with the recommended settings.
+When you run `next dev` the next time, Next.js will also start looking for any `.ts` or `.tsx` files. It also creates or updates the `tsconfig.json` file for your project with the recommended settings.
 
-Next.js has built-in TypeScript declarations, so we'll get autocompletion for Next.js' modules straight away.
+Next.js has built-in TypeScript declarations, so you'll get autocompletion for Next.js' modules straight away.
 
 A `type-check` script is also added to `package.json`, which runs TypeScript's `tsc` CLI in `noEmit` mode to run type-checking separately. You can then include this, for example, in your `test` scripts.
