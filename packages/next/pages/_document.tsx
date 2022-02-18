@@ -1,17 +1,18 @@
 import React, { Component, ReactElement, ReactNode, useContext } from 'react'
 import { OPTIMIZED_FONT_PROVIDERS } from '../shared/lib/constants'
-import {
+import type {
   DocumentContext,
   DocumentInitialProps,
   DocumentProps,
-  HtmlContext,
-  HtmlProps,
 } from '../shared/lib/utils'
 import { BuildManifest, getPageFiles } from '../server/get-page-files'
 import { cleanAmpPath } from '../server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 import Script, { ScriptProps } from '../client/script'
 import isError from '../lib/is-error'
+
+import { HtmlContext } from '../shared/lib/html-context'
+import type { HtmlProps } from '../shared/lib/html-context'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
