@@ -280,7 +280,8 @@ function handleLoading(
             } else if (
               layout === 'fill' &&
               parent.position !== 'relative' &&
-              parent.position !== 'fixed'
+              parent.position !== 'fixed' &&
+              parent.position !== 'absolute'
             ) {
               console.warn(
                 `Image with src "${src}" may not render properly with a parent using position:"${parent.position}". Consider changing the parent style to position:"relative" with a width and height.`

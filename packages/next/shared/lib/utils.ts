@@ -187,11 +187,6 @@ export type DocumentInitialProps = RenderPageResult & {
 
 export type DocumentProps = DocumentInitialProps & HtmlProps
 
-export type MaybeDeferContentHook = (
-  name: string,
-  contentFn: () => JSX.Element
-) => [boolean, JSX.Element]
-
 /**
  * Next `API` route request
  */

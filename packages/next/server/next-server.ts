@@ -38,7 +38,7 @@ import {
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
 import compression from 'next/dist/compiled/compression'
-import Proxy from 'next/dist/compiled/http-proxy'
+import HttpProxy from 'next/dist/compiled/http-proxy'
 import { route } from './router'
 import { run } from './web/sandbox'
 
@@ -74,6 +74,7 @@ import { getCustomRoute } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
+import { clonableBodyForRequest } from './body-streams'
 
 export * from './base-server'
 
@@ -486,7 +487,7 @@ export default class NextNodeServer extends BaseServer {
     parsedUrl.search = stringifyQuery(req, query)
 
     const target = formatUrl(parsedUrl)
-    const proxy = new Proxy({
+    const proxy = new HttpProxy({
       target,
       changeOrigin: true,
       ignorePath: true,
@@ -1241,6 +1242,11 @@ export default class NextNodeServer extends BaseServer {
 
     const allHeaders = new Headers()
     let result: FetchEventResult | null = null
+    const method = (params.request.method || 'GET').toUpperCase()
+    let originalBody =
+      method !== 'GET' && method !== 'HEAD'
+        ? clonableBodyForRequest(params.request.body)
+        : undefined
 
     for (const middleware of this.middleware || []) {
       if (middleware.match(normalizedPathname)) {
@@ -1250,7 +1256,6 @@ export default class NextNodeServer extends BaseServer {
         }
 
         await this.ensureMiddleware(middleware.page, middleware.ssr)
-
         const middlewareInfo = this.getMiddlewareInfo(middleware.page)
 
         result = await run({
@@ -1259,7 +1264,7 @@ export default class NextNodeServer extends BaseServer {
           env: middlewareInfo.env,
           request: {
             headers: params.request.headers,
-            method: params.request.method || 'GET',
+            method,
             nextConfig: {
               basePath: this.nextConfig.basePath,
               i18n: this.nextConfig.i18n,
@@ -1267,6 +1272,7 @@ export default class NextNodeServer extends BaseServer {
             },
             url: url,
             page: page,
+            body: originalBody?.cloneBodyStream(),
           },
           useCache: !this.nextConfig.experimental.runtime,
           onWarning: (warning: Error) => {
@@ -1302,6 +1308,8 @@ export default class NextNodeServer extends BaseServer {
         result.response.headers.set(key, value)
       }
     }
+
+    originalBody?.finalize()
 
     return result
   }
