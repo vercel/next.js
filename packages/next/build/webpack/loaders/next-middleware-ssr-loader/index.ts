@@ -39,10 +39,6 @@ export default async function middlewareSSRLoader(this: any) {
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
     const rscManifest = self.__RSC_MANIFEST
 
-    if (typeof pageMod.default !== 'function') {
-      throw new Error('Your page must export a \`default\` component')
-    }
-
     // Set server context
     self.__server_context = {
       page: ${JSON.stringify(page)},
