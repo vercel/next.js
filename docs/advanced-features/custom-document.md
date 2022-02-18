@@ -48,7 +48,7 @@ Or add a `className` to the `body` tag:
 
 > **Note:** This is advanced and only needed for libraries like CSS-in-JS to support server-side rendering. This is not needed for built-in `styled-jsx` support.
 
-To prepare for [React 18](/docs/advanced-features/react-18.md), we recommend avoiding customizing `getInitiaProps` and `renderPage`, if possible.
+To prepare for [React 18](/docs/advanced-features/react-18.md), we recommend avoiding customizing `getInitialProps` and `renderPage`, if possible.
 
 The `ctx` object shown below is equivalent to the one received in [`getInitialProps`](/docs/api-reference/data-fetching/get-initial-props.md#context-object), with the addition of `renderPage`.
 

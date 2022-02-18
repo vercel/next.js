@@ -280,7 +280,8 @@ function handleLoading(
             } else if (
               layout === 'fill' &&
               parent.position !== 'relative' &&
-              parent.position !== 'fixed'
+              parent.position !== 'fixed' &&
+              parent.position !== 'absolute'
             ) {
               console.warn(
                 `Image with src "${src}" may not render properly with a parent using position:"${parent.position}". Consider changing the parent style to position:"relative" with a width and height.`
@@ -462,7 +463,7 @@ export default function Image({
       )
     }
 
-    if (!unoptimized) {
+    if (!unoptimized && loader !== defaultImageLoader) {
       const urlStr = loader({
         config,
         src,
@@ -860,6 +861,12 @@ function defaultLoader({
         )
       }
     }
+  }
+
+  if (src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
+    // Special case to make svg serve as-is to avoid proxying
+    // through the built-in Image Optimization API.
+    return src
   }
 
   return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${

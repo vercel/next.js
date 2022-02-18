@@ -7,6 +7,7 @@ import type { FetchEventResult } from './web/types'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { PrerenderManifest } from '../build'
 import type { Rewrite } from '../lib/load-custom-routes'
+import type { BaseNextRequest, BaseNextResponse } from './base-http'
 
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -41,16 +42,11 @@ import Proxy from 'next/dist/compiled/http-proxy'
 import { route } from './router'
 import { run } from './web/sandbox'
 
-import {
-  BaseNextRequest,
-  BaseNextResponse,
-  NodeNextRequest,
-  NodeNextResponse,
-} from './base-http'
+import { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import { PayloadOptions, sendRenderResult } from './send-payload'
 import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
-import { apiResolver } from './api-utils'
+import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
 import { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
@@ -104,14 +100,10 @@ export default class NextNodeServer extends BaseServer {
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
      * Using this from process.env allows targeting both serverless and SSR by calling
-     * `process.env.__NEXT_OPTIMIZE_IMAGES`.
-     * TODO(atcastle@): Remove this when experimental.optimizeImages are being cleaned up.
+     * `process.env.__NEXT_OPTIMIZE_CSS`.
      */
     if (this.renderOpts.optimizeFonts) {
       process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
-    }
-    if (this.renderOpts.optimizeImages) {
-      process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
     }
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
@@ -263,7 +255,8 @@ export default class NextNodeServer extends BaseServer {
               cacheEntry.value.extension,
               cacheEntry.value.buffer,
               paramsResult.isStatic,
-              cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT'
+              cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT',
+              imagesConfig.contentSecurityPolicy
             )
           } catch (err) {
             if (err instanceof ImageError) {

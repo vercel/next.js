@@ -39,4 +39,8 @@ module.exports = {
       },
     ]
   },
+  images: {
+    // Make sure we have sane default CSP, even when SVG is enabled
+    dangerouslyAllowSVG: true,
+  },
 }

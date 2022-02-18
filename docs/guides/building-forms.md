@@ -33,10 +33,10 @@ The front-end looks like this:
 The HTML `<form>` tag acts as a container for different `<input>` elements like `text` field and submit `button`. Let's study each of these elements:
 
 - `action`: An attribute that specifies where the form data is sent when the form is submitted. It's generally a URL (an absolute URL or a relative URL).
-- `method`: Specifies the HTTP method, i.e., `GET` or `POST` used to send data while submitting the form.
-- `<label>`: An element that defines the label for other form elements. Label aids accessibility, especially for screen readers.
+- `method`: Specifies the [HTTP method](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods), i.e., `GET` or `POST` used to send data while submitting the form.
+- `<label>`: An element that defines the label for other form elements. Labels aid accessibility, especially for screen readers.
 - `<input>`: The form element that is widely used to structure the form fields. It depends significantly on the value of the `type` attribute. Input types can be `text`, `checkbox`, `email`, `radio`, and more.
-- `<button>`: It represents a clickable button that's used to submit the form data.
+- `<button>`: Represents a clickable button that's used to submit the form data.
 
 ### Form Validation
 
@@ -49,17 +49,17 @@ Though both of these types are equally important, this guide will focus on clien
 
 Client-side validation is further categorized as:
 
-- **Built-in**: Uses HTML-based attributes like `required`, `type`, `minLength`, `maxLength`, `pattern` etc.
+- **Built-in**: Uses HTML-based attributes like `required`, `type`, `minLength`, `maxLength`, `pattern`, etc.
 - **JavaScript-based**: Validation that's coded with JavaScript.
 
 ### Built-in Form Validation Using `required`, `type`, `minLength`, `maxLength`
 
 - `required`: Specifies which fields must be filled before submitting the form.
-- `type`: Tells whether the data should be a number, email id, text string, etc.
-- `minLength`: Decides the minimum length for the text data string.
-- `maxLength`: Decides the maximum length for the text data string.
+- `type`: Specifies the data's type (i.e a number, email address, string, etc).
+- `minLength`: Specifies minimum length for the text data string.
+- `maxLength`: Specifies maximum length for the text data string.
 
-The following example shows using these attributes:
+So, a form using this attributes may look like:
 
 ```html
 <!-- HTML Form with Built-in Validation -->
@@ -85,7 +85,7 @@ With these validation checks in place, when a user tries to submit an empty fiel
 
 ### JavaScript-based Form Validation
 
-Form Validation is important to ensure that a user has submitted appropriate data. JavaScript offers an additional level of validation along with HTML native form attributes on the client side. Developers generally prefer validating form data through JavaScript because its data processing is faster when compared to server-side validation.
+Form Validation is important to ensure that a user has submitted the correct data, in a correct format. JavaScript offers an additional level of validation along with HTML native form attributes on the client side. Developers generally prefer validating form data through JavaScript because its data processing is faster when compared to server-side validation, however front-end validation may be less secure in some scenarios as a malicious user could always send malformed data to your server.
 
 The following example shows using JavaScript to validate a form:
 
@@ -143,7 +143,7 @@ The below example shows using the `pattern` attribute on an `input` element:
 </form>
 ```
 
-The password form field must only contain digits (0 to 9) and lowercase alphabets (a to z). No other characters (#,$,&, etc.) are allowed. The rule in RegEx is written as `[a-z]{1,15}`.
+The password form field must only contain digits (0 to 9), lowercase alphabets (a to z) and it must be no more than 15 characters in length. No other characters (#,$,&, etc.) are allowed. The rule in RegEx is written as `[a-z0-9]{1,15}`.
 
 ![form-validate-regex](https://assets.vercel.com/image/upload/dpr_auto,q_auto,f_auto/nextjs/guides/building-forms/form-validate-regex.jpg)
 
@@ -180,13 +180,16 @@ export default function handler(req, res) {
   // in the command line where next.js app is running.
   console.log('body: ', body)
 
-  // Both of these are required.
+  // Guard clause checks for first and last name,
+  // and returns early if they are not found
   if (!body.first || !body.last) {
-    return res.json({ data: 'First or last name not found' })
+    // Sends a HTTP bad request error code
+    return res.status(400).json({ data: 'First or last name not found' })
   }
 
   // Found the name.
-  res.json({ data: `${body.first} ${body.last}` })
+  // Sends a HTTP success code
+  res.status(200).json({ data: `${body.first} ${body.last}` })
 }
 ```
 

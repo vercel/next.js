@@ -1,9 +1,10 @@
-import chalk from '../lib/chalk'
-import findUp from 'next/dist/compiled/find-up'
 import { basename, extname, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
+import semver from 'next/dist/compiled/semver'
+import findUp from 'next/dist/compiled/find-up'
+import chalk from '../lib/chalk'
 import * as Log from '../build/output/log'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
@@ -66,8 +67,9 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
       if (
         key === 'experimental' &&
-        value !== undefined &&
-        value !== defaultConfig[key]
+        value !== defaultConfig[key] &&
+        typeof value === 'object' &&
+        Object.keys(value).length > 0
       ) {
         experimentalWarning()
       }
@@ -349,6 +351,28 @@ function assignDefaults(userConfig: { [key: string]: any }) {
           )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
         )
       }
+    }
+
+    if (
+      typeof images.dangerouslyAllowSVG !== 'undefined' &&
+      typeof images.dangerouslyAllowSVG !== 'boolean'
+    ) {
+      throw new Error(
+        `Specified images.dangerouslyAllowSVG should be a boolean
+          ', '
+        )}), received  (${images.dangerouslyAllowSVG}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+      )
+    }
+
+    if (
+      typeof images.contentSecurityPolicy !== 'undefined' &&
+      typeof images.contentSecurityPolicy !== 'string'
+    ) {
+      throw new Error(
+        `Specified images.contentSecurityPolicy should be a string
+          ', '
+        )}), received  (${images.contentSecurityPolicy}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+      )
     }
   }
 
@@ -653,6 +677,13 @@ export default async function loadConfig(
       )
     }
 
+    const hasReactRoot = shouldUseReactRoot()
+    if (hasReactRoot) {
+      // users might not have the `experimental` key in their config
+      userConfig.experimental = userConfig.experimental || {}
+      userConfig.experimental.reactRoot = true
+    }
+
     if (userConfig.amp?.canonicalBase) {
       const { canonicalBase } = userConfig.amp || ({} as any)
       userConfig.amp = userConfig.amp || {}
@@ -696,6 +727,19 @@ export default async function loadConfig(
   completeConfig.configFileName = configFileName
   setHttpAgentOptions(completeConfig.httpAgentOptions)
   return completeConfig
+}
+
+export function shouldUseReactRoot() {
+  const reactDomVersion = require('react-dom').version
+  const isReactExperimental = Boolean(
+    reactDomVersion && /0\.0\.0-experimental/.test(reactDomVersion)
+  )
+  const hasReact18: boolean =
+    Boolean(reactDomVersion) &&
+    (semver.gte(reactDomVersion!, '18.0.0') ||
+      semver.coerce(reactDomVersion)?.version === '18.0.0')
+
+  return hasReact18 || isReactExperimental
 }
 
 export function setHttpAgentOptions(

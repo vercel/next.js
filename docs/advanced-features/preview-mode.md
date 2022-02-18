@@ -171,24 +171,23 @@ https://<your-site>/api/preview?secret=<token>&slug=<path>
 
 ## More Details
 
-### Clear the preview mode cookies
+### Clear the Preview Mode cookies
 
-By default, no expiration date is set for the preview mode cookies, so the preview mode ends when the browser is closed.
+By default, no expiration date is set for Preview Mode cookies, so the preview session ends when the browser is closed.
 
-To clear the preview cookies manually, you can create an API route which calls `clearPreviewData` and then access this API route.
+To clear the Preview Mode cookies manually, create an API route that calls `clearPreviewData()`:
 
 ```js
+// pages/api/clear-preview-mode-cookies.js
+
 export default function handler(req, res) {
-  // Clears the preview mode cookies.
-  // This function accepts no arguments.
   res.clearPreviewData()
-  // ...
 }
 ```
 
-> **Note:** If calling this route using `Link` component, you must pass in `prefetch={false}` to prevent calling `clearPreviewData` during prefetch.
+Then, send a request to `/api/clear-preview-mode-cookies` to invoke the API Route. If calling this route using [`next/link`](/docs/api-reference/next/link.md), you must pass `prefetch={false}` to prevent calling `clearPreviewData` during link prefetching.
 
-### Specify the preview mode duration
+### Specify the Preview Mode duration
 
 `setPreviewData` takes an optional second parameter which should be an options object. It accepts the following keys:
 
