@@ -1474,7 +1474,6 @@ export async function renderToHTML(
     head: documentResult.head,
     headTags: documentResult.headTags,
     styles: documentResult.styles,
-    useMaybeDeferContent,
     crossOrigin: renderOpts.crossOrigin,
     optimizeCss: renderOpts.optimizeCss,
     optimizeFonts: renderOpts.optimizeFonts,
@@ -1984,11 +1983,4 @@ async function streamToString(stream: ReadableStream<string>): Promise<string> {
 
     bufferedString += value
   }
-}
-
-export function useMaybeDeferContent(
-  _name: string,
-  contentFn: () => JSX.Element
-): [boolean, JSX.Element] {
-  return [false, contentFn()]
 }
