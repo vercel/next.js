@@ -27,7 +27,8 @@ describe('next/jest', () => {
           export default function Page() { 
             return <>
               <Comp />
-              <Image src={img} alt="logo"/>
+              <Image src={img} alt="logo" placeholder="blur"/>
+              <Image src={img} alt="logo 2"/>
               <p>hello world</p>
             </>
           } 
