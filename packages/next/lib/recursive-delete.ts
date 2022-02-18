@@ -1,9 +1,9 @@
 import { Dirent, promises } from 'fs'
 import { join, isAbsolute, dirname } from 'path'
-import { promisify } from 'util'
 import isError from './is-error'
 
-const sleep = promisify(setTimeout)
+const sleep = (timeout: number) =>
+  new Promise((resolve) => setTimeout(resolve, timeout))
 
 const unlinkPath = async (p: string, isDir = false, t = 1): Promise<void> => {
   try {
