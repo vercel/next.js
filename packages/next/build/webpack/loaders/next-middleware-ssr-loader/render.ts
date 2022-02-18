@@ -12,20 +12,6 @@ import {
   WebNextResponse,
 } from '../../../../server/base-http/web'
 
-const createHeaders = (args?: any) => ({
-  ...args,
-  'x-middleware-ssr': '1',
-  'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
-})
-
-function sendError(req: any, error: Error) {
-  const defaultMessage = 'An error occurred while rendering ' + req.url + '.'
-  return new Response((error && error.message) || defaultMessage, {
-    status: 500,
-    headers: createHeaders(),
-  })
-}
-
 // Polyfilled for `path-browserify` inside the Web Server.
 process.cwd = () => ''
 
@@ -135,17 +121,12 @@ export function getRender({
 
     // Preflight request
     if (request.method === 'HEAD') {
+      // Hint the client that the matched route is a SSR page.
       return new Response(null, {
-        headers: createHeaders(),
+        headers: {
+          'x-middleware-ssr': '1',
+        },
       })
-    }
-
-    // @TODO: We should move this into server/render.
-    if (Document.getInitialProps) {
-      const err = new Error(
-        '`getInitialProps` in Document component is not supported with the Edge Runtime.'
-      )
-      return sendError(req, err)
     }
 
     const renderServerComponentData = isServerComponent

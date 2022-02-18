@@ -1249,6 +1249,13 @@ export async function renderToHTML(
    */
   const generateStaticHTML = supportsDynamicHTML !== true
   const renderDocument = async () => {
+    if (runtime === 'edge' && Document.getInitialProps) {
+      // In the Edge runtime, Document.getInitialProps isn't supported.
+      throw new Error(
+        '`getInitialProps` in Document component is not supported with the Edge Runtime.'
+      )
+    }
+
     if (!runtime && Document.getInitialProps) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
