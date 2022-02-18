@@ -833,7 +833,7 @@ function runTests(mode) {
       }, 'done')
       const warnings = (await browser.log('browser'))
         .map((log) => log.message)
-        .filter((log) => log !== 'Next.js page already hydrated')
+        .filter((log) => log.startsWith('Image with src'))
       expect(warnings[0]).toMatch(
         'Image with src "/test.png" has "sizes" property but it will be ignored.'
       )
