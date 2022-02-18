@@ -30,7 +30,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 
 ## Notes
 
-This example shows how to integrate the TypeScript type system into Next.js. Since TypeScript is supported out of the box with Next.js, all you have to do to get started is to use this example. Alternatively, you can [install TypeScript manually](https://nextjs.org/docs/basic-features/typescript#existing-projects) to an existing project. 
+This example shows how to integrate the TypeScript type system into Next.js. Since TypeScript is supported out of the box with Next.js, all you have to do to get started is to use this example. Alternatively, you can [install TypeScript manually](https://nextjs.org/docs/basic-features/typescript#existing-projects) to an existing project.
 
 ```sh
 npm install --save-dev typescript
@@ -46,7 +46,7 @@ npm install --save-dev @types/react @types/react-dom @types/node
 yarn add --dev @types/react @types/react-dom @types/node
 ```
 
-When we run `next dev` the next time, Next.js will start looking for any `.ts` or `.tsx` files in your project and builds it. It also automatically creates and updates a `tsconfig.json` file for your project with the recommended settings.
+When we run `next dev` the next time, Next.js will also start looking for any `.ts` or `.tsx` files. It even creates or updates the `tsconfig.json` file for your project with the recommended settings.
 
 Next.js has built-in TypeScript declarations, so we'll get autocompletion for Next.js' modules straight away.
 
