@@ -3,7 +3,6 @@ const withReact18 = require('../test/with-react-18')
 module.exports = withReact18({
   // reactStrictMode: true,
   experimental: {
-    reactRoot: true,
     // runtime: 'edge',
   },
   images: {
