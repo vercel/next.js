@@ -473,6 +473,18 @@ function redirectTests(locale = '') {
 }
 
 function responseTests(locale = '') {
+  it(`${locale} responds with multiple cookies`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/responses/two-cookies`
+    )
+
+    expect(res.headers.raw()['set-cookie']).toEqual([
+      'foo=chocochip',
+      'bar=chocochip',
+    ])
+  })
+
   it(`${locale} should stream a response`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
