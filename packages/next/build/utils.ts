@@ -1112,11 +1112,12 @@ export function getRawPageExtensions(pageExtensions: string[]): string[] {
 export function isPage(
   filename: string,
   pagesDir: string,
-  pageExtensions: string[]
+  pageExtensions: NextConfigComplete['pageExtensions']
 ): boolean {
   return (
     filename.startsWith(pagesDir) &&
-    new RegExp(`\\.(?:${pageExtensions.join('|')})$`).test(filename)
+    (!pageExtensions.length ||
+      pageExtensions.some((ext) => filename.endsWith(ext)))
   )
 }
 
