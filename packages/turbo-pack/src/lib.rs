@@ -1,6 +1,8 @@
 #![feature(trivial_bounds)]
 #![feature(into_future)]
 
+use std::time::Instant;
+
 use asset::{Asset, AssetRef, AssetsSet, AssetsSetRef};
 use module::ModuleRef;
 use resolve::referenced_modules;
@@ -12,11 +14,13 @@ mod ecmascript;
 pub mod module;
 pub mod reference;
 pub mod resolve;
+pub mod source_asset;
 mod utils;
 
 #[turbo_tasks::function]
 pub async fn emit(module: ModuleRef, input_dir: FileSystemPathRef, output_dir: FileSystemPathRef) {
     let asset = nft_asset(module, input_dir, output_dir);
+    let start = Instant::now();
     visit(
         asset,
         |asset| async move {
@@ -28,6 +32,7 @@ pub async fn emit(module: ModuleRef, input_dir: FileSystemPathRef, output_dir: F
         },
     )
     .await;
+    println!("processed graph in {} ms", start.elapsed().as_millis());
 }
 
 #[turbo_tasks::function]

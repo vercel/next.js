@@ -1,11 +1,11 @@
 #[turbo_tasks::value]
 #[derive(Hash, PartialEq, Eq)]
-pub struct ModuleReference {
+pub struct AssetReference {
     pub request: String,
 }
 
 #[turbo_tasks::value_impl]
-impl ModuleReference {
+impl AssetReference {
     // TODO key
     // #[turbo_tasks::constructor(key: request)]
     #[turbo_tasks::constructor(intern)]
@@ -16,12 +16,12 @@ impl ModuleReference {
 
 #[turbo_tasks::value]
 #[derive(Hash, PartialEq, Eq)]
-pub struct ModuleReferencesSet {
-    pub references: Vec<ModuleReferenceRef>,
+pub struct AssetReferencesSet {
+    pub references: Vec<AssetReferenceRef>,
 }
 
 #[turbo_tasks::value_impl]
-impl ModuleReferencesSet {
+impl AssetReferencesSet {
     #[turbo_tasks::constructor(intern)]
     pub fn empty() -> Self {
         Self {

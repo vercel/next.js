@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     module::ModuleRef,
-    reference::{ModuleReferenceRef, ModuleReferencesSet, ModuleReferencesSetRef},
+    reference::{AssetReferenceRef, AssetReferencesSet, AssetReferencesSetRef},
 };
 use swc_ecmascript::{
     ast::{
@@ -15,18 +15,18 @@ use swc_ecmascript::{
 use super::parse::{parse, ParseResult};
 
 #[turbo_tasks::function]
-pub async fn module_references(module: ModuleRef) -> ModuleReferencesSetRef {
+pub async fn module_references(module: ModuleRef) -> AssetReferencesSetRef {
     let parsed = parse(module).await;
     match &*parsed {
         ParseResult::Ok(module) => {
-            let mut visitor = ModuleReferencesVisitor::default();
+            let mut visitor = AssetReferencesVisitor::default();
             module.visit_with(&mut visitor);
-            ModuleReferencesSet {
+            AssetReferencesSet {
                 references: visitor.references,
             }
             .into()
         }
-        ParseResult::Unparseable | ParseResult::NotFound => ModuleReferencesSetRef::empty(),
+        ParseResult::Unparseable | ParseResult::NotFound => AssetReferencesSetRef::empty(),
     }
 }
 
@@ -91,15 +91,15 @@ impl StaticAnalyser {
 }
 
 #[derive(Default)]
-struct ModuleReferencesVisitor {
+struct AssetReferencesVisitor {
     analyser: StaticAnalyser,
-    references: Vec<ModuleReferenceRef>,
+    references: Vec<AssetReferenceRef>,
 }
 
-impl Visit for ModuleReferencesVisitor {
+impl Visit for AssetReferencesVisitor {
     fn visit_import_decl(&mut self, import: &ImportDecl) {
         let src = import.src.value.to_string();
-        self.references.push(ModuleReferenceRef::new(src.clone()));
+        self.references.push(AssetReferenceRef::new(src.clone()));
         visit::visit_import_decl(self, import);
         if import.type_only {
             return;
@@ -144,7 +144,7 @@ impl Visit for ModuleReferencesVisitor {
                     let evaled_expr = self.analyser.evaluate_expr(&*expr);
                     match evaled_expr {
                         StaticExpr::String(str) => {
-                            self.references.push(ModuleReferenceRef::new(str));
+                            self.references.push(AssetReferenceRef::new(str));
                             return;
                         }
                         _ => todo!(),
@@ -159,7 +159,7 @@ impl Visit for ModuleReferencesVisitor {
                             let evaled_expr = self.analyser.evaluate_expr(&*expr);
                             match evaled_expr {
                                 StaticExpr::String(str) => {
-                                    self.references.push(ModuleReferenceRef::new(str));
+                                    self.references.push(AssetReferenceRef::new(str));
                                     return;
                                 }
                                 _ => todo!(),
@@ -173,7 +173,7 @@ impl Visit for ModuleReferencesVisitor {
                                 let evaled_expr = self.analyser.evaluate_expr(&*expr);
                                 match evaled_expr {
                                     StaticExpr::String(str) => {
-                                        self.references.push(ModuleReferenceRef::new(str));
+                                        self.references.push(AssetReferenceRef::new(str));
                                         return;
                                     }
                                     _ => todo!(),

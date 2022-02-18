@@ -167,7 +167,7 @@ impl GraphViz {
             if nodes_with_edges.contains(id) { return true; }
             match node {
                 NodeType::Task(name, state, executions, slots) => {
-                    if *executions <= 1 && state == "done" && slots.len() == 0 {
+                    if *executions <= 1 && (state == "done" || state == "1 children dirty (scheduled)") && slots.len() == 0 {
                         dropped_ids.insert(id.clone());
                         false
                     } else {
@@ -262,7 +262,11 @@ impl GraphViz {
                     } else {
                         format!("label=\"{}\\n{}\"", escape(name), escape(state))
                     };
-                    format!("subgraph cluster_{} {{\ncolor=lightgray;\n{} [shape=box, {}]\n{}}}\n", id, id, label, slots_info)
+                    if slots_info == "" {
+                        format!("{} [shape=box, {}]\n", id, label)
+                    } else {
+                        format!("subgraph cluster_{} {{\ncolor=lightgray;\n{} [shape=box, {}]\n{}}}\n", id, id, label, slots_info)
+                    }
                 },
             })
             .collect::<String>();
@@ -298,8 +302,15 @@ impl GraphViz {
             <script src=\"https://cdn.jsdelivr.net/npm/viz.js@2.1.2/viz.js\"></script>
             <script src=\"https://cdn.jsdelivr.net/npm/viz.js@2.1.2/full.render.js\"></script>
             <script>
-              const s = `{}`;
-              new Viz().renderSVGElement(s).then(el => document.body.appendChild(el)).catch(e => console.error(e));
+                const s = `{}`;
+                const Module = Viz.Module;
+                Viz.Module = function () {{
+                    return Module({{ TOTAL_MEMORY: 16777216 * 10 }});
+                }};
+                new Viz()
+                    .renderSVGElement(s)
+                    .then((el) => document.body.appendChild(el))
+                    .catch((e) => console.error(e));
             </script>
           </body>
           </html>", escape(graph))

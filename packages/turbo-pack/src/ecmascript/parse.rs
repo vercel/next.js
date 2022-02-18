@@ -38,8 +38,8 @@ pub async fn parse(module: ModuleRef) -> ParseResultRef {
                 Err(_err) => ParseResult::Unparseable.into(),
                 Ok(string) => {
                     let cm: Lrc<SourceMap> = Default::default();
-                    let handler =
-                        Handler::with_tty_emitter(ColorConfig::Auto, true, false, Some(cm.clone()));
+                    // let handler =
+                    //     Handler::with_tty_emitter(ColorConfig::Auto, true, false, Some(cm.clone()));
 
                     let fm = cm.new_source_file(FileName::Custom(path.path.to_string()), string);
 
@@ -62,9 +62,9 @@ pub async fn parse(module: ModuleRef) -> ParseResultRef {
 
                     let mut parser = Parser::new_from(lexer);
 
-                    for e in parser.take_errors() {
+                    for _e in parser.take_errors() {
                         // TODO report them in a stream
-                        e.into_diagnostic(&handler).emit();
+                        // e.into_diagnostic(&handler).emit();
                     }
 
                     match parser.parse_module() {

@@ -56,36 +56,51 @@ impl TurboTasks {
         task
     }
 
+    fn cached_call<K: PartialEq + Hash, E>(
+        &'static self,
+        map: &CHashMap<K, Arc<Task>>,
+        key: K,
+        create_new: impl FnOnce() -> Result<Task, E>,
+    ) -> Result<SlotRef, E> {
+        let mut result_task = None;
+        let mut is_new = false;
+        map.alter(key, |old| match old {
+            Some(t) => {
+                result_task = Some(Ok(t.clone()));
+                Some(t)
+            }
+            None => match create_new() {
+                Ok(task) => {
+                    let new_task = Arc::new(task);
+                    is_new = true;
+                    result_task = Some(Ok(new_task.clone()));
+                    Some(new_task)
+                }
+                Err(err) => {
+                    result_task = Some(Err(err));
+                    None
+                }
+            },
+        });
+        let task = result_task.unwrap()?;
+        Task::with_current(|parent| task.connect_parent(parent));
+        if is_new {
+            self.schedule(task.clone());
+        } else {
+            task.ensure_scheduled(self);
+        }
+        return Ok(SlotRef::TaskOutput(task));
+    }
+
     pub(crate) fn native_call(
         self: &'static TurboTasks,
         func: &'static NativeFunction,
         inputs: Vec<SlotRef>,
     ) -> Result<SlotRef> {
         debug_assert!(inputs.iter().all(|i| i.is_resolved() && !i.is_nothing()));
-        let mut result_task = None;
-        self.native_task_cache
-            .alter((func, inputs.clone()), |old| match old {
-                Some(t) => {
-                    result_task = Some(Ok(t.clone()));
-                    Some(t)
-                }
-                None => match Task::new_native(inputs, func) {
-                    Ok(task) => {
-                        let new_task = Arc::new(task);
-                        self.schedule(new_task.clone());
-                        result_task = Some(Ok(new_task.clone()));
-                        Some(new_task)
-                    }
-                    Err(err) => {
-                        result_task = Some(Err(err));
-                        None
-                    }
-                },
-            });
-        let task = result_task.unwrap()?;
-        Task::with_current(|parent| task.connect_parent(parent));
-        task.ensure_scheduled(self);
-        return Ok(SlotRef::TaskOutput(task));
+        self.cached_call(&self.native_task_cache, (func, inputs.clone()), || {
+            Task::new_native(inputs, func)
+        })
     }
 
     pub fn dynamic_call(
@@ -93,25 +108,13 @@ impl TurboTasks {
         func: &'static NativeFunction,
         inputs: Vec<SlotRef>,
     ) -> Result<SlotRef> {
-        let mut result_task = None;
-        self.resolve_task_cache
-            .alter((func, inputs.clone()), |old| match old {
-                Some(t) => {
-                    result_task = Some(t.clone());
-                    Some(t)
-                }
-                None => {
-                    let task = Task::new_resolve_native(inputs, func);
-                    let new_task = Arc::new(task);
-                    self.schedule(new_task.clone());
-                    result_task = Some(new_task.clone());
-                    Some(new_task)
-                }
-            });
-        let task = result_task.unwrap();
-        Task::with_current(|parent| task.connect_parent(parent));
-        task.ensure_scheduled(self);
-        return Ok(SlotRef::TaskOutput(task));
+        if inputs.iter().all(|i| i.is_resolved() && !i.is_nothing()) {
+            self.native_call(func, inputs)
+        } else {
+            self.cached_call(&self.resolve_task_cache, (func, inputs.clone()), || {
+                Ok(Task::new_resolve_native(inputs, func))
+            })
+        }
     }
 
     pub fn trait_call(
@@ -120,33 +123,17 @@ impl TurboTasks {
         trait_fn_name: String,
         inputs: Vec<SlotRef>,
     ) -> Result<SlotRef> {
-        let mut result_task = None;
-        self.trait_task_cache
-            .alter(
-                (trait_type, trait_fn_name.clone(), inputs.clone()),
-                |old| match old {
-                    Some(t) => {
-                        result_task = Some(t.clone());
-                        Some(t)
-                    }
-                    None => {
-                        let task = Task::new_resolve_trait(trait_type, trait_fn_name, inputs);
-                        let new_task = Arc::new(task);
-                        self.schedule(new_task.clone());
-                        result_task = Some(new_task.clone());
-                        Some(new_task)
-                    }
-                },
-            );
-        let task = result_task.unwrap();
-        Task::with_current(|parent| task.connect_parent(parent));
-        task.ensure_scheduled(self);
-        return Ok(SlotRef::TaskOutput(task));
+        self.cached_call(
+            &self.trait_task_cache,
+            (trait_type, trait_fn_name.clone(), inputs.clone()),
+            || Ok(Task::new_resolve_trait(trait_type, trait_fn_name, inputs)),
+        )
     }
 
     pub(crate) fn schedule(&'static self, task: Arc<Task>) -> JoinHandle<()> {
         Builder::new()
-            .name(format!("{:?} {:?}", &*task, &*task as *const Task))
+            // that's expensive
+            // .name(format!("{:?} {:?}", &*task, &*task as *const Task))
             .spawn(async move {
                 Task::set_current(task.clone());
                 TURBO_TASKS.with(|c| c.set(Some(self)));

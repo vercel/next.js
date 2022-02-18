@@ -14,7 +14,9 @@ use std::{
 };
 
 use anyhow::Context;
+use async_std::task::block_on;
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
+use threadpool::ThreadPool;
 use turbo_tasks::{Invalidator, Task};
 
 #[turbo_tasks::value_trait]
@@ -36,6 +38,8 @@ pub struct DiskFileSystem {
     #[trace_ignore]
     #[allow(dead_code)] // it's never read, but reference is kept for Drop
     watcher: RecommendedWatcher,
+    #[trace_ignore]
+    pool: Mutex<ThreadPool>,
 }
 
 fn path_to_key(path: &Path) -> String {
@@ -46,6 +50,7 @@ fn path_to_key(path: &Path) -> String {
 impl DiskFileSystem {
     #[turbo_tasks::constructor(intern)]
     pub fn new(name: String, root: String) -> Self {
+        let pool = Mutex::new(ThreadPool::new(30));
         let mut invalidators = Arc::new(Mutex::new(HashMap::<String, Invalidator>::new()));
         let mut dir_invalidators = Arc::new(Mutex::new(HashMap::<String, Invalidator>::new()));
         // Create a channel to receive the events.
@@ -65,6 +70,7 @@ impl DiskFileSystem {
             invalidators: invalidators.clone(),
             dir_invalidators: dir_invalidators.clone(),
             watcher,
+            pool,
         };
         thread::spawn(move || {
             fn invalidate_path(
@@ -156,6 +162,16 @@ impl DiskFileSystem {
         });
         instance
     }
+
+    async fn execute<T: Send + 'static>(&self, func: impl FnOnce() -> T + Send + 'static) -> T {
+        let (tx, rx) = async_std::channel::bounded(1);
+        {
+            self.pool.lock().unwrap().execute(move || {
+                block_on(tx.send(func())).unwrap();
+            });
+        }
+        rx.recv().await.unwrap()
+    }
 }
 
 impl fmt::Debug for DiskFileSystem {
@@ -179,10 +195,11 @@ impl FileSystem for DiskFileSystem {
             let mut invalidators = self.invalidators.lock().unwrap();
             invalidators.insert(path_to_key(full_path.as_path()), invalidator);
         }
-        match fs::read(&full_path) {
-            Ok(content) => FileContentRef::new(content),
-            Err(_) => FileContentRef::not_found(),
+        match self.execute(move || fs::read(&full_path)).await {
+            Ok(content) => FileContent::new(content),
+            Err(_) => FileContent::not_found(),
         }
+        .into()
     }
     async fn read_dir(&self, fs_path: FileSystemPathRef) -> DirectoryContentRef {
         let fs_path = fs_path.await;
@@ -193,8 +210,9 @@ impl FileSystem for DiskFileSystem {
             let mut invalidators = self.dir_invalidators.lock().unwrap();
             invalidators.insert(path_to_key(full_path.as_path()), invalidator);
         }
-        let result = fs::read_dir(&full_path)
-            .unwrap()
+        let result = self
+            .execute(move || fs::read_dir(&full_path).unwrap())
+            .await
             .map(|res| {
                 res.map(|e| {
                     let fs_path = FileSystemPathRef::new(
@@ -228,23 +246,28 @@ impl FileSystem for DiskFileSystem {
                 .path
                 .replace("/", &MAIN_SEPARATOR.to_string()),
         );
-        match &*content.await {
-            FileContent::Content(buffer) => {
-                println!("write {} bytes to {}", buffer.len(), full_path.display());
-                fs::write(full_path.clone(), buffer)
-                    .with_context(|| format!("failed to write to {}", full_path.display()))
-                    .unwrap();
-            }
-            FileContent::NotFound => {
-                println!("remove {}", full_path.display());
-                match fs::remove_file(full_path) {
-                    Ok(_) => {}
-                    Err(err) if err.kind() == ErrorKind::NotFound => {}
-                    Err(err) => {
-                        panic!("{}", err);
+        let content = content.await;
+        let old_content = fs_path.read().await;
+        if *content != *old_content {
+            self.execute(move || match &*content {
+                FileContent::Content(buffer) => {
+                    // println!("write {} bytes to {}", buffer.len(), full_path.display());
+                    fs::write(full_path.clone(), buffer)
+                        .with_context(|| format!("failed to write to {}", full_path.display()))
+                        .unwrap();
+                }
+                FileContent::NotFound => {
+                    // println!("remove {}", full_path.display());
+                    match fs::remove_file(full_path) {
+                        Ok(_) => {}
+                        Err(err) if err.kind() == ErrorKind::NotFound => {}
+                        Err(err) => {
+                            panic!("{}", err);
+                        }
                     }
                 }
-            }
+            })
+            .await
         }
     }
     async fn parent_path(&self, fs_path: FileSystemPathRef) -> FileSystemPathRef {

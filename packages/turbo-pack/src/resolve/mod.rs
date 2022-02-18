@@ -3,7 +3,7 @@ use turbo_tasks_fs::{FileContent, FileSystemPathRef};
 use crate::{
     ecmascript::references::module_references,
     module::{module, ModuleRef, ModulesSet, ModulesSetRef},
-    reference::ModuleReferenceRef,
+    reference::AssetReferenceRef,
 };
 
 use self::{
@@ -36,10 +36,7 @@ pub enum ResolveResult {
 }
 
 #[turbo_tasks::function]
-pub async fn resolve(
-    context: FileSystemPathRef,
-    reference: ModuleReferenceRef,
-) -> ResolveResultRef {
+pub async fn resolve(context: FileSystemPathRef, reference: AssetReferenceRef) -> ResolveResultRef {
     let request = reference.await.request.clone();
 
     let request = RequestRef::value(parse(request));
