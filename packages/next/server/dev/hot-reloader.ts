@@ -328,7 +328,6 @@ export default class HotReloader {
         .traceFn(() =>
           createEntrypoints(
             this.pagesMapping,
-            'server',
             this.buildId,
             this.previewProps,
             this.config,
@@ -403,7 +402,6 @@ export default class HotReloader {
           '/_app': 'next/dist/pages/_app',
           '/_error': 'next/dist/pages/_error',
         },
-        'server',
         this.buildId,
         this.previewProps,
         this.config,

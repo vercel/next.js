@@ -872,7 +872,7 @@ export async function isPageStatic(
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
       setHttpAgentOptions(httpAgentOptions)
 
-      const mod = await loadComponents(distDir, page, false)
+      const mod = await loadComponents(distDir, page)
       const Comp = mod.Component
 
       if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
@@ -999,7 +999,7 @@ export async function hasCustomGetInitialProps(
 ): Promise<boolean> {
   require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
 
-  const components = await loadComponents(distDir, page, false)
+  const components = await loadComponents(distDir, page)
   let mod = components.ComponentMod
 
   if (checkingApp) {
@@ -1017,7 +1017,7 @@ export async function getNamedExports(
   runtimeEnvConfig: any
 ): Promise<Array<string>> {
   require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
-  const components = await loadComponents(distDir, page, false)
+  const components = await loadComponents(distDir, page)
   let mod = components.ComponentMod
 
   return Object.keys(mod)
