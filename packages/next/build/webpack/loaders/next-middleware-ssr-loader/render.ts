@@ -4,7 +4,6 @@ import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
 
 import { NextRequest } from '../../../../server/web/spec-extension/request'
-import { toNodeHeaders } from '../../../../server/web/utils'
 
 import WebServer from '../../../../server/web-server'
 import {
@@ -109,15 +108,9 @@ export function getRender({
   const requestHandler = server.getRequestHandler()
 
   return async function render(request: NextRequest) {
-    const { nextUrl: url, cookies, headers } = request
-    const { pathname, searchParams } = url
-
+    const { nextUrl: url } = request
+    const { searchParams } = url
     const query = Object.fromEntries(searchParams)
-    const req = {
-      url: pathname,
-      cookies,
-      headers: toNodeHeaders(headers),
-    }
 
     // Preflight request
     if (request.method === 'HEAD') {
