@@ -670,6 +670,9 @@ function runTests(mode) {
         /Image with src (.*)png(.*) may not render properly/gm
       )
       expect(warnings).not.toMatch(
+        /Image with src (.*)avif(.*) may not render properly/gm
+      )
+      expect(warnings).not.toMatch(
         /Image with src (.*)webp(.*) may not render properly/gm
       )
       expect(await hasRedbox(browser)).toBe(false)
