@@ -6,7 +6,6 @@ import fs from 'fs-extra'
 import {
   fetchViaHTTP,
   findPort,
-  initNextServerScript,
   killApp,
   launchApp,
   nextBuild,
@@ -14,7 +13,6 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import os from 'os'
 import { join } from 'path'
 import qs from 'querystring'
 
@@ -215,16 +213,6 @@ function runTests(startServer = nextStart) {
   afterAll(async () => {
     await killApp(app)
   })
-}
-
-const startServerlessEmulator = async (dir, port) => {
-  const scriptPath = join(dir, 'server.js')
-  const env = Object.assign(
-    {},
-    { ...process.env },
-    { PORT: port, BUILD_ID: await getBuildId() }
-  )
-  return initNextServerScript(scriptPath, /ready on/i, env)
 }
 
 describe('Prerender Preview Mode', () => {

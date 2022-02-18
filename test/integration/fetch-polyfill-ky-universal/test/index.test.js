@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
 import { join } from 'path'
 import {
   killApp,
@@ -13,7 +12,6 @@ import {
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
-const nextConfig = join(appDir, 'next.config.js')
 let appPort
 let app
 let apiServerPort
@@ -29,20 +27,6 @@ const startApiServer = async (optEnv = {}, opts) => {
   )
 
   apiServer = await initNextServerScript(
-    scriptPath,
-    /ready on/i,
-    env,
-    /ReferenceError: options is not defined/,
-    opts
-  )
-}
-
-const startServerlessServer = async (optEnv = {}, opts) => {
-  const scriptPath = join(appDir, 'serverless-server.js')
-  appPort = await findPort()
-  const env = Object.assign({ ...process.env }, { PORT: `${appPort}` }, optEnv)
-
-  return await initNextServerScript(
     scriptPath,
     /ready on/i,
     env,

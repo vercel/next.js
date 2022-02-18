@@ -17,7 +17,7 @@ let appPort
 
 describe('Fallback asPath normalizing', () => {
   beforeAll(async () => {
-    const startServerlessEmulator = async (dir, port, buildId) => {
+    const startServerlessEmulator = async (dir, port) => {
       const scriptPath = join(dir, 'server.js')
       const env = Object.assign({}, { ...process.env }, { PORT: port })
       return initNextServerScript(scriptPath, /ready on/i, env, false)

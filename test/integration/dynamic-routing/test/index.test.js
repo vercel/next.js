@@ -27,7 +27,7 @@ let buildId
 const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
-function runTests({ dev, serverless }) {
+function runTests({ dev }) {
   if (dev) {
     it('should not have error after pinging WebSocket', async () => {
       const browser = await webdriver(appPort, '/')
@@ -1347,42 +1347,40 @@ function runTests({ dev, serverless }) {
       })
     })
 
-    if (!serverless) {
-      it('should output a pages-manifest correctly', async () => {
-        const manifest = await fs.readJson(
-          join(appDir, '.next/server/pages-manifest.json')
-        )
+    it('should output a pages-manifest correctly', async () => {
+      const manifest = await fs.readJson(
+        join(appDir, '.next/server/pages-manifest.json')
+      )
 
-        expect(manifest).toEqual({
-          '/[name]/[comment]': 'pages/[name]/[comment].js',
-          '/[name]/comments': 'pages/[name]/comments.js',
-          '/[name]': 'pages/[name].js',
-          '/[name]/on-mount-redir': 'pages/[name]/on-mount-redir.html',
-          '/another': 'pages/another.html',
-          '/b/[123]': 'pages/b/[123].js',
-          '/blog/[name]/comment/[id]': 'pages/blog/[name]/comment/[id].js',
-          '/c/[alongparamnameshouldbeallowedeventhoughweird]':
-            'pages/c/[alongparamnameshouldbeallowedeventhoughweird].js',
-          '/catchall-dash/[...hello-world]':
-            'pages/catchall-dash/[...hello-world].html',
-          '/d/[id]': 'pages/d/[id].html',
-          '/dash/[hello-world]': 'pages/dash/[hello-world].html',
-          '/': 'pages/index.html',
-          '/index/[...slug]': 'pages/index/[...slug].html',
-          '/on-mount/[post]': 'pages/on-mount/[post].html',
-          '/p1/p2/all-ssg/[...rest]': 'pages/p1/p2/all-ssg/[...rest].js',
-          '/p1/p2/all-ssr/[...rest]': 'pages/p1/p2/all-ssr/[...rest].js',
-          '/p1/p2/nested-all-ssg/[...rest]':
-            'pages/p1/p2/nested-all-ssg/[...rest].js',
-          '/p1/p2/predefined-ssg/[...rest]':
-            'pages/p1/p2/predefined-ssg/[...rest].js',
-          '/_app': 'pages/_app.js',
-          '/_error': 'pages/_error.js',
-          '/_document': 'pages/_document.js',
-          '/404': 'pages/404.html',
-        })
+      expect(manifest).toEqual({
+        '/[name]/[comment]': 'pages/[name]/[comment].js',
+        '/[name]/comments': 'pages/[name]/comments.js',
+        '/[name]': 'pages/[name].js',
+        '/[name]/on-mount-redir': 'pages/[name]/on-mount-redir.html',
+        '/another': 'pages/another.html',
+        '/b/[123]': 'pages/b/[123].js',
+        '/blog/[name]/comment/[id]': 'pages/blog/[name]/comment/[id].js',
+        '/c/[alongparamnameshouldbeallowedeventhoughweird]':
+          'pages/c/[alongparamnameshouldbeallowedeventhoughweird].js',
+        '/catchall-dash/[...hello-world]':
+          'pages/catchall-dash/[...hello-world].html',
+        '/d/[id]': 'pages/d/[id].html',
+        '/dash/[hello-world]': 'pages/dash/[hello-world].html',
+        '/': 'pages/index.html',
+        '/index/[...slug]': 'pages/index/[...slug].html',
+        '/on-mount/[post]': 'pages/on-mount/[post].html',
+        '/p1/p2/all-ssg/[...rest]': 'pages/p1/p2/all-ssg/[...rest].js',
+        '/p1/p2/all-ssr/[...rest]': 'pages/p1/p2/all-ssr/[...rest].js',
+        '/p1/p2/nested-all-ssg/[...rest]':
+          'pages/p1/p2/nested-all-ssg/[...rest].js',
+        '/p1/p2/predefined-ssg/[...rest]':
+          'pages/p1/p2/predefined-ssg/[...rest].js',
+        '/_app': 'pages/_app.js',
+        '/_error': 'pages/_error.js',
+        '/_document': 'pages/_document.js',
+        '/404': 'pages/404.html',
       })
-    }
+    })
   }
 }
 
@@ -1399,7 +1397,7 @@ describe('Dynamic Routing', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests({ dev: true, serverless: false })
+    runTests({ dev: true })
   })
 
   describe('production mode', () => {
@@ -1414,6 +1412,6 @@ describe('Dynamic Routing', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests({ dev: false, serverless: false })
+    runTests({ dev: false })
   })
 })

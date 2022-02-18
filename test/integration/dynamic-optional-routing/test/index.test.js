@@ -11,7 +11,6 @@ import {
   nextStart,
   renderViaHTTP,
   check,
-  initNextServerScript,
 } from 'next-test-utils'
 import { join } from 'path'
 

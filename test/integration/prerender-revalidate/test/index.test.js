@@ -17,7 +17,7 @@ let app
 let appPort
 let buildId
 
-function runTests(route, routePath, serverless) {
+function runTests(route, routePath) {
   it(`[${route}] should regenerate page when revalidate time exceeded`, async () => {
     const fileName = join(
       appDir,

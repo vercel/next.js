@@ -6,7 +6,6 @@ import fs from 'fs-extra'
 import {
   fetchViaHTTP,
   findPort,
-  initNextServerScript,
   killApp,
   launchApp,
   nextBuild,
@@ -14,7 +13,6 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import os from 'os'
 import { join } from 'path'
 import qs from 'querystring'
 
@@ -176,22 +174,8 @@ function runTests(startServer = nextStart) {
   })
 }
 
-const startServerlessEmulator = async (dir, port) => {
-  const scriptPath = join(dir, 'server.js')
-  const env = Object.assign(
-    {},
-    { ...process.env },
-    { PORT: port, BUILD_ID: await getBuildId() }
-  )
-  return initNextServerScript(scriptPath, /ready on/i, env)
-}
-
 describe('ServerSide Props Preview Mode', () => {
   describe('Development Mode', () => {
-    beforeAll(async () => {
-      await fs.remove(nextConfigPath)
-    })
-
     let appPort, app
     it('should start development application', async () => {
       appPort = await findPort()
@@ -287,10 +271,6 @@ describe('ServerSide Props Preview Mode', () => {
   })
 
   describe('Server Mode', () => {
-    beforeAll(async () => {
-      await fs.remove(nextConfigPath)
-    })
-
     runTests()
   })
 })
