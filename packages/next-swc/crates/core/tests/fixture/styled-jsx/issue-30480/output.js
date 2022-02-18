@@ -10,7 +10,7 @@ export default (({ breakPoint  })=><div className={_JSXStyle.dynamic([
 
     <_JSXStyle id={"42a6f8ca08e1a043"} dynamic={[
         breakPoint
-    ]}>{`@media (${breakPoint}) {}`}</_JSXStyle>
+    ]}>{`@media(${breakPoint}){}`}</_JSXStyle>
 
   </div>
 );
