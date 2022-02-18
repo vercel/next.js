@@ -150,6 +150,17 @@ function runTestsAgainstRuntime(runtime) {
     (context, env) => {
       concurrent(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
+      if (env === 'dev') {
+        it('should recover after undefined exported as default', async () => {
+          const browser = await webdriver(context.appPort, '/invalid')
+
+          expect(await hasRedbox(browser)).toBe(true)
+          expect(await getRedboxHeader(browser)).toMatch(
+            `Error: The default export is not a React Component in page: "/invalid"`
+          )
+        })
+      }
+
       it('should stream to users', async () => {
         const res = await fetchViaHTTP(context.appPort, '/ssr')
         expect(res.headers.get('etag')).toBeNull()
@@ -183,29 +194,21 @@ function runTestsAgainstRuntime(runtime) {
         )
         expect(res.headers.get('etag')).toBeDefined()
       })
-
-      if (env === 'dev') {
-        it('should recover after undefined exported as default', async () => {
-          invalidPage.write(`export const value = 1`)
-          const browser = await webdriver(context.appPort, '/invalid')
-
-          expect(await hasRedbox(browser)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatch(
-            `Error: The default export is not a React Component in page: "/invalid"`
-          )
-
-          invalidPage.delete()
-        })
-      }
     },
     {
-      beforeAll: () => {
+      beforeAll: (env) => {
+        if (env === 'dev') {
+          invalidPage.write(`export const value = 1`)
+        }
         nextConfig.replace("// runtime: 'edge'", `runtime: '${runtime}'`)
         dynamicHello.replace('suspense = false', `suspense = true`)
         // `noSSR` mode will be ignored by suspense
         dynamicHello.replace('let ssr', `let ssr = false`)
       },
-      afterAll: () => {
+      afterAll: (env) => {
+        if (env === 'dev') {
+          invalidPage.delete()
+        }
         nextConfig.restore()
         dynamicHello.restore()
       },
