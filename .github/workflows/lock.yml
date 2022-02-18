@@ -22,6 +22,6 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           issue-inactive-days: 30
-          issue-comment: 'This closed issue has been automatically locked because it had no new activity for over a month. If you are running into a similar issue, please create a new issue with the steps to reproduce. Thank you.'
+          issue-comment: 'This closed issue has been automatically locked because it had no new activity for a month. If you are running into a similar issue, please create a new issue with the steps to reproduce. Thank you.'
           pr-inactive-days: 30
           log-output: true
