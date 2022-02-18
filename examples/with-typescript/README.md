@@ -1,8 +1,8 @@
 # TypeScript Next.js example
 
-This examples is part of the `create-next-app` CLI as an official TypeScript template and can be used with the `--ts` or `--typescript` flag.
+This example is part of the `create-next-app` CLI as an official TypeScript template and can be used with the `--ts` or `--typescript` flag.
 
-You can find its source code here: https://github.com/vercel/next.js/tree/canary/packages/create-next-app/templates/typescript
+You can find the source code here: https://github.com/vercel/next.js/tree/canary/packages/create-next-app/templates/typescript
 
 ## Preview
 
@@ -30,7 +30,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 
 ## Notes
 
-This example shows how to integrate the TypeScript type system into Next.js. Since TypeScript is supported out of the box with Next.js, all we have to do is to install TypeScript. (Installing this template will do this for you)
+This example shows how to integrate the TypeScript type system into Next.js. Since TypeScript is supported out of the box with Next.js, all you have to do to get started is to use this example. Alternatively, you can [install TypeScript manually](https://nextjs.org/docs/basic-features/typescript#existing-projects) to an existing project. 
 
 ```sh
 npm install --save-dev typescript
@@ -46,7 +46,7 @@ npm install --save-dev @types/react @types/react-dom @types/node
 yarn add --dev @types/react @types/react-dom @types/node
 ```
 
-When we run `next dev` the next time, Next.js will start looking for any `.ts` or `.tsx` files in our project and builds it. It even automatically creates/updates a `tsconfig.json` file for our project with the recommended settings.
+When we run `next dev` the next time, Next.js will start looking for any `.ts` or `.tsx` files in your project and builds it. It also automatically creates and updates a `tsconfig.json` file for your project with the recommended settings.
 
 Next.js has built-in TypeScript declarations, so we'll get autocompletion for Next.js' modules straight away.
 
