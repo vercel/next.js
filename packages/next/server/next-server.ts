@@ -8,6 +8,7 @@ import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { PrerenderManifest } from '../build'
 import type { Rewrite } from '../lib/load-custom-routes'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
+import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -34,7 +35,6 @@ import {
   CLIENT_PUBLIC_FILES_PATH,
   SERVERLESS_DIRECTORY,
 } from '../shared/lib/constants'
-import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
 import compression from 'next/dist/compiled/compression'
@@ -73,6 +73,7 @@ import { loadEnvConfig } from '@next/env'
 import { getCustomRoute } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
+import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { clonableBodyForRequest } from './body-streams'
 
 export * from './base-server'
@@ -1030,7 +1031,8 @@ export default class NextNodeServer extends BaseServer {
           },
         })
 
-        if (!this.middleware?.some((m) => m.match(parsedUrl.pathname))) {
+        const normalizedPathname = removePathTrailingSlash(parsedUrl.pathname)
+        if (!this.middleware?.some((m) => m.match(normalizedPathname))) {
           return { finished: false }
         }
 
@@ -1212,6 +1214,9 @@ export default class NextNodeServer extends BaseServer {
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     this.middlewareBetaWarning()
+    const normalizedPathname = removePathTrailingSlash(
+      params.parsedUrl.pathname
+    )
 
     // For middleware to "fetch" we must always provide an absolute URL
     const url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
@@ -1222,11 +1227,11 @@ export default class NextNodeServer extends BaseServer {
     }
 
     const page: { name?: string; params?: { [key: string]: string } } = {}
-    if (await this.hasPage(params.parsedUrl.pathname)) {
+    if (await this.hasPage(normalizedPathname)) {
       page.name = params.parsedUrl.pathname
     } else if (this.dynamicRoutes) {
       for (const dynamicRoute of this.dynamicRoutes) {
-        const matchParams = dynamicRoute.match(params.parsedUrl.pathname)
+        const matchParams = dynamicRoute.match(normalizedPathname)
         if (matchParams) {
           page.name = dynamicRoute.page
           page.params = matchParams
@@ -1244,7 +1249,7 @@ export default class NextNodeServer extends BaseServer {
         : undefined
 
     for (const middleware of this.middleware || []) {
-      if (middleware.match(params.parsedUrl.pathname)) {
+      if (middleware.match(normalizedPathname)) {
         if (!(await this.hasMiddleware(middleware.page, middleware.ssr))) {
           console.warn(`The Edge Function for ${middleware.page} was not found`)
           continue
