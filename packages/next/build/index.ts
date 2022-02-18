@@ -9,7 +9,6 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import { copyLibFiles } from 'next/dist/compiled/@builder.io/partytown/utils'
 import path, { join } from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import {
@@ -31,6 +30,7 @@ import loadCustomRoutes, {
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyAndLint } from '../lib/verifyAndLint'
+import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_ID_FILE,
@@ -2114,35 +2114,12 @@ export default async function build(
       console.log('')
     }
 
-    if (config.experimental.optimizeScripts?.enablePartytown) {
-      if (hasPublicDir) {
-        await nextBuildSpan
-          .traceChild('copy-partytown-lib-files')
-          .traceAsyncFn(async () => {
-            try {
-              const partytownLibDir = path.join(publicDir, '~partytown')
-              const hasPartytownLibDir = await fileExists(
-                partytownLibDir,
-                'directory'
-              )
-
-              if (hasPartytownLibDir) {
-                await recursiveDelete(partytownLibDir)
-                await promises.rmdir(partytownLibDir)
-              }
-              await copyLibFiles(path.join(publicDir, '~partytown'))
-              Log.info(
-                `Partytown has been enabled for next/script. The ~partytown directory was ${
-                  hasPartytownLibDir ? 'deleted and re-created' : 'created'
-                } for you in the public folder with all the necessary static files.`
-              )
-            } catch (err) {}
-          })
-      } else {
-        Log.warn(
-          'Public directory not found. To use Partytown, please create a `public` folder in the root directoy to serve its static files. https://nextjs.org/docs/basic-features/static-file-serving'
-        )
-      }
+    if (Boolean(config.experimental.optimizeScripts?.enablePartytown)) {
+      await nextBuildSpan
+        .traceChild('verify-partytown-setup')
+        .traceAsyncFn(async () => {
+          await verifyPartytownSetup(dir, publicDir)
+        })
     }
 
     await nextBuildSpan

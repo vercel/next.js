@@ -26,6 +26,7 @@ import { fileExists } from '../../lib/file-exists'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import loadCustomRoutes from '../../lib/load-custom-routes'
 import { verifyTypeScriptSetup } from '../../lib/verifyTypeScriptSetup'
+import { verifyPartytownSetup } from '../../lib/verify-partytown-setup'
 import {
   PHASE_DEVELOPMENT_SERVER,
   CLIENT_STATIC_FILES_PATH,
@@ -363,6 +364,9 @@ export default class DevServer extends Server {
       false,
       this.nextConfig
     )
+
+    if (this.nextConfig.experimental.optimizeScripts?.enablePartytown)
+      await verifyPartytownSetup(this.dir, this.publicDir)
 
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
 

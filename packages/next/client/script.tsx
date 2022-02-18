@@ -1,5 +1,6 @@
 import React, { useEffect, useContext } from 'react'
 import { ScriptHTMLAttributes } from 'react'
+import { join } from 'path'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { DOMAttributeNames } from './head-manager'
 import { requestIdleCallback } from './request-idle-callback'
@@ -28,7 +29,7 @@ const ignoreProps = [
   'strategy',
 ]
 
-const injectPartytownSnippet = () => {
+const injectPartytownSnippet = async () => {
   const { enablePartytown, partytownConfig } = process.env
     .__NEXT_OPTIMIZE_SCRIPTS as any
 
@@ -46,14 +47,16 @@ const injectPartytownSnippet = () => {
 
     if (!document.querySelector(`script[data-partytown]`)) {
       // Only inject partytown snippet if not already present from SSR
-      const {
-        partytownSnippet,
-      } = require('next/dist/compiled/@builder.io/partytown/index.cjs')
+      try {
+        const {
+          partytownSnippet,
+        } = require('@builder.io/partytown/integration'!)
 
-      const scriptEl = document.createElement('script')
-      scriptEl.dataset.partytown = ''
-      scriptEl.innerHTML = partytownSnippet()
-      document.head.appendChild(scriptEl)
+        const scriptEl = document.createElement('script')
+        scriptEl.dataset.partytown = ''
+        scriptEl.innerHTML = partytownSnippet()
+        document.head.appendChild(scriptEl)
+      } catch (err) {}
     }
   }
 }
@@ -177,13 +180,17 @@ function Script(props: ScriptProps): JSX.Element | null {
   const { updateScripts, scripts, getIsSsr } = useContext(HeadManagerContext)
 
   useEffect(() => {
+    const injectPartytownClientSide = async () => {
+      await injectPartytownSnippet()
+    }
+
     if (strategy === 'afterInteractive') {
       loadScript(props)
     } else if (strategy === 'lazyOnload') {
       loadLazyScript(props)
     } else if (strategy === 'worker') {
       // inject partytown snippet client-side
-      injectPartytownSnippet()
+      injectPartytownClientSide()
     }
   }, [props, strategy])
 

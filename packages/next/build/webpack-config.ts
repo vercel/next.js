@@ -1554,6 +1554,7 @@ export default async function getBaseWebpackConfig(
   webpack5Config.module!.parser = {
     javascript: {
       url: 'relative',
+      commonjsMagicComments: true,
     },
   }
   webpack5Config.module!.generator = {
@@ -1614,6 +1615,7 @@ export default async function getBaseWebpackConfig(
     reactMode: config.experimental.reactMode,
     optimizeFonts: config.optimizeFonts,
     optimizeCss: config.experimental.optimizeCss,
+    optimizeScripts: config.experimental.optimizeScripts,
     scrollRestoration: config.experimental.scrollRestoration,
     basePath: config.basePath,
     pageEnv: config.experimental.pageEnv,

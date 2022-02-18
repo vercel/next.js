@@ -460,17 +460,6 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     result.experimental.outputStandalone = false
   }
 
-  if (
-    result.experimental?.optimizeScripts?.enablePartytown &&
-    process.env.NODE_ENV === 'development'
-  ) {
-    Log.warn(
-      `Partytown has been enabled for next/script. If you don't see a ~partytown directory in your public folder, please run ${chalk.bold.cyan(
-        'next build'
-      )} in order to create one and copy over the necessary static files.`
-    )
-  }
-
   // TODO: Change defaultConfig type to NextConfigComplete
   // so we don't need "!" here.
   setHttpAgentOptions(

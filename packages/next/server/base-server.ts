@@ -1336,6 +1336,7 @@ export default abstract class Server {
           locales,
           defaultLocale,
           optimizeCss: this.renderOpts.optimizeCss,
+          optimizeScripts: this.renderOpts.optimizeScripts,
           distDir: this.distDir,
           fontManifest: this.renderOpts.fontManifest,
           domainLocales: this.renderOpts.domainLocales,

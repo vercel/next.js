@@ -2775,11 +2775,6 @@
   resolved "https://registry.yarnpkg.com/@bcoe/v8-coverage/-/v8-coverage-0.2.3.tgz#75a2e8b51cb758a7553d6804a5932d7aace75c39"
   integrity sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==
 
-"@builder.io/partytown@0.3.3":
-  version "0.3.3"
-  resolved "https://registry.yarnpkg.com/@builder.io/partytown/-/partytown-0.3.3.tgz#ef4288d2705aca2a53e744cc2b9bf82783c10015"
-  integrity sha512-nkm2FvNNZoaHO6xUPhcB6+o8ZQqvqvF1TiwR6UnfPkeBXttswPS7JEnhSv9046XbBs6vz+8zycBb/CqKpoJ19w==
-
 "@csstools/convert-colors@^1.4.0":
   version "1.4.0"
   resolved "https://registry.yarnpkg.com/@csstools/convert-colors/-/convert-colors-1.4.0.tgz#ad495dc41b12e75d588c6db8b9834f08fa131eb7"

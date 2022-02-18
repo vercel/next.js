@@ -140,6 +140,20 @@ module.exports = {
 }
 ```
 
+Then, run `next` (normally `npm run dev` or `yarn dev`) and Next.js will guide you through the installation of the required package to finish the setup:
+
+```bash
+npm run dev
+
+# You'll see instructions like these:
+#
+# Please install Partytown by running:
+#
+#         npm install @builder.io/partytown
+#
+# ...
+```
+
 Once enabled, defining `strategy="worker` will automatically instantiate Partytown in your application and off-load the script to a web worker.
 
 ```jsx
@@ -150,9 +164,7 @@ There are a number of trade-offs that need to be considered when loading a third
 
 #### Static Library Files
 
-In order for Partytown to intercept scripts in a worker, a number of its static library files must be served in the `public` folder of your application. When the experimental `enablePartytown` flag is enabled in `next.config.js`, these files will automatically be added for you in a `~partytown` directory after every build (`next build`).
-
-> **Note: Partytown's [debug](https://partytown.builder.io/distribution#libdebug) files are not included by default. If you wish to use Partytown's debugging capabilities during development (`next dev`), you will need to add this [folder](https://partytown.builder.io/distribution#libdebug) manually to the `~partytown` directory.**
+In order for Partytown to intercept scripts in a worker, a number of its static library files must be served in the `public` folder of your application. When the experimental `enablePartytown` flag is enabled in `next.config.js`, these files will automatically be added for you in a `~partytown` directory after every build (`next build`) and when you run the application in development mode (`next dev`).
 
 #### Configuration
 

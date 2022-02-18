@@ -71,16 +71,15 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
     ))
 }
 
-function getPreNextScripts(context: HtmlProps, props: OriginProps) {
-  const {
-    scriptLoader,
-    disableOptimizedLoading,
-    crossOrigin,
-    optimizeScripts,
-  } = context
+function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
+  const { scriptLoader, crossOrigin, optimizeScripts } = context
 
-  const webWorkerScripts =
-    optimizeScripts?.enablePartytown && scriptLoader.worker?.length ? (
+  try {
+    let {
+      partytownSnippet,
+    } = require(/* webpackIgnore: true */ '@builder.io/partytown/integration'!)
+
+    return optimizeScripts?.enablePartytown && scriptLoader.worker?.length ? (
       <>
         {optimizeScripts?.partytownConfig && (
           <script
@@ -95,8 +94,7 @@ function getPreNextScripts(context: HtmlProps, props: OriginProps) {
         <script
           data-partytown=""
           dangerouslySetInnerHTML={{
-            __html:
-              require('next/dist/compiled/@builder.io/partytown/index.cjs').partytownSnippet(),
+            __html: partytownSnippet(),
           }}
         />
         {scriptLoader.worker.map((file: ScriptProps, index: number) => {
@@ -114,6 +112,15 @@ function getPreNextScripts(context: HtmlProps, props: OriginProps) {
         })}
       </>
     ) : null
+  } catch {
+    return null
+  }
+}
+
+function getPreNextScripts(context: HtmlProps, props: OriginProps) {
+  const { scriptLoader, disableOptimizedLoading, crossOrigin } = context
+
+  const webWorkerScripts = getPreNextWorkerScripts(context, props)
 
   const beforeInteractiveScripts = (scriptLoader.beforeInteractive || []).map(
     (file: ScriptProps, index: number) => {

@@ -24,7 +24,11 @@ export type HtmlProps = {
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
   devOnlyCacheBusterQueryString: string
-  scriptLoader: { afterInteractive?: string[]; beforeInteractive?: any[] }
+  scriptLoader: {
+    afterInteractive?: string[]
+    beforeInteractive?: any[]
+    worker?: any[]
+  }
   locale?: string
   disableOptimizedLoading?: boolean
   styles?: React.ReactElement[] | React.ReactFragment
