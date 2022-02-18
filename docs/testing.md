@@ -354,7 +354,12 @@ Stylesheets and images aren't used in the tests but importing them may cause err
 
 ```js
 // __mocks__/fileMock.js
-module.exports = { src: '/img.jpg', height: 24, width: 24, blurDataURL: 'data:image/png;base64,imagedata' }
+module.exports = {
+  src: '/img.jpg',
+  height: 24,
+  width: 24,
+  blurDataURL: 'data:image/png;base64,imagedata',
+}
 ```
 
 ```js
