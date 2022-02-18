@@ -3706,10 +3706,10 @@
     call-me-maybe "^1.0.1"
     glob-to-regexp "^0.3.0"
 
-"@napi-rs/cli@1.2.1":
-  version "1.2.1"
-  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-1.2.1.tgz#eccdf9e0835aec3adcef30074bf69c110ea65960"
-  integrity sha512-7FoYn1JSK5rTIG9KcKfYnZL/O0UjUMMuzZCXd//bJdkLw0Xx9EqQJs1X/Mg4KqywJYb79LDfxRMiJRSukPGDNw==
+"@napi-rs/cli@2.4.4":
+  version "2.4.4"
+  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.4.4.tgz#878a38f0fba1709d89d66eba706745ce728a61a5"
+  integrity sha512-f+tvwCv1ka24dBqI2DgBhR7Oxl3DKHOp4onxLXwyBFt6iCADnr3YZIr1/2Iq5r3uqxFgaf01bfPsRQZPkEp0kQ==
 
 "@napi-rs/triples@1.0.3", "@napi-rs/triples@^1.0.3":
   version "1.0.3"
