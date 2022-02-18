@@ -72,25 +72,25 @@ describe('getPagePath', () => {
 
 describe('requirePage', () => {
   it('Should not find page /index when using /', async () => {
-    await expect(() => requirePage('/', distDir, false)).toThrow(
+    await expect(() => requirePage('/', distDir)).toThrow(
       'Cannot find module for page: /'
     )
   })
 
   it('Should require /index.js when using /index', async () => {
-    const page = await requirePage('/index', distDir, false)
+    const page = await requirePage('/index', distDir)
     expect(page.test).toBe('hello')
   })
 
   it('Should require /world.js when using /world', async () => {
-    const page = await requirePage('/world', distDir, false)
+    const page = await requirePage('/world', distDir)
     expect(page.test).toBe('world')
   })
 
   it('Should throw when using /../../test.js', async () => {
     expect.assertions(1)
     try {
-      await requirePage('/../../test', distDir, false)
+      await requirePage('/../../test', distDir)
     } catch (err) {
       // eslint-disable-next-line jest/no-try-expect
       expect(err.code).toBe('ENOENT')
@@ -100,7 +100,7 @@ describe('requirePage', () => {
   it('Should throw when using non existent pages like /non-existent.js', async () => {
     expect.assertions(1)
     try {
-      await requirePage('/non-existent', distDir, false)
+      await requirePage('/non-existent', distDir)
     } catch (err) {
       // eslint-disable-next-line jest/no-try-expect
       expect(err.code).toBe('ENOENT')
@@ -110,7 +110,7 @@ describe('requirePage', () => {
   it('Should bubble up errors in the child component', async () => {
     expect.assertions(1)
     try {
-      await requirePage('/non-existent-child', distDir, false)
+      await requirePage('/non-existent-child', distDir)
     } catch (err) {
       // eslint-disable-next-line jest/no-try-expect
       expect(err.code).toBe('MODULE_NOT_FOUND')
