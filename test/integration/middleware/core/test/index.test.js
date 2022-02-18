@@ -108,6 +108,30 @@ describe('Middleware base tests', () => {
       }
     })
   })
+
+  describe('global', () => {
+    beforeAll(async () => {
+      context.appPort = await findPort()
+      context.app = await launchApp(context.appDir, context.appPort, {
+        env: {
+          MIDDLEWARE_TEST: 'asdf',
+        },
+      })
+    })
+
+    it('should contains process polyfill', async () => {
+      const res = await fetchViaHTTP(context.appPort, `/global`)
+      const json = await res.json()
+      expect(json).toEqual({
+        process: {
+          env: {
+            MIDDLEWARE_TEST: 'asdf',
+          },
+          nextTick: 'function',
+        },
+      })
+    })
+  })
 })
 
 function urlTests(_log, locale = '') {
