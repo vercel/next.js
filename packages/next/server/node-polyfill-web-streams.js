@@ -1,5 +1,7 @@
-import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
-import { ReadableStream } from './web/sandbox/readable-stream'
+import {
+  ReadableStream,
+  TransformStream,
+} from 'next/dist/compiled/web-streams-polyfill'
 
 // Polyfill Web Streams in the Node.js environment
 if (!global.ReadableStream) {
