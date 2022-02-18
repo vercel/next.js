@@ -4,10 +4,10 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import {
-  initNextServerScript,
   killApp,
   findPort,
   nextBuild,
+  nextStart,
   fetchViaHTTP,
 } from 'next-test-utils'
 
@@ -17,16 +17,11 @@ let appPort
 
 describe('Fallback asPath normalizing', () => {
   beforeAll(async () => {
-    const startServerlessEmulator = async (dir, port) => {
-      const scriptPath = join(dir, 'server.js')
-      const env = Object.assign({}, { ...process.env }, { PORT: port })
-      return initNextServerScript(scriptPath, /ready on/i, env, false)
-    }
     await fs.remove(join(appDir, '.next'))
     await nextBuild(appDir)
 
     appPort = await findPort()
-    app = await startServerlessEmulator(appDir, appPort)
+    app = await nextStart(appDir, appPort)
   })
   afterAll(() => killApp(app))
 
