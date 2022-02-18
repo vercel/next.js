@@ -54,7 +54,7 @@ For the initial page load, `getInitialProps` will run on the server only. `getIn
 
 ## Context Object
 
-`getInitialProps` receives a single argument called `context`, it's an object with the following properties:
+`getInitialProps` receives a single argument called `ctx`, it's an object with the following properties:
 
 - `pathname` - Current route. That is the path of the page in `/pages`
 - `query` - Query string section of URL parsed as an object
