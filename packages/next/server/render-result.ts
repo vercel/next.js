@@ -1,9 +1,9 @@
 import type { ServerResponse } from 'http'
 
 export default class RenderResult {
-  _result: string | ReadableStream
+  _result: string | ReadableStream<Uint8Array>
 
-  constructor(response: string | ReadableStream) {
+  constructor(response: string | ReadableStream<Uint8Array>) {
     this._result = response
   }
 

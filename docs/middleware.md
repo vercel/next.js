@@ -10,7 +10,7 @@ description: Learn how to use Middleware in Next.js to run code before a request
 | Version   | Changes                                                                                    |
 | --------- | ------------------------------------------------------------------------------------------ |
 | `v12.0.9` | Enforce absolute URLs in Edge Runtime ([PR](https://github.com/vercel/next.js/pull/33410)) |
-| `v12.0.0` | Middleware (beta) added.                                                                   |
+| `v12.0.0` | Middleware (Beta) added.                                                                   |
 
 </details>
 
