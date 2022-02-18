@@ -37,12 +37,17 @@ RUN adduser --system --uid 1001 nextjs
 # You only need to copy next.config.js if you are NOT using the default configuration
 # COPY --from=builder /app/next.config.js ./
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./package.json
+# If you use a nextjs.config.js file make sure you copied it 
+# https://github.com/vercel/next.js/discussions/19389
+# Should optional copy nextjs.config.js if it exists
+COPY --from=builder /app/package.json /app/nextjs.config.* ./
 
 # Automatically leverage output traces to reduce image size 
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+
 
 USER nextjs
 
