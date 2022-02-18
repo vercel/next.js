@@ -152,7 +152,6 @@ export default abstract class Server {
     optimizeFonts: boolean
     images: ImageConfigComplete
     fontManifest?: FontManifest
-    optimizeImages: boolean
     disableOptimizedLoading?: boolean
     optimizeCss: any
     locale?: string
@@ -314,7 +313,6 @@ export default abstract class Server {
         this.nextConfig.optimizeFonts && !dev
           ? this.getFontManifest()
           : undefined,
-      optimizeImages: !!this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
       disableOptimizedLoading: this.nextConfig.experimental.runtime
         ? true
@@ -1145,6 +1143,23 @@ export default abstract class Server {
       res.statusCode = parseInt(pathname.substr(1), 10)
     }
 
+    // static pages can only respond to GET/HEAD
+    // requests so ensure we respond with 405 for
+    // invalid requests
+    if (
+      !is404Page &&
+      !is500Page &&
+      pathname !== '/_error' &&
+      req.method !== 'HEAD' &&
+      req.method !== 'GET' &&
+      (typeof components.Component === 'string' || isSSG)
+    ) {
+      res.statusCode = 405
+      res.setHeader('Allow', ['GET', 'HEAD'])
+      await this.renderError(null, req, res, pathname)
+      return null
+    }
+
     // handle static page
     if (typeof components.Component === 'string') {
       return {
@@ -1535,6 +1550,9 @@ export default abstract class Server {
         res.body('{"notFound":true}').send()
         return null
       } else {
+        if (this.renderOpts.dev) {
+          query.__nextNotFoundSrcPage = pathname
+        }
         await this.render404(
           req,
           res,

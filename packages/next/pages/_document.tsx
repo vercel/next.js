@@ -1,17 +1,18 @@
 import React, { Component, ReactElement, ReactNode, useContext } from 'react'
 import { OPTIMIZED_FONT_PROVIDERS } from '../shared/lib/constants'
-import {
+import type {
   DocumentContext,
   DocumentInitialProps,
   DocumentProps,
-  HtmlContext,
-  HtmlProps,
 } from '../shared/lib/utils'
 import { BuildManifest, getPageFiles } from '../server/get-page-files'
 import { cleanAmpPath } from '../server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 import Script, { ScriptProps } from '../client/script'
 import isError from '../lib/is-error'
+
+import { HtmlContext } from '../shared/lib/html-context'
+import type { HtmlProps } from '../shared/lib/html-context'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -494,7 +495,6 @@ export class Head extends Component<
       useMaybeDeferContent,
       optimizeCss,
       optimizeFonts,
-      optimizeImages,
       runtime,
     } = this.context
 
@@ -737,7 +737,6 @@ export class Head extends Component<
               )}
               {!optimizeCss && this.getCssLinks(files)}
               {!optimizeCss && <noscript data-n-css={this.props.nonce ?? ''} />}
-              {optimizeImages && <meta name="next-image-preload" />}
 
               {!isDeferred && getDynamicScriptPreloads()}
 

@@ -135,9 +135,9 @@ describe('Blocking mode', () => {
     dynamicHello.restore()
   })
 
-  runTests('`runtime` is disabled', (context) =>
+  runTests('`runtime` is disabled', (context) => {
     blocking(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  )
+  })
 })
 
 function runTestsAgainstRuntime(runtime) {
