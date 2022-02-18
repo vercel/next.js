@@ -11,11 +11,14 @@ import {
   nextStart,
   renderViaHTTP,
   fetchViaHTTP,
+  hasRedbox,
+  getRedboxHeader,
 } from 'next-test-utils'
 import blocking from './blocking'
 import concurrent from './concurrent'
 import basics from './basics'
 import strictMode from './strict-mode'
+import webdriver from 'next-webdriver'
 
 // overrides react and react-dom to v18
 const nodeArgs = ['-r', join(__dirname, 'require-hook.js')]
@@ -23,6 +26,7 @@ const appDir = join(__dirname, '../app')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const dynamicHello = new File(join(appDir, 'components/dynamic-hello.js'))
 const unwrappedPage = new File(join(appDir, 'pages/suspense/unwrapped.js'))
+const invalidPage = new File(join(appDir, 'pages/invalid.js'))
 
 const USING_CREATE_ROOT = 'Using the createRoot API for React'
 
@@ -135,26 +139,27 @@ describe('Blocking mode', () => {
     dynamicHello.restore()
   })
 
-  runTests('`runtime` is disabled', (context) =>
+  runTests('`runtime` is disabled', (context) => {
     blocking(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  )
+  })
 })
 
 function runTestsAgainstRuntime(runtime) {
-  describe(`Concurrent mode in the ${runtime} runtime`, () => {
-    beforeAll(async () => {
-      nextConfig.replace("// runtime: 'edge'", `runtime: '${runtime}'`)
-      dynamicHello.replace('suspense = false', `suspense = true`)
-      // `noSSR` mode will be ignored by suspense
-      dynamicHello.replace('let ssr', `let ssr = false`)
-    })
-    afterAll(async () => {
-      nextConfig.restore()
-      dynamicHello.restore()
-    })
-
-    runTests(`runtime is set to '${runtime}'`, (context) => {
+  runTests(
+    `Concurrent mode in the ${runtime} runtime`,
+    (context, env) => {
       concurrent(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+
+      if (env === 'dev') {
+        it('should recover after undefined exported as default', async () => {
+          const browser = await webdriver(context.appPort, '/invalid')
+
+          expect(await hasRedbox(browser)).toBe(true)
+          expect(await getRedboxHeader(browser)).toMatch(
+            `Error: The default export is not a React Component in page: "/invalid"`
+          )
+        })
+      }
 
       it('should stream to users', async () => {
         const res = await fetchViaHTTP(context.appPort, '/ssr')
@@ -189,17 +194,36 @@ function runTestsAgainstRuntime(runtime) {
         )
         expect(res.headers.get('etag')).toBeDefined()
       })
-    })
-  })
+    },
+    {
+      beforeAll: (env) => {
+        if (env === 'dev') {
+          invalidPage.write(`export const value = 1`)
+        }
+        nextConfig.replace("// runtime: 'edge'", `runtime: '${runtime}'`)
+        dynamicHello.replace('suspense = false', `suspense = true`)
+        // `noSSR` mode will be ignored by suspense
+        dynamicHello.replace('let ssr', `let ssr = false`)
+      },
+      afterAll: (env) => {
+        if (env === 'dev') {
+          invalidPage.delete()
+        }
+        nextConfig.restore()
+        dynamicHello.restore()
+      },
+    }
+  )
 }
 
-function runTest(mode, name, fn) {
+function runTest(env, name, fn, options) {
   const context = { appDir }
-  describe(`${name} (${mode})`, () => {
+  describe(`${name} (${env})`, () => {
     beforeAll(async () => {
       context.appPort = await findPort()
       context.stderr = ''
-      if (mode === 'dev') {
+      options?.beforeAll(env)
+      if (env === 'dev') {
         context.server = await launchApp(context.appDir, context.appPort, {
           nodeArgs,
           onStderr(msg) {
@@ -217,16 +241,17 @@ function runTest(mode, name, fn) {
       }
     })
     afterAll(async () => {
+      options?.afterAll(env)
       await killApp(context.server)
     })
-    fn(context)
+    fn(context, env)
   })
 }
 
 runTestsAgainstRuntime('edge')
 runTestsAgainstRuntime('nodejs')
 
-function runTests(name, fn) {
-  runTest('dev', name, fn)
-  runTest('prod', name, fn)
+function runTests(name, fn, options) {
+  runTest('dev', name, fn, options)
+  runTest('prod', name, fn, options)
 }
