@@ -90,7 +90,7 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
 
 export type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
+  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading'
 > & {
   src: string | StaticImport
   width?: number | string
@@ -108,16 +108,7 @@ export type ImageProps = Omit<
   objectFit?: ImgElementStyle['objectFit']
   objectPosition?: ImgElementStyle['objectPosition']
   onLoadingComplete?: OnLoadingComplete
-} & (
-    | {
-        layout?: Omit<LayoutValue, 'raw'>
-        style?: never
-      }
-    | {
-        layout: 'raw'
-        style: ImgElementStyle
-      }
-  )
+}
 
 function getWidths(
   { deviceSizes, allSizes }: ImageConfig,
@@ -328,6 +319,7 @@ export default function Image({
   quality,
   width,
   height,
+  style,
   objectFit,
   objectPosition,
   onLoadingComplete,
@@ -479,11 +471,6 @@ export default function Image({
         `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
       )
     }
-    if ('style' in rest && layout !== 'raw') {
-      console.warn(
-        `Image with src "${src}" is using unsupported "style" property. Please use the "className" property instead.`
-      )
-    }
 
     if (!unoptimized && loader !== defaultImageLoader) {
       const urlStr = loader({
@@ -565,7 +552,7 @@ export default function Image({
   }
   let hasSizer = false
   let sizerSvgUrl: string | undefined
-  const imgStyle: ImgElementStyle = {
+  const layoutStyle: ImgElementStyle = {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -588,6 +575,9 @@ export default function Image({
     objectFit,
     objectPosition,
   }
+
+  const imgStyle = Object.assign({}, layout === 'raw' ? {} : layoutStyle, style)
+
   const blurStyle =
     placeholder === 'blur'
       ? {
@@ -703,12 +693,6 @@ export default function Image({
     handleLoading(imgRef, srcString, layout, placeholder, onLoadingCompleteRef)
   }, [srcString, layout, placeholder, isVisible])
 
-  let rawStyle = {}
-  if (layout === 'raw' && 'style' in rest && rest.style) {
-    rawStyle = rest.style
-    // rest gets spread as img attributes, but we add style manually
-    delete rest.style
-  }
   const stringSrc = src
 
   const ImageElement = ({ raw }: { raw: boolean }) => (
@@ -721,7 +705,7 @@ export default function Image({
         data-nimg={layout}
         className={className}
         ref={imgRef}
-        style={{ ...(raw ? rawStyle : imgStyle), ...blurStyle }}
+        style={{ ...imgStyle, ...blurStyle }}
       />
       {isLazy && (
         <noscript>
@@ -740,7 +724,7 @@ export default function Image({
             {...(raw ? { height: heightInt, width: widthInt } : {})}
             decoding="async"
             data-nimg={layout}
-            style={{ ...(raw ? rawStyle : imgStyle) }}
+            style={imgStyle}
             className={className}
             // @ts-ignore - TODO: upgrade to `@types/react@17`
             loading={loading || 'lazy'}
