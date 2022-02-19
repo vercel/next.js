@@ -125,9 +125,9 @@ type ImageElementProps = Omit<
   blurStyle: ImgElementStyle
   lazy: boolean
   imgRef: React.RefObject<HTMLImageElement>
-  loading: LoadingValue,
-  config: ImageConfig,
-  unoptimized: boolean,
+  loading: LoadingValue
+  config: ImageConfig
+  unoptimized: boolean
   loader: ImageLoader
 }
 
@@ -727,7 +727,7 @@ export default function Image({
       loading,
       config,
       unoptimized,
-      loader
+      loader,
     },
     srcString: srcString,
     ...rest,
