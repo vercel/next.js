@@ -3,7 +3,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute } from 'path'
 import { UrlObject } from 'url'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import {
   createEntrypoints,
@@ -336,6 +336,8 @@ export default class HotReloader {
           )
         )
 
+      const hasEdgeRuntimePages = this.runtime === 'edge'
+
       return webpackConfigSpan
         .traceChild('generate-webpack-config')
         .traceAsyncFn(() =>
@@ -363,7 +365,7 @@ export default class HotReloader {
               }),
               // For the edge runtime, we need an extra compiler to generate the
               // web-targeted server bundle for now.
-              this.runtime === 'edge'
+              hasEdgeRuntimePages
                 ? getBaseWebpackConfig(this.dir, {
                     dev: true,
                     isServer: true,
@@ -594,21 +596,56 @@ export default class HotReloader {
     const trackPageChanges =
       (pageHashMap: Map<string, string>, changedItems: Set<string>) =>
       (stats: webpack5.Compilation) => {
-        stats.entrypoints.forEach((entry, key) => {
-          if (key.startsWith('pages/')) {
-            // TODO this doesn't handle on demand loaded chunks
-            entry.chunks.forEach((chunk: any) => {
-              if (chunk.id === key) {
-                const prevHash = pageHashMap.get(key)
+        try {
+          stats.entrypoints.forEach((entry, key) => {
+            if (key.startsWith('pages/')) {
+              // TODO this doesn't handle on demand loaded chunks
+              entry.chunks.forEach((chunk) => {
+                if (chunk.id === key) {
+                  const modsIterable: any =
+                    stats.chunkGraph.getChunkModulesIterable(chunk)
 
-                if (prevHash && prevHash !== chunk.hash) {
-                  changedItems.add(key)
+                  let chunksHash = new StringXor()
+
+                  modsIterable.forEach((mod: any) => {
+                    if (
+                      mod.resource &&
+                      mod.resource.replace(/\\/g, '/').includes(key)
+                    ) {
+                      // use original source to calculate hash since mod.hash
+                      // includes the source map in development which changes
+                      // every time for both server and client so we calculate
+                      // the hash without the source map for the page module
+                      const hash = require('crypto')
+                        .createHash('sha256')
+                        .update(mod.originalSource().buffer())
+                        .digest()
+                        .toString('hex')
+
+                      chunksHash.add(hash)
+                    } else {
+                      // for non-pages we can use the module hash directly
+                      const hash = stats.chunkGraph.getModuleHash(
+                        mod,
+                        chunk.runtime
+                      )
+                      chunksHash.add(hash)
+                    }
+                  })
+                  const prevHash = pageHashMap.get(key)
+                  const curHash = chunksHash.toString()
+
+                  if (prevHash && prevHash !== curHash) {
+                    changedItems.add(key)
+                  }
+                  pageHashMap.set(key, curHash)
                 }
-                pageHashMap.set(key, chunk.hash)
-              }
-            })
-          }
-        })
+              })
+            }
+          })
+        } catch (err) {
+          console.error(err)
+        }
       }
 
     multiCompiler.compilers[0].hooks.emit.tap(

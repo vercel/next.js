@@ -67,8 +67,9 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
       if (
         key === 'experimental' &&
-        value !== undefined &&
-        value !== defaultConfig[key]
+        value !== defaultConfig[key] &&
+        typeof value === 'object' &&
+        Object.keys(value).length > 0
       ) {
         experimentalWarning()
       }
@@ -678,6 +679,8 @@ export default async function loadConfig(
 
     const hasReactRoot = shouldUseReactRoot()
     if (hasReactRoot) {
+      // users might not have the `experimental` key in their config
+      userConfig.experimental = userConfig.experimental || {}
       userConfig.experimental.reactRoot = true
     }
 

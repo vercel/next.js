@@ -20,7 +20,7 @@ body:
       label: Provide environment information
       description: Please run `next info` in the root directory of your project and paste the results. You might need to use `npx --no-install next info` if next is not in the current PATH.
     validations:
-      required: false
+      required: true
   - type: input
     attributes:
       label: What browser are you using? (if relevant)

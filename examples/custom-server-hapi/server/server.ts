@@ -1,6 +1,6 @@
-const next = require('next')
-const Hapi = require('@hapi/hapi')
-const { /* pathWrapper, */ nextHandlerWrapper } = require('./next-wrapper')
+import next from 'next'
+import Hapi from '@hapi/hapi'
+import { nextHandlerWrapper } from './next-wrapper'
 
 const port = parseInt(process.env.PORT, 10) || 3000
 const dev = process.env.NODE_ENV !== 'production'

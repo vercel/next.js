@@ -1,4 +1,5 @@
 import { useRouter } from 'next/router'
+import data from '../lib/data.json'
 
 export default function Gsp(props) {
   if (useRouter().isFallback) {
@@ -19,6 +20,7 @@ export const getStaticProps = async () => {
   return {
     props: {
       count,
+      data,
       random: Math.random(),
     },
   }
