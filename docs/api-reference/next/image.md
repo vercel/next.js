@@ -16,7 +16,8 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                           |
 | --------- | ------------------------------------------------------------------------------------------------- |
-| `v12.1.0` | `dangerouslyAllowSVG` and `contentSecurityPolicy` configuration added. `raw` layout added.        |
+| `v12.1.1` | `raw` layout added. Support added for `style` prop.                                               |
+| `v12.1.0` | `dangerouslyAllowSVG` and `contentSecurityPolicy` configuration added.                            |
 | `v12.0.9` | `lazyRoot` prop added.                                                                            |
 | `v12.0.0` | `formats` configuration added.<br/>AVIF support added.<br/>Wrapper `<div>` changed to `<span>`.   |
 | `v11.1.0` | `onLoadingComplete` and `lazyBoundary` props added.                                               |
@@ -167,6 +168,12 @@ Try it out:
 
 In some cases, you may need more advanced usage. The `<Image />` component optionally accepts the following advanced properties.
 
+### style
+
+Allows [passing CSS styles](https://reactjs.org/docs/dom-elements.html#style) to the underlying image element.
+
+Note that all `layout` modes other than `"raw"` apply their own styles to the image element, and these automatic styles take precedence over any styles provided in the `styles` prop.
+
 ### objectFit
 
 Defines how the image will fit into its parent container when using `layout="fill"`.
@@ -290,7 +297,6 @@ size, or format. Defaults to `false`.
 Other properties on the `<Image />` component will be passed to the underlying
 `img` element with the exception of the following:
 
-- `style`. Only allowed on `layout="raw"` images. For others, use `className` instead.
 - `srcSet`. Use
   [Device Sizes](#device-sizes)
   instead.

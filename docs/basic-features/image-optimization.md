@@ -189,9 +189,7 @@ Alternatively, you can import a [global stylesheet](/docs/basic-features/built-i
 
 You cannot use [styled-jsx](/docs/basic-features/built-in-css-support.md#css-in-js) because it's scoped to the current component.
 
-You cannot use the `style` prop because the `<Image>` component does not pass it through to the underlying `<img>`.
-
-> An additional `raw` layout mode is provided which removes the wrapper element and allows the `style` prop. This mode still requires `height` and `width` and is recommended only for advanced use cases that aren't covered by the primary layout modes.
+> An additional `raw` layout mode is provided which removes the wrapper and sizer elements. This mode still requires `height` and `width` and is recommended only for advanced use cases that aren't covered by the primary layout modes.
 
 **When using `layout='fill'`, the parent element must have `position: relative`**
 
