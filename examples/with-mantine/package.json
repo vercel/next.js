@@ -1,0 +1,17 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@mantine/core": "^3.6.9",
+    "@mantine/hooks": "^3.6.9",
+    "@mantine/next": "^3.6.9",
+    "next": "latest",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-is": "^17.0.2"
+  }
+}
