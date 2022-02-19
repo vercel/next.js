@@ -23,6 +23,17 @@ if (typeof window === 'undefined') {
   ;(global as any).__NEXT_IMAGE_IMPORTED = true
 }
 
+let warnOnce = (_: string) => {}
+if (process.env.NODE_ENV !== 'production') {
+  const warnings = new Set<string>()
+  warnOnce = (msg: string) => {
+    if (!warnings.has(msg)) {
+      console.warn(msg)
+    }
+    warnings.add(msg)
+  }
+}
+
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
 type ImageConfig = ImageConfigComplete & { allSizes: number[] }
@@ -299,15 +310,16 @@ function handleLoading(
             if (!parent.position) {
               // The parent has not been rendered to the dom yet and therefore it has no position. Skip the warnings for such cases.
             } else if (layout === 'responsive' && parent.display === 'flex') {
-              console.warn(
+              warnOnce(
                 `Image with src "${src}" may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width.`
               )
             } else if (
               layout === 'fill' &&
               parent.position !== 'relative' &&
-              parent.position !== 'fixed'
+              parent.position !== 'fixed' &&
+              parent.position !== 'absolute'
             ) {
-              console.warn(
+              warnOnce(
                 `Image with src "${src}" may not render properly with a parent using position:"${parent.position}". Consider changing the parent style to position:"relative" with a width and height.`
               )
             }
@@ -433,7 +445,7 @@ export default function Image({
       )
     }
     if (layout === 'fill' && (width || height)) {
-      console.warn(
+      warnOnce(
         `Image with src "${src}" and "layout='fill'" has unused properties assigned. Please remove "width" and "height".`
       )
     }
@@ -466,7 +478,7 @@ export default function Image({
     }
     if (placeholder === 'blur') {
       if (layout !== 'fill' && (widthInt || 0) * (heightInt || 0) < 1600) {
-        console.warn(
+        warnOnce(
           `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
         )
       }
@@ -486,7 +498,7 @@ export default function Image({
       }
     }
     if ('ref' in rest) {
-      console.warn(
+      warnOnce(
         `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
       )
     }
@@ -503,7 +515,7 @@ export default function Image({
         url = new URL(urlStr)
       } catch (err) {}
       if (urlStr === src || (url && url.pathname === src && !url.search)) {
-        console.warn(
+        warnOnce(
           `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
             `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
         )
@@ -528,7 +540,7 @@ export default function Image({
             !lcpImage.src.startsWith('blob:')
           ) {
             // https://web.dev/lcp/#measure-lcp-in-javascript
-            console.warn(
+            warnOnce(
               `Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.` +
                 `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`
             )
