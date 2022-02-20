@@ -3,21 +3,24 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
-    "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "next": "12.1.0",
+    "react": "17.0.2",
+    "react-dom": "17.0.2"
   },
   "devDependencies": {
-    "@types/node": "17.0.4",
-    "@types/react": "17.0.38",
-    "autoprefixer": "^10.4.0",
-    "postcss": "^8.4.5",
+    "@types/node": "17.0.18",
+    "@types/react": "17.0.39",
+    "autoprefixer": "^10.4.2",
+    "eslint": "8.9.0",
+    "eslint-config-next": "12.1.0",
+    "postcss": "^8.4.6",
     "prettier": "^2.5.1",
-    "prettier-plugin-tailwindcss": "^0.1.1",
-    "tailwindcss": "^3.0.7",
-    "typescript": "4.5.4"
+    "prettier-plugin-tailwindcss": "^0.1.7",
+    "tailwindcss": "^3.0.23",
+    "typescript": "4.5.5"
   }
 }
