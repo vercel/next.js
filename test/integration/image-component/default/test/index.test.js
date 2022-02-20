@@ -609,6 +609,39 @@ function runTests(mode) {
       )
 
       expect(await browser.elementById('raw3').getAttribute('style')).toBeNull()
+
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+  it('should handle the styles prop appropriately', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/style-prop')
+
+      expect(await browser.elementById('with-styles').getAttribute('style')).toBe('border-radius:10px;padding:0;position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%')
+      expect(await browser.elementById('with-overlapping-styles-intrinsic').getAttribute('style')).toBe('width:0;border-radius:10px;margin:auto;position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;display:block;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%')
+      expect(await browser.elementById('with-overlapping-styles-raw').getAttribute('style')).toBe('width:10px;border-radius:10px;margin:15px')
+      expect(await browser.elementById('without-styles-responsive').getAttribute('style')).toBe("position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%")
+      expect(await browser.elementById('without-styles-raw').getAttribute('style')).toBeNull()
+      
+      if(mode === 'dev') {
+        await waitFor(1000)
+        const warnings = (await browser.log('browser'))
+          .map((log) => log.message)
+          .join('\n')
+        expect(warnings).toMatch(
+          /Image with src \/test.png is assigned the following styles, which are overwritten by automtically-generated styles: padding/gm
+        )
+        expect(warnings).toMatch(
+          /Image with src \/test.jpg is assigned the following styles, which are overwritten by automtically-generated styles: width, margin/gm
+        )
+        expect(warnings).not.toMatch(
+          /Image with src \/test.webp is assigned the following styles/gm
+        )
+      }
     } finally {
       if (browser) {
         await browser.close()
@@ -720,18 +753,6 @@ function runTests(mode) {
       expect(warnings).toMatch(
         /Image with src (.*)jpg(.*) is smaller than 40x40. Consider removing(.*)/gm
       )
-    })
-
-    it('should warn when style prop is used', async () => {
-      const browser = await webdriver(appPort, '/invalid-style')
-
-      await check(async () => {
-        return (await browser.log('browser'))
-          .map((log) => log.message)
-          .join('\n')
-      }, /Image with src (.*)jpg(.*) is using unsupported "style" property(.*)/gm)
-
-      expect(await hasRedbox(browser)).toBe(false)
     })
 
     it('should not warn when Image is child of p', async () => {
@@ -863,6 +884,7 @@ function runTests(mode) {
         }
         return 'done'
       }, 'done')
+      await waitFor(1000)
       const warnings = (await browser.log('browser'))
         .map((log) => log.message)
         .filter((log) => log.startsWith('Image with src'))
@@ -1033,6 +1055,10 @@ function runTests(mode) {
       `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
     )
 
+    expect($html('#blurry-placeholder-raw')[0].attribs.style).toContain(
+      `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
+    )
+
     expect($html('#blurry-placeholder')[0].attribs.style).toContain(
       `background-position:0% 0%`
     )
@@ -1067,6 +1093,15 @@ function runTests(mode) {
           await getComputedStyle(
             browser,
             'blurry-placeholder',
+            'background-image'
+          ),
+        'none'
+      )
+      await check(
+        async () =>
+          await getComputedStyle(
+            browser,
+            'blurry-placeholder-raw',
             'background-image'
           ),
         'none'
@@ -1204,7 +1239,7 @@ function runTests(mode) {
 }
 
 describe('Image Component Tests', () => {
-  describe.skip('dev mode', () => {
+  describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -1229,7 +1264,7 @@ describe('Image Component Tests', () => {
     runTests('server')
   })
 
-  describe.skip('serverless mode', () => {
+  describe('serverless mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()

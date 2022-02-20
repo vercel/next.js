@@ -479,7 +479,7 @@ export default function Image({
       layout !== 'responsive' &&
       layout !== 'raw'
     ) {
-      console.warn(
+      warnOnce(
         `Image with src "${src}" has "sizes" property but it will be ignored. Only use "sizes" with "layout='fill'", "layout='responsive'", or "layout='raw'`
       )
     }
@@ -614,7 +614,14 @@ export default function Image({
     objectPosition,
   }
 
-  const imgStyle = Object.assign({}, layout === 'raw' ? {} : layoutStyle, style)
+  if(process.env.NODE_ENV !== 'production' && layout !== 'raw' && style) {
+    let overwrittenStyles = Object.keys(style).filter(key => key in layoutStyle)
+    if(overwrittenStyles.length) {
+      warnOnce(`Image with src ${src} is assigned the following styles, which are overwritten by automtically-generated styles: ${overwrittenStyles.join(', ')}`)
+    }
+  }
+  
+  const imgStyle = Object.assign({}, style, layout === 'raw' ? {} : layoutStyle)
 
   const blurStyle =
     placeholder === 'blur'
@@ -751,7 +758,6 @@ export default function Image({
     srcString: srcString,
     ...rest,
   }
-  console.log(heightInt)
   return layout === 'raw' ? (
     <ImageElement raw {...imgElementArgs} />
   ) : (
