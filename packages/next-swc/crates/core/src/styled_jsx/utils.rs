@@ -20,7 +20,7 @@ fn tpl_element(value: &str) -> TplElement {
 }
 
 pub fn compute_class_names(
-    styles: &Vec<JSXStyle>,
+    styles: &[JSXStyle],
     style_import_name: &str,
 ) -> (Option<String>, Option<Expr>) {
     let mut static_class_name = None;
@@ -45,7 +45,7 @@ pub fn compute_class_names(
         }
     }
 
-    if external_styles.len() > 0 {
+    if !external_styles.is_empty() {
         let mut quasis = vec![tpl_element("jsx-")];
         for _i in 1..external_styles.len() {
             quasis.push(tpl_element(" jsx-"))
@@ -61,7 +61,7 @@ pub fn compute_class_names(
         }));
     }
 
-    if static_hashes.len() > 0 {
+    if !static_hashes.is_empty() {
         static_class_name = Some(format!("jsx-{}", hash_string(&static_hashes.join(","))));
     }
 
@@ -295,7 +295,7 @@ pub fn make_local_styled_jsx_el(
     }
 }
 
-pub fn get_usable_import_specifier(_items: &Vec<ModuleItem>) -> String {
+pub fn get_usable_import_specifier(_items: &[ModuleItem]) -> String {
     // TODO
     String::from("_JSXStyle")
 }
@@ -323,7 +323,7 @@ pub fn styled_jsx_import_decl(style_import_name: &str) -> ModuleItem {
 }
 
 // TODO: maybe use DJBHasher (need to implement)
-pub fn hash_string(str: &String) -> String {
+pub fn hash_string(str: &str) -> String {
     let mut hasher = DefaultHasher::new();
     hasher.write(str.as_bytes());
     let hash_result = hasher.finish();
