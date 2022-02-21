@@ -13,6 +13,17 @@ Install the RC version of React 18:
 npm install next@latest react@rc react-dom@rc
 ```
 
+Then update next.config.js
+
+```jsx
+// next.config.js
+module.exports = {
+  experimental: {
+    reactRoot: true,
+  },
+}
+```
+
 You can now start using React 18's new APIs like `startTransition` and `Suspense` in Next.js.
 
 ## Streaming SSR (Alpha)
