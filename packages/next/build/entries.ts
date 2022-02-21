@@ -1,14 +1,12 @@
 import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
-import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
+import { API_ROUTE, PAGES_DIR_ALIAS } from '../lib/constants'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
-import { __ApiPreviewProps } from '../server/api-utils'
 import { normalizePagePath } from '../server/normalize-page-path'
 import { warn } from './output/log'
 import { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
-import { LoadedEnvFiles } from '@next/env'
 import { NextConfigComplete } from '../server/config-shared'
 import { isCustomErrorPage, isFlightPage, isReservedPage } from './utils'
 import { ssrEntries } from './webpack/plugins/middleware-plugin'
@@ -102,44 +100,11 @@ type Entrypoints = {
 export function createEntrypoints(
   pages: PagesMapping,
   buildId: string,
-  previewMode: __ApiPreviewProps,
-  config: NextConfigComplete,
-  loadedEnvFiles: LoadedEnvFiles
+  config: NextConfigComplete
 ): Entrypoints {
   const client: webpack5.EntryObject = {}
   const server: webpack5.EntryObject = {}
   const edgeServer: webpack5.EntryObject = {}
-
-  const hasRuntimeConfig =
-    Object.keys(config.publicRuntimeConfig).length > 0 ||
-    Object.keys(config.serverRuntimeConfig).length > 0
-
-  const defaultServerlessOptions = {
-    absoluteAppPath: pages['/_app'],
-    absoluteDocumentPath: pages['/_document'],
-    absoluteErrorPath: pages['/_error'],
-    absolute404Path: pages['/404'] || '',
-    distDir: DOT_NEXT_ALIAS,
-    buildId,
-    assetPrefix: config.assetPrefix,
-    generateEtags: config.generateEtags ? 'true' : '',
-    poweredByHeader: config.poweredByHeader ? 'true' : '',
-    canonicalBase: config.amp.canonicalBase || '',
-    basePath: config.basePath,
-    runtimeConfig: hasRuntimeConfig
-      ? JSON.stringify({
-          publicRuntimeConfig: config.publicRuntimeConfig,
-          serverRuntimeConfig: config.serverRuntimeConfig,
-        })
-      : '',
-    previewProps: JSON.stringify(previewMode),
-    // base64 encode to make sure contents don't break webpack URL loading
-    loadedEnvFiles: Buffer.from(JSON.stringify(loadedEnvFiles)).toString(
-      'base64'
-    ),
-    i18n: config.i18n ? JSON.stringify(config.i18n) : '',
-    reactRoot: config.experimental.reactRoot ? 'true' : '',
-  }
 
   Object.keys(pages).forEach((page) => {
     const absolutePagePath = pages[page]
@@ -174,11 +139,14 @@ export function createEntrypoints(
         value: `next-middleware-ssr-loader?${stringify({
           dev: false,
           page,
+          buildId,
           stringifiedConfig: JSON.stringify(config),
           absolute500Path: pages['/500'] || '',
           absolutePagePath,
+          absoluteAppPath: pages['/_app'],
+          absoluteDocumentPath: pages['/_document'],
+          absoluteErrorPath: pages['/_error'],
           isServerComponent: isFlight,
-          ...defaultServerlessOptions,
         } as any)}!`,
         isServer: false,
         isEdgeServer: true,

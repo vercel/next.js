@@ -326,13 +326,7 @@ export default class HotReloader {
       const entrypoints = webpackConfigSpan
         .traceChild('create-entrypoints')
         .traceFn(() =>
-          createEntrypoints(
-            this.pagesMapping,
-            this.buildId,
-            this.previewProps,
-            this.config,
-            []
-          )
+          createEntrypoints(this.pagesMapping, this.buildId, this.config)
         )
 
       return webpackConfigSpan
@@ -403,9 +397,7 @@ export default class HotReloader {
           '/_error': 'next/dist/pages/_error',
         },
         this.buildId,
-        this.previewProps,
-        this.config,
-        []
+        this.config
       ).client,
     })
     const fallbackCompiler = webpack(fallbackConfig)
