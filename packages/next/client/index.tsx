@@ -702,7 +702,9 @@ if (process.env.__NEXT_RSC) {
         writer.write(encoder.encode(val))
       })
       buffer.length = 0
-      serverDataBuffer.delete(key)
+      // Clean buffer but not deleting the key to mark bootstrap as complete.
+      // Then `nextServerDataCallback` will be safely skipped in the future renders.
+      serverDataBuffer.set(key, [])
     }
     serverDataWriter.set(key, writer)
   }
