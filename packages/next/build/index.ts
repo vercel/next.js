@@ -1866,6 +1866,9 @@ export default async function build(
       })
     }
 
+    // ensure the worker is not left hanging
+    staticWorkers.close()
+
     const analysisEnd = process.hrtime(analysisBegin)
     telemetry.record(
       eventBuildOptimize(pagePaths, {

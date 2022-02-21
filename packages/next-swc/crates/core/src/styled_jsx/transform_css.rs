@@ -44,7 +44,7 @@ pub fn transform_css(
         Err(err) => {
             HANDLER.with(|handler| {
                 // Print css parsing errors
-                err.to_diagnostics(&handler).emit();
+                err.to_diagnostics(handler).emit();
 
                 // TODO(kdy1): We may print css so the user can see the error, and report it.
 
@@ -78,17 +78,17 @@ pub fn transform_css(
         gen.emit(&ss).unwrap();
     }
 
-    if style_info.expressions.len() == 0 {
+    if style_info.expressions.is_empty() {
         return Ok(string_literal_expr(&s));
     }
 
     let mut parts: Vec<&str> = s.split("__styled-jsx-placeholder-").collect();
     let mut final_expressions = vec![];
-    for i in 1..parts.len() {
-        let (num_len, expression_index) = read_number(&parts[i]);
+    for i in parts.iter_mut().skip(1) {
+        let (num_len, expression_index) = read_number(i);
         final_expressions.push(style_info.expressions[expression_index].clone());
-        let substr = &parts[i][(num_len + 2)..];
-        parts[i] = substr;
+        let substr = &i[(num_len + 2)..];
+        *i = substr;
     }
 
     Ok(Expr::Tpl(Tpl {
@@ -260,24 +260,19 @@ impl Namespacer {
                         &mut vec![],
                     )
                     .unwrap();
-                    return x;
+                    x
                 });
 
                 return match complex_selectors {
                     Ok(complex_selectors) => {
-                        let mut v = complex_selectors.children[1..]
-                            .iter()
-                            .cloned()
-                            .collect::<Vec<_>>();
+                        let mut v = complex_selectors.children[1..].to_vec();
 
-                        match v[0] {
-                            ComplexSelectorChildren::Combinator(Combinator {
-                                value: CombinatorValue::Descendant,
-                                ..
-                            }) => {
-                                v.remove(0);
-                            }
-                            _ => {}
+                        if let ComplexSelectorChildren::Combinator(Combinator {
+                            value: CombinatorValue::Descendant,
+                            ..
+                        }) = v[0]
+                        {
+                            v.remove(0);
                         }
 
                         if v.is_empty() {
@@ -287,27 +282,21 @@ impl Namespacer {
                         trace!("Combinator: {:?}", combinator);
                         trace!("v[0]: {:?}", v[0]);
 
-                        if combinator.is_some() {
+                        if let Some(combinator) = combinator {
                             match v.get(0) {
                                 Some(ComplexSelectorChildren::Combinator(..)) => {}
                                 Some(..) => {}
                                 _ => {
-                                    v.push(ComplexSelectorChildren::Combinator(
-                                        combinator.unwrap(),
-                                    ));
+                                    v.push(ComplexSelectorChildren::Combinator(combinator));
                                 }
                             }
                         }
 
                         v.iter_mut().for_each(|sel| {
                             if i < node.subclass_selectors.len() {
-                                match sel {
-                                    ComplexSelectorChildren::CompoundSelector(sel) => {
-                                        sel.subclass_selectors.extend(
-                                            node.subclass_selectors[i + 1..].iter().cloned(),
-                                        );
-                                    }
-                                    _ => {}
+                                if let ComplexSelectorChildren::CompoundSelector(sel) = sel {
+                                    sel.subclass_selectors
+                                        .extend(node.subclass_selectors[i + 1..].iter().cloned());
                                 }
                             }
                         });
@@ -352,7 +341,7 @@ fn get_front_selector_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
     vec![
         TokenAndSpan {
             span: Span {
-                lo: BytePos(start_pos + 0),
+                lo: BytePos(start_pos),
                 hi: BytePos(start_pos + 1),
                 ctxt: SyntaxContext::empty(),
             },
@@ -377,7 +366,7 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
     vec![
         TokenAndSpan {
             span: Span {
-                lo: BytePos(start_pos + 0),
+                lo: BytePos(start_pos),
                 hi: BytePos(start_pos + 1),
                 ctxt: SyntaxContext::empty(),
             },
@@ -485,7 +474,6 @@ fn nth_to_tokens(nth: &Nth) -> Tokens {
         StringInput::new(&s, nth.span.lo, nth.span.hi),
         ParserConfig {
             allow_wrong_line_comments: true,
-            ..Default::default()
         },
     );
 
