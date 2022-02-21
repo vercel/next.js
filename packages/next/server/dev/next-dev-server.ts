@@ -9,6 +9,7 @@ import type { ParsedNextUrl } from '../../shared/lib/router/utils/parse-next-url
 import type { ParsedUrlQuery } from 'querystring'
 import type { Server as HTTPServer } from 'http'
 import type { UrlWithParsedQuery } from 'url'
+import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 
 import crypto from 'crypto'
 import fs from 'fs'
@@ -58,12 +59,7 @@ import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
 import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware-regex'
 import { isCustomErrorPage, isReservedPage } from '../../build/utils'
-import {
-  BaseNextRequest,
-  BaseNextResponse,
-  NodeNextResponse,
-  NodeNextRequest,
-} from '../base-http'
+import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -944,7 +940,9 @@ export default class DevServer extends Server {
     // Build the error page to ensure the fallback is built too.
     // TODO: See if this can be moved into hotReloader or removed.
     await this.hotReloader!.ensurePage('/_error')
-    return await loadDefaultErrorComponents(this.distDir)
+    return await loadDefaultErrorComponents(this.distDir, {
+      hasConcurrentFeatures: !!this.renderOpts.runtime,
+    })
   }
 
   protected setImmutableAssetCacheControl(res: BaseNextResponse): void {

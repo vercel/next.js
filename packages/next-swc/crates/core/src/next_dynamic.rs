@@ -74,7 +74,7 @@ impl Fold for NextDynamicPatcher {
         if let Callee::Expr(i) = &expr.callee {
             if let Expr::Ident(identifier) = &**i {
                 if self.dynamic_bindings.contains(&identifier.to_id()) {
-                    if expr.args.len() == 0 {
+                    if expr.args.is_empty() {
                         HANDLER.with(|handler| {
                             handler
                                 .struct_span_err(
@@ -116,7 +116,7 @@ impl Fold for NextDynamicPatcher {
                     expr.args[0].expr = expr.args[0].expr.clone().fold_with(self);
                     self.is_next_dynamic_first_arg = false;
 
-                    if let None = self.dynamically_imported_specifier {
+                    if self.dynamically_imported_specifier.is_none() {
                         return expr;
                     }
 

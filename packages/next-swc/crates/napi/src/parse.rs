@@ -11,7 +11,7 @@ pub struct ParseTask {
     pub options: String,
 }
 
-pub fn complete_parse<'a>(env: &Env, ast_json: String) -> napi::Result<JsString> {
+pub fn complete_parse(env: &Env, ast_json: String) -> napi::Result<JsString> {
     env.create_string_from_std(ast_json)
 }
 
@@ -28,7 +28,7 @@ impl Task for ParseTask {
         let program = try_with_handler(c.cm.clone(), false, |handler| {
             c.parse_js(
                 fm,
-                &handler,
+                handler,
                 options.target,
                 options.syntax,
                 options.is_module,

@@ -702,6 +702,7 @@ if (process.env.__NEXT_RSC) {
         writer.write(encoder.encode(val))
       })
       buffer.length = 0
+      serverDataBuffer.delete(key)
     }
     serverDataWriter.set(key, writer)
   }
@@ -744,7 +745,7 @@ if (process.env.__NEXT_RSC) {
     let response = rscCache.get(cacheKey)
     if (response) return response
 
-    const bufferCacheKey = cacheKey + ',' + id
+    const bufferCacheKey = cacheKey + ',' + router.route + ',' + id
     if (serverDataBuffer.has(bufferCacheKey)) {
       const t = new TransformStream()
       const writer = t.writable.getWriter()
@@ -775,9 +776,11 @@ if (process.env.__NEXT_RSC) {
     serialized?: string
     _fresh?: boolean
   }) => {
+    React.useEffect(() => {
+      rscCache.delete(cacheKey)
+    })
     const response = useServerResponse(cacheKey, serialized)
     const root = response.readRoot()
-    rscCache.delete(cacheKey)
     return root
   }
 

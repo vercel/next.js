@@ -240,14 +240,18 @@ export class ImageOptimizerCache {
       Math.max(revalidate, this.nextConfig.images.minimumCacheTTL) * 1000 +
       Date.now()
 
-    await writeToCacheDir(
-      join(this.cacheDir, cacheKey),
-      value.extension,
-      revalidate,
-      expireAt,
-      value.buffer,
-      value.etag
-    )
+    try {
+      await writeToCacheDir(
+        join(this.cacheDir, cacheKey),
+        value.extension,
+        revalidate,
+        expireAt,
+        value.buffer,
+        value.etag
+      )
+    } catch (err) {
+      console.error(`Failed to write image to cache ${cacheKey}`, err)
+    }
   }
 }
 export class ImageError extends Error {
@@ -374,6 +378,16 @@ export async function imageOptimizer(
         '"url" parameter is valid but upstream response is invalid'
       )
     }
+  }
+
+  if (upstreamType === SVG && !nextConfig.images.dangerouslyAllowSVG) {
+    console.error(
+      `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`
+    )
+    throw new ImageError(
+      400,
+      '"url" parameter is valid but image type is not allowed'
+    )
   }
 
   if (upstreamType) {
@@ -543,7 +557,16 @@ async function writeToCacheDir(
   etag: string
 ) {
   const filename = join(dir, `${maxAge}.${expireAt}.${etag}.${extension}`)
-  await promises.rmdir(dir, { recursive: true })
+
+  // Added in: v14.14.0 https://nodejs.org/api/fs.html#fspromisesrmpath-options
+  // attempt cleaning up existing stale cache
+  if ((promises as any).rm) {
+    await (promises as any)
+      .rm(dir, { force: true, recursive: true })
+      .catch(() => {})
+  } else {
+    await promises.rmdir(dir, { recursive: true }).catch(() => {})
+  }
   await promises.mkdir(dir, { recursive: true })
   await promises.writeFile(filename, buffer)
 }
@@ -563,14 +586,15 @@ function getFileNameWithExtension(
   return `${fileName}.${extension}`
 }
 
-export function setResponseHeaders(
+function setResponseHeaders(
   req: IncomingMessage,
   res: ServerResponse,
   url: string,
   etag: string,
   contentType: string | null,
   isStatic: boolean,
-  xCache: XCacheHeader
+  xCache: XCacheHeader,
+  contentSecurityPolicy: string
 ) {
   res.setHeader('Vary', 'Accept')
   res.setHeader(
@@ -595,7 +619,9 @@ export function setResponseHeaders(
     )
   }
 
-  res.setHeader('Content-Security-Policy', `script-src 'none'; sandbox;`)
+  if (contentSecurityPolicy) {
+    res.setHeader('Content-Security-Policy', contentSecurityPolicy)
+  }
   res.setHeader('X-Nextjs-Cache', xCache)
 
   return { finished: false }
@@ -608,7 +634,8 @@ export function sendResponse(
   extension: string,
   buffer: Buffer,
   isStatic: boolean,
-  xCache: XCacheHeader
+  xCache: XCacheHeader,
+  contentSecurityPolicy: string
 ) {
   const contentType = getContentType(extension)
   const etag = getHash([buffer])
@@ -619,7 +646,8 @@ export function sendResponse(
     etag,
     contentType,
     isStatic,
-    xCache
+    xCache,
+    contentSecurityPolicy
   )
   if (!result.finished) {
     res.end(buffer)

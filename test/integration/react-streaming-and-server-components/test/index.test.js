@@ -4,31 +4,27 @@ import { join } from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 
-import {
-  File,
-  fetchViaHTTP,
-  findPort,
-  killApp,
-  renderViaHTTP,
-} from 'next-test-utils'
+import { fetchViaHTTP, findPort, killApp, renderViaHTTP } from 'next-test-utils'
 
-import { nextBuild, nextStart, nextDev } from './utils'
+import {
+  nextBuild,
+  nextStart,
+  nextDev,
+  appDir,
+  nativeModuleTestAppDir,
+  distDir,
+  documentPage,
+  appPage,
+  appServerPage,
+  error500Page,
+  nextConfig,
+} from './utils'
 
 import css from './css'
 import rsc from './rsc'
 import streaming from './streaming'
 import basic from './basic'
 import functions from './functions'
-
-const appDir = join(__dirname, '../app')
-const nativeModuleTestAppDir = join(__dirname, '../unsupported-native-module')
-const distDir = join(__dirname, '../app/.next')
-const documentPage = new File(join(appDir, 'pages/_document.jsx'))
-const appPage = new File(join(appDir, 'pages/_app.js'))
-const appServerPage = new File(join(appDir, 'pages/_app.server.js'))
-const error500Page = new File(join(appDir, 'pages/500.js'))
-const error404Page = new File(join(appDir, 'pages/404.js'))
-const nextConfig = new File(join(appDir, 'next.config.js'))
 
 const documentWithGip = `
 import { Html, Head, Main, NextScript } from 'next/document'
@@ -73,33 +69,6 @@ export default function Page500() {
 }
 `
 
-const suspense404 = `
-import { Suspense } from 'react'
-
-let result
-let promise
-function Data() {
-  if (result) return result
-  if (!promise)
-    promise = new Promise((res) => {
-      setTimeout(() => {
-        result = 'next_streaming_data'
-        res()
-      }, 500)
-    })
-  throw promise
-}
-
-export default function Page404() {
-  return (
-    <Suspense fallback={null}>
-      custom-404-page
-      <Data />
-    </Suspense>
-  )
-}
-`
-
 describe('Edge runtime - basic', () => {
   it('should warn user for experimental risk with server components', async () => {
     const edgeRuntimeWarning =
@@ -115,20 +84,6 @@ describe('Edge runtime - basic', () => {
       'Native Node.js APIs are not supported in the Edge Runtime. Found `dns` imported.'
     const { stderr } = await nextBuild(nativeModuleTestAppDir)
     expect(stderr).toContain(fsImportedErrorMessage)
-  })
-
-  it('should handle suspense error page correctly (node stream)', async () => {
-    error404Page.write(suspense404)
-    const appPort = await findPort()
-    await nextBuild(appDir)
-    await nextStart(appDir, appPort)
-    const browser = await webdriver(appPort, '/404')
-    const hydrationContent = await browser.eval(
-      `document.querySelector('#__next').textContent`
-    )
-    expect(hydrationContent).toBe('custom-404-pagenext_streaming_data')
-
-    error404Page.restore()
   })
 })
 
@@ -195,14 +150,9 @@ describe('Edge runtime - prod', () => {
     expect(html).toContain('foo.client')
   })
 
-  it('should render 500 error correctly', async () => {
-    const path500HTML = await renderViaHTTP(context.appPort, '/err')
-    expect(path500HTML).toContain('custom-500-page')
-  })
-
-  basic(context, 'prod')
-  rsc(context)
+  basic(context, { env: 'prod' })
   streaming(context)
+  rsc(context, { runtime: 'edge', env: 'prod' })
 })
 
 describe('Edge runtime - dev', () => {
@@ -227,34 +177,16 @@ describe('Edge runtime - dev', () => {
     expect(content).toMatchInlineSnapshot('"foo.client"')
   })
 
-  it('should not bundle external imports into client builds for RSC', async () => {
-    const html = await renderViaHTTP(context.appPort, '/external-imports')
-    expect(html).toContain('date:')
-
-    const distServerDir = join(distDir, 'static', 'chunks', 'pages')
-    const bundle = fs
-      .readFileSync(join(distServerDir, 'external-imports.js'))
-      .toString()
-
-    expect(bundle).not.toContain('moment')
-  })
-
-  it('should render 500 error correctly', async () => {
-    const path500HTML = await renderViaHTTP(context.appPort, '/err')
-
-    // In dev mode it should show the error popup.
-    expect(path500HTML).toContain('Error: oops')
-  })
-
-  basic(context, 'dev')
-  rsc(context)
+  basic(context, { env: 'dev' })
   streaming(context)
+  rsc(context, { runtime: 'edge', env: 'dev' })
 })
 
 const nodejsRuntimeBasicSuite = {
   runTests: (context, env) => {
-    basic(context, env)
+    basic(context, { env })
     streaming(context)
+    rsc(context, { runtime: 'nodejs' })
 
     if (env === 'prod') {
       it('should generate middleware SSR manifests for Node.js', async () => {
@@ -282,8 +214,14 @@ const nodejsRuntimeBasicSuite = {
       })
     }
   },
-  beforeAll: () => nextConfig.replace("runtime: 'edge'", "runtime: 'nodejs'"),
-  afterAll: () => nextConfig.restore(),
+  beforeAll: () => {
+    error500Page.write(page500)
+    nextConfig.replace("runtime: 'edge'", "runtime: 'nodejs'")
+  },
+  afterAll: () => {
+    error500Page.delete()
+    nextConfig.restore()
+  },
 }
 
 const customAppPageSuite = {
@@ -309,12 +247,7 @@ const documentSuite = {
   runTests: (context) => {
     it('should error when custom _document has getInitialProps method', async () => {
       const res = await fetchViaHTTP(context.appPort, '/')
-      const html = await res.text()
-
       expect(res.status).toBe(500)
-      expect(html).toContain(
-        '`getInitialProps` in Document component is not supported with the Edge Runtime.'
-      )
     })
   },
   beforeAll: () => documentPage.write(documentWithGip),

@@ -7,6 +7,8 @@ import type { FetchEventResult } from './web/types'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { PrerenderManifest } from '../build'
 import type { Rewrite } from '../lib/load-custom-routes'
+import type { BaseNextRequest, BaseNextResponse } from './base-http'
+import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -33,24 +35,18 @@ import {
   CLIENT_PUBLIC_FILES_PATH,
   SERVERLESS_DIRECTORY,
 } from '../shared/lib/constants'
-import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
 import compression from 'next/dist/compiled/compression'
-import Proxy from 'next/dist/compiled/http-proxy'
+import HttpProxy from 'next/dist/compiled/http-proxy'
 import { route } from './router'
 import { run } from './web/sandbox'
 
-import {
-  BaseNextRequest,
-  BaseNextResponse,
-  NodeNextRequest,
-  NodeNextResponse,
-} from './base-http'
+import { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import { PayloadOptions, sendRenderResult } from './send-payload'
 import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
-import { apiResolver } from './api-utils'
+import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
 import { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
@@ -77,6 +73,8 @@ import { loadEnvConfig } from '@next/env'
 import { getCustomRoute } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
+import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
+import { clonableBodyForRequest } from './body-streams'
 
 export * from './base-server'
 
@@ -104,14 +102,10 @@ export default class NextNodeServer extends BaseServer {
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
      * Using this from process.env allows targeting both serverless and SSR by calling
-     * `process.env.__NEXT_OPTIMIZE_IMAGES`.
-     * TODO(atcastle@): Remove this when experimental.optimizeImages are being cleaned up.
+     * `process.env.__NEXT_OPTIMIZE_CSS`.
      */
     if (this.renderOpts.optimizeFonts) {
       process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
-    }
-    if (this.renderOpts.optimizeImages) {
-      process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
     }
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
@@ -263,7 +257,8 @@ export default class NextNodeServer extends BaseServer {
               cacheEntry.value.extension,
               cacheEntry.value.buffer,
               paramsResult.isStatic,
-              cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT'
+              cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT',
+              imagesConfig.contentSecurityPolicy
             )
           } catch (err) {
             if (err instanceof ImageError) {
@@ -492,7 +487,7 @@ export default class NextNodeServer extends BaseServer {
     parsedUrl.search = stringifyQuery(req, query)
 
     const target = formatUrl(parsedUrl)
-    const proxy = new Proxy({
+    const proxy = new HttpProxy({
       target,
       changeOrigin: true,
       ignorePath: true,
@@ -1036,7 +1031,8 @@ export default class NextNodeServer extends BaseServer {
           },
         })
 
-        if (!this.middleware?.some((m) => m.match(parsedUrl.pathname))) {
+        const normalizedPathname = removePathTrailingSlash(parsedUrl.pathname)
+        if (!this.middleware?.some((m) => m.match(normalizedPathname))) {
           return { finished: false }
         }
 
@@ -1218,6 +1214,9 @@ export default class NextNodeServer extends BaseServer {
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     this.middlewareBetaWarning()
+    const normalizedPathname = removePathTrailingSlash(
+      params.parsedUrl.pathname
+    )
 
     // For middleware to "fetch" we must always provide an absolute URL
     const url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
@@ -1228,11 +1227,11 @@ export default class NextNodeServer extends BaseServer {
     }
 
     const page: { name?: string; params?: { [key: string]: string } } = {}
-    if (await this.hasPage(params.parsedUrl.pathname)) {
+    if (await this.hasPage(normalizedPathname)) {
       page.name = params.parsedUrl.pathname
     } else if (this.dynamicRoutes) {
       for (const dynamicRoute of this.dynamicRoutes) {
-        const matchParams = dynamicRoute.match(params.parsedUrl.pathname)
+        const matchParams = dynamicRoute.match(normalizedPathname)
         if (matchParams) {
           page.name = dynamicRoute.page
           page.params = matchParams
@@ -1243,16 +1242,20 @@ export default class NextNodeServer extends BaseServer {
 
     const allHeaders = new Headers()
     let result: FetchEventResult | null = null
+    const method = (params.request.method || 'GET').toUpperCase()
+    let originalBody =
+      method !== 'GET' && method !== 'HEAD'
+        ? clonableBodyForRequest(params.request.body)
+        : undefined
 
     for (const middleware of this.middleware || []) {
-      if (middleware.match(params.parsedUrl.pathname)) {
+      if (middleware.match(normalizedPathname)) {
         if (!(await this.hasMiddleware(middleware.page, middleware.ssr))) {
           console.warn(`The Edge Function for ${middleware.page} was not found`)
           continue
         }
 
         await this.ensureMiddleware(middleware.page, middleware.ssr)
-
         const middlewareInfo = this.getMiddlewareInfo(middleware.page)
 
         result = await run({
@@ -1261,7 +1264,7 @@ export default class NextNodeServer extends BaseServer {
           env: middlewareInfo.env,
           request: {
             headers: params.request.headers,
-            method: params.request.method || 'GET',
+            method,
             nextConfig: {
               basePath: this.nextConfig.basePath,
               i18n: this.nextConfig.i18n,
@@ -1269,6 +1272,7 @@ export default class NextNodeServer extends BaseServer {
             },
             url: url,
             page: page,
+            body: originalBody?.cloneBodyStream(),
           },
           useCache: !this.nextConfig.experimental.runtime,
           onWarning: (warning: Error) => {
@@ -1305,6 +1309,8 @@ export default class NextNodeServer extends BaseServer {
       }
     }
 
+    originalBody?.finalize()
+
     return result
   }
 
@@ -1335,7 +1341,7 @@ export default class NextNodeServer extends BaseServer {
 
     if (missingKeys.length > 0) {
       Log.warn(
-        `Query params are no longer automatically merged for rewrites in middleware, see more info here: https://nextjs.org/docs/messages/errors/deleting-query-params-in-middlewares`
+        `Query params are no longer automatically merged for rewrites in middleware, see more info here: https://nextjs.org/docs/messages/deleting-query-params-in-middlewares`
       )
       this.warnIfQueryParametersWereDeleted = () => {}
     }
