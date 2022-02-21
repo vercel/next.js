@@ -1668,8 +1668,13 @@ export default async function getBaseWebpackConfig(
     },
   }
 
+  if (!webpack5Config.output) {
+    webpack5Config.output = {}
+  }
+  webpack5Config.output.trustedTypes = 'nextjs#bundler'
+
   if (isClient || isEdgeServer) {
-    webpack5Config.output!.enabledLibraryTypes = ['assign']
+    webpack5Config.output.enabledLibraryTypes = ['assign']
   }
 
   if (dev) {
