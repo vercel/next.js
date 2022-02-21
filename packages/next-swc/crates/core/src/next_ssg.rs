@@ -131,11 +131,8 @@ impl Fold for Analyzer<'_> {
     fn fold_expr(&mut self, e: Expr) -> Expr {
         let e = e.fold_children_with(self);
 
-        match &e {
-            Expr::Ident(i) => {
-                self.add_ref(i.to_id());
-            }
-            _ => {}
+        if let Expr::Ident(i) = &e {
+            self.add_ref(i.to_id());
         }
 
         e
@@ -216,8 +213,8 @@ impl Fold for Analyzer<'_> {
         // Visit children to ensure that all references is added to the scope.
         let s = s.fold_children_with(self);
 
-        match &s {
-            ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(e)) => match &e.decl {
+        if let ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(e)) = &s {
+            match &e.decl {
                 Decl::Fn(f) => {
                     // Drop getStaticProps.
                     if let Ok(is_data_identifier) = self.state.is_data_identifier(&f.ident) {
@@ -235,9 +232,7 @@ impl Fold for Analyzer<'_> {
                     }
                 }
                 _ => {}
-            },
-
-            _ => {}
+            }
         }
 
         s
@@ -254,11 +249,8 @@ impl Fold for Analyzer<'_> {
     fn fold_prop(&mut self, p: Prop) -> Prop {
         let p = p.fold_children_with(self);
 
-        match &p {
-            Prop::Shorthand(i) => {
-                self.add_ref(i.to_id());
-            }
-            _ => {}
+        if let Prop::Shorthand(i) = &p {
+            self.add_ref(i.to_id());
         }
 
         p
@@ -267,17 +259,14 @@ impl Fold for Analyzer<'_> {
     fn fold_var_declarator(&mut self, mut v: VarDeclarator) -> VarDeclarator {
         let old_in_data = self.in_data_fn;
 
-        match &v.name {
-            Pat::Ident(name) => {
-                if let Ok(is_data_identifier) = self.state.is_data_identifier(&name.id) {
-                    if is_data_identifier {
-                        self.in_data_fn = true;
-                    }
-                } else {
-                    return v;
+        if let Pat::Ident(name) = &v.name {
+            if let Ok(is_data_identifier) = self.state.is_data_identifier(&name.id) {
+                if is_data_identifier {
+                    self.in_data_fn = true;
                 }
+            } else {
+                return v;
             }
-            _ => {}
         }
 
         let old_in_lhs_of_var = self.in_lhs_of_var;
@@ -397,18 +386,15 @@ impl Fold for NextSsg {
     }
 
     fn fold_module_item(&mut self, i: ModuleItem) -> ModuleItem {
-        match i {
-            ModuleItem::ModuleDecl(ModuleDecl::Import(i)) => {
-                let is_for_side_effect = i.specifiers.is_empty();
-                let i = i.fold_with(self);
+        if let ModuleItem::ModuleDecl(ModuleDecl::Import(i)) = i {
+            let is_for_side_effect = i.specifiers.is_empty();
+            let i = i.fold_with(self);
 
-                if !is_for_side_effect && i.specifiers.is_empty() {
-                    return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
-                }
-
-                return ModuleItem::ModuleDecl(ModuleDecl::Import(i));
+            if !is_for_side_effect && i.specifiers.is_empty() {
+                return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
             }
-            _ => {}
+
+            return ModuleItem::ModuleDecl(ModuleDecl::Import(i));
         }
 
         let i = i.fold_children_with(self);
@@ -427,10 +413,7 @@ impl Fold for NextSsg {
         items = items.fold_children_with(self);
 
         // Drop nodes.
-        items.retain(|s| match s {
-            ModuleItem::Stmt(Stmt::Empty(..)) => false,
-            _ => true,
-        });
+        items.retain(|s| !matches!(s, ModuleItem::Stmt(Stmt::Empty(..))));
 
         if !self.state.done
             && !self.state.should_run_again
@@ -461,29 +444,24 @@ impl Fold for NextSsg {
 
                 let mut new = Vec::with_capacity(items.len() + 1);
                 for item in take(&mut items) {
-                    match &item {
-                        ModuleItem::ModuleDecl(
-                            ModuleDecl::ExportNamed(..)
-                            | ModuleDecl::ExportDecl(..)
-                            | ModuleDecl::ExportDefaultDecl(..)
-                            | ModuleDecl::ExportDefaultExpr(..),
-                        ) => {
-                            if let Some(var) = var.take() {
-                                new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(
-                                    ExportDecl {
-                                        span: DUMMY_SP,
-                                        decl: Decl::Var(VarDecl {
-                                            span: DUMMY_SP,
-                                            kind: VarDeclKind::Var,
-                                            declare: Default::default(),
-                                            decls: vec![var],
-                                        }),
-                                    },
-                                )))
-                            }
+                    if let ModuleItem::ModuleDecl(
+                        ModuleDecl::ExportNamed(..)
+                        | ModuleDecl::ExportDecl(..)
+                        | ModuleDecl::ExportDefaultDecl(..)
+                        | ModuleDecl::ExportDefaultExpr(..),
+                    ) = &item
+                    {
+                        if let Some(var) = var.take() {
+                            new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                                span: DUMMY_SP,
+                                decl: Decl::Var(VarDecl {
+                                    span: DUMMY_SP,
+                                    kind: VarDeclKind::Var,
+                                    declare: Default::default(),
+                                    decls: vec![var],
+                                }),
+                            })))
                         }
-
-                        _ => {}
                     }
 
                     new.push(item);
@@ -511,14 +489,14 @@ impl Fold for NextSsg {
                     ..
                 }) => self
                     .state
-                    .is_data_identifier(&exported)
+                    .is_data_identifier(exported)
                     .map(|is_data_identifier| !is_data_identifier),
                 ExportSpecifier::Named(ExportNamedSpecifier {
                     orig: ModuleExportName::Ident(orig),
                     ..
                 }) => self
                     .state
-                    .is_data_identifier(&orig)
+                    .is_data_identifier(orig)
                     .map(|is_data_identifier| !is_data_identifier),
 
                 _ => Ok(true),
@@ -528,15 +506,13 @@ impl Fold for NextSsg {
                 Ok(false) => {
                     tracing::trace!("Dropping a export specifier because it's a data identifier");
 
-                    match s {
-                        ExportSpecifier::Named(ExportNamedSpecifier {
-                            orig: ModuleExportName::Ident(orig),
-                            ..
-                        }) => {
-                            self.state.should_run_again = true;
-                            self.state.refs_from_data_fn.insert(orig.to_id());
-                        }
-                        _ => {}
+                    if let ExportSpecifier::Named(ExportNamedSpecifier {
+                        orig: ModuleExportName::Ident(orig),
+                        ..
+                    }) = s
+                    {
+                        self.state.should_run_again = true;
+                        self.state.refs_from_data_fn.insert(orig.to_id());
                     }
 
                     false
@@ -569,10 +545,7 @@ impl Fold for NextSsg {
                 }
                 Pat::Array(arr) => {
                     if !arr.elems.is_empty() {
-                        arr.elems.retain(|e| match e {
-                            Some(Pat::Invalid(..)) => return false,
-                            _ => true,
-                        });
+                        arr.elems.retain(|e| !matches!(e, Some(Pat::Invalid(..))));
 
                         if arr.elems.is_empty() {
                             return Pat::Invalid(Invalid { span: DUMMY_SP });
@@ -627,6 +600,7 @@ impl Fold for NextSsg {
         p
     }
 
+    #[allow(clippy::single_match)]
     fn fold_stmt(&mut self, mut s: Stmt) -> Stmt {
         match s {
             Stmt::Decl(Decl::Fn(f)) => {
