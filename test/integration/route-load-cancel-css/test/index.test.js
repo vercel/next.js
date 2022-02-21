@@ -3,9 +3,9 @@
 import fs from 'fs-extra'
 import {
   findPort,
+  initNextServerScript,
   killApp,
   nextBuild,
-  nextStart,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -34,11 +34,22 @@ function runTests() {
 
 describe('route cancel via CSS', () => {
   beforeAll(async () => {
+    const startServerlessEmulator = async (dir, port, buildId) => {
+      const scriptPath = join(dir, 'server.js')
+      const env = Object.assign(
+        {},
+        { ...process.env },
+        { PORT: port, BUILD_ID: buildId }
+      )
+      return initNextServerScript(scriptPath, /ready on/i, env, false, {})
+    }
+
     await fs.remove(join(appDir, '.next'))
     await nextBuild(appDir)
 
+    const buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     appPort = await findPort()
-    app = await nextStart(appDir, appPort)
+    app = await startServerlessEmulator(appDir, appPort, buildId)
   })
 
   afterAll(async () => {
