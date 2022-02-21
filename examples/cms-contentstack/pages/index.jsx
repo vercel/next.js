@@ -42,15 +42,11 @@ export default function Home(props) {
 export async function getServerSideProps(context) {
   try {
     const entryRes = await getHomeRes(context.resolvedUrl)
-    // const headerRes = await getHeaderRes()
-    // const footerRes = await getFooterRes()
 
     return {
       props: {
         entryUrl: context.resolvedUrl,
         result: entryRes,
-        // header: headerRes,
-        // footer: footerRes,
       },
     }
   } catch (error) {
