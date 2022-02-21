@@ -1,13 +1,10 @@
 #![feature(trivial_bounds)]
 #![feature(into_future)]
 
-use std::time::Instant;
-
 use asset::{Asset, AssetRef, AssetsSet, AssetsSetRef};
 use module::ModuleRef;
 use resolve::referenced_modules;
 use turbo_tasks_fs::{FileContentRef, FileSystemPathRef};
-use utils::visit;
 
 pub mod asset;
 mod ecmascript;

@@ -166,7 +166,7 @@ impl GraphViz {
         self.nodes.retain(|(id, node)| {
             if nodes_with_edges.contains(id) { return true; }
             match node {
-                NodeType::Task(name, state, executions, slots) => {
+                NodeType::Task(_name, state, executions, slots) => {
                     if *executions <= 1 && (state == "done" || state == "1 children dirty (scheduled)") && slots.len() == 0 {
                         dropped_ids.insert(id.clone());
                         false

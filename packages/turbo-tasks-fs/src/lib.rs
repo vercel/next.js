@@ -5,7 +5,6 @@
 mod invalidator_map;
 
 use std::{
-    collections::HashMap,
     fmt::{self, Debug},
     fs,
     io::{self, ErrorKind},
@@ -20,7 +19,7 @@ use async_std::task::block_on;
 use invalidator_map::InvalidatorMap;
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use threadpool::ThreadPool;
-use turbo_tasks::{Invalidator, Task};
+use turbo_tasks::Task;
 
 #[turbo_tasks::value_trait]
 pub trait FileSystem {

@@ -115,19 +115,24 @@ async fn resolve_internal(
 
             ResolveResultRef::value(ResolveResult::Unresolveable)
         }
-        Request::Module { path } => ResolveResultRef::value(ResolveResult::Unresolveable),
-        Request::ServerRelative { path } => ResolveResultRef::value(ResolveResult::Unresolveable),
-        Request::Windows { path } => ResolveResultRef::value(ResolveResult::Unresolveable),
-        Request::Empty => ResolveResultRef::value(ResolveResult::Unresolveable),
-        Request::PackageInternal { path } => ResolveResultRef::value(ResolveResult::Unresolveable),
-        Request::DataUri {
-            mimetype,
-            attributes,
-            base64,
-            encoded,
-        } => ResolveResultRef::value(ResolveResult::Unresolveable),
-        Request::Uri { protocol, remainer } => {
+        Request::Module { path: _ } => ResolveResultRef::value(ResolveResult::Unresolveable),
+        Request::ServerRelative { path: _ } => {
             ResolveResultRef::value(ResolveResult::Unresolveable)
         }
+        Request::Windows { path: _ } => ResolveResultRef::value(ResolveResult::Unresolveable),
+        Request::Empty => ResolveResultRef::value(ResolveResult::Unresolveable),
+        Request::PackageInternal { path: _ } => {
+            ResolveResultRef::value(ResolveResult::Unresolveable)
+        }
+        Request::DataUri {
+            mimetype: _,
+            attributes: _,
+            base64: _,
+            encoded: _,
+        } => ResolveResultRef::value(ResolveResult::Unresolveable),
+        Request::Uri {
+            protocol: _,
+            remainer: _,
+        } => ResolveResultRef::value(ResolveResult::Unresolveable),
     }
 }

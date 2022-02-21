@@ -1,4 +1,3 @@
-use swc_common::errors::{ColorConfig, Handler};
 use swc_common::input::StringInput;
 use swc_common::sync::Lrc;
 use swc_common::{FileName, SourceMap};

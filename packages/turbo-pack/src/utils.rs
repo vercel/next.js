@@ -1,6 +1,6 @@
 use std::{collections::HashSet, future::Future, hash::Hash, pin::Pin, task::Poll};
 
-pub fn race_pop<'a, T: 'a, F: Future<Output = T> + Unpin>(
+pub fn _race_pop<'a, T: 'a, F: Future<Output = T> + Unpin>(
     futures: &'a mut Vec<F>,
 ) -> impl Future<Output = Option<T>> + 'a {
     FutureRacePop { futures }
@@ -31,7 +31,7 @@ impl<'a, T, F: Future<Output = T> + Unpin> Future for FutureRacePop<'a, T, F> {
         }
     }
 }
-pub async fn visit<N, V, F, R, L, G, T>(node: N, visit: V, get_referenced_nodes: R) -> Vec<T>
+pub async fn _visit<N, V, F, R, L, G, T>(node: N, visit: V, get_referenced_nodes: R) -> Vec<T>
 where
     N: Clone + Hash + PartialEq + Eq,
     V: Fn(N) -> F,
@@ -51,7 +51,7 @@ where
                 results.push(visit(node.clone()).await);
                 futures_queue.push(Box::pin(get_referenced_nodes(node)));
             }
-            None => match race_pop(&mut futures_queue).await {
+            None => match _race_pop(&mut futures_queue).await {
                 Some(iter) => {
                     for node in iter {
                         if !visited.contains(&node) {
