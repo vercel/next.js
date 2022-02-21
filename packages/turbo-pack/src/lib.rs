@@ -20,19 +20,16 @@ mod utils;
 #[turbo_tasks::function]
 pub async fn emit(module: ModuleRef, input_dir: FileSystemPathRef, output_dir: FileSystemPathRef) {
     let asset = nft_asset(module, input_dir, output_dir);
-    let start = Instant::now();
-    visit(
-        asset,
-        |asset| async move {
-            emit_asset(asset);
-        },
-        |asset| async move {
-            let assets_set = asset.references().await;
-            assets_set.assets.clone()
-        },
-    )
-    .await;
-    println!("processed graph in {} ms", start.elapsed().as_millis());
+    emit_assets_recursive(asset);
+}
+
+#[turbo_tasks::function]
+pub async fn emit_assets_recursive(asset: AssetRef) {
+    let assets_set = asset.references().await;
+    emit_asset(asset);
+    for asset in assets_set.assets.iter() {
+        emit_assets_recursive(asset.clone());
+    }
 }
 
 #[turbo_tasks::function]

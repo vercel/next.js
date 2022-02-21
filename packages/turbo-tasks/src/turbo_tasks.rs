@@ -62,34 +62,48 @@ impl TurboTasks {
         key: K,
         create_new: impl FnOnce() -> Result<Task, E>,
     ) -> Result<SlotRef, E> {
-        let mut result_task = None;
-        let mut is_new = false;
-        map.alter(key, |old| match old {
-            Some(t) => {
-                result_task = Some(Ok(t.clone()));
-                Some(t)
-            }
-            None => match create_new() {
+        if let Some(cached) = map.get(&key) {
+            // fast pass without key lock (only read lock on table)
+            let task = cached.clone();
+            drop(cached);
+            Task::with_current(|parent| task.connect_parent(parent));
+            task.ensure_scheduled(self);
+            return Ok(SlotRef::TaskOutput(task));
+        } else {
+            // slow pass with key lock
+            let mut result_task;
+            let mut is_new = true;
+            match create_new() {
                 Ok(task) => {
                     let new_task = Arc::new(task);
-                    is_new = true;
-                    result_task = Some(Ok(new_task.clone()));
-                    Some(new_task)
+                    result_task = Ok(new_task.clone());
+                    map.alter(key, |old| match old {
+                        Some(t) => {
+                            is_new = false;
+                            result_task = Ok(t.clone());
+                            Some(t)
+                        }
+                        None => {
+                            // This is the most likely case
+                            // so we want this to be as fast as possible
+                            // avoiding locking the map too long
+                            Some(new_task)
+                        }
+                    });
                 }
                 Err(err) => {
-                    result_task = Some(Err(err));
-                    None
+                    result_task = Err(err);
                 }
-            },
-        });
-        let task = result_task.unwrap()?;
-        Task::with_current(|parent| task.connect_parent(parent));
-        if is_new {
-            self.schedule(task.clone());
-        } else {
-            task.ensure_scheduled(self);
+            }
+            let task = result_task?;
+            Task::with_current(|parent| task.connect_parent(parent));
+            if is_new {
+                self.schedule(task.clone());
+            } else {
+                task.ensure_scheduled(self);
+            }
+            return Ok(SlotRef::TaskOutput(task));
         }
-        return Ok(SlotRef::TaskOutput(task));
     }
 
     pub(crate) fn native_call(
@@ -139,13 +153,13 @@ impl TurboTasks {
                 TURBO_TASKS.with(|c| c.set(Some(self)));
                 task.execution_started();
                 let result = task.execute(self).await;
-                task.finalize_execution();
-                task.execution_completed(result, self);
+                task.execution_result(result);
                 TASKS_TO_NOTIFY.with(|tasks| {
                     for task in tasks.take().iter() {
                         task.dependent_slot_updated(self);
                     }
-                })
+                });
+                task.execution_completed(self);
             })
             .unwrap()
     }

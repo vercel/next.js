@@ -2,6 +2,8 @@
 #![feature(hash_drain_filter)]
 #![feature(into_future)]
 
+mod invalidator_map;
+
 use std::{
     collections::HashMap,
     fmt::{self, Debug},
@@ -15,6 +17,7 @@ use std::{
 
 use anyhow::Context;
 use async_std::task::block_on;
+use invalidator_map::InvalidatorMap;
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use threadpool::ThreadPool;
 use turbo_tasks::{Invalidator, Task};
@@ -32,9 +35,9 @@ pub struct DiskFileSystem {
     pub name: String,
     pub root: String,
     #[trace_ignore]
-    invalidators: Arc<Mutex<HashMap<String, Invalidator>>>,
+    invalidators: Arc<InvalidatorMap>,
     #[trace_ignore]
-    dir_invalidators: Arc<Mutex<HashMap<String, Invalidator>>>,
+    dir_invalidators: Arc<InvalidatorMap>,
     #[trace_ignore]
     #[allow(dead_code)] // it's never read, but reference is kept for Drop
     watcher: RecommendedWatcher,
@@ -51,8 +54,8 @@ impl DiskFileSystem {
     #[turbo_tasks::constructor(intern)]
     pub fn new(name: String, root: String) -> Self {
         let pool = Mutex::new(ThreadPool::new(30));
-        let mut invalidators = Arc::new(Mutex::new(HashMap::<String, Invalidator>::new()));
-        let mut dir_invalidators = Arc::new(Mutex::new(HashMap::<String, Invalidator>::new()));
+        let mut invalidators = Arc::new(InvalidatorMap::new());
+        let mut dir_invalidators = Arc::new(InvalidatorMap::new());
         // Create a channel to receive the events.
         let (tx, rx) = channel();
         // Create a watcher object, delivering debounced events.
@@ -73,18 +76,12 @@ impl DiskFileSystem {
             pool,
         };
         thread::spawn(move || {
-            fn invalidate_path(
-                invalidators: &mut Arc<Mutex<HashMap<String, Invalidator>>>,
-                path: &Path,
-            ) {
+            fn invalidate_path(invalidators: &mut Arc<InvalidatorMap>, path: &Path) {
                 if let Some(invalidator) = invalidators.lock().unwrap().remove(&path_to_key(path)) {
                     invalidator.invalidate()
                 }
             }
-            fn invalidate_path_and_children(
-                invalidators: &mut Arc<Mutex<HashMap<String, Invalidator>>>,
-                path: &Path,
-            ) {
+            fn invalidate_path_and_children(invalidators: &mut Arc<InvalidatorMap>, path: &Path) {
                 let path_key = path_to_key(path);
                 for (_, invalidator) in invalidators
                     .lock()
@@ -192,8 +189,8 @@ impl FileSystem for DiskFileSystem {
         );
         {
             let invalidator = Task::get_invalidator();
-            let mut invalidators = self.invalidators.lock().unwrap();
-            invalidators.insert(path_to_key(full_path.as_path()), invalidator);
+            self.invalidators
+                .insert(path_to_key(full_path.as_path()), invalidator);
         }
         match self.execute(move || fs::read(&full_path)).await {
             Ok(content) => FileContent::new(content),
@@ -207,8 +204,8 @@ impl FileSystem for DiskFileSystem {
             Path::new(&self.root).join(&fs_path.path.replace("/", &MAIN_SEPARATOR.to_string()));
         {
             let invalidator = Task::get_invalidator();
-            let mut invalidators = self.dir_invalidators.lock().unwrap();
-            invalidators.insert(path_to_key(full_path.as_path()), invalidator);
+            self.dir_invalidators
+                .insert(path_to_key(full_path.as_path()), invalidator);
         }
         let result = self
             .execute(move || fs::read_dir(&full_path).unwrap())

@@ -33,7 +33,7 @@ task_local! {
 }
 
 enum TaskType {
-    Root(NativeTaskFn),
+    Root(NativeTaskFn, Event),
     Native(&'static NativeFunction, NativeTaskFn),
     ResolveNative(&'static NativeFunction),
     ResolveTrait(&'static TraitType, String),
@@ -42,7 +42,7 @@ enum TaskType {
 impl Debug for TaskType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Root(_) => f.debug_tuple("Root").finish(),
+            Self::Root(..) => f.debug_tuple("Root").finish(),
             Self::Native(native_fn, _) => f.debug_tuple("Native").field(&native_fn.name).finish(),
             Self::ResolveNative(native_fn) => f
                 .debug_tuple("ResolveNative")
@@ -222,7 +222,7 @@ impl Task {
     pub(crate) fn new_root(functor: impl Fn() -> NativeTaskFuture + Sync + Send + 'static) -> Self {
         Self {
             inputs: Vec::new(),
-            ty: TaskType::Root(Box::new(functor)),
+            ty: TaskType::Root(Box::new(functor), Event::new()),
             state: Default::default(),
             dependencies: Default::default(),
             previous_nodes: Default::default(),
@@ -280,12 +280,33 @@ impl Task {
         };
     }
 
-    pub(crate) fn execution_completed(
-        self: Arc<Self>,
-        result: SlotRef,
-        turbo_tasks: &'static TurboTasks,
-    ) {
+    pub(crate) fn execution_result(self: &Arc<Self>, result: SlotRef) {
         self.assert_parents_state();
+        let mut state = self.state.write().unwrap();
+        match state.state_type {
+            InProgressLocally => {
+                state.output_slot.link(result);
+            }
+            InProgressLocallyOutdated => {
+                // We don't want to assign the output slot here
+                // as we want to avoid unnecessary updates
+                // TODO maybe this should be controlled by a heuristic
+            }
+            _ => {
+                panic!(
+                    "Task execution completed in unexpected state {:?}",
+                    state.state_type
+                )
+            }
+        };
+    }
+
+    pub(crate) fn execution_completed(self: Arc<Self>, turbo_tasks: &'static TurboTasks) {
+        self.assert_parents_state();
+        PREVIOUS_NODES.with(|cell| {
+            let mut previous_nodes = self.previous_nodes.lock().unwrap();
+            Cell::from_mut(&mut *previous_nodes).swap(cell);
+        });
         let mut state = self.state.write().unwrap();
         match state.state_type {
             InProgressLocally => {
@@ -294,22 +315,17 @@ impl Task {
                     state.event.notify(usize::MAX);
                     let parents: Vec<Arc<Task>> =
                         state.parents.iter().filter_map(|p| p.upgrade()).collect();
-                    state.output_slot.link(result);
                     drop(state);
                     for parent in parents.iter() {
                         parent.child_done(turbo_tasks);
                     }
                 } else {
                     state.state_type = SomeChildrenScheduled;
-                    state.output_slot.link(result);
                     drop(state);
                 }
             }
             InProgressLocallyOutdated => {
                 state.state_type = Scheduled;
-                // We don't want to assign the output slot here
-                // as we want to avoid unnecessary updates
-                // TODO maybe this should be controlled by a heuristic
                 self.clear_children_and_dependencies(state);
 
                 turbo_tasks.schedule(self);
@@ -390,7 +406,8 @@ impl Task {
             }
             // for SomeChildrenDirtyUndetermined we would need to propagate to parents again
             Done => {
-                if let TaskType::Root(_) = self.ty {
+                if let TaskType::Root(_, event) = &self.ty {
+                    event.notify(usize::MAX);
                     state.state_type = SomeChildrenScheduled;
                     state.dirty_children_count = 1;
                     let parents: Vec<Arc<Task>> =
@@ -552,7 +569,7 @@ impl Task {
         match state.state_type {
             Dirty | Scheduled => {}
             SomeChildrenDirty => {
-                if let TaskType::Root(_) = self.ty {
+                if let TaskType::Root(..) = self.ty {
                     state.state_type = Scheduled;
 
                     self.clear_children_and_dependencies(state);
@@ -569,7 +586,8 @@ impl Task {
                 state.state_type = InProgressLocallyOutdated;
             }
             Done | SomeChildrenDirtyUndetermined => {
-                let is_root = if let TaskType::Root(_) = self.ty {
+                let is_root = if let TaskType::Root(_, event) = &self.ty {
+                    event.notify(usize::MAX);
                     true
                 } else {
                     false
@@ -646,13 +664,6 @@ impl Task {
         })
     }
 
-    pub(crate) fn finalize_execution(&self) {
-        PREVIOUS_NODES.with(|cell| {
-            let mut previous_nodes = self.previous_nodes.lock().unwrap();
-            Cell::from_mut(&mut *previous_nodes).swap(cell);
-        });
-    }
-
     pub(crate) fn add_dependency(&self, node: WeakSlotRef) {
         // TODO it's possible to schedule that work instead
         // maybe into a task_local dependencies list that
@@ -665,7 +676,7 @@ impl Task {
 
     pub(crate) fn execute(self: &Arc<Self>, tt: &'static TurboTasks) -> NativeTaskFuture {
         match &self.ty {
-            TaskType::Root(bound_fn) => bound_fn(),
+            TaskType::Root(bound_fn, _) => bound_fn(),
             TaskType::Native(_, bound_fn) => bound_fn(),
             TaskType::ResolveNative(ref native_fn) => {
                 let native_fn = *native_fn;
@@ -772,6 +783,28 @@ impl Task {
         }
     }
 
+    pub async fn root_wait_dirty(self: &Arc<Self>) {
+        if let TaskType::Root(_, event) = &self.ty {
+            loop {
+                match {
+                    let state = self.state.read().unwrap();
+                    if state.state_type != TaskStateType::Done {
+                        None
+                    } else {
+                        Some(event.listen())
+                    }
+                } {
+                    Some(listener) => listener.await,
+                    None => {
+                        return;
+                    }
+                }
+            }
+        } else {
+            panic!("root_wait_dirty() can only be called on the root task")
+        }
+    }
+
     pub(crate) fn ensure_scheduled(self: &Arc<Self>, turbo_tasks: &'static TurboTasks) {
         let mut state = self.state.write().unwrap();
         match state.state_type {
@@ -825,7 +858,7 @@ impl Task {
             children: state.children.clone(),
             dependencies: self.dependencies.read().unwrap().clone(),
             name: match &self.ty {
-                TaskType::Root(_) => "root".to_string(),
+                TaskType::Root(..) => "root".to_string(),
                 TaskType::Native(native_fn, _) => native_fn.name.clone(),
                 TaskType::ResolveNative(native_fn) => format!("[resolve] {}", native_fn.name),
                 TaskType::ResolveTrait(trait_type, fn_name) => {
@@ -957,7 +990,7 @@ impl Display for Task {
             f,
             "Task({}, {})",
             match &self.ty {
-                TaskType::Root(_) => "root".to_string(),
+                TaskType::Root(..) => "root".to_string(),
                 TaskType::Native(native_fn, _) => native_fn.name.clone(),
                 TaskType::ResolveNative(native_fn) => format!("[resolve] {}", native_fn.name),
                 TaskType::ResolveTrait(trait_type, fn_name) => {
