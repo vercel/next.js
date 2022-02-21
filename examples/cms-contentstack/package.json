@@ -1,0 +1,40 @@
+{
+  "name": "cms-contentstack",
+  "description": "A starter app for Contentstack and Next.js",
+  "version": "1.3.0",
+  "private": true,
+  "author": "Contentstack",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint pages/**/*.js"
+  },
+  "dependencies": {
+    "@contentstack/live-preview-utils": "^1.0.1",
+    "@contentstack/utils": "^1.1.1",
+    "contentstack": "^3.15.0",
+    "html-react-parser": "^1.4.6",
+    "moment": "^2.29.1",
+    "next": "^12.0.9",
+    "next-pwa": "^5.3.1",
+    "nprogress": "^0.2.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-json-view": "^1.21.3",
+    "swr": "^1.2.1"
+  },
+  "devDependencies": {
+    "babel-core": "^6.26.3",
+    "babel-eslint": "^10.1.0",
+    "eslint": "^7.32.0",
+    "eslint-config-airbnb": "^19.0.4",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-import": "^2.24.2",
+    "eslint-plugin-jsx-a11y": "^6.1.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "eslint-plugin-react": "^7.26.1",
+    "prettier": "^2.5.1",
+    "prettier-eslint": "^13.0.0"
+  }
+}
