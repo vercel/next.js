@@ -18,17 +18,13 @@ struct CjsFinder {
 /// does not support changing configuration based on content of the file.
 impl Visit for CjsFinder {
     fn visit_member_expr(&mut self, e: &MemberExpr) {
-        match &*e.obj {
-            Expr::Ident(obj) => match &e.prop {
-                MemberProp::Ident(prop) => {
-                    if &*obj.sym == "module" && &*prop.sym == "exports" {
-                        self.found = true;
-                        return;
-                    }
+        if let Expr::Ident(obj) = &*e.obj {
+            if let MemberProp::Ident(prop) = &e.prop {
+                if &*obj.sym == "module" && &*prop.sym == "exports" {
+                    self.found = true;
+                    return;
                 }
-                _ => {}
-            },
-            _ => {}
+            }
         }
 
         e.obj.visit_with(self);
