@@ -141,6 +141,7 @@ describe('create next app', () => {
         'react-dom',
       ])
       expect(Object.keys(pkgJSON.devDependencies)).toEqual([
+        '@types/react-dom',
         '@types/node',
         '@types/react',
         'eslint',
