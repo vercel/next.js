@@ -261,16 +261,7 @@ impl Task {
     }
 
     pub(crate) fn execution_started(self: &Arc<Task>) {
-        self.assert_state();
-        {
-            let state = self.state.read().unwrap();
-            let parents: Vec<Arc<Task>> =
-                state.parents.iter().filter_map(|p| p.upgrade()).collect();
-            drop(state);
-            for parent in parents.iter() {
-                parent.assert_state();
-            }
-        }
+        self.assert_parents_state();
         let mut state = self.state.write().unwrap();
         state.executions += 1;
         match state.state_type {
@@ -278,16 +269,7 @@ impl Task {
                 state.state_type = InProgressLocally;
                 self.clear_children_and_dependencies(state);
 
-                self.assert_state();
-                {
-                    let state = self.state.read().unwrap();
-                    let parents: Vec<Arc<Task>> =
-                        state.parents.iter().filter_map(|p| p.upgrade()).collect();
-                    drop(state);
-                    for parent in parents.iter() {
-                        parent.assert_state();
-                    }
-                }
+                self.assert_parents_state();
             }
             _ => {
                 panic!(
@@ -303,16 +285,7 @@ impl Task {
         result: SlotRef,
         turbo_tasks: &'static TurboTasks,
     ) {
-        self.assert_state();
-        {
-            let state = self.state.read().unwrap();
-            let parents: Vec<Arc<Task>> =
-                state.parents.iter().filter_map(|p| p.upgrade()).collect();
-            drop(state);
-            for parent in parents.iter() {
-                parent.assert_state();
-            }
-        }
+        self.assert_parents_state();
         let mut state = self.state.write().unwrap();
         match state.state_type {
             InProgressLocally => {
@@ -373,16 +346,7 @@ impl Task {
                     state.state_type = SomeChildrenScheduled;
                 }
                 drop(state);
-                this.assert_state();
-                {
-                    let state = this.state.read().unwrap();
-                    let parents: Vec<Arc<Task>> =
-                        state.parents.iter().filter_map(|p| p.upgrade()).collect();
-                    drop(state);
-                    for parent in parents.iter() {
-                        parent.assert_state();
-                    }
-                }
+                this.assert_parents_state();
                 true
             } else {
                 // revert back to SomeChildrenDirty when no parent asked for scheduling
@@ -391,16 +355,7 @@ impl Task {
                     state.state_type = SomeChildrenDirty;
                 }
                 drop(state);
-                this.assert_state();
-                {
-                    let state = this.state.read().unwrap();
-                    let parents: Vec<Arc<Task>> =
-                        state.parents.iter().filter_map(|p| p.upgrade()).collect();
-                    drop(state);
-                    for parent in parents.iter() {
-                        parent.assert_state();
-                    }
-                }
+                this.assert_parents_state();
                 false
             }
         }
@@ -419,7 +374,7 @@ impl Task {
             }
             InProgressLocally => {
                 state.dirty_children_count += 1;
-                false
+                true
             }
             SomeChildrenDirty => {
                 state.dirty_children_count += 1;
@@ -525,6 +480,24 @@ impl Task {
         }
     }
 
+    #[cfg(not(feature = "assert_task_state"))]
+    fn assert_parents_state(&self) {}
+
+    #[cfg(feature = "assert_task_state")]
+    fn assert_parents_state(&self) {
+        self.assert_state();
+        let state = self.state.read().unwrap();
+        let parents: Vec<Arc<Task>> = state.parents.iter().filter_map(|p| p.upgrade()).collect();
+        drop(state);
+        for parent in parents.iter() {
+            parent.assert_state();
+        }
+    }
+
+    #[cfg(not(feature = "assert_task_state"))]
+    fn assert_state(&self) {}
+
+    #[cfg(feature = "assert_task_state")]
     fn assert_state(&self) {
         let state = self.state.read().unwrap();
         match state.state_type {
@@ -536,7 +509,14 @@ impl Task {
             Done => {
                 for child in state.children.iter() {
                     let child_state = child.state.read().unwrap();
-                    assert_eq!(child_state.state_type, Done);
+                    if child_state.state_type != Done
+                        && child_state.state_type != SomeChildrenDirtyUndetermined
+                    {
+                        panic!(
+                            "Child is in {:?} state while parent is Done",
+                            child_state.state_type
+                        );
+                    }
                 }
             }
             Dirty => {
@@ -621,16 +601,7 @@ impl Task {
                     drop(state);
                     turbo_tasks.schedule(self.clone());
                 }
-                self.assert_state();
-                {
-                    let state = self.state.read().unwrap();
-                    let parents: Vec<Arc<Task>> =
-                        state.parents.iter().filter_map(|p| p.upgrade()).collect();
-                    drop(state);
-                    for parent in parents.iter() {
-                        parent.assert_state();
-                    }
-                }
+                self.assert_parents_state();
             }
             SomeChildrenScheduled => {
                 state.state_type = Scheduled;
@@ -828,6 +799,13 @@ impl Task {
         }
     }
 
+    pub fn reset_executions(&self) {
+        let mut state = self.state.write().unwrap();
+        if state.executions > 1 {
+            state.executions = 1;
+        }
+    }
+
     pub fn get_snapshot_for_visualization(self: &Arc<Self>) -> TaskSnapshot {
         let state = self.state.read().unwrap();
         let mut slots: Vec<_> = state
@@ -879,6 +857,7 @@ impl Task {
         self.assert_state();
         {
             let mut parent_state = parent.state.write().unwrap();
+            #[cfg(feature = "assert_task_state")]
             assert!(parent_state.state_type != Dirty && parent_state.state_type != Scheduled);
             let mut state = self.state.write().unwrap();
             parent_state.children.push(self.clone());

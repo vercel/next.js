@@ -14,3 +14,6 @@ chashmap = "2.2.2"
 event-listener = "2.5.2"
 lazy_static = "1.4.0"
 "turbo-tasks-macros" = { path = "../turbo-tasks-macros" }
+
+[features]
+assert_task_state = []
