@@ -331,6 +331,11 @@ declare module 'next/dist/compiled/comment-json' {
   export = m
 }
 
+declare module 'next/dist/compiled/process' {
+  import m from 'process'
+  export = m
+}
+
 declare module 'pnp-webpack-plugin' {
   import webpack from 'webpack4'
 

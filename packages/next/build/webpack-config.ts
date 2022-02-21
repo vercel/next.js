@@ -783,11 +783,6 @@ export default async function getBaseWebpackConfig(
             minChunks: 1,
             reuseExistingChunk: true,
           },
-          commons: {
-            name: 'commons',
-            minChunks: totalPages,
-            priority: 20,
-          },
           middleware: {
             chunks: (chunk: webpack.compilation.Chunk) =>
               chunk.name?.match(MIDDLEWARE_ROUTE),
