@@ -37,15 +37,19 @@ use std::rc::Rc;
 use std::{path::PathBuf, sync::Arc};
 use swc::config::ModuleConfig;
 use swc_common::{self, chain, pass::Optional};
-use swc_common::{SourceFile, SourceMap};
+use swc_common::{FileName, SourceFile, SourceMap};
 use swc_ecmascript::ast::EsVersion;
 use swc_ecmascript::parser::parse_file_as_module;
 use swc_ecmascript::transforms::pass::noop;
-use swc_ecmascript::visit::Fold;
+use swc_ecmascript::transforms::react::Runtime;
+use swc_ecmascript::{
+    visit::Fold,
+};
 
 pub mod amp_attributes;
 mod auto_cjs;
 pub mod disallow_re_export_all_in_page;
+pub mod emotion;
 pub mod hook_optimizer;
 pub mod next_dynamic;
 pub mod next_ssg;
@@ -97,6 +101,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub shake_exports: Option<shake_exports::Config>,
+
+    #[serde(default)]
+    pub emotion: Option<emotion::EmotionOptions>,
 }
 
 pub fn custom_before_pass(
@@ -122,7 +129,7 @@ pub fn custom_before_pass(
 
     chain!(
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
-        styled_jsx::styled_jsx(cm, file.name.clone()),
+        styled_jsx::styled_jsx(cm.clone(), file.name.clone()),
         hook_optimizer::hook_optimizer(),
         match &opts.styled_components {
             Some(config) => {
@@ -164,7 +171,50 @@ pub fn custom_before_pass(
         match &opts.shake_exports {
             Some(config) => Either::Left(shake_exports::shake_exports(config.clone())),
             None => Either::Right(noop()),
-        }
+        },
+        opts.emotion
+            .as_ref()
+            .and_then(|config| {
+                if !config.enabled.unwrap_or(false) {
+                    return None;
+                }
+                let is_react_jsx_runtime = opts
+                    .swc
+                    .config
+                    .jsc
+                    .transform
+                    .as_ref()
+                    .and_then(|t| t.react.runtime)
+                    .map(|r| matches!(r, Runtime::Automatic))
+                    .unwrap_or(false);
+                let es_module_interop = opts
+                    .swc
+                    .config
+                    .module
+                    .as_ref()
+                    .map(|m| {
+                        if let ModuleConfig::CommonJs(c) = m {
+                            !c.no_interop
+                        } else {
+                            true
+                        }
+                    })
+                    .unwrap_or(true);
+                if let FileName::Real(path) = &file.name {
+                    path.to_str().map(|_| {
+                        Either::Left(emotion::EmotionTransformer::new(
+                            config.clone(),
+                            path,
+                            cm,
+                            is_react_jsx_runtime,
+                            es_module_interop,
+                        ))
+                    })
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| Either::Right(noop())),
     )
 }
 

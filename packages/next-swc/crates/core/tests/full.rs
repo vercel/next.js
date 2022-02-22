@@ -61,6 +61,7 @@ fn test(input: &Path, minify: bool) {
                 react_remove_properties: None,
                 relay: None,
                 shake_exports: None,
+                emotion: Some(assert_json("{}")),
             };
 
             let options = options.patch(&fm);

@@ -1,5 +1,6 @@
 use next_swc::{
     amp_attributes::amp_attributes,
+    emotion::{self, EmotionOptions},
     next_dynamic::next_dynamic,
     next_ssg::next_ssg,
     page_config::page_config_test,
@@ -13,14 +14,24 @@ use std::path::PathBuf;
 use swc_common::{chain, comments::SingleThreadedComments, FileName, Mark, Span, DUMMY_SP};
 use swc_ecma_transforms_testing::{test, test_fixture};
 use swc_ecmascript::{
-    parser::{EsConfig, Syntax},
-    transforms::{react::jsx, resolver},
+    parser::{EsConfig, Syntax, TsConfig},
+    transforms::{
+        react::{jsx, Runtime},
+        resolver,
+    },
 };
 use testing::fixture;
 
 fn syntax() -> Syntax {
     Syntax::Es(EsConfig {
         jsx: true,
+        ..Default::default()
+    })
+}
+
+fn ts_syntax() -> Syntax {
+    Syntax::Typescript(TsConfig {
+        tsx: true,
         ..Default::default()
     })
 }
@@ -255,6 +266,48 @@ fn shake_exports_fixture_default(input: PathBuf) {
             shake_exports(ShakeExportsConfig {
                 ignore: vec![String::from("default").into()],
             })
+        },
+        &input,
+        &output,
+    );
+}
+
+#[fixture("tests/fixture/emotion/**/input.tsx")]
+fn next_emotion_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.ts");
+    test_fixture(
+        ts_syntax(),
+        &|tr| {
+            let top_level_mark = Mark::fresh(Mark::root());
+            let jsx = jsx::<SingleThreadedComments>(
+                tr.cm.clone(),
+                None,
+                swc_ecmascript::transforms::react::Options {
+                    next: false,
+                    runtime: Some(Runtime::Automatic),
+                    throw_if_namespace: false,
+                    development: false,
+                    use_builtins: true,
+                    use_spread: true,
+                    ..Default::default()
+                },
+                top_level_mark,
+            );
+            chain!(
+                emotion::emotion(
+                    EmotionOptions {
+                        enabled: Some(true),
+                        sourcemap: Some(true),
+                        auto_label: Some(true),
+                        ..Default::default()
+                    },
+                    &input,
+                    tr.cm.clone(),
+                    true,
+                    true,
+                ),
+                jsx,
+            )
         },
         &input,
         &output,

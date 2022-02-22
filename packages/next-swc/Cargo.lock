@@ -816,12 +816,14 @@ checksum = "e4a24736216ec316047a1fc4252e27dabb04218aa4a3f37c6e7ddbf1f9782b54"
 name = "next-swc"
 version = "0.0.0"
 dependencies = [
+ "byteorder",
  "chrono",
  "easy-error",
  "either",
  "fxhash",
  "once_cell",
  "pathdiff",
+ "radix_fmt",
  "regex",
  "serde",
  "serde_json",
@@ -1741,9 +1743,9 @@ dependencies = [
 
 [[package]]
 name = "swc_common"
-version = "0.17.13"
+version = "0.17.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a36a065c7083df5ffd6fce81183cce8eb3dd60e04bf43a02b13fd2ca82735194"
+checksum = "e1e413d6e2d304b45adb55f85d9ba684e1020616156a7483e6a060a2e47db972"
 dependencies = [
  "ahash",
  "ast_node",
@@ -1771,9 +1773,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css"
-version = "0.98.0"
+version = "0.98.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a981201fee6030b632b61e232344e57b88646487e890fe40c2f52df6e61dad8"
+checksum = "c1127181637c65d3be55bda07f298d29e84fd30d651d0b877726a651c50a3f86"
 dependencies = [
  "swc_css_ast",
  "swc_css_codegen",
