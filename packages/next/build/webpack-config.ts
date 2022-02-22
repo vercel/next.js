@@ -1179,10 +1179,11 @@ export default async function getBaseWebpackConfig(
                 ...codeCondition,
                 test: serverComponentsRegex,
                 use: {
-                  loader: `next-flight-server-loader?${stringify({
+                  loader: 'next-flight-server-loader',
+                  options: {
                     client: 1,
-                    pageExtensions: JSON.stringify(rawPageExtensions),
-                  })}`,
+                    pageExtensions: rawPageExtensions,
+                  },
                 },
               },
             ]
@@ -1194,22 +1195,15 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 ...codeCondition,
-                test: serverComponentsRegex,
                 use: {
-                  loader: `next-flight-server-loader?${stringify({
-                    pageExtensions: JSON.stringify(rawPageExtensions),
-                  })}`,
+                  loader: 'next-flight-server-loader',
+                  options: {
+                    pageExtensions: rawPageExtensions,
+                  },
                 },
               },
               {
                 ...codeCondition,
-                test: clientComponentsRegex,
-                use: {
-                  loader: 'next-flight-client-loader',
-                },
-              },
-              {
-                test: /next[\\/](dist[\\/]client[\\/])?(link|image)/,
                 use: {
                   loader: 'next-flight-client-loader',
                 },

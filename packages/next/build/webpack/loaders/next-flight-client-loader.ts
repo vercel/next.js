@@ -96,7 +96,7 @@ export default async function transformSource(
 ): Promise<string> {
   const { resourcePath, resourceQuery } = this
 
-  if (resourceQuery !== '?flight') return source
+  if (resourceQuery !== '?__sc_client__') return source
 
   let url = resourcePath
   const transformedSource = source
