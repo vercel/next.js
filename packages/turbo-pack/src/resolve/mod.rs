@@ -1,9 +1,10 @@
 use turbo_tasks_fs::{FileContent, FileSystemPathRef};
 
 use crate::{
+    asset::{AssetRef, AssetsSet, AssetsSetRef},
     ecmascript::references::module_references,
-    module::{module, ModuleRef, ModulesSet, ModulesSetRef},
     reference::AssetReferenceRef,
+    source_asset::SourceAssetRef,
 };
 
 use self::{
@@ -15,23 +16,23 @@ mod options;
 mod parse;
 
 #[turbo_tasks::function]
-pub async fn referenced_modules(module: ModuleRef) -> ModulesSetRef {
-    let references_set = module_references(module.clone()).await;
-    let mut modules = Vec::new();
-    let context = module.await.path.clone().parent();
+pub async fn referenced_modules(asset: AssetRef) -> AssetsSetRef {
+    let references_set = module_references(asset.clone()).await;
+    let mut assets = Vec::new();
+    let context = asset.path().parent();
     for reference in references_set.references.iter() {
         let resolve_result = resolve(context.clone(), reference.clone());
         if let ResolveResult::Module(module) = &*resolve_result.await {
-            modules.push(module.clone());
+            assets.push(module.clone());
         }
     }
-    ModulesSet { modules }.into()
+    AssetsSet { assets }.into()
 }
 
 #[turbo_tasks::value]
 #[derive(Hash, PartialEq, Eq, Clone, Debug)]
 pub enum ResolveResult {
-    Module(ModuleRef),
+    Module(AssetRef),
     Unresolveable,
 }
 
@@ -108,7 +109,9 @@ async fn resolve_internal(
                 if let Some(new_path) = normalize_path(context.path.clone() + "/" + &req) {
                     let fs_path = FileSystemPathRef::new(context.fs.clone(), new_path);
                     if exists(fs_path.clone()).await {
-                        return ResolveResultRef::value(ResolveResult::Module(module(fs_path)));
+                        return ResolveResultRef::value(ResolveResult::Module(
+                            SourceAssetRef::new(fs_path).into(),
+                        ));
                     }
                 }
             }

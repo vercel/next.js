@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    module::ModuleRef,
+    asset::AssetRef,
     reference::{AssetReferenceRef, AssetReferencesSet, AssetReferencesSetRef},
 };
 use swc_ecmascript::{
@@ -15,7 +15,7 @@ use swc_ecmascript::{
 use super::parse::{parse, ParseResult};
 
 #[turbo_tasks::function]
-pub async fn module_references(module: ModuleRef) -> AssetReferencesSetRef {
+pub async fn module_references(module: AssetRef) -> AssetReferencesSetRef {
     let parsed = parse(module).await;
     match &*parsed {
         ParseResult::Ok(module) => {

@@ -7,6 +7,14 @@ pub struct SourceAsset {
 }
 
 #[turbo_tasks::value_impl]
+impl SourceAsset {
+    #[turbo_tasks::constructor(intern)]
+    pub fn new(path: FileSystemPathRef) -> Self {
+        Self { path }
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl Asset for SourceAsset {
     fn path(&self) -> FileSystemPathRef {
         self.path.clone()

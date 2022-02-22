@@ -6,7 +6,7 @@ use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, Parser, Syntax};
 use turbo_tasks_fs::FileContent;
 
-use crate::module::ModuleRef;
+use crate::asset::AssetRef;
 
 #[turbo_tasks::value]
 pub enum ParseResult {
@@ -25,12 +25,11 @@ impl PartialEq for ParseResult {
 }
 
 #[turbo_tasks::function]
-pub async fn parse(module: ModuleRef) -> ParseResultRef {
-    let module = module.await;
-    let path = module.path.get().await;
-    let content = module.path.clone().read();
+pub async fn parse(module: AssetRef) -> ParseResultRef {
+    let fs_path = module.path().await;
+    let content = module.content().await;
 
-    match &*content.await {
+    match &*content {
         FileContent::NotFound => ParseResult::NotFound.into(),
         FileContent::Content(buffer) => {
             match String::from_utf8(buffer.clone()) {
@@ -40,7 +39,7 @@ pub async fn parse(module: ModuleRef) -> ParseResultRef {
                     // let handler =
                     //     Handler::with_tty_emitter(ColorConfig::Auto, true, false, Some(cm.clone()));
 
-                    let fm = cm.new_source_file(FileName::Custom(path.path.to_string()), string);
+                    let fm = cm.new_source_file(FileName::Custom(fs_path.path.clone()), string);
 
                     let lexer = Lexer::new(
                         Syntax::Es(EsConfig {

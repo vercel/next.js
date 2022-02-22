@@ -2,21 +2,19 @@
 #![feature(into_future)]
 
 use asset::{Asset, AssetRef, AssetsSet, AssetsSetRef};
-use module::ModuleRef;
 use resolve::referenced_modules;
 use turbo_tasks_fs::{FileContentRef, FileSystemPathRef};
 
 pub mod asset;
 mod ecmascript;
-pub mod module;
 pub mod reference;
 pub mod resolve;
 pub mod source_asset;
 mod utils;
 
 #[turbo_tasks::function]
-pub async fn emit(module: ModuleRef, input_dir: FileSystemPathRef, output_dir: FileSystemPathRef) {
-    let asset = nft_asset(module, input_dir, output_dir);
+pub async fn emit(input: AssetRef, input_dir: FileSystemPathRef, output_dir: FileSystemPathRef) {
+    let asset = nft_asset(input, input_dir, output_dir);
     emit_assets_recursive(asset);
 }
 
@@ -31,19 +29,15 @@ pub async fn emit_assets_recursive(asset: AssetRef) {
 
 #[turbo_tasks::function]
 pub async fn nft_asset(
-    module: ModuleRef,
+    source: AssetRef,
     input_dir: FileSystemPathRef,
     output_dir: FileSystemPathRef,
 ) -> AssetRef {
-    let new_path = FileSystemPathRef::rebase(
-        module.get().await.path.clone(),
-        input_dir.clone(),
-        output_dir.clone(),
-    );
+    let new_path = FileSystemPathRef::rebase(source.path(), input_dir.clone(), output_dir.clone());
 
     NftAssetSource {
         path: new_path,
-        module,
+        source,
         input_dir,
         output_dir,
     }
@@ -54,7 +48,7 @@ pub async fn nft_asset(
 #[derive(Hash, PartialEq, Eq)]
 struct NftAssetSource {
     path: FileSystemPathRef,
-    module: ModuleRef,
+    source: AssetRef,
     input_dir: FileSystemPathRef,
     output_dir: FileSystemPathRef,
 }
@@ -66,15 +60,15 @@ impl Asset for NftAssetSource {
     }
 
     async fn content(&self) -> FileContentRef {
-        self.module.get().await.path.clone().read()
+        self.source.path().read()
     }
 
     async fn references(&self) -> AssetsSetRef {
-        let modules = referenced_modules(self.module.clone());
+        let input_references = referenced_modules(self.source.clone());
         let mut assets = Vec::new();
-        for module in modules.await.modules.iter() {
+        for asset in input_references.await.assets.iter() {
             assets.push(nft_asset(
-                module.clone(),
+                asset.clone(),
                 self.input_dir.clone(),
                 self.output_dir.clone(),
             ));
