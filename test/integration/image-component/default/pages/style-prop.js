@@ -11,7 +11,7 @@ const Page = () => {
         src="/test.png"
         width={400}
         height={400}
-        style={{borderRadius: "10px", padding: 10}}
+        style={{ borderRadius: '10px', padding: 10 }}
         loading="eager"
       />
       <Image
@@ -20,7 +20,7 @@ const Page = () => {
         src="/test.jpg"
         width={400}
         height={400}
-        style={{width: "10px", borderRadius: "10px", margin: "15px"}}
+        style={{ width: '10px', borderRadius: '10px', margin: '15px' }}
         loading="eager"
       />
       <Image
@@ -29,7 +29,7 @@ const Page = () => {
         src="/test.webp"
         width={400}
         height={400}
-        style={{width: "10px", borderRadius: "10px", margin: "15px"}}
+        style={{ width: '10px', borderRadius: '10px', margin: '15px' }}
         loading="eager"
       />
       <Image

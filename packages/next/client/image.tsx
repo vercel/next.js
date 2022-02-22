@@ -614,13 +614,19 @@ export default function Image({
     objectPosition,
   }
 
-  if(process.env.NODE_ENV !== 'production' && layout !== 'raw' && style) {
-    let overwrittenStyles = Object.keys(style).filter(key => key in layoutStyle)
-    if(overwrittenStyles.length) {
-      warnOnce(`Image with src ${src} is assigned the following styles, which are overwritten by automtically-generated styles: ${overwrittenStyles.join(', ')}`)
+  if (process.env.NODE_ENV !== 'production' && layout !== 'raw' && style) {
+    let overwrittenStyles = Object.keys(style).filter(
+      (key) => key in layoutStyle
+    )
+    if (overwrittenStyles.length) {
+      warnOnce(
+        `Image with src ${src} is assigned the following styles, which are overwritten by automtically-generated styles: ${overwrittenStyles.join(
+          ', '
+        )}`
+      )
     }
   }
-  
+
   const imgStyle = Object.assign({}, style, layout === 'raw' ? {} : layoutStyle)
 
   const blurStyle =

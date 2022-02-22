@@ -609,7 +609,6 @@ function runTests(mode) {
       )
 
       expect(await browser.elementById('raw3').getAttribute('style')).toBeNull()
-
     } finally {
       if (browser) {
         await browser.close()
@@ -621,13 +620,35 @@ function runTests(mode) {
     try {
       browser = await webdriver(appPort, '/style-prop')
 
-      expect(await browser.elementById('with-styles').getAttribute('style')).toBe('border-radius:10px;padding:0;position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%')
-      expect(await browser.elementById('with-overlapping-styles-intrinsic').getAttribute('style')).toBe('width:0;border-radius:10px;margin:auto;position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;display:block;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%')
-      expect(await browser.elementById('with-overlapping-styles-raw').getAttribute('style')).toBe('width:10px;border-radius:10px;margin:15px')
-      expect(await browser.elementById('without-styles-responsive').getAttribute('style')).toBe("position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%")
-      expect(await browser.elementById('without-styles-raw').getAttribute('style')).toBeNull()
-      
-      if(mode === 'dev') {
+      expect(
+        await browser.elementById('with-styles').getAttribute('style')
+      ).toBe(
+        'border-radius:10px;padding:0;position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%'
+      )
+      expect(
+        await browser
+          .elementById('with-overlapping-styles-intrinsic')
+          .getAttribute('style')
+      ).toBe(
+        'width:0;border-radius:10px;margin:auto;position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;display:block;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%'
+      )
+      expect(
+        await browser
+          .elementById('with-overlapping-styles-raw')
+          .getAttribute('style')
+      ).toBe('width:10px;border-radius:10px;margin:15px')
+      expect(
+        await browser
+          .elementById('without-styles-responsive')
+          .getAttribute('style')
+      ).toBe(
+        'position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%'
+      )
+      expect(
+        await browser.elementById('without-styles-raw').getAttribute('style')
+      ).toBeNull()
+
+      if (mode === 'dev') {
         await waitFor(1000)
         const warnings = (await browser.log('browser'))
           .map((log) => log.message)
