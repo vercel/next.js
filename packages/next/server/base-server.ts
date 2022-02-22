@@ -62,7 +62,7 @@ import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
-import { ImageConfigComplete } from './image-config'
+import { ImageConfigComplete } from '../shared/lib/image-config'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType

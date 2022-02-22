@@ -11,7 +11,7 @@ import type {
   RenderPage,
   RenderPageResult,
 } from '../shared/lib/utils'
-import type { ImageConfigComplete } from './image-config'
+import type { ImageConfigComplete } from '../shared/lib/image-config'
 import type { Redirect } from '../lib/load-custom-routes'
 import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
 import type { FontManifest } from './font-utils'
