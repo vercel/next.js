@@ -1,5 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies */
-import got from 'got'
+import got from './client'
 import tar from 'tar'
 import { Stream } from 'stream'
 import { promisify } from 'util'
