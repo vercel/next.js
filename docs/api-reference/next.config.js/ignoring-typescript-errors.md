@@ -15,10 +15,8 @@ Open `next.config.js` and enable the `ignoreBuildErrors` option in the `typescri
 ```js
 module.exports = {
   typescript: {
-    // !! WARN !!
     // Dangerously allow production builds to successfully complete even if
     // your project has type errors.
-    // !! WARN !!
     ignoreBuildErrors: true,
   },
 }
