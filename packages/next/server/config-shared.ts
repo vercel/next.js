@@ -79,7 +79,6 @@ export interface ExperimentalConfig {
   swcFileReading?: boolean
   cpus?: number
   sharedPool?: boolean
-  plugins?: boolean
   isrFlushToDisk?: boolean
   reactMode?: 'legacy' | 'concurrent' | 'blocking'
   workerThreads?: boolean
@@ -447,7 +446,6 @@ export const defaultConfig: NextConfig = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     sharedPool: true,
-    plugins: false,
     isrFlushToDisk: true,
     workerThreads: false,
     pageEnv: false,
