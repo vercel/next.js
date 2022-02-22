@@ -1,4 +1,4 @@
-import { promises as fs } from 'fs'
+import { promises as fs, constants as fsConstants } from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import * as CommentJson from 'next/dist/compiled/comment-json'
 import semver from 'next/dist/compiled/semver'
@@ -94,10 +94,6 @@ export async function writeConfigurationDefaults(
   tsConfigPath: string,
   isFirstTimeSetup: boolean
 ): Promise<void> {
-  if (isFirstTimeSetup) {
-    await fs.writeFile(tsConfigPath, '{}' + os.EOL)
-  }
-
   const desiredCompilerOptions = getDesiredCompilerOptions(ts)
   const { options: tsOptions, raw: rawConfig } =
     await getTypeScriptConfiguration(ts, tsConfigPath, true)
@@ -113,7 +109,7 @@ export async function writeConfigurationDefaults(
 
   const suggestedActions: string[] = []
   const requiredActions: string[] = []
-  for (const optionKey of Object.keys(desiredCompilerOptions)) {
+  for (const optionKey in desiredCompilerOptions) {
     const check = desiredCompilerOptions[optionKey]
     if ('suggested' in check) {
       if (!(optionKey in tsOptions)) {
@@ -171,12 +167,31 @@ export async function writeConfigurationDefaults(
     return
   }
 
-  await fs.writeFile(
-    tsConfigPath,
-    CommentJson.stringify(userTsConfig, null, 2) + os.EOL
-  )
+  let readOnly
+  try {
+    await fs.access(tsConfigPath, fsConstants.W_OK)
+  } catch {
+    readOnly = true
+  }
+
+  if (!readOnly) {
+    await fs.writeFile(
+      tsConfigPath,
+      CommentJson.stringify(userTsConfig, null, 2) + os.EOL
+    )
+  }
 
   if (isFirstTimeSetup) {
+    if (readOnly) {
+      console.log(
+        chalk.green(
+          `We detected TypeScript in your project but could not create a ${chalk.bold(
+            'tsconfig.json'
+          )} file for you, since the file is read-only. Read more: https://nextjs.org/docs/messages/ts-config-readonly`
+        ) + '\n'
+      )
+      return
+    }
     console.log(
       chalk.green(
         `We detected TypeScript in your project and created a ${chalk.bold(
@@ -189,16 +204,22 @@ export async function writeConfigurationDefaults(
 
   console.log(
     chalk.green(
-      `We detected TypeScript in your project and reconfigured your ${chalk.bold(
-        'tsconfig.json'
-      )} file for you. Strict-mode is set to ${chalk.bold('false')} by default.`
+      readOnly
+        ? `We detected TypeScript in your project and tried to reconfigure your ${chalk.bold(
+            'tsconfig.json'
+          )} file for you, but the file is read-only. Read more: https://nextjs.org/docs/messages/ts-config-readonly`
+        : `We detected TypeScript in your project and reconfigured your ${chalk.bold(
+            'tsconfig.json'
+          )} file for you. Strict-mode is set to ${chalk.bold(
+            'false'
+          )} by default.`
     ) + '\n'
   )
   if (suggestedActions.length) {
     console.log(
-      `The following suggested values were added to your ${chalk.cyan(
-        'tsconfig.json'
-      )}. These values ${chalk.bold(
+      `The following suggested values ${
+        readOnly ? 'should be added' : 'were added'
+      } to your ${chalk.cyan('tsconfig.json')}. These values ${chalk.bold(
         'can be changed'
       )} to fit your project's needs:\n`
     )
@@ -210,9 +231,9 @@ export async function writeConfigurationDefaults(
 
   if (requiredActions.length) {
     console.log(
-      `The following ${chalk.bold(
-        'mandatory changes'
-      )} were made to your ${chalk.cyan('tsconfig.json')}:\n`
+      `The following ${chalk.bold('mandatory changes')} ${
+        readOnly ? 'must be' : 'were'
+      } made to your ${chalk.cyan('tsconfig.json')}:\n`
     )
 
     requiredActions.forEach((action) => console.log(`\t- ${action}`))
