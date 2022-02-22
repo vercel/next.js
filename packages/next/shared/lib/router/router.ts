@@ -23,7 +23,6 @@ import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt from '../mitt'
 import {
   AppContextType,
-  formatWithValidation,
   getLocationOrigin,
   getURL,
   loadGetInitialProps,
@@ -39,6 +38,7 @@ import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 import { getMiddlewareRegex } from './utils/get-middleware-regex'
+import { formatWithValidation } from './utils/format-url'
 
 declare global {
   interface Window {
