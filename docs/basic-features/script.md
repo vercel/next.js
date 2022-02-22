@@ -64,27 +64,72 @@ With `next/script`, you decide when to load your third-party script by using the
 <Script src="https://connect.facebook.net/en_US/sdk.js" strategy="lazyOnload" />
 ```
 
-There are three different loading strategies that can be used:
+There are four different loading strategies that can be used:
 
-- `beforeInteractive`: Load before the page is interactive
+- `beforeInteractive`: Load scripts required by the entire site before the page is interactive
+- `beforePageRender`: Load scripts required by a particular page before the page is interactive
 - `afterInteractive`: (**default**): Load immediately after the page becomes interactive
 - `lazyOnload`: Load during idle time
 
 #### beforeInteractive
 
-Scripts that load with the `beforeInteractive` strategy are injected into the initial HTML from the server and run before self-bundled JavaScript is executed. This strategy should be used for any critical scripts that need to be fetched and executed before the page is interactive.
+Scripts that load with the `beforeInteractive` strategy are injected into the initial HTML from the server and run before self-bundled JavaScript is executed. This strategy should be used for any critical scripts that need to be fetched and executed before the page is interactive. This strategy only works inside **\_document.js** and is designed to load scripts that is needed by the entire site.
 
 ```jsx
-<Script
-  src="https://cdn.jsdelivr.net/npm/cookieconsent@3/build/cookieconsent.min.js"
-  strategy="beforeInteractive"
-/>
+// In _document.js
+
+export default class MyDocument extends Document {
+  render() {
+    return (
+      <Html>
+        <Head />
+        <body>
+          <Main />
+          <NextScript />
+          <Script
+            id="scriptBeforeInteractive"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+            strategy="beforeInteractive"
+          ></Script>
+        </body>
+      </Html>
+    )
+  }
+}
 ```
 
 Examples of scripts that should be loaded as soon as possible with this strategy include:
 
 - Bot detectors
 - Cookie consent managers
+
+#### beforePageRender
+
+Scripts that load with the `beforePageRender` strategy are injected into the initial HTML from the server and run before self-bundled JavaScript is executed. This strategy is similar to `beforeInteractive` but is designed for scripts that are needed by a page and not the entire site. Syntax for adding the script is as shown below.
+
+```jsx
+import Script from 'next/script'
+
+const Page = () => {
+  return (
+    <div class="container">
+      <div>page1</div>
+    </div>
+  )
+}
+
+Page.scriptLoader = () => {
+  return (
+    <Script
+      id="scriptBeforePageRender"
+      src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforePageRender"
+      strategy="beforePageRender"
+    ></Script>
+  )
+}
+
+export default Page
+```
 
 #### afterInteractive
 
