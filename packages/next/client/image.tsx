@@ -764,33 +764,37 @@ export default function Image({
     srcString: srcString,
     ...rest,
   }
-  return layout === 'raw' ? (
-    <ImageElement raw {...imgElementArgs} />
-  ) : (
-    <span style={wrapperStyle}>
-      {hasSizer ? (
-        <span style={sizerStyle}>
-          {sizerSvgUrl ? (
-            <img
-              style={{
-                display: 'block',
-                maxWidth: '100%',
-                width: 'initial',
-                height: 'initial',
-                background: 'none',
-                opacity: 1,
-                border: 0,
-                margin: 0,
-                padding: 0,
-              }}
-              alt=""
-              aria-hidden={true}
-              src={sizerSvgUrl}
-            />
+  return (
+    <>
+      {layout === 'raw' ? (
+        <ImageElement raw {...imgElementArgs} />
+      ) : (
+        <span style={wrapperStyle}>
+          {hasSizer ? (
+            <span style={sizerStyle}>
+              {sizerSvgUrl ? (
+                <img
+                  style={{
+                    display: 'block',
+                    maxWidth: '100%',
+                    width: 'initial',
+                    height: 'initial',
+                    background: 'none',
+                    opacity: 1,
+                    border: 0,
+                    margin: 0,
+                    padding: 0,
+                  }}
+                  alt=""
+                  aria-hidden={true}
+                  src={sizerSvgUrl}
+                />
+              ) : null}
+            </span>
           ) : null}
+          <ImageElement raw={false} {...imgElementArgs} />
         </span>
-      ) : null}
-      <ImageElement raw={false} {...imgElementArgs} />
+      )}
       {priority ? (
         // Note how we omit the `href` attribute, as it would only be relevant
         // for browsers that do not support `imagesrcset`, and in those cases
@@ -812,7 +816,7 @@ export default function Image({
           />
         </Head>
       ) : null}
-    </span>
+    </>
   )
 }
 
