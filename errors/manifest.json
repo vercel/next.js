@@ -631,6 +631,10 @@
         {
           "title": "client-flush-effects",
           "path": "/errors/client-flush-effects.md"
+        },
+        {
+          "title": "ts-config-readonly",
+          "path": "/errors/ts-config-readonly.md"
         }
       ]
     }
