@@ -593,7 +593,7 @@ function runTests(mode) {
     }
   })
 
-  it.only('should render no wrappers or sizers and minimal styling with layout-raw', async () => {
+  it('should render no wrappers or sizers and minimal styling with layout-raw', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/layout-raw')
