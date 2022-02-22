@@ -149,18 +149,16 @@ export function splitCookiesString(cookiesString: string) {
 }
 
 /**
- * We will be soon deprecating the usage of relative URLs in Middleware introducing
- * URL validation. This helper puts the future code in place and prints a warning
- * for cases where it will break. Meanwhile we preserve the previous behavior.
+ * Validate the correctness of a user-provided URL.
  */
 export function validateURL(url: string | URL): string {
   try {
     return String(new URL(String(url)))
   } catch (error: any) {
-    console.log(
-      `warn  -`,
-      'using relative URLs for Middleware will be deprecated soon - https://nextjs.org/docs/messages/middleware-relative-urls'
+    throw new Error(
+      `URLs is malformed. Please use only absolute URLs - https://nextjs.org/docs/messages/middleware-relative-urls`,
+      // @ts-expect-error This will work for people who enable the error causes polyfill
+      { cause: error }
     )
-    return String(url)
   }
 }

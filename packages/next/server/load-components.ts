@@ -1,3 +1,8 @@
+import type {
+  AppType,
+  DocumentType,
+  NextComponentType,
+} from '../shared/lib/utils'
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
@@ -5,7 +10,6 @@ import {
 import { join } from 'path'
 import { requirePage } from './require'
 import { BuildManifest } from './get-page-files'
-import { AppType, DocumentType } from '../shared/lib/utils'
 import { interopDefault } from '../lib/interop-default'
 import {
   PageConfig,
@@ -22,7 +26,7 @@ export type ManifestItem = {
 export type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 
 export type LoadComponentsReturnType = {
-  Component: React.ComponentType
+  Component: NextComponentType
   pageConfig: PageConfig
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest

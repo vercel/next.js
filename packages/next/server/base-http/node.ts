@@ -7,6 +7,11 @@ import { NEXT_REQUEST_META, RequestMeta } from '../request-meta'
 
 import { BaseNextRequest, BaseNextResponse } from './index'
 
+type Req = IncomingMessage & {
+  [NEXT_REQUEST_META]?: RequestMeta
+  cookies?: NextApiRequestCookies
+}
+
 export class NodeNextRequest extends BaseNextRequest<Readable> {
   public headers = this._req.headers;
 
@@ -21,12 +26,11 @@ export class NodeNextRequest extends BaseNextRequest<Readable> {
     return this._req
   }
 
-  constructor(
-    private _req: IncomingMessage & {
-      [NEXT_REQUEST_META]?: RequestMeta
-      cookies?: NextApiRequestCookies
-    }
-  ) {
+  set originalRequest(value: Req) {
+    this._req = value
+  }
+
+  constructor(private _req: Req) {
     super(_req.method!.toUpperCase(), _req.url!, _req)
   }
 
