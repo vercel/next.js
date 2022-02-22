@@ -12,6 +12,7 @@
 
 # Image Component (@styfle)
 
+/**/*image*/**                                               @timneutkens @ijjk @shuding @styfle
 /examples/image-component/                                   @timneutkens @ijjk @shuding @styfle
 /packages/next/image.js                                      @timneutkens @ijjk @shuding @styfle
 /packages/next/image.d.ts                                    @timneutkens @ijjk @shuding @styfle
