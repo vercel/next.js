@@ -27,6 +27,7 @@ const Page = () => {
             objectPosition: '30% 30%',
           }}
           layout="raw"
+          sizes="50vh"
         ></Image>
       </div>
       <div id="image-container3">
@@ -36,6 +37,7 @@ const Page = () => {
           width="400"
           height="400"
           layout="raw"
+          loading="eager"
         ></Image>
       </div>
     </div>

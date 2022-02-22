@@ -593,7 +593,7 @@ function runTests(mode) {
     }
   })
 
-  it('should render no wrappers or sizers and minimal styling with layout-raw', async () => {
+  it.only('should render no wrappers or sizers and minimal styling with layout-raw', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/layout-raw')
@@ -608,12 +608,21 @@ function runTests(mode) {
       expect(childElementType).toBe('IMG')
 
       expect(await browser.elementById('raw1').getAttribute('style')).toBeNull()
+      expect(await browser.elementById('raw1').getAttribute('srcset')).toBe(
+        `/_next/image?url=%2Fwide.png&w=1200&q=75 1x, /_next/image?url=%2Fwide.png&w=3840&q=75 2x`
+      )
 
       expect(await browser.elementById('raw2').getAttribute('style')).toBe(
         'padding-left:4rem;width:100%;object-position:30% 30%'
       )
+      expect(await browser.elementById('raw2').getAttribute('srcset')).toBe(
+        `/_next/image?url=%2Fwide.png&w=16&q=75 16w, /_next/image?url=%2Fwide.png&w=32&q=75 32w, /_next/image?url=%2Fwide.png&w=48&q=75 48w, /_next/image?url=%2Fwide.png&w=64&q=75 64w, /_next/image?url=%2Fwide.png&w=96&q=75 96w, /_next/image?url=%2Fwide.png&w=128&q=75 128w, /_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w`
+      )
 
       expect(await browser.elementById('raw3').getAttribute('style')).toBeNull()
+      expect(await browser.elementById('raw3').getAttribute('srcset')).toBe(
+        `/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x`
+      )
     } finally {
       if (browser) {
         await browser.close()
