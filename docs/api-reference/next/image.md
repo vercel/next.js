@@ -66,13 +66,13 @@ The `<Image />` component accepts a number of additional properties beyond those
 
 The layout behavior of the image as the viewport changes size.
 
-| `layout`              | Behavior                                                 | `srcSet`                                                                                                    | `sizes` |
-| --------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------- |
-| `intrinsic` (default) | Scale *down* to fit width of container, up to image size | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A     |
-| `fixed`               | Sized to `width` and `height` exactly                    | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A     |
-| `responsive`          | Scale to fit width of container                          | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` |
-| `fill`                | Grow in both X and Y axes to fill container              | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` |
-| `raw`                 | Insert the image element with no responsive behavior     | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` |
+| `layout`              | Behavior                                                       | `srcSet`                                                                                                    | `sizes` |
+| --------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------- |
+| `intrinsic` (default) | Scale *down* to fit width of container, up to image size       | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A     |
+| `fixed`               | Sized to `width` and `height` exactly                          | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A     |
+| `responsive`          | Scale to fit width of container                                | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` |
+| `fill`                | Grow in both X and Y axes to fill container                    | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` |
+| `raw`                 | Insert the image element with no automatic responsive behavior | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` |
 
 - [Demo the `intrinsic` layout (default)](https://image-component.nextjs.gallery/layout-intrinsic)
   - When `intrinsic`, the image will scale the dimensions down for smaller viewports, but maintain the original dimensions for larger viewports.
