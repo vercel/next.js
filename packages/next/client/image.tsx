@@ -5,7 +5,7 @@ import {
   imageConfigDefault,
   LoaderValue,
   VALID_LOADERS,
-} from '../server/image-config'
+} from '../shared/lib/image-config'
 import { useIntersection } from './use-intersection'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 
