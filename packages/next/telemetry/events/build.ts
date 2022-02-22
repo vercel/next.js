@@ -134,6 +134,12 @@ export type EventBuildFeatureUsage = {
     | 'optimizeFonts'
     | 'swcLoader'
     | 'swcMinify'
+    | 'swcRelay'
+    | 'swcStyledComponents'
+    | 'swcReactRemoveProperties'
+    | 'swcExperimentalDecorators'
+    | 'swcRemoveConsole'
+    | 'swcImportSource'
     | 'build-lint'
   invocationCount: number
 }

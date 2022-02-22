@@ -40,17 +40,32 @@ if (typeof afterAll === 'function') {
  *
  * @param appPort can either be the port or the full URL
  * @param url the path/query to append when using appPort
- * @param waitHydration whether to wait for react hydration to finish
- * @param retryWaitHydration allow retrying hydration wait if reload occurs
+ * @param options.waitHydration whether to wait for react hydration to finish
+ * @param options.retryWaitHydration allow retrying hydration wait if reload occurs
+ * @param options.disableCache disable cache for page load
+ * @param options.beforePageLoad the callback receiving page instance before loading page
  * @returns thenable browser instance
  */
 export default async function webdriver(
   appPortOrUrl: string | number,
   url: string,
-  waitHydration = true,
-  retryWaitHydration = false
+  options?: {
+    waitHydration?: boolean
+    retryWaitHydration?: boolean
+    disableCache?: boolean
+    beforePageLoad?: (page: any) => void
+  }
 ): Promise<BrowserInterface> {
   let CurrentInterface: typeof BrowserInterface
+
+  const defaultOptions = {
+    waitHydration: true,
+    retryWaitHydration: false,
+    disableCache: false,
+  }
+  options = Object.assign(defaultOptions, options)
+  const { waitHydration, retryWaitHydration, disableCache, beforePageLoad } =
+    options
 
   // we import only the needed interface
   if (
@@ -80,7 +95,7 @@ export default async function webdriver(
 
   console.log(`\n> Loading browser with ${fullUrl}\n`)
 
-  await browser.loadPage(fullUrl)
+  await browser.loadPage(fullUrl, { disableCache, beforePageLoad })
   console.log(`\n> Loaded browser with ${fullUrl}\n`)
 
   // Wait for application to hydrate

@@ -19,38 +19,42 @@ const context = {}
 context.appDir = join(__dirname, '../')
 
 const middlewareWarning = 'using beta Middleware (not covered by semver)'
+const urlsError = 'Please use only absolute URLs'
 
 describe('Middleware base tests', () => {
   describe('dev mode', () => {
-    let output = ''
+    const log = { output: '' }
+
     beforeAll(async () => {
       context.appPort = await findPort()
       context.app = await launchApp(context.appDir, context.appPort, {
         onStdout(msg) {
-          output += msg
+          log.output += msg
         },
         onStderr(msg) {
-          output += msg
+          log.output += msg
         },
       })
     })
     afterAll(() => killApp(context.app))
-    rewriteTests()
-    rewriteTests('/fr')
+    rewriteTests(log)
+    rewriteTests(log, '/fr')
     redirectTests()
     redirectTests('/fr')
     responseTests()
     responseTests('/fr')
     interfaceTests()
     interfaceTests('/fr')
+    urlTests(log)
+    urlTests(log, '/fr')
 
     it('should have showed warning for middleware usage', () => {
-      expect(output).toContain(middlewareWarning)
+      expect(log.output).toContain(middlewareWarning)
     })
   })
   describe('production mode', () => {
+    let serverOutput = { output: '' }
     let buildOutput
-    let serverOutput
 
     beforeAll(async () => {
       const res = await nextBuild(context.appDir, undefined, {
@@ -62,29 +66,31 @@ describe('Middleware base tests', () => {
       context.appPort = await findPort()
       context.app = await nextStart(context.appDir, context.appPort, {
         onStdout(msg) {
-          serverOutput += msg
+          serverOutput.output += msg
         },
         onStderr(msg) {
-          serverOutput += msg
+          serverOutput.output += msg
         },
       })
     })
     afterAll(() => killApp(context.app))
-    rewriteTests()
-    rewriteTests('/fr')
+    rewriteTests(serverOutput)
+    rewriteTests(serverOutput, '/fr')
     redirectTests()
     redirectTests('/fr')
     responseTests()
     responseTests('/fr')
     interfaceTests()
     interfaceTests('/fr')
+    urlTests(serverOutput)
+    urlTests(serverOutput, '/fr')
 
     it('should have middleware warning during build', () => {
       expect(buildOutput).toContain(middlewareWarning)
     })
 
     it('should have middleware warning during start', () => {
-      expect(serverOutput).toContain(middlewareWarning)
+      expect(serverOutput.output).toContain(middlewareWarning)
     })
 
     it('should have correct files in manifest', async () => {
@@ -102,9 +108,157 @@ describe('Middleware base tests', () => {
       }
     })
   })
+
+  describe('global', () => {
+    beforeAll(async () => {
+      context.appPort = await findPort()
+      context.app = await launchApp(context.appDir, context.appPort, {
+        env: {
+          MIDDLEWARE_TEST: 'asdf',
+        },
+      })
+    })
+
+    it('should contains process polyfill', async () => {
+      const res = await fetchViaHTTP(context.appPort, `/global`)
+      const json = await res.json()
+      expect(json).toEqual({
+        process: {
+          env: {
+            MIDDLEWARE_TEST: 'asdf',
+          },
+          nextTick: 'function',
+        },
+      })
+    })
+  })
 })
 
-function rewriteTests(locale = '') {
+function urlTests(_log, locale = '') {
+  it('rewrites by default to a target location', async () => {
+    const res = await fetchViaHTTP(context.appPort, `${locale}/urls`)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('.title').text()).toBe('URLs A')
+  })
+
+  it('throws when using URL with a relative URL', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-url`
+    )
+    const json = await res.json()
+    expect(json.error.message).toContain('Invalid URL')
+  })
+
+  it('throws when using Request with a relative URL', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-request`
+    )
+    const json = await res.json()
+    expect(json.error.message).toContain('Invalid URL')
+  })
+
+  it('throws when using NextRequest with a relative URL', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-next-request`
+    )
+    const json = await res.json()
+    expect(json.error.message).toContain('Invalid URL')
+  })
+
+  it('warns when using Response.redirect with a relative URL', async () => {
+    const response = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-redirect`
+    )
+    expect(await response.json()).toEqual({
+      error: {
+        message: expect.stringContaining(urlsError),
+      },
+    })
+  })
+
+  it('warns when using NextResponse.redirect with a relative URL', async () => {
+    const response = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-next-redirect`
+    )
+    expect(await response.json()).toEqual({
+      error: {
+        message: expect.stringContaining(urlsError),
+      },
+    })
+  })
+
+  it('throws when using NextResponse.rewrite with a relative URL', async () => {
+    const response = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-next-rewrite`
+    )
+    expect(await response.json()).toEqual({
+      error: {
+        message: expect.stringContaining(urlsError),
+      },
+    })
+  })
+}
+
+function rewriteTests(log, locale = '') {
+  it('should override with rewrite internally correctly', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/about`,
+      { override: 'internal' },
+      { redirect: 'manual' }
+    )
+
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('Welcome Page A')
+
+    const browser = await webdriver(context.appPort, `${locale}/rewrites`)
+    await browser.elementByCss('#override-with-internal-rewrite').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /Welcome Page A/
+    )
+    expect(await browser.eval('window.location.pathname')).toBe(
+      `${locale || ''}/rewrites/about`
+    )
+    expect(await browser.eval('window.location.search')).toBe(
+      '?override=internal'
+    )
+  })
+
+  it('should override with rewrite externally correctly', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/about`,
+      { override: 'external' },
+      { redirect: 'manual' }
+    )
+
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('Vercel')
+
+    const browser = await webdriver(context.appPort, `${locale}/rewrites`)
+    await browser.elementByCss('#override-with-external-rewrite').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /Vercel/
+    )
+    await check(
+      () => browser.eval('window.location.pathname'),
+      `${locale || ''}/rewrites/about`
+    )
+    await check(
+      () => browser.eval('window.location.search'),
+      '?override=external'
+    )
+  })
+
   it('should rewrite to fallback: true page successfully', async () => {
     const randomSlug = `another-${Date.now()}`
     const res2 = await fetchViaHTTP(
@@ -153,6 +307,35 @@ function rewriteTests(locale = '') {
     // -1 is returned if bucket was not found in func getCookieFromResponse
     expect(bucket).not.toBe(-1)
     expect($('.title').text()).toBe(expectedText)
+  })
+
+  it(`${locale} should clear query parameters`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/clear-query-params`,
+      {
+        a: '1',
+        b: '2',
+        foo: 'bar',
+        allowed: 'kept',
+      }
+    )
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#my-query-params').text())).toEqual({
+      allowed: 'kept',
+    })
+  })
+
+  it(`warns about a query param deleted`, async () => {
+    await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/clear-query-params`,
+      { a: '1', allowed: 'kept' }
+    )
+    expect(log.output).toContain(
+      'Query params are no longer automatically merged for rewrites in middleware'
+    )
   })
 
   it(`${locale} should rewrite to about page`, async () => {
@@ -290,6 +473,18 @@ function redirectTests(locale = '') {
 }
 
 function responseTests(locale = '') {
+  it(`${locale} responds with multiple cookies`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/responses/two-cookies`
+    )
+
+    expect(res.headers.raw()['set-cookie']).toEqual([
+      'foo=chocochip',
+      'bar=chocochip',
+    ])
+  })
+
   it(`${locale} should stream a response`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
