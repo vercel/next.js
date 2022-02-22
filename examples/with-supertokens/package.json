@@ -13,6 +13,6 @@
     "supertokens-node": "^9.0.0"
   },
   "devDependencies": {
-    "eslint-config-next": "11.0.1"
+    "eslint-config-next": "^12.1.0"
   }
 }
