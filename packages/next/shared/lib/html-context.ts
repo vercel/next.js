@@ -1,5 +1,5 @@
 import type { BuildManifest } from '../../server/get-page-files'
-import type { NEXT_DATA, MaybeDeferContentHook } from './utils'
+import type { NEXT_DATA } from './utils'
 
 import { createContext } from 'react'
 
@@ -29,7 +29,6 @@ export type HtmlProps = {
   disableOptimizedLoading?: boolean
   styles?: React.ReactElement[] | React.ReactFragment
   head?: Array<JSX.Element | null>
-  useMaybeDeferContent: MaybeDeferContentHook
   crossOrigin?: string
   optimizeCss?: boolean
   optimizeFonts?: boolean

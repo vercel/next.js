@@ -108,6 +108,30 @@ describe('Middleware base tests', () => {
       }
     })
   })
+
+  describe('global', () => {
+    beforeAll(async () => {
+      context.appPort = await findPort()
+      context.app = await launchApp(context.appDir, context.appPort, {
+        env: {
+          MIDDLEWARE_TEST: 'asdf',
+        },
+      })
+    })
+
+    it('should contains process polyfill', async () => {
+      const res = await fetchViaHTTP(context.appPort, `/global`)
+      const json = await res.json()
+      expect(json).toEqual({
+        process: {
+          env: {
+            MIDDLEWARE_TEST: 'asdf',
+          },
+          nextTick: 'function',
+        },
+      })
+    })
+  })
 })
 
 function urlTests(_log, locale = '') {
@@ -529,6 +553,18 @@ function redirectTests(locale = '') {
 }
 
 function responseTests(locale = '') {
+  it(`${locale} responds with multiple cookies`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/responses/two-cookies`
+    )
+
+    expect(res.headers.raw()['set-cookie']).toEqual([
+      'foo=chocochip',
+      'bar=chocochip',
+    ])
+  })
+
   it(`${locale} should stream a response`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
