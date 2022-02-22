@@ -172,7 +172,7 @@ In some cases, you may need more advanced usage. The `<Image />` component optio
 
 Allows [passing CSS styles](https://reactjs.org/docs/dom-elements.html#style) to the underlying image element.
 
-Note that all `layout` modes other than `"raw"` apply their own styles to the image element, and these automatic styles take precedence over any styles provided in the `styles` prop.
+Note that all `layout` modes other than `"raw"` apply their own styles to the image element, and these automatic styles take precedence over the `style` prop.
 
 ### objectFit
 
