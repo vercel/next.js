@@ -1348,22 +1348,6 @@ export default async function getBaseWebpackConfig(
               'global.GENTLY': JSON.stringify(false),
             }
           : undefined),
-        // stub process.env with proxy to warn a missing value is
-        // being accessed in development mode
-        ...(config.experimental.pageEnv && dev
-          ? {
-              'process.env': `
-            new Proxy(${!targetWeb ? 'process.env' : '{}'}, {
-              get(target, prop) {
-                if (typeof target[prop] === 'undefined') {
-                  console.warn(\`An environment variable (\${prop}) that was not provided in the environment was accessed.\nSee more info here: https://nextjs.org/docs/messages/missing-env-value\`)
-                }
-                return target[prop]
-              }
-            })
-          `,
-            }
-          : {}),
       }),
       !isServer &&
         new ReactLoadablePlugin({
@@ -1576,7 +1560,6 @@ export default async function getBaseWebpackConfig(
     optimizeCss: config.experimental.optimizeCss,
     scrollRestoration: config.experimental.scrollRestoration,
     basePath: config.basePath,
-    pageEnv: config.experimental.pageEnv,
     excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
     assetPrefix: config.assetPrefix,
     disableOptimizedLoading,

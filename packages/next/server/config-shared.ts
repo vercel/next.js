@@ -82,7 +82,6 @@ export interface ExperimentalConfig {
   isrFlushToDisk?: boolean
   reactMode?: 'legacy' | 'concurrent' | 'blocking'
   workerThreads?: boolean
-  pageEnv?: boolean
   optimizeCss?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
@@ -448,7 +447,6 @@ export const defaultConfig: NextConfig = {
     sharedPool: true,
     isrFlushToDisk: true,
     workerThreads: false,
-    pageEnv: false,
     optimizeCss: false,
     scrollRestoration: false,
     externalDir: false,
