@@ -9,6 +9,7 @@ import type { PrerenderManifest } from '../build'
 import type { Rewrite } from '../lib/load-custom-routes'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
+import type { PayloadOptions } from './send-payload'
 
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -43,7 +44,7 @@ import { route } from './router'
 import { run } from './web/sandbox'
 
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
-import { PayloadOptions, sendRenderResult } from './send-payload'
+import { sendRenderResult } from './send-payload'
 import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils/node'
