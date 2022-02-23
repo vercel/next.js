@@ -1,8 +1,5 @@
 import React from 'react'
-import {
-  ImageConfigComplete,
-  imageConfigDefault,
-} from '../../server/image-config'
+import { ImageConfigComplete, imageConfigDefault } from './image-config'
 
 export const ImageConfigContext =
   React.createContext<ImageConfigComplete>(imageConfigDefault)
