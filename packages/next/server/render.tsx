@@ -1,10 +1,29 @@
-import { IncomingMessage, ServerResponse } from 'http'
-import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { NextRouter } from '../shared/lib/router/router'
+import type { HtmlProps } from '../shared/lib/html-context'
+import type { DomainLocale } from './config'
+import type {
+  AppType,
+  DocumentInitialProps,
+  DocumentProps,
+  DocumentContext,
+  NextComponentType,
+  RenderPage,
+  RenderPageResult,
+} from '../shared/lib/utils'
+import type { ImageConfigComplete } from '../shared/lib/image-config'
+import type { Redirect } from '../lib/load-custom-routes'
+import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
+import type { FontManifest } from './font-utils'
+import type { LoadComponentsReturnType, ManifestItem } from './load-components'
+import type { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
+import type { UnwrapPromise } from '../lib/coalesced-function'
+
 import React from 'react'
+import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
-import { UnwrapPromise } from '../lib/coalesced-function'
 import {
   GSP_NO_RETURNED_VALUE,
   GSSP_COMPONENT_MEMBER_ERROR,
@@ -15,56 +34,38 @@ import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   UNSTABLE_REVALIDATE_RENAME_ERROR,
 } from '../lib/constants'
-import { isSerializableProps } from '../lib/is-serializable-props'
-import { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
-import { isInAmpMode } from '../shared/lib/amp'
-import { AmpStateContext } from '../shared/lib/amp-context'
 import {
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
   STATIC_STATUS_PAGES,
 } from '../shared/lib/constants'
+import { isSerializableProps } from '../lib/is-serializable-props'
+import { isInAmpMode } from '../shared/lib/amp'
+import { AmpStateContext } from '../shared/lib/amp-context'
 import { defaultHead } from '../shared/lib/head'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import Loadable from '../shared/lib/loadable'
 import { LoadableContext } from '../shared/lib/loadable-context'
 import { RouterContext } from '../shared/lib/router-context'
-import { NextRouter } from '../shared/lib/router/router'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
-  AppType,
   ComponentsEnhancer,
-  DocumentInitialProps,
-  DocumentProps,
-  DocumentContext,
   getDisplayName,
   isResSent,
   loadGetInitialProps,
-  NextComponentType,
-  RenderPage,
-  RenderPageResult,
 } from '../shared/lib/utils'
-
 import { HtmlContext } from '../shared/lib/html-context'
-import type { HtmlProps } from '../shared/lib/html-context'
-
-import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
 import { denormalizePagePath } from './denormalize-page-path'
-import type { FontManifest } from './font-utils'
-import type { LoadComponentsReturnType, ManifestItem } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
 import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
 import {
   allowedStatusCodes,
   getRedirectStatus,
-  Redirect,
 } from '../lib/load-custom-routes'
-import { DomainLocale } from './config'
 import RenderResult from './render-result'
 import isError from '../lib/is-error'
 import { readableStreamTee } from './web/utils'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
-import { ImageConfigComplete } from './image-config'
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
 
 let optimizeAmp: typeof import('./optimize-amp').default
@@ -545,7 +546,7 @@ export async function renderToHTML(
   const defaultAppGetInitialProps =
     App.getInitialProps === (App as any).origGetInitialProps
 
-  const hasPageGetInitialProps = !!(Component as any).getInitialProps
+  const hasPageGetInitialProps = !!(Component as any)?.getInitialProps
 
   const pageIsDynamic = isDynamicRoute(pathname)
 
@@ -561,7 +562,7 @@ export async function renderToHTML(
     'getServerSideProps',
     'getStaticPaths',
   ]) {
-    if ((Component as any)[methodName]) {
+    if ((Component as any)?.[methodName]) {
       throw new Error(
         `page ${pathname} ${methodName} ${GSSP_COMPONENT_MEMBER_ERROR}`
       )
@@ -1248,6 +1249,13 @@ export async function renderToHTML(
    */
   const generateStaticHTML = supportsDynamicHTML !== true
   const renderDocument = async () => {
+    if (runtime === 'edge' && Document.getInitialProps) {
+      // In the Edge runtime, Document.getInitialProps isn't supported.
+      throw new Error(
+        '`getInitialProps` in Document component is not supported with the Edge Runtime.'
+      )
+    }
+
     if (!runtime && Document.getInitialProps) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
@@ -1474,7 +1482,6 @@ export async function renderToHTML(
     head: documentResult.head,
     headTags: documentResult.headTags,
     styles: documentResult.styles,
-    useMaybeDeferContent,
     crossOrigin: renderOpts.crossOrigin,
     optimizeCss: renderOpts.optimizeCss,
     optimizeFonts: renderOpts.optimizeFonts,
@@ -1984,11 +1991,4 @@ async function streamToString(stream: ReadableStream<string>): Promise<string> {
 
     bufferedString += value
   }
-}
-
-export function useMaybeDeferContent(
-  _name: string,
-  contentFn: () => JSX.Element
-): [boolean, JSX.Element] {
-  return [false, contentFn()]
 }

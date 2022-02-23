@@ -62,7 +62,7 @@ import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
-import { ImageConfigComplete } from './image-config'
+import { ImageConfigComplete } from '../shared/lib/image-config'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1122,7 +1122,7 @@ export default abstract class Server {
     const isSSG = !!components.getStaticProps
     const hasServerProps = !!components.getServerSideProps
     const hasStaticPaths = !!components.getStaticPaths
-    const hasGetInitialProps = !!(components.Component as any).getInitialProps
+    const hasGetInitialProps = !!components.Component?.getInitialProps
 
     // Toggle whether or not this is a Data request
     const isDataReq = !!query._nextDataReq && (isSSG || hasServerProps)

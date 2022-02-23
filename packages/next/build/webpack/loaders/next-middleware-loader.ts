@@ -12,6 +12,13 @@ export default function middlewareLoader(this: any) {
   return `
         import { adapter } from 'next/dist/server/web/adapter'
 
+        // The condition is true when the "process" module is provided
+        if (process !== global.process) {
+          // prefer local process but global.process has correct "env"
+          process.env = global.process.env;
+          global.process = process;
+        }
+
         var mod = require(${stringifiedPagePath})
         var handler = mod.middleware || mod.default;
 

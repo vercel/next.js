@@ -791,11 +791,6 @@ export default async function getBaseWebpackConfig(
             minChunks: 1,
             reuseExistingChunk: true,
           },
-          commons: {
-            name: 'commons',
-            minChunks: totalPages,
-            priority: 20,
-          },
           middleware: {
             chunks: (chunk: webpack.compilation.Chunk) =>
               chunk.name?.match(MIDDLEWARE_ROUTE),
@@ -1853,11 +1848,11 @@ export default async function getBaseWebpackConfig(
     }
 
     const fileNames = [
-      '/tmp/test.css',
-      '/tmp/test.scss',
-      '/tmp/test.sass',
-      '/tmp/test.less',
-      '/tmp/test.styl',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.css',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.scss',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.sass',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.less',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.styl',
     ]
 
     if (rule instanceof RegExp && fileNames.some((input) => rule.test(input))) {
