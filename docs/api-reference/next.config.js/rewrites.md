@@ -343,19 +343,6 @@ module.exports = {
 }
 ```
 
-```js
-module.exports = {
-  async rewrites() {
-    return [
-      {
-        source: '/blog/:slug',
-        destination: 'https://example.com/blog/:slug', // Matched parameters can be used in the destination
-      },
-    ]
-  },
-}
-```
-
 ### Incremental adoption of Next.js
 
 You can also have Next.js fall back to proxying to an existing website after checking all Next.js routes.
