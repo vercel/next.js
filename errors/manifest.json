@@ -550,7 +550,7 @@
         },
         {
           "title": "before-interactive-script-outside-doument",
-          "path": "/errors/no-before-interactive-script-outside-doument"
+          "path": "/errors/no-before-interactive-script-outside-doument.md"
         },
         {
           "title": "script-component-in-head-component",
