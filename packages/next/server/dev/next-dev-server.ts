@@ -9,6 +9,7 @@ import type { ParsedNextUrl } from '../../shared/lib/router/utils/parse-next-url
 import type { ParsedUrlQuery } from 'querystring'
 import type { Server as HTTPServer } from 'http'
 import type { UrlWithParsedQuery } from 'url'
+import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 
 import crypto from 'crypto'
 import fs from 'fs'
@@ -58,12 +59,7 @@ import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
 import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware-regex'
 import { isCustomErrorPage, isReservedPage } from '../../build/utils'
-import {
-  BaseNextRequest,
-  BaseNextResponse,
-  NodeNextResponse,
-  NodeNextRequest,
-} from '../base-http'
+import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -263,10 +259,10 @@ export default class DevServer extends Server {
         const routedPages = []
         const knownFiles = wp.getTimeInfoEntries()
         const ssrMiddleware = new Set<string>()
-        const isWebServerRuntime =
-          this.nextConfig.experimental.concurrentFeatures
+        const runtime = this.nextConfig.experimental.runtime
+        const isEdgeRuntime = runtime === 'edge'
         const hasServerComponents =
-          isWebServerRuntime && this.nextConfig.experimental.serverComponents
+          runtime && this.nextConfig.experimental.serverComponents
 
         for (const [fileName, { accuracy }] of knownFiles) {
           if (accuracy === undefined || !regexPageExtension.test(fileName)) {
@@ -291,7 +287,7 @@ export default class DevServer extends Server {
             routedMiddleware.push(pageName)
             ssrMiddleware.add(pageName)
           } else if (
-            isWebServerRuntime &&
+            isEdgeRuntime &&
             !(isReservedPage(pageName) || isCustomErrorPage(pageName))
           ) {
             routedMiddleware.push(pageName)
@@ -717,6 +713,10 @@ export default class DevServer extends Server {
     return undefined
   }
 
+  protected getServerComponentManifest() {
+    return undefined
+  }
+
   protected async hasMiddleware(
     pathname: string,
     isSSR?: boolean
@@ -919,6 +919,13 @@ export default class DevServer extends Server {
     }
     try {
       await this.hotReloader!.ensurePage(pathname)
+
+      // When the new page is compiled, we need to reload the server component
+      // manifest.
+      if (this.nextConfig.experimental.serverComponents) {
+        this.serverComponentManifest = super.getServerComponentManifest()
+      }
+
       return super.findPageComponents(pathname, query, params)
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {
@@ -933,7 +940,9 @@ export default class DevServer extends Server {
     // Build the error page to ensure the fallback is built too.
     // TODO: See if this can be moved into hotReloader or removed.
     await this.hotReloader!.ensurePage('/_error')
-    return await loadDefaultErrorComponents(this.distDir)
+    return await loadDefaultErrorComponents(this.distDir, {
+      hasConcurrentFeatures: !!this.renderOpts.runtime,
+    })
   }
 
   protected setImmutableAssetCacheControl(res: BaseNextResponse): void {

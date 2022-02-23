@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
+import validateHTML from 'html-validator'
 import {
   check,
   findPort,
@@ -207,7 +208,7 @@ function runTests(mode) {
       )
       await check(
         () => browser.eval(`document.getElementById("img3").currentSrc`),
-        /test(.*)svg/
+        /test\.svg/
       )
       await check(
         () => browser.eval(`document.getElementById("img4").currentSrc`),
@@ -669,6 +670,9 @@ function runTests(mode) {
         /Image with src (.*)png(.*) may not render properly/gm
       )
       expect(warnings).not.toMatch(
+        /Image with src (.*)avif(.*) may not render properly/gm
+      )
+      expect(warnings).not.toMatch(
         /Image with src (.*)webp(.*) may not render properly/gm
       )
       expect(await hasRedbox(browser)).toBe(false)
@@ -783,6 +787,60 @@ function runTests(mode) {
       expect(warnings).not.toMatch(
         /Image with src (.*)gif(.*) has "sizes" property but it will be ignored/gm
       )
+    })
+
+    it('should not warn when svg, even if with loader prop or without', async () => {
+      const browser = await webdriver(appPort, '/loader-svg')
+      await browser.eval(`document.querySelector("footer").scrollIntoView()`)
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).not.toMatch(
+        /Image with src (.*) has a "loader" property that does not implement width/gm
+      )
+      expect(await browser.elementById('with-loader').getAttribute('src')).toBe(
+        '/test.svg?size=256'
+      )
+      expect(
+        await browser.elementById('with-loader').getAttribute('srcset')
+      ).toBe('/test.svg?size=128 1x, /test.svg?size=256 2x')
+      expect(
+        await browser.elementById('without-loader').getAttribute('src')
+      ).toBe('/test.svg')
+      expect(
+        await browser.elementById('without-loader').getAttribute('srcset')
+      ).toBe('/test.svg 1x, /test.svg 2x')
+    })
+
+    it('should warn at most once even after state change', async () => {
+      const browser = await webdriver(appPort, '/warning-once')
+      await browser.eval(`document.querySelector("footer").scrollIntoView()`)
+      await browser.eval(`document.querySelector("button").click()`)
+      await browser.eval(`document.querySelector("button").click()`)
+      const count = await browser.eval(
+        `document.querySelector("button").textContent`
+      )
+      expect(count).toBe('Count: 2')
+      await check(async () => {
+        const result = await browser.eval(
+          'document.getElementById("w").naturalWidth'
+        )
+        if (result < 1) {
+          throw new Error('Image not loaded')
+        }
+        return 'done'
+      }, 'done')
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .filter((log) => log.startsWith('Image with src'))
+      expect(warnings[0]).toMatch(
+        'Image with src "/test.png" has "sizes" property but it will be ignored.'
+      )
+      expect(warnings[1]).toMatch(
+        'Image with src "/test.png" was detected as the Largest Contentful Paint (LCP).'
+      )
+      expect(warnings.length).toBe(2)
     })
   } else {
     //server-only tests
@@ -1009,15 +1067,49 @@ function runTests(mode) {
     }
   })
 
-  it('should load the image when the lazyRoot prop is used', async () => {
+  it('should initially load only two of four images using lazyroot', async () => {
     let browser
     try {
-      //trying on '/lazy-noref' it fails
       browser = await webdriver(appPort, '/lazy-withref')
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('myImage1').naturalWidth`
+        )
+
+        if (result >= 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
 
       await check(async () => {
         const result = await browser.eval(
-          `document.getElementById('myImage').naturalWidth`
+          `document.getElementById('myImage4').naturalWidth`
+        )
+
+        if (result >= 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('myImage2').naturalWidth`
+        )
+
+        if (result < 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('myImage3').naturalWidth`
         )
 
         if (result < 400) {
@@ -1032,7 +1124,45 @@ function runTests(mode) {
           browser,
           `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=828&q=75`
         )
+      ).toBe(false)
+      expect(
+        await hasImageMatchingUrl(
+          browser,
+          `http://localhost:${appPort}/_next/image?url=%2Ftest.png&w=828&q=75`
+        )
       ).toBe(true)
+      expect(
+        await hasImageMatchingUrl(
+          browser,
+          `http://localhost:${appPort}/test.svg`
+        )
+      ).toBe(true)
+      expect(
+        await hasImageMatchingUrl(
+          browser,
+          `http://localhost:${appPort}/_next/image?url=%2Ftest.webp&w=828&q=75`
+        )
+      ).toBe(false)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should be valid W3C HTML', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/valid-html-w3c')
+      await waitFor(1000)
+      expect(await browser.hasElementByCssSelector('img')).toBeTruthy()
+      const url = await browser.url()
+      const result = await validateHTML({
+        url,
+        format: 'json',
+        isLocal: true,
+      })
+      expect(result.messages).toEqual([])
     } finally {
       if (browser) {
         await browser.close()

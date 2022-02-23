@@ -80,7 +80,7 @@ module.exports = class CreateChatRoom extends Action {
 }
 ```
 
-3. Tell ActionHero to use the api rather than the file server as the top-level route in `api.config.servers.web.rootEndpointType = 'api'`. This will allows "/" to listen to API requests. Also update `api.config.general.paths.public = [ path.join(__dirname, '/../static') ]`. In this configuration, the next 'static' renderer will take priority over the ActionHero 'public file' api. Note that any static assets (CSS, fonts, etc) will need to be in "./static" rather than "./public".
+3. Tell ActionHero to use the api rather than the file server as the top-level route in `api.config.servers.web.rootEndpointType = 'api'`. This will allows "/" to listen to API requests. Also update `api.config.general.paths.public = [ path.join(__dirname, '/../static') ]`. In this configuration, the next 'static' renderer will take priority over the ActionHero 'public file' api. Note that any static assets (CSS, fonts, etc.) will need to be in "./static" rather than "./public".
 
 Note that this is where the websocket server, if you enable it, will place the `ActionheroWebsocketClient` library.<br>
 

@@ -127,7 +127,6 @@ export async function createApp({
   console.log(`Creating a new Next.js app in ${chalk.green(root)}.`)
   console.log()
 
-  await makeDir(root)
   process.chdir(root)
 
   if (example) {
@@ -203,6 +202,7 @@ export async function createApp({
      */
     const packageJson = {
       name: appName,
+      version: '0.1.0',
       private: true,
       scripts: {
         dev: 'next dev',
