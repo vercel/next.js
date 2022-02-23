@@ -97,8 +97,8 @@ function Item({ isFirst, isLast, isReleased, hasVoted, feature }: {isFirst: bool
 export default function Roadmap({ features, ip }: {features: Feature[], ip: string}) {
   const [isCreateLoading, setCreateLoading] = useState(false)
   const [isEmailLoading, setEmailLoading] = useState(false)
-  const featureInputRef = useRef(null)
-  const subscribeInputRef = useRef(null)
+  const featureInputRef = useRef<HTMLInputElement>(null)
+  const subscribeInputRef = useRef<HTMLInputElement>(null)
 
   const { data, error } = useSWR('/api/features', fetcher, {
     initialData: { features },
@@ -114,7 +114,7 @@ export default function Roadmap({ features, ip }: {features: Feature[], ip: stri
 
     const res = await fetch('/api/create', {
       body: JSON.stringify({
-        title: featureInputRef.current.value,
+        title: featureInputRef?.current?.value ?? '',
       }),
       headers: {
         'Content-Type': 'application/json',
@@ -131,7 +131,9 @@ export default function Roadmap({ features, ip }: {features: Feature[], ip: stri
     }
 
     mutate('/api/features')
-    featureInputRef.current.value = ''
+    if (featureInputRef.current) {
+      featureInputRef.current.value = ''
+    }
   }
 
   const subscribe = async (e: MouseEvent<HTMLFormElement>) => {
@@ -140,7 +142,7 @@ export default function Roadmap({ features, ip }: {features: Feature[], ip: stri
 
     const res = await fetch('/api/subscribe', {
       body: JSON.stringify({
-        email: subscribeInputRef.current.value,
+        email: subscribeInputRef?.current?.value ?? '',
       }),
       headers: {
         'Content-Type': 'application/json',
@@ -156,7 +158,10 @@ export default function Roadmap({ features, ip }: {features: Feature[], ip: stri
     }
 
     toast.success('You are now subscribed to feature updates!')
-    subscribeInputRef.current.value = ''
+
+    if (subscribeInputRef.current) {
+      subscribeInputRef.current.value = ''
+    }
   }
 
   return (
