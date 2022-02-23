@@ -424,6 +424,66 @@ export default function Image({
     isLazy = false
   }
 
+  const [setIntersection, isIntersected] = useIntersection<HTMLImageElement>({
+    rootRef: lazyRoot,
+    rootMargin: lazyBoundary,
+    disabled: !isLazy,
+  })
+  const isVisible = !isLazy || isIntersected
+
+  const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
+    boxSizing: 'border-box',
+    display: 'block',
+    overflow: 'hidden',
+    width: 'initial',
+    height: 'initial',
+    background: 'none',
+    opacity: 1,
+    border: 0,
+    margin: 0,
+    padding: 0,
+  }
+  const sizerStyle: JSX.IntrinsicElements['span']['style'] = {
+    boxSizing: 'border-box',
+    display: 'block',
+    width: 'initial',
+    height: 'initial',
+    background: 'none',
+    opacity: 1,
+    border: 0,
+    margin: 0,
+    padding: 0,
+  }
+  let hasSizer = false
+  let sizerSvgUrl: string | undefined
+  const layoutStyle: ImgElementStyle = {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    right: 0,
+
+    boxSizing: 'border-box',
+    padding: 0,
+    border: 'none',
+    margin: 'auto',
+
+    display: 'block',
+    width: 0,
+    height: 0,
+    minWidth: '100%',
+    maxWidth: '100%',
+    minHeight: '100%',
+    maxHeight: '100%',
+
+    objectFit,
+    objectPosition,
+  }
+
+  if (process.env.NODE_ENV !== 'production' && layout !== 'raw' && style) {
+    
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
       throw new Error(
@@ -524,7 +584,20 @@ export default function Image({
         )
       }
     }
-
+    
+    if (style) {
+      let overwrittenStyles = Object.keys(style).filter(
+        (key) => key in layoutStyle
+      )
+      if (overwrittenStyles.length) {
+        warnOnce(
+          `Image with src ${src} is assigned the following styles, which are overwritten by automtically-generated styles: ${overwrittenStyles.join(
+            ', '
+          )}`
+        )
+      }
+    }
+    
     if (
       typeof window !== 'undefined' &&
       !perfObserver &&
@@ -551,75 +624,6 @@ export default function Image({
         }
       })
       perfObserver.observe({ type: 'largest-contentful-paint', buffered: true })
-    }
-  }
-
-  const [setIntersection, isIntersected] = useIntersection<HTMLImageElement>({
-    rootRef: lazyRoot,
-    rootMargin: lazyBoundary,
-    disabled: !isLazy,
-  })
-  const isVisible = !isLazy || isIntersected
-
-  const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
-    boxSizing: 'border-box',
-    display: 'block',
-    overflow: 'hidden',
-    width: 'initial',
-    height: 'initial',
-    background: 'none',
-    opacity: 1,
-    border: 0,
-    margin: 0,
-    padding: 0,
-  }
-  const sizerStyle: JSX.IntrinsicElements['span']['style'] = {
-    boxSizing: 'border-box',
-    display: 'block',
-    width: 'initial',
-    height: 'initial',
-    background: 'none',
-    opacity: 1,
-    border: 0,
-    margin: 0,
-    padding: 0,
-  }
-  let hasSizer = false
-  let sizerSvgUrl: string | undefined
-  const layoutStyle: ImgElementStyle = {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    right: 0,
-
-    boxSizing: 'border-box',
-    padding: 0,
-    border: 'none',
-    margin: 'auto',
-
-    display: 'block',
-    width: 0,
-    height: 0,
-    minWidth: '100%',
-    maxWidth: '100%',
-    minHeight: '100%',
-    maxHeight: '100%',
-
-    objectFit,
-    objectPosition,
-  }
-
-  if (process.env.NODE_ENV !== 'production' && layout !== 'raw' && style) {
-    let overwrittenStyles = Object.keys(style).filter(
-      (key) => key in layoutStyle
-    )
-    if (overwrittenStyles.length) {
-      warnOnce(
-        `Image with src ${src} is assigned the following styles, which are overwritten by automtically-generated styles: ${overwrittenStyles.join(
-          ', '
-        )}`
-      )
     }
   }
 
