@@ -7,7 +7,7 @@ import redis from '../lib/redis'
 
 const fetcher = (url) => fetch(url).then((res) => res.json())
 
-function LoadingSpinner({ invert }) {
+function LoadingSpinner({ invert }: {invert?: boolean}) {
   return (
     <svg
       className={clsx(
