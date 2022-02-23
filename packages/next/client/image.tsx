@@ -128,11 +128,7 @@ export type ImageProps = Omit<
   onLoadingComplete?: OnLoadingComplete
 }
 
-type ImageElementProps = Omit<
-  JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading'
-> & {
-  raw: boolean
+type ImageElementProps = Omit<ImageProps, 'src'> & {
   srcString: string
   imgAttributes: GenImgAttrsResult
   heightInt: number | undefined
@@ -767,7 +763,7 @@ export default function Image({
   return (
     <>
       {layout === 'raw' ? (
-        <ImageElement raw {...imgElementArgs} />
+        <ImageElement {...imgElementArgs} />
       ) : (
         <span style={wrapperStyle}>
           {hasSizer ? (
@@ -792,7 +788,7 @@ export default function Image({
               ) : null}
             </span>
           ) : null}
-          <ImageElement raw={false} {...imgElementArgs} />
+          <ImageElement {...imgElementArgs} />
         </span>
       )}
       {priority ? (
@@ -821,7 +817,6 @@ export default function Image({
 }
 
 const ImageElement = ({
-  raw,
   imgAttributes,
   heightInt,
   widthInt,
@@ -845,7 +840,7 @@ const ImageElement = ({
       <img
         {...rest}
         {...imgAttributes}
-        {...(raw ? { height: heightInt, width: widthInt } : {})}
+        {...(layout==='raw' ? { height: heightInt, width: widthInt } : {})}
         decoding="async"
         data-nimg={layout}
         className={className}
@@ -866,7 +861,7 @@ const ImageElement = ({
               sizes,
               loader,
             })}
-            {...(raw ? { height: heightInt, width: widthInt } : {})}
+            {...(layout==='raw' ? { height: heightInt, width: widthInt } : {})}
             decoding="async"
             data-nimg={layout}
             style={imgStyle}
