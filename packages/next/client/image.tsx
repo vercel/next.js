@@ -840,7 +840,7 @@ const ImageElement = ({
       <img
         {...rest}
         {...imgAttributes}
-        {...(layout==='raw' ? { height: heightInt, width: widthInt } : {})}
+        {...(layout === 'raw' ? { height: heightInt, width: widthInt } : {})}
         decoding="async"
         data-nimg={layout}
         className={className}
@@ -861,7 +861,9 @@ const ImageElement = ({
               sizes,
               loader,
             })}
-            {...(layout==='raw' ? { height: heightInt, width: widthInt } : {})}
+            {...(layout === 'raw'
+              ? { height: heightInt, width: widthInt }
+              : {})}
             decoding="async"
             data-nimg={layout}
             style={imgStyle}
