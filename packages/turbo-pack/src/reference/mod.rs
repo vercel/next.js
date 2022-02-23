@@ -1,5 +1,5 @@
-#[turbo_tasks::value]
-#[derive(Hash, PartialEq, Eq)]
+#[turbo_tasks::value(shared)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq)]
 pub struct AssetReference {
     pub request: String,
 }
@@ -14,7 +14,7 @@ impl AssetReference {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, PartialEq, Eq)]
 pub struct AssetReferencesSet {
     pub references: Vec<AssetReferenceRef>,

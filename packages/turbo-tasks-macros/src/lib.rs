@@ -80,17 +80,84 @@ fn get_trait_impl_function_ident(struct_ident: &Ident, ident: &Ident) -> Ident {
     )
 }
 
+enum IntoMode {
+    None,
+    New,
+    Intern,
+    Shared,
+    Value
+}
+
+impl Parse for IntoMode {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let ident = input.parse::<Ident>()?;
+        match ident.to_string().as_str() {
+            "new" => Ok(IntoMode::New),
+            "intern" => Ok(IntoMode::Intern),
+            "shared" => Ok(IntoMode::Shared),
+            "value" => Ok(IntoMode::Value),
+            _ => {
+                return Err(Error::new_spanned(
+                    &ident,
+                    format!("unexpected {}, expected \"new\", \"shared\", \"value\" or \"intern\"", ident.to_string()),
+                ))
+            },
+        }
+    }
+}
+
+struct ValueArguments {
+    traits: Vec<Ident>,
+    into_mode: IntoMode
+}
+
+impl Parse for ValueArguments {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut result = ValueArguments { traits: Vec::new(), into_mode: IntoMode::None };
+        if input.is_empty() {
+            return Ok(result);
+        }
+        loop {
+            let ident = input.parse::<Ident>()?;
+            match ident.to_string().as_str() {
+                "value" => {
+                    result.into_mode = IntoMode::Value;
+                },
+                "shared" => {
+                    result.into_mode = IntoMode::Shared;
+                },
+                "intern" => {
+                    result.into_mode = IntoMode::Intern;
+                },
+                "into" => {
+                    input.parse::<Token![:]>()?;
+                    result.into_mode = input.parse::<IntoMode>()?;
+                },
+                _ => {
+                    result.traits.push(ident);
+                    while input.peek(Token![+]) {
+                        input.parse::<Token![+]>()?;
+                        let ident = input.parse::<Ident>()?;
+                        result.traits.push(ident);
+                    }
+                }
+            }
+            if input.is_empty() {
+                return Ok(result);
+            } else if input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            } else {
+                return Err(input.error("expected \",\" or end of attribute"));
+            }
+        }
+    }
+}
+
 #[allow_internal_unstable(into_future, trivial_bounds)]
 #[proc_macro_attribute]
 pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let item = parse_macro_input!(input as Item);
-    let traits = if args.is_empty() {
-        Vec::new()
-    } else {
-        parse_macro_input!(args with Punctuated<Ident, Token![+]>::parse_terminated)
-            .into_iter()
-            .collect()
-    };
+    let ValueArguments { traits, into_mode } = parse_macro_input!(args as ValueArguments);
 
     let (vis, ident) = match &item {
         Item::Enum(ItemEnum { vis, ident, .. }) => (vis, ident),
@@ -108,6 +175,101 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let ref_ident = get_ref_ident(&ident);
     let slot_value_type_ident = get_slot_value_type_ident(&ident);
     let trait_refs: Vec<_> = traits.iter().map(|ident| get_ref_ident(&ident)).collect();
+
+    let into = match into_mode {
+        IntoMode::None => quote! {} ,
+        IntoMode::New => quote! {
+            impl From<#ident> for #ref_ident {
+                fn from(content: #ident) -> Self {
+                    Self { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
+                        |__slot| {
+                            __slot.update_shared(&#slot_value_type_ident, content);
+                        }
+                    ) }
+                }
+            }
+            
+            #(impl From<#ident> for #trait_refs {
+                fn from(content: #ident) -> Self {
+                    Self::from_slot_ref(turbo_tasks::macro_helpers::match_previous_node_by_type::<dyn #traits, _>(
+                        |__slot| {
+                            __slot.update_shared(&#slot_value_type_ident, content);
+                        }
+                    ))
+                }
+            })*
+        },
+        IntoMode::Value => quote! {
+            impl From<#ident> for #ref_ident {
+                fn from(content: #ident) -> Self {
+                    Self { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
+                        |__slot| {
+                            __slot.compare_and_update_cloneable(&#slot_value_type_ident, content);
+                        }
+                    ) }
+                }
+            }
+            
+            #(impl From<#ident> for #trait_refs {
+                fn from(content: #ident) -> Self {
+                    Self::from_slot_ref(turbo_tasks::macro_helpers::match_previous_node_by_type::<dyn #traits, _>(
+                        |__slot| {
+                            __slot.compare_and_update_cloneable(&#slot_value_type_ident, content);
+                        }
+                    ))
+                }
+            })*
+        },
+        IntoMode::Shared => quote! {
+            impl From<#ident> for #ref_ident {
+                fn from(content: #ident) -> Self {
+                    Self { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
+                        |__slot| {
+                            __slot.compare_and_update_shared(&#slot_value_type_ident, content);
+                        }
+                    ) }
+                }
+            }
+
+            #(impl From<#ident> for #trait_refs {
+                fn from(content: #ident) -> Self {
+                    Self::from_slot_ref(turbo_tasks::macro_helpers::match_previous_node_by_type::<dyn #traits, _>(
+                        |__slot| {
+                            __slot.compare_and_update_shared(&#slot_value_type_ident, content);
+                        }
+                    ))
+                }
+            })*
+        },
+        IntoMode::Intern => quote! {
+            impl From<#ident> for #ref_ident {
+                fn from(content: #ident) -> Self {
+                    let arc = std::sync::Arc::new(content);
+                    Self { node: turbo_tasks::macro_helpers::new_node_intern::<#ident, _, _>(
+                        arc.clone(),
+                        || (
+                            &#slot_value_type_ident,
+                            arc
+                        )
+                    ) }
+                }
+            }
+
+            #(impl From<#ident> for #trait_refs {
+                fn from(content: #ident) -> Self {
+                    let arc = std::sync::Arc::new(content);
+                    Self::from_slot_ref(turbo_tasks::macro_helpers::new_node_intern::<dyn #traits, _, _>(
+                        arc.clone(),
+                        || (
+                            &#slot_value_type_ident,
+                            arc
+                        )
+                    ))
+                }
+            })*
+        },
+    };
+
     let trait_registrations: Vec<_> = traits
         .iter()
         .map(|trait_ident| {
@@ -142,7 +304,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 Self { node }
             }
 
-            pub async fn get(&self) -> impl std::ops::Deref<Target = #ident> {
+            pub async fn get(&self) -> turbo_tasks::SlotRefReadResult<#ident> {
                 self.node.clone().into_read::<#ident>().await
             }
 
@@ -182,47 +344,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             }
         })*
 
-        // #[cfg(feature = "trivial_bounds")]
-        impl From<#ident> for #ref_ident where #ident: std::cmp::PartialEq<#ident> {
-            fn from(content: #ident) -> Self {
-                Self { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
-                    |__slot| {
-                        __slot.compare_and_update_shared(&#slot_value_type_ident, content);
-                    }
-                ) }
-            }
-        }
-
-        #(// #[cfg(feature = "trivial_bounds")]
-        impl From<#ident> for #trait_refs where #ident: std::cmp::PartialEq<#ident> {
-            fn from(content: #ident) -> Self {
-                Self::from_slot_ref(turbo_tasks::macro_helpers::match_previous_node_by_type::<dyn #traits, _>(
-                    |__slot| {
-                        __slot.compare_and_update_shared(&#slot_value_type_ident, content);
-                    }
-                ))
-            }
-        })*
-
-        // #[cfg(feature = "trivial_bounds")]
-        impl #ref_ident where #ident: std::cmp::Eq + std::hash::Hash + Send + Sync + 'static {
-            pub fn intern(this: #ident) -> #ref_ident {
-                let arc = std::sync::Arc::new(this);
-                Self { node: turbo_tasks::macro_helpers::new_node_intern::<#ident, _, _>(
-                    arc.clone(),
-                    || (
-                        &#slot_value_type_ident,
-                        arc
-                    )
-                ) }
-            }
-        }
-
-        impl #ref_ident where #ident: std::fmt::Debug + std::cmp::Eq + std::hash::Hash + std::clone::Clone + Send + Sync + 'static {
-            pub fn value(this: #ident) -> #ref_ident {
-                Self { node: turbo_tasks::SlotRef::CloneableData(&#slot_value_type_ident, Box::new(this)) }
-            }
-        }
+        #into
 
         impl turbo_tasks::trace::TraceSlotRefs for #ref_ident {
             fn trace_node_refs(&self, context: &mut turbo_tasks::trace::TraceSlotRefsContext) {
@@ -322,7 +444,7 @@ impl Parse for Constructor {
                 _ => {
                     return Err(Error::new_spanned(
                         &ident,
-                        format!("unexpected {}, expected \"key\", \"intern\", \"compare\", \"compare_enum\" or \"update\"", ident.to_string()),
+                        format!("unexpected {}, expected \"key\", \"intern\", \"compare\" or \"compare_enum\"", ident.to_string()),
                     ))
                 }
             }

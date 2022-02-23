@@ -1,6 +1,10 @@
 use crate::{self as turbo_tasks, task::NativeTaskFn, SlotRef, TaskArgumentOptions};
 use anyhow::Result;
-use std::{fmt::Debug, hash::Hash};
+use std::{
+    fmt::Debug,
+    hash::Hash,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 #[turbo_tasks::value]
 pub struct NativeFunction {
@@ -10,6 +14,8 @@ pub struct NativeFunction {
     pub task_argument_options: Box<dyn Fn() -> Vec<TaskArgumentOptions> + Send + Sync + 'static>,
     #[trace_ignore]
     pub bind_fn: Box<dyn (Fn(Vec<SlotRef>) -> Result<NativeTaskFn>) + Send + Sync + 'static>,
+    #[trace_ignore]
+    pub executed_count: AtomicUsize,
 }
 
 impl Debug for NativeFunction {
@@ -32,10 +38,15 @@ impl NativeFunction {
             name,
             task_argument_options: Box::new(task_argument_options),
             bind_fn: Box::new(bind_fn),
+            executed_count: AtomicUsize::new(0),
         }
     }
 
     pub fn bind(&self, inputs: Vec<SlotRef>) -> Result<NativeTaskFn> {
+        let count = self.executed_count.fetch_add(1, Ordering::Relaxed);
+        if count > 0 && count % 100000 == 0 {
+            println!("{} was executed {}k times", self.name, count / 1000);
+        }
         (self.bind_fn)(inputs)
     }
 }

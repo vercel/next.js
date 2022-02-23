@@ -1,6 +1,6 @@
 use turbo_tasks_fs::{FileContentRef, FileSystemPathRef};
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, PartialEq, Eq)]
 pub struct AssetsSet {
     pub assets: Vec<AssetRef>,

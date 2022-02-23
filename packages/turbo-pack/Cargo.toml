@@ -12,6 +12,8 @@ anyhow = "1.0.47"
 "turbo-tasks-fs" = { path = "../turbo-tasks-fs" }
 async-std = "1.10.0"
 regex = "1.5.4"
+testing = "0.18.1"
+rand = "0.8.5"
 
 [dependencies.swc_common]
 version = "0.17.5"

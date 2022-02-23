@@ -137,6 +137,51 @@ impl Slot {
         }
     }
 
+    pub fn conditional_update_cloneable<
+        T: PartialEq + Hash + Clone + Debug + Send + Sync + 'static,
+        F: FnOnce(Option<&T>) -> Option<T>,
+    >(
+        &mut self,
+        ty: &'static SlotValueType,
+        functor: F,
+    ) {
+        let change;
+        let mut _type_change = false;
+        match &self.content {
+            SlotContent::Empty | SlotContent::Link(_) => {
+                _type_change = true;
+                change = functor(None);
+            }
+            SlotContent::SharedReference(old_ty, old_content) => {
+                if *old_ty != ty {
+                    _type_change = true;
+                    change = functor(None);
+                } else {
+                    if let Some(old_content) = old_content.downcast_ref::<T>() {
+                        change = functor(Some(old_content));
+                    } else {
+                        panic!("This can't happen as the type is compared");
+                    }
+                }
+            }
+            SlotContent::Cloneable(old_ty, old_content) => {
+                if *old_ty != ty {
+                    _type_change = true;
+                    change = functor(None);
+                } else {
+                    if let Ok(old_content) = old_content.as_any().downcast::<T>() {
+                        change = functor(Some(&*old_content));
+                    } else {
+                        panic!("This can't happen as the type is compared");
+                    }
+                }
+            }
+        };
+        if let Some(new_content) = change {
+            self.assign(SlotContent::Cloneable(ty, Box::new(new_content)))
+        }
+    }
+
     pub fn compare_and_update_shared<T: PartialEq + Send + Sync + 'static>(
         &mut self,
         ty: &'static SlotValueType,
@@ -152,18 +197,43 @@ impl Slot {
         });
     }
 
+    pub fn compare_and_update_cloneable<
+        T: PartialEq + Hash + Clone + Debug + PartialEq + Send + Sync + 'static,
+    >(
+        &mut self,
+        ty: &'static SlotValueType,
+        new_content: T,
+    ) {
+        self.conditional_update_cloneable(ty, |old_content| {
+            if let Some(old_content) = old_content {
+                if PartialEq::eq(&new_content, old_content) {
+                    return None;
+                }
+            }
+            Some(new_content)
+        });
+    }
+
+    pub fn update_shared<T: Send + Sync + 'static>(
+        &mut self,
+        ty: &'static SlotValueType,
+        new_content: T,
+    ) {
+        self.assign(SlotContent::SharedReference(ty, Arc::new(new_content)))
+    }
+
     fn read<T: Any + Send + Sync>(&mut self, reader: &Arc<Task>) -> SlotReadResult<T> {
         self.dependent_tasks.push(Arc::downgrade(reader));
         match &self.content {
-            SlotContent::Empty => SlotReadResult::Final(SlotRefReadResult::Nothing),
+            SlotContent::Empty => SlotReadResult::Final(SlotRefReadResult::nothing()),
             SlotContent::SharedReference(_, data) => match Arc::downcast(data.clone()) {
-                Ok(data) => SlotReadResult::Final(SlotRefReadResult::SharedReference(data)),
-                Err(_) => SlotReadResult::Final(SlotRefReadResult::InvalidType),
+                Ok(data) => SlotReadResult::Final(SlotRefReadResult::shared_reference(data)),
+                Err(_) => SlotReadResult::Final(SlotRefReadResult::invalid_type()),
             },
             SlotContent::Cloneable(_, data) => {
                 match Box::<dyn Any + Send + Sync>::downcast(data.as_any()) {
-                    Ok(data) => SlotReadResult::Final(SlotRefReadResult::ClonedData(data)),
-                    Err(_) => SlotReadResult::Final(SlotRefReadResult::InvalidType),
+                    Ok(data) => SlotReadResult::Final(SlotRefReadResult::cloned_data(data)),
+                    Err(_) => SlotReadResult::Final(SlotRefReadResult::invalid_type()),
                 }
             }
             SlotContent::Link(slot_ref) => SlotReadResult::Link(slot_ref.clone()),
@@ -225,24 +295,51 @@ enum SlotReadResult<T: Any + Send + Sync> {
     Link(SlotRef),
 }
 
-pub enum SlotRefReadResult<T: Any + Send + Sync> {
+pub struct SlotRefReadResult<T: Any + Send + Sync> {
+    inner: SlotRefReadResultInner<T>,
+}
+
+pub enum SlotRefReadResultInner<T: Any + Send + Sync> {
     Nothing,
     SharedReference(Arc<T>),
     ClonedData(Box<T>),
     InvalidType,
 }
 
+impl<T: Any + Send + Sync> SlotRefReadResult<T> {
+    fn nothing() -> Self {
+        Self {
+            inner: SlotRefReadResultInner::Nothing,
+        }
+    }
+    fn invalid_type() -> Self {
+        Self {
+            inner: SlotRefReadResultInner::InvalidType,
+        }
+    }
+    fn shared_reference(shared_ref: Arc<T>) -> Self {
+        Self {
+            inner: SlotRefReadResultInner::SharedReference(shared_ref),
+        }
+    }
+    fn cloned_data(data: Box<T>) -> Self {
+        Self {
+            inner: SlotRefReadResultInner::ClonedData(data),
+        }
+    }
+}
+
 impl<T: Any + Send + Sync> std::ops::Deref for SlotRefReadResult<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        match self {
-            SlotRefReadResult::Nothing => {
+        match &self.inner {
+            SlotRefReadResultInner::Nothing => {
                 panic!("Nothing in slot")
             }
-            SlotRefReadResult::SharedReference(a) => a,
-            SlotRefReadResult::ClonedData(a) => a,
-            SlotRefReadResult::InvalidType => {
+            SlotRefReadResultInner::SharedReference(a) => a,
+            SlotRefReadResultInner::ClonedData(a) => a,
+            SlotRefReadResultInner::InvalidType => {
                 panic!("Invalid type")
             }
         }
@@ -286,16 +383,16 @@ impl SlotRef {
                     task.with_created_slot(index, |slot| slot.read(reader))
                 }),
                 SlotRef::SharedReference(_, data) => match Arc::downcast(data.clone()) {
-                    Ok(data) => SlotReadResult::Final(SlotRefReadResult::SharedReference(data)),
-                    Err(_) => SlotReadResult::Final(SlotRefReadResult::InvalidType),
+                    Ok(data) => SlotReadResult::Final(SlotRefReadResult::shared_reference(data)),
+                    Err(_) => SlotReadResult::Final(SlotRefReadResult::invalid_type()),
                 },
                 SlotRef::CloneableData(_, data) => {
                     match Box::<dyn Any + Send + Sync>::downcast(data.as_any()) {
-                        Ok(data) => SlotReadResult::Final(SlotRefReadResult::ClonedData(data)),
-                        Err(_) => SlotReadResult::Final(SlotRefReadResult::InvalidType),
+                        Ok(data) => SlotReadResult::Final(SlotRefReadResult::cloned_data(data)),
+                        Err(_) => SlotReadResult::Final(SlotRefReadResult::invalid_type()),
                     }
                 }
-                SlotRef::Nothing => SlotReadResult::Final(SlotRefReadResult::Nothing),
+                SlotRef::Nothing => SlotReadResult::Final(SlotRefReadResult::nothing()),
             } {
                 SlotReadResult::Final(result) => {
                     return result;

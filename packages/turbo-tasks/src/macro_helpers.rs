@@ -1,6 +1,6 @@
 use std::{any::Any, hash::Hash, sync::Arc};
 
-use crate::{slot::Slot, turbo_tasks::intern, SlotRef, SlotValueType};
+use crate::{manager::intern, slot::Slot, SlotRef, SlotValueType};
 
 pub use crate::slot::SlotRefReadResult;
 

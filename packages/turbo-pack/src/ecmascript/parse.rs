@@ -8,7 +8,7 @@ use turbo_tasks_fs::FileContent;
 
 use crate::asset::AssetRef;
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 pub enum ParseResult {
     Ok(#[trace_ignore] Module),
     Unparseable,

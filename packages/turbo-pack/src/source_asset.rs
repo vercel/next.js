@@ -2,6 +2,7 @@ use crate::asset::{Asset, AssetRef, AssetsSetRef};
 use turbo_tasks_fs::{FileContentRef, FileSystemPathRef};
 
 #[turbo_tasks::value(Asset)]
+#[derive(PartialEq, Eq)]
 pub struct SourceAsset {
     pub path: FileSystemPathRef,
 }

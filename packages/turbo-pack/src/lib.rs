@@ -44,7 +44,7 @@ pub async fn nft_asset(
     .into()
 }
 
-#[turbo_tasks::value(Asset)]
+#[turbo_tasks::value(intern, Asset)]
 #[derive(Hash, PartialEq, Eq)]
 struct NftAssetSource {
     path: FileSystemPathRef,
