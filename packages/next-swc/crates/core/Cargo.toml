@@ -28,6 +28,6 @@ tracing = {version = "0.1.28", features = ["release_max_level_off"]}
 regex = "1.5"
 
 [dev-dependencies]
-swc_ecma_transforms_testing = "0.60.0"
+swc_ecma_transforms_testing = "0.63.0"
 testing = "0.18.0"
 walkdir = "2.3.2"
