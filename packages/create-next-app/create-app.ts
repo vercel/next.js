@@ -127,7 +127,6 @@ export async function createApp({
   console.log(`Creating a new Next.js app in ${chalk.green(root)}.`)
   console.log()
 
-  await makeDir(root)
   process.chdir(root)
 
   if (example) {
