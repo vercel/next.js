@@ -172,6 +172,7 @@ export async function apiResolver(
     }
     const config: PageConfig = resolverModule.config || {}
     const bodyParser = config.api?.bodyParser !== false
+    const bodyLimit = config.api?.bodyLimit ?? true
     const externalResolver = config.api?.externalResolver || false
 
     // Parsing of cookies
@@ -209,9 +210,9 @@ export async function apiResolver(
         contentLength += Buffer.byteLength(args[0] || '')
       }
 
-      if (contentLength >= 4 * 1024 * 1024) {
+      if (bodyLimit && contentLength >= 4 * 1024 * 1024) {
         console.warn(
-          `API response for ${req.url} exceeds 4MB. This will cause the request to fail in a future version. https://nextjs.org/docs/messages/api-routes-body-size-limit`
+          `API response for ${req.url} exceeds 4MB. API Routes are meant to respond quickly. https://nextjs.org/docs/messages/api-routes-body-size-limit`
         )
       }
 

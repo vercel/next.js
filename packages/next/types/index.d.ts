@@ -64,6 +64,11 @@ export type PageConfig = {
   amp?: boolean | 'hybrid'
   api?: {
     /**
+     * Flag to disable warning "API response for ${req.url} exceeds 4MB.",
+     * due to deploying app outside Vercel, like AWS.
+     */
+    bodyLimit?: boolean
+    /**
      * The byte limit of the body. This is the number of bytes or any string
      * format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
      */
