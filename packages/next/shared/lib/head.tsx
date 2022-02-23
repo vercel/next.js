@@ -48,7 +48,21 @@ function onlyReactElement(
   return list.concat(child)
 }
 
-const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp']
+/**
+ * https://html.spec.whatwg.org/multipage/semantics.html#the-meta-element
+ *
+ * Although not mentioned in HTML5 spec, "property" is defined in RDFa spec[1].
+ * It is also used in The Open Graph Protocol documents[2] and Facebook's developer documents[3].
+ *
+ * Although Facebook doesn't mention what will happen if "name" instead of "property" being used, Twitter said they will
+ * prefer "name" then fallback to "property"[4].
+ *
+ * [1]: https://www.w3.org/TR/rdfa-primer/
+ * [2]: https://ogp.me/
+ * [3]: https://developers.facebook.com/docs/sharing/webmasters/#markup
+ * [4]: https://developer.twitter.com/en/docs/twitter-for-websites/cards/guides/getting-started#twitter-cards-and-open-graph
+ */
+const METATYPES = ['name', 'property', 'httpEquiv', 'charSet', 'itemProp']
 
 /*
  returns a function for filtering head child elements
