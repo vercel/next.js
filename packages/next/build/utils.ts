@@ -1111,7 +1111,7 @@ export function getRawPageExtensions(pageExtensions: string[]): string[] {
 
 export function isFlightPage(
   nextConfig: NextConfigComplete,
-  path: string
+  filePath: string
 ): boolean {
   if (
     !(
@@ -1126,7 +1126,7 @@ export function isFlightPage(
     nextConfig.pageExtensions || []
   )
   return rawPageExtensions.some((ext) => {
-    return path.endsWith(`.server.${ext}`)
+    return filePath.endsWith(`.server.${ext}`)
   })
 }
 
