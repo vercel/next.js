@@ -1,6 +1,11 @@
+import type { NextApiRequest, NextApiResponse } from 'next'
+
 import redis from '../../lib/redis'
 
-export default async function upvote(req, res) {
+export default async function upvote(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   const { title, id } = req.body
   const ip =
     req.headers['x-forwarded-for'] || req.headers['Remote_Addr'] || 'NA'
