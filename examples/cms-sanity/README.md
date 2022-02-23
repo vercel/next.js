@@ -85,11 +85,30 @@ SANITY_API_TOKEN=...
 SANITY_PREVIEW_SECRET=...
 ```
 
-### Step 5. Prepare project for previewing
+### Step 5. Prepare the project for previewing
 
-Go to https://www.sanity.io/docs/preview-content-on-site and follow the three steps on that page. It should be done inside the studio project generated in Step 2.
+1. Install the `@sanity/production-preview` plugin with `sanity install @sanity/production-preview`.
 
-When you get to the second step about creating a file called `resolveProductionUrl.js`, copy the following instead:
+2. Create a file called `resolveProductionUrl.js` (we'll get back to that file in a bit).
+
+3. Open your studio's sanity.json, and add the following entry to the parts-array:
+
+```diff
+{
+  "plugins": [
+    "@sanity/production-preview"
+  ],
+  "parts": [
+    //...
++   {
++     "implements": "part:@sanity/production-preview/resolve-production-url",
++     "path": "./resolveProductionUrl.js" <-- point to the path of the resolveProductionUrl.js you created in step 2
++   }
+  ]
+}
+```
+
+Now, go back to `resolveProductionUrl.js` and add a function that will receive the full document that was selected for previewing:
 
 ```js
 const previewSecret = 'MY_SECRET' // Copy the string you used for SANITY_PREVIEW_SECRET
@@ -99,6 +118,8 @@ export default function resolveProductionUrl(document) {
   return `${projectUrl}/api/preview?secret=${previewSecret}&slug=${document.slug.current}`
 }
 ```
+
+For more information on live previewing check the [full guide.](https://www.sanity.io/guides/nextjs-live-preview)
 
 ### Step 6. Copy the schema file
 
