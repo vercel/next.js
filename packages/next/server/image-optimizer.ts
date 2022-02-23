@@ -259,7 +259,13 @@ export class ImageError extends Error {
 
   constructor(statusCode: number, message: string) {
     super(message)
-    this.statusCode = statusCode
+
+    // ensure an error status is used > 400
+    if (statusCode >= 400) {
+      this.statusCode = statusCode
+    } else {
+      this.statusCode = 500
+    }
   }
 }
 
