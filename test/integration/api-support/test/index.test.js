@@ -465,7 +465,7 @@ function runTests(dev = false) {
     let res = await fetchViaHTTP(appPort, '/api/large-response-with-config')
     expect(res.ok).toBeTruthy()
     expect(stderr).not.toContain(
-      'API response for /api/large-response-with-config exceeds 4MB. This will cause the request to fail in a future version.'
+      'API response for /api/large-response-with-config exceeds 4MB. API Routes are meant to respond quickly.'
     )
   })
 
