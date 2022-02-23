@@ -1,6 +1,8 @@
+import { NextApiRequest, NextApiResponse } from 'next'
+
 import redis from '../../lib/redis'
 
-export default async function subscribe(req, res) {
+export default async function subscribe(req: NextApiRequest, res: NextApiResponse) {
   const { email } = req.body
 
   if (email && validateEmail(email)) {
@@ -15,7 +17,7 @@ export default async function subscribe(req, res) {
   }
 }
 
-function validateEmail(email) {
+function validateEmail(email: string) {
   const re =
     /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
   return re.test(String(email).toLowerCase())

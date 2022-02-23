@@ -1,11 +1,20 @@
 import { useState, useRef } from 'react'
+import { NextApiRequest } from 'next'
+import type {ChangeEvent, MouseEvent} from 'react';
 import Head from 'next/head'
 import clsx from 'clsx'
 import useSWR, { mutate } from 'swr'
 import toast from 'react-hot-toast'
 import redis from '../lib/redis'
 
-const fetcher = (url) => fetch(url).then((res) => res.json())
+type Feature = {
+  id: string;
+  title: string;
+  score: number;
+  ip: string;
+}
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 function LoadingSpinner({ invert }: {invert?: boolean}) {
   return (
@@ -35,8 +44,8 @@ function LoadingSpinner({ invert }: {invert?: boolean}) {
   )
 }
 
-function Item({ isFirst, isLast, isReleased, hasVoted, feature }) {
-  const upvote = async (e) => {
+function Item({ isFirst, isLast, isReleased, hasVoted, feature }: {isFirst: boolean, isLast: boolean, isReleased: boolean, hasVoted: boolean, feature: Feature}) {
+  const upvote = async (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()
 
     const res = await fetch('/api/vote', {
@@ -85,7 +94,7 @@ function Item({ isFirst, isLast, isReleased, hasVoted, feature }) {
   )
 }
 
-export default function Roadmap({ features, ip }) {
+export default function Roadmap({ features, ip }: {features: Feature[], ip: string}) {
   const [isCreateLoading, setCreateLoading] = useState(false)
   const [isEmailLoading, setEmailLoading] = useState(false)
   const featureInputRef = useRef(null)
@@ -99,7 +108,7 @@ export default function Roadmap({ features, ip }) {
     toast.error(error)
   }
 
-  const addFeature = async (e) => {
+  const addFeature = async (e: MouseEvent<HTMLFormElement>) => {
     e.preventDefault()
     setCreateLoading(true)
 
@@ -125,7 +134,7 @@ export default function Roadmap({ features, ip }) {
     featureInputRef.current.value = ''
   }
 
-  const subscribe = async (e) => {
+  const subscribe = async (e: MouseEvent<HTMLFormElement>) => {
     e.preventDefault()
     setEmailLoading(true)
 
@@ -189,7 +198,7 @@ export default function Roadmap({ features, ip }) {
             </form>
           </div>
           <div className="w-full">
-            {data.features.map((feature, index) => (
+            {data.features.map((feature: Feature, index: number) => (
               <Item
                 key={index}
                 isFirst={index === 0}
@@ -254,7 +263,7 @@ export default function Roadmap({ features, ip }) {
   )
 }
 
-export async function getServerSideProps({ req }) {
+export async function getServerSideProps({ req }: {req: NextApiRequest}) {
   const ip =
     req.headers['x-forwarded-for'] || req.headers['Remote_Addr'] || 'NA'
   const features = (await redis.hvals('features'))

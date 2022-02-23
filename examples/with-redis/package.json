@@ -20,8 +20,10 @@
   },
   "devDependencies": {
     "@tailwindcss/jit": "0.1.1",
+    "@types/ioredis": "4.28.8",
     "@types/node": "^16.11.25",
     "@types/react": "^17.0.2",
+    "@types/uuid": "8.3.4",
     "typescript": "^4.5.5"
   }
 }
