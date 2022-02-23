@@ -56,7 +56,7 @@ After setting the region, login in to Contentstack CLI by running the following 
 Now, import the stack for starter apps using the seed command. The seed command helps you to easily import and create a stack.
 To start building the starter app, run the following command in your terminal and then follow the on-screen instructions that creates the stack with the required content types, entries and assets.
 
-`csdx cm:seed -r "contentstack/stack-starter-app"`
+`csdx cm:seed -r "contentstack/stack-next.js-starter-example"`
 
 ### Step 3. Create Delivery and Management token
 
