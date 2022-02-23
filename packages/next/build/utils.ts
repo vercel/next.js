@@ -1111,23 +1111,23 @@ export function getRawPageExtensions(pageExtensions: string[]): string[] {
 
 export function isFlightPage(
   nextConfig: NextConfigComplete,
-  pagePath: string
+  path: string
 ): boolean {
   if (
     !(
       nextConfig.experimental.serverComponents &&
       nextConfig.experimental.runtime
     )
-  )
+  ) {
     return false
+  }
 
   const rawPageExtensions = getRawPageExtensions(
     nextConfig.pageExtensions || []
   )
-  const isRscPage = rawPageExtensions.some((ext) => {
-    return new RegExp(`\\.server\\.${ext}$`).test(pagePath)
+  return rawPageExtensions.some((ext) => {
+    return path.endsWith(`.server.${ext}`)
   })
-  return isRscPage
 }
 
 export function getUnresolvedModuleFromError(
