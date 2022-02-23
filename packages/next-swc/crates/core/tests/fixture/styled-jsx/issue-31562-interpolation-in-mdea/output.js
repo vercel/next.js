@@ -36,10 +36,7 @@ export default class {
             Typography.base.size.mediumPlus,
             Target.largePlus,
             Typography.base.size.largePlus
-        ]}>{`html{font-size:${Typography.base.size.default};
-line-height:${Typography.base.lineHeight}}
-@media ${Target.mediumPlus} {html{font-size:${Typography.base.size.mediumPlus}}}
-@media ${Target.largePlus} {html{font-size:${Typography.base.size.largePlus}}}`}</_JSXStyle>
+        ]}>{`html{font-size:${Typography.base.size.default};line-height:${Typography.base.lineHeight}}@media ${Target.mediumPlus}{html{font-size:${Typography.base.size.mediumPlus}}}@media ${Target.largePlus}{html{font-size:${Typography.base.size.largePlus}}}`}</_JSXStyle>
 
         </div>;
     }

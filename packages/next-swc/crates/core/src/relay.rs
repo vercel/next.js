@@ -53,15 +53,13 @@ fn build_require_expr_from_path(path: &str) -> Expr {
     Expr::Call(CallExpr {
         span: Default::default(),
         callee: quote_ident!("require").as_callee(),
-        args: vec![
-            Lit::Str(Str {
-                span: Default::default(),
-                value: JsWord::from(path),
-                has_escape: false,
-                kind: Default::default(),
-            })
-            .as_arg(),
-        ],
+        args: vec![Lit::Str(Str {
+            span: Default::default(),
+            value: JsWord::from(path),
+            has_escape: false,
+            kind: Default::default(),
+        })
+        .as_arg()],
         type_args: None,
     })
 }

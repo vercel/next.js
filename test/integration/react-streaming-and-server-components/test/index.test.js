@@ -247,12 +247,7 @@ const documentSuite = {
   runTests: (context) => {
     it('should error when custom _document has getInitialProps method', async () => {
       const res = await fetchViaHTTP(context.appPort, '/')
-      const html = await res.text()
-
       expect(res.status).toBe(500)
-      expect(html).toContain(
-        '`getInitialProps` in Document component is not supported with the Edge Runtime.'
-      )
     })
   },
   beforeAll: () => documentPage.write(documentWithGip),

@@ -39,7 +39,7 @@ import {
 } from './streaming/vitals'
 import { RefreshContext } from './streaming/refresh'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
-import { ImageConfigComplete } from '../server/image-config'
+import { ImageConfigComplete } from '../shared/lib/image-config'
 
 /// <reference types="react-dom/experimental" />
 
@@ -702,6 +702,9 @@ if (process.env.__NEXT_RSC) {
         writer.write(encoder.encode(val))
       })
       buffer.length = 0
+      // Clean buffer but not deleting the key to mark bootstrap as complete.
+      // Then `nextServerDataCallback` will be safely skipped in the future renders.
+      serverDataBuffer.set(key, [])
     }
     serverDataWriter.set(key, writer)
   }

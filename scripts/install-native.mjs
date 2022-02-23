@@ -19,6 +19,7 @@ import fs from 'fs-extra'
       version: '1.0.0',
       optionalDependencies: {
         '@next/swc-android-arm64': 'canary',
+        '@next/swc-android-arm-eabi': 'canary',
         '@next/swc-darwin-arm64': 'canary',
         '@next/swc-darwin-x64': 'canary',
         '@next/swc-linux-arm-gnueabihf': 'canary',

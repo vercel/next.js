@@ -336,6 +336,8 @@ export default class HotReloader {
           )
         )
 
+      const hasEdgeRuntimePages = this.runtime === 'edge'
+
       return webpackConfigSpan
         .traceChild('generate-webpack-config')
         .traceAsyncFn(() =>
@@ -363,7 +365,7 @@ export default class HotReloader {
               }),
               // For the edge runtime, we need an extra compiler to generate the
               // web-targeted server bundle for now.
-              this.runtime === 'edge'
+              hasEdgeRuntimePages
                 ? getBaseWebpackConfig(this.dir, {
                     dev: true,
                     isServer: true,
