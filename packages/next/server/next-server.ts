@@ -585,6 +585,12 @@ export default class NextNodeServer extends BaseServer {
 
   protected streamResponseChunk(res: NodeNextResponse, chunk: any) {
     res.originalResponse.write(chunk)
+
+    // When both compression and streaming are enabled, we need to explicitly
+    // flush the response to avoid it being buffered by gzip.
+    if (this.compression && 'flush' in res.originalResponse) {
+      ;(res.originalResponse as any).flush()
+    }
   }
 
   protected async imageOptimizer(
