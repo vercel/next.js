@@ -1,10 +1,12 @@
 export const config = {
   api: {
-    bodyLimit: false,
+    bodyLimit: {
+      sizeLimit: '5mb',
+    },
   },
 }
 
 export default (req, res) => {
-  let body = '.'.repeat(4 * 1024 * 1024)
+  let body = '.'.repeat(6 * 1024 * 1024)
   res.send(body)
 }

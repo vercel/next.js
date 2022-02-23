@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
+import bytes from 'bytes'
 import type { PageConfig } from 'next/types'
 import type { __ApiPreviewProps } from '.'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
@@ -28,6 +29,7 @@ import {
   COOKIE_NAME_PRERENDER_BYPASS,
   COOKIE_NAME_PRERENDER_DATA,
   SYMBOL_PREVIEW_DATA,
+  MAX_CONTENT_LENGTH,
 } from './index'
 
 export function tryGetPreviewData(
@@ -199,6 +201,7 @@ export async function apiResolver(
     }
 
     let contentLength = 0
+    const maxContentLength = getMaxContentLength(bodyLimit)
     const writeData = apiRes.write
     const endResponse = apiRes.end
     apiRes.write = (...args: any[2]) => {
@@ -210,9 +213,11 @@ export async function apiResolver(
         contentLength += Buffer.byteLength(args[0] || '')
       }
 
-      if (bodyLimit && contentLength >= 4 * 1024 * 1024) {
+      if (bodyLimit && contentLength >= maxContentLength) {
         console.warn(
-          `API response for ${req.url} exceeds 4MB. API Routes are meant to respond quickly. https://nextjs.org/docs/messages/api-routes-body-size-limit`
+          `API response for ${req.url} exceeds ${bytes.format(
+            maxContentLength
+          )}. API Routes are meant to respond quickly. https://nextjs.org/docs/messages/api-routes-body-size-limit`
         )
       }
 
@@ -484,4 +489,13 @@ function setPreviewData<T>(
     }),
   ])
   return res
+}
+
+function getMaxContentLength(
+  bodyLimit?: { sizeLimit?: number | string } | boolean
+) {
+  if (bodyLimit && typeof bodyLimit !== 'boolean' && bodyLimit.sizeLimit) {
+    return bytes.parse(bodyLimit.sizeLimit)
+  }
+  return MAX_CONTENT_LENGTH
 }

@@ -70,6 +70,7 @@
   },
   "dependencies": {
     "@next/env": "12.1.1-canary.1",
+    "bytes": "3.1.1",
     "caniuse-lite": "^1.0.30001283",
     "postcss": "8.4.5",
     "styled-jsx": "5.0.0",
@@ -132,6 +133,7 @@
     "@types/babel__generator": "7.6.2",
     "@types/babel__template": "7.4.0",
     "@types/babel__traverse": "7.11.0",
+    "@types/bytes": "3.1.1",
     "@types/ci-info": "2.0.0",
     "@types/compression": "0.0.36",
     "@types/content-disposition": "0.5.4",

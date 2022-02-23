@@ -461,11 +461,22 @@ function runTests(dev = false) {
     )
   })
 
-  it('should not warn if response body is larger than 4MB with config', async () => {
+  it('should not warn if response body is larger than 4MB with bodyLimit config = false', async () => {
     let res = await fetchViaHTTP(appPort, '/api/large-response-with-config')
     expect(res.ok).toBeTruthy()
     expect(stderr).not.toContain(
       'API response for /api/large-response-with-config exceeds 4MB. API Routes are meant to respond quickly.'
+    )
+  })
+
+  it('should warn with configured size if response body is larger than configured size', async () => {
+    let res = await fetchViaHTTP(
+      appPort,
+      '/api/large-response-with-config-size'
+    )
+    expect(res.ok).toBeTruthy()
+    expect(stderr).toContain(
+      'API response for /api/large-response-with-config-size exceeds 5MB. API Routes are meant to respond quickly.'
     )
   })
 
