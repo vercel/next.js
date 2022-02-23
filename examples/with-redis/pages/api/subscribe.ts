@@ -1,8 +1,11 @@
-import { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from 'next'
 
 import redis from '../../lib/redis'
 
-export default async function subscribe(req: NextApiRequest, res: NextApiResponse) {
+export default async function subscribe(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   const { email } = req.body
 
   if (email && validateEmail(email)) {

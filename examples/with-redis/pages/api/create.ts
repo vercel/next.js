@@ -1,9 +1,12 @@
-import { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from 'next'
 import { v4 as uuidv4 } from 'uuid'
 
 import redis from '../../lib/redis'
 
-export default async function create(req: NextApiRequest, res: NextApiResponse) {
+export default async function create(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   const { title } = req.body
 
   if (!title) {

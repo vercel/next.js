@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
-import { NextApiRequest } from 'next'
-import type {ChangeEvent, MouseEvent} from 'react';
+import type { NextApiRequest } from 'next'
+import type { MouseEvent } from 'react'
 import Head from 'next/head'
 import clsx from 'clsx'
 import useSWR, { mutate } from 'swr'
@@ -8,15 +8,15 @@ import toast from 'react-hot-toast'
 import redis from '../lib/redis'
 
 type Feature = {
-  id: string;
-  title: string;
-  score: number;
-  ip: string;
+  id: string
+  title: string
+  score: number
+  ip: string
 }
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
-function LoadingSpinner({ invert }: {invert?: boolean}) {
+function LoadingSpinner({ invert }: { invert?: boolean }) {
   return (
     <svg
       className={clsx(
@@ -44,7 +44,19 @@ function LoadingSpinner({ invert }: {invert?: boolean}) {
   )
 }
 
-function Item({ isFirst, isLast, isReleased, hasVoted, feature }: {isFirst: boolean, isLast: boolean, isReleased: boolean, hasVoted: boolean, feature: Feature}) {
+function Item({
+  isFirst,
+  isLast,
+  isReleased,
+  hasVoted,
+  feature,
+}: {
+  isFirst: boolean
+  isLast: boolean
+  isReleased: boolean
+  hasVoted: boolean
+  feature: Feature
+}) {
   const upvote = async (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()
 
@@ -94,7 +106,13 @@ function Item({ isFirst, isLast, isReleased, hasVoted, feature }: {isFirst: bool
   )
 }
 
-export default function Roadmap({ features, ip }: {features: Feature[], ip: string}) {
+export default function Roadmap({
+  features,
+  ip,
+}: {
+  features: Feature[]
+  ip: string
+}) {
   const [isCreateLoading, setCreateLoading] = useState(false)
   const [isEmailLoading, setEmailLoading] = useState(false)
   const featureInputRef = useRef<HTMLInputElement>(null)
@@ -268,7 +286,7 @@ export default function Roadmap({ features, ip }: {features: Feature[], ip: stri
   )
 }
 
-export async function getServerSideProps({ req }: {req: NextApiRequest}) {
+export async function getServerSideProps({ req }: { req: NextApiRequest }) {
   const ip =
     req.headers['x-forwarded-for'] || req.headers['Remote_Addr'] || 'NA'
   const features = (await redis.hvals('features'))
