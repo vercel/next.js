@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-script-bi-outside-document'
+import rule from '@next/eslint-plugin-next/lib/rules/no-before-interactive-script-outside-doument'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {
@@ -12,7 +12,7 @@ import { RuleTester } from 'eslint'
 })
 const ruleTester = new RuleTester()
 
-ruleTester.run('no-script-bi-outside-document', rule, {
+ruleTester.run('no-before-interactive-script-outside-doument', rule, {
   valid: [
     {
       code: `
@@ -95,7 +95,7 @@ ruleTester.run('no-script-bi-outside-document', rule, {
       errors: [
         {
           message:
-            'next/script beforeInteractive strategy should only be used inside next/_document. See: https://nextjs.org/docs/messages/no-script-bi-outside-document',
+            'next/script beforeInteractive strategy should only be used inside next/_document. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-doument',
         },
       ],
     },
