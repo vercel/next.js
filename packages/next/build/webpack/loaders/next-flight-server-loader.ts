@@ -84,6 +84,14 @@ async function parseImportsInfo({
               isImageImport(importSource)
             )
           ) {
+            if (
+              ['react/jsx-runtime', 'react/jsx-dev-runtime'].includes(
+                importSource
+              )
+            ) {
+              continue
+            }
+
             // A shared component. It should be handled as a server
             // component.
             transformedSource += importDeclarations
@@ -92,6 +100,7 @@ async function parseImportsInfo({
             // A client component. It should be loaded as module reference.
             transformedSource += importDeclarations
             transformedSource += JSON.stringify(`${importSource}?__sc_client__`)
+            imports.push(`require(${JSON.stringify(importSource)})`)
           }
         } else {
           // For the client compilation, we skip all modules imports but
@@ -109,11 +118,12 @@ async function parseImportsInfo({
           ) {
             continue
           }
+
+          imports.push(`require(${JSON.stringify(importSource)})`)
         }
 
         lastIndex = node.source.span.end - beginPos
-        imports.push(`require(${JSON.stringify(importSource)})`)
-        continue
+        break
       }
       case 'ExportDefaultDeclaration': {
         const def = node.decl

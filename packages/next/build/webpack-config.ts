@@ -1202,7 +1202,8 @@ export default async function getBaseWebpackConfig(
                 },
               },
               {
-                ...codeCondition,
+                test: codeCondition.test,
+                resourceQuery: /__sc_client__/,
                 use: {
                   loader: 'next-flight-client-loader',
                 },
