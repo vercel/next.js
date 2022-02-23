@@ -831,6 +831,14 @@ export async function ncc_babel_bundle_packages(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+externals['bytes'] = 'next/dist/compiled/bytes'
+export async function ncc_bytes(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('bytes')))
+    .ncc({ packageName: 'bytes', externals })
+    .target('compiled/bytes')
+}
+// eslint-disable-next-line camelcase
 externals['ci-info'] = 'next/dist/compiled/ci-info'
 export async function ncc_ci_info(task, opts) {
   await task
@@ -1628,6 +1636,7 @@ export async function ncc(task, opts) {
         'ncc_tty_browserify',
         'ncc_vm_browserify',
         'ncc_babel_bundle',
+        'ncc_bytes',
         'ncc_ci_info',
         'ncc_cli_select',
         'ncc_comment_json',

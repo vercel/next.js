@@ -461,7 +461,7 @@ function runTests(dev = false) {
     )
   })
 
-  it('should not warn if response body is larger than 4MB with bodyLimit config = false', async () => {
+  it('should not warn if response body is larger than 4MB with responseLimit config = false', async () => {
     let res = await fetchViaHTTP(appPort, '/api/large-response-with-config')
     expect(res.ok).toBeTruthy()
     expect(stderr).not.toContain(

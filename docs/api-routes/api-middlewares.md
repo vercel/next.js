@@ -68,24 +68,24 @@ export const config = {
 }
 ```
 
-`bodyLimit` is automatically enabled, warning when an API routes' response is over 4MB. If you'd like to disable this warning, you can set this to false.
+`responseLimit` is automatically enabled, warning when an API routes' response is over 4MB. If you'd like to disable this warning, you can set this to false.
 
-A use case for disabling the `bodyLimit` warning is if you are deploying outside of the Vercel ecosystem, i/e AWS or self hosting.
+A use case for disabling the `responseLimit` warning is if you are deploying outside of the Vercel ecosystem, i/e AWS or self hosting.
 
 ```js
 export const config = {
   api: {
-    bodyLimit: false,
+    responseLimit: false,
   },
 }
 ```
 
-`bodyLimit.sizeLimit` is the maximum response size before a warning is displayed.
+`responseLimit.sizeLimit` is the maximum response size before a warning is displayed.
 
 ```js
 export const config = {
   api: {
-    bodyLimit: {
+    responseLimit: {
       sizeLimit: '30mb',
     },
   },

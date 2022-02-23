@@ -1,6 +1,6 @@
 export const config = {
   api: {
-    bodyLimit: {
+    responseLimit: {
       sizeLimit: '5mb',
     },
   },

@@ -1,12 +1,12 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
-import bytes from 'bytes'
 import type { PageConfig } from 'next/types'
 import type { __ApiPreviewProps } from '.'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import type { PreviewData } from 'next/types'
 
+import bytes from 'next/dist/compiled/bytes'
 import jsonwebtoken from 'next/dist/compiled/jsonwebtoken'
 import { decryptWithSecret, encryptWithSecret } from '../crypto-utils'
 import generateETag from 'next/dist/compiled/etag'
@@ -174,7 +174,7 @@ export async function apiResolver(
     }
     const config: PageConfig = resolverModule.config || {}
     const bodyParser = config.api?.bodyParser !== false
-    const bodyLimit = config.api?.bodyLimit ?? true
+    const responseLimit = config.api?.responseLimit ?? true
     const externalResolver = config.api?.externalResolver || false
 
     // Parsing of cookies
@@ -201,7 +201,7 @@ export async function apiResolver(
     }
 
     let contentLength = 0
-    const maxContentLength = getMaxContentLength(bodyLimit)
+    const maxContentLength = getMaxContentLength(responseLimit)
     const writeData = apiRes.write
     const endResponse = apiRes.end
     apiRes.write = (...args: any[2]) => {
@@ -213,11 +213,11 @@ export async function apiResolver(
         contentLength += Buffer.byteLength(args[0] || '')
       }
 
-      if (bodyLimit && contentLength >= maxContentLength) {
+      if (responseLimit && contentLength >= maxContentLength) {
         console.warn(
           `API response for ${req.url} exceeds ${bytes.format(
             maxContentLength
-          )}. API Routes are meant to respond quickly. https://nextjs.org/docs/messages/api-routes-body-size-limit`
+          )}. API Routes are meant to respond quickly. https://nextjs.org/docs/messages/api-routes-response-size-limit`
         )
       }
 
@@ -492,10 +492,14 @@ function setPreviewData<T>(
 }
 
 function getMaxContentLength(
-  bodyLimit?: { sizeLimit?: number | string } | boolean
+  responseLimit?: { sizeLimit?: number | string } | boolean
 ) {
-  if (bodyLimit && typeof bodyLimit !== 'boolean' && bodyLimit.sizeLimit) {
-    return bytes.parse(bodyLimit.sizeLimit)
+  if (
+    responseLimit &&
+    typeof responseLimit !== 'boolean' &&
+    responseLimit.sizeLimit
+  ) {
+    return bytes.parse(responseLimit.sizeLimit)
   }
   return MAX_CONTENT_LENGTH
 }
