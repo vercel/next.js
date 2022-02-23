@@ -25,11 +25,17 @@ export async function serveSlowImage() {
   const server = http.createServer(async (req, res) => {
     const parsedUrl = new URL(req.url, 'http://localhost')
     const delay = Number(parsedUrl.searchParams.get('delay')) || 500
+    const status = Number(parsedUrl.searchParams.get('status')) || 200
 
-    console.log('delay image for', delay)
+    console.log('delaying image for', delay)
     await waitFor(delay)
 
-    res.statusCode = 200
+    res.statusCode = status
+
+    if (status === 308) {
+      res.end('invalid status')
+      return
+    }
     res.setHeader('content-type', 'image/png')
     res.end(await fs.readFile(join(__dirname, '../app/public/test.png')))
   })
@@ -126,6 +132,19 @@ export function runTests(ctx) {
   afterAll(async () => {
     slowImageServer.stop()
   })
+
+  if (ctx.domains.includes('localhost')) {
+    it('should normalize invalid status codes', async () => {
+      const url = `http://localhost:${
+        slowImageServer.port
+      }/slow.png?delay=${1}&status=308`
+      const query = { url, w: ctx.w, q: 39 }
+      const opts = { headers: { accept: 'image/webp' }, redirect: 'manual' }
+
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(500)
+    })
+  }
 
   it('should return home page', async () => {
     const res = await fetchViaHTTP(ctx.appPort, '/', null, {})
