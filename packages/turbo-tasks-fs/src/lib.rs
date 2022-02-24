@@ -7,7 +7,7 @@ mod invalidator_map;
 use std::{
     fmt::{self, Debug},
     fs::{self, create_dir_all},
-    io::{self, ErrorKind},
+    io::ErrorKind,
     path::{Path, PathBuf, MAIN_SEPARATOR},
     sync::{mpsc::channel, Arc, Mutex},
     thread,

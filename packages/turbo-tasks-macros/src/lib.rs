@@ -564,6 +564,14 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
                 Self { node }
             }
 
+            pub async fn resolve_to_value(self) -> Self {
+                Self { node: self.node.resolve_to_value().await }
+            }
+
+            pub async fn resolve_to_slot(self) -> Self {
+                Self { node: self.node.resolve_to_slot().await }
+            }
+
             #(#trait_fns)*
         }
 

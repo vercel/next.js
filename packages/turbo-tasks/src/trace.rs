@@ -42,10 +42,18 @@ macro_rules! ignore {
   }
 }
 
-ignore!(i8, u8, i16, u16, i32, u32, i64, u64, bool);
+ignore!(i8, u8, i16, u16, i32, u32, i64, u64, bool, usize);
 ignore!(
-    AtomicI8, AtomicU8, AtomicI16, AtomicU16, AtomicI32, AtomicU32, AtomicI64, AtomicU64,
-    AtomicBool
+    AtomicI8,
+    AtomicU8,
+    AtomicI16,
+    AtomicU16,
+    AtomicI32,
+    AtomicU32,
+    AtomicI64,
+    AtomicU64,
+    AtomicBool,
+    AtomicUsize
 );
 ignore!(String, Duration);
 
