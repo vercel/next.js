@@ -1273,10 +1273,11 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
-      ...getMiddlewareSourceMapPlugins({
-        isConfigured: !!config.experimental.middlewareSourceMaps,
-        isProductionBrowserSourceMapsOn: config.productionBrowserSourceMaps,
-      }),
+      ...(!isServer &&
+      !!config.experimental.middlewareSourceMaps &&
+      !config.productionBrowserSourceMaps
+        ? getMiddlewareSourceMapPlugins()
+        : []),
       hasReactRefresh && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       targetWeb &&

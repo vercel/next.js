@@ -4,17 +4,8 @@ import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 /**
  * Produce source maps for middlewares.
  * Currently we use the same compiler for browser and middlewares,
- * so we can avoid having the custom plugins if the browser source maps
- * are emitted.
  */
-export const getMiddlewareSourceMapPlugins = (params: {
-  isConfigured: boolean
-  isProductionBrowserSourceMapsOn: boolean
-}) => {
-  if (!params.isConfigured || params.isProductionBrowserSourceMapsOn) {
-    return []
-  }
-
+export const getMiddlewareSourceMapPlugins = () => {
   return [
     new webpack.SourceMapDevToolPlugin({
       filename: '[file].map',
