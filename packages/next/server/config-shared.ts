@@ -106,6 +106,7 @@ export interface ExperimentalConfig {
   urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
   outputStandalone?: boolean
+  middlewareSourceMaps?: boolean
 }
 
 /**

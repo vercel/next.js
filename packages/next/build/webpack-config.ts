@@ -51,6 +51,7 @@ import { getRawPageExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { shouldUseReactRoot } from '../server/config'
+import { getMiddlewareSourceMapPlugins } from './webpack/plugins/middleware-source-maps-plugin'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -1272,6 +1273,12 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
+      ...(!dev &&
+      !isServer &&
+      !!config.experimental.middlewareSourceMaps &&
+      !config.productionBrowserSourceMaps
+        ? getMiddlewareSourceMapPlugins()
+        : []),
       hasReactRefresh && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       targetWeb &&
