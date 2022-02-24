@@ -47,7 +47,7 @@ export async function getStaticProps() {
 ```
 
 > **Note**: In order to keep server-only secrets safe, Next.js replaces `process.env.*` with the correct values
-> at build time. This means that `process.env` is not a standard JavaScript object, so you’re not able to
+> at run time. This means that `process.env` is not a standard JavaScript object, so you’re not able to
 > use [object destructuring](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment).
 > Environment variables must be referenced as e.g. `process.env.PUBLISHABLE_KEY`, _not_ `const { PUBLISHABLE_KEY } = process.env`.
 
