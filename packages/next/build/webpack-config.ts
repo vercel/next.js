@@ -1273,7 +1273,8 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
-      ...(!isServer &&
+      ...(!dev &&
+      !isServer &&
       !!config.experimental.middlewareSourceMaps &&
       !config.productionBrowserSourceMaps
         ? getMiddlewareSourceMapPlugins()
