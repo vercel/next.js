@@ -323,7 +323,7 @@ module.exports = {
 }
 ```
 
-If you're using `trailingSlash: true`, you also need to insert a trailing slash in the rewrites and use a special wildcard.
+If you're using `trailingSlash: true`, you also need to insert a trailing slash in the `source` and `destination` paramaters.
 
 ```js
 module.exports = {
@@ -335,8 +335,8 @@ module.exports = {
         destination: 'https://example.com/blog/',
       },
       {
-        source: '/blog/:path(.+)',
-        destination: 'https://example.com/blog/:path(.+)',
+        source: '/blog/:path*/',
+        destination: 'https://example.com/blog/:path*/',
       },
     ]
   },
