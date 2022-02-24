@@ -1274,6 +1274,7 @@ export default async function getBaseWebpackConfig(
     },
     plugins: [
       ...getMiddlewareSourceMapPlugins({
+        isConfigured: !!config.experimental.middlewareSourceMaps,
         isProductionBrowserSourceMapsOn: config.productionBrowserSourceMaps,
       }),
       hasReactRefresh && new ReactRefreshWebpackPlugin(webpack),

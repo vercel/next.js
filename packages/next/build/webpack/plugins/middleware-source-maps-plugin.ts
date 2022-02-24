@@ -8,9 +8,10 @@ import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
  * are emitted.
  */
 export const getMiddlewareSourceMapPlugins = (params: {
+  isConfigured: boolean
   isProductionBrowserSourceMapsOn: boolean
 }) => {
-  if (params.isProductionBrowserSourceMapsOn) {
+  if (!params.isConfigured || params.isProductionBrowserSourceMapsOn) {
     return []
   }
 
