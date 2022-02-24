@@ -6,7 +6,7 @@ module.exports = {
       description:
         'Disallow using next/script beforeInteractive strategy outside the next/_document component',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/no-before-interactive-script-outside-doument',
+      url: 'https://nextjs.org/docs/messages/no-before-interactive-script-outside-document',
     },
   },
   create: function (context) {
@@ -43,7 +43,7 @@ module.exports = {
         context.report({
           node,
           message:
-            'next/script beforeInteractive strategy should only be used inside next/_document. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-doument',
+            'next/script beforeInteractive strategy should only be used inside next/_document. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document',
         })
       },
     }

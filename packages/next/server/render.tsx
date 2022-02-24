@@ -740,11 +740,7 @@ export async function renderToHTML(
   if (hasPageScripts) {
     initialScripts.beforeInteractive = []
       .concat(hasPageScripts())
-      .filter(
-        (script: any) =>
-          script.props.strategy === 'beforeInteractive' ||
-          script.props.strategy === 'beforePageRender'
-      )
+      .filter((script: any) => script.props.strategy === 'beforeInteractive')
       .map((script: any) => script.props)
   }
 

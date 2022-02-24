@@ -2,8 +2,7 @@
 
 #### Why This Error Occurred
 
-You can't use the `next/script` component with the `beforeInteractive` strategy outside the `_document.js` page. That's because `beforeInteractive` strategy only works inside **\_document.js** and is designed to load scripts that is needed by the entire site (i.e. the script will load when any page in the application has been loaded server-side).
-The strategy is designed this way to make it compatible with streaming modes.
+You can't use the `next/script` component with the `beforeInteractive` strategy outside the `_document.js` page. That's because `beforeInteractive` strategy only works inside **\_document.js** and is designed to load scripts that are needed by the entire site (i.e. the script will load when any page in the application has been loaded server-side).
 
 #### Possible Ways to Fix It
 

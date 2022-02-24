@@ -549,8 +549,8 @@
           "path": "/errors/sharp-version-avif.md"
         },
         {
-          "title": "before-interactive-script-outside-doument",
-          "path": "/errors/no-before-interactive-script-outside-doument.md"
+          "title": "before-interactive-script-outside-document",
+          "path": "/errors/no-before-interactive-script-outside-document.md"
         },
         {
           "title": "script-component-in-head-component",
