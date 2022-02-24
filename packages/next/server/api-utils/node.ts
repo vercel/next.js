@@ -29,7 +29,7 @@ import {
   COOKIE_NAME_PRERENDER_BYPASS,
   COOKIE_NAME_PRERENDER_DATA,
   SYMBOL_PREVIEW_DATA,
-  MAX_CONTENT_LENGTH,
+  RESPONSE_LIMIT_DEFAULT,
 } from './index'
 
 export function tryGetPreviewData(
@@ -501,5 +501,5 @@ function getMaxContentLength(
   ) {
     return bytes.parse(responseLimit.sizeLimit)
   }
-  return MAX_CONTENT_LENGTH
+  return RESPONSE_LIMIT_DEFAULT
 }
