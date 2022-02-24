@@ -422,6 +422,14 @@ describe('Prerender', () => {
   const runTests = (dev = false) => {
     navigateTest(dev)
 
+    it('should respond with 405 for POST to static page', async () => {
+      const res = await fetchViaHTTP(next.url, '/', undefined, {
+        method: 'POST',
+      })
+      expect(res.status).toBe(405)
+      expect(await res.text()).toContain('Method Not Allowed')
+    })
+
     it('should SSR normal page correctly', async () => {
       const html = await renderViaHTTP(next.url, '/')
       expect(html).toMatch(/hello.*?world/)
@@ -1931,7 +1939,7 @@ describe('Prerender', () => {
         expect($4('#time').text()).not.toBe(initialTime)
       })
 
-      it('should not manual revalidate for revalidate: false', async () => {
+      it('should manual revalidate for revalidate: false', async () => {
         const html = await renderViaHTTP(
           next.url,
           '/blocking-fallback-once/test-manual-1'
@@ -1967,7 +1975,7 @@ describe('Prerender', () => {
           '/blocking-fallback-once/test-manual-1'
         )
         const $4 = cheerio.load(html4)
-        expect($4('#time').text()).toBe(initialTime)
+        expect($4('#time').text()).not.toBe(initialTime)
       })
 
       it('should handle manual revalidate for fallback: false', async () => {
