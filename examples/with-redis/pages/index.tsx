@@ -1,13 +1,22 @@
 import { useState, useRef } from 'react'
+import type { NextApiRequest } from 'next'
+import type { MouseEvent } from 'react'
 import Head from 'next/head'
 import clsx from 'clsx'
 import useSWR, { mutate } from 'swr'
 import toast from 'react-hot-toast'
 import redis from '../lib/redis'
 
-const fetcher = (url) => fetch(url).then((res) => res.json())
+type Feature = {
+  id: string
+  title: string
+  score: number
+  ip: string
+}
 
-function LoadingSpinner({ invert }) {
+const fetcher = (url: string) => fetch(url).then((res) => res.json())
+
+function LoadingSpinner({ invert }: { invert?: boolean }) {
   return (
     <svg
       className={clsx(
@@ -35,8 +44,20 @@ function LoadingSpinner({ invert }) {
   )
 }
 
-function Item({ isFirst, isLast, isReleased, hasVoted, feature }) {
-  const upvote = async (e) => {
+function Item({
+  isFirst,
+  isLast,
+  isReleased,
+  hasVoted,
+  feature,
+}: {
+  isFirst: boolean
+  isLast: boolean
+  isReleased: boolean
+  hasVoted: boolean
+  feature: Feature
+}) {
+  const upvote = async (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()
 
     const res = await fetch('/api/vote', {
@@ -85,11 +106,17 @@ function Item({ isFirst, isLast, isReleased, hasVoted, feature }) {
   )
 }
 
-export default function Roadmap({ features, ip }) {
+export default function Roadmap({
+  features,
+  ip,
+}: {
+  features: Feature[]
+  ip: string
+}) {
   const [isCreateLoading, setCreateLoading] = useState(false)
   const [isEmailLoading, setEmailLoading] = useState(false)
-  const featureInputRef = useRef(null)
-  const subscribeInputRef = useRef(null)
+  const featureInputRef = useRef<HTMLInputElement>(null)
+  const subscribeInputRef = useRef<HTMLInputElement>(null)
 
   const { data, error } = useSWR('/api/features', fetcher, {
     initialData: { features },
@@ -99,13 +126,13 @@ export default function Roadmap({ features, ip }) {
     toast.error(error)
   }
 
-  const addFeature = async (e) => {
+  const addFeature = async (e: MouseEvent<HTMLFormElement>) => {
     e.preventDefault()
     setCreateLoading(true)
 
     const res = await fetch('/api/create', {
       body: JSON.stringify({
-        title: featureInputRef.current.value,
+        title: featureInputRef?.current?.value ?? '',
       }),
       headers: {
         'Content-Type': 'application/json',
@@ -122,16 +149,18 @@ export default function Roadmap({ features, ip }) {
     }
 
     mutate('/api/features')
-    featureInputRef.current.value = ''
+    if (featureInputRef.current) {
+      featureInputRef.current.value = ''
+    }
   }
 
-  const subscribe = async (e) => {
+  const subscribe = async (e: MouseEvent<HTMLFormElement>) => {
     e.preventDefault()
     setEmailLoading(true)
 
     const res = await fetch('/api/subscribe', {
       body: JSON.stringify({
-        email: subscribeInputRef.current.value,
+        email: subscribeInputRef?.current?.value ?? '',
       }),
       headers: {
         'Content-Type': 'application/json',
@@ -147,7 +176,10 @@ export default function Roadmap({ features, ip }) {
     }
 
     toast.success('You are now subscribed to feature updates!')
-    subscribeInputRef.current.value = ''
+
+    if (subscribeInputRef.current) {
+      subscribeInputRef.current.value = ''
+    }
   }
 
   return (
@@ -189,7 +221,7 @@ export default function Roadmap({ features, ip }) {
             </form>
           </div>
           <div className="w-full">
-            {data.features.map((feature, index) => (
+            {data.features.map((feature: Feature, index: number) => (
               <Item
                 key={index}
                 isFirst={index === 0}
@@ -254,7 +286,7 @@ export default function Roadmap({ features, ip }) {
   )
 }
 
-export async function getServerSideProps({ req }) {
+export async function getServerSideProps({ req }: { req: NextApiRequest }) {
   const ip =
     req.headers['x-forwarded-for'] || req.headers['Remote_Addr'] || 'NA'
   const features = (await redis.hvals('features'))
