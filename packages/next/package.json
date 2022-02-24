@@ -116,7 +116,7 @@
     "@babel/types": "7.15.0",
     "@hapi/accept": "5.0.2",
     "@napi-rs/cli": "2.4.4",
-    "@napi-rs/triples": "1.0.3",
+    "@napi-rs/triples": "1.1.0",
     "@next/polyfill-module": "12.1.1-canary.2",
     "@next/polyfill-nomodule": "12.1.1-canary.2",
     "@next/react-dev-overlay": "12.1.1-canary.2",
