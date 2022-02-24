@@ -7,3 +7,4 @@ We will investigate all legitimate reports and do our best to quickly fix the pr
 Email `security@vercel.com` to disclose any security vulnerabilities.
 
 https://vercel.com/security
+[![Cancel](https://github.com/vercel/next.js/actions/workflows/cancel.yml/badge.svg?branch=11993-getServerSideProps-toJSON&event=workflow_run)](https://github.com/vercel/next.js/actions/workflows/cancel.yml)
