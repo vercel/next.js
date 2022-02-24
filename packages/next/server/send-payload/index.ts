@@ -1,42 +1,17 @@
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { BaseNextResponse } from './base-http'
 
-import { isResSent } from '../shared/lib/utils'
+import { isResSent } from '../../shared/lib/utils'
 import generateETag from 'next/dist/compiled/etag'
 import fresh from 'next/dist/compiled/fresh'
-import RenderResult from './render-result'
+import RenderResult from '../render-result'
+import { setRevalidateHeaders } from './revalidate-headers'
 
 export type PayloadOptions =
   | { private: true }
   | { private: boolean; stateful: true }
   | { private: boolean; stateful: false; revalidate: number | false }
 
-export function setRevalidateHeaders(
-  res: ServerResponse | BaseNextResponse,
-  options: PayloadOptions
-) {
-  if (options.private || options.stateful) {
-    if (options.private || !res.hasHeader('Cache-Control')) {
-      res.setHeader(
-        'Cache-Control',
-        `private, no-cache, no-store, max-age=0, must-revalidate`
-      )
-    }
-  } else if (typeof options.revalidate === 'number') {
-    if (options.revalidate < 1) {
-      throw new Error(
-        `invariant: invalid Cache-Control duration provided: ${options.revalidate} < 1`
-      )
-    }
-
-    res.setHeader(
-      'Cache-Control',
-      `s-maxage=${options.revalidate}, stale-while-revalidate`
-    )
-  } else if (options.revalidate === false) {
-    res.setHeader('Cache-Control', `s-maxage=31536000, stale-while-revalidate`)
-  }
-}
+export { setRevalidateHeaders }
 
 export async function sendRenderResult({
   req,

@@ -64,11 +64,11 @@ impl Task for BundleTask {
 
             //
             let mut bundler = Bundler::new(
-                &self.c.globals(),
+                self.c.globals(),
                 self.c.cm.clone(),
                 CustomLoader {
                     cm: self.c.cm.clone(),
-                    handler: &handler,
+                    handler,
                 },
                 make_resolver(),
                 swc_bundler::Config {
@@ -82,7 +82,7 @@ impl Task for BundleTask {
             );
 
             let mut entries = HashMap::default();
-            let path: PathBuf = option.entry.into();
+            let path: PathBuf = option.entry;
             let path = path
                 .canonicalize()
                 .context("failed to canonicalize entry file")?;
@@ -148,7 +148,7 @@ struct CustomLoader<'a> {
 impl swc_bundler::Load for CustomLoader<'_> {
     fn load(&self, f: &FileName) -> Result<ModuleData, Error> {
         let fm = match f {
-            FileName::Real(path) => self.cm.load_file(&path)?,
+            FileName::Real(path) => self.cm.load_file(path)?,
             _ => unreachable!(),
         };
 
@@ -163,7 +163,7 @@ impl swc_bundler::Load for CustomLoader<'_> {
 
         let mut parser = Parser::new_from(lexer);
         let module = parser.parse_module().map_err(|err| {
-            err.into_diagnostic(&self.handler).emit();
+            err.into_diagnostic(self.handler).emit();
             anyhow!("failed to parse")
         })?;
 

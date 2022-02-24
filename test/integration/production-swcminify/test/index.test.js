@@ -75,7 +75,7 @@ describe.skip('Production Usage with swcMinify', () => {
     expect(serverTrace.version).toBe(1)
     expect(
       serverTrace.files.some((file) =>
-        file.includes('next/dist/server/send-payload.js')
+        file.includes('next/dist/server/send-payload/index.js')
       )
     ).toBe(true)
     expect(

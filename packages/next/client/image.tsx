@@ -5,7 +5,7 @@ import {
   imageConfigDefault,
   LoaderValue,
   VALID_LOADERS,
-} from '../server/image-config'
+} from '../shared/lib/image-config'
 import { useIntersection } from './use-intersection'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 
@@ -71,6 +71,13 @@ type OnLoadingComplete = (result: {
 }) => void
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
+
+export interface StaticImageData {
+  src: string
+  height: number
+  width: number
+  blurDataURL?: string
+}
 
 interface StaticRequire {
   default: StaticImageData

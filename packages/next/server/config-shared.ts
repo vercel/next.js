@@ -5,7 +5,7 @@ import {
   ImageConfig,
   ImageConfigComplete,
   imageConfigDefault,
-} from './image-config'
+} from '../shared/lib/image-config'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -106,6 +106,7 @@ export interface ExperimentalConfig {
   urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
   outputStandalone?: boolean
+  middlewareSourceMaps?: boolean
 }
 
 /**
