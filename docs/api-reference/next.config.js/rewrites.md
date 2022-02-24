@@ -323,7 +323,7 @@ module.exports = {
 }
 ```
 
-If you're using `trailingSlash: true`, you also need to insert a trailing slash in the `source` and `destination` paramaters.
+If you're using `trailingSlash: true`, you also need to insert a trailing slash in the `source` paramater. If the destination server is also expecting a trailing slash it should be included in the `destination` parameter as well.
 
 ```js
 module.exports = {
