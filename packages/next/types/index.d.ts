@@ -68,7 +68,7 @@ export type PageConfig = {
      * any string format supported by `bytes`, for example `1000`, `'500kb'` or
      * `'3mb'`.
      */
-    responseLimit?: { sizeLimit?: number | string } | boolean
+    responseLimit?: number | string | boolean
     /**
      * The byte limit of the body. This is the number of bytes or any string
      * format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.

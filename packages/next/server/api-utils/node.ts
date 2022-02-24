@@ -491,15 +491,9 @@ function setPreviewData<T>(
   return res
 }
 
-function getMaxContentLength(
-  responseLimit?: { sizeLimit?: number | string } | boolean
-) {
-  if (
-    responseLimit &&
-    typeof responseLimit !== 'boolean' &&
-    responseLimit.sizeLimit
-  ) {
-    return bytes.parse(responseLimit.sizeLimit)
+function getMaxContentLength(responseLimit?: number | string | boolean) {
+  if (responseLimit && typeof responseLimit !== 'boolean') {
+    return bytes.parse(responseLimit)
   }
   return RESPONSE_LIMIT_DEFAULT
 }

@@ -84,14 +84,13 @@ export const config = {
 }
 ```
 
-`responseLimit.sizeLimit` is the maximum response size before a warning is displayed. Default is 4mb. (see above)
+`responseLimit` can also take the number of bytes or any string format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
+This value will be the maximum response size before a warning is displayed. Default is 4mb. (see above)
 
 ```js
 export const config = {
   api: {
-    responseLimit: {
-      sizeLimit: '30mb',
-    },
+    responseLimit: '30mb',
   },
 }
 ```
