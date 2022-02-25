@@ -163,6 +163,7 @@ export async function ncc_next__react_dev_overlay(task, opts) {
         )
     )
     .ncc({
+      precompiled: false,
       packageName: '@next/react-dev-overlay',
       externals: overlayExternals,
       target: 'es5',
@@ -178,6 +179,7 @@ export async function ncc_next__react_dev_overlay(task, opts) {
         )
     )
     .ncc({
+      precompiled: false,
       packageName: '@next/react-dev-overlay',
       externals: overlayExternals,
       target: 'es5',
@@ -266,7 +268,7 @@ export async function ncc_jest_worker(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function ncc_react_refresh_utils(task, opts) {
-  await fs.remove(join(__dirname, 'compiled/react-refresh'))
+  await fs.remove(join(__dirname, 'dist/compiled/react-refresh'))
   await fs.copy(
     dirname(require.resolve('react-refresh/package.json')),
     join(__dirname, 'dist/compiled/react-refresh')
