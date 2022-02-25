@@ -2,6 +2,10 @@
 
 This is a [Next.js](https://nextjs.org/) project that uses [Prisma](https://www.prisma.io/) to connect to a [PlanetScale](https://planetscale.com/) MySQL database and [Tailwind CSS](https://tailwindcss.com/) for styling.
 
+## Demo
+
+https://next-mysql.vercel.app
+
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/en/download/)
