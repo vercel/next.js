@@ -795,7 +795,8 @@ function imgixLoader({
   const url = new URL(`${config.path}${normalizeSrc(src)}`)
   const params = url.searchParams
 
-  params.set('auto', params.get('auto') || 'format')
+  // auto params can be combined with comma separation, or reiteration
+  params.set('auto', params.getAll('auto').join(',') || 'format')
   params.set('fit', params.get('fit') || 'max')
   params.set('w', params.get('w') || width.toString())
 
