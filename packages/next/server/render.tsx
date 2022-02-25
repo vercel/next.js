@@ -70,7 +70,6 @@ import isError from '../lib/is-error'
 import { readableStreamTee } from './web/utils'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
-import { getFunctionLocation } from '../lib/get-function-location'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
@@ -434,9 +433,13 @@ async function cleanSerializableError(
   fnName: 'getStaticProps' | 'getServerSideProps',
   error: unknown
 ) {
-  if (error instanceof SerializableError) {
-    const fnLocation = await getFunctionLocation(fn)
-    error.stack = `${error.message}\n    at ${fnName} (${fnLocation.filename}:${fnLocation.line}:${fnLocation.column})`
+  if (!process.browser) {
+    if (error instanceof SerializableError) {
+      const { getFunctionLocation } =
+        require('../lib/get-function-location') as typeof import('../lib/get-function-location')
+      const fnLocation = await getFunctionLocation(fn)
+      error.stack = `${error.message}\n    at ${fnName} (${fnLocation.filename}:${fnLocation.line}:${fnLocation.column})`
+    }
   }
 }
 
