@@ -43,7 +43,7 @@ export function runTests(example = '') {
 
   it('should warn on not fully supported node versions', async () => {
     expect(next.cliOutput).toContain(
-      'Starting with Yarn PnP v3.20, Node.js >= v16.14 is required to work correctly see here for more info'
+      'Node.js 16.14+ is required for Yarn PnP 3.20+. More info'
     )
   })
 
