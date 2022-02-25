@@ -167,7 +167,7 @@ export async function ncc_next__react_dev_overlay(task, opts) {
       externals: overlayExternals,
       target: 'es5',
     })
-    .target('compiled/@next/react-dev-overlay')
+    .target('dist/compiled/@next/react-dev-overlay')
 
   await task
     .source(
@@ -182,11 +182,11 @@ export async function ncc_next__react_dev_overlay(task, opts) {
       externals: overlayExternals,
       target: 'es5',
     })
-    .target('compiled/@next/react-dev-overlay')
+    .target('dist/compiled/@next/react-dev-overlay')
 
   const clientFile = join(
     __dirname,
-    'compiled/@next/react-dev-overlay/client.js'
+    'dist/compiled/@next/react-dev-overlay/client.js'
   )
   const content = fs.readFileSync(clientFile, 'utf8')
   // remove AMD define branch as this forces the module to not
@@ -1711,7 +1711,6 @@ export async function ncc(task, opts) {
   await task.serial(
     [
       'ncc_browserslist',
-      'ncc_next__react_dev_overlay',
       'copy_regenerator_runtime',
       'copy_babel_runtime',
       'copy_constants_browserify',
@@ -1744,7 +1743,7 @@ export async function compile(task, opts) {
     ],
     opts
   )
-  await task.serial(['ncc_react_refresh_utils'])
+  await task.serial(['ncc_react_refresh_utils', 'ncc_next__react_dev_overlay'])
 }
 
 export async function bin(task, opts) {
