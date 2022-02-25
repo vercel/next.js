@@ -41,8 +41,10 @@
           "path": "/errors/amp-export-validation.md"
         },
         {
-          "title": "api-routes-body-size-limit",
-          "path": "/errors/api-routes-response-size-limit.md"
+          "path": "/errors/api-routes-body-size-limit.md",
+          "redirect": {
+            "destination": "/docs/messages/api-routes-response-size-limit"
+          }
         },
         {
           "title": "api-routes-response-size-limit",
