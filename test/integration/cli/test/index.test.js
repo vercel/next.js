@@ -48,7 +48,17 @@ describe('CLI Usage', () => {
         new RegExp(`Next\\.js v${pkg.version.replace(/\./g, '\\.')}`)
       )
     })
+
+    test('invalid directory', async () => {
+      const output = await runNextCommand(['non-existent'], {
+        stderr: true,
+      })
+      expect(output.stderr).toContain(
+        'Invalid project directory provided, no such directory'
+      )
+    })
   })
+
   describe('build', () => {
     test('--help', async () => {
       const help = await runNextCommand(['build', '--help'], {
@@ -108,6 +118,15 @@ describe('CLI Usage', () => {
       const expectedExitSignal = process.platform === `win32` ? 'SIGTERM' : null
       expect(code).toBe(expectedExitCode)
       expect(signal).toBe(expectedExitSignal)
+    })
+
+    test('invalid directory', async () => {
+      const output = await runNextCommand(['build', 'non-existent'], {
+        stderr: true,
+      })
+      expect(output.stderr).toContain(
+        'Invalid project directory provided, no such directory'
+      )
     })
   })
 
@@ -253,6 +272,15 @@ describe('CLI Usage', () => {
       expect(code).toBe(expectedExitCode)
       expect(signal).toBe(expectedExitSignal)
     })
+
+    test('invalid directory', async () => {
+      const output = await runNextCommand(['dev', 'non-existent'], {
+        stderr: true,
+      })
+      expect(output.stderr).toContain(
+        'Invalid project directory provided, no such directory'
+      )
+    })
   })
 
   describe('start', () => {
@@ -337,6 +365,15 @@ describe('CLI Usage', () => {
       expect(code).toBe(expectedExitCode)
       expect(signal).toBe(expectedExitSignal)
     })
+
+    test('invalid directory', async () => {
+      const output = await runNextCommand(['start', 'non-existent'], {
+        stderr: true,
+      })
+      expect(output.stderr).toContain(
+        'Invalid project directory provided, no such directory'
+      )
+    })
   })
 
   describe('export', () => {
@@ -365,6 +402,15 @@ describe('CLI Usage', () => {
         stderr: true,
       })
       expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+    })
+
+    test('invalid directory', async () => {
+      const output = await runNextCommand(['export', 'non-existent'], {
+        stderr: true,
+      })
+      expect(output.stderr).toContain(
+        'Invalid project directory provided, no such directory'
+      )
     })
   })
 
