@@ -83,7 +83,7 @@ function getPreNextScripts(context: HtmlProps, props: OriginProps) {
           key={scriptProps.src || index}
           defer={!disableOptimizedLoading}
           nonce={props.nonce}
-          data-nscript={strategy}
+          data-nscript="beforeInteractive"
           crossOrigin={props.crossOrigin || crossOrigin}
         />
       )
