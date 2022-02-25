@@ -37,7 +37,7 @@ module.exports = {
           if (attribute.type === 'JSXAttribute') {
             attributeNames.add(attribute.name.name)
           } else if (attribute.type === 'JSXSpreadAttribute') {
-            if (attribute.argument?.properties) {
+            if (attribute.argument && attribute.argument.properties) {
               attribute.argument.properties.forEach((property) => {
                 attributeNames.add(property.key.name)
               })
