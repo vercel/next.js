@@ -120,7 +120,6 @@ describe('Script Loader', () => {
       ).toBeGreaterThan(0)
     }
 
-    // test('scriptBeforePageRender')
     test('documentBeforeInteractive')
   })
 
@@ -140,16 +139,11 @@ describe('Script Loader', () => {
 
       await browser.waitForElementByCss('.container')
 
-      // const script = await browser.elementById('scriptBeforePageRender')
-
       // Ensure beforeInteractive script isn't duplicated on navigation
       documentBIScripts = await browser.elementsByCss(
         '[src$="documentBeforeInteractive"]'
       )
       expect(documentBIScripts.length).toBe(1)
-
-      // Renders script tag
-      // expect(script).toBeDefined()
     } finally {
       if (browser) await browser.close()
     }
