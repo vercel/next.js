@@ -8,6 +8,8 @@ describe('next/jest', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
+        'public/vercel.svg':
+          '<svg width="24" height="24" xmlns="http://www.w3.org/2000/svg"/>',
         'components/comp.js': `
           export default function Comp() {
             return <h1>Hello Dynamic</h1>;
@@ -15,6 +17,8 @@ describe('next/jest', () => {
         `,
         'pages/index.js': `
           import dynamic from "next/dynamic";
+          import Image from "next/image";
+          import img from "../public/vercel.svg";
 
           const Comp = dynamic(() => import("../components/comp"), {
             loading: () => <h1>Loading...</h1>,
@@ -23,6 +27,8 @@ describe('next/jest', () => {
           export default function Page() { 
             return <>
               <Comp />
+              <Image src={img} alt="logo" placeholder="blur"/>
+              <Image src={img} alt="logo 2"/>
               <p>hello world</p>
             </>
           } 
