@@ -177,6 +177,12 @@ describe('Edge runtime - dev', () => {
     expect(content).toMatchInlineSnapshot('"foo.client"')
   })
 
+  it('should have content-type and content-encoding headers', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/')
+    expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8')
+    expect(res.headers.get('content-encoding')).toBe('gzip')
+  })
+
   basic(context, { env: 'dev' })
   streaming(context)
   rsc(context, { runtime: 'edge', env: 'dev' })
