@@ -68,13 +68,9 @@ export const config = {
 }
 ```
 
-`responseLimit` is automatically enabled, warning when an API routes' response body is over 4MB. This default value is suitable for
-[Vercel](https://vercel.com/docs/concepts/limits/overview#serverless-function-payload-size-limit) as well as AWS Lambdas and other serverless deployments.
-For large file downloads, pleas refer to [How do I bypass the 5MB body size limit of Vercel Serverless Functions?](https://vercel.com/support/articles/how-to-bypass-vercel-5mb-body-size-limit-serverless-functions)
+`responseLimit` is automatically enabled, warning when an API routes' response body is over 4MB.
 
-<!-- limit was changed to 4mb https://github.com/vercel/next.js/pull/26887 but linked article still says 5mb -->
-
-If you are not using Next.js in a serverless environment, and understand the performance implications of not using a CDN or dedicated media host, you can set this limit to false.
+If you are not using Next.js in a serverless environment, and understand the performance implications of not using a CDN or dedicated media host, you can set this limit to `false`.
 
 ```js
 export const config = {
@@ -85,12 +81,12 @@ export const config = {
 ```
 
 `responseLimit` can also take the number of bytes or any string format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
-This value will be the maximum response size before a warning is displayed. Default is 4mb. (see above)
+This value will be the maximum response size before a warning is displayed. Default is 4MB. (see above)
 
 ```js
 export const config = {
   api: {
-    responseLimit: '30mb',
+    responseLimit: '8mb',
   },
 }
 ```
