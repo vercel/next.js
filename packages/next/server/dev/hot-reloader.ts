@@ -147,6 +147,7 @@ export default class HotReloader {
   private buildId: string
   private middlewares: any[]
   private pagesDir: string
+  private distDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
   private config: NextConfigComplete
   private runtime?: 'nodejs' | 'edge'
@@ -170,12 +171,14 @@ export default class HotReloader {
     {
       config,
       pagesDir,
+      distDir,
       buildId,
       previewProps,
       rewrites,
     }: {
       config: NextConfigComplete
       pagesDir: string
+      distDir: string
       buildId: string
       previewProps: __ApiPreviewProps
       rewrites: CustomRoutes['rewrites']
@@ -185,6 +188,7 @@ export default class HotReloader {
     this.dir = dir
     this.middlewares = []
     this.pagesDir = pagesDir
+    this.distDir = distDir
     this.clientStats = null
     this.serverStats = null
     this.serverPrevDocumentHash = null
@@ -435,15 +439,15 @@ export default class HotReloader {
     startSpan.stop() // Stop immediately to create an artificial parent span
 
     await this.clean(startSpan)
+
     // Ensure distDir exists before writing package.json
-    await fs.mkdir(this.config.distDir, { recursive: true })
+    await fs.mkdir(this.distDir, { recursive: true })
+
+    const distPackageJsonPath = join(this.distDir, 'package.json')
 
     // Ensure commonjs handling is used for files in the distDir (generally .next)
     // Files outside of the distDir can be "type": "module"
-    await fs.writeFile(
-      join(this.config.distDir, 'package.json'),
-      '{"type": "commonjs"}'
-    )
+    await fs.writeFile(distPackageJsonPath, '{"type": "commonjs"}')
 
     const configs = await this.getWebpackConfig(startSpan)
 
