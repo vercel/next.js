@@ -111,7 +111,10 @@ if (process.versions.pnp === '3') {
     .split('.')
     .map((v) => Number(v))
 
-  if (nodeVersionParts[0] < 16 || (nodeVersionParts[0] === 16 && nodeVersionParts[1] < 14)) {
+  if (
+    nodeVersionParts[0] < 16 ||
+    (nodeVersionParts[0] === 16 && nodeVersionParts[1] < 14)
+  ) {
     log.warn(
       'Node.js 16.14+ is required for Yarn PnP 3.20+. More info: https://github.com/vercel/next.js/pull/34688#issuecomment-1047994505'
     )
