@@ -149,6 +149,11 @@ describe('Prerender', () => {
       initialRevalidateSeconds: false,
       srcRoute: '/api-docs/[...slug]',
     },
+    '/blocking-fallback-once/404-on-manual-revalidate': {
+      dataRoute: `/_next/data/${next.buildId}/blocking-fallback-once/404-on-manual-revalidate.json`,
+      initialRevalidateSeconds: false,
+      srcRoute: '/blocking-fallback-once/[slug]',
+    },
     '/blocking-fallback-some/a': {
       dataRoute: `/_next/data/${next.buildId}/blocking-fallback-some/a.json`,
       initialRevalidateSeconds: 1,
@@ -1976,6 +1981,44 @@ describe('Prerender', () => {
         )
         const $4 = cheerio.load(html4)
         expect($4('#time').text()).not.toBe(initialTime)
+      })
+
+      it('should manual revalidate that returns notFound: true', async () => {
+        const html = await renderViaHTTP(
+          next.url,
+          '/blocking-fallback-once/404-on-manual-revalidate'
+        )
+        const $ = cheerio.load(html)
+        const initialTime = $('#time').text()
+
+        expect($('p').text()).toMatch(/Post:.*?404-on-manual-revalidate/)
+
+        const html2 = await renderViaHTTP(
+          next.url,
+          '/blocking-fallback-once/404-on-manual-revalidate'
+        )
+        const $2 = cheerio.load(html2)
+
+        expect(initialTime).toBe($2('#time').text())
+
+        const res = await fetchViaHTTP(
+          next.url,
+          '/api/manual-revalidate',
+          {
+            pathname: '/blocking-fallback-once/404-on-manual-revalidate',
+          },
+          { redirect: 'manual' }
+        )
+        expect(res.status).toBe(200)
+        const revalidateData = await res.json()
+        expect(revalidateData.revalidated).toBe(true)
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback-once/404-on-manual-revalidate'
+        )
+        expect(res2.status).toBe(404)
+        expect(await res2.text()).toContain('This page could not be found')
       })
 
       it('should handle manual revalidate for fallback: false', async () => {
