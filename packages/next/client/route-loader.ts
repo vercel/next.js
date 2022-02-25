@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
+import { __unsafeCreateTrustedScriptURL } from './trusted-types'
 import { requestIdleCallback } from './request-idle-callback'
 
 // 3.8s was arbitrarily chosen as it's what https://web.dev/interactive
@@ -135,7 +136,7 @@ export function isAssetError(err?: Error): boolean | undefined {
 }
 
 function appendScript(
-  src: string,
+  src: TrustedScriptURL | string,
   script?: HTMLScriptElement
 ): Promise<unknown> {
   return new Promise((resolve, reject) => {
@@ -154,7 +155,7 @@ function appendScript(
 
     // 3. Finally, set the source and inject into the DOM in case the child
     //    must be appended for fetching to start.
-    script.src = src
+    script.src = src as string
     document.body.appendChild(script)
   })
 }
@@ -254,7 +255,7 @@ export function getMiddlewareManifest() {
 }
 
 interface RouteFiles {
-  scripts: string[]
+  scripts: (TrustedScriptURL | string)[]
   css: string[]
 }
 function getFilesForRoute(
@@ -262,12 +263,12 @@ function getFilesForRoute(
   route: string
 ): Promise<RouteFiles> {
   if (process.env.NODE_ENV === 'development') {
+    const scriptUrl =
+      assetPrefix +
+      '/_next/static/chunks/pages' +
+      encodeURI(getAssetPathFromRoute(route, '.js'))
     return Promise.resolve({
-      scripts: [
-        assetPrefix +
-          '/_next/static/chunks/pages' +
-          encodeURI(getAssetPathFromRoute(route, '.js')),
-      ],
+      scripts: [__unsafeCreateTrustedScriptURL(scriptUrl)],
       // Styles are handled by `style-loader` in development:
       css: [],
     })
@@ -280,7 +281,9 @@ function getFilesForRoute(
       (entry) => assetPrefix + '/_next/' + encodeURI(entry)
     )
     return {
-      scripts: allFiles.filter((v) => v.endsWith('.js')),
+      scripts: allFiles
+        .filter((v) => v.endsWith('.js'))
+        .map((v) => __unsafeCreateTrustedScriptURL(v)),
       css: allFiles.filter((v) => v.endsWith('.css')),
     }
   })
@@ -294,12 +297,14 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
   const routes: Map<string, Future<RouteLoaderEntry> | RouteLoaderEntry> =
     new Map()
 
-  function maybeExecuteScript(src: string): Promise<unknown> {
+  function maybeExecuteScript(
+    src: TrustedScriptURL | string
+  ): Promise<unknown> {
     // With HMR we might need to "reload" scripts when they are
     // disposed and readded. Executing scripts twice has no functional
     // differences
     if (process.env.NODE_ENV !== 'development') {
-      let prom: Promise<unknown> | undefined = loadedScripts.get(src)
+      let prom: Promise<unknown> | undefined = loadedScripts.get(src.toString())
       if (prom) {
         return prom
       }
@@ -309,7 +314,7 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
         return Promise.resolve()
       }
 
-      loadedScripts.set(src, (prom = appendScript(src)))
+      loadedScripts.set(src.toString(), (prom = appendScript(src)))
       return prom
     } else {
       return appendScript(src)
@@ -432,7 +437,9 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
         .then((output) =>
           Promise.all(
             canPrefetch
-              ? output.scripts.map((script) => prefetchViaDom(script, 'script'))
+              ? output.scripts.map((script) =>
+                  prefetchViaDom(script.toString(), 'script')
+                )
               : []
           )
         )
