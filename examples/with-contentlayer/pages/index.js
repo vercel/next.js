@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Head from 'next/head'
-import { allPosts } from '.contentlayer/data'
+import { allPosts } from 'contentlayer/generated'
 import { pick } from '@contentlayer/client'
 import utilStyles from '../styles/utils.module.css'
 

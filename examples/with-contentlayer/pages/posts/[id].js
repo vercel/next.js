@@ -1,5 +1,5 @@
 import Head from 'next/head'
-import { allPosts } from '.contentlayer/data'
+import { allPosts } from 'contentlayer/generated'
 import utilStyles from '../../styles/utils.module.css'
 
 export default function Post({ post }) {
