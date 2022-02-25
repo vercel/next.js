@@ -105,6 +105,19 @@ if (process.env.NODE_ENV) {
 
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
 
+// x-ref: https://github.com/vercel/next.js/pull/34688#issuecomment-1047994505
+if (process.versions.pnp === '3') {
+  const nodeVersionParts = process.versions.node
+    .split('.')
+    .map((v) => Number(v))
+
+  if (nodeVersionParts[0] < 16 || nodeVersionParts[1] < 14) {
+    log.warn(
+      'Starting with Yarn PnP v3.20, Node.js >= v16.14 is required to work correctly see here for more info: https://github.com/vercel/next.js/pull/34688#issuecomment-1047994505'
+    )
+  }
+}
+
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
 process.on('SIGTERM', () => process.exit(0))
 process.on('SIGINT', () => process.exit(0))

@@ -41,6 +41,12 @@ export function runTests(example = '') {
   })
   afterAll(() => next?.destroy())
 
+  it('should warn on not fully supported node versions', async () => {
+    expect(next.cliOutput).toContain(
+      'Starting with Yarn PnP v3.20, Node.js >= v16.14 is required to work correctly see here for more info'
+    )
+  })
+
   it(`should compile and serve the index page correctly ${example}`, async () => {
     const res = await fetchViaHTTP(next.url, '/')
     expect(res.status).toBe(200)
