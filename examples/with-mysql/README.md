@@ -75,7 +75,7 @@ Push the database schema to your PlanetScale database using Prisma.
 
 Run the seed script to populate your database with `Product` and `Category` data.
 
-`npx run seed`
+`npm run seed`
 
 ## Run the App
 
