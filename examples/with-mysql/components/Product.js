@@ -5,13 +5,14 @@ export default function Product({ product }) {
 
   return (
     <div
-      className="max-w-xs rounded overflow-hidden shadow-lg"
+      className="max-w-[250px] rounded overflow-hidden shadow-lg"
       key={product.id}
     >
       <Image
         className="w-full"
-        width={320}
-        height={160}
+        width={250}
+        height={250}
+        objectFit="cover"
         src={image}
         alt={name}
       />
