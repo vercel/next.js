@@ -42,7 +42,11 @@
         },
         {
           "title": "api-routes-body-size-limit",
-          "path": "/errors/api-routes-body-size-limit.md"
+          "path": "/errors/api-routes-response-size-limit.md"
+        },
+        {
+          "title": "api-routes-response-size-limit",
+          "path": "/errors/api-routes-response-size-limit.md"
         },
         {
           "title": "api-routes-static-export",
@@ -619,6 +623,18 @@
         {
           "title": "ignored-compiler-options",
           "path": "/errors/ignored-compiler-options.md"
+        },
+        {
+          "title": "opening-an-issue",
+          "path": "/errors/opening-an-issue.md"
+        },
+        {
+          "title": "multiple-flush-effects",
+          "path": "/errors/multiple-flush-effects.md"
+        },
+        {
+          "title": "client-flush-effects",
+          "path": "/errors/client-flush-effects.md"
         }
       ]
     }

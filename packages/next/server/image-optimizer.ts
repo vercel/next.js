@@ -259,7 +259,13 @@ export class ImageError extends Error {
 
   constructor(statusCode: number, message: string) {
     super(message)
-    this.statusCode = statusCode
+
+    // ensure an error status is used > 400
+    if (statusCode >= 400) {
+      this.statusCode = statusCode
+    } else {
+      this.statusCode = 500
+    }
   }
 }
 
@@ -378,6 +384,16 @@ export async function imageOptimizer(
         '"url" parameter is valid but upstream response is invalid'
       )
     }
+  }
+
+  if (upstreamType === SVG && !nextConfig.images.dangerouslyAllowSVG) {
+    console.error(
+      `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`
+    )
+    throw new ImageError(
+      400,
+      '"url" parameter is valid but image type is not allowed'
+    )
   }
 
   if (upstreamType) {
@@ -576,14 +592,15 @@ function getFileNameWithExtension(
   return `${fileName}.${extension}`
 }
 
-export function setResponseHeaders(
+function setResponseHeaders(
   req: IncomingMessage,
   res: ServerResponse,
   url: string,
   etag: string,
   contentType: string | null,
   isStatic: boolean,
-  xCache: XCacheHeader
+  xCache: XCacheHeader,
+  contentSecurityPolicy: string
 ) {
   res.setHeader('Vary', 'Accept')
   res.setHeader(
@@ -608,7 +625,9 @@ export function setResponseHeaders(
     )
   }
 
-  res.setHeader('Content-Security-Policy', `script-src 'none'; sandbox;`)
+  if (contentSecurityPolicy) {
+    res.setHeader('Content-Security-Policy', contentSecurityPolicy)
+  }
   res.setHeader('X-Nextjs-Cache', xCache)
 
   return { finished: false }
@@ -621,7 +640,8 @@ export function sendResponse(
   extension: string,
   buffer: Buffer,
   isStatic: boolean,
-  xCache: XCacheHeader
+  xCache: XCacheHeader,
+  contentSecurityPolicy: string
 ) {
   const contentType = getContentType(extension)
   const etag = getHash([buffer])
@@ -632,7 +652,8 @@ export function sendResponse(
     etag,
     contentType,
     isStatic,
-    xCache
+    xCache,
+    contentSecurityPolicy
   )
   if (!result.finished) {
     res.end(buffer)
