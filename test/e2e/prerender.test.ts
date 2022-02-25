@@ -150,6 +150,11 @@ describe('Prerender', () => {
       initialRevalidateSeconds: false,
       srcRoute: '/api-docs/[...slug]',
     },
+    '/blocking-fallback-once/404-on-manual-revalidate': {
+      dataRoute: `/_next/data/${next.buildId}/blocking-fallback-once/404-on-manual-revalidate.json`,
+      initialRevalidateSeconds: false,
+      srcRoute: '/blocking-fallback-once/[slug]',
+    },
     '/blocking-fallback-some/a': {
       dataRoute: `/_next/data/${next.buildId}/blocking-fallback-some/a.json`,
       initialRevalidateSeconds: 1,
@@ -1930,24 +1935,28 @@ describe('Prerender', () => {
 
     if (!(global as any).isNextDev) {
       it('should handle manual revalidate for fallback: blocking', async () => {
-        const html = await renderViaHTTP(
+        const res = await fetchViaHTTP(
           next.url,
           '/blocking-fallback/test-manual-1'
         )
+        const html = await res.text()
         const $ = cheerio.load(html)
         const initialTime = $('#time').text()
+        expect(res.headers.get('x-nextjs-cache')).toMatch(/MISS/)
 
         expect($('p').text()).toMatch(/Post:.*?test-manual-1/)
 
-        const html2 = await renderViaHTTP(
+        const res2 = await fetchViaHTTP(
           next.url,
           '/blocking-fallback/test-manual-1'
         )
+        const html2 = await res2.text()
         const $2 = cheerio.load(html2)
+        expect(res2.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
 
         expect(initialTime).toBe($2('#time').text())
 
-        const res = await fetchViaHTTP(
+        const res3 = await fetchViaHTTP(
           next.url,
           '/api/manual-revalidate',
           {
@@ -1956,16 +1965,18 @@ describe('Prerender', () => {
           { redirect: 'manual' }
         )
 
-        expect(res.status).toBe(200)
-        const revalidateData = await res.json()
+        expect(res2.status).toBe(200)
+        const revalidateData = await res3.json()
         expect(revalidateData.revalidated).toBe(true)
 
-        const html4 = await renderViaHTTP(
+        const res4 = await fetchViaHTTP(
           next.url,
           '/blocking-fallback/test-manual-1'
         )
+        const html4 = await res4.text()
         const $4 = cheerio.load(html4)
         expect($4('#time').text()).not.toBe(initialTime)
+        expect(res4.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
       })
 
       it('should manual revalidate for revalidate: false', async () => {
@@ -2005,6 +2016,47 @@ describe('Prerender', () => {
         )
         const $4 = cheerio.load(html4)
         expect($4('#time').text()).not.toBe(initialTime)
+      })
+
+      it('should manual revalidate that returns notFound: true', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback-once/404-on-manual-revalidate'
+        )
+        const html = await res.text()
+        const $ = cheerio.load(html)
+        const initialTime = $('#time').text()
+        expect(res.headers.get('x-nextjs-cache')).toBe('HIT')
+
+        expect($('p').text()).toMatch(/Post:.*?404-on-manual-revalidate/)
+
+        const html2 = await renderViaHTTP(
+          next.url,
+          '/blocking-fallback-once/404-on-manual-revalidate'
+        )
+        const $2 = cheerio.load(html2)
+
+        expect(initialTime).toBe($2('#time').text())
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/api/manual-revalidate',
+          {
+            pathname: '/blocking-fallback-once/404-on-manual-revalidate',
+          },
+          { redirect: 'manual' }
+        )
+        expect(res2.status).toBe(200)
+        const revalidateData = await res2.json()
+        expect(revalidateData.revalidated).toBe(true)
+
+        const res3 = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback-once/404-on-manual-revalidate'
+        )
+        expect(res3.status).toBe(404)
+        expect(await res3.text()).toContain('This page could not be found')
+        expect(res3.headers.get('x-nextjs-cache')).toBe('HIT')
       })
 
       it('should handle manual revalidate for fallback: false', async () => {
