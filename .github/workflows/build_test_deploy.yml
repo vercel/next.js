@@ -310,7 +310,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
@@ -340,7 +340,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/15
+      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/18
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - name: Upload test trace
