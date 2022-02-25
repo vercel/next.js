@@ -59,7 +59,7 @@
     "release": "taskr release",
     "prepublish": "npm run release && yarn types",
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
-    "typescript": "tsc --noEmit --declaration",
+    "typescript": "tsec --noEmit",
     "ncc-compiled": "ncc cache clean && taskr ncc"
   },
   "taskr": {
