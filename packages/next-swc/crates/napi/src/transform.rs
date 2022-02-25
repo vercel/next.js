@@ -96,9 +96,9 @@ impl Task for TransformTask {
 
                     let before_pass = custom_before_pass(self.c.cm.clone(), fm.clone(), &options);
                     self.c.process_js_with_custom_pass(
-                        fm.clone(),
+                        fm,
                         None,
-                        &handler,
+                        handler,
                         &options.swc,
                         |_| before_pass,
                         |_| noop(),
@@ -177,11 +177,11 @@ where
             if is_module.get_value()? {
                 let program: Program =
                     serde_json::from_str(s.as_str()?).context("failed to deserialize Program")?;
-                c.process_js(&handler, program, &options.swc)
+                c.process_js(handler, program, &options.swc)
             } else {
                 let fm =
                     op(&c, s.as_str()?.to_string(), &options).context("failed to load file")?;
-                c.process_js_file(fm, &handler, &options.swc)
+                c.process_js_file(fm, handler, &options.swc)
             }
         })
     })
