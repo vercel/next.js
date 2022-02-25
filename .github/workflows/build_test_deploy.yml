@@ -241,10 +241,6 @@ jobs:
         name: Run test/development
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e
-        name: Run test/e2e (dev)
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-
       - name: Upload test trace
         if: always()
         uses: actions/upload-artifact@v2
@@ -343,10 +339,6 @@ jobs:
 
       - run: node run-tests.js --type production
         name: Run test/production
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-
-      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e
-        name: Run test/e2e (production)
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testProdE2E:
