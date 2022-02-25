@@ -181,7 +181,7 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 14
 
@@ -211,7 +211,7 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 14
 
@@ -261,7 +261,7 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 14
 
@@ -311,7 +311,7 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 14
 
@@ -351,7 +351,7 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 14
 
@@ -396,7 +396,7 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 14
 
@@ -446,7 +446,7 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 14
 
@@ -496,7 +496,7 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 14
 
@@ -531,7 +531,7 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 14
 
@@ -575,7 +575,7 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 14
 
@@ -612,7 +612,7 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 17
           check-latest: true
@@ -645,7 +645,7 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 14
 
@@ -680,7 +680,6 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
         with:
           node-version: 14
 
