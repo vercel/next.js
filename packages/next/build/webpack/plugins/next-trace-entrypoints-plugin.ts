@@ -9,6 +9,7 @@ import {
 import { TRACE_OUTPUT_VERSION } from '../../../shared/lib/constants'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import type { NodeFileTraceOptions } from 'next/dist/compiled/@vercel/nft'
 import {
   NODE_ESM_RESOLVE_OPTIONS,
   NODE_RESOLVE_OPTIONS,
@@ -87,6 +88,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
   private entryTraces: Map<string, Set<string>>
   private excludeFiles: string[]
   private esmExternals?: NextConfigComplete['experimental']['esmExternals']
+  private nodeFileTraceResolve?: NodeFileTraceOptions['resolve']
   private staticImageImports?: boolean
 
   constructor({
@@ -95,12 +97,14 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
     esmExternals,
     staticImageImports,
     outputFileTracingRoot,
+    nodeFileTraceResolve,
   }: {
     appDir: string
     excludeFiles?: string[]
     staticImageImports: boolean
     outputFileTracingRoot?: string
     esmExternals?: NextConfigComplete['experimental']['esmExternals']
+    nodeFileTraceResolve?: NodeFileTraceOptions['resolve']
   }) {
     this.appDir = appDir
     this.entryTraces = new Map()
@@ -108,6 +112,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
     this.excludeFiles = excludeFiles || []
     this.staticImageImports = staticImageImports
     this.tracingRoot = outputFileTracingRoot || appDir
+    this.nodeFileTraceResolve = nodeFileTraceResolve || undefined
   }
 
   // Here we output all traced assets and webpack chunks to a
@@ -148,6 +153,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
       const result = await nodeFileTrace([...chunksToTrace], {
         base: this.tracingRoot,
         processCwd: this.appDir,
+        resolve: this.nodeFileTraceResolve,
         readFile: async (path) => {
           if (chunksToTrace.has(path)) {
             const source =

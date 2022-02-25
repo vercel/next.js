@@ -1,5 +1,6 @@
 import os from 'os'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import type { NodeFileTraceOptions } from 'next/dist/compiled/@vercel/nft'
 import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import {
   ImageConfig,
@@ -107,6 +108,8 @@ export interface ExperimentalConfig {
   outputFileTracingRoot?: string
   outputStandalone?: boolean
   middlewareSourceMaps?: boolean
+  /** Custom hook for @vercel/nft file trace module resolution. */
+  nodeFileTraceResolve?: NodeFileTraceOptions['resolve']
 }
 
 /**
@@ -469,6 +472,7 @@ export const defaultConfig: NextConfig = {
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
     outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
+    nodeFileTraceResolve: undefined,
   },
 }
 

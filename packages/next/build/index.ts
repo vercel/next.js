@@ -1259,6 +1259,7 @@ export default async function build(
             {
               base: root,
               processCwd: dir,
+              resolve: config.experimental.nodeFileTraceResolve,
               ignore: [
                 '**/next/dist/pages/**/*',
                 '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
