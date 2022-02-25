@@ -336,6 +336,8 @@ export default class HotReloader {
           )
         )
 
+      const hasEdgeRuntimePages = this.runtime === 'edge'
+
       return webpackConfigSpan
         .traceChild('generate-webpack-config')
         .traceAsyncFn(() =>
@@ -363,7 +365,7 @@ export default class HotReloader {
               }),
               // For the edge runtime, we need an extra compiler to generate the
               // web-targeted server bundle for now.
-              this.runtime === 'edge'
+              hasEdgeRuntimePages
                 ? getBaseWebpackConfig(this.dir, {
                     dev: true,
                     isServer: true,
@@ -475,8 +477,6 @@ export default class HotReloader {
               return
             }
 
-            const isApiRoute = page.match(API_ROUTE)
-
             if (!isClientCompilation && isMiddleware) {
               return
             }
@@ -489,18 +489,15 @@ export default class HotReloader {
               return
             }
 
+            const isApiRoute = page.match(API_ROUTE)
             const isCustomError = isCustomErrorPage(page)
             const isReserved = isReservedPage(page)
             const isServerComponent =
               this.hasServerComponents &&
               isFlightPage(this.config, absolutePagePath)
+            const isEdgeSSRPage = this.runtime === 'edge' && !isApiRoute
 
-            if (
-              isNodeServerCompilation &&
-              this.runtime === 'edge' &&
-              !isApiRoute &&
-              !isCustomError
-            ) {
+            if (isNodeServerCompilation && isEdgeSSRPage && !isCustomError) {
               return
             }
 
@@ -510,28 +507,34 @@ export default class HotReloader {
               absolutePagePath,
             }
 
-            if (isClientCompilation && isMiddleware) {
-              entrypoints[bundlePath] = finalizeEntrypoint({
-                name: bundlePath,
-                value: `next-middleware-loader?${stringify(pageLoaderOpts)}!`,
-                isServer: false,
-                isMiddleware: true,
-              })
-            } else if (isClientCompilation) {
-              entrypoints[bundlePath] = finalizeEntrypoint({
-                name: bundlePath,
-                value: `next-client-pages-loader?${stringify(pageLoaderOpts)}!`,
-                isServer: false,
-              })
+            if (isClientCompilation) {
+              if (isMiddleware) {
+                // Middleware
+                entrypoints[bundlePath] = finalizeEntrypoint({
+                  name: bundlePath,
+                  value: `next-middleware-loader?${stringify(pageLoaderOpts)}!`,
+                  isServer: false,
+                  isMiddleware: true,
+                })
+              } else {
+                // A page route
+                entrypoints[bundlePath] = finalizeEntrypoint({
+                  name: bundlePath,
+                  value: `next-client-pages-loader?${stringify(
+                    pageLoaderOpts
+                  )}!`,
+                  isServer: false,
+                })
 
-              if (isServerComponent) {
-                ssrEntries.set(bundlePath, { requireFlightManifest: true })
-              } else if (
-                this.runtime === 'edge' &&
-                !isReserved &&
-                !isCustomError
-              ) {
-                ssrEntries.set(bundlePath, { requireFlightManifest: false })
+                // Tell the middleware plugin of the client compilation
+                // that this route is a page.
+                if (isEdgeSSRPage) {
+                  if (isServerComponent) {
+                    ssrEntries.set(bundlePath, { requireFlightManifest: true })
+                  } else if (!isCustomError && !isReserved) {
+                    ssrEntries.set(bundlePath, { requireFlightManifest: false })
+                  }
+                }
               }
             } else if (isEdgeServerCompilation) {
               if (!isReserved) {
@@ -553,7 +556,7 @@ export default class HotReloader {
                   isEdgeServer: true,
                 })
               }
-            } else {
+            } else if (isNodeServerCompilation) {
               let request = relative(config.context!, absolutePagePath)
               if (!isAbsolute(request) && !request.startsWith('../')) {
                 request = `./${request}`
