@@ -10,6 +10,14 @@ export async function getStaticPaths() {
 }
 
 export async function getStaticProps({ params }) {
+  if (params.slug === 'non-serializable') {
+    return {
+      props: {
+        hello: undefined,
+      },
+    }
+  }
+
   await new Promise((resolve) => setTimeout(resolve, 1000))
 
   return {

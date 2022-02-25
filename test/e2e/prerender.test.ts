@@ -8,6 +8,7 @@ import {
   fetchViaHTTP,
   getBrowserBodyText,
   getRedboxHeader,
+  getRedboxSource,
   hasRedbox,
   normalizeRegEx,
   renderViaHTTP,
@@ -421,6 +422,34 @@ describe('Prerender', () => {
 
   const runTests = (dev = false) => {
     navigateTest(dev)
+
+    if (dev) {
+      it('should show proper is-serializable error', async () => {
+        const browser = await webdriver(
+          next.url,
+          '/blocking-fallback/non-serializable'
+        )
+        expect(await hasRedbox(browser, true)).toBe(true)
+
+        const redboxHeader = await getRedboxHeader(browser)
+
+        expect(redboxHeader).toContain(
+          'Error: Error serializing `.hello` returned from `getStaticProps` in "/blocking-fallback/[slug]"'
+        )
+        expect(redboxHeader).toContain(
+          'Reason: `undefined` cannot be serialized as JSON. Please use `null` or omit this value.'
+        )
+
+        const redboxSource = await getRedboxSource(browser)
+
+        expect(redboxSource).toContain(
+          'pages/blocking-fallback/[slug].js (12:37) @ getStaticProps'
+        )
+        expect(redboxSource).toContain(
+          '> 12 | export async function getStaticProps({ params }) {'
+        )
+      })
+    }
 
     it('should respond with 405 for POST to static page', async () => {
       const res = await fetchViaHTTP(next.url, '/', undefined, {

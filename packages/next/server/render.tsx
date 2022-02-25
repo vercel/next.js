@@ -39,7 +39,10 @@ import {
   STATIC_PROPS_ID,
   STATIC_STATUS_PAGES,
 } from '../shared/lib/constants'
-import { isSerializableProps } from '../lib/is-serializable-props'
+import {
+  isSerializableProps,
+  SerializableError,
+} from '../lib/is-serializable-props'
 import { isInAmpMode } from '../shared/lib/amp'
 import { AmpStateContext } from '../shared/lib/amp-context'
 import { defaultHead } from '../shared/lib/head'
@@ -67,6 +70,7 @@ import isError from '../lib/is-error'
 import { readableStreamTee } from './web/utils'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
+import { getFunctionLocation } from '../lib/get-function-location'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
@@ -423,6 +427,17 @@ function createServerComponentRenderer(
   }
 
   return Component
+}
+
+async function cleanSerializableError(
+  fn: any,
+  fnName: 'getStaticProps' | 'getServerSideProps',
+  error: unknown
+) {
+  if (error instanceof SerializableError) {
+    const fnLocation = await getFunctionLocation(fn)
+    error.stack = `${error.message}\n    at ${fnName} (${fnLocation.filename}:${fnLocation.line}:${fnLocation.column})`
+  }
 }
 
 export async function renderToHTML(
@@ -940,15 +955,20 @@ export async function renderToHTML(
       ;(renderOpts as any).isRedirect = true
     }
 
-    if (
-      (dev || isBuildTimeSSG) &&
-      !(renderOpts as any).isNotFound &&
-      !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
-    ) {
-      // this fn should throw an error instead of ever returning `false`
-      throw new Error(
-        'invariant: getStaticProps did not return valid props. Please report this.'
-      )
+    try {
+      if (
+        (dev || isBuildTimeSSG) &&
+        !(renderOpts as any).isNotFound &&
+        !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
+      ) {
+        // this fn should throw an error instead of ever returning `false`
+        throw new Error(
+          'invariant: getStaticProps did not return valid props. Please report this.'
+        )
+      }
+    } catch (error) {
+      await cleanSerializableError(getStaticProps, 'getStaticProps', error)
+      throw error
     }
 
     if ('revalidate' in data) {
@@ -1134,14 +1154,23 @@ export async function renderToHTML(
       ;(data as any).props = await (data as any).props
     }
 
-    if (
-      (dev || isBuildTimeSSG) &&
-      !isSerializableProps(pathname, 'getServerSideProps', (data as any).props)
-    ) {
-      // this fn should throw an error instead of ever returning `false`
-      throw new Error(
-        'invariant: getServerSideProps did not return valid props. Please report this.'
-      )
+    try {
+      if (
+        (dev || isBuildTimeSSG) &&
+        !isSerializableProps(
+          pathname,
+          'getServerSideProps',
+          (data as any).props
+        )
+      ) {
+        // this fn should throw an error instead of ever returning `false`
+        throw new Error(
+          'invariant: getServerSideProps did not return valid props. Please report this.'
+        )
+      }
+    } catch (error) {
+      cleanSerializableError(getServerSideProps, 'getServerSideProps', error)
+      throw error
     }
 
     props.pageProps = Object.assign({}, props.pageProps, (data as any).props)
