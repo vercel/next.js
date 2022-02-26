@@ -22,10 +22,10 @@ pub fn minify_sync(s: &str, opts: JsValue) -> Result<JsValue, JsValue> {
 
         let fm = c.cm.new_source_file(FileName::Anon, s.into());
         let program = c
-            .minify(fm, &handler, &opts)
+            .minify(fm, handler, &opts)
             .context("failed to minify file")?;
 
-        Ok(JsValue::from_serde(&program).context("failed to serialize json")?)
+        JsValue::from_serde(&program).context("failed to serialize json")
     })
     .map_err(convert_err)
 }
@@ -40,7 +40,7 @@ pub fn transform_sync(s: &str, opts: JsValue) -> Result<JsValue, JsValue> {
         let opts: TransformOptions = opts.into_serde().context("failed to parse options")?;
 
         let fm = c.cm.new_source_file(
-            if opts.swc.filename == "" {
+            if opts.swc.filename.is_empty() {
                 FileName::Anon
             } else {
                 FileName::Real(opts.swc.filename.clone().into())
@@ -49,10 +49,10 @@ pub fn transform_sync(s: &str, opts: JsValue) -> Result<JsValue, JsValue> {
         );
         let before_pass = custom_before_pass(c.cm.clone(), fm.clone(), &opts);
         let out = c
-            .process_js_with_custom_pass(fm, None, &handler, &opts.swc, |_| before_pass, |_| noop())
+            .process_js_with_custom_pass(fm, None, handler, &opts.swc, |_| before_pass, |_| noop())
             .context("failed to process js file")?;
 
-        Ok(JsValue::from_serde(&out).context("failed to serialize json")?)
+        JsValue::from_serde(&out).context("failed to serialize json")
     })
     .map_err(convert_err)
 }

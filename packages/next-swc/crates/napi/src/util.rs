@@ -54,7 +54,7 @@ impl CtxtExt for CallContext<'_> {
 
         Ok(String::from_utf8_lossy(buffer.as_ref()).to_string())
     }
-    
+
     fn get_deserialized<T>(&self, index: usize) -> napi::Result<T>
     where
         T: DeserializeOwned,
@@ -79,6 +79,6 @@ pub(crate) fn deserialize_json<T>(s: &str) -> Result<T, Error>
 where
     T: DeserializeOwned,
 {
-    serde_json::from_str(&s)
+    serde_json::from_str(s)
         .with_context(|| format!("failed to deserialize as {}\nJSON: {}", type_name::<T>(), s))
 }

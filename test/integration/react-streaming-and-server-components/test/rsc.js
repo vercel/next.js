@@ -82,6 +82,12 @@ export default function (context, { runtime, env }) {
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
+  it('should handle streaming server components correctly', async () => {
+    const browser = await webdriver(context.appPort, '/streaming-rsc')
+    const content = await browser.eval(`window.document.body.innerText`)
+    expect(content).toMatchInlineSnapshot('"next_streaming_data"')
+  })
+
   // Disable next/image for nodejs runtime temporarily
   if (runtime === 'edge') {
     it('should suspense next/image in server components', async () => {

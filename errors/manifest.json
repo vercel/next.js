@@ -41,8 +41,14 @@
           "path": "/errors/amp-export-validation.md"
         },
         {
-          "title": "api-routes-body-size-limit",
-          "path": "/errors/api-routes-body-size-limit.md"
+          "path": "/errors/api-routes-body-size-limit.md",
+          "redirect": {
+            "destination": "/docs/messages/api-routes-response-size-limit"
+          }
+        },
+        {
+          "title": "api-routes-response-size-limit",
+          "path": "/errors/api-routes-response-size-limit.md"
         },
         {
           "title": "api-routes-static-export",
@@ -623,6 +629,14 @@
         {
           "title": "opening-an-issue",
           "path": "/errors/opening-an-issue.md"
+        },
+        {
+          "title": "multiple-flush-effects",
+          "path": "/errors/multiple-flush-effects.md"
+        },
+        {
+          "title": "client-flush-effects",
+          "path": "/errors/client-flush-effects.md"
         }
       ]
     }
