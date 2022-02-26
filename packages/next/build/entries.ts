@@ -117,6 +117,8 @@ export function createEntrypoints(
     Object.keys(config.publicRuntimeConfig).length > 0 ||
     Object.keys(config.serverRuntimeConfig).length > 0
 
+  const edgeRuntime = config.experimental.runtime === 'edge'
+
   const defaultServerlessOptions = {
     absoluteAppPath: pages['/_app'],
     absoluteDocumentPath: pages['/_document'],
@@ -156,8 +158,6 @@ export function createEntrypoints(
     const isReserved = isReservedPage(page)
     const isCustomError = isCustomErrorPage(page)
     const isFlight = isFlightPage(config, absolutePagePath)
-
-    const edgeRuntime = config.experimental.runtime === 'edge'
 
     if (page.match(MIDDLEWARE_ROUTE)) {
       const loaderOpts: MiddlewareLoaderOptions = {
