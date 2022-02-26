@@ -73,7 +73,7 @@ describe('CLI Usage', () => {
           stderr: true,
         })
         expect(output.stderr).toContain(
-          `"${check[0]}" seems to be a typo, did you mean: next ${check[1]}`
+          `"next ${check[0]}" does not exist. Did you mean "next ${check[1]}"? `
         )
       }
     })
