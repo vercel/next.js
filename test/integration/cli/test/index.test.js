@@ -57,6 +57,26 @@ describe('CLI Usage', () => {
         'Invalid project directory provided, no such directory'
       )
     })
+
+    test('detects command typos', async () => {
+      const typos = [
+        ['buidl', 'build'],
+        ['buill', 'build'],
+        ['biild', 'build'],
+        ['exporr', 'export'],
+        ['starr', 'start'],
+        ['dee', 'dev'],
+      ]
+
+      for (const check of typos) {
+        const output = await runNextCommand([check[0]], {
+          stderr: true,
+        })
+        expect(output.stderr).toContain(
+          `"${check[0]}" seems to be a typo, did you mean: next ${check[1]}`
+        )
+      }
+    })
   })
 
   describe('build', () => {
