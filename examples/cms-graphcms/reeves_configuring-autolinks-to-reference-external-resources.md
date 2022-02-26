@@ -1,0 +1,1 @@
+Wählen Sie das Stiftsymbol aus, um Elemente anzupinnen, hinzuzufügen oder zu löschen.Drücken Sie lange auf ein Element in der Zwischenablage, um es anzupinnen. Nicht angepinnte Elemente werden nach einer Stunde gelöscht.Tippen Sie auf ein Element, um es in das Textfeld einzufügen.Willkommen bei Gboard! Texte, die Sie kopieren, werden hier gespeichert.
