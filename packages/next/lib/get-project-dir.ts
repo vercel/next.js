@@ -1,6 +1,8 @@
 import fs from 'fs'
 import path from 'path'
+import { commands } from '../bin/next'
 import * as Log from '../build/output/log'
+import { detectTypo } from './detect-typo'
 
 export function getProjectDir(dir?: string) {
   try {
@@ -19,6 +21,17 @@ export function getProjectDir(dir?: string) {
     return realDir
   } catch (err: any) {
     if (err.code === 'ENOENT') {
+      if (typeof dir === 'string') {
+        const detectedTypo = detectTypo(dir, Object.keys(commands))
+
+        if (detectedTypo) {
+          Log.error(
+            `"next ${dir}" does not exist. Did you mean "next ${detectedTypo}"?`
+          )
+          process.exit(1)
+        }
+      }
+
       Log.error(
         `Invalid project directory provided, no such directory: ${path.resolve(
           dir || '.'
