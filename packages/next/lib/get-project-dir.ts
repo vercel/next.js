@@ -26,7 +26,7 @@ export function getProjectDir(dir?: string) {
 
         if (detectedTypo) {
           Log.error(
-            `"${dir}" seems to be a typo, did you mean: next ${detectedTypo}`
+            `"next ${dir}" does not exist. Did you mean "next ${detectedTypo}"?`
           )
           process.exit(1)
         }
