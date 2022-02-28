@@ -556,7 +556,7 @@ export async function imageOptimizer(
     } else {
       throw new ImageError(
         500,
-        'Unable to optimize and unable to fallback to upstream'
+        'Unable to optimize image and unable to fallback to upstream image'
       )
     }
   }
