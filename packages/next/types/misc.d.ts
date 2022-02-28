@@ -143,6 +143,10 @@ declare module 'next/dist/compiled/babel/core-lib-normalize-opts'
 declare module 'next/dist/compiled/babel/core-lib-block-hoist-plugin'
 declare module 'next/dist/compiled/babel/core-lib-plugin-pass'
 
+declare module 'next/dist/compiled/bytes' {
+  import m from 'bytes'
+  export = m
+}
 declare module 'next/dist/compiled/ci-info' {
   import m from 'ci-info'
   export = m
