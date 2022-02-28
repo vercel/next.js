@@ -167,7 +167,7 @@ async function lint(
       }
     }
 
-    const pagesDir = findPagesDir(baseDir)
+    const pagesDir = findPagesDir(baseDir).pages
 
     if (nextEslintPluginIsEnabled) {
       let updatedPagesDir = false

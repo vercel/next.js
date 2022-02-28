@@ -169,7 +169,7 @@ export default class DevServer extends Server {
     }
 
     this.isCustomServer = !options.isNextDevCommand
-    this.pagesDir = findPagesDir(this.dir)
+    this.pagesDir = findPagesDir(this.dir).pages
   }
 
   protected getBuildId(): string {

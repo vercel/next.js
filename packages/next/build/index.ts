@@ -184,7 +184,7 @@ export default async function build(
     setGlobal('telemetry', telemetry)
 
     const publicDir = path.join(dir, 'public')
-    const pagesDir = findPagesDir(dir)
+    const pagesDir = findPagesDir(dir).pages
     const hasPublicDir = await fileExists(publicDir)
 
     telemetry.record(
