@@ -1842,8 +1842,8 @@ function createPrefixStream(
     transform(chunk, controller) {
       if (!prefixFlushed && prefix) {
         prefixFlushed = true
-        const prefixedChunk = prefix + decodeText(chunk)
-        controller.enqueue(encodeText(prefixedChunk))
+        controller.enqueue(chunk)
+        controller.enqueue(encodeText(prefix))
       } else {
         controller.enqueue(chunk)
       }
@@ -1973,7 +1973,6 @@ async function streamToString(
     const { done, value } = await reader.read()
 
     if (done) {
-      console.log('bufferedString', bufferedString)
       return bufferedString
     }
 
