@@ -11,7 +11,7 @@ export default function MiddlewareWasmLoader(this: any, source: Buffer) {
   const binding: WasmBinding = { filePath, name }
   this._module.buildInfo.nextWasmMiddlewareBinding = binding
   this.emitFile(`/${filePath}`, source, null)
-  return `module.exports = name;`
+  return `module.exports = ${name};`
 }
 
 export const raw = true
