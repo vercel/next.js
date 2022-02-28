@@ -9,14 +9,14 @@ export async function run(params: {
   paths: string[]
   request: RequestData
   useCache: boolean
-  wasmBindings: WasmBinding[]
+  wasm: WasmBinding[]
 }): Promise<FetchEventResult> {
   const { runInContext, context } = await getModuleContext({
     module: params.name,
     onWarning: params.onWarning,
     useCache: params.useCache !== false,
     env: params.env,
-    wasmBindings: params.wasmBindings,
+    wasm: params.wasm,
   })
 
   for (const paramPath of params.paths) {

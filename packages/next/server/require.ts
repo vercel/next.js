@@ -90,7 +90,7 @@ export function getMiddlewareInfo(params: {
   name: string
   paths: string[]
   env: string[]
-  wasmBindings: WasmBinding[]
+  wasm: WasmBinding[]
 } {
   const serverBuildPath = join(
     params.distDir,
@@ -119,7 +119,7 @@ export function getMiddlewareInfo(params: {
     name: pageInfo.name,
     paths: pageInfo.files.map((file) => join(params.distDir, file)),
     env: pageInfo.env ?? [],
-    wasmBindings: (pageInfo.wasmBindings ?? []).map((binding) => ({
+    wasm: (pageInfo.wasm ?? []).map((binding) => ({
       ...binding,
       filePath: join(params.distDir, binding.filePath),
     })),

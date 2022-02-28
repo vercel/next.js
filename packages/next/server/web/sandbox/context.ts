@@ -58,7 +58,7 @@ export async function getModuleContext(options: {
   onWarning: (warn: Error) => void
   useCache: boolean
   env: string[]
-  wasmBindings: WasmBinding[]
+  wasm: WasmBinding[]
 }) {
   let moduleCache = options.useCache
     ? caches.get(options.module)
@@ -101,7 +101,7 @@ async function createModuleContext(options: {
   onWarning: (warn: Error) => void
   module: string
   env: string[]
-  wasmBindings: WasmBinding[]
+  wasm: WasmBinding[]
 }) {
   const requireCache = new Map([
     [require.resolve('next/dist/compiled/cookie'), { exports: cookie }],
@@ -169,7 +169,7 @@ async function createModuleContext(options: {
     return fetch(String(input), init)
   }
 
-  Object.assign(context, await loadWasmBindings(options.wasmBindings))
+  Object.assign(context, await loadWasm(options.wasm))
 
   return moduleCache
 }
@@ -266,13 +266,13 @@ function buildEnvironmentVariablesFrom(
   return Object.fromEntries(pairs)
 }
 
-async function loadWasmBindings(
-  wasmBindings: WasmBinding[]
+async function loadWasm(
+  wasm: WasmBinding[]
 ): Promise<Record<string, WebAssembly.Module>> {
   const modules: Record<string, WebAssembly.Module> = {}
 
   await Promise.all(
-    wasmBindings.map(async (binding) => {
+    wasm.map(async (binding) => {
       const module = await WebAssembly.compile(
         await fs.readFile(binding.filePath)
       )

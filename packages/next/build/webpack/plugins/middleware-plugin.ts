@@ -28,7 +28,7 @@ export interface MiddlewareManifest {
       name: string
       page: string
       regexp: string
-      wasmBindings?: WasmBinding[]
+      wasm?: WasmBinding[]
     }
   }
 }
@@ -94,7 +94,7 @@ export function getEntrypointInfo(
 
     infos.push({
       env: envPerRoute.get(entrypoint.name) || [],
-      wasmBindings: wasmPerRoute.get(entrypoint.name) || [],
+      wasm: wasmPerRoute.get(entrypoint.name) || [],
       files,
       name: entrypoint.name,
       page,
@@ -200,7 +200,7 @@ export function collectAssets(
           ) {
             const middlewareEntries = new Set<webpack5.Module>()
             const env = new Set<string>()
-            const wasmBindings = new Set<WasmBinding>()
+            const wasm = new Set<WasmBinding>()
 
             const addEntriesFromDependency = (dep: any) => {
               const module = moduleGraph.getModule(dep)
@@ -218,7 +218,7 @@ export function collectAssets(
             for (const module of queue) {
               const { buildInfo } = module
               if (buildInfo.nextWasmMiddlewareBinding) {
-                wasmBindings.add(buildInfo.nextWasmMiddlewareBinding)
+                wasm.add(buildInfo.nextWasmMiddlewareBinding)
               }
               if (
                 !options.dev &&
@@ -264,7 +264,7 @@ export function collectAssets(
             }
 
             envPerRoute.set(name, Array.from(env))
-            wasmPerRoute.set(name, Array.from(wasmBindings))
+            wasmPerRoute.set(name, Array.from(wasm))
           }
         }
       })
