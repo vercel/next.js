@@ -151,7 +151,7 @@ describe('Edge runtime - prod', () => {
   })
 
   basic(context, { env: 'prod' })
-  streaming(context)
+  streaming(context, { env: 'prod' })
   rsc(context, { runtime: 'edge', env: 'prod' })
 })
 
@@ -184,14 +184,14 @@ describe('Edge runtime - dev', () => {
   })
 
   basic(context, { env: 'dev' })
-  streaming(context)
+  streaming(context, { env: 'dev' })
   rsc(context, { runtime: 'edge', env: 'dev' })
 })
 
 const nodejsRuntimeBasicSuite = {
   runTests: (context, env) => {
     basic(context, { env })
-    streaming(context)
+    streaming(context, { env })
     rsc(context, { runtime: 'nodejs' })
 
     if (env === 'prod') {

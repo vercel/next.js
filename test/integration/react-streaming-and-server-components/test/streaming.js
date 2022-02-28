@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
-import { fetchViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, waitFor } from 'next-test-utils'
 
 async function resolveStreamResponse(response, onData) {
   let result = ''
@@ -16,7 +16,7 @@ async function resolveStreamResponse(response, onData) {
   return result
 }
 
-export default function (context) {
+export default function (context, { env }) {
   it('should support streaming for fizz response', async () => {
     await fetchViaHTTP(context.appPort, '/streaming', null, {}).then(
       async (response) => {
@@ -99,4 +99,63 @@ export default function (context) {
       expect(result).toMatch(/<\/body><\/html>/)
     })
   })
+
+  if (env === 'dev') {
+    it('should warn when stylesheets or scripts are in head', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head')
+
+        await browser.waitForElementByCss('h1')
+        await waitFor(1000)
+        const browserLogs = await browser.log('browser')
+        let foundStyles = false
+        let foundScripts = false
+        const logs = []
+        browserLogs.forEach(({ message }) => {
+          if (message.includes('Do not add stylesheets using next/head')) {
+            foundStyles = true
+            logs.push(message)
+          }
+          if (message.includes('Do not add <script> tags using next/head')) {
+            foundScripts = true
+            logs.push(message)
+          }
+        })
+
+        expect(foundStyles).toEqual(true)
+        expect(foundScripts).toEqual(true)
+
+        // Warnings are unique
+        expect(logs.length).toEqual(new Set(logs).size)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should not warn when application/ld+json scripts are in head', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head-with-json-ld-snippet')
+
+        await browser.waitForElementByCss('h1')
+        await waitFor(1000)
+        const browserLogs = await browser.log('browser')
+        let found = false
+        browserLogs.forEach((log) => {
+          // console.log('log.message', log.message)
+          if (log.message.includes('Use next/script instead')) {
+            found = true
+          }
+        })
+        expect(found).toEqual(false)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  }
 }
