@@ -305,7 +305,8 @@ impl Namespacer {
 
                         if let Some(combinator) = combinator {
                             match v.get(0) {
-                                // `Descendant` combinator can't be the first because we removed it above
+                                // `Descendant` combinator can't be the first because we removed it
+                                // above
                                 Some(ComplexSelectorChildren::Combinator(..))
                                     if combinator.value == CombinatorValue::Descendant => {}
                                 _ => {
