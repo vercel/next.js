@@ -15,7 +15,7 @@ import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 
 const defaultCommand = 'dev'
 export type cliCommand = (argv?: string[]) => void
-const commands: { [command: string]: () => Promise<cliCommand> } = {
+export const commands: { [command: string]: () => Promise<cliCommand> } = {
   build: () => Promise.resolve(require('../cli/next-build').nextBuild),
   start: () => Promise.resolve(require('../cli/next-start').nextStart),
   export: () => Promise.resolve(require('../cli/next-export').nextExport),

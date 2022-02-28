@@ -55,6 +55,26 @@ export default function (context, { runtime, env }) {
     expect(html).toContain('foo.client')
   })
 
+  it('should resolve different kinds of components correctly', async () => {
+    const html = await renderViaHTTP(context.appPort, '/shared')
+    const main = getNodeBySelector(html, '#main').html()
+
+    // Should have 5 occurrences of "client_component".
+    expect([...main.matchAll(/client_component/g)].length).toBe(5)
+
+    // Should have 2 occurrences of "shared:server", and 2 occurrences of
+    // "shared:client".
+    const sharedServerModule = [...main.matchAll(/shared:server:(\d+)/g)]
+    const sharedClientModule = [...main.matchAll(/shared:client:(\d+)/g)]
+    expect(sharedServerModule.length).toBe(2)
+    expect(sharedClientModule.length).toBe(2)
+
+    // Should have 2 modules created for the shared component.
+    expect(sharedServerModule[0][1]).toBe(sharedServerModule[1][1])
+    expect(sharedClientModule[0][1]).toBe(sharedClientModule[1][1])
+    expect(sharedServerModule[0][1]).not.toBe(sharedClientModule[0][1])
+  })
+
   it('should support next/link in server components', async () => {
     const linkHTML = await renderViaHTTP(context.appPort, '/next-api/link')
     const linkText = getNodeBySelector(

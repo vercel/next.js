@@ -315,7 +315,13 @@ async function unstable_revalidate(
       },
     })
 
-    if (!res.ok) {
+    // we use the cache header to determine successful revalidate as
+    // a non-200 status code can be returned from a successful revalidate
+    // e.g. notFound: true returns 404 status code but is successful
+    const cacheHeader =
+      res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
+
+    if (cacheHeader?.toUpperCase() !== 'REVALIDATED') {
       throw new Error(`Invalid response ${res.status}`)
     }
   } catch (err) {
