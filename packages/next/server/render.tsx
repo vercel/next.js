@@ -323,7 +323,7 @@ function createRSCHook() {
           if (bootstrap && !bootstrapped) {
             bootstrapped = true
             writer.write(
-              encodeString(
+              encodeText(
                 `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
                   [0, id]
                 )})</script>`
@@ -335,9 +335,9 @@ function createRSCHook() {
             writer.close()
           } else {
             writer.write(
-              encodeString(
+              encodeText(
                 `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
-                  [1, id, decodeString(value)]
+                  [1, id, decodeText(value)]
                 )})</script>`
               )
             )
@@ -1708,7 +1708,7 @@ function createBufferedTransformStream(): TransformStream<
     if (!pendingFlush) {
       pendingFlush = new Promise((resolve) => {
         setTimeout(() => {
-          controller.enqueue(encodeString(bufferedString))
+          controller.enqueue(encodeText(bufferedString))
           bufferedString = ''
           pendingFlush = null
           resolve()
@@ -1720,7 +1720,7 @@ function createBufferedTransformStream(): TransformStream<
 
   return createTransformStream({
     transform(chunk, controller) {
-      bufferedString += decodeString(chunk)
+      bufferedString += decodeText(chunk)
       flushBuffer(controller)
     },
 
@@ -1738,8 +1738,7 @@ function createFlushEffectStream(
   return createTransformStream({
     async transform(chunk, controller) {
       const extraChunk = await handleFlushEffect()
-      controller.enqueue(encodeString(extraChunk))
-      controller.enqueue(chunk)
+      controller.enqueue(encodeText(extraChunk + decodeText(chunk)))
     },
   })
 }
@@ -1764,7 +1763,6 @@ function renderToStream({
 
     const closeTag = '</body></html>'
     const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
-    console.log('suffixUnclosed', suffix)
 
     const doResolve = () => {
       if (!resolved) {
@@ -1816,11 +1814,11 @@ function renderToStream({
   })
 }
 
-function encodeString(input: string) {
+function encodeText(input: string) {
   return new TextEncoder().encode(input)
 }
 
-function decodeString(input?: Uint8Array) {
+function decodeText(input?: Uint8Array) {
   return new TextDecoder().decode(input)
 }
 
@@ -1830,23 +1828,22 @@ function createSuffixStream(
   return createTransformStream({
     flush(controller) {
       if (suffix) {
-        controller.enqueue(encodeString(suffix))
+        controller.enqueue(encodeText(suffix))
       }
     },
   })
 }
 
 function createPrefixStream(
-  prefixString: string
+  prefix: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let prefixFlushed = false
-  const prefix = encodeString(prefixString)
   return createTransformStream({
     transform(chunk, controller) {
       if (!prefixFlushed && prefix) {
         prefixFlushed = true
-        const prefixedChunk = decodeString(chunk) + prefix
-        controller.enqueue(encodeString(prefixedChunk))
+        const prefixedChunk = prefix + decodeText(chunk)
+        controller.enqueue(encodeText(prefixedChunk))
       } else {
         controller.enqueue(chunk)
       }
@@ -1854,7 +1851,7 @@ function createPrefixStream(
     flush(controller) {
       if (!prefixFlushed && prefix) {
         prefixFlushed = true
-        controller.enqueue(prefix)
+        controller.enqueue(encodeText(prefix))
       }
     },
   })
@@ -1976,9 +1973,10 @@ async function streamToString(
     const { done, value } = await reader.read()
 
     if (done) {
+      console.log('bufferedString', bufferedString)
       return bufferedString
     }
 
-    bufferedString += decodeString(value)
+    bufferedString += decodeText(value)
   }
 }
