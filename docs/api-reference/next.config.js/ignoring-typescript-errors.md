@@ -8,7 +8,7 @@ Next.js fails your **production build** (`next build`) when TypeScript errors ar
 
 If you'd like Next.js to dangerously produce production code even when your application has errors, you can disable the built-in type checking step.
 
-> Be sure you are running type checks as part of your build or deploy process, otherwise this can be very dangerous.
+If disabled, be sure you are running type checks as part of your build or deploy process, otherwise this can be very dangerous.
 
 Open `next.config.js` and enable the `ignoreBuildErrors` option in the `typescript` config:
 
