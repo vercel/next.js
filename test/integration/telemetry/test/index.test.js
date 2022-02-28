@@ -503,7 +503,7 @@ describe('Telemetry CLI', () => {
     })
     await fs.remove(path.join(appDir, '.eslintrc'))
 
-    const event1 = /NEXT_LINT_CHECK_COMPLETED[\s\S]+?{([\s\S]+?)}/
+    const event1 = /NEXT_LINT_CHECK_COMPLETED[\s\S]+?{([\s\S}]+?)^}/m
       .exec(stderr)
       .pop()
 
@@ -515,6 +515,8 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/"nextEslintPluginVersion": ".*?\..*?\..*?"/)
     expect(event1).toMatch(/"nextEslintPluginErrorsCount": \d{1,}/)
     expect(event1).toMatch(/"nextEslintPluginWarningsCount": \d{1,}/)
+    expect(event1).toMatch(`"nextRulesEnabled": {`)
+    expect(event1).toMatch(/"@next\/next\/.+?": "(off|warn|error)"/)
 
     const event2 = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/
       .exec(stderr)
@@ -568,7 +570,7 @@ describe('Telemetry CLI', () => {
     })
     await fs.remove(path.join(appDir, '.eslintrc'))
 
-    const event1 = /NEXT_LINT_CHECK_COMPLETED[\s\S]+?{([\s\S]+?)}/
+    const event1 = /NEXT_LINT_CHECK_COMPLETED[\s\S]+?{([\s\S]+?)^}/m
       .exec(stderr)
       .pop()
 
@@ -580,6 +582,8 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/"nextEslintPluginVersion": ".*?\..*?\..*?"/)
     expect(event1).toMatch(/"nextEslintPluginErrorsCount": \d{1,}/)
     expect(event1).toMatch(/"nextEslintPluginWarningsCount": \d{1,}/)
+    expect(event1).toMatch(`"nextRulesEnabled": {`)
+    expect(event1).toMatch(/"@next\/next\/.+?": "(off|warn|error)"/)
   })
 
   it('emits telemery for usage of image, script & dynamic', async () => {

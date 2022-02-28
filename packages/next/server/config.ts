@@ -14,7 +14,11 @@ import {
   normalizeConfig,
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
-import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
+import {
+  ImageConfig,
+  imageConfigDefault,
+  VALID_LOADERS,
+} from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'

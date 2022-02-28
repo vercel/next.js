@@ -9,6 +9,7 @@ import type { PrerenderManifest } from '../build'
 import type { Rewrite } from '../lib/load-custom-routes'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
+import type { PayloadOptions } from './send-payload'
 
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -42,7 +43,7 @@ import { route } from './router'
 import { run } from './web/sandbox'
 
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
-import { PayloadOptions, sendRenderResult } from './send-payload'
+import { sendRenderResult } from './send-payload'
 import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils/node'
@@ -567,6 +568,12 @@ export default class NextNodeServer extends BaseServer {
 
   protected streamResponseChunk(res: NodeNextResponse, chunk: any) {
     res.originalResponse.write(chunk)
+
+    // When both compression and streaming are enabled, we need to explicitly
+    // flush the response to avoid it being buffered by gzip.
+    if (this.compression && 'flush' in res.originalResponse) {
+      ;(res.originalResponse as any).flush()
+    }
   }
 
   protected async imageOptimizer(

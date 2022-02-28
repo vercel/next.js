@@ -39,7 +39,7 @@ import {
 } from './streaming/vitals'
 import { RefreshContext } from './streaming/refresh'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
-import { ImageConfigComplete } from '../server/image-config'
+import { ImageConfigComplete } from '../shared/lib/image-config'
 
 /// <reference types="react-dom/experimental" />
 

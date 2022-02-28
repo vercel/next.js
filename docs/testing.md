@@ -232,7 +232,7 @@ Run `npm run build` and `npm run start`, then run `npm run test:e2e` in another 
 
 ### Running Playwright on Continuous Integration (CI)
 
-Playwright will by default run your tests in the [headed mode](https://playwright.dev/docs/ci). To install all the Playwright dependencies, run `npx playwright install-deps`.
+Playwright will by default run your tests in the [headless mode]https://playwright.dev/docs/ci#running-headed). To install all the Playwright dependencies, run `npx playwright install-deps`.
 
 You can learn more about Playwright and Continuous Integration from these resources:
 

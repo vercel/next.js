@@ -106,6 +106,8 @@ export function createEntrypoints(
   const server: webpack5.EntryObject = {}
   const edgeServer: webpack5.EntryObject = {}
 
+  const edgeRuntime = config.experimental.runtime === 'edge'
+
   Object.keys(pages).forEach((page) => {
     const absolutePagePath = pages[page]
     const bundleFile = normalizePagePath(page)
@@ -117,8 +119,6 @@ export function createEntrypoints(
     const isReserved = isReservedPage(page)
     const isCustomError = isCustomErrorPage(page)
     const isFlight = isFlightPage(config, absolutePagePath)
-
-    const edgeRuntime = config.experimental.runtime === 'edge'
 
     if (page.match(MIDDLEWARE_ROUTE)) {
       const loaderOpts: MiddlewareLoaderOptions = {
