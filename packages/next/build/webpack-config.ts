@@ -1534,6 +1534,7 @@ export default async function getBaseWebpackConfig(
     test: /\.wasm$/,
     issuerLayer: 'middleware',
     loader: 'next-middleware-wasm-loader',
+    type: 'javascript/auto',
   })
 
   webpack5Config.experiments = {
