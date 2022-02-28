@@ -8,6 +8,7 @@ import {
 } from '../shared/lib/image-config'
 import { useIntersection } from './use-intersection'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
+import { warnOnce } from '../shared/lib/utils'
 
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
@@ -21,17 +22,6 @@ const emptyDataURL =
 
 if (typeof window === 'undefined') {
   ;(global as any).__NEXT_IMAGE_IMPORTED = true
-}
-
-let warnOnce = (_: string) => {}
-if (process.env.NODE_ENV !== 'production') {
-  const warnings = new Set<string>()
-  warnOnce = (msg: string) => {
-    if (!warnings.has(msg)) {
-      console.warn(msg)
-    }
-    warnings.add(msg)
-  }
 }
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
