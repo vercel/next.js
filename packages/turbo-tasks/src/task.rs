@@ -10,12 +10,13 @@ use event_listener::{Event, EventListener};
 use std::{
     any::{Any, TypeId},
     cell::Cell,
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fmt::{self, Debug, Display, Formatter},
     future::Future,
     hash::Hash,
     pin::Pin,
     sync::{Arc, Mutex, RwLock, RwLockWriteGuard, Weak},
+    time::Instant,
 };
 
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = SlotRef> + Send>>;
@@ -584,7 +585,22 @@ impl Task {
     }
 
     pub(crate) fn dependent_slot_updated(self: &Arc<Self>, turbo_tasks: &'static TurboTasks) {
-        self.make_dirty(turbo_tasks)
+        let start = Instant::now();
+        self.make_dirty(turbo_tasks);
+        let elapsed = start.elapsed();
+        if elapsed.as_millis() >= 100 {
+            println!(
+                "dependent_slot_updated took {} ms: {:?}",
+                elapsed.as_millis(),
+                &**self
+            );
+        } else if elapsed.as_millis() >= 1 {
+            println!(
+                "dependent_slot_updated took {} µs: {:?}",
+                elapsed.as_micros(),
+                &**self
+            );
+        }
     }
 
     fn make_dirty(self: &Arc<Self>, turbo_tasks: &'static TurboTasks) {
@@ -1041,7 +1057,14 @@ pub struct Invalidator {
 impl Invalidator {
     pub fn invalidate(self) {
         if let Some(task) = self.task.upgrade() {
+            let start = Instant::now();
             task.invaldate(self.turbo_tasks);
+            let elapsed = start.elapsed();
+            if elapsed.as_millis() >= 100 {
+                println!("invalidate took {} ms", elapsed.as_millis());
+            } else {
+                println!("invalidate took {} µs", elapsed.as_micros());
+            }
         }
     }
 }

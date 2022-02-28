@@ -19,8 +19,8 @@ mod utils;
 #[turbo_tasks::function]
 pub async fn emit(input: AssetRef, input_dir: FileSystemPathRef, output_dir: FileSystemPathRef) {
     let asset = nft_asset(input, input_dir, output_dir);
-    emit_assets_recursive_avoid_cycle(asset, CycleDetectionRef::new());
-    // emit_assets_aggregated(asset);
+    // emit_assets_recursive_avoid_cycle(asset, CycleDetectionRef::new());
+    emit_assets_aggregated(asset);
 }
 
 #[turbo_tasks::function]
@@ -33,8 +33,8 @@ async fn emit_assets_aggregated(asset: AssetRef) {
 async fn emit_aggregated_assets(aggregated: AggregatedGraphRef) {
     match &*aggregated.await {
         AggregatedGraph::Leaf(asset) => {
-            #[cfg(debug_assertions)]
-            println!("emit_aggregated_assets leaf {}", asset.path().await.path);
+            // #[cfg(debug_assertions)]
+            // println!("emit_aggregated_assets leaf {}", asset.path().await.path);
             emit_asset(asset.clone());
         }
         AggregatedGraph::Node {
@@ -44,12 +44,12 @@ async fn emit_aggregated_assets(aggregated: AggregatedGraphRef) {
             inner,
             boundary,
         } => {
-            #[cfg(debug_assertions)]
-            println!(
-                "emit_aggregated_assets node {} {}",
-                depth,
-                root.path().await.path
-            );
+            // #[cfg(debug_assertions)]
+            // println!(
+            //     "emit_aggregated_assets node {} {}",
+            //     depth,
+            //     root.path().await.path
+            // );
             for aggregated in inner {
                 emit_aggregated_assets(aggregated.clone());
             }

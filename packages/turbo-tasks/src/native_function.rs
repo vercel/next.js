@@ -2,13 +2,8 @@ use crate::{self as turbo_tasks, task::NativeTaskFn, SlotRef, TaskArgumentOption
 use anyhow::Result;
 use std::{
     fmt::Debug,
-    future::Future,
     hash::Hash,
-    pin::Pin,
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc,
-    },
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
 #[turbo_tasks::value]
