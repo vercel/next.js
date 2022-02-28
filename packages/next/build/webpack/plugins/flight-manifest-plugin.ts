@@ -69,7 +69,7 @@ export class FlightManifestPlugin {
     const { clientComponentsRegex } = this
     compilation.chunkGroups.forEach((chunkGroup: any) => {
       function recordModule(id: string, _chunk: any, mod: any) {
-        const resource = mod.resource?.replace(/\?flight$/, '')
+        const resource = mod.resource?.replace(/\?__sc_client__$/, '')
 
         // TODO: Hook into deps instead of the target module.
         // That way we know by the type of dep whether to include.

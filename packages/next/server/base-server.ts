@@ -1528,6 +1528,21 @@ export default abstract class Server {
       return null
     }
 
+    if (isSSG) {
+      // set x-nextjs-cache header to match the header
+      // we set for the image-optimizer
+      res.setHeader(
+        'x-nextjs-cache',
+        isManualRevalidate
+          ? 'REVALIDATED'
+          : cacheEntry.isMiss
+          ? 'MISS'
+          : cacheEntry.isStale
+          ? 'STALE'
+          : 'HIT'
+      )
+    }
+
     const { revalidate, value: cachedData } = cacheEntry
     const revalidateOptions: any =
       typeof revalidate !== 'undefined' &&
