@@ -102,7 +102,7 @@ SANITY_PREVIEW_SECRET=...
     //...
 +   {
 +     "implements": "part:@sanity/production-preview/resolve-production-url",
-+     "path": "./resolveProductionUrl.js" <-- point to the path of the resolveProductionUrl.js you created in step 2
++     "path": "./resolveProductionUrl.js"
 +   }
   ]
 }
