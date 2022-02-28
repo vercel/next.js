@@ -1957,7 +1957,7 @@ function streamFromArray(strings: string[]): ReadableStream<Uint8Array> {
   const { readable, writable } = new TransformStream()
 
   const writer = writable.getWriter()
-  strings.forEach((str) => writer.write(str))
+  strings.forEach((str) => writer.write(encodeText(str)))
   writer.close()
 
   return readable
