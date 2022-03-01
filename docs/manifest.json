@@ -143,15 +143,6 @@
           ]
         },
         {
-          "title": "Guides",
-          "routes": [
-            {
-              "title": "Cookies in Next.js",
-              "path": "/docs/guides/next-cookies.md"
-            }
-          ]
-        },
-        {
           "title": "Middleware",
           "path": "/docs/middleware.md"
         },
@@ -177,6 +168,10 @@
             {
               "title": "Building Forms",
               "path": "/docs/guides/building-forms.md"
+            },
+            {
+              "title": "Cookies in Next.js",
+              "path": "/docs/guides/next-cookies.md"
             }
           ]
         },
