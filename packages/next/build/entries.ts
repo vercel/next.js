@@ -122,7 +122,6 @@ export async function getPageRuntime(
       const valueNode = declaration?.declarations?.[0]
       if (type === 'ExportDeclaration' && valueNode?.id?.value === 'config') {
         const props = valueNode.init.properties
-        console.log(props)
         const runtimeKeyValue = props.find(
           (prop: any) => prop.key.value === 'runtime'
         )
