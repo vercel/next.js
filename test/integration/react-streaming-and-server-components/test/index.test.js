@@ -69,16 +69,7 @@ export default function Page500() {
 }
 `
 
-describe('Edge runtime - basic', () => {
-  it('should warn user for experimental risk with server components', async () => {
-    const edgeRuntimeWarning =
-      'You are using the experimental Edge Runtime with `experimental.runtime`.'
-    const rscWarning = `You have experimental React Server Components enabled. Continue at your own risk.`
-    const { stderr } = await nextBuild(appDir)
-    expect(stderr).toContain(edgeRuntimeWarning)
-    expect(stderr).toContain(rscWarning)
-  })
-
+describe('Edge runtime - errors', () => {
   it('should warn user that native node APIs are not supported', async () => {
     const fsImportedErrorMessage =
       'Native Node.js APIs are not supported in the Edge Runtime. Found `dns` imported.'
@@ -93,12 +84,21 @@ describe('Edge runtime - prod', () => {
   beforeAll(async () => {
     error500Page.write(page500)
     context.appPort = await findPort()
-    await nextBuild(context.appDir)
+    const { stderr } = await nextBuild(context.appDir)
+    context.stderr = stderr
     context.server = await nextStart(context.appDir, context.appPort)
   })
   afterAll(async () => {
     error500Page.delete()
     await killApp(context.server)
+  })
+
+  it('should warn user for experimental risk with edge runtime and server components', async () => {
+    const edgeRuntimeWarning =
+      'You are using the experimental Edge Runtime with `experimental.runtime`.'
+    const rscWarning = `You have experimental React Server Components enabled. Continue at your own risk.`
+    expect(context.stderr).toContain(edgeRuntimeWarning)
+    expect(context.stderr).toContain(rscWarning)
   })
 
   it('should generate middleware SSR manifests for edge runtime', async () => {
@@ -151,7 +151,7 @@ describe('Edge runtime - prod', () => {
   })
 
   basic(context, { env: 'prod' })
-  streaming(context)
+  streaming(context, { env: 'prod' })
   rsc(context, { runtime: 'edge', env: 'prod' })
 })
 
@@ -177,15 +177,21 @@ describe('Edge runtime - dev', () => {
     expect(content).toMatchInlineSnapshot('"foo.client"')
   })
 
+  it('should have content-type and content-encoding headers', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/')
+    expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8')
+    expect(res.headers.get('content-encoding')).toBe('gzip')
+  })
+
   basic(context, { env: 'dev' })
-  streaming(context)
+  streaming(context, { env: 'dev' })
   rsc(context, { runtime: 'edge', env: 'dev' })
 })
 
 const nodejsRuntimeBasicSuite = {
   runTests: (context, env) => {
     basic(context, { env })
-    streaming(context)
+    streaming(context, { env })
     rsc(context, { runtime: 'nodejs' })
 
     if (env === 'prod') {
