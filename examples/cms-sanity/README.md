@@ -197,5 +197,5 @@ Alternatively, you can deploy using our template by clicking on the Deploy butto
 
 #### Next steps
 
-- Invalidate your routes in production on-demand with GROQ powered webhooks
+- Invalidate your routes in production [on-demand](https://nextjs.org/blog/next-12-1#on-demand-incremental-static-regeneration-beta) with GROQ powered webhooks
 - Mount your preview inside the Sanity Studio for comfortable side-by-side editing
