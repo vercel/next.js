@@ -15,11 +15,22 @@
             },
             {
               "title": "Data Fetching",
-              "path": "/docs/basic-features/data-fetching/index.md",
               "routes": [
                 {
+                  "path": "/docs/basic-features/data-fetching",
+                  "redirect": {
+                    "destination": "/docs/basic-features/data-fetching/overview"
+                  }
+                },
+                {
+                  "path": "/docs/basic-features/data-fetching/index",
+                  "redirect": {
+                    "destination": "/docs/basic-features/data-fetching/overview"
+                  }
+                },
+                {
                   "title": "Overview",
-                  "path": "/docs/basic-features/data-fetching/index.md"
+                  "path": "/docs/basic-features/data-fetching/overview.md"
                 },
                 {
                   "title": "getServerSideProps",
@@ -161,6 +172,15 @@
           "path": "/docs/testing.md"
         },
         {
+          "title": "Guides",
+          "routes": [
+            {
+              "title": "Building Forms",
+              "path": "/docs/guides/building-forms.md"
+            }
+          ]
+        },
+        {
           "title": "Advanced Features",
           "routes": [
             {
@@ -257,6 +277,10 @@
               "path": "/docs/advanced-features/debugging.md"
             },
             {
+              "title": "Error Handling",
+              "path": "/docs/advanced-features/error-handling.md"
+            },
+            {
               "title": "Source Maps",
               "path": "/docs/advanced-features/source-maps.md"
             },
@@ -278,7 +302,26 @@
             },
             {
               "title": "React 18",
-              "path": "/docs/advanced-features/react-18.md"
+              "routes": [
+                {
+                  "path": "/docs/advanced-features/react-18",
+                  "redirect": {
+                    "destination": "/docs/advanced-features/react-18/overview"
+                  }
+                },
+                {
+                  "title": "Overview",
+                  "path": "/docs/advanced-features/react-18/overview.md"
+                },
+                {
+                  "title": "Streaming SSR",
+                  "path": "/docs/advanced-features/react-18/streaming.md"
+                },
+                {
+                  "title": "React Server Components",
+                  "path": "/docs/advanced-features/react-18/server-components.md"
+                }
+              ]
             }
           ]
         },
@@ -346,6 +389,10 @@
         {
           "title": "next/server",
           "path": "/docs/api-reference/next/server.md"
+        },
+        {
+          "title": "next/streaming",
+          "path": "/docs/api-reference/next/streaming.md"
         },
         {
           "title": "Edge Runtime",

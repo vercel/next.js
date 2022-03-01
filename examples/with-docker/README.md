@@ -20,9 +20,23 @@ yarn create next-app --example with-docker nextjs-docker
 
 You can view your images created with `docker images`.
 
-## Deploying to Google Cloud Run
+### In existing projects
 
-The `start` script in `package.json` has been modified to accept a `PORT` environment variable (for compatibility with Google Cloud Run).
+To add support for Docker to an existing project, just copy the `Dockerfile` into the root of the project and add the following to the `next.config.js` file:
+
+```js
+// next.config.js
+module.exports = {
+  // ... rest of the configuration.
+  experimental: {
+    outputStandalone: true,
+  },
+}
+```
+
+This will build the project as a standalone app inside the Docker image.
+
+## Deploying to Google Cloud Run
 
 1. Install the [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) so you can use `gcloud` on the command line.
 1. Run `gcloud auth login` to log in to your account.

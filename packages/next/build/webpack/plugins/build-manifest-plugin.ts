@@ -28,7 +28,7 @@ function generateClientManifest(
   compilation: any,
   assetMap: BuildManifest,
   rewrites: CustomRoutes['rewrites']
-): string {
+): string | undefined {
   const compilationSpan = spans.get(compilation) || spans.get(compiler)
   const genClientManifestSpan = compilationSpan?.traceChild(
     'NextJsBuildManifest-generateClientManifest'

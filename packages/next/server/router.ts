@@ -1,13 +1,13 @@
 import type { ParsedUrlQuery } from 'querystring'
-import type { NextUrlWithParsedQuery } from './request-meta'
+import type { BaseNextRequest, BaseNextResponse } from './base-http'
 
+import { getNextInternalQuery, NextUrlWithParsedQuery } from './request-meta'
 import pathMatch from '../shared/lib/router/utils/path-match'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { RouteHas } from '../lib/load-custom-routes'
 import { matchHas } from '../shared/lib/router/utils/prepare-destination'
 import { getRequestMeta } from './request-meta'
-import { BaseNextRequest, BaseNextResponse } from './base-http'
 
 export const route = pathMatch()
 
@@ -78,6 +78,7 @@ export default class Router {
   dynamicRoutes: DynamicRoutes
   useFileSystemPublicRoutes: boolean
   locales: string[]
+  seenRequests: Set<any>
 
   constructor({
     basePath = '',
@@ -123,6 +124,7 @@ export default class Router {
     this.dynamicRoutes = dynamicRoutes
     this.useFileSystemPublicRoutes = useFileSystemPublicRoutes
     this.locales = locales
+    this.seenRequests = new Set()
   }
 
   setDynamicRoutes(routes: DynamicRoutes = []) {
@@ -138,6 +140,13 @@ export default class Router {
     res: BaseNextResponse,
     parsedUrl: NextUrlWithParsedQuery
   ): Promise<boolean> {
+    if (this.seenRequests.has(req)) {
+      throw new Error(
+        `Invariant: request has already been processed: ${req.url}, this is an internal error please open an issue.`
+      )
+    }
+    this.seenRequests.add(req)
+
     // memoize page check calls so we don't duplicate checks for pages
     const pageChecks: { [name: string]: Promise<boolean> } = {}
     const memoizedPageChecker = async (p: string): Promise<boolean> => {
@@ -360,6 +369,7 @@ export default class Router {
           ) {
             if (requireBasePath) {
               // consider this a non-match so the 404 renders
+              this.seenRequests.delete(req)
               return false
             }
             // page checker occurs before rewrites so we need to continue
@@ -374,6 +384,7 @@ export default class Router {
 
         // The response was handled
         if (result.finished) {
+          this.seenRequests.delete(req)
           return true
         }
 
@@ -389,7 +400,7 @@ export default class Router {
 
         if (result.query) {
           parsedUrlUpdated.query = {
-            ...parsedUrlUpdated.query,
+            ...getNextInternalQuery(parsedUrlUpdated.query),
             ...result.query,
           }
         }
@@ -397,11 +408,13 @@ export default class Router {
         // check filesystem
         if (testRoute.check === true) {
           if (await applyCheckTrue(parsedUrlUpdated)) {
+            this.seenRequests.delete(req)
             return true
           }
         }
       }
     }
+    this.seenRequests.delete(req)
     return false
   }
 }

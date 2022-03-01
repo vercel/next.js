@@ -1,8 +1,4 @@
 module.exports = function withReact18(config) {
-  if (typeof config.experimental.reactRoot === 'undefined') {
-    config.experimental.reactRoot = true
-  }
-
   config.webpack = (webpackConfig) => {
     const { alias } = webpackConfig.resolve
     // FIXME: resolving react/jsx-runtime https://github.com/facebook/react/issues/20235
@@ -13,6 +9,7 @@ module.exports = function withReact18(config) {
     alias['react'] = 'react-18'
     alias['react-dom'] = 'react-dom-18'
     alias['react-dom/server'] = 'react-dom-18/server'
+    alias['react-dom/server.browser'] = 'react-dom-18/server.browser'
 
     return webpackConfig
   }

@@ -1,8 +1,8 @@
 /* eslint-disable no-redeclare */
-import { IncomingMessage } from 'http'
+import type { IncomingMessage } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
-import { BaseNextRequest } from './base-http'
+import type { BaseNextRequest } from './base-http'
 
 export const NEXT_REQUEST_META = Symbol('NextRequestMeta')
 
@@ -52,16 +52,44 @@ export function addRequestMeta<K extends keyof RequestMeta>(
   return setRequestMeta(request, meta)
 }
 
-export type NextParsedUrlQuery = ParsedUrlQuery & {
+type NextQueryMetadata = {
+  __nextNotFoundSrcPage?: string
   __nextDefaultLocale?: string
   __nextFallback?: 'true'
   __nextLocale?: string
   __nextSsgPath?: string
   _nextBubbleNoFallback?: '1'
   _nextDataReq?: '1'
-  amp?: '1'
 }
+
+export type NextParsedUrlQuery = ParsedUrlQuery &
+  NextQueryMetadata & {
+    amp?: '1'
+  }
 
 export interface NextUrlWithParsedQuery extends UrlWithParsedQuery {
   query: NextParsedUrlQuery
+}
+
+export function getNextInternalQuery(
+  query: NextParsedUrlQuery
+): NextQueryMetadata {
+  const keysToInclude: (keyof NextQueryMetadata)[] = [
+    '__nextDefaultLocale',
+    '__nextFallback',
+    '__nextLocale',
+    '__nextSsgPath',
+    '_nextBubbleNoFallback',
+    '_nextDataReq',
+  ]
+  const nextInternalQuery: NextQueryMetadata = {}
+
+  for (const key of keysToInclude) {
+    if (key in query) {
+      // @ts-ignore this can't be typed correctly
+      nextInternalQuery[key] = query[key]
+    }
+  }
+
+  return nextInternalQuery
 }

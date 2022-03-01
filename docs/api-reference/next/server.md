@@ -37,14 +37,9 @@ The `NextRequest` object is an extension of the native [`Request`](https://devel
 
 - `cookies` - Has the cookies from the `Request`
 - `nextUrl` - Includes an extended, parsed, URL object that gives you access to Next.js specific properties such as `pathname`, `basePath`, `trailingSlash` and `i18n`
-- `geo` - Has the geo location from the `Request`
-  - `geo.country` - The country code
-  - `geo.region` - The region code
-  - `geo.city` - The city
-  - `geo.latitude` - The latitude
-  - `geo.longitude` - The longitude
 - `ip` - Has the IP address of the `Request`
 - `ua` - Has the user agent
+- `geo` - (Optional) Has the geo location from the `Request`, provided by your hosting platform
 
 You can use the `NextRequest` object as a direct replacement for the native `Request` interface, giving you more control over how you manipulate the request.
 

@@ -1,3 +1,4 @@
+import '../server/node-polyfill-fetch'
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
@@ -1102,19 +1103,6 @@ export function detectConflictingPaths(
   }
 }
 
-export function getCssFilePaths(buildManifest: BuildManifest): string[] {
-  const cssFiles = new Set<string>()
-  Object.values(buildManifest.pages).forEach((files) => {
-    files.forEach((file) => {
-      if (file.endsWith('.css')) {
-        cssFiles.add(file)
-      }
-    })
-  })
-
-  return [...cssFiles]
-}
-
 export function getRawPageExtensions(pageExtensions: string[]): string[] {
   return pageExtensions.filter(
     (ext) => !ext.startsWith('client.') && !ext.startsWith('server.')
@@ -1123,23 +1111,23 @@ export function getRawPageExtensions(pageExtensions: string[]): string[] {
 
 export function isFlightPage(
   nextConfig: NextConfigComplete,
-  pagePath: string
+  filePath: string
 ): boolean {
   if (
     !(
       nextConfig.experimental.serverComponents &&
-      nextConfig.experimental.concurrentFeatures
+      nextConfig.experimental.runtime
     )
-  )
+  ) {
     return false
+  }
 
   const rawPageExtensions = getRawPageExtensions(
     nextConfig.pageExtensions || []
   )
-  const isRscPage = rawPageExtensions.some((ext) => {
-    return new RegExp(`\\.server\\.${ext}$`).test(pagePath)
+  return rawPageExtensions.some((ext) => {
+    return filePath.endsWith(`.server.${ext}`)
   })
-  return isRscPage
 }
 
 export function getUnresolvedModuleFromError(
@@ -1244,6 +1232,10 @@ process.chdir(__dirname)
 const NextServer = require('next/dist/server/next-server').default
 const http = require('http')
 const path = require('path')
+
+// Make sure commands gracefully respect termination signals (e.g. from Docker)
+process.on('SIGTERM', () => process.exit(0))
+process.on('SIGINT', () => process.exit(0))
 
 let handler
 

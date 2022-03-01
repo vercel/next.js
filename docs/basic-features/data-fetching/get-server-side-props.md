@@ -19,7 +19,7 @@ export async function getServerSideProps(context) {
 `getServerSideProps` only runs on server-side and never runs on the browser. If a page uses `getServerSideProps`, then:
 
 - When you request this page directly, `getServerSideProps` runs at request time, and this page will be pre-rendered with the returned props
-- When you request this page on client-side page transitions through [`next/link`](/docs/api-reference/next/link.md) or [`next/router`](/docs/api-reference/next/router.md), Next.js sends an API request to the server, which runs `getServerSideProps`.
+- When you request this page on client-side page transitions through [`next/link`](/docs/api-reference/next/link.md) or [`next/router`](/docs/api-reference/next/router.md), Next.js sends an API request to the server, which runs `getServerSideProps`
 
 It then returns `JSON` that contains the result of running `getServerSideProps`, that `JSON` will be used to render the page. All this work will be handled automatically by Next.js, so you don’t need to do anything extra as long as you have `getServerSideProps` defined.
 
@@ -33,7 +33,7 @@ The [`getServerSideProps` API reference](/docs/api-reference/data-fetching/get-s
 
 ## When should I use getServerSideProps
 
-You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. [Time to First Byte (TTFB)](/learn/seo/web-performance) will be higher than [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) because the server must compute the result on every request, and the result can only be cached by a CDN using `cache-control` headers (which could require extra configuration).
+You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. [Time to First Byte (TTFB)](https://web.dev/ttfb/) will be higher than [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) because the server must compute the result on every request, and the result can only be cached by a CDN using `cache-control` headers (which could require extra configuration).
 
 If you do not need to pre-render the data, then you should consider fetching data on the [client side](#fetching-data-on-the-client-side).
 
@@ -47,8 +47,8 @@ Take the following example. An API route is used to fetch some data from a CMS. 
 
 If your page contains frequently updating data, and you don’t need to pre-render the data, you can fetch the data on the [client side](/docs/basic-features/data-fetching/client-side.md). An example of this is user-specific data:
 
-- First, immediately show the page without data. Parts of the page can be pre-rendered using Static Generation. You can show loading states for missing data.
-- Then, fetch the data on the client side and display it when ready.
+- First, immediately show the page without data. Parts of the page can be pre-rendered using Static Generation. You can show loading states for missing data
+- Then, fetch the data on the client side and display it when ready
 
 This approach works well for user dashboard pages, for example. Because a dashboard is a private, user-specific page, SEO is not relevant and the page doesn’t need to be pre-rendered. The data is frequently updated, which requires request-time data fetching.
 
@@ -73,6 +73,14 @@ export async function getServerSideProps() {
 
 export default Page
 ```
+
+## Does getServerSideProps render an error page
+
+If an error is thrown inside `getServerSideProps`, it will show the `pages/500.js` file. Check out the documentation for [500 page](/docs/advanced-features/custom-error-page#500-page) to learn more on how to create it. During development this file will not be used and the dev overlay will be shown instead.
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
 
 <div class="card">
   <a href="/docs/api-reference/data-fetching/get-server-side-props.md">
