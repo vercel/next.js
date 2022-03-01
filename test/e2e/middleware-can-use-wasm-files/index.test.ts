@@ -9,8 +9,9 @@ function baseNextConfig(): Parameters<typeof createNext>[0] {
     files: {
       'src/add.wasm': new FileRef(path.join(__dirname, './add.wasm')),
       'src/add.js': `
-          import wasm from './add.wasm'
+          import wasm from './add.wasm?module'
           const instance$ = WebAssembly.instantiate(wasm);
+
           export async function increment(a) {
             const { exports } = await instance$;
             return exports.add_one(a);
