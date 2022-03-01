@@ -117,7 +117,7 @@ export async function getPageRuntime(
       filename: pageFilePath,
       isModule: true,
     })
-    body.filter((node: any) => {
+    body.forEach((node: any) => {
       const { type, declaration } = node
       const valueNode = declaration?.declarations?.[0]
       if (type === 'ExportDeclaration' && valueNode?.id?.value === 'config') {
@@ -206,7 +206,7 @@ export function createEntrypoints(
   const globalRuntime = config.experimental.runtime
   const edgeRuntime = globalRuntime === 'edge'
 
-  Object.keys(pages).map((page) => {
+  Object.keys(pages).forEach((page) => {
     const absolutePagePath = pages[page]
     const bundleFile = normalizePagePath(page)
     const isApiRoute = page.match(API_ROUTE)
