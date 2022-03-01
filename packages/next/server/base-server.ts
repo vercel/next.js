@@ -1268,12 +1268,14 @@ export default abstract class Server {
       let redirectUrl: string
 
       if (redirect.forwardQueryParams) {
+        const parsedRequestQuery = parseQs(req.url.split('?')[1])
+
         const parsedDestinationQuery = parseQs(
           redirect.destination.split('?')[1]
         )
 
         const mergedQuery = {
-          ...req.body.query,
+          ...parsedRequestQuery,
           ...parsedDestinationQuery,
         }
 

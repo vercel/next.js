@@ -21,6 +21,54 @@ let app
 let appPort
 
 const runTests = (isDev) => {
+  it('should strip query params on redirect by default', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/gsp-blog-blocking/redirect-dest-_gsp-blog-blocking_first',
+      '?foo=bar',
+      { redirect: 'manual' }
+    )
+
+    expect(res.status).toBe(307)
+
+    const { search, pathname } = url.parse(res.headers.get('location'))
+
+    expect(pathname).toBe('/gsp-blog-blocking/first')
+    expect(search).toBeNull()
+  })
+
+  it('should forward query params on redirect when enabled', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/gsp-blog-blocking/redirect-forward-query-params-dest-_gsp-blog-blocking_first',
+      '?foo=bar',
+      { redirect: 'manual' }
+    )
+
+    expect(res.status).toBe(307)
+
+    const { search, pathname } = url.parse(res.headers.get('location'))
+
+    expect(pathname).toBe('/gsp-blog-blocking/first')
+    expect(search).toBe('?foo=bar')
+  })
+
+  it('should merge query params on redirect when enabled', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/gsp-blog-blocking/redirect-forward-query-params-dest-first-with-redirect-query',
+      '?foo=bar',
+      { redirect: 'manual' }
+    )
+
+    expect(res.status).toBe(307)
+
+    const { search, pathname } = url.parse(res.headers.get('location'))
+
+    expect(pathname).toBe('/gsp-blog-blocking/first')
+    expect(search).toBe('?foo=bar&redirect_query=1')
+  })
+
   it('should apply temporary redirect when visited directly for GSSP page', async () => {
     const res = await fetchViaHTTP(
       appPort,

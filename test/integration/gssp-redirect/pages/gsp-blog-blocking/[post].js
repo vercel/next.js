@@ -30,18 +30,25 @@ export const getStaticProps = ({ params }) => {
 
     if (params.post.includes('dest-external')) {
       destination = 'https://example.com'
+    } else if (params.post.includes('dest-first-with-redirect-query')) {
+      destination = '/gsp-blog-blocking/first?redirect_query=1'
     } else if (params.post.includes('dest-')) {
       destination = params.post.split('dest-').pop().replace(/_/g, '/')
     }
 
     let permanent = undefined
     let statusCode = undefined
+    let forwardQueryParams = undefined
 
     if (params.post.includes('statusCode-')) {
       permanent = parseInt(
         params.post.split('statusCode-').pop().split('-').shift(),
         10
       )
+    }
+
+    if (params.post.includes('forward-query-params')) {
+      forwardQueryParams = true
     }
 
     if (params.post.includes('permanent')) {
@@ -59,6 +66,7 @@ export const getStaticProps = ({ params }) => {
       permanent,
       statusCode,
       revalidate,
+      forwardQueryParams,
     })
 
     return {
@@ -66,6 +74,7 @@ export const getStaticProps = ({ params }) => {
         destination,
         permanent,
         statusCode,
+        forwardQueryParams,
       },
       revalidate,
     }
