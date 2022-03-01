@@ -105,7 +105,7 @@ type Entrypoints = {
 
 export async function getPageRuntime(
   pageFilePath: string,
-  globalRuntime: string | undefined
+  globalRuntime?: string
 ) {
   let pageRuntime: string | undefined = undefined
   const pageContent = await fs.promises.readFile(pageFilePath, {
