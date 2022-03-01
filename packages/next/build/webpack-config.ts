@@ -1530,7 +1530,7 @@ export default async function getBaseWebpackConfig(
 
   const webpack5Config = webpackConfig as webpack5.Configuration
 
-  webpack5Config.module!.rules!.unshift({
+  webpack5Config.module?.rules?.unshift({
     test: /\.wasm$/,
     issuerLayer: 'middleware',
     loader: 'next-middleware-wasm-loader',
