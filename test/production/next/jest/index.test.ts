@@ -8,9 +8,29 @@ describe('next/jest', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
+        'public/vercel.svg':
+          '<svg width="24" height="24" xmlns="http://www.w3.org/2000/svg"/>',
+        'components/comp.js': `
+          export default function Comp() {
+            return <h1>Hello Dynamic</h1>;
+          }
+        `,
         'pages/index.js': `
+          import dynamic from "next/dynamic";
+          import Image from "next/image";
+          import img from "../public/vercel.svg";
+
+          const Comp = dynamic(() => import("../components/comp"), {
+            loading: () => <h1>Loading...</h1>,
+          });
+
           export default function Page() { 
-            return <p>hello world</p>
+            return <>
+              <Comp />
+              <Image src={img} alt="logo" placeholder="blur"/>
+              <Image src={img} alt="logo 2"/>
+              <p>hello world</p>
+            </>
           } 
         `,
         'jest.config.js': `
@@ -27,10 +47,38 @@ describe('next/jest', () => {
             // if using TypeScript with a baseUrl set to the root directory then you need the below for alias' to work
             moduleDirectories: ['node_modules', '<rootDir>/'],
             testEnvironment: 'jest-environment-jsdom',
+            setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+            transform: {
+              // Use babel-jest to transpile tests with the next/babel preset
+              // https://jestjs.io/docs/configuration#transform-objectstring-pathtotransformer--pathtotransformer-object
+              '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
+            },
           }
           
           // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
           module.exports = createJestConfig(customJestConfig)
+        `,
+        'jest.setup.js': `
+          // Learn more: https://github.com/testing-library/jest-dom
+          import '@testing-library/jest-dom/extend-expect'
+        `,
+        'test/dynamic.test.js': `
+          import { render, screen, act } from "@testing-library/react";
+          import Home from "../pages/index";
+          
+          describe("Home", () => {
+            it("renders a heading", () => {
+              act(() => {
+                render(<Home />);
+          
+                const heading = screen.getByRole("heading", {
+                  name: /Loading/i,
+                });
+          
+                expect(heading).toBeInTheDocument();
+              });
+            });
+          });
         `,
         'test/mock.test.js': `
           import router from 'next/router'
@@ -56,10 +104,15 @@ describe('next/jest', () => {
       },
       dependencies: {
         jest: '27.4.7',
+        '@testing-library/jest-dom': '5.16.1',
+        '@testing-library/react': '12.1.2',
+        '@testing-library/user-event': '13.5.0',
       },
       packageJson: {
         scripts: {
-          build: 'next build && yarn jest test/mock.test.js',
+          // Runs jest and bails if jest fails
+          build:
+            'next build && yarn jest test/mock.test.js test/dynamic.test.js',
         },
       },
       buildCommand: `yarn build`,

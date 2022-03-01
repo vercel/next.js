@@ -27,7 +27,7 @@ DEALINGS IN THE SOFTWARE.
 */
 
 #![recursion_limit = "2048"]
-//#![deny(clippy::all)]
+#![deny(clippy::all)]
 
 use auto_cjs::contains_cjs;
 use either::Either;
@@ -112,7 +112,11 @@ pub fn custom_before_pass(
     #[cfg(not(target_arch = "wasm32"))]
     let relay_plugin = {
         if let Some(config) = &opts.relay {
-            Either::Left(relay::relay(config, file.name.clone(), opts.pages_dir.clone()))
+            Either::Left(relay::relay(
+                config,
+                file.name.clone(),
+                opts.pages_dir.clone(),
+            ))
         } else {
             Either::Right(noop())
         }
@@ -120,7 +124,7 @@ pub fn custom_before_pass(
 
     chain!(
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
-        styled_jsx::styled_jsx(cm.clone()),
+        styled_jsx::styled_jsx(cm, file.name.clone()),
         hook_optimizer::hook_optimizer(),
         match &opts.styled_components {
             Some(config) => {
@@ -173,7 +177,7 @@ impl TransformOptions {
         let should_enable_commonjs =
             self.swc.config.module.is_none() && fm.src.contains("module.exports") && {
                 let syntax = self.swc.config.jsc.syntax.unwrap_or_default();
-                let target = self.swc.config.jsc.target.unwrap_or(EsVersion::latest());
+                let target = self.swc.config.jsc.target.unwrap_or_else(EsVersion::latest);
                 let lexer = Lexer::new(syntax, target, StringInput::from(&*fm), None);
                 let mut p = Parser::new_from(lexer);
                 p.parse_module()
