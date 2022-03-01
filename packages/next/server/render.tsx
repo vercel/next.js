@@ -933,6 +933,10 @@ export async function renderToHTML(
       if (typeof data.redirect.basePath !== 'undefined') {
         ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
       }
+      if (typeof data.redirect.forwardQueryParams !== 'undefined') {
+        ;(data as any).props.__N_REDIRECT_FORWARD_QUERY_PARAMS =
+          data.redirect.forwardQueryParams
+      }
       ;(renderOpts as any).isRedirect = true
     }
 
@@ -1122,6 +1126,10 @@ export async function renderToHTML(
       }
       if (typeof data.redirect.basePath !== 'undefined') {
         ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
+      }
+      if (typeof data.redirect.forwardQueryParams !== 'undefined') {
+        ;(data as any).props.__N_REDIRECT_FORWARD_QUERY_PARAMS =
+          data.redirect.forwardQueryParams
       }
       ;(renderOpts as any).isRedirect = true
     }

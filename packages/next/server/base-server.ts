@@ -19,7 +19,7 @@ import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
 
 import { join, resolve } from 'path'
-import { parse as parseQs } from 'querystring'
+import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/load-custom-routes'
 import {
@@ -1247,6 +1247,8 @@ export default abstract class Server {
         destination: pageData.pageProps.__N_REDIRECT,
         statusCode: pageData.pageProps.__N_REDIRECT_STATUS,
         basePath: pageData.pageProps.__N_REDIRECT_BASE_PATH,
+        forwardQueryParams:
+          pageData.pageProps.__N_REDIRECT_FORWARD_QUERY_PARAMS,
       }
       const statusCode = getRedirectStatus(redirect)
       const { basePath } = this.nextConfig
@@ -1263,10 +1265,28 @@ export default abstract class Server {
         redirect.destination = normalizeRepeatedSlashes(redirect.destination)
       }
 
-      res
-        .redirect(redirect.destination, statusCode)
-        .body(redirect.destination)
-        .send()
+      let redirectUrl: string
+
+      if (redirect.forwardQueryParams) {
+        const parsedDestinationQuery = parseQs(
+          redirect.destination.split('?')[1]
+        )
+
+        const mergedQuery = {
+          ...req.body.query,
+          ...parsedDestinationQuery,
+        }
+
+        const mergedQueryString = stringifyQs(mergedQuery)
+
+        redirectUrl = `${redirect.destination.split('?')[0]}${
+          mergedQueryString ? `?${mergedQueryString}` : ``
+        }`
+      } else {
+        redirectUrl = redirect.destination
+      }
+
+      res.redirect(redirectUrl, statusCode).body(redirectUrl).send()
     }
 
     // remove /_next/data prefix from urlPathname so it matches

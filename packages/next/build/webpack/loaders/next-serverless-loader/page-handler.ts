@@ -357,6 +357,8 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
               destination: renderOpts.pageData.pageProps.__N_REDIRECT,
               statusCode: renderOpts.pageData.pageProps.__N_REDIRECT_STATUS,
               basePath: renderOpts.pageData.pageProps.__N_REDIRECT_BASE_PATH,
+              forwardQueryParams:
+                renderOpts.pageData.pageProps.__N_REDIRECT_FORWARD_QUERY_PARAMS,
             }
             const statusCode = getRedirectStatus(redirect)
 

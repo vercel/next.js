@@ -45,11 +45,13 @@ export type Redirect =
       statusCode: 301 | 302 | 303 | 307 | 308
       destination: string
       basePath?: false
+      forwardQueryParams?: boolean
     }
   | {
       permanent: boolean
       destination: string
       basePath?: false
+      forwardQueryParams?: boolean
     }
 
 /**
