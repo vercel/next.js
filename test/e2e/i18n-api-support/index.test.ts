@@ -31,7 +31,7 @@ describe('i18n API support', () => {
             fallback: [
               {
                 source: '/api/:path*',
-                destination: 'https://example.com/',
+                destination: 'https://example.vercel.sh/',
               },
             ],
           }
