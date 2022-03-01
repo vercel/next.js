@@ -7,6 +7,7 @@ mod native_function;
 pub(crate) mod slot;
 pub(crate) mod slot_value_type;
 mod task;
+mod tasks_list;
 pub mod trace;
 pub mod viz;
 

@@ -5,16 +5,18 @@ use std::{
     sync::{Arc, Weak},
 };
 
+use weak_table::traits::{WeakElement, WeakKey};
+
 use crate::{
-    task::TaskArgumentOptions, viz::SlotSnapshot, NativeFunction, SlotValueType, Task, TraitType,
-    TurboTasks,
+    task::TaskArgumentOptions, tasks_list::WeakTasksList, viz::SlotSnapshot, NativeFunction,
+    SlotValueType, Task, TraitType, TurboTasks,
 };
 
 #[derive(Default, Debug)]
 pub struct Slot {
     content: SlotContent,
     updates: u32,
-    dependent_tasks: Vec<Weak<Task>>,
+    dependent_tasks: WeakTasksList,
 }
 
 #[derive(Clone, Debug)]
@@ -88,7 +90,7 @@ impl Slot {
         Self {
             content: SlotContent::Empty,
             updates: 0,
-            dependent_tasks: Vec::new(),
+            dependent_tasks: WeakTasksList::default(),
         }
     }
 
@@ -222,8 +224,8 @@ impl Slot {
         self.assign(SlotContent::SharedReference(ty, Arc::new(new_content)))
     }
 
-    fn read<T: Any + Send + Sync>(&mut self, reader: &Arc<Task>) -> SlotReadResult<T> {
-        self.dependent_tasks.push(Arc::downgrade(reader));
+    fn read<T: Any + Send + Sync>(&mut self, reader: Arc<Task>) -> SlotReadResult<T> {
+        self.dependent_tasks.add(reader);
         match &self.content {
             SlotContent::Empty => SlotReadResult::Final(SlotRefReadResult::nothing()),
             SlotContent::SharedReference(_, data) => match Arc::downcast(data.clone()) {
@@ -240,8 +242,8 @@ impl Slot {
         }
     }
 
-    pub fn resolve(&mut self, reader: &Arc<Task>) -> SlotRef {
-        self.dependent_tasks.push(Arc::downgrade(reader));
+    pub fn resolve(&mut self, reader: Arc<Task>) -> SlotRef {
+        self.dependent_tasks.add(reader);
         match &self.content {
             SlotContent::Empty => SlotRef::Nothing,
             SlotContent::SharedReference(ty, data) => SlotRef::SharedReference(ty, data.clone()),
@@ -286,7 +288,7 @@ impl Slot {
         self.content = content;
         self.updates += 1;
         // notify
-        TurboTasks::schedule_notify_tasks(self.dependent_tasks.iter().filter_map(|t| t.upgrade()));
+        TurboTasks::schedule_notify_tasks(self.dependent_tasks.iter());
     }
 }
 
@@ -369,18 +371,18 @@ impl SlotRef {
         let mut current = self;
         loop {
             match match current {
-                SlotRef::TaskOutput(task) => {
+                SlotRef::TaskOutput(ref task) => {
                     task.with_done_output_slot(|slot| {
                         Task::with_current(|reader| {
-                            reader.add_dependency(WeakSlotRef::TaskOutput(Arc::downgrade(&task)));
-                            slot.read(reader)
+                            reader.add_dependency(current.clone());
+                            slot.read(reader.clone())
                         })
                     })
                     .await
                 }
-                SlotRef::TaskCreated(task, index) => Task::with_current(|reader| {
-                    reader.add_dependency(WeakSlotRef::TaskCreated(Arc::downgrade(&task), index));
-                    task.with_created_slot(index, |slot| slot.read(reader))
+                SlotRef::TaskCreated(ref task, index) => Task::with_current(|reader| {
+                    reader.add_dependency(current.clone());
+                    task.with_created_slot(index, |slot| slot.read(reader.clone()))
                 }),
                 SlotRef::SharedReference(_, data) => match Arc::downcast(data.clone()) {
                     Ok(data) => SlotReadResult::Final(SlotRefReadResult::shared_reference(data)),
@@ -406,11 +408,11 @@ impl SlotRef {
         let mut current = self;
         loop {
             current = match current {
-                SlotRef::TaskOutput(task) => {
+                SlotRef::TaskOutput(ref task) => {
                     task.with_done_output_slot(|slot| {
                         Task::with_current(|reader| {
-                            reader.add_dependency(WeakSlotRef::TaskOutput(Arc::downgrade(&task)));
-                            slot.resolve(reader)
+                            reader.add_dependency(current.clone());
+                            slot.resolve(reader.clone())
                         })
                     })
                     .await
@@ -427,18 +429,18 @@ impl SlotRef {
         let mut current = self;
         loop {
             current = match current {
-                SlotRef::TaskOutput(task) => {
+                SlotRef::TaskOutput(ref task) => {
                     task.with_done_output_slot(|slot| {
                         Task::with_current(|reader| {
-                            reader.add_dependency(WeakSlotRef::TaskOutput(Arc::downgrade(&task)));
-                            slot.resolve(reader)
+                            reader.add_dependency(current.clone());
+                            slot.resolve(reader.clone())
                         })
                     })
                     .await
                 }
-                SlotRef::TaskCreated(task, index) => Task::with_current(|reader| {
-                    reader.add_dependency(WeakSlotRef::TaskCreated(Arc::downgrade(&task), index));
-                    task.with_created_slot(index, |slot| slot.resolve(reader))
+                SlotRef::TaskCreated(ref task, index) => Task::with_current(|reader| {
+                    reader.add_dependency(current.clone());
+                    task.with_created_slot(index, |slot| slot.resolve(reader.clone()))
                 }),
                 SlotRef::Nothing
                 | SlotRef::SharedReference(_, _)
@@ -524,6 +526,18 @@ impl SlotRef {
             SlotRef::Nothing | SlotRef::SharedReference(_, _) | SlotRef::CloneableData(_, _) => {
                 false
             }
+        }
+    }
+
+    pub(crate) fn remove_dependent_task(&self, reader: Arc<Task>) {
+        match self {
+            SlotRef::TaskOutput(task) => {
+                task.with_output_slot_mut(|slot| slot.dependent_tasks.remove_all(reader))
+            }
+            SlotRef::TaskCreated(task, index) => {
+                task.with_created_slot(*index, |slot| slot.dependent_tasks.remove_all(reader))
+            }
+            SlotRef::CloneableData(_, _) | SlotRef::Nothing | SlotRef::SharedReference(_, _) => {}
         }
     }
 
@@ -693,25 +707,16 @@ impl WeakSlotRef {
         }
     }
 
-    pub(crate) fn remove_dependency(&self, reader: &Weak<Task>) {
-        fn remove_all(vec: &mut Vec<Weak<Task>>, item: &Weak<Task>) {
-            for i in 0..vec.len() {
-                while i < vec.len() && Weak::ptr_eq(&vec[i], item) {
-                    vec.swap_remove(i);
-                }
-            }
-        }
+    pub(crate) fn remove_dependent_task(&self, reader: Arc<Task>) {
         match self {
             WeakSlotRef::TaskOutput(task) => {
                 if let Some(task) = task.upgrade() {
-                    task.with_output_slot_mut(|slot| remove_all(&mut slot.dependent_tasks, reader))
+                    task.with_output_slot_mut(|slot| slot.dependent_tasks.remove_all(reader))
                 }
             }
             WeakSlotRef::TaskCreated(task, index) => {
                 if let Some(task) = task.upgrade() {
-                    task.with_created_slot(*index, |slot| {
-                        remove_all(&mut slot.dependent_tasks, reader)
-                    })
+                    task.with_created_slot(*index, |slot| slot.dependent_tasks.remove_all(reader))
                 }
             }
         }
@@ -729,3 +734,30 @@ impl PartialEq for WeakSlotRef {
 }
 
 impl Eq for WeakSlotRef {}
+
+impl WeakKey for WeakSlotRef {
+    type Key = SlotRef;
+
+    fn with_key<F, R>(view: &Self::Strong, f: F) -> R
+    where
+        F: FnOnce(&Self::Key) -> R,
+    {
+        f(view)
+    }
+}
+
+impl WeakElement for WeakSlotRef {
+    type Strong = SlotRef;
+
+    fn new(view: &Self::Strong) -> Self {
+        view.downgrade().unwrap()
+    }
+
+    fn view(&self) -> Option<Self::Strong> {
+        self.upgrade()
+    }
+
+    fn clone(view: &Self::Strong) -> Self::Strong {
+        view.clone()
+    }
+}

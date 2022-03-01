@@ -4,7 +4,7 @@
 use std::collections::HashSet;
 
 use asset::{Asset, AssetRef, AssetsSet, AssetsSetRef};
-use graph::{aggregate, AggregatedGraph, AggregatedGraphRef};
+use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent, AggregatedGraphRef};
 use resolve::referenced_modules;
 use turbo_tasks_fs::{FileContentRef, FileSystemPathRef};
 
@@ -20,7 +20,8 @@ mod utils;
 pub async fn emit(input: AssetRef, input_dir: FileSystemPathRef, output_dir: FileSystemPathRef) {
     let asset = nft_asset(input, input_dir, output_dir);
     // emit_assets_recursive_avoid_cycle(asset, CycleDetectionRef::new());
-    emit_assets_aggregated(asset);
+    // emit_assets_aggregated(asset);
+    emit_assets_recursive(asset);
 }
 
 #[turbo_tasks::function]
@@ -31,29 +32,20 @@ async fn emit_assets_aggregated(asset: AssetRef) {
 
 #[turbo_tasks::function]
 async fn emit_aggregated_assets(aggregated: AggregatedGraphRef) {
-    match &*aggregated.await {
-        AggregatedGraph::Leaf(asset) => {
+    match &*aggregated.content().await {
+        AggregatedGraphNodeContent::Asset(asset) => {
             // #[cfg(debug_assertions)]
             // println!("emit_aggregated_assets leaf {}", asset.path().await.path);
             emit_asset(asset.clone());
         }
-        AggregatedGraph::Node {
-            depth,
-            #[cfg(debug_assertions)]
-            root,
-            inner,
-            boundary,
-        } => {
+        AggregatedGraphNodeContent::Children(children) => {
             // #[cfg(debug_assertions)]
             // println!(
             //     "emit_aggregated_assets node {} {}",
             //     depth,
             //     root.path().await.path
             // );
-            for aggregated in inner {
-                emit_aggregated_assets(aggregated.clone());
-            }
-            for aggregated in boundary {
+            for aggregated in children {
                 emit_aggregated_assets(aggregated.clone());
             }
         }

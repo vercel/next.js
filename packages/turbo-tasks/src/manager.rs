@@ -2,7 +2,11 @@ use std::{
     any::{Any, TypeId},
     cell::Cell,
     hash::Hash,
-    sync::Arc,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex,
+    },
+    time::{Duration, Instant},
 };
 
 use any_key::AnyHash;
@@ -12,6 +16,7 @@ use async_std::{
     task_local,
 };
 use chashmap::CHashMap;
+use event_listener::Event;
 
 use crate::{
     slot::SlotRef, task::NativeTaskFuture, NativeFunction, SlotValueType, Task, TraitType,
@@ -25,6 +30,11 @@ pub struct TurboTasks {
     resolve_task_cache: CHashMap<(&'static NativeFunction, Vec<SlotRef>), Arc<Task>>,
     native_task_cache: CHashMap<(&'static NativeFunction, Vec<SlotRef>), Arc<Task>>,
     trait_task_cache: CHashMap<(&'static TraitType, String, Vec<SlotRef>), Arc<Task>>,
+    currently_scheduled_tasks: AtomicUsize,
+    scheduled_tasks: AtomicUsize,
+    start: Mutex<Option<Instant>>,
+    last_update: Mutex<Option<(Duration, usize)>>,
+    event: Event,
 }
 
 task_local! {
@@ -44,6 +54,11 @@ impl TurboTasks {
             resolve_task_cache: CHashMap::new(),
             native_task_cache: CHashMap::new(),
             trait_task_cache: CHashMap::new(),
+            currently_scheduled_tasks: AtomicUsize::new(0),
+            scheduled_tasks: AtomicUsize::new(0),
+            start: Default::default(),
+            last_update: Default::default(),
+            event: Event::new(),
         }))
     }
 
@@ -67,19 +82,17 @@ impl TurboTasks {
             let task = cached.clone();
             drop(cached);
             Task::with_current(|parent| task.connect_parent(parent));
-            task.ensure_scheduled(self);
+            // TODO maybe force (background) scheduling to avoid inactive tasks hanging in "in progress" until they become active
             return Ok(SlotRef::TaskOutput(task));
         } else {
             // slow pass with key lock
             let mut result_task;
-            let mut is_new = true;
             match create_new() {
                 Ok(task) => {
                     let new_task = Arc::new(task);
                     result_task = Ok(new_task.clone());
                     map.alter(key, |old| match old {
                         Some(t) => {
-                            is_new = false;
                             result_task = Ok(t.clone());
                             Some(t)
                         }
@@ -97,11 +110,6 @@ impl TurboTasks {
             }
             let task = result_task?;
             Task::with_current(|parent| task.connect_parent(parent));
-            if is_new {
-                self.schedule(task.clone());
-            } else {
-                task.ensure_scheduled(self);
-            }
             return Ok(SlotRef::TaskOutput(task));
         }
     }
@@ -145,23 +153,50 @@ impl TurboTasks {
     }
 
     pub(crate) fn schedule(&'static self, task: Arc<Task>) -> JoinHandle<()> {
+        if self
+            .currently_scheduled_tasks
+            .fetch_add(1, Ordering::Relaxed)
+            == 0
+        {
+            *self.start.lock().unwrap() = Some(Instant::now());
+        }
+        self.scheduled_tasks.fetch_add(1, Ordering::Relaxed);
         Builder::new()
             // that's expensive
             // .name(format!("{:?} {:?}", &*task, &*task as *const Task))
             .spawn(async move {
-                Task::set_current(task.clone());
-                TURBO_TASKS.with(|c| c.set(Some(self)));
-                task.execution_started();
-                let result = task.execute(self).await;
-                task.execution_result(result);
-                TASKS_TO_NOTIFY.with(|tasks| {
-                    for task in tasks.take().iter() {
-                        task.dependent_slot_updated(self);
+                if task.execution_started() {
+                    Task::set_current(task.clone());
+                    TURBO_TASKS.with(|c| c.set(Some(self)));
+                    let result = task.execute(self).await;
+                    task.execution_result(result);
+                    TASKS_TO_NOTIFY.with(|tasks| {
+                        for task in tasks.take().iter() {
+                            task.dependent_slot_updated(self);
+                        }
+                    });
+                    task.execution_completed(self);
+                }
+                if self
+                    .currently_scheduled_tasks
+                    .fetch_sub(1, Ordering::Relaxed)
+                    == 1
+                {
+                    // That's not super race-condition-safe, but it's only for statistical reasons
+                    let total = self.scheduled_tasks.load(Ordering::Relaxed);
+                    self.scheduled_tasks.store(0, Ordering::Relaxed);
+                    if let Some(start) = *self.start.lock().unwrap() {
+                        *self.last_update.lock().unwrap() = Some((start.elapsed(), total));
+                        self.event.notify(usize::MAX);
                     }
-                });
-                task.execution_completed(self);
+                }
             })
             .unwrap()
+    }
+
+    pub async fn wait_done(&'static self) -> (Duration, usize) {
+        self.event.listen().await;
+        self.last_update.lock().unwrap().unwrap()
     }
 
     pub(crate) fn current() -> Option<&'static Self> {

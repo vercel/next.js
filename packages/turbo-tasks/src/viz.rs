@@ -3,14 +3,14 @@ use std::{
     sync::Arc,
 };
 
-use crate::{SlotRef, Task, WeakSlotRef};
+use crate::{SlotRef, Task};
 
 pub struct TaskSnapshot {
     pub name: String,
     pub inputs: Vec<SlotRef>,
     pub state: String,
     pub children: Vec<Arc<Task>>,
-    pub dependencies: Vec<WeakSlotRef>,
+    pub dependencies: Vec<SlotRef>,
     pub slots: Vec<SlotRef>,
     pub output_slot: SlotRef,
     pub executions: u32,
@@ -128,7 +128,7 @@ impl GraphViz {
             self.edges
                 .insert((id.clone(), child_id, EdgeType::ChildTask));
         }
-        for dependency in snapshot.dependencies.iter().filter_map(|sr| sr.upgrade()) {
+        for dependency in snapshot.dependencies.iter() {
             let dep_id = self.get_slot_id(&dependency);
             self.edges
                 .insert((id.clone(), dep_id, EdgeType::Dependency));
