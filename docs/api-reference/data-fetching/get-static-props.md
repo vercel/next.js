@@ -110,6 +110,8 @@ export async function getStaticProps(context) {
 
 The `redirect` object allows redirecting to internal or external resources. It should match the shape of `{ destination: string, permanent: boolean }`.
 
+By default, any query parameters from the original request will be stripped during the redirect. If you would like to keep these, you can set `forwardQueryParams: true`. If you also provide query parameters in the `destination` property, those will take precendence over parameters from the request.
+
 In some rare cases, you might need to assign a custom status code for older `HTTP` clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, **but not both**. You can also set `basePath: false` similar to redirects in `next.config.js`.
 
 ```js
