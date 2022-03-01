@@ -155,6 +155,34 @@ describe('should set-up next', () => {
     expect(typeof requiredFilesManifest.appDir).toBe('string')
   })
 
+  it('should de-dupe HTML/data requests with x-nextjs-dedupe', async () => {
+    const res = await fetchViaHTTP(appPort, '/gsp', undefined, {
+      redirect: 'manual',
+      headers: {
+        'x-nextjs-dedupe': '1',
+      },
+    })
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+    const props = JSON.parse($('#props').text())
+    expect(props.gspCalls).toBeDefined()
+
+    const res2 = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/gsp.json`,
+      undefined,
+      {
+        redirect: 'manual',
+        headers: {
+          'x-nextjs-dedupe': '1',
+        },
+      }
+    )
+    expect(res2.status).toBe(200)
+    const { pageProps: props2 } = await res2.json()
+    expect(props2.gspCalls).toBe(props.gspCalls)
+  })
+
   it('should set correct SWR headers with notFound gsp', async () => {
     await next.patchFile('standalone/data.txt', 'show')
 

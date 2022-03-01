@@ -373,7 +373,10 @@ export default abstract class Server {
         }
       },
     })
-    this.responseCache = new ResponseCache(this.incrementalCache)
+    this.responseCache = new ResponseCache(
+      this.incrementalCache,
+      this.minimalMode
+    )
   }
 
   public logError(err: Error): void {
@@ -1275,9 +1278,13 @@ export default abstract class Server {
       resolvedUrlPathname = stripNextDataPath(resolvedUrlPathname)
       urlPathname = stripNextDataPath(urlPathname)
     }
+    const canLeveragePreviousCache = !!req.headers['x-nextjs-dedupe']
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG || this.minimalMode || opts.supportsDynamicHTML
+      isPreviewMode ||
+      !isSSG ||
+      (this.minimalMode && !canLeveragePreviousCache) ||
+      opts.supportsDynamicHTML
         ? null // Preview mode and manual revalidate bypasses the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
@@ -1513,6 +1520,7 @@ export default abstract class Server {
       },
       {
         isManualRevalidate,
+        canLeveragePreviousCache,
       }
     )
 

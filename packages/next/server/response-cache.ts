@@ -79,16 +79,26 @@ interface IncrementalCache {
 export default class ResponseCache {
   incrementalCache: IncrementalCache
   pendingResponses: Map<string, Promise<ResponseCacheEntry | null>>
+  previousCacheItem?: {
+    key: string
+    entry: ResponseCacheEntry | null
+    expiresAt: number | false
+  }
+  minimalMode?: boolean
 
-  constructor(incrementalCache: IncrementalCache) {
+  constructor(incrementalCache: IncrementalCache, minimalMode: boolean) {
     this.incrementalCache = incrementalCache
     this.pendingResponses = new Map()
+    this.minimalMode = minimalMode
   }
 
   public get(
     key: string | null,
     responseGenerator: ResponseGenerator,
-    context: { isManualRevalidate?: boolean }
+    context: {
+      isManualRevalidate?: boolean
+      canLeveragePreviousCache?: boolean
+    }
   ): Promise<ResponseCacheEntry | null> {
     const pendingResponse = key ? this.pendingResponses.get(key) : null
     if (pendingResponse) {
@@ -119,12 +129,28 @@ export default class ResponseCache {
       }
     }
 
+    // we keep the previous cache entry around to leverage
+    // when the incremental cache is disabled in minimal mode
+    if (
+      key &&
+      this.minimalMode &&
+      context.canLeveragePreviousCache &&
+      this.previousCacheItem?.key === key &&
+      (this.previousCacheItem.expiresAt === false ||
+        this.previousCacheItem.expiresAt > Date.now())
+    ) {
+      resolve(this.previousCacheItem.entry)
+      return promise
+    }
+
     // We wait to do any async work until after we've added our promise to
     // `pendingResponses` to ensure that any any other calls will reuse the
     // same promise until we've fully finished our work.
     ;(async () => {
       try {
-        const cachedResponse = key ? await this.incrementalCache.get(key) : null
+        const cachedResponse =
+          key && !this.minimalMode ? await this.incrementalCache.get(key) : null
+
         if (cachedResponse && !context.isManualRevalidate) {
           resolve({
             isStale: cachedResponse.isStale,
@@ -156,17 +182,28 @@ export default class ResponseCache {
         )
 
         if (key && cacheEntry && typeof cacheEntry.revalidate !== 'undefined') {
-          await this.incrementalCache.set(
-            key,
-            cacheEntry.value?.kind === 'PAGE'
-              ? {
-                  kind: 'PAGE',
-                  html: cacheEntry.value.html.toUnchunkedString(),
-                  pageData: cacheEntry.value.pageData,
-                }
-              : cacheEntry.value,
-            cacheEntry.revalidate
-          )
+          if (this.minimalMode) {
+            this.previousCacheItem = {
+              key,
+              entry: cacheEntry,
+              expiresAt:
+                typeof cacheEntry.revalidate !== 'number'
+                  ? false
+                  : Date.now() + cacheEntry?.revalidate * 1000,
+            }
+          } else {
+            await this.incrementalCache.set(
+              key,
+              cacheEntry.value?.kind === 'PAGE'
+                ? {
+                    kind: 'PAGE',
+                    html: cacheEntry.value.html.toUnchunkedString(),
+                    pageData: cacheEntry.value.pageData,
+                  }
+                : cacheEntry.value,
+              cacheEntry.revalidate
+            )
+          }
         }
       } catch (err) {
         // while revalidating in the background we can't reject as
