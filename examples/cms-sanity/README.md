@@ -3,9 +3,9 @@
 This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Sanity](https://www.sanity.io/) as the data source.
 
 You'll get:
+
 - Sanity Studio running on localhost
 - Sub-second as-you-type previews in Next.js
-
 
 ## Demo
 
@@ -92,11 +92,11 @@ SANITY_PREVIEW_SECRET=...
 
 ### Step 5. Prepare the project for previewing
 
-1. Install the `@sanity/production-preview` plugin with `sanity install @sanity/production-preview`.
+5.1. Install the `@sanity/production-preview` plugin with `sanity install @sanity/production-preview`.
 
-2. Create a file called `resolveProductionUrl.js` (we'll get back to that file in a bit).
+5.2. Create a file called `resolveProductionUrl.js` (we'll get back to that file in a bit).
 
-3. Open your studio's sanity.json, and add the following entry to the parts-array:
+5.3. Open your studio's sanity.json, and add the following entry to the parts-array:
 
 ```diff
 {
@@ -199,4 +199,3 @@ Alternatively, you can deploy using our template by clicking on the Deploy butto
 
 - Invalidate your routes in production on-demand with GROQ powered webhooks
 - Mount your preview inside the Sanity Studio for comfortable side-by-side editing
-
