@@ -5,14 +5,20 @@ import { parse } from '../../swc'
 import { getBaseSWCOptions } from '../../swc/options'
 import { getRawPageExtensions } from '../../utils'
 
-const getIsClientComponent =
+const createClientComponentFilter =
   (pageExtensions: string[]) => (importSource: string) => {
-    return new RegExp(`\\.client(\\.(${pageExtensions.join('|')}))?`).test(
-      importSource
+    const hasClientExtension = new RegExp(
+      `\\.client(\\.(${pageExtensions.join('|')}))?`
+    ).test(importSource)
+    // Special cases for Next.js APIs that are considered as client components:
+    return (
+      hasClientExtension ||
+      isNextComponent(importSource) ||
+      isImageImport(importSource)
     )
   }
 
-const getIsServerComponent =
+const createServerComponentFilter =
   (pageExtensions: string[]) => (importSource: string) => {
     return new RegExp(`\\.server(\\.(${pageExtensions.join('|')}))?`).test(
       importSource
@@ -25,7 +31,7 @@ function isNextComponent(importSource: string) {
   )
 }
 
-export function isImageImport(importSource: string) {
+function isImageImport(importSource: string) {
   // TODO: share extension with next/image
   // TODO: add other static assets, jpeg -> jpg
   return ['jpg', 'jpeg', 'png', 'webp', 'avif'].some((imageExt) =>
@@ -57,7 +63,6 @@ async function parseImportsInfo({
   })
   const ast = await parse(source, { ...opts.jsc.parser, isModule: true })
   const { body } = ast
-  const beginPos = ast.span.start
   let transformedSource = ''
   let lastIndex = 0
   let defaultExportName
@@ -74,16 +79,18 @@ async function parseImportsInfo({
 
           const importDeclarations = source.substring(
             lastIndex,
-            node.source.span.start - beginPos
+            node.source.span.start
           )
 
-          if (
-            !(
-              isClientComponent(importSource) ||
-              isNextComponent(importSource) ||
-              isImageImport(importSource)
-            )
-          ) {
+          if (isClientComponent(importSource)) {
+            // A client component. It should be loaded as module reference.
+            transformedSource += importDeclarations
+            transformedSource += JSON.stringify(`${importSource}?__sc_client__`)
+            imports.push(`require(${JSON.stringify(importSource)})`)
+          } else {
+            // This is a special case to avoid the Duplicate React error.
+            // Since we already include React in the SSR runtime,
+            // here we can't create a new module with the ?__rsc_server__ query.
             if (
               ['react/jsx-runtime', 'react/jsx-dev-runtime'].includes(
                 importSource
@@ -96,11 +103,6 @@ async function parseImportsInfo({
             // component.
             transformedSource += importDeclarations
             transformedSource += JSON.stringify(`${importSource}?__sc_server__`)
-          } else {
-            // A client component. It should be loaded as module reference.
-            transformedSource += importDeclarations
-            transformedSource += JSON.stringify(`${importSource}?__sc_client__`)
-            imports.push(`require(${JSON.stringify(importSource)})`)
           }
         } else {
           // For the client compilation, we skip all modules imports but
@@ -108,12 +110,7 @@ async function parseImportsInfo({
           // have to be imported from either server or client components.
           if (
             !(
-              isClientComponent(importSource) ||
-              isServerComponent(importSource) ||
-              // Special cases for Next.js APIs that are considered as client
-              // components:
-              isNextComponent(importSource) ||
-              isImageImport(importSource)
+              isClientComponent(importSource) || isServerComponent(importSource)
             )
           ) {
             continue
@@ -122,7 +119,7 @@ async function parseImportsInfo({
           imports.push(`require(${JSON.stringify(importSource)})`)
         }
 
-        lastIndex = node.source.span.end - beginPos
+        lastIndex = node.source.span.end
         break
       }
       case 'ExportDefaultDeclaration': {
@@ -170,8 +167,8 @@ export default async function transformSource(
   }
 
   const rawRawPageExtensions = getRawPageExtensions(pageExtensions)
-  const isServerComponent = getIsServerComponent(rawRawPageExtensions)
-  const isClientComponent = getIsClientComponent(rawRawPageExtensions)
+  const isServerComponent = createServerComponentFilter(rawRawPageExtensions)
+  const isClientComponent = createClientComponentFilter(rawRawPageExtensions)
 
   if (!isClientCompilation) {
     // We only apply the loader to server components, or shared components that
