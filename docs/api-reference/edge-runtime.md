@@ -82,10 +82,6 @@ The following JavaScript language features are disabled, and **will not work:**
 - [`eval`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval): Evaluates JavaScript code represented as a string
 - [`new Function(evalString)`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function): Creates a new function with the code provided as an argument
 
-The following Web APIs are currently not supported, but will be in the future:
-
-- [`AbortController`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController): Abort one or more Web requests when desired
-
 ## Related
 
 <div class="card">

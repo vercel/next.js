@@ -15,11 +15,11 @@ export type OutputState =
       | {
           loading: false
           typeChecking: boolean
-          partial: 'client' | 'server' | 'serverWeb' | undefined
+          partial: 'client and server' | undefined
           modules: number
           errors: string[] | null
           warnings: string[] | null
-          hasServerWeb: boolean
+          hasEdgeServer: boolean
         }
     ))
 
@@ -56,17 +56,20 @@ store.subscribe((state) => {
     if (state.appUrl) {
       Log.ready(`started server on ${state.bindAddr}, url: ${state.appUrl}`)
     }
-    if (startTime === 0) startTime = Date.now()
     return
   }
 
   if (state.loading) {
     if (state.trigger) {
-      Log.wait(`compiling ${state.trigger}...`)
+      if (state.trigger !== 'initial') {
+        Log.wait(`compiling ${state.trigger}...`)
+      }
     } else {
       Log.wait('compiling...')
     }
-    if (startTime === 0) startTime = Date.now()
+    if (startTime === 0) {
+      startTime = Date.now()
+    }
     return
   }
 
@@ -88,9 +91,9 @@ store.subscribe((state) => {
     }
 
     const moduleName = getUnresolvedModuleFromError(cleanError)
-    if (state.hasServerWeb && moduleName) {
+    if (state.hasEdgeServer && moduleName) {
       console.error(
-        `Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`${moduleName}\` imported.\n`
+        `Native Node.js APIs are not supported in the Edge Runtime. Found \`${moduleName}\` imported.\n`
       )
       return
     }

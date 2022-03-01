@@ -1,1 +1,3 @@
-module.exports = require('cssnano-simple')(require('postcss'))
+module.exports = require('next/dist/compiled/cssnano-simple')(
+  require('postcss')
+)

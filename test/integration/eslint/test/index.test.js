@@ -25,10 +25,6 @@ const dirInvalidOlderEslintVersion = join(
   __dirname,
   '../invalid-eslint-version'
 )
-const dirInvalidNewerEslintVersion = join(
-  __dirname,
-  '../invalid-newer-eslint-version'
-)
 const dirMaxWarnings = join(__dirname, '../max-warnings')
 const dirEmptyDirectory = join(__dirname, '../empty-directory')
 const dirEslintIgnore = join(__dirname, '../eslint-ignore')
@@ -112,24 +108,6 @@ describe('ESLint', () => {
       const output = stdout + stderr
       expect(output).toContain(
         'Your project has an older version of ESLint installed'
-      )
-    })
-
-    // TODO: Remove this test when ESLint v8 is supported https://github.com/vercel/next.js/pull/29865
-    test('invalid newer eslint version', async () => {
-      const { stdout, stderr } = await nextBuild(
-        dirInvalidNewerEslintVersion,
-        [],
-        {
-          stdout: true,
-          stderr: true,
-        }
-      )
-
-      const output = stdout + stderr
-      console.log(output)
-      expect(output).toContain(
-        'ESLint version 8.0.1 is not yet supported. Please downgrade to version 7 for the meantime'
       )
     })
 

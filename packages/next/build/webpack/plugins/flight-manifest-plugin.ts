@@ -18,12 +18,14 @@ import { MIDDLEWARE_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 type Options = {
   dev: boolean
   clientComponentsRegex: RegExp
+  runtime?: 'nodejs' | 'edge'
 }
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
 
 export class FlightManifestPlugin {
   dev: boolean = false
+  runtime?: 'nodejs' | 'edge'
   clientComponentsRegex: RegExp
 
   constructor(options: Options) {
@@ -31,6 +33,7 @@ export class FlightManifestPlugin {
       this.dev = options.dev
     }
     this.clientComponentsRegex = options.clientComponentsRegex
+    this.runtime = options.runtime
   }
 
   apply(compiler: any) {
@@ -66,7 +69,7 @@ export class FlightManifestPlugin {
     const { clientComponentsRegex } = this
     compilation.chunkGroups.forEach((chunkGroup: any) => {
       function recordModule(id: string, _chunk: any, mod: any) {
-        const resource = mod.resource?.replace(/\?flight$/, '')
+        const resource = mod.resource?.replace(/\?__sc_client__$/, '')
 
         // TODO: Hook into deps instead of the target module.
         // That way we know by the type of dep whether to include.
@@ -120,9 +123,13 @@ export class FlightManifestPlugin {
       })
     })
 
-    const output = `self.__RSC_MANIFEST=` + JSON.stringify(json)
-    assets[`server/${MIDDLEWARE_FLIGHT_MANIFEST}.js`] = new sources.RawSource(
-      output
-    )
+    const output =
+      (this.runtime === 'edge' ? 'self.__RSC_MANIFEST=' : '') +
+      JSON.stringify(json)
+    assets[
+      `server/${MIDDLEWARE_FLIGHT_MANIFEST}${
+        this.runtime === 'edge' ? '.js' : '.json'
+      }`
+    ] = new sources.RawSource(output)
   }
 }

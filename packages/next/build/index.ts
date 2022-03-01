@@ -1,15 +1,15 @@
 import { loadEnvConfig } from '@next/env'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { isMatch } from 'next/dist/compiled/micromatch'
 import { promises, writeFileSync } from 'fs'
 import { Worker } from '../lib/worker'
 import devalue from 'next/dist/compiled/devalue'
-import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
+import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import path from 'path'
+import path, { join } from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
@@ -57,9 +57,9 @@ import {
   isDynamicRoute,
 } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
-import loadConfig, { isTargetLikeServerless } from '../server/config'
+import loadConfig from '../server/config'
+import { isTargetLikeServerless } from '../server/utils'
 import { BuildManifest } from '../server/get-page-files'
-import '../server/node-polyfill-fetch'
 import { normalizePagePath } from '../server/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -89,7 +89,6 @@ import {
   PageInfo,
   printCustomRoutes,
   printTreeView,
-  getCssFilePaths,
   getUnresolvedModuleFromError,
   copyTracedFiles,
   isReservedPage,
@@ -152,7 +151,11 @@ export default async function build(
     setGlobal('phase', PHASE_PRODUCTION_BUILD)
     setGlobal('distDir', distDir)
 
-    const hasConcurrentFeatures = !!config.experimental.concurrentFeatures
+    // Currently, when the runtime option is set (either `nodejs` or `edge`),
+    // we enable concurrent features (Fizz-related rendering architecture).
+    const runtime = config.experimental.runtime
+    const hasConcurrentFeatures = !!runtime
+
     const hasServerComponents =
       hasConcurrentFeatures && !!config.experimental.serverComponents
 
@@ -243,7 +246,8 @@ export default async function build(
 
     const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
     const eslintCacheDir = path.join(cacheDir, 'eslint/')
-    if (!ignoreESLint && runLint) {
+    const shouldLint = !ignoreESLint && runLint
+    if (shouldLint) {
       await nextBuildSpan
         .traceChild('verify-and-lint')
         .traceAsyncFn(async () => {
@@ -257,6 +261,14 @@ export default async function build(
           )
         })
     }
+    const buildLintEvent: EventBuildFeatureUsage = {
+      featureName: 'build-lint',
+      invocationCount: shouldLint ? 1 : 0,
+    }
+    telemetry.record({
+      eventName: EVENT_BUILD_FEATURE_USAGE,
+      payload: buildLintEvent,
+    })
 
     const buildSpinner = createSpinner({
       prefixText: `${Log.prefixes.info} Creating an optimized production build`,
@@ -281,12 +293,11 @@ export default async function build(
     const mappedPages = nextBuildSpan
       .traceChild('create-pages-mapping')
       .traceFn(() =>
-        createPagesMapping(
-          pagePaths,
-          config.pageExtensions,
-          false,
-          hasServerComponents
-        )
+        createPagesMapping(pagePaths, config.pageExtensions, {
+          isDev: false,
+          hasServerComponents,
+          runtime,
+        })
       )
 
     const entrypoints = nextBuildSpan
@@ -416,7 +427,7 @@ export default async function build(
       pages404: boolean
       basePath: string
       redirects: Array<ReturnType<typeof buildCustomRoute>>
-      rewrites:
+      rewrites?:
         | Array<ReturnType<typeof buildCustomRoute>>
         | {
             beforeFiles: Array<ReturnType<typeof buildCustomRoute>>
@@ -521,6 +532,13 @@ export default async function build(
       await recursiveDelete(distDir, /^cache/)
     }
 
+    // Ensure commonjs handling is used for files in the distDir (generally .next)
+    // Files outside of the distDir can be "type": "module"
+    await promises.writeFile(
+      path.join(distDir, 'package.json'),
+      '{"type": "commonjs"}'
+    )
+
     // We need to write the manifest with rewrites before build
     // so serverless can import the manifest
     await nextBuildSpan
@@ -545,8 +563,11 @@ export default async function build(
         version: 1,
         config: {
           ...config,
-          compress: false,
           configFile: undefined,
+          experimental: {
+            ...config.experimental,
+            trustHostHeader: ciEnvironment.hasNextSupport,
+          },
         },
         appDir: dir,
         files: [
@@ -556,7 +577,11 @@ export default async function build(
           PRERENDER_MANIFEST,
           path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
           hasServerComponents
-            ? path.join(SERVER_DIRECTORY, MIDDLEWARE_FLIGHT_MANIFEST + '.js')
+            ? path.join(
+                SERVER_DIRECTORY,
+                MIDDLEWARE_FLIGHT_MANIFEST +
+                  (runtime === 'edge' ? '.js' : '.json')
+              )
             : null,
           REACT_LOADABLE_MANIFEST,
           config.optimizeFonts
@@ -572,104 +597,111 @@ export default async function build(
         ignore: [] as string[],
       }))
 
-    const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
-    const configs = await runWebpackSpan
-      .traceChild('generate-webpack-config')
-      .traceAsyncFn(() =>
-        Promise.all([
-          getBaseWebpackConfig(dir, {
-            buildId,
-            reactProductionProfiling,
-            isServer: false,
-            config,
-            target,
-            pagesDir,
-            entrypoints: entrypoints.client,
-            rewrites,
-            runWebpackSpan,
-          }),
-          getBaseWebpackConfig(dir, {
-            buildId,
-            reactProductionProfiling,
-            isServer: true,
-            config,
-            target,
-            pagesDir,
-            entrypoints: entrypoints.server,
-            rewrites,
-            runWebpackSpan,
-          }),
-          hasConcurrentFeatures
-            ? getBaseWebpackConfig(dir, {
-                buildId,
-                reactProductionProfiling,
-                isServer: true,
-                webServerRuntime: true,
-                config,
-                target,
-                pagesDir,
-                entrypoints: entrypoints.serverWeb,
-                rewrites,
-                runWebpackSpan,
-              })
-            : null,
-        ])
-      )
-
-    const clientConfig = configs[0]
-
-    if (
-      clientConfig.optimization &&
-      (clientConfig.optimization.minimize !== true ||
-        (clientConfig.optimization.minimizer &&
-          clientConfig.optimization.minimizer.length === 0))
-    ) {
-      Log.warn(
-        `Production code optimization has been disabled in your project. Read more: https://nextjs.org/docs/messages/minification-disabled`
-      )
-    }
-
-    const webpackBuildStart = process.hrtime()
-
     let result: CompilerResult = { warnings: [], errors: [] }
-    // We run client and server compilation separately to optimize for memory usage
-    await runWebpackSpan.traceAsyncFn(async () => {
-      const clientResult = await runCompiler(clientConfig, { runWebpackSpan })
-      // Fail build if clientResult contains errors
-      if (clientResult.errors.length > 0) {
-        result = {
-          warnings: [...clientResult.warnings],
-          errors: [...clientResult.errors],
-        }
-      } else {
-        const serverResult = await runCompiler(configs[1], { runWebpackSpan })
-        const serverWebResult = configs[2]
-          ? await runCompiler(configs[2], { runWebpackSpan })
-          : null
+    let webpackBuildStart
+    let telemetryPlugin
+    await (async () => {
+      // IIFE to isolate locals and avoid retaining memory too long
+      const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
+      const configs = await runWebpackSpan
+        .traceChild('generate-webpack-config')
+        .traceAsyncFn(() =>
+          Promise.all([
+            getBaseWebpackConfig(dir, {
+              buildId,
+              reactProductionProfiling,
+              isServer: false,
+              config,
+              target,
+              pagesDir,
+              entrypoints: entrypoints.client,
+              rewrites,
+              runWebpackSpan,
+            }),
+            getBaseWebpackConfig(dir, {
+              buildId,
+              reactProductionProfiling,
+              isServer: true,
+              config,
+              target,
+              pagesDir,
+              entrypoints: entrypoints.server,
+              rewrites,
+              runWebpackSpan,
+            }),
+            runtime === 'edge'
+              ? getBaseWebpackConfig(dir, {
+                  buildId,
+                  reactProductionProfiling,
+                  isServer: true,
+                  isEdgeRuntime: true,
+                  config,
+                  target,
+                  pagesDir,
+                  entrypoints: entrypoints.edgeServer,
+                  rewrites,
+                  runWebpackSpan,
+                })
+              : null,
+          ])
+        )
 
-        result = {
-          warnings: [
-            ...clientResult.warnings,
-            ...serverResult.warnings,
-            ...(serverWebResult?.warnings || []),
-          ],
-          errors: [
-            ...clientResult.errors,
-            ...serverResult.errors,
-            ...(serverWebResult?.errors || []),
-          ],
-        }
+      const clientConfig = configs[0]
+
+      if (
+        clientConfig.optimization &&
+        (clientConfig.optimization.minimize !== true ||
+          (clientConfig.optimization.minimizer &&
+            clientConfig.optimization.minimizer.length === 0))
+      ) {
+        Log.warn(
+          `Production code optimization has been disabled in your project. Read more: https://nextjs.org/docs/messages/minification-disabled`
+        )
       }
-    })
 
+      webpackBuildStart = process.hrtime()
+
+      // We run client and server compilation separately to optimize for memory usage
+      await runWebpackSpan.traceAsyncFn(async () => {
+        const clientResult = await runCompiler(clientConfig, { runWebpackSpan })
+        // Fail build if clientResult contains errors
+        if (clientResult.errors.length > 0) {
+          result = {
+            warnings: [...clientResult.warnings],
+            errors: [...clientResult.errors],
+          }
+        } else {
+          const serverResult = await runCompiler(configs[1], { runWebpackSpan })
+          const edgeServerResult = configs[2]
+            ? await runCompiler(configs[2], { runWebpackSpan })
+            : null
+
+          result = {
+            warnings: [
+              ...clientResult.warnings,
+              ...serverResult.warnings,
+              ...(edgeServerResult?.warnings || []),
+            ],
+            errors: [
+              ...clientResult.errors,
+              ...serverResult.errors,
+              ...(edgeServerResult?.errors || []),
+            ],
+          }
+        }
+      })
+      result = nextBuildSpan
+        .traceChild('format-webpack-messages')
+        .traceFn(() => formatWebpackMessages(result, true))
+
+      telemetryPlugin = (clientConfig as webpack.Configuration).plugins?.find(
+        isTelemetryPlugin
+      )
+    })()
     const webpackBuildEnd = process.hrtime(webpackBuildStart)
     if (buildSpinner) {
       buildSpinner.stopAndPersist()
     }
-
-    result = nextBuildSpan
-      .traceChild('format-webpack-messages')
-      .traceFn(() => formatWebpackMessages(result, true))
 
     if (result.errors.length > 0) {
       // Only keep the first few errors. Others are often indicative
@@ -700,7 +732,7 @@ export default async function build(
       const moduleName = getUnresolvedModuleFromError(error)
       if (hasConcurrentFeatures && moduleName) {
         const err = new Error(
-          `Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`${moduleName}\` imported.\n\n`
+          `Native Node.js APIs are not supported in the Edge Runtime. Found \`${moduleName}\` imported.\n\n`
         ) as NextError
         err.code = 'EDGE_RUNTIME_UNSUPPORTED_API'
         throw err
@@ -768,6 +800,9 @@ export default async function build(
       ? require.resolve('./worker')
       : require.resolve('./utils')
     let infoPrinted = false
+
+    process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
+
     const staticWorkers = new Worker(staticWorker, {
       timeout: timeout * 1000,
       onRestart: (method, [arg], attempts) => {
@@ -819,7 +854,6 @@ export default async function build(
       >
 
     const analysisBegin = process.hrtime()
-
     const staticCheckSpan = nextBuildSpan.traceChild('static-check')
     const {
       customAppGetInitialProps,
@@ -828,8 +862,6 @@ export default async function build(
       hasSsrAmpPages,
       hasNonStaticErrorPage,
     } = await staticCheckSpan.traceAsyncFn(async () => {
-      process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
-
       const { configFileName, publicRuntimeConfig, serverRuntimeConfig } =
         config
       const runtimeEnvConfig = { publicRuntimeConfig, serverRuntimeConfig }
@@ -1018,7 +1050,7 @@ export default async function build(
                   )
                 }
               } catch (err) {
-                if (isError(err) && err.message !== 'INVALID_DEFAULT_EXPORT')
+                if (!isError(err) || err.message !== 'INVALID_DEFAULT_EXPORT')
                   throw err
                 invalidPages.add(page)
               }
@@ -1199,6 +1231,8 @@ export default async function build(
             ).createHash('sha256')
 
             cacheHash.update(require('next/package').version)
+            cacheHash.update(hasSsrAmpPages + '')
+            cacheHash.update(ciEnvironment.hasNextSupport + '')
 
             await Promise.all(
               lockFiles.map(async (lockFile) => {
@@ -1227,12 +1261,20 @@ export default async function build(
               processCwd: dir,
               ignore: [
                 '**/next/dist/pages/**/*',
-                '**/next/dist/server/image-optimizer.js',
-                '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
-                '**/next/dist/server/lib/squoosh/**/*.wasm',
                 '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
-                '**/node_modules/sharp/**/*',
                 '**/node_modules/webpack5/**/*',
+                '**/next/dist/server/lib/squoosh/**/*.wasm',
+                ...(ciEnvironment.hasNextSupport
+                  ? [
+                      // only ignore image-optimizer code when
+                      // this is being handled outside of next-server
+                      '**/next/dist/server/image-optimizer.js',
+                      '**/node_modules/sharp/**/*',
+                    ]
+                  : []),
+                ...(!hasSsrAmpPages
+                  ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
+                  : []),
               ],
             }
           )
@@ -1343,26 +1385,55 @@ export default async function build(
     await writeBuildId(distDir, buildId)
 
     if (config.experimental.optimizeCss) {
-      const cssFilePaths = getCssFilePaths(buildManifest)
+      const globOrig =
+        require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+
+      const cssFilePaths = await new Promise<string[]>((resolve, reject) => {
+        globOrig('**/*.css', { cwd: join(distDir, 'static') }, (err, files) => {
+          if (err) {
+            return reject(err)
+          }
+          resolve(files)
+        })
+      })
 
       requiredServerFiles.files.push(
-        ...cssFilePaths.map((filePath) => path.join(config.distDir, filePath))
+        ...cssFilePaths.map((filePath) =>
+          path.join(config.distDir, 'static', filePath)
+        )
       )
     }
 
-    const optimizeCss: EventBuildFeatureUsage = {
-      featureName: 'experimental/optimizeCss',
-      invocationCount: config.experimental.optimizeCss ? 1 : 0,
-    }
-    telemetry.record({
-      eventName: EVENT_BUILD_FEATURE_USAGE,
-      payload: optimizeCss,
-    })
+    const features: EventBuildFeatureUsage[] = [
+      {
+        featureName: 'experimental/optimizeCss',
+        invocationCount: config.experimental.optimizeCss ? 1 : 0,
+      },
+      {
+        featureName: 'optimizeFonts',
+        invocationCount: config.optimizeFonts ? 1 : 0,
+      },
+    ]
+    telemetry.record(
+      features.map((feature) => {
+        return {
+          eventName: EVENT_BUILD_FEATURE_USAGE,
+          payload: feature,
+        }
+      })
+    )
 
     await promises.writeFile(
       path.join(distDir, SERVER_FILES_MANIFEST),
       JSON.stringify(requiredServerFiles),
       'utf8'
+    )
+
+    const middlewareManifest: MiddlewareManifest = JSON.parse(
+      await promises.readFile(
+        path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+        'utf8'
+      )
     )
 
     const outputFileTracingRoot =
@@ -1377,7 +1448,8 @@ export default async function build(
             distDir,
             pageKeys,
             outputFileTracingRoot,
-            requiredServerFiles.config
+            requiredServerFiles.config,
+            middlewareManifest
           )
         })
     }
@@ -1838,6 +1910,9 @@ export default async function build(
       })
     }
 
+    // ensure the worker is not left hanging
+    staticWorkers.close()
+
     const analysisEnd = process.hrtime(analysisBegin)
     telemetry.record(
       eventBuildOptimize(pagePaths, {
@@ -1862,9 +1937,6 @@ export default async function build(
       })
     )
 
-    const telemetryPlugin = (
-      clientConfig as webpack.Configuration
-    ).plugins?.find(isTelemetryPlugin)
     if (telemetryPlugin) {
       const events = eventBuildFeatureUsage(telemetryPlugin)
       telemetry.record(events)
@@ -1929,13 +2001,6 @@ export default async function build(
       )
     }
 
-    const middlewareManifest: MiddlewareManifest = JSON.parse(
-      await promises.readFile(
-        path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
-        'utf8'
-      )
-    )
-
     await promises.writeFile(
       path.join(
         distDir,
@@ -1981,6 +2046,12 @@ export default async function build(
       for (const file of [
         ...requiredServerFiles.files,
         path.join(config.distDir, SERVER_FILES_MANIFEST),
+        ...loadedEnvFiles.reduce<string[]>((acc, envFile) => {
+          if (['.env', '.env.production'].includes(envFile.path)) {
+            acc.push(envFile.path)
+          }
+          return acc
+        }, []),
       ]) {
         const filePath = path.join(dir, file)
         await promises.copyFile(
@@ -2000,7 +2071,8 @@ export default async function build(
           path.relative(outputFileTracingRoot, distDir),
           SERVER_DIRECTORY,
           'pages'
-        )
+        ),
+        { overwrite: true }
       )
     }
 
@@ -2047,8 +2119,6 @@ export default async function build(
   return buildResult
 }
 
-export type ClientSsgManifest = Set<string>
-
 function generateClientSsgManifest(
   prerenderManifest: PrerenderManifest,
   {
@@ -2057,7 +2127,7 @@ function generateClientSsgManifest(
     locales,
   }: { buildId: string; distDir: string; locales: string[] }
 ) {
-  const ssgPages: ClientSsgManifest = new Set<string>([
+  const ssgPages = new Set<string>([
     ...Object.entries(prerenderManifest.routes)
       // Filter out dynamic routes
       .filter(([, { srcRoute }]) => srcRoute == null)

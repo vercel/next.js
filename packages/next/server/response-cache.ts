@@ -1,27 +1,80 @@
-import { IncrementalCache } from './incremental-cache'
 import RenderResult from './render-result'
 
-interface CachedRedirectValue {
+export interface CachedRedirectValue {
   kind: 'REDIRECT'
   props: Object
 }
 
 interface CachedPageValue {
   kind: 'PAGE'
+  // this needs to be a RenderResult so since renderResponse
+  // expects that type instead of a string
   html: RenderResult
   pageData: Object
 }
 
-export type ResponseCacheValue = CachedRedirectValue | CachedPageValue
+export interface CachedImageValue {
+  kind: 'IMAGE'
+  etag: string
+  buffer: Buffer
+  extension: string
+  isMiss?: boolean
+  isStale?: boolean
+}
+
+interface IncrementalCachedPageValue {
+  kind: 'PAGE'
+  // this needs to be a string since the cache expects to store
+  // the string value
+  html: string
+  pageData: Object
+}
+
+export type IncrementalCacheEntry = {
+  curRevalidate?: number | false
+  // milliseconds to revalidate after
+  revalidateAfter: number | false
+  isStale?: boolean
+  value: IncrementalCacheValue | null
+}
+
+export type IncrementalCacheValue =
+  | CachedRedirectValue
+  | IncrementalCachedPageValue
+  | CachedImageValue
+
+export type ResponseCacheValue =
+  | CachedRedirectValue
+  | CachedPageValue
+  | CachedImageValue
 
 export type ResponseCacheEntry = {
   revalidate?: number | false
   value: ResponseCacheValue | null
+  isStale?: boolean
+  isMiss?: boolean
 }
 
 type ResponseGenerator = (
-  hasResolved: boolean
+  hasResolved: boolean,
+  hadCache: boolean
 ) => Promise<ResponseCacheEntry | null>
+
+interface IncrementalCache {
+  get: (key: string) => Promise<{
+    revalidateAfter?: number | false
+    curRevalidate?: number | false
+    revalidate?: number | false
+    value: IncrementalCacheValue | null
+    isStale?: boolean
+    isMiss?: boolean
+  } | null>
+  set: (
+    key: string,
+    data: IncrementalCacheValue | null,
+    revalidate?: number | false
+  ) => Promise<void>
+}
 
 export default class ResponseCache {
   incrementalCache: IncrementalCache
@@ -34,7 +87,8 @@ export default class ResponseCache {
 
   public get(
     key: string | null,
-    responseGenerator: ResponseGenerator
+    responseGenerator: ResponseGenerator,
+    context: { isManualRevalidate?: boolean }
   ): Promise<ResponseCacheEntry | null> {
     const pendingResponse = key ? this.pendingResponses.get(key) : null
     if (pendingResponse) {
@@ -71,8 +125,9 @@ export default class ResponseCache {
     ;(async () => {
       try {
         const cachedResponse = key ? await this.incrementalCache.get(key) : null
-        if (cachedResponse) {
+        if (cachedResponse && !context.isManualRevalidate) {
           resolve({
+            isStale: cachedResponse.isStale,
             revalidate: cachedResponse.curRevalidate,
             value:
               cachedResponse.value?.kind === 'PAGE'
@@ -90,8 +145,15 @@ export default class ResponseCache {
           }
         }
 
-        const cacheEntry = await responseGenerator(resolved)
-        resolve(cacheEntry)
+        const cacheEntry = await responseGenerator(resolved, !!cachedResponse)
+        resolve(
+          cacheEntry === null
+            ? null
+            : {
+                ...cacheEntry,
+                isMiss: !cachedResponse,
+              }
+        )
 
         if (key && cacheEntry && typeof cacheEntry.revalidate !== 'undefined') {
           await this.incrementalCache.set(
@@ -107,7 +169,13 @@ export default class ResponseCache {
           )
         }
       } catch (err) {
-        rejecter(err as Error)
+        // while revalidating in the background we can't reject as
+        // we already resolved the cache entry so log the error here
+        if (resolved) {
+          console.error(err)
+        } else {
+          rejecter(err as Error)
+        }
       } finally {
         if (key) {
           this.pendingResponses.delete(key)

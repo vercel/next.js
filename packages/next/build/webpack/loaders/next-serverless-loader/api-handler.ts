@@ -1,8 +1,12 @@
 import { parse as parseUrl } from 'url'
 import { IncomingMessage, ServerResponse } from 'http'
-import { apiResolver } from '../../../../server/api-utils'
+import { apiResolver } from '../../../../server/api-utils/node'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 import { DecodeError } from '../../../../shared/lib/utils'
+import {
+  NodeNextResponse,
+  NodeNextRequest,
+} from '../../../../server/base-http/node'
 
 export function getApiHandler(ctx: ServerlessHandlerCtx) {
   const { pageModule, encodedPreviewProps, pageIsDynamic } = ctx
@@ -13,7 +17,15 @@ export function getApiHandler(ctx: ServerlessHandlerCtx) {
     normalizeDynamicRouteParams,
   } = getUtils(ctx)
 
-  return async (req: IncomingMessage, res: ServerResponse) => {
+  return async (
+    rawReq: NodeNextRequest | IncomingMessage,
+    rawRes: NodeNextResponse | ServerResponse
+  ) => {
+    const req =
+      rawReq instanceof IncomingMessage ? new NodeNextRequest(rawReq) : rawReq
+    const res =
+      rawRes instanceof ServerResponse ? new NodeNextResponse(rawRes) : rawRes
+
     try {
       // We need to trust the dynamic route params from the proxy
       // to ensure we are using the correct values
@@ -41,8 +53,8 @@ export function getApiHandler(ctx: ServerlessHandlerCtx) {
       }
 
       await apiResolver(
-        req,
-        res,
+        req.originalRequest,
+        res.originalResponse,
         Object.assign({}, parsedUrl.query, params),
         await pageModule,
         encodedPreviewProps,
@@ -53,7 +65,7 @@ export function getApiHandler(ctx: ServerlessHandlerCtx) {
 
       if (err instanceof DecodeError) {
         res.statusCode = 400
-        res.end('Bad Request')
+        res.body('Bad Request').send()
       } else {
         // Throw the error to crash the serverless function
         throw err

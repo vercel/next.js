@@ -1,17 +1,18 @@
 import React, { Component, ReactElement, ReactNode, useContext } from 'react'
 import { OPTIMIZED_FONT_PROVIDERS } from '../shared/lib/constants'
-import {
+import type {
   DocumentContext,
   DocumentInitialProps,
   DocumentProps,
-  HtmlContext,
-  HtmlProps,
 } from '../shared/lib/utils'
 import { BuildManifest, getPageFiles } from '../server/get-page-files'
 import { cleanAmpPath } from '../server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 import Script, { ScriptProps } from '../client/script'
 import isError from '../lib/is-error'
+
+import { HtmlContext } from '../shared/lib/html-context'
+import type { HtmlProps } from '../shared/lib/html-context'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -51,6 +52,7 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
     buildManifest,
     devOnlyCacheBusterQueryString,
     disableOptimizedLoading,
+    crossOrigin,
   } = context
 
   return buildManifest.polyfillFiles
@@ -62,7 +64,7 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
         key={polyfill}
         defer={!disableOptimizedLoading}
         nonce={props.nonce}
-        crossOrigin={props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
+        crossOrigin={props.crossOrigin || crossOrigin}
         noModule={true}
         src={`${assetPrefix}/_next/${polyfill}${devOnlyCacheBusterQueryString}`}
       />
@@ -70,7 +72,7 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
 }
 
 function getPreNextScripts(context: HtmlProps, props: OriginProps) {
-  const { scriptLoader, disableOptimizedLoading } = context
+  const { scriptLoader, disableOptimizedLoading, crossOrigin } = context
 
   return (scriptLoader.beforeInteractive || []).map(
     (file: ScriptProps, index: number) => {
@@ -82,7 +84,7 @@ function getPreNextScripts(context: HtmlProps, props: OriginProps) {
           defer={!disableOptimizedLoading}
           nonce={props.nonce}
           data-nscript="beforeInteractive"
-          crossOrigin={props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
+          crossOrigin={props.crossOrigin || crossOrigin}
         />
       )
     }
@@ -100,6 +102,7 @@ function getDynamicChunks(
     isDevelopment,
     devOnlyCacheBusterQueryString,
     disableOptimizedLoading,
+    crossOrigin,
   } = context
 
   return dynamicImports.map((file) => {
@@ -114,7 +117,7 @@ function getDynamicChunks(
           file
         )}${devOnlyCacheBusterQueryString}`}
         nonce={props.nonce}
-        crossOrigin={props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
+        crossOrigin={props.crossOrigin || crossOrigin}
       />
     )
   })
@@ -131,6 +134,7 @@ function getScripts(
     isDevelopment,
     devOnlyCacheBusterQueryString,
     disableOptimizedLoading,
+    crossOrigin,
   } = context
 
   const normalScripts = files.allFiles.filter((file) => file.endsWith('.js'))
@@ -148,7 +152,7 @@ function getScripts(
         nonce={props.nonce}
         async={!isDevelopment && disableOptimizedLoading}
         defer={!disableOptimizedLoading}
-        crossOrigin={props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
+        crossOrigin={props.crossOrigin || crossOrigin}
       />
     )
   })
@@ -258,8 +262,14 @@ export class Head extends Component<
   context!: React.ContextType<typeof HtmlContext>
 
   getCssLinks(files: DocumentFiles): JSX.Element[] | null {
-    const { assetPrefix, devOnlyCacheBusterQueryString, dynamicImports } =
-      this.context
+    const {
+      assetPrefix,
+      devOnlyCacheBusterQueryString,
+      dynamicImports,
+      crossOrigin,
+      optimizeCss,
+      optimizeFonts,
+    } = this.context
     const cssFiles = files.allFiles.filter((f) => f.endsWith('.css'))
     const sharedFiles: Set<string> = new Set(files.sharedFiles)
 
@@ -282,7 +292,7 @@ export class Head extends Component<
     cssFiles.forEach((file) => {
       const isSharedFile = sharedFiles.has(file)
 
-      if (!process.env.__NEXT_OPTIMIZE_CSS) {
+      if (!optimizeCss) {
         cssLinkElements.push(
           <link
             key={`${file}-preload`}
@@ -292,9 +302,7 @@ export class Head extends Component<
               file
             )}${devOnlyCacheBusterQueryString}`}
             as="style"
-            crossOrigin={
-              this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-            }
+            crossOrigin={this.props.crossOrigin || crossOrigin}
           />
         )
       }
@@ -308,19 +316,14 @@ export class Head extends Component<
           href={`${assetPrefix}/_next/${encodeURI(
             file
           )}${devOnlyCacheBusterQueryString}`}
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
+          crossOrigin={this.props.crossOrigin || crossOrigin}
           data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
           data-n-p={isUnmanagedFile ? undefined : isSharedFile ? undefined : ''}
         />
       )
     })
 
-    if (
-      process.env.NODE_ENV !== 'development' &&
-      process.env.__NEXT_OPTIMIZE_FONTS
-    ) {
+    if (process.env.NODE_ENV !== 'development' && optimizeFonts) {
       cssLinkElements = this.makeStylesheetInert(
         cssLinkElements
       ) as ReactElement[]
@@ -330,8 +333,12 @@ export class Head extends Component<
   }
 
   getPreloadDynamicChunks() {
-    const { dynamicImports, assetPrefix, devOnlyCacheBusterQueryString } =
-      this.context
+    const {
+      dynamicImports,
+      assetPrefix,
+      devOnlyCacheBusterQueryString,
+      crossOrigin,
+    } = this.context
 
     return (
       dynamicImports
@@ -349,9 +356,7 @@ export class Head extends Component<
               )}${devOnlyCacheBusterQueryString}`}
               as="script"
               nonce={this.props.nonce}
-              crossOrigin={
-                this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-              }
+              crossOrigin={this.props.crossOrigin || crossOrigin}
             />
           )
         })
@@ -361,8 +366,12 @@ export class Head extends Component<
   }
 
   getPreloadMainLinks(files: DocumentFiles): JSX.Element[] | null {
-    const { assetPrefix, devOnlyCacheBusterQueryString, scriptLoader } =
-      this.context
+    const {
+      assetPrefix,
+      devOnlyCacheBusterQueryString,
+      scriptLoader,
+      crossOrigin,
+    } = this.context
     const preloadFiles = files.allFiles.filter((file: string) => {
       return file.endsWith('.js')
     })
@@ -375,9 +384,7 @@ export class Head extends Component<
           rel="preload"
           href={file.src}
           as="script"
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
+          crossOrigin={this.props.crossOrigin || crossOrigin}
         />
       )),
       ...preloadFiles.map((file: string) => (
@@ -389,9 +396,7 @@ export class Head extends Component<
             file
           )}${devOnlyCacheBusterQueryString}`}
           as="script"
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
+          crossOrigin={this.props.crossOrigin || crossOrigin}
         />
       )),
     ]
@@ -448,21 +453,30 @@ export class Head extends Component<
   makeStylesheetInert(node: ReactNode): ReactNode[] {
     return React.Children.map(node, (c: any) => {
       if (
-        c.type === 'link' &&
-        c.props['href'] &&
+        c?.type === 'link' &&
+        c?.props?.href &&
         OPTIMIZED_FONT_PROVIDERS.some(({ url }) =>
-          c.props['href'].startsWith(url)
+          c?.props?.href?.startsWith(url)
         )
       ) {
-        const newProps = { ...(c.props || {}) }
-        newProps['data-href'] = newProps['href']
-        newProps['href'] = undefined
+        const newProps = {
+          ...(c.props || {}),
+          'data-href': c.props.href,
+          href: undefined,
+        }
+
         return React.cloneElement(c, newProps)
-      } else if (c.props && c.props['children']) {
-        c.props['children'] = this.makeStylesheetInert(c.props['children'])
+      } else if (c?.props?.children) {
+        const newProps = {
+          ...(c.props || {}),
+          children: this.makeStylesheetInert(c.props.children),
+        }
+
+        return React.cloneElement(c, newProps)
       }
+
       return c
-    })
+    }).filter(Boolean)
   }
 
   render() {
@@ -478,8 +492,12 @@ export class Head extends Component<
       unstable_runtimeJS,
       unstable_JsPreload,
       disableOptimizedLoading,
-      useMaybeDeferContent,
+      optimizeCss,
+      optimizeFonts,
+      runtime,
     } = this.context
+
+    const hasConcurrentFeatures = !!runtime
 
     const disableRuntimeJS = unstable_runtimeJS === false
     const disableJsPreload =
@@ -532,11 +550,7 @@ export class Head extends Component<
         )
     }
 
-    if (
-      process.env.NODE_ENV !== 'development' &&
-      process.env.__NEXT_OPTIMIZE_FONTS &&
-      !inAmpMode
-    ) {
+    if (process.env.NODE_ENV !== 'development' && optimizeFonts && !inAmpMode) {
       children = this.makeStylesheetInert(children)
     }
 
@@ -595,36 +609,96 @@ export class Head extends Component<
       inAmpMode
     )
 
-    // Must use nested component to allow use of a custom hook
-    const DeferrableHead = () => {
-      const getDynamicHeadContent = () => {
-        return (
+    return (
+      <head {...this.props}>
+        {!hasConcurrentFeatures && this.context.isDevelopment && (
           <>
-            {head}
-            <meta
-              name="next-head-count"
-              content={React.Children.count(head || []).toString()}
+            <style
+              data-next-hide-fouc
+              data-ampdevmode={inAmpMode ? 'true' : undefined}
+              dangerouslySetInnerHTML={{
+                __html: `body{display:none}`,
+              }}
             />
+            <noscript
+              data-next-hide-fouc
+              data-ampdevmode={inAmpMode ? 'true' : undefined}
+            >
+              <style
+                dangerouslySetInnerHTML={{
+                  __html: `body{display:block}`,
+                }}
+              />
+            </noscript>
           </>
-        )
-      }
+        )}
+        {head}
+        <meta
+          name="next-head-count"
+          content={React.Children.count(head || []).toString()}
+        />
 
-      const getDynamicScriptPreloads = () => {
-        return (
+        {children}
+        {optimizeFonts && <meta name="next-font-preconnect" />}
+
+        {inAmpMode && (
           <>
+            <meta
+              name="viewport"
+              content="width=device-width,minimum-scale=1,initial-scale=1"
+            />
+            {!hasCanonicalRel && (
+              <link
+                rel="canonical"
+                href={canonicalBase + cleanAmpPath(dangerousAsPath)}
+              />
+            )}
+            {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
+            <link
+              rel="preload"
+              as="script"
+              href="https://cdn.ampproject.org/v0.js"
+            />
+            <AmpStyles styles={styles} />
+            <style
+              amp-boilerplate=""
+              dangerouslySetInnerHTML={{
+                __html: `body{-webkit-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-moz-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-ms-animation:-amp-start 8s steps(1,end) 0s 1 normal both;animation:-amp-start 8s steps(1,end) 0s 1 normal both}@-webkit-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-moz-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-ms-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-o-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}`,
+              }}
+            />
+            <noscript>
+              <style
+                amp-boilerplate=""
+                dangerouslySetInnerHTML={{
+                  __html: `body{-webkit-animation:none;-moz-animation:none;-ms-animation:none;animation:none}`,
+                }}
+              />
+            </noscript>
+            <script async src="https://cdn.ampproject.org/v0.js" />
+          </>
+        )}
+        {!inAmpMode && (
+          <>
+            {!hasAmphtmlRel && hybridAmp && (
+              <link
+                rel="amphtml"
+                href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
+              />
+            )}
+            {!optimizeCss && this.getCssLinks(files)}
+            {!optimizeCss && <noscript data-n-css={this.props.nonce ?? ''} />}
+
             {!disableRuntimeJS &&
               !disableJsPreload &&
               this.getPreloadDynamicChunks()}
             {!disableRuntimeJS &&
               !disableJsPreload &&
               this.getPreloadMainLinks(files)}
-          </>
-        )
-      }
 
-      const getDynamicScriptContent = () => {
-        return (
-          <>
+            {!disableOptimizedLoading &&
+              !disableRuntimeJS &&
+              this.getPolyfillScripts()}
+
             {!disableOptimizedLoading &&
               !disableRuntimeJS &&
               this.getPreNextScripts()}
@@ -634,145 +708,29 @@ export class Head extends Component<
             {!disableOptimizedLoading &&
               !disableRuntimeJS &&
               this.getScripts(files)}
-          </>
-        )
-      }
 
-      const [isDeferred] = useMaybeDeferContent('HEAD', () => {
-        return (
-          <>
-            {getDynamicHeadContent()}
-            {getDynamicScriptPreloads()}
-            {getDynamicScriptContent()}
-          </>
-        )
-      })
-
-      return (
-        <head {...this.props}>
-          {!process.env.__NEXT_CONCURRENT_FEATURES &&
-            this.context.isDevelopment && (
-              <>
-                <style
-                  data-next-hide-fouc
-                  data-ampdevmode={inAmpMode ? 'true' : undefined}
-                  dangerouslySetInnerHTML={{
-                    __html: `body{display:none}`,
-                  }}
-                />
-                <noscript
-                  data-next-hide-fouc
-                  data-ampdevmode={inAmpMode ? 'true' : undefined}
-                >
-                  <style
-                    dangerouslySetInnerHTML={{
-                      __html: `body{display:block}`,
-                    }}
-                  />
-                </noscript>
-              </>
+            {optimizeCss && this.getCssLinks(files)}
+            {optimizeCss && <noscript data-n-css={this.props.nonce ?? ''} />}
+            {this.context.isDevelopment && (
+              // this element is used to mount development styles so the
+              // ordering matches production
+              // (by default, style-loader injects at the bottom of <head />)
+              <noscript id="__next_css__DO_NOT_USE__" />
             )}
-          {children}
-          {process.env.__NEXT_OPTIMIZE_FONTS && (
-            <meta name="next-font-preconnect" />
-          )}
-
-          {!isDeferred && getDynamicHeadContent()}
-
-          {inAmpMode && (
-            <>
-              <meta
-                name="viewport"
-                content="width=device-width,minimum-scale=1,initial-scale=1"
-              />
-              {!hasCanonicalRel && (
-                <link
-                  rel="canonical"
-                  href={canonicalBase + cleanAmpPath(dangerousAsPath)}
-                />
-              )}
-              {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
-              <link
-                rel="preload"
-                as="script"
-                href="https://cdn.ampproject.org/v0.js"
-              />
-              <AmpStyles styles={styles} />
-              <style
-                amp-boilerplate=""
-                dangerouslySetInnerHTML={{
-                  __html: `body{-webkit-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-moz-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-ms-animation:-amp-start 8s steps(1,end) 0s 1 normal both;animation:-amp-start 8s steps(1,end) 0s 1 normal both}@-webkit-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-moz-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-ms-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-o-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}`,
-                }}
-              />
-              <noscript>
-                <style
-                  amp-boilerplate=""
-                  dangerouslySetInnerHTML={{
-                    __html: `body{-webkit-animation:none;-moz-animation:none;-ms-animation:none;animation:none}`,
-                  }}
-                />
-              </noscript>
-              <script async src="https://cdn.ampproject.org/v0.js" />
-            </>
-          )}
-          {!inAmpMode && (
-            <>
-              {!hasAmphtmlRel && hybridAmp && (
-                <link
-                  rel="amphtml"
-                  href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
-                />
-              )}
-              {!process.env.__NEXT_OPTIMIZE_CSS && this.getCssLinks(files)}
-              {!process.env.__NEXT_OPTIMIZE_CSS && (
-                <noscript data-n-css={this.props.nonce ?? ''} />
-              )}
-              {process.env.__NEXT_OPTIMIZE_IMAGES && (
-                <meta name="next-image-preload" />
-              )}
-
-              {!isDeferred && getDynamicScriptPreloads()}
-
-              {!disableOptimizedLoading &&
-                !disableRuntimeJS &&
-                this.getPolyfillScripts()}
-
-              {!isDeferred && getDynamicScriptContent()}
-
-              {process.env.__NEXT_OPTIMIZE_CSS && this.getCssLinks(files)}
-              {process.env.__NEXT_OPTIMIZE_CSS && (
-                <noscript data-n-css={this.props.nonce ?? ''} />
-              )}
-              {this.context.isDevelopment && (
-                // this element is used to mount development styles so the
-                // ordering matches production
-                // (by default, style-loader injects at the bottom of <head />)
-                <noscript id="__next_css__DO_NOT_USE__" />
-              )}
-              {styles || null}
-            </>
-          )}
-          {React.createElement(React.Fragment, {}, ...(headTags || []))}
-        </head>
-      )
-    }
-
-    return <DeferrableHead />
+            {styles || null}
+          </>
+        )}
+        {React.createElement(React.Fragment, {}, ...(headTags || []))}
+      </head>
+    )
   }
 }
 
-export function Main({
-  children,
-}: {
-  children?: (content: JSX.Element) => JSX.Element
-}) {
-  const { inAmpMode, docComponentsRendered, useMainContent } =
-    useContext(HtmlContext)
-  const content = useMainContent(children)
+export function Main() {
+  const { docComponentsRendered } = useContext(HtmlContext)
   docComponentsRendered.Main = true
-
-  if (inAmpMode) return content
-  return <div id="__next">{content}</div>
+  // @ts-ignore
+  return <next-js-internal-body-render-target />
 }
 
 export class NextScript extends Component<OriginProps> {
@@ -819,7 +777,7 @@ export class NextScript extends Component<OriginProps> {
 
       return htmlEscapeJsonString(data)
     } catch (err) {
-      if (isError(err) && err.message.indexOf('circular structure')) {
+      if (isError(err) && err.message.indexOf('circular structure') !== -1) {
         throw new Error(
           `Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://nextjs.org/docs/messages/circular-structure`
         )
@@ -837,117 +795,99 @@ export class NextScript extends Component<OriginProps> {
       docComponentsRendered,
       devOnlyCacheBusterQueryString,
       disableOptimizedLoading,
-      useMaybeDeferContent,
+      crossOrigin,
     } = this.context
     const disableRuntimeJS = unstable_runtimeJS === false
 
     docComponentsRendered.NextScript = true
 
-    // Must nest component to use custom hook
-    const DeferrableNextScript = () => {
-      const [, content] = useMaybeDeferContent('NEXT_SCRIPT', () => {
-        if (inAmpMode) {
-          const ampDevFiles = [
-            ...buildManifest.devFiles,
-            ...buildManifest.polyfillFiles,
-            ...buildManifest.ampDevFiles,
-          ]
-
-          return (
-            <>
-              {disableRuntimeJS ? null : (
-                <script
-                  id="__NEXT_DATA__"
-                  type="application/json"
-                  nonce={this.props.nonce}
-                  crossOrigin={
-                    this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-                  }
-                  dangerouslySetInnerHTML={{
-                    __html: NextScript.getInlineScriptSource(this.context),
-                  }}
-                  data-ampdevmode
-                />
-              )}
-              {ampDevFiles.map((file) => (
-                <script
-                  key={file}
-                  src={`${assetPrefix}/_next/${file}${devOnlyCacheBusterQueryString}`}
-                  nonce={this.props.nonce}
-                  crossOrigin={
-                    this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-                  }
-                  data-ampdevmode
-                />
-              ))}
-            </>
-          )
-        }
-
-        if (process.env.NODE_ENV !== 'production') {
-          if (this.props.crossOrigin)
-            console.warn(
-              'Warning: `NextScript` attribute `crossOrigin` is deprecated. https://nextjs.org/docs/messages/doc-crossorigin-deprecated'
-            )
-        }
-
-        const files: DocumentFiles = getDocumentFiles(
-          this.context.buildManifest,
-          this.context.__NEXT_DATA__.page,
-          inAmpMode
-        )
-
-        return (
-          <>
-            {!disableRuntimeJS && buildManifest.devFiles
-              ? buildManifest.devFiles.map((file: string) => (
-                  <script
-                    key={file}
-                    src={`${assetPrefix}/_next/${encodeURI(
-                      file
-                    )}${devOnlyCacheBusterQueryString}`}
-                    nonce={this.props.nonce}
-                    crossOrigin={
-                      this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-                    }
-                  />
-                ))
-              : null}
-            {disableRuntimeJS ? null : (
-              <script
-                id="__NEXT_DATA__"
-                type="application/json"
-                nonce={this.props.nonce}
-                crossOrigin={
-                  this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-                }
-                dangerouslySetInnerHTML={{
-                  __html: NextScript.getInlineScriptSource(this.context),
-                }}
-              />
-            )}
-            {disableOptimizedLoading &&
-              !disableRuntimeJS &&
-              this.getPolyfillScripts()}
-            {disableOptimizedLoading &&
-              !disableRuntimeJS &&
-              this.getPreNextScripts()}
-            {disableOptimizedLoading &&
-              !disableRuntimeJS &&
-              this.getDynamicChunks(files)}
-            {disableOptimizedLoading &&
-              !disableRuntimeJS &&
-              this.getScripts(files)}
-          </>
-        )
-      })
-      if (inAmpMode && process.env.NODE_ENV === 'production') {
+    if (inAmpMode) {
+      if (process.env.NODE_ENV === 'production') {
         return null
       }
-      return content
+      const ampDevFiles = [
+        ...buildManifest.devFiles,
+        ...buildManifest.polyfillFiles,
+        ...buildManifest.ampDevFiles,
+      ]
+
+      return (
+        <>
+          {disableRuntimeJS ? null : (
+            <script
+              id="__NEXT_DATA__"
+              type="application/json"
+              nonce={this.props.nonce}
+              crossOrigin={this.props.crossOrigin || crossOrigin}
+              dangerouslySetInnerHTML={{
+                __html: NextScript.getInlineScriptSource(this.context),
+              }}
+              data-ampdevmode
+            />
+          )}
+          {ampDevFiles.map((file) => (
+            <script
+              key={file}
+              src={`${assetPrefix}/_next/${file}${devOnlyCacheBusterQueryString}`}
+              nonce={this.props.nonce}
+              crossOrigin={this.props.crossOrigin || crossOrigin}
+              data-ampdevmode
+            />
+          ))}
+        </>
+      )
     }
 
-    return <DeferrableNextScript />
+    if (process.env.NODE_ENV !== 'production') {
+      if (this.props.crossOrigin)
+        console.warn(
+          'Warning: `NextScript` attribute `crossOrigin` is deprecated. https://nextjs.org/docs/messages/doc-crossorigin-deprecated'
+        )
+    }
+
+    const files: DocumentFiles = getDocumentFiles(
+      this.context.buildManifest,
+      this.context.__NEXT_DATA__.page,
+      inAmpMode
+    )
+
+    return (
+      <>
+        {!disableRuntimeJS && buildManifest.devFiles
+          ? buildManifest.devFiles.map((file: string) => (
+              <script
+                key={file}
+                src={`${assetPrefix}/_next/${encodeURI(
+                  file
+                )}${devOnlyCacheBusterQueryString}`}
+                nonce={this.props.nonce}
+                crossOrigin={this.props.crossOrigin || crossOrigin}
+              />
+            ))
+          : null}
+        {disableRuntimeJS ? null : (
+          <script
+            id="__NEXT_DATA__"
+            type="application/json"
+            nonce={this.props.nonce}
+            crossOrigin={this.props.crossOrigin || crossOrigin}
+            dangerouslySetInnerHTML={{
+              __html: NextScript.getInlineScriptSource(this.context),
+            }}
+          />
+        )}
+        {disableOptimizedLoading &&
+          !disableRuntimeJS &&
+          this.getPolyfillScripts()}
+        {disableOptimizedLoading &&
+          !disableRuntimeJS &&
+          this.getPreNextScripts()}
+        {disableOptimizedLoading &&
+          !disableRuntimeJS &&
+          this.getDynamicChunks(files)}
+        {disableOptimizedLoading && !disableRuntimeJS && this.getScripts(files)}
+      </>
+    )
   }
 }
 

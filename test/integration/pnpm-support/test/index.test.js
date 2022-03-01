@@ -106,8 +106,8 @@ async function usingPnpmCreateNextApp(appDir, fn) {
     await runPnpm(tempAppDir, 'add', `next@${nextTarballPath}`)
 
     await fs.copy(
-      path.join(__dirname, '../../../../packages/next/native'),
-      path.join(tempAppDir, 'node_modules/next/native')
+      path.join(__dirname, '../../../../packages/next-swc/native'),
+      path.join(tempAppDir, 'node_modules/next-swc/native')
     )
 
     await fn(tempAppDir)
@@ -156,11 +156,15 @@ describe('pnpm support', () => {
 
         await renderViaHTTP(appPort, '/')
 
-        browser = await webdriver(appPort, '/', false)
+        browser = await webdriver(appPort, '/', {
+          waitHydration: false,
+        })
         expect(await browser.waitForElementByCss('#world').text()).toBe('World')
         await browser.close()
 
-        browser = await webdriver(appPort, '/about', false)
+        browser = await webdriver(appPort, '/about', {
+          waitHydration: false,
+        })
         expect(await browser.waitForElementByCss('#world').text()).toBe('World')
         await browser.close()
       } finally {

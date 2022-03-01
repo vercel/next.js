@@ -1,3 +1,8 @@
+import type {
+  AppType,
+  DocumentType,
+  NextComponentType,
+} from '../shared/lib/utils'
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
@@ -5,7 +10,6 @@ import {
 import { join } from 'path'
 import { requirePage } from './require'
 import { BuildManifest } from './get-page-files'
-import { AppType, DocumentType } from '../shared/lib/utils'
 import { interopDefault } from '../lib/interop-default'
 import {
   PageConfig,
@@ -19,10 +23,10 @@ export type ManifestItem = {
   files: string[]
 }
 
-type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
+export type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 
 export type LoadComponentsReturnType = {
-  Component: React.ComponentType
+  Component: NextComponentType
   pageConfig: PageConfig
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
@@ -34,8 +38,14 @@ export type LoadComponentsReturnType = {
   ComponentMod: any
 }
 
-export async function loadDefaultErrorComponents(distDir: string) {
-  const Document = interopDefault(require('next/dist/pages/_document'))
+export async function loadDefaultErrorComponents(
+  distDir: string,
+  { hasConcurrentFeatures }: { hasConcurrentFeatures: boolean }
+) {
+  const Document = interopDefault(
+    require(`next/dist/pages/_document` +
+      (hasConcurrentFeatures ? '-concurrent' : ''))
+  )
   const App = interopDefault(require('next/dist/pages/_app'))
   const ComponentMod = require('next/dist/pages/_error')
   const Component = interopDefault(ComponentMod)

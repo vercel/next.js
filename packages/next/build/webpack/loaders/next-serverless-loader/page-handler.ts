@@ -5,7 +5,7 @@ import { sendRenderResult } from '../../../../server/send-payload'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 
 import { renderToHTML } from '../../../../server/render'
-import { tryGetPreviewData } from '../../../../server/api-utils'
+import { tryGetPreviewData } from '../../../../server/api-utils/node'
 import { denormalizePagePath } from '../../../../server/denormalize-page-path'
 import { setLazyProp, getCookieParser } from '../../../../server/api-utils'
 import { getRedirectStatus } from '../../../../lib/load-custom-routes'
@@ -191,6 +191,8 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           locale: detectedLocale,
           defaultLocale,
           domainLocales: i18n?.domains,
+          optimizeCss: process.env.__NEXT_OPTIMIZE_CSS,
+          crossOrigin: process.env.__NEXT_CROSS_ORIGIN,
         },
         options
       )
@@ -372,7 +374,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
             res.statusCode = statusCode
             res.setHeader('Location', redirect.destination)
-            res.end()
+            res.end(redirect.destination)
             return null
           } else {
             sendRenderResult({

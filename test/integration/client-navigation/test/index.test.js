@@ -87,6 +87,13 @@ describe('Client Navigation', () => {
       expect(text).toMatch(/this is the about page/i)
     })
 
+    it('should error when calling onClick without event', async () => {
+      const browser = await webdriver(context.appPort, '/link-invalid-onclick')
+      expect(await browser.elementByCss('#errors').text()).toBe('0')
+      await browser.elementByCss('#custom-button').click()
+      expect(await browser.elementByCss('#errors').text()).toBe('1')
+    })
+
     it('should navigate via the client side', async () => {
       const browser = await webdriver(context.appPort, '/nav')
 
@@ -116,6 +123,21 @@ describe('Client Navigation', () => {
         () => browser.eval(() => window.location.origin),
         'https://vercel.com'
       )
+    })
+
+    it('should call mouse handlers with an absolute url', async () => {
+      const browser = await webdriver(
+        context.appPort,
+        `/absolute-url?port=${context.appPort}`
+      )
+
+      await browser.elementByCss('#absolute-link-mouse-events').moveTo()
+
+      expect(
+        await browser
+          .waitForElementByCss('#absolute-link-mouse-events')
+          .getAttribute('data-hover')
+      ).toBe('true')
     })
 
     it('should navigate an absolute local url', async () => {
@@ -165,13 +187,35 @@ describe('Client Navigation', () => {
     it('should not navigate if the <a/> tag has a target', async () => {
       const browser = await webdriver(context.appPort, '/nav')
 
-      const counterText = await browser
+      await browser
         .elementByCss('#increase')
         .click()
         .elementByCss('#target-link')
         .click()
-        .elementByCss('#counter')
-        .text()
+
+      await waitFor(1000)
+
+      const counterText = await browser.elementByCss('#counter').text()
+
+      expect(counterText).toBe('Counter: 1')
+      await browser.close()
+    })
+
+    it('should not navigate if the click-event is modified', async () => {
+      const browser = await webdriver(context.appPort, '/nav')
+
+      await browser.elementByCss('#increase').click()
+
+      const key = process.platform === 'darwin' ? 'Meta' : 'Control'
+
+      await browser.keydown(key)
+
+      await browser.elementByCss('#in-svg-link').click()
+
+      await browser.keyup(key)
+      await waitFor(1000)
+
+      const counterText = await browser.elementByCss('#counter').text()
 
       expect(counterText).toBe('Counter: 1')
       await browser.close()
@@ -398,7 +442,6 @@ describe('Client Navigation', () => {
       }
     })
   })
-
   describe('resets scroll at the correct time', () => {
     it('should reset scroll before the new page runs its lifecycles (<Link />)', async () => {
       let browser
@@ -580,6 +623,17 @@ describe('Client Navigation', () => {
             await browser.close()
           }
         }
+      })
+
+      it('should not scroll to hash when scroll={false} is set', async () => {
+        const browser = await webdriver(context.appPort, '/nav/hash-changes')
+        const curScroll = await browser.eval(
+          'document.documentElement.scrollTop'
+        )
+        await browser.elementByCss('#scroll-to-name-item-400-no-scroll').click()
+        expect(curScroll).toBe(
+          await browser.eval('document.documentElement.scrollTop')
+        )
       })
 
       it('should scroll to the specified position on the same page with a name property', async () => {

@@ -1,29 +1,30 @@
 /* eslint-env jest */
 
-import cheerio from 'cheerio'
 import { join } from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 
+import { fetchViaHTTP, findPort, killApp, renderViaHTTP } from 'next-test-utils'
+
 import {
-  File,
-  fetchViaHTTP,
-  findPort,
-  killApp,
-  launchApp,
-  nextBuild as _nextBuild,
-  nextStart as _nextStart,
-  renderViaHTTP,
-} from 'next-test-utils'
+  nextBuild,
+  nextStart,
+  nextDev,
+  appDir,
+  nativeModuleTestAppDir,
+  distDir,
+  documentPage,
+  appPage,
+  appServerPage,
+  error500Page,
+  nextConfig,
+} from './utils'
 
 import css from './css'
-
-const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
-const appDir = join(__dirname, '../app')
-const nativeModuleTestAppDir = join(__dirname, '../unsupported-native-module')
-const distDir = join(__dirname, '../app/.next')
-const documentPage = new File(join(appDir, 'pages/_document.jsx'))
-const appPage = new File(join(appDir, 'pages/_app.js'))
+import rsc from './rsc'
+import streaming from './streaming'
+import basic from './basic'
+import functions from './functions'
 
 const documentWithGip = `
 import { Html, Head, Main, NextScript } from 'next/document'
@@ -45,6 +46,13 @@ Document.getInitialProps = (ctx) => {
 }
 `
 
+const rscAppPage = `
+import Container from '../components/container.server'
+export default function App({children}) {
+  return <Container>{children}</Container>
+}
+`
+
 const appWithGlobalCss = `
 import '../styles.css'
 
@@ -55,71 +63,65 @@ function App({ Component, pageProps }) {
 export default App
 `
 
-async function nextBuild(dir) {
-  return await _nextBuild(dir, [], {
-    stdout: true,
-    stderr: true,
-    nodeArgs,
-  })
+const page500 = `
+export default function Page500() {
+  return 'custom-500-page'
 }
+`
 
-async function nextStart(dir, port) {
-  return await _nextStart(dir, port, {
-    stdout: true,
-    stderr: true,
-    nodeArgs,
-  })
-}
-
-async function nextDev(dir, port) {
-  return await launchApp(dir, port, {
-    stdout: true,
-    stderr: true,
-    nodeArgs,
-  })
-}
-
-describe('concurrentFeatures - basic', () => {
-  it('should warn user for experimental risk with server components', async () => {
-    const edgeRuntimeWarning =
-      'You are using the experimental Edge Runtime with `concurrentFeatures`.'
-    const rscWarning = `You have experimental React Server Components enabled. Continue at your own risk.`
-    const { stderr } = await nextBuild(appDir)
-    expect(stderr).toContain(edgeRuntimeWarning)
-    expect(stderr).toContain(rscWarning)
-  })
+describe('Edge runtime - errors', () => {
   it('should warn user that native node APIs are not supported', async () => {
     const fsImportedErrorMessage =
-      'Native Node.js APIs are not supported in the Edge Runtime with `concurrentFeatures` enabled. Found `dns` imported.'
+      'Native Node.js APIs are not supported in the Edge Runtime. Found `dns` imported.'
     const { stderr } = await nextBuild(nativeModuleTestAppDir)
     expect(stderr).toContain(fsImportedErrorMessage)
   })
 })
 
-describe('concurrentFeatures - prod', () => {
+describe('Edge runtime - prod', () => {
   const context = { appDir }
 
   beforeAll(async () => {
+    error500Page.write(page500)
     context.appPort = await findPort()
-    await nextBuild(context.appDir)
+    const { stderr } = await nextBuild(context.appDir)
+    context.stderr = stderr
     context.server = await nextStart(context.appDir, context.appPort)
   })
   afterAll(async () => {
+    error500Page.delete()
     await killApp(context.server)
   })
 
-  it('should generate rsc middleware manifests', async () => {
-    const distServerDir = join(distDir, 'server')
-    const hasFile = (filename) => fs.existsSync(join(distServerDir, filename))
+  it('should warn user for experimental risk with edge runtime and server components', async () => {
+    const edgeRuntimeWarning =
+      'You are using the experimental Edge Runtime with `experimental.runtime`.'
+    const rscWarning = `You have experimental React Server Components enabled. Continue at your own risk.`
+    expect(context.stderr).toContain(edgeRuntimeWarning)
+    expect(context.stderr).toContain(rscWarning)
+  })
 
+  it('should generate middleware SSR manifests for edge runtime', async () => {
+    const distServerDir = join(distDir, 'server')
     const files = [
       'middleware-build-manifest.js',
       'middleware-flight-manifest.js',
       'middleware-ssr-runtime.js',
       'middleware-manifest.json',
     ]
+
+    const requiredServerFiles = (
+      await fs.readJSON(join(distDir, 'required-server-files.json'))
+    ).files
+
     files.forEach((file) => {
-      expect(hasFile(file)).toBe(true)
+      const filepath = join(distServerDir, file)
+      expect(fs.existsSync(filepath)).toBe(true)
+    })
+
+    requiredServerFiles.forEach((file) => {
+      const requiredFilePath = join(appDir, file)
+      expect(fs.existsSync(requiredFilePath)).toBe(true)
     })
   })
 
@@ -148,17 +150,21 @@ describe('concurrentFeatures - prod', () => {
     expect(html).toContain('foo.client')
   })
 
-  runBasicTests(context)
+  basic(context, { env: 'prod' })
+  streaming(context, { env: 'prod' })
+  rsc(context, { runtime: 'edge', env: 'prod' })
 })
 
-describe('concurrentFeatures - dev', () => {
+describe('Edge runtime - dev', () => {
   const context = { appDir }
 
   beforeAll(async () => {
+    error500Page.write(page500)
     context.appPort = await findPort()
     context.server = await nextDev(context.appDir, context.appPort)
   })
   afterAll(async () => {
+    error500Page.delete()
     await killApp(context.server)
   })
 
@@ -171,152 +177,124 @@ describe('concurrentFeatures - dev', () => {
     expect(content).toMatchInlineSnapshot('"foo.client"')
   })
 
-  runBasicTests(context)
+  it('should have content-type and content-encoding headers', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/')
+    expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8')
+    expect(res.headers.get('content-encoding')).toBe('gzip')
+  })
+
+  basic(context, { env: 'dev' })
+  streaming(context, { env: 'dev' })
+  rsc(context, { runtime: 'edge', env: 'dev' })
 })
+
+const nodejsRuntimeBasicSuite = {
+  runTests: (context, env) => {
+    basic(context, { env })
+    streaming(context, { env })
+    rsc(context, { runtime: 'nodejs' })
+
+    if (env === 'prod') {
+      it('should generate middleware SSR manifests for Node.js', async () => {
+        const distServerDir = join(distDir, 'server')
+
+        const requiredServerFiles = (
+          await fs.readJSON(join(distDir, 'required-server-files.json'))
+        ).files
+
+        const files = [
+          'middleware-build-manifest.js',
+          'middleware-flight-manifest.json',
+          'middleware-manifest.json',
+        ]
+
+        files.forEach((file) => {
+          const filepath = join(distServerDir, file)
+          expect(fs.existsSync(filepath)).toBe(true)
+        })
+
+        requiredServerFiles.forEach((file) => {
+          const requiredFilePath = join(appDir, file)
+          expect(fs.existsSync(requiredFilePath)).toBe(true)
+        })
+      })
+    }
+  },
+  beforeAll: () => {
+    error500Page.write(page500)
+    nextConfig.replace("runtime: 'edge'", "runtime: 'nodejs'")
+  },
+  afterAll: () => {
+    error500Page.delete()
+    nextConfig.restore()
+  },
+}
+
+const customAppPageSuite = {
+  runTests: (context) => {
+    it('should render container in app', async () => {
+      const indexHtml = await renderViaHTTP(context.appPort, '/')
+      const indexFlight = await renderViaHTTP(context.appPort, '/?__flight__=1')
+      expect(indexHtml).toContain('container-server')
+      expect(indexFlight).toContain('container-server')
+    })
+  },
+  beforeAll: () => appServerPage.write(rscAppPage),
+  afterAll: () => appServerPage.delete(),
+}
 
 const cssSuite = {
   runTests: css,
-  before: () => appPage.write(appWithGlobalCss),
-  after: () => appPage.delete(),
+  beforeAll: () => appPage.write(appWithGlobalCss),
+  afterAll: () => appPage.delete(),
 }
-
-runSuite('CSS', 'dev', cssSuite)
-runSuite('CSS', 'prod', cssSuite)
 
 const documentSuite = {
   runTests: (context) => {
     it('should error when custom _document has getInitialProps method', async () => {
       const res = await fetchViaHTTP(context.appPort, '/')
-      const html = await res.text()
-
       expect(res.status).toBe(500)
-      expect(html).toContain(
-        'Error: `getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
-      )
     })
   },
-  before: () => documentPage.write(documentWithGip),
-  after: () => documentPage.delete(),
+  beforeAll: () => documentPage.write(documentWithGip),
+  afterAll: () => documentPage.delete(),
 }
 
-runSuite('document', 'dev', documentSuite)
-runSuite('document', 'prod', documentSuite)
+runSuite('Node.js runtime', 'dev', nodejsRuntimeBasicSuite)
+runSuite('Node.js runtime', 'prod', nodejsRuntimeBasicSuite)
 
-async function runBasicTests(context) {
-  it('should render the correct html', async () => {
-    const homeHTML = await renderViaHTTP(context.appPort, '/')
+runSuite('Custom App', 'dev', customAppPageSuite)
+runSuite('Custom App', 'prod', customAppPageSuite)
 
-    // dynamic routes
-    const dynamicRouteHTML1 = await renderViaHTTP(
-      context.appPort,
-      '/routes/dynamic1'
-    )
-    const dynamicRouteHTML2 = await renderViaHTTP(
-      context.appPort,
-      '/routes/dynamic2'
-    )
+runSuite('CSS', 'dev', cssSuite)
+runSuite('CSS', 'prod', cssSuite)
 
-    const path404HTML = await renderViaHTTP(context.appPort, '/404')
-    const pathNotFoundHTML = await renderViaHTTP(
-      context.appPort,
-      '/this-is-not-found'
-    )
+runSuite('Custom Document', 'dev', documentSuite)
+runSuite('Custom Document', 'prod', documentSuite)
 
-    expect(homeHTML).toContain('thisistheindexpage.server')
-    expect(homeHTML).toContain('env_var_test')
-    expect(homeHTML).toContain('foo.client')
+runSuite('Functions manifest', 'build', { runTests: functions })
 
-    expect(dynamicRouteHTML1).toContain('[pid]')
-    expect(dynamicRouteHTML2).toContain('[pid]')
-
-    expect(path404HTML).toContain('custom-404-page')
-    expect(pathNotFoundHTML).toContain('custom-404-page')
-  })
-
-  it('should suspense next/link on server side', async () => {
-    const linkHTML = await renderViaHTTP(context.appPort, '/next-api/link')
-    const $ = cheerio.load(linkHTML)
-    const linkText = $('div[hidden] > a[href="/"]').text()
-
-    expect(linkText).toContain('go home')
-  })
-
-  it('should suspense next/image on server side', async () => {
-    const imageHTML = await renderViaHTTP(context.appPort, '/next-api/image')
-    const $ = cheerio.load(imageHTML)
-    const imageTag = $('div[hidden] > span > span > img')
-
-    expect(imageTag.attr('src')).toContain('data:image')
-  })
-
-  it('should support multi-level server component imports', async () => {
-    const html = await renderViaHTTP(context.appPort, '/multi')
-    expect(html).toContain('bar.server.js:')
-    expect(html).toContain('foo.client')
-  })
-
-  it('should support streaming', async () => {
-    await fetchViaHTTP(context.appPort, '/streaming', null, {}).then(
-      async (response) => {
-        let result = ''
-        let gotFallback = false
-        let gotData = false
-
-        await new Promise((resolve) => {
-          response.body.on('data', (chunk) => {
-            result += chunk.toString()
-
-            gotData = result.includes('next_streaming_data')
-            if (!gotFallback) {
-              gotFallback = result.includes('next_streaming_fallback')
-              if (gotFallback) {
-                expect(gotData).toBe(false)
-              }
-            }
-          })
-
-          response.body.on('end', () => resolve())
-        })
-
-        expect(gotFallback).toBe(true)
-        expect(gotData).toBe(true)
-      }
-    )
-
-    // Should end up with "next_streaming_data".
-    const browser = await webdriver(context.appPort, '/streaming')
-    const content = await browser.eval(`window.document.body.innerText`)
-    expect(content).toMatchInlineSnapshot('"next_streaming_data"')
-  })
-
-  it('should support api routes', async () => {
-    const res = await renderViaHTTP(context.appPort, '/api/ping')
-    expect(res).toContain('pong')
-  })
-}
-
-function runSuite(suiteName, env, { runTests, before, after }) {
-  const context = { appDir }
+function runSuite(suiteName, env, options) {
+  const context = { appDir, distDir }
   describe(`${suiteName} ${env}`, () => {
-    if (env === 'prod') {
-      beforeAll(async () => {
-        before?.()
+    beforeAll(async () => {
+      options.beforeAll?.()
+      if (env === 'prod') {
+        context.appPort = await findPort()
+        await nextBuild(context.appDir)
+        context.server = await nextStart(context.appDir, context.appPort)
+      }
+      if (env === 'dev') {
         context.appPort = await findPort()
         context.server = await nextDev(context.appDir, context.appPort)
-      })
-    }
-    if (env === 'dev') {
-      beforeAll(async () => {
-        before?.()
-        context.appPort = await findPort()
-        context.server = await nextDev(context.appDir, context.appPort)
-      })
-    }
-    afterAll(async () => {
-      after?.()
-      await killApp(context.server)
+      }
     })
-
-    runTests(context)
+    afterAll(async () => {
+      options.afterAll?.()
+      if (context.server) {
+        await killApp(context.server)
+      }
+    })
+    options.runTests(context, env)
   })
 }

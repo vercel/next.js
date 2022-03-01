@@ -127,7 +127,6 @@ export async function createApp({
   console.log(`Creating a new Next.js app in ${chalk.green(root)}.`)
   console.log()
 
-  await makeDir(root)
   process.chdir(root)
 
   if (example) {
@@ -203,6 +202,7 @@ export async function createApp({
      */
     const packageJson = {
       name: appName,
+      version: '0.1.0',
       private: true,
       scripts: {
         dev: 'next dev',
@@ -229,12 +229,17 @@ export async function createApp({
     /**
      * Default devDependencies.
      */
-    const devDependencies = ['eslint@7', 'eslint-config-next']
+    const devDependencies = ['eslint', 'eslint-config-next']
     /**
      * TypeScript projects will have type definitions and other devDependencies.
      */
     if (typescript) {
-      devDependencies.push('typescript', '@types/react', '@types/node')
+      devDependencies.push(
+        'typescript',
+        '@types/react',
+        '@types/node',
+        '@types/react-dom'
+      )
     }
     /**
      * Install package.json dependencies if they exist.

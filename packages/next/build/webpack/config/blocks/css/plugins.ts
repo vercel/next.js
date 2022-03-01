@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import { findConfig } from '../../../../../lib/find-config'
 
 type CssPluginCollection_Array = (string | [string, boolean | object])[]
@@ -88,40 +88,46 @@ async function loadPlugin(
 }
 
 function getDefaultPlugins(
-  supportedBrowsers: string[] | undefined
-): CssPluginCollection {
+  supportedBrowsers: string[] | undefined,
+  disablePostcssPresetEnv: boolean
+): any[] {
   return [
     require.resolve('next/dist/compiled/postcss-flexbugs-fixes'),
-    [
-      require.resolve('next/dist/compiled/postcss-preset-env'),
-      {
-        browsers: supportedBrowsers ?? ['defaults'],
-        autoprefixer: {
-          // Disable legacy flexbox support
-          flexbox: 'no-2009',
-        },
-        // Enable CSS features that have shipped to the
-        // web platform, i.e. in 2+ browsers unflagged.
-        stage: 3,
-        features: {
-          'custom-properties': false,
-        },
-      },
-    ],
-  ]
+    disablePostcssPresetEnv
+      ? false
+      : [
+          require.resolve('next/dist/compiled/postcss-preset-env'),
+          {
+            browsers: supportedBrowsers ?? ['defaults'],
+            autoprefixer: {
+              // Disable legacy flexbox support
+              flexbox: 'no-2009',
+            },
+            // Enable CSS features that have shipped to the
+            // web platform, i.e. in 2+ browsers unflagged.
+            stage: 3,
+            features: {
+              'custom-properties': false,
+            },
+          },
+        ],
+  ].filter(Boolean)
 }
 
 export async function getPostCssPlugins(
   dir: string,
   supportedBrowsers: string[] | undefined,
-  defaults: boolean = false
+  disablePostcssPresetEnv: boolean = false
 ): Promise<import('postcss').AcceptedPlugin[]> {
-  let config = defaults
-    ? null
-    : await findConfig<{ plugins: CssPluginCollection }>(dir, 'postcss')
+  let config = await findConfig<{ plugins: CssPluginCollection }>(
+    dir,
+    'postcss'
+  )
 
   if (config == null) {
-    config = { plugins: getDefaultPlugins(supportedBrowsers) }
+    config = {
+      plugins: getDefaultPlugins(supportedBrowsers, disablePostcssPresetEnv),
+    }
   }
 
   if (typeof config === 'function') {

@@ -1,5 +1,4 @@
-/* globals __REPLACE_NOOP_IMPORT__ */
-import { initNext, version, router, emitter, render, renderError } from './'
+import { initNext, version, router, emitter } from './'
 import initOnDemandEntries from './dev/on-demand-entries-client'
 import initWebpackHMR from './dev/webpack-hot-middleware-client'
 import initializeBuildWatcher from './dev/dev-build-watcher'
@@ -10,13 +9,6 @@ import {
   urlQueryToSearchParams,
 } from '../shared/lib/router/utils/querystring'
 
-// Temporary workaround for the issue described here:
-// https://github.com/vercel/next.js/issues/3775#issuecomment-407438123
-// The runtimeChunk doesn't have dynamic import handling code when there hasn't been a dynamic import
-// The runtimeChunk can't hot reload itself currently to correct it when adding pages using on-demand-entries
-// eslint-disable-next-line no-unused-expressions
-__REPLACE_NOOP_IMPORT__
-
 const {
   __NEXT_DATA__: { assetPrefix },
 } = window
@@ -26,6 +18,25 @@ const webpackHMR = initWebpackHMR()
 
 connectHMR({ assetPrefix: prefix, path: '/_next/webpack-hmr' })
 
+if (!window._nextSetupHydrationWarning) {
+  const origConsoleError = window.console.error
+  window.console.error = (...args) => {
+    const isHydrateError = args.some(
+      (arg) =>
+        typeof arg === 'string' &&
+        arg.match(/Warning:.*?did not match.*?Server:/)
+    )
+    if (isHydrateError) {
+      args = [
+        ...args,
+        `\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`,
+      ]
+    }
+    origConsoleError.apply(window.console, args)
+  }
+  window._nextSetupHydrationWarning = true
+}
+
 window.next = {
   version,
   // router is initialized later so it has to be live-binded
@@ -33,11 +44,9 @@ window.next = {
     return router
   },
   emitter,
-  render,
-  renderError,
 }
-initNext({ webpackHMR })
-  .then(({ renderCtx }) => {
+initNext({ webpackHMR, beforeRender: displayContent })
+  .then(() => {
     initOnDemandEntries()
 
     let buildIndicatorHandler = () => {}
@@ -93,11 +102,6 @@ initNext({ webpackHMR })
         buildIndicatorHandler = handler
       }, process.env.__NEXT_BUILD_INDICATOR_POSITION)
     }
-
-    // delay rendering until after styles have been applied in development
-    displayContent(() => {
-      render(renderCtx)
-    })
   })
   .catch((err) => {
     console.error('Error was not caught', err)

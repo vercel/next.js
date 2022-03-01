@@ -13,6 +13,7 @@ test/node_modules
 # logs & pids
 *.log
 pids
+*.cpuprofile
 
 # coverage
 .nyc_output

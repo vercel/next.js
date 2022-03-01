@@ -74,7 +74,7 @@ export default function onDemandEntryHandler(
     if (invalidator.rebuildAgain) {
       return invalidator.doneBuilding()
     }
-    const [clientStats, serverStats, serverWebStats] = multiStats.stats
+    const [clientStats, serverStats, edgeServerStats] = multiStats.stats
     const pagePaths = [
       ...getPagePathsFromEntrypoints(
         'client',
@@ -84,10 +84,10 @@ export default function onDemandEntryHandler(
         'server',
         serverStats.compilation.entrypoints
       ),
-      ...(serverWebStats
+      ...(edgeServerStats
         ? getPagePathsFromEntrypoints(
-            'server-web',
-            serverWebStats.compilation.entrypoints
+            'edge-server',
+            edgeServerStats.compilation.entrypoints
           )
         : []),
     ]
@@ -204,11 +204,11 @@ export default function onDemandEntryHandler(
 
       const isMiddleware = normalizedPage.match(MIDDLEWARE_ROUTE)
       const isApiRoute = normalizedPage.match(API_ROUTE) && !isMiddleware
-      const isServerWeb = !!nextConfig.experimental.concurrentFeatures
+      const isEdgeServer = nextConfig.experimental.runtime === 'edge'
       const isCustomError = isCustomErrorPage(page)
 
       let entriesChanged = false
-      const addPageEntry = (type: 'client' | 'server' | 'server-web') => {
+      const addPageEntry = (type: 'client' | 'server' | 'edge-server') => {
         return new Promise<void>((resolve, reject) => {
           // Makes sure the page that is being kept in on-demand-entries matches the webpack output
           const pageKey = `${type}${page}`
@@ -253,19 +253,15 @@ export default function onDemandEntryHandler(
         : Promise.all([
             addPageEntry('client'),
             addPageEntry(
-              isServerWeb && !isCustomError ? 'server-web' : 'server'
+              isEdgeServer && !isCustomError ? 'edge-server' : 'server'
             ),
           ])
 
       if (entriesChanged) {
         reportTrigger(
-          isApiRoute
-            ? `${normalizedPage} (server only)`
-            : isMiddleware
-            ? `${normalizedPage} (middleware only)`
-            : clientOnly
-            ? `${normalizedPage} (client only)`
-            : normalizedPage
+          isApiRoute || isMiddleware || clientOnly
+            ? normalizedPage
+            : `${normalizedPage} (client and server)`
         )
         invalidator.invalidate()
       }
