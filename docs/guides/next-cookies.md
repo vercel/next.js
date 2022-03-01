@@ -14,7 +14,7 @@ Cookies in Next.js can be handled both on the client-side and the server-side. I
 - How to set & get cookies with Next.js
 - Build a [demo app](https://github.com/MaedahBatool/next-cookies) that'll help you set and get the value of a cookie both on the client-side and server-side
 
-![nextjs-cookies](/docs/guides/images/nextjs-cookies.png)
+![nextjs-cookies](https://assets.vercel.com/image/upload/dpr_auto,q_auto,f_auto/nextjs/guides/next-cookies/nextjs-cookies.png)
 
 Setting and getting cookies on the client-side with Next.js is exactly the same as you would do with any other web application. However, on the server-side, Next.js helps you one step further to set and get cookies (more on this later).
 
@@ -42,7 +42,7 @@ You can read more details about the `document.cookie` property on the [MDN Web D
 
 Let's build a demo application to set a `theme` cookie to save the `light` or `dark` mode of your website.
 
-![client-side-cookies](/docs/guides/images/client-cookies.png)
+![client-side-cookies](https://assets.vercel.com/image/upload/dpr_auto,q_auto,f_auto/nextjs/guides/next-cookies/client-cookies.png)
 
 First create a Next.js page that shows the current value of the cookie`theme` and allows you to change it to `light` or `dark`.
 
@@ -138,8 +138,6 @@ export default function ClientSideCookiePage() {
 
 This code sets `light` mode as the default theme. Then it allows the user to click a button to change that to `dark` mode or back to `light` mode. The state is kept by the `useState` React hook, which updates the UI when the cookie value is changed.
 
-### TODO: _ADD VIDEO SET CLIENT COOKIES_
-
 ## Server-side cookies with Next.js
 
 Next.js provides you with a `context.req.cookies` JavaScript object containing all the cookies.
@@ -221,11 +219,9 @@ export async function getServerSideProps(context) {
 }
 ```
 
-![server-side-cookies](/docs/guides/images/server-cookies.png)
+![server-side-cookies](https://assets.vercel.com/image/upload/dpr_auto,q_auto,f_auto/nextjs/guides/next-cookies/server-cookies.png)
 
 To set a cookie from the server, you can use the `setHeader()` function using `Set-Cookie`, which is an HTTP response header that sends a cookie from the server to the user agent.
-
-### TODO: _ADD VIDEO SET SERVER COOKIES_
 
 With that, you are ready to `set` and `get` the value of cookies with Next.js both from the client-side and the server-side.
 
