@@ -164,6 +164,11 @@ describe('Prerender', () => {
       initialRevalidateSeconds: 1,
       srcRoute: '/blocking-fallback-some/[slug]',
     },
+    '/blocking-fallback/test-errors-1': {
+      dataRoute: `/_next/data/${next.buildId}/blocking-fallback/test-errors-1.json`,
+      initialRevalidateSeconds: 1,
+      srcRoute: '/blocking-fallback/[slug]',
+    },
     '/blog': {
       dataRoute: `/_next/data/${next.buildId}/blog.json`,
       initialRevalidateSeconds: 10,
