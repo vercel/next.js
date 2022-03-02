@@ -1132,11 +1132,7 @@ export default class NextNodeServer extends BaseServer {
             'x-middleware-rewrite'
           )!
           const parsedDestination = parseUrl(rewritePath)
-          const newUrl = formatUrl({
-            ...parsedDestination,
-            query: {},
-            search: '',
-          })
+          const newUrl = parsedDestination.pathname
 
           // TODO: remove after next minor version current `v12.0.9`
           this.warnIfQueryParametersWereDeleted(
