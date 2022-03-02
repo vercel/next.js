@@ -23,7 +23,7 @@ function Data() {
   throw promise
 }
 
-export default function Page() {
+export default function () {
   return (
     <>
       Current Runtime:{' '}
