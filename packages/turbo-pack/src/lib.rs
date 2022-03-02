@@ -1,7 +1,10 @@
 #![feature(trivial_bounds)]
 #![feature(into_future)]
 
-use std::collections::HashSet;
+use std::{
+    collections::{HashMap, HashSet},
+    mem::swap,
+};
 
 use asset::{Asset, AssetRef, AssetsSet, AssetsSetRef};
 use graph::{aggregate, AggregatedGraphNodeContent, AggregatedGraphRef};
@@ -22,6 +25,7 @@ pub async fn emit(input: AssetRef, input_dir: FileSystemPathRef, output_dir: Fil
     // emit_assets_recursive_avoid_cycle(asset, CycleDetectionRef::new());
     // emit_assets_aggregated(asset);
     emit_assets_recursive(asset);
+    // print_most_referenced(asset);
 }
 
 #[turbo_tasks::function]
@@ -155,4 +159,88 @@ impl Asset for NftAssetSource {
 #[turbo_tasks::function]
 pub fn emit_asset(asset: AssetRef) {
     asset.path().write(asset.content());
+}
+
+#[turbo_tasks::function]
+pub fn print_most_referenced(asset: AssetRef) {
+    let aggregated = aggregate(asset);
+    let back_references = compute_back_references(aggregated);
+    let sorted_back_references = top_references(back_references);
+    print_references(sorted_back_references);
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(PartialEq, Eq)]
+struct ReferencesList {
+    referenced_by: HashMap<AssetRef, HashSet<AssetRef>>,
+}
+
+#[turbo_tasks::function]
+async fn compute_back_references(aggregated: AggregatedGraphRef) -> ReferencesListRef {
+    match &*aggregated.content().await {
+        AggregatedGraphNodeContent::Asset(asset) => {
+            let mut referenced_by = HashMap::new();
+            for reference in asset.clone().references().await.assets.iter() {
+                referenced_by.insert(reference.clone(), [asset.clone()].into_iter().collect());
+            }
+            ReferencesList { referenced_by }.into()
+        }
+        AggregatedGraphNodeContent::Children(children) => {
+            let mut referenced_by = HashMap::<AssetRef, HashSet<AssetRef>>::new();
+            let lists = children
+                .iter()
+                .map(|child| compute_back_references(child.clone()))
+                .collect::<Vec<_>>();
+            for list in lists {
+                for (key, values) in list.await.referenced_by.iter() {
+                    if let Some(set) = referenced_by.get_mut(key) {
+                        for value in values {
+                            set.insert(value.clone());
+                        }
+                    } else {
+                        referenced_by.insert(key.clone(), values.clone());
+                    }
+                }
+            }
+            ReferencesList { referenced_by }.into()
+        }
+    }
+}
+
+#[turbo_tasks::function]
+async fn top_references(list: ReferencesListRef) -> ReferencesListRef {
+    let list = list.get().await;
+    const N: usize = 5;
+    let mut top = Vec::<(&AssetRef, &HashSet<AssetRef>)>::new();
+    for tuple in list.referenced_by.iter() {
+        let mut current = tuple;
+        for i in 0..top.len() {
+            if top[i].1.len() < tuple.1.len() {
+                swap(&mut top[i], &mut current);
+            }
+        }
+        if top.len() < N {
+            top.push(current);
+        }
+    }
+    ReferencesList {
+        referenced_by: top
+            .into_iter()
+            .map(|(asset, set)| (asset.clone(), set.clone()))
+            .collect(),
+    }
+    .into()
+}
+
+#[turbo_tasks::function]
+async fn print_references(list: ReferencesListRef) {
+    let list = list.get().await;
+    println!("TOP REFERENCES:");
+    for (asset, references) in list.referenced_by.iter() {
+        println!(
+            "{} -> {} times referenced",
+            asset.clone().path().await.path,
+            references.len()
+        );
+    }
 }
