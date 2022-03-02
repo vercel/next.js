@@ -416,7 +416,7 @@ describe('create next app', () => {
     })
   })
 
-  it.only('should use pnpm as the package manager on supplying --use-pnpm with example', async () => {
+  it('should use pnpm as the package manager on supplying --use-pnpm with example', async () => {
     await usingTempDir(async (cwd) => {
       const projectName = 'use-pnpm'
       const res = await run(
