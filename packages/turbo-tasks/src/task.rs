@@ -17,7 +17,7 @@ use std::{
     mem::swap,
     pin::Pin,
     sync::{
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU32, Ordering},
         Arc, Mutex, RwLock, RwLockWriteGuard, Weak,
     },
     time::Instant,
@@ -67,16 +67,22 @@ pub struct Task {
     inputs: Vec<SlotRef>,
     ty: TaskType,
     state: RwLock<TaskState>,
-    active_parents: AtomicUsize,
+    active_parents: AtomicU32,
     // TODO technically we need no lock here as it's only written
     // during execution, which doesn't happen in parallel
+    execution_data: Mutex<TaskExecutionData>,
+}
+
+/// task data that is only modified during task execution
+#[derive(Default)]
+struct TaskExecutionData {
     /// dependencies are only modified from execution
     ///
     /// dependencies are cleared when entering Dirty state
     ///
-    ///  
-    dependencies: RwLock<WeakHashSet<WeakSlotRef>>,
-    previous_nodes: Mutex<PreviousNodesMap>,
+    ///
+    dependencies: WeakHashSet<WeakSlotRef>,
+    previous_nodes: PreviousNodesMap,
 }
 
 impl Debug for Task {
@@ -156,8 +162,7 @@ impl Task {
             ty: TaskType::Native(native_fn, bound_fn),
             state: Default::default(),
             active_parents: Default::default(),
-            dependencies: Default::default(),
-            previous_nodes: Default::default(),
+            execution_data: Default::default(),
         })
     }
 
@@ -170,8 +175,7 @@ impl Task {
             ty: TaskType::ResolveNative(native_fn),
             state: Default::default(),
             active_parents: Default::default(),
-            dependencies: Default::default(),
-            previous_nodes: Default::default(),
+            execution_data: Default::default(),
         }
     }
 
@@ -185,8 +189,7 @@ impl Task {
             ty: TaskType::ResolveTrait(trait_type, trait_fn_name),
             state: Default::default(),
             active_parents: Default::default(),
-            dependencies: Default::default(),
-            previous_nodes: Default::default(),
+            execution_data: Default::default(),
         }
     }
 
@@ -199,9 +202,8 @@ impl Task {
                 state_type: Scheduled,
                 ..Default::default()
             }),
-            active_parents: AtomicUsize::new(1),
-            dependencies: Default::default(),
-            previous_nodes: Default::default(),
+            active_parents: AtomicU32::new(1),
+            execution_data: Default::default(),
         }
     }
 
@@ -244,10 +246,13 @@ impl Task {
 
     fn clear_dependencies(self: &Arc<Self>) {
         let start = Instant::now();
-        let mut deps_guard = self.dependencies.write().unwrap();
-        let dependencies = deps_guard.iter().map(|d| d.clone()).collect::<Vec<_>>();
-        deps_guard.clear();
-        drop(deps_guard);
+        let mut execution_data = self.execution_data.lock().unwrap();
+        let dependencies = execution_data
+            .dependencies
+            .drain()
+            .map(|d| d.clone())
+            .collect::<Vec<_>>();
+        drop(execution_data);
 
         let count = dependencies.len();
 
@@ -336,8 +341,8 @@ impl Task {
 
     pub(crate) fn execution_completed(self: Arc<Self>, turbo_tasks: &'static TurboTasks) {
         PREVIOUS_NODES.with(|cell| {
-            let mut previous_nodes = self.previous_nodes.lock().unwrap();
-            Cell::from_mut(&mut *previous_nodes).swap(cell);
+            let mut execution_data = self.execution_data.lock().unwrap();
+            Cell::from_mut(&mut execution_data.previous_nodes).swap(cell);
         });
         let outdated_children;
         let mut schedule_task = false;
@@ -479,8 +484,8 @@ impl Task {
 
     pub(crate) fn set_current(task: Arc<Task>) {
         PREVIOUS_NODES.with(|cell| {
-            let mut previous_nodes_guard = task.previous_nodes.lock().unwrap();
-            let previous_nodes = &mut *previous_nodes_guard;
+            let mut execution_data = task.execution_data.lock().unwrap();
+            let previous_nodes = &mut execution_data.previous_nodes;
             for list in previous_nodes.by_type.values_mut() {
                 list.0 = 0;
             }
@@ -518,8 +523,8 @@ impl Task {
         // is stored that the end of the execution
         // but that won't capute changes during execution
         // which would require extra steps
-        let mut deps = self.dependencies.write().unwrap();
-        deps.insert(node);
+        let mut execution_data = self.execution_data.lock().unwrap();
+        execution_data.dependencies.insert(node);
     }
 
     pub(crate) fn execute(self: &Arc<Self>, tt: &'static TurboTasks) -> NativeTaskFuture {
@@ -656,9 +661,10 @@ impl Task {
                 .collect(),
             children: state.children.iter().map(|c| c.clone()).collect(),
             dependencies: self
-                .dependencies
-                .read()
+                .execution_data
+                .lock()
                 .unwrap()
+                .dependencies
                 .iter()
                 .map(|d| d.clone())
                 .collect(),
