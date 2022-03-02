@@ -47,7 +47,7 @@ function onlyReactElement(
   return list.concat(child)
 }
 
-const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp']
+const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp', 'property']
 
 /*
  returns a function for filtering head child elements
