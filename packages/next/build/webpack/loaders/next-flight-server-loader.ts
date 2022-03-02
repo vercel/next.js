@@ -42,20 +42,18 @@ function isImageImport(importSource: string) {
 async function parseImportsInfo({
   resourcePath,
   source,
-  imports,
   isClientCompilation,
   isServerComponent,
   isClientComponent,
 }: {
   resourcePath: string
   source: string
-  imports: Array<string>
   isClientCompilation: boolean
   isServerComponent: (name: string) => boolean
   isClientComponent: (name: string) => boolean
 }): Promise<{
   source: string
-  defaultExportName: string
+  imports: string
 }> {
   const opts = getBaseSWCOptions({
     filename: resourcePath,
@@ -63,9 +61,11 @@ async function parseImportsInfo({
   })
   const ast = await parse(source, { ...opts.jsc.parser, isModule: true })
   const { body } = ast
+
   let transformedSource = ''
   let lastIndex = 0
-  let defaultExportName
+  let imports = ''
+
   for (let i = 0; i < body.length; i++) {
     const node = body[i]
     switch (node.type) {
@@ -86,7 +86,7 @@ async function parseImportsInfo({
             // A client component. It should be loaded as module reference.
             transformedSource += importDeclarations
             transformedSource += JSON.stringify(`${importSource}?__sc_client__`)
-            imports.push(`require(${JSON.stringify(importSource)})`)
+            imports += `require(${JSON.stringify(importSource)});`
           } else {
             // This is a special case to avoid the Duplicate React error.
             // Since we already include React in the SSR runtime,
@@ -116,27 +116,12 @@ async function parseImportsInfo({
             continue
           }
 
-          imports.push(`require(${JSON.stringify(importSource)})`)
+          imports += `require(${JSON.stringify(importSource)});`
         }
 
         lastIndex = node.source.span.end
         break
       }
-      case 'ExportDefaultDeclaration': {
-        const def = node.decl
-        if (def.type === 'Identifier') {
-          defaultExportName = def.name
-        } else if (def.type === 'FunctionExpression') {
-          defaultExportName = def.identifier.value
-        }
-        break
-      }
-      case 'ExportDefaultExpression':
-        const exp = node.expression
-        if (exp.type === 'Identifier') {
-          defaultExportName = exp.value
-        }
-        break
       default:
         break
     }
@@ -146,7 +131,7 @@ async function parseImportsInfo({
     transformedSource += source.substring(lastIndex)
   }
 
-  return { source: transformedSource, defaultExportName }
+  return { source: transformedSource, imports }
 }
 
 export default async function transformSource(
@@ -181,44 +166,34 @@ export default async function transformSource(
     }
   }
 
-  const imports: string[] = []
-  const { source: transformedSource, defaultExportName } =
-    await parseImportsInfo({
-      resourcePath,
-      source,
-      imports,
-      isClientCompilation,
-      isServerComponent,
-      isClientComponent,
-    })
+  const { source: transformedSource, imports } = await parseImportsInfo({
+    resourcePath,
+    source,
+    isClientCompilation,
+    isServerComponent,
+    isClientComponent,
+  })
 
   /**
    * For .server.js files, we handle this loader differently.
    *
    * Server compilation output:
-   *   export default function ServerComponent() { ... }
-   *   export const __rsc_noop__ = () => { ... }
-   *   ServerComponent.__next_rsc__ = 1
-   *   ServerComponent.__webpack_require__ = __webpack_require__
+   *   (The content of the Server Component module will be kept.)
+   *   export const __next_rsc__ = { __webpack_require__, _: () => { ... } }
    *
    * Client compilation output:
-   *   The function body of Server Component will be removed
+   *   (The content of the Server Component module will be removed.)
+   *   export const __next_rsc__ = { __webpack_require__, _: () => { ... } }
    */
 
-  const noop = `export const __rsc_noop__=()=>{${imports.join(';')}}`
+  let rscExports = `export const __next_rsc__={
+    __webpack_require__,
+    _: () => {${imports}}
+  }`
 
-  let defaultExportNoop = ''
   if (isClientCompilation) {
-    defaultExportNoop = `export default function ${
-      defaultExportName || 'ServerComponent'
-    }(){}\n${defaultExportName || 'ServerComponent'}.__next_rsc__=1;`
-  } else {
-    if (defaultExportName) {
-      // It's required to have the default export for pages. For other components, it's fine to leave it as is.
-      defaultExportNoop = `${defaultExportName}.__next_rsc__=1;${defaultExportName}.__webpack_require__=__webpack_require__;`
-    }
+    rscExports += '\nexport default function RSC () {}'
   }
 
-  const transformed = transformedSource + '\n' + noop + '\n' + defaultExportNoop
-  return transformed
+  return transformedSource + '\n' + rscExports
 }
