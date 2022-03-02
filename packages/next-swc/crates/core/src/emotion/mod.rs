@@ -1,10 +1,11 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use fxhash::FxHashMap;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use swc_common::{SourceMap, DUMMY_SP};
+use swc::sourcemap::{RawToken, SourceMap as RawSourcemap};
+use swc_common::{BytePos, SourceMap, DUMMY_SP};
 use swc_ecmascript::ast::{
     ExprOrSpread, Ident, KeyValueProp, Lit, MemberProp, ObjectLit, Pat, Prop, PropName,
     PropOrSpread, VarDeclarator,
@@ -35,15 +36,13 @@ static EMOTION_OFFICIAL_LIBRARIES: Lazy<Vec<EmotionModuleConfig>> = Lazy::new(||
 });
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EmotionOptions {
     pub enabled: Option<bool>,
     pub sourcemap: Option<bool>,
     pub auto_label: Option<bool>,
     pub label_format: Option<String>,
-    pub css_prop_optimization: Option<bool>,
     pub custom_modules: Option<Vec<EmotionModuleConfig>>,
-    pub jsx_factory: Option<String>,
-    pub jsx_import_source: Option<String>,
 }
 
 impl Default for EmotionOptions {
@@ -53,10 +52,7 @@ impl Default for EmotionOptions {
             sourcemap: Some(true),
             auto_label: Some(true),
             label_format: Some("[local]".to_owned()),
-            css_prop_optimization: Some(true),
             custom_modules: None,
-            jsx_import_source: Some("@emotion/react".to_owned()),
-            jsx_factory: None,
         }
     }
 }
@@ -102,14 +98,14 @@ struct PackageMeta {
 
 pub fn emotion(
     emotion_options: EmotionOptions,
-    file_name: &PathBuf,
+    path: &Path,
     cm: Arc<SourceMap>,
     react_jsx_runtime: bool,
     es_module_interop: bool,
 ) -> impl Fold {
     EmotionTransformer::new(
         emotion_options,
-        file_name,
+        path,
         cm,
         react_jsx_runtime,
         es_module_interop,
@@ -134,7 +130,7 @@ pub struct EmotionTransformer {
 impl EmotionTransformer {
     pub fn new(
         options: EmotionOptions,
-        path: &PathBuf,
+        path: &Path,
         cm: Arc<SourceMap>,
         react_jsx_runtime: bool,
         es_module_interop: bool,
@@ -171,13 +167,15 @@ impl EmotionTransformer {
         self.filepath_hash.unwrap()
     }
 
-    fn create_label(&self) -> String {
+    fn create_label(&self, with_prefix: bool) -> String {
+        let prefix = if with_prefix { "label:" } else { "" };
         let mut label = format!(
-            "label:{}",
+            "{}{}",
+            prefix,
             self.options
                 .label_format
                 .clone()
-                .unwrap_or("[local]".to_owned())
+                .unwrap_or_else(|| "[local]".to_owned())
         );
         if let Some(current_context) = &self.current_context {
             label = label.replace("[local]", current_context);
@@ -189,6 +187,35 @@ impl EmotionTransformer {
             };
         }
         label
+    }
+
+    fn create_sourcemap(&mut self, pos: BytePos) -> Option<String> {
+        if self.options.sourcemap.unwrap_or(false) {
+            let loc = self.cm.get_code_map().lookup_char_pos(pos);
+            let filename = self.filepath.to_str().map(|s| s.to_owned());
+            let cm = RawSourcemap::new(
+                filename.clone(),
+                vec![RawToken {
+                    dst_line: 0,
+                    dst_col: 0,
+                    src_line: loc.line as u32 - 1,
+                    src_col: loc.col_display as u32,
+                    src_id: 0,
+                    name_id: 0,
+                }],
+                Vec::new(),
+                vec![filename.unwrap_or_default()],
+                Some(vec![Some(loc.file.src.to_string())]),
+            );
+            let mut writer = Vec::new();
+            if cm.to_writer(&mut writer).is_ok() {
+                return Some(format!(
+                    "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,{} */",
+                    base64::encode(writer)
+                ));
+            }
+        }
+        None
     }
 
     // Find the imported name from modules
@@ -292,12 +319,16 @@ impl Fold for EmotionTransformer {
                             if self.options.auto_label.unwrap_or(false) {
                                 expr.args.push(ExprOrSpread {
                                     spread: None,
-                                    expr: Box::new(Expr::Lit(Lit::Str(self.create_label().into()))),
+                                    expr: Box::new(Expr::Lit(Lit::Str(
+                                        self.create_label(true).into(),
+                                    ))),
                                 });
                             }
-                            if self.options.sourcemap.unwrap_or(false) {
-                                let _loc = self.cm.get_code_map().lookup_char_pos(expr.span.lo());
-                                // generate sourcemap
+                            if let Some(cm) = self.create_sourcemap(expr.span.lo) {
+                                expr.args.push(ExprOrSpread {
+                                    spread: None,
+                                    expr: Box::new(Expr::Lit(Lit::Str(cm.into()))),
+                                });
                             }
                         }
                     }
@@ -308,33 +339,34 @@ impl Fold for EmotionTransformer {
                         if let Expr::Ident(i) = callee_exp.as_ref() {
                             if let Some(package) = self.import_packages.get(i.as_ref()) {
                                 if !c.args.is_empty() && matches!(package.kind, ExprKind::Styled) {
+                                    let mut args_props = Vec::with_capacity(2);
+                                    args_props.push(self.create_target_arg_node());
                                     if self.options.auto_label.unwrap_or(false) {
-                                        c.args.push(ExprOrSpread {
+                                        args_props.push(PropOrSpread::Prop(Box::new(
+                                            Prop::KeyValue(KeyValueProp {
+                                                key: PropName::Ident(Ident::new(
+                                                    "label".into(),
+                                                    DUMMY_SP,
+                                                )),
+                                                value: Box::new(Expr::Lit(Lit::Str(
+                                                    self.create_label(false).into(),
+                                                ))),
+                                            }),
+                                        )));
+                                    }
+                                    if let Some(cm) = self.create_sourcemap(expr.span.lo()) {
+                                        expr.args.push(ExprOrSpread {
                                             spread: None,
-                                            expr: Box::new(Expr::Object(ObjectLit {
-                                                span: DUMMY_SP,
-                                                props: vec![
-                                                    self.create_target_arg_node(),
-                                                    PropOrSpread::Prop(Box::new(Prop::KeyValue(
-                                                        KeyValueProp {
-                                                            key: PropName::Ident(Ident::new(
-                                                                "label".into(),
-                                                                DUMMY_SP,
-                                                            )),
-                                                            value: Box::new(Expr::Lit(Lit::Str(
-                                                                self.create_label().into(),
-                                                            ))),
-                                                        },
-                                                    ))),
-                                                ],
-                                            })),
+                                            expr: Box::new(Expr::Lit(Lit::Str(cm.into()))),
                                         });
                                     }
-                                    if self.options.sourcemap.unwrap_or(false) {
-                                        let _loc =
-                                            self.cm.get_code_map().lookup_char_pos(expr.span.lo());
-                                        // generate sourcemap
-                                    }
+                                    c.args.push(ExprOrSpread {
+                                        spread: None,
+                                        expr: Box::new(Expr::Object(ObjectLit {
+                                            span: DUMMY_SP,
+                                            props: args_props,
+                                        })),
+                                    });
                                 }
                             }
                         }
@@ -345,77 +377,74 @@ impl Fold for EmotionTransformer {
                 Expr::Member(m) => {
                     if let Expr::Ident(i) = m.obj.as_ref() {
                         if let Some(package) = self.import_packages.get(i.as_ref()) {
-                            if self.options.auto_label.unwrap_or(false) {
-                                match package.kind {
-                                    ExprKind::Css => {
+                            match package.kind {
+                                ExprKind::Css => {
+                                    if self.options.auto_label.unwrap_or(false) {
                                         expr.args.push(ExprOrSpread {
                                             spread: None,
                                             expr: Box::new(Expr::Lit(Lit::Str(
-                                                self.create_label().into(),
+                                                self.create_label(true).into(),
                                             ))),
                                         });
                                     }
-                                    ExprKind::Styled => {
-                                        if let MemberProp::Ident(prop) = &m.prop {
-                                            return CallExpr {
-                                                span: expr.span,
-                                                type_args: expr.type_args,
-                                                args: expr.args,
-                                                callee: Callee::Expr(Box::new(Expr::Call(
-                                                    CallExpr {
-                                                        span: DUMMY_SP,
-                                                        type_args: None,
-                                                        callee: Callee::Expr(Box::new(
-                                                            Expr::Ident(Ident::new(
-                                                                i.sym.clone(),
-                                                                i.span,
-                                                            )),
-                                                        )),
-                                                        args: vec![
-                                                            ExprOrSpread {
-                                                                spread: None,
-                                                                expr: Box::new(Expr::Lit(
-                                                                    Lit::Str(prop.as_ref().into()),
-                                                                )),
-                                                            },
-                                                            ExprOrSpread {
-                                                                spread: None,
-                                                                expr: Box::new(Expr::Object(
-                                                                    ObjectLit {
-                                                                        span: DUMMY_SP,
-                                                                        props: vec![
-                                                                self.create_target_arg_node(),
-                                                                PropOrSpread::Prop(Box::new(
-                                                                    Prop::KeyValue(KeyValueProp {
-                                                                        key: PropName::Ident(
-                                                                            Ident::new(
-                                                                                "label".into(),
-                                                                                DUMMY_SP,
-                                                                            ),
-                                                                        ),
-                                                                        value: Box::new(Expr::Lit(
-                                                                            Lit::Str(
-                                                                                self.create_label()
-                                                                                    .into(),
-                                                                            ),
-                                                                        )),
-                                                                    }),
-                                                                )),
-                                                            ],
-                                                                    },
-                                                                )),
-                                                            },
-                                                        ],
-                                                    },
-                                                ))),
-                                            };
-                                        }
+                                    if let Some(sm) = self.create_sourcemap(expr.span.lo()) {
+                                        expr.args.push(ExprOrSpread {
+                                            spread: None,
+                                            expr: Box::new(Expr::Lit(Lit::Str(sm.into()))),
+                                        });
                                     }
                                 }
-                                if self.options.sourcemap.unwrap_or(false) {
-                                    let _loc =
-                                        self.cm.get_code_map().lookup_char_pos(expr.span.lo());
-                                    // generate sourcemap
+                                ExprKind::Styled => {
+                                    if let MemberProp::Ident(prop) = &m.prop {
+                                        let mut args_props = Vec::with_capacity(2);
+                                        args_props.push(self.create_target_arg_node());
+                                        if self.options.auto_label.unwrap_or(false) {
+                                            args_props.push(PropOrSpread::Prop(Box::new(
+                                                Prop::KeyValue(KeyValueProp {
+                                                    key: PropName::Ident(Ident::new(
+                                                        "label".into(),
+                                                        DUMMY_SP,
+                                                    )),
+                                                    value: Box::new(Expr::Lit(Lit::Str(
+                                                        self.create_label(false).into(),
+                                                    ))),
+                                                }),
+                                            )));
+                                        }
+                                        if let Some(cm) = self.create_sourcemap(expr.span.lo()) {
+                                            expr.args.push(ExprOrSpread {
+                                                spread: None,
+                                                expr: Box::new(Expr::Lit(Lit::Str(cm.into()))),
+                                            });
+                                        }
+                                        return CallExpr {
+                                            span: expr.span,
+                                            type_args: expr.type_args,
+                                            args: expr.args,
+                                            callee: Callee::Expr(Box::new(Expr::Call(CallExpr {
+                                                span: DUMMY_SP,
+                                                type_args: None,
+                                                callee: Callee::Expr(Box::new(Expr::Ident(
+                                                    Ident::new(i.sym.clone(), i.span),
+                                                ))),
+                                                args: vec![
+                                                    ExprOrSpread {
+                                                        spread: None,
+                                                        expr: Box::new(Expr::Lit(Lit::Str(
+                                                            prop.as_ref().into(),
+                                                        ))),
+                                                    },
+                                                    ExprOrSpread {
+                                                        spread: None,
+                                                        expr: Box::new(Expr::Object(ObjectLit {
+                                                            span: DUMMY_SP,
+                                                            props: args_props,
+                                                        })),
+                                                    },
+                                                ],
+                                            }))),
+                                        };
+                                    }
                                 }
                             }
                         }

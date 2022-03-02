@@ -7,6 +7,7 @@ version = "0.0.0"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+base64 = "0.13"
 byteorder = "1"
 chrono = "0.4"
 easy-error = "1.0.0"
