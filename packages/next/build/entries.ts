@@ -103,21 +103,18 @@ type Entrypoints = {
   edgeServer: webpack5.EntryObject
 }
 
-export async function getPageRuntime(
-  pageFilePath: string,
-  globalRuntime?: string
-) {
+export async function getPageRuntime(pageFilePath: string) {
   let pageRuntime: string | undefined = undefined
   const pageContent = await fs.promises.readFile(pageFilePath, {
     encoding: 'utf8',
   })
   // branch prunes for entry page without runtime option
-  if (pageContent.includes('runtime:')) {
+  if (pageContent.includes('runtime')) {
     const { body } = await parse(pageContent, {
       filename: pageFilePath,
       isModule: true,
     })
-    body.forEach((node: any) => {
+    body.some((node: any) => {
       const { type, declaration } = node
       const valueNode = declaration?.declarations?.[0]
       if (type === 'ExportDeclaration' && valueNode?.id?.value === 'config') {
@@ -128,19 +125,19 @@ export async function getPageRuntime(
         const runtime = runtimeKeyValue?.value?.value
         pageRuntime =
           runtime === 'edge' || runtime === 'nodejs' ? runtime : pageRuntime
+        return true
       }
+      return false
     })
   }
 
-  return pageRuntime || globalRuntime
+  return pageRuntime
 }
 
 export async function createPagesRuntimeMapping(
   pagesDir: string,
-  pages: PagesMapping,
-  config: NextConfigComplete
+  pages: PagesMapping
 ) {
-  const globalRuntime = config.experimental.runtime
   const pagesRuntime: Record<string, string> = {}
 
   const promises = Object.keys(pages).map(async (page) => {
@@ -151,7 +148,7 @@ export async function createPagesRuntimeMapping(
         pagesDir,
         absolutePagePath.replace(PAGES_DIR_ALIAS, '')
       )
-      const runtime = await getPageRuntime(pageFilePath, globalRuntime)
+      const runtime = await getPageRuntime(pageFilePath)
       if (runtime) {
         pagesRuntime[page] = runtime
       }

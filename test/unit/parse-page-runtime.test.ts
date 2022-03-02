@@ -17,4 +17,11 @@ describe('parse page runtime config', () => {
     )
     expect(runtime).toBe('edge')
   })
+
+  it('should return undefined if no runtime is specified', async () => {
+    const runtime = await getPageRuntime(
+      join(fixtureDir, 'page-runtime/static.js')
+    )
+    expect(runtime).toBe(undefined)
+  })
 })
