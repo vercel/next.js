@@ -36,8 +36,6 @@ pub async fn parse(module: AssetRef) -> ParseResultRef {
                 Err(_err) => ParseResult::Unparseable.into(),
                 Ok(string) => {
                     let cm: Lrc<SourceMap> = Default::default();
-                    // let handler =
-                    //     Handler::with_tty_emitter(ColorConfig::Auto, true, false, Some(cm.clone()));
 
                     let fm = cm.new_source_file(FileName::Custom(fs_path.path.clone()), string);
 
@@ -62,7 +60,6 @@ pub async fn parse(module: AssetRef) -> ParseResultRef {
 
                     for _e in parser.take_errors() {
                         // TODO report them in a stream
-                        // e.into_diagnostic(&handler).emit();
                     }
 
                     match parser.parse_module() {

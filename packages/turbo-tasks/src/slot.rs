@@ -5,18 +5,21 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use weak_table::traits::{WeakElement, WeakKey};
+use weak_table::{
+    traits::{WeakElement, WeakKey},
+    WeakHashSet,
+};
 
 use crate::{
-    task::TaskArgumentOptions, tasks_list::WeakTasksList, viz::SlotSnapshot, NativeFunction,
-    SlotValueType, Task, TraitType, TurboTasks,
+    task::TaskArgumentOptions, viz::SlotSnapshot, NativeFunction, SlotValueType, Task, TraitType,
+    TurboTasks,
 };
 
 #[derive(Default, Debug)]
 pub struct Slot {
     content: SlotContent,
     updates: u32,
-    dependent_tasks: WeakTasksList,
+    dependent_tasks: WeakHashSet<Weak<Task>>,
 }
 
 #[derive(Clone, Debug)]
@@ -90,7 +93,7 @@ impl Slot {
         Self {
             content: SlotContent::Empty,
             updates: 0,
-            dependent_tasks: WeakTasksList::default(),
+            dependent_tasks: WeakHashSet::new(),
         }
     }
 
@@ -225,7 +228,7 @@ impl Slot {
     }
 
     fn read<T: Any + Send + Sync>(&mut self, reader: Arc<Task>) -> SlotReadResult<T> {
-        self.dependent_tasks.add(reader);
+        self.dependent_tasks.insert(reader);
         match &self.content {
             SlotContent::Empty => SlotReadResult::Final(SlotRefReadResult::nothing()),
             SlotContent::SharedReference(_, data) => match Arc::downcast(data.clone()) {
@@ -243,7 +246,7 @@ impl Slot {
     }
 
     pub fn resolve(&mut self, reader: Arc<Task>) -> SlotRef {
-        self.dependent_tasks.add(reader);
+        self.dependent_tasks.insert(reader);
         match &self.content {
             SlotContent::Empty => SlotRef::Nothing,
             SlotContent::SharedReference(ty, data) => SlotRef::SharedReference(ty, data.clone()),
@@ -353,7 +356,7 @@ trait SlotConsumer {
     fn content_type_changed();
 }
 
-// #[derive(Clone)]
+#[derive(Clone)]
 pub enum SlotRef {
     TaskOutput(Arc<Task>),
     TaskCreated(Arc<Task>, usize),
@@ -529,13 +532,17 @@ impl SlotRef {
         }
     }
 
-    pub(crate) fn remove_dependent_task(&self, reader: Arc<Task>) {
+    pub(crate) fn remove_dependent_task(&self, reader: &Arc<Task>) {
         match self {
             SlotRef::TaskOutput(task) => {
-                task.with_output_slot_mut(|slot| slot.dependent_tasks.remove_all(reader))
+                task.with_output_slot_mut(|slot| {
+                    slot.dependent_tasks.remove(reader);
+                });
             }
             SlotRef::TaskCreated(task, index) => {
-                task.with_created_slot(*index, |slot| slot.dependent_tasks.remove_all(reader))
+                task.with_created_slot(*index, |slot| {
+                    slot.dependent_tasks.remove(reader);
+                });
             }
             SlotRef::CloneableData(_, _) | SlotRef::Nothing | SlotRef::SharedReference(_, _) => {}
         }
@@ -586,18 +593,6 @@ impl SlotRef {
                 updates: 0,
                 linked_to_slot: None,
             },
-        }
-    }
-}
-
-impl Clone for SlotRef {
-    fn clone(&self) -> Self {
-        match self {
-            Self::TaskOutput(arg0) => Self::TaskOutput(arg0.clone()),
-            Self::TaskCreated(arg0, arg1) => Self::TaskCreated(arg0.clone(), arg1.clone()),
-            Self::Nothing => Self::Nothing,
-            Self::SharedReference(arg0, arg1) => Self::SharedReference(arg0.clone(), arg1.clone()),
-            Self::CloneableData(arg0, arg1) => Self::CloneableData(arg0.clone(), arg1.clone()),
         }
     }
 }
@@ -704,21 +699,6 @@ impl WeakSlotRef {
             WeakSlotRef::TaskCreated(task, index) => task
                 .upgrade()
                 .map(|task| SlotRef::TaskCreated(task, *index)),
-        }
-    }
-
-    pub(crate) fn remove_dependent_task(&self, reader: Arc<Task>) {
-        match self {
-            WeakSlotRef::TaskOutput(task) => {
-                if let Some(task) = task.upgrade() {
-                    task.with_output_slot_mut(|slot| slot.dependent_tasks.remove_all(reader))
-                }
-            }
-            WeakSlotRef::TaskCreated(task, index) => {
-                if let Some(task) = task.upgrade() {
-                    task.with_created_slot(*index, |slot| slot.dependent_tasks.remove_all(reader))
-                }
-            }
         }
     }
 }

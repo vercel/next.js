@@ -239,7 +239,7 @@ async fn resolve_internal(
                         }
                     };
                     if path.is_empty() {
-                        if let FileJsonContent::Content(package_json) = &*package_json.await {
+                        if let FileJsonContent::Content(_package_json) = &*package_json.await {
                             for resolve_into_package in options.get().await.into_package.iter() {
                                 match resolve_into_package {
                                     ResolveIntoPackage::Default(req) => {
@@ -288,34 +288,6 @@ async fn resolve_internal(
                 }
                 FindPackageResult::NotFound => ResolveResult::Unresolveable.into(),
             }
-            // let options = options.await;
-            // let context = context.get().await;
-            // for resolve_modules in &options.modules {
-            //     match resolve_modules {
-            //         ResolveModules::Nested(root, names) => {
-            //             if context.is_inside(&*root.get().await) {
-            //                 for name in names.iter() {
-            //                     if let Some(nested_path) =
-            //                         normalize_path(context.path.clone() + "/" + &name)
-            //                     {
-            //                         let fs_path =
-            //                             FileSystemPathRef::new(context.fs.clone(), nested_path);
-            //                         if dir_exists(fs_path).await {
-            //                             if let Some(new_path) =
-            //                                 normalize_path(nested_path + "/" + &module)
-            //                             {
-            //                                 if dir_exists(fs_path).await {}
-            //                             }
-            //                         }
-            //                     }
-            //                 }
-            //             }
-            //         }
-            //         ResolveModules::Path(_) => todo!(),
-            //         ResolveModules::Registry(_, _) => todo!(),
-            //     }
-            // }
-            // return ResolveResult::Unresolveable.into();
         }
         Request::ServerRelative { path: _ } => ResolveResult::Unresolveable.into(),
         Request::Windows { path: _ } => ResolveResult::Unresolveable.into(),

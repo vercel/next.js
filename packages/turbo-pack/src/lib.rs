@@ -4,7 +4,7 @@
 use std::collections::HashSet;
 
 use asset::{Asset, AssetRef, AssetsSet, AssetsSetRef};
-use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent, AggregatedGraphRef};
+use graph::{aggregate, AggregatedGraphNodeContent, AggregatedGraphRef};
 use resolve::referenced_modules;
 use turbo_tasks_fs::{FileContentRef, FileSystemPathRef};
 
@@ -34,17 +34,9 @@ async fn emit_assets_aggregated(asset: AssetRef) {
 async fn emit_aggregated_assets(aggregated: AggregatedGraphRef) {
     match &*aggregated.content().await {
         AggregatedGraphNodeContent::Asset(asset) => {
-            // #[cfg(debug_assertions)]
-            // println!("emit_aggregated_assets leaf {}", asset.path().await.path);
             emit_asset(asset.clone());
         }
         AggregatedGraphNodeContent::Children(children) => {
-            // #[cfg(debug_assertions)]
-            // println!(
-            //     "emit_aggregated_assets node {} {}",
-            //     depth,
-            //     root.path().await.path
-            // );
             for aggregated in children {
                 emit_aggregated_assets(aggregated.clone());
             }

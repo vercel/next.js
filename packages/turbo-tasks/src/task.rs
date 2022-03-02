@@ -1,6 +1,5 @@
 use crate::{
     slot::{Slot, SlotRef, WeakSlotRef},
-    tasks_list::TasksList,
     viz::TaskSnapshot,
     NativeFunction, SlotValueType, TraitType, TurboTasks,
 };
@@ -11,7 +10,7 @@ use event_listener::{Event, EventListener};
 use std::{
     any::{Any, TypeId},
     cell::Cell,
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt::{self, Debug, Display, Formatter},
     future::Future,
     hash::Hash,
@@ -98,10 +97,10 @@ struct TaskState {
     state_type: TaskStateType,
 
     /// outdated_children are set when an execution has started
-    outdated_children: Option<TasksList>,
+    outdated_children: Option<HashSet<Arc<Task>>>,
 
     /// children are only modified from execution
-    children: TasksList,
+    children: HashSet<Arc<Task>>,
     output_slot: Slot,
     created_slots: Vec<Slot>,
     event: Event,
@@ -206,7 +205,7 @@ impl Task {
         }
     }
 
-    fn remove_children(&self, children: TasksList) {
+    fn remove_children(&self, children: HashSet<Arc<Task>>) {
         if !children.is_empty() {
             let tasks = children
                 .into_iter()
@@ -253,7 +252,7 @@ impl Task {
         let count = dependencies.len();
 
         for dep in dependencies.into_iter() {
-            dep.remove_dependent_task(self.clone());
+            dep.remove_dependent_task(self);
         }
         let elapsed = start.elapsed();
         if elapsed.as_millis() >= 100 {
@@ -278,7 +277,7 @@ impl Task {
         // the new children will be move accurate
         let outdated_children = state.outdated_children.take();
 
-        let mut new_children = TasksList::default();
+        let mut new_children = HashSet::new();
         swap(&mut new_children, &mut state.children);
         state.outdated_children = Some(new_children);
         drop(state);
@@ -289,7 +288,6 @@ impl Task {
     }
 
     pub(crate) fn execution_started(self: &Arc<Task>) -> bool {
-        self.assert_parents_state();
         let mut state = self.state.write().unwrap();
         if !state.active {
             return false;
@@ -317,7 +315,6 @@ impl Task {
     }
 
     pub(crate) fn execution_result(self: &Arc<Self>, result: SlotRef) {
-        self.assert_parents_state();
         let mut state = self.state.write().unwrap();
         match state.state_type {
             InProgress => {
@@ -338,7 +335,6 @@ impl Task {
     }
 
     pub(crate) fn execution_completed(self: Arc<Self>, turbo_tasks: &'static TurboTasks) {
-        self.assert_parents_state();
         PREVIOUS_NODES.with(|cell| {
             let mut previous_nodes = self.previous_nodes.lock().unwrap();
             Cell::from_mut(&mut *previous_nodes).swap(cell);
@@ -450,250 +446,6 @@ impl Task {
             drop(state);
             TurboTasks::schedule_deactivate_tasks(scheduled);
             count
-        }
-    }
-
-    // #[must_use]
-    // pub(crate) fn child_dirty(
-    //     self: &Arc<Self>,
-    //     turbo_tasks: &'static TurboTasks,
-    //     inc_count: bool,
-    // ) -> bool {
-    //     // println!(
-    //     //     "child_dirty {:?} {} {:?} {} from {}",
-    //     //     &**self as *const Task, inc_count, cycle, self, from
-    //     // );
-    //     fn determine_undetermined(
-    //         this: &Arc<Task>,
-    //         state: RwLockWriteGuard<TaskState>,
-    //         turbo_tasks: &'static TurboTasks,
-    //         inc_parents_count: bool,
-    //     ) -> bool {
-    //         let parents: TasksList =
-    //             state.parents.iter().filter_map(|p| p.upgrade()).collect();
-    //         drop(state);
-    //         let mut schedule = false;
-    //         // TODO there is a race condition here
-    //         // when parents have been changed in the meantime
-    //         // we make the parent dirty but it will never receive the
-    //         // child_done event again...
-    //         // e. g. this can happen when parent was invalidated
-    //         // during this comment
-    //         for parent in parents.iter() {
-    //             if parent.child_dirty(turbo_tasks, inc_parents_count) {
-    //                 schedule = true
-    //             }
-    //         }
-    //         if schedule {
-    //             // switch to SomeChildrenScheduled as at least one parent asked for scheduling
-    //             let mut state = this.state.write().unwrap();
-    //             if state.state_type == SomeChildrenDirtyUndetermined {
-    //                 state.state_type = SomeChildrenScheduled;
-    //             }
-    //             drop(state);
-    //             this.assert_parents_state();
-    //             true
-    //         } else {
-    //             // revert back to SomeChildrenDirty when no parent asked for scheduling
-    //             let mut state = this.state.write().unwrap();
-    //             if state.state_type == SomeChildrenDirtyUndetermined {
-    //                 state.state_type = SomeChildrenDirty;
-    //             }
-    //             drop(state);
-    //             this.assert_parents_state();
-    //             false
-    //         }
-    //     }
-    //     let mut state = self.state.write().unwrap();
-    //     match state.state_type {
-    //         Dirty | Scheduled => {
-    //             // In these states the task shouldn't have children
-    //             // but there is a short moment where is might happen
-    //             // and we want to ignore events from children there
-    //             false
-    //         }
-    //         InProgressLocallyOutdated => {
-    //             // The children are subject of clearing soon
-    //             // so we don't have to track the count
-    //             false
-    //         }
-    //         InProgressLocally => {
-    //             if inc_count {
-    //                 state.dirty_children_count += 1;
-    //             }
-    //             true
-    //         }
-    //         SomeChildrenDirty => {
-    //             if inc_count {
-    //                 state.dirty_children_count += 1;
-    //             }
-    //             false
-    //         }
-    //         SomeChildrenScheduled => {
-    //             if inc_count {
-    //                 state.dirty_children_count += 1;
-    //             }
-    //             true
-    //         }
-    //         SomeChildrenDirtyUndetermined => {
-    //             if inc_count {
-    //                 state.dirty_children_count += 1;
-    //             }
-    //             determine_undetermined(self, state, turbo_tasks, false)
-    //         }
-    //         Done => {
-    //             debug_assert!(inc_count);
-    //             state.dirty_children_count = 1;
-    //             if let TaskType::Root(_, event) = &self.ty {
-    //                 event.notify(usize::MAX);
-    //                 state.state_type = SomeChildrenScheduled;
-    //                 debug_assert!(state.parents.len() == 0);
-    //                 drop(state);
-    //                 true
-    //             } else {
-    //                 // there is a race condition here
-    //                 // during the process of determining the scheduled status
-    //                 // we keep the SomeChildrenDirtyUndetermined state
-
-    //                 // Also see the constraint on SomeChildrenScheduled
-    //                 // we can't use SomeChildrenDirty since we do not know
-    //                 // if there are parents that are in SomeChildrenScheduled state
-    //                 state.state_type = SomeChildrenDirtyUndetermined;
-    //                 determine_undetermined(self, state, turbo_tasks, true)
-    //             }
-    //         }
-    //     }
-    // }
-
-    // pub(crate) fn child_done(&self, turbo_tasks: &'static TurboTasks) {
-    //     // println!("child_done {:?} {}", self as *const Task, self);
-    //     let mut state = self.state.write().unwrap();
-    //     match &state.state_type {
-    //         Dirty | Scheduled => {
-    //             // In these states the task shouldn't have children
-    //             // but there is a short moment where is might happen
-    //             // and we want to ignore events from children there
-    //             drop(state);
-    //         }
-    //         InProgressLocallyOutdated => {
-    //             // The children are subject of clearing soon
-    //             // so we don't have to track the count
-    //             drop(state);
-    //         }
-    //         SomeChildrenDirty | SomeChildrenScheduled | SomeChildrenDirtyUndetermined => {
-    //             state.dirty_children_count -= 1;
-    //             if state.dirty_children_count == 0 {
-    //                 state.state_type = Done;
-    //                 state.event.notify(usize::MAX);
-    //                 let parents: TasksList =
-    //                     state.parents.iter().filter_map(|p| p.upgrade()).collect();
-    //                 drop(state);
-    //                 for parent in parents.iter() {
-    //                     parent.child_done(turbo_tasks);
-    //                 }
-    //             } else {
-    //                 drop(state);
-    //             }
-    //         }
-    //         InProgressLocally => {
-    //             // we track the count but don't move to Done when it's 0
-    //             // TODO investigate when it can happen that dirty_children_count is already 0
-    //             if state.dirty_children_count > 0 {
-    //                 state.dirty_children_count -= 1;
-    //             }
-    //             drop(state);
-    //         }
-    //         Done => {
-    //             // TODO investigate if this is a real problem
-    //             // panic!("Task child has become done while parent task was already done")
-    //         }
-    //     }
-    //     self.assert_state();
-    // }
-
-    // fn schedule_dirty_children(self: Arc<Self>, turbo_tasks: &'static TurboTasks) {
-    //     let mut state = self.state.write().unwrap();
-    //     match state.state_type {
-    //         Dirty => {
-    //             state.state_type = Scheduled;
-    //             self.clear_children_and_dependencies(state);
-    //             turbo_tasks.schedule(self);
-    //         }
-    //         Done | InProgressLocally | InProgressLocallyOutdated => {}
-    //         Scheduled => {}
-    //         SomeChildrenScheduled => {}
-    //         SomeChildrenDirty | SomeChildrenDirtyUndetermined => {
-    //             state.state_type = SomeChildrenScheduled;
-    //             let children: TasksList =
-    //                 state.children.iter().map(|arc| arc.clone()).collect();
-    //             drop(state);
-    //             for child in children.into_iter() {
-    //                 child.schedule_dirty_children(turbo_tasks);
-    //             }
-    //         }
-    //     }
-    // }
-
-    #[cfg(not(feature = "assert_task_state"))]
-    fn assert_parents_state(&self) {}
-
-    #[cfg(feature = "assert_task_state")]
-    fn assert_parents_state(&self) {
-        self.assert_state();
-        let state = self.state.read().unwrap();
-        let parents: TasksList = state.parents.iter().filter_map(|p| p.upgrade()).collect();
-        drop(state);
-        for parent in parents.iter() {
-            parent.assert_state();
-        }
-    }
-
-    #[cfg(not(feature = "assert_task_state"))]
-    fn assert_state(&self) {}
-
-    #[cfg(feature = "assert_task_state")]
-    fn assert_state(&self) {
-        let state = self.state.read().unwrap();
-        match state.state_type {
-            Scheduled => {
-                assert!(state.children.is_empty());
-            }
-            InProgressLocally => {}
-            InProgressLocallyOutdated => {}
-            Done => {
-                for child in state.children.iter() {
-                    let child_state = child.state.read().unwrap();
-                    if child_state.state_type != Done
-                        && child_state.state_type != SomeChildrenDirtyUndetermined
-                    {
-                        panic!(
-                            "Child is in {:?} state while parent is Done",
-                            child_state.state_type
-                        );
-                    }
-                }
-            }
-            Dirty => {
-                assert!(state.children.is_empty());
-            }
-            SomeChildrenDirty => {
-                let mut count = 0;
-                for child in state.children.iter() {
-                    let child_state = child.state.read().unwrap();
-                    match child_state.state_type {
-                        Scheduled
-                        | InProgressLocally
-                        | InProgressLocallyOutdated
-                        | Dirty
-                        | SomeChildrenDirty
-                        | SomeChildrenScheduled
-                        | SomeChildrenDirtyUndetermined => count += 1,
-                        Done => {}
-                    }
-                }
-                assert_eq!(count, state.dirty_children_count);
-            }
-            SomeChildrenScheduled | SomeChildrenDirtyUndetermined => {}
         }
     }
 
@@ -879,33 +631,6 @@ impl Task {
         }
     }
 
-    // pub(crate) fn ensure_scheduled(self: &Arc<Self>, turbo_tasks: &'static TurboTasks) {
-    //     let mut state = self.state.write().unwrap();
-    //     match state.state_type {
-    //         Done
-    //         | InProgressLocally
-    //         | InProgressLocallyOutdated
-    //         | Scheduled
-    //         | SomeChildrenScheduled => {
-    //             // already scheduled
-    //         }
-    //         Dirty => {
-    //             state.state_type = Scheduled;
-    //             drop(state);
-    //             turbo_tasks.schedule(self.clone());
-    //         }
-    //         SomeChildrenDirty | SomeChildrenDirtyUndetermined => {
-    //             state.state_type = SomeChildrenScheduled;
-    //             let children: TasksList =
-    //                 state.children.iter().map(|arc| arc.clone()).collect();
-    //             drop(state);
-    //             for child in children.into_iter() {
-    //                 child.schedule_dirty_children(turbo_tasks);
-    //             }
-    //         }
-    //     }
-    // }
-
     pub fn reset_executions(&self) {
         let mut state = self.state.write().unwrap();
         if state.executions > 1 {
@@ -964,36 +689,22 @@ impl Task {
     }
 
     pub(crate) fn connect_parent(self: &Arc<Self>, parent: &Arc<Self>) {
-        // println!(
-        //     "connect_parent child: {:?} {} parent: {:?} {}",
-        //     &**self as *const Task, self, &**parent as *const Task, parent,
-        // );
-        self.assert_state();
-        {
-            let mut parent_state = parent.state.write().unwrap();
-            #[cfg(feature = "assert_task_state")]
-            assert!(parent_state.state_type != Dirty && parent_state.state_type != Scheduled);
-            let is_new;
+        let mut parent_state = parent.state.write().unwrap();
+        if parent_state.children.insert(self.clone()) {
             if let Some(mut outdated_children) = parent_state.outdated_children.take() {
-                if outdated_children.remove_all(self.clone()) {
-                    parent_state.children.add(self.clone());
-                    is_new = false
-                } else {
-                    is_new = parent_state.children.add(self.clone())
-                }
+                outdated_children.remove(self);
                 if !outdated_children.is_empty() {
                     parent_state.outdated_children = Some(outdated_children);
                 }
-            } else {
-                is_new = parent_state.children.add(self.clone())
             }
             let active = parent_state.active;
             drop(parent_state);
 
-            if active && is_new {
+            if active {
                 if self.active_parents.fetch_add(1, Ordering::AcqRel) == 0 {
+                    self.activate();
                     // let start = Instant::now();
-                    let count = self.activate();
+                    // let count = self.activate();
                     // let elapsed = start.elapsed();
                     // if elapsed.as_millis() >= 100 {
                     //     println!(
@@ -1013,11 +724,6 @@ impl Task {
                 }
             }
         }
-        self.assert_state();
-        // println!(
-        //     "connected_parent child: {:?} {} parent: {:?} {}",
-        //     &**self as *const Task, self, &**parent as *const Task, parent,
-        // );
     }
 
     pub(crate) async fn with_done_output_slot<T>(
@@ -1075,6 +781,20 @@ impl Display for Task {
         )
     }
 }
+
+impl Hash for Task {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        Hash::hash(&(self as *const Task), state)
+    }
+}
+
+impl PartialEq for Task {
+    fn eq(&self, other: &Self) -> bool {
+        self as *const Task == other as *const Task
+    }
+}
+
+impl Eq for Task {}
 
 pub struct Invalidator {
     task: Weak<Task>,
