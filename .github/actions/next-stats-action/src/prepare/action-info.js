@@ -46,6 +46,7 @@ module.exports = function actionInfo() {
 
   const info = {
     commentEndpoint,
+    commentIdentifier: '<!--pr-stats-comment-->',
     skipClone: SKIP_CLONE,
     actionName: GITHUB_ACTION,
     githubToken: PR_STATS_COMMENT_TOKEN,

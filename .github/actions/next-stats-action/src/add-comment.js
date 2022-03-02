@@ -30,7 +30,7 @@ module.exports = async function addComment(
   actionInfo,
   statsConfig
 ) {
-  let comment = `# ${
+  let comment = `${actionInfo.commentIdentifier}\n# ${
     actionInfo.isRelease
       ? statsConfig.commentReleaseHeading || 'Stats from current release'
       : statsConfig.commentHeading || 'Stats from current PR'
@@ -238,8 +238,15 @@ module.exports = async function addComment(
     }
 
     try {
-      const res = await fetch(actionInfo.commentEndpoint, {
-        method: 'POST',
+      let commentEndpoint = actionInfo.commentEndpoint
+      const commentId = await shouldUpdateComment(
+        actionInfo.commentEndpoint,
+        actionInfo.commentIdentifier
+      )
+      if (commentId) commentEndpoint += `/${commentId}`
+
+      const res = await fetch(commentEndpoint, {
+        method: commentId ? 'PATCH' : 'POST',
         headers: {
           ...(actionInfo.githubToken
             ? {
@@ -271,4 +278,16 @@ module.exports = async function addComment(
       actionInfo.githubToken ? 'No comment endpoint' : 'no GitHub token'
     )
   }
+}
+
+async function shouldUpdateComment(commentEndpoint, commentIdentifier) {
+  const res = await fetch(`${commentEndpoint}?per_page=100`, {
+    headers: { 'content-type': 'application/json' },
+  })
+  if (!res.ok) throw new Error(`Failed to fetch comments ${res.status}`)
+  const comments = await res.json()
+  const comment = comments.find((c) => c.body.startsWith(commentIdentifier))
+
+  if (!comment) return null
+  return comment.id
 }
