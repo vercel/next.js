@@ -183,13 +183,9 @@ function enhanceComponents(
   }
 }
 
-function renderFlight(
-  App: AppType,
-  Component: React.ComponentType,
-  props: any
-) {
-  const AppServer = (App as any).__next_rsc__
-    ? (App as React.ComponentType)
+function renderFlight(AppMod: any, Component: React.ComponentType, props: any) {
+  const AppServer = AppMod.__next_rsc__
+    ? (AppMod.default as React.ComponentType)
     : React.Fragment
   return (
     <AppServer>
@@ -355,8 +351,9 @@ const useRSCResponse = createRSCHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
-  App: AppType,
   OriginalComponent: React.ComponentType,
+  AppMod: any,
+  ComponentMod: any,
   {
     cachePrefix,
     transformStream,
@@ -374,14 +371,15 @@ function createServerComponentRenderer(
     // globally for react-server-dom-webpack.
     // This is a hack until we find a better way.
     // @ts-ignore
-    globalThis.__webpack_require__ = OriginalComponent.__webpack_require__
+    globalThis.__webpack_require__ =
+      ComponentMod.__next_rsc__.__webpack_require__
   }
 
   const writable = transformStream.writable
   const ServerComponentWrapper = (props: any) => {
     const id = (React as any).useId()
     const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
-      renderFlight(App, OriginalComponent, props),
+      renderFlight(AppMod, OriginalComponent, props),
       serverComponentManifest
     )
 
@@ -463,6 +461,8 @@ export async function renderToHTML(
     images,
     reactRoot,
     runtime,
+    ComponentMod,
+    AppMod,
   } = renderOpts
 
   const hasConcurrentFeatures = !!runtime
@@ -473,7 +473,7 @@ export async function renderToHTML(
   const isServerComponent =
     !!serverComponentManifest &&
     hasConcurrentFeatures &&
-    (OriginalComponent as any).__next_rsc__
+    ComponentMod.__next_rsc__
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
@@ -485,12 +485,17 @@ export async function renderToHTML(
   if (isServerComponent) {
     serverComponentsInlinedTransformStream = new TransformStream()
     const search = stringifyQuery(query)
-    Component = createServerComponentRenderer(App, OriginalComponent, {
-      cachePrefix: pathname + (search ? `?${search}` : ''),
-      transformStream: serverComponentsInlinedTransformStream,
-      serverComponentManifest,
-      runtime,
-    })
+    Component = createServerComponentRenderer(
+      OriginalComponent,
+      AppMod,
+      ComponentMod,
+      {
+        cachePrefix: pathname + (search ? `?${search}` : ''),
+        transformStream: serverComponentsInlinedTransformStream,
+        serverComponentManifest,
+        runtime,
+      }
+    )
   }
 
   const getFontDefinition = (url: string): string => {
@@ -1178,7 +1183,7 @@ export async function renderToHTML(
 
   if (renderServerComponentData) {
     const stream: ReadableStream<Uint8Array> = renderToReadableStream(
-      renderFlight(App, OriginalComponent, {
+      renderFlight(AppMod, OriginalComponent, {
         ...props.pageProps,
         ...serverComponentProps,
       }),
@@ -1318,7 +1323,7 @@ export async function renderToHTML(
         ) : (
           <Body>
             <AppContainerWithIsomorphicFiberStructure>
-              {renderOpts.serverComponents && (App as any).__next_rsc__ ? (
+              {renderOpts.serverComponents && AppMod.__next_rsc__ ? (
                 <Component {...props.pageProps} router={router} />
               ) : (
                 <App {...props} Component={Component} router={router} />

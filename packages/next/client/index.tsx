@@ -179,7 +179,10 @@ const appElement: HTMLElement | null = document.getElementById('__next')
 let lastRenderReject: (() => void) | null
 let webpackHMR: any
 export let router: Router
+
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
+let isAppRSC: boolean
+
 headManager.getIsSsr = () => {
   return router.isSsr
 }
@@ -291,6 +294,7 @@ export async function initNext(
 
     const { component: app, exports: mod } = appEntrypoint
     CachedApp = app as AppComponent
+    isAppRSC = !!mod.__next_rsc__
     const exportedReportWebVitals = mod && mod.reportWebVitals
     onPerfEntry = ({
       id,
@@ -419,6 +423,7 @@ export async function initNext(
     defaultLocale,
     domainLocales,
     isPreview,
+    isRsc: rsc,
   })
 
   const renderCtx: RenderRouteInfo = {
@@ -640,7 +645,7 @@ function AppContainer({
 }
 
 function renderApp(App: AppComponent, appProps: AppProps) {
-  if (process.env.__NEXT_RSC && (App as any).__next_rsc__) {
+  if (process.env.__NEXT_RSC && isAppRSC) {
     const { Component, err: _, router: __, ...props } = appProps
     return <Component {...props} />
   } else {
