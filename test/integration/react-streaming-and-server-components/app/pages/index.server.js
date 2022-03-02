@@ -14,7 +14,7 @@ export default function Index({ header, router }) {
       <div>{'env:' + envVar}</div>
       <div>{'header:' + header}</div>
       <div>
-        Named: <Named />
+        <Named />
       </div>
       <div>
         <Foo />
