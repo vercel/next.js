@@ -1598,7 +1598,12 @@ export default async function getBaseWebpackConfig(
     if (!webpack5Config.optimization) {
       webpack5Config.optimization = {}
     }
-    webpack5Config.optimization.providedExports = false
+
+    // For Server Components, it's necessary to have provided exports collected
+    // to generate the correct flight manifest.
+    if (!hasServerComponents) {
+      webpack5Config.optimization.providedExports = false
+    }
     webpack5Config.optimization.usedExports = false
   }
 

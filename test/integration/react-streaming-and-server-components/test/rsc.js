@@ -28,6 +28,7 @@ export default function (context, { runtime, env }) {
     expect(homeHTML).toContain('header:test-util')
     expect(homeHTML).toContain('path:/')
     expect(homeHTML).toContain('foo.client')
+    expect(homeHTML).toContain('named.client')
   })
 
   it('should reuse the inline flight response without sending extra requests', async () => {
