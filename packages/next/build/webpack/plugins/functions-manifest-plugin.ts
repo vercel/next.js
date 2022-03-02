@@ -3,7 +3,7 @@ import { sources, webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { normalizePagePath } from '../../../server/normalize-page-path'
 import { FUNCTIONS_MANIFEST } from '../../../shared/lib/constants'
 import { getPageFromPath } from '../../entries'
-import { collectAssets, getEntrypointInfo } from './middleware-plugin'
+import { collectAssets, getEntrypointInfo, PerRoute } from './middleware-plugin'
 
 const PLUGIN_NAME = 'FunctionsManifestPlugin'
 export interface FunctionsManifest {
@@ -52,7 +52,7 @@ export default class FunctionsManifestPlugin {
   createAssets(
     compilation: webpack5.Compilation,
     assets: any,
-    envPerRoute: Map<string, string[]>,
+    perRoute: PerRoute,
     isEdgeRuntime: boolean
   ) {
     const functionsManifest: FunctionsManifest = {
@@ -60,7 +60,7 @@ export default class FunctionsManifestPlugin {
       pages: {},
     }
 
-    const infos = getEntrypointInfo(compilation, envPerRoute, isEdgeRuntime)
+    const infos = getEntrypointInfo(compilation, perRoute, isEdgeRuntime)
     infos.forEach((info) => {
       const { page } = info
       // TODO: use global default runtime instead of 'web'
