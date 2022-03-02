@@ -22,9 +22,9 @@ export default function Index({ allPosts: { edges }, preview }) {
           {heroPost && (
             <HeroPost
               title={heroPost.title}
-              coverImage={heroPost.featuredImage?.node}
+              coverImage={heroPost.featuredImage}
               date={heroPost.date}
-              author={heroPost.author?.node}
+              author={heroPost.author}
               slug={heroPost.slug}
               excerpt={heroPost.excerpt}
             />
@@ -38,6 +38,7 @@ export default function Index({ allPosts: { edges }, preview }) {
 
 export async function getStaticProps({ preview = false }) {
   const allPosts = await getAllPostsForHome(preview)
+
   return {
     props: { allPosts, preview },
   }
