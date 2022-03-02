@@ -112,7 +112,7 @@ export async function getPageRuntime(
     encoding: 'utf8',
   })
   // branch prunes for entry page without runtime option
-  if (pageContent.includes('export const config =')) {
+  if (pageContent.includes('runtime:')) {
     const { body } = await parse(pageContent, {
       filename: pageFilePath,
       isModule: true,
