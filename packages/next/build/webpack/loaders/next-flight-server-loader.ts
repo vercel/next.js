@@ -1,42 +1,27 @@
-// TODO: add ts support for next-swc api
-// @ts-ignore
 import { parse } from '../../swc'
-// @ts-ignore
-import { getBaseSWCOptions } from '../../swc/options'
 import { getRawPageExtensions } from '../../utils'
 
-const createClientComponentFilter =
-  (pageExtensions: string[]) => (importSource: string) => {
-    const hasClientExtension = new RegExp(
-      `\\.client(\\.(${pageExtensions.join('|')}))?`
-    ).test(importSource)
-    // Special cases for Next.js APIs that are considered as client components:
-    return (
-      hasClientExtension ||
-      isNextComponent(importSource) ||
-      isImageImport(importSource)
-    )
-  }
+const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
 
-const createServerComponentFilter =
-  (pageExtensions: string[]) => (importSource: string) => {
-    return new RegExp(`\\.server(\\.(${pageExtensions.join('|')}))?`).test(
-      importSource
-    )
-  }
-
-function isNextComponent(importSource: string) {
-  return (
-    importSource.includes('next/link') || importSource.includes('next/image')
+const createClientComponentFilter = (pageExtensions: string[]) => {
+  // Special cases for Next.js APIs that are considered as client components:
+  // - .client.[ext]
+  // - next/link, next/image
+  // - .[imageExt]
+  const regex = new RegExp(
+    '(' +
+      `\\.client(\\.(${pageExtensions.join('|')}))?|` +
+      `next/link|next/image|` +
+      `\\.(${imageExtensions.join('|')})` +
+      ')$'
   )
+
+  return (importSource: string) => regex.test(importSource)
 }
 
-function isImageImport(importSource: string) {
-  // TODO: share extension with next/image
-  // TODO: add other static assets, jpeg -> jpg
-  return ['jpg', 'jpeg', 'png', 'webp', 'avif'].some((imageExt) =>
-    importSource.endsWith('.' + imageExt)
-  )
+const createServerComponentFilter = (pageExtensions: string[]) => {
+  const regex = new RegExp(`\\.server(\\.(${pageExtensions.join('|')}))?$`)
+  return (importSource: string) => regex.test(importSource)
 }
 
 async function parseImportsInfo({
@@ -55,11 +40,7 @@ async function parseImportsInfo({
   source: string
   imports: string
 }> {
-  const opts = getBaseSWCOptions({
-    filename: resourcePath,
-    globalWindow: isClientCompilation,
-  })
-  const ast = await parse(source, { ...opts.jsc.parser, isModule: true })
+  const ast = await parse(source, { filename: resourcePath, isModule: true })
   const { body } = ast
 
   let transformedSource = ''
