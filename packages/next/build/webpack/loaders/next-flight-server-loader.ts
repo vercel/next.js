@@ -73,6 +73,7 @@ async function parseImportsInfo({
             // Since we already include React in the SSR runtime,
             // here we can't create a new module with the ?__rsc_server__ query.
             if (
+              importSource === 'react' ||
               ['react/jsx-runtime', 'react/jsx-dev-runtime'].includes(
                 importSource
               )

@@ -395,11 +395,7 @@ function createServerComponentRenderer(
   }
 
   const Component = (props: any) => {
-    return (
-      <React.Suspense fallback={null}>
-        <ServerComponentWrapper {...props} />
-      </React.Suspense>
-    )
+    return <ServerComponentWrapper {...props} />
   }
 
   // Although it's not allowed to attach some static methods to Component,
@@ -1763,7 +1759,7 @@ function renderToStream({
   generateStaticHTML: boolean
   flushEffectHandler?: () => Promise<string>
 }): Promise<ReadableStream<Uint8Array>> {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     let resolved = false
 
     const closeTag = '</body></html>'
@@ -1798,7 +1794,7 @@ function renderToStream({
       }
     }
 
-    const renderStream: ReadableStream<Uint8Array> = (
+    const renderStream: ReadableStream<Uint8Array> = await (
       ReactDOMServer as any
     ).renderToReadableStream(element, {
       onError(err: Error) {
@@ -1807,15 +1803,9 @@ function renderToStream({
           reject(err)
         }
       },
-      onCompleteShell() {
-        if (!generateStaticHTML) {
-          doResolve()
-        }
-      },
-      onCompleteAll() {
-        doResolve()
-      },
     })
+
+    doResolve()
   })
 }
 
