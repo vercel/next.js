@@ -560,9 +560,6 @@ export default abstract class Server {
       if (url.locale?.path.detectedLocale) {
         req.url = formatUrl(url)
         addRequestMeta(req, '__nextStrippedLocale', true)
-        if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
-          return this.render404(req, res, parsedUrl)
-        }
       }
 
       if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
@@ -1526,6 +1523,21 @@ export default abstract class Server {
         throw new Error('invariant: cache entry required but not generated')
       }
       return null
+    }
+
+    if (isSSG) {
+      // set x-nextjs-cache header to match the header
+      // we set for the image-optimizer
+      res.setHeader(
+        'x-nextjs-cache',
+        isManualRevalidate
+          ? 'REVALIDATED'
+          : cacheEntry.isMiss
+          ? 'MISS'
+          : cacheEntry.isStale
+          ? 'STALE'
+          : 'HIT'
+      )
     }
 
     const { revalidate, value: cachedData } = cacheEntry

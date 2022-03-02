@@ -691,6 +691,17 @@ export function runTests(ctx) {
     expect(await res.text()).toBe(`"url" parameter is invalid`)
   })
 
+  it('should fail when internal url is not an image', async () => {
+    const url = `//<h1>not-an-image</h1>`
+    const query = { url, w: ctx.w, q: 39 }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(500)
+    expect(await res.text()).toBe(
+      `Unable to optimize image and unable to fallback to upstream image`
+    )
+  })
+
   if (ctx.domains.includes('localhost')) {
     it('should fail when url fails to load an image', async () => {
       const url = `http://localhost:${ctx.appPort}/not-an-image`
