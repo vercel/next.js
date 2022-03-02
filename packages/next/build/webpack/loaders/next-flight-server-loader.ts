@@ -86,7 +86,7 @@ async function parseImportsInfo({
             // A client component. It should be loaded as module reference.
             transformedSource += importDeclarations
             transformedSource += JSON.stringify(`${importSource}?__sc_client__`)
-            imports += `require(${JSON.stringify(importSource)});`
+            imports += `require(${JSON.stringify(importSource)})\n`
           } else {
             // This is a special case to avoid the Duplicate React error.
             // Since we already include React in the SSR runtime,
@@ -116,7 +116,7 @@ async function parseImportsInfo({
             continue
           }
 
-          imports += `require(${JSON.stringify(importSource)});`
+          imports += `require(${JSON.stringify(importSource)})\n`
         }
 
         lastIndex = node.source.span.end

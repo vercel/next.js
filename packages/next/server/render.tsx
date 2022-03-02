@@ -183,14 +183,9 @@ function enhanceComponents(
   }
 }
 
-function renderFlight(
-  AppMod: any,
-  App: AppType,
-  Component: React.ComponentType,
-  props: any
-) {
+function renderFlight(AppMod: any, Component: React.ComponentType, props: any) {
   const AppServer = AppMod.__next_rsc__
-    ? (App as React.ComponentType)
+    ? (AppMod.default as React.ComponentType)
     : React.Fragment
   return (
     <AppServer>
@@ -356,7 +351,6 @@ const useRSCResponse = createRSCHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
-  App: AppType,
   OriginalComponent: React.ComponentType,
   AppMod: any,
   ComponentMod: any,
@@ -385,7 +379,7 @@ function createServerComponentRenderer(
   const ServerComponentWrapper = (props: any) => {
     const id = (React as any).useId()
     const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
-      renderFlight(AppMod, App, OriginalComponent, props),
+      renderFlight(AppMod, OriginalComponent, props),
       serverComponentManifest
     )
 
@@ -492,9 +486,8 @@ export async function renderToHTML(
     serverComponentsInlinedTransformStream = new TransformStream()
     const search = stringifyQuery(query)
     Component = createServerComponentRenderer(
-      App,
-      AppMod,
       OriginalComponent,
+      AppMod,
       ComponentMod,
       {
         cachePrefix: pathname + (search ? `?${search}` : ''),
@@ -1190,7 +1183,7 @@ export async function renderToHTML(
 
   if (renderServerComponentData) {
     const stream: ReadableStream<Uint8Array> = renderToReadableStream(
-      renderFlight(AppMod, App, OriginalComponent, {
+      renderFlight(AppMod, OriginalComponent, {
         ...props.pageProps,
         ...serverComponentProps,
       }),
