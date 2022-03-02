@@ -395,11 +395,7 @@ function createServerComponentRenderer(
   }
 
   const Component = (props: any) => {
-    return (
-      <React.Suspense fallback={null}>
-        <ServerComponentWrapper {...props} />
-      </React.Suspense>
-    )
+    return <ServerComponentWrapper {...props} />
   }
 
   // Although it's not allowed to attach some static methods to Component,
@@ -1353,7 +1349,6 @@ export async function renderToHTML(
                   ))}
                 </>
               ),
-              generateStaticHTML: true,
             })
 
             const flushed = await streamToString(flushEffectStream)
@@ -1365,7 +1360,6 @@ export async function renderToHTML(
             element: content,
             suffix,
             dataStream: serverComponentsInlinedTransformStream?.readable,
-            generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
             flushEffectHandler,
           })
         }
@@ -1498,7 +1492,6 @@ export async function renderToHTML(
     const documentStream = await renderToStream({
       ReactDOMServer,
       element: document,
-      generateStaticHTML: true,
     })
     documentHTML = await streamToString(documentStream)
   } else {
@@ -1753,23 +1746,21 @@ function renderToStream({
   element,
   suffix,
   dataStream,
-  generateStaticHTML,
   flushEffectHandler,
 }: {
   ReactDOMServer: typeof import('react-dom/server')
   element: React.ReactElement
   suffix?: string
   dataStream?: ReadableStream<Uint8Array>
-  generateStaticHTML: boolean
   flushEffectHandler?: () => Promise<string>
 }): Promise<ReadableStream<Uint8Array>> {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     let resolved = false
 
     const closeTag = '</body></html>'
     const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
 
-    const doResolve = () => {
+    const doResolve = (renderStream: ReadableStream<Uint8Array>) => {
       if (!resolved) {
         resolved = true
 
@@ -1798,7 +1789,7 @@ function renderToStream({
       }
     }
 
-    const renderStream: ReadableStream<Uint8Array> = (
+    const renderStream: ReadableStream<Uint8Array> = await (
       ReactDOMServer as any
     ).renderToReadableStream(element, {
       onError(err: Error) {
@@ -1807,15 +1798,9 @@ function renderToStream({
           reject(err)
         }
       },
-      onCompleteShell() {
-        if (!generateStaticHTML) {
-          doResolve()
-        }
-      },
-      onCompleteAll() {
-        doResolve()
-      },
     })
+
+    doResolve(renderStream)
   })
 }
 

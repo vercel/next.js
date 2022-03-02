@@ -547,9 +547,10 @@ function renderReactElement(
 
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
   if (process.env.__NEXT_REACT_ROOT) {
+    const ReactDOMClient = require('react-dom/client')
     if (!reactRoot) {
       // Unlike with createRoot, you don't need a separate root.render() call here
-      reactRoot = (ReactDOM as any).hydrateRoot(domEl, reactEl)
+      reactRoot = (ReactDOMClient as any).hydrateRoot(domEl, reactEl)
       // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
       shouldHydrate = false
     } else {
@@ -812,13 +813,11 @@ if (process.env.__NEXT_RSC) {
 
     return (
       <RefreshContext.Provider value={refreshCache}>
-        <React.Suspense fallback={null}>
-          <ServerRoot
-            cacheKey={cacheKey}
-            serialized={__flight_serialized__}
-            _fresh={__flight_fresh__}
-          />
-        </React.Suspense>
+        <ServerRoot
+          cacheKey={cacheKey}
+          serialized={__flight_serialized__}
+          _fresh={__flight_fresh__}
+        />
       </RefreshContext.Provider>
     )
   }

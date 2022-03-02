@@ -75,6 +75,11 @@ async function parseExportNamesInto(
           }
         }
         continue
+      case 'ExportDeclaration':
+        if (node.declaration?.identifier) {
+          addExportNames(names, node.declaration.identifier)
+        }
+        continue
       default:
         break
     }
