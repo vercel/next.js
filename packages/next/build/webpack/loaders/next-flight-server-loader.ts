@@ -69,12 +69,16 @@ async function parseImportsInfo({
             transformedSource += JSON.stringify(`${importSource}?__sc_client__`)
             imports += `require(${JSON.stringify(importSource)})\n`
           } else {
+            // FIXME
+            // case: 'react'
+            // Avoid module resolution error like Cannot find `./?__rsc_server__` in react/package.json
+
+            // cases: 'react/jsx-runtime', 'react/jsx-dev-runtime'
             // This is a special case to avoid the Duplicate React error.
             // Since we already include React in the SSR runtime,
             // here we can't create a new module with the ?__rsc_server__ query.
             if (
-              importSource === 'react' ||
-              ['react/jsx-runtime', 'react/jsx-dev-runtime'].includes(
+              ['react', 'react/jsx-runtime', 'react/jsx-dev-runtime'].includes(
                 importSource
               )
             ) {
