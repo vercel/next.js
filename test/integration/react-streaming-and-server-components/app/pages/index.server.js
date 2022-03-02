@@ -1,4 +1,6 @@
 import Foo from '../components/foo.client'
+import { Named } from '../components/named.client'
+
 import Link from 'next/link'
 
 const envVar = process.env.ENV_VAR_TEST
@@ -11,6 +13,9 @@ export default function Index({ header, router }) {
       <div>{'path:' + router.pathname}</div>
       <div>{'env:' + envVar}</div>
       <div>{'header:' + header}</div>
+      <div>
+        Named: <Named />
+      </div>
       <div>
         <Foo />
       </div>
