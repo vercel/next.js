@@ -19,7 +19,7 @@ module.exports = {
     domains: [],
     // path prefix for Image Optimization API, useful with `loader`
     path: '/_next/image',
-    // loader can be 'default', 'imgix', 'cloudinary', 'akamai', or 'custom'
+    // loader can be 'default', 'imgix', 'cloudinary', 'contentful', 'akamai', or 'custom'
     loader: 'default',
     // disable static imports for image files
     disableStaticImages: false,

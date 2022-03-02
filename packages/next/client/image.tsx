@@ -40,6 +40,7 @@ const loaders = new Map<LoaderValue, (props: ImageLoaderProps) => string>([
   ['default', defaultLoader],
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
+  ['contentful', contentfulLoader],
   ['akamai', akamaiLoader],
   ['custom', customLoader],
 ])
@@ -810,6 +811,16 @@ function cloudinaryLoader({
   const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
   const paramsString = params.join(',') + '/'
   return `${config.path}${paramsString}${normalizeSrc(src)}`
+}
+
+function contentfulLoader({
+  config,
+  src,
+  width,
+  quality,
+}: ImageLoaderProps): string {
+  // Demo:  https://images.ctfassets.net/demo/5ojpI3bMFxhvqUmIg2NnP1/b5fa3025b79e3844038c65945549aede/turtles.jpg
+  return `${config.path}${normalizeSrc(src)}?w=${width}&q=${quality}`
 }
 
 function customLoader({ src }: ImageLoaderProps): string {
