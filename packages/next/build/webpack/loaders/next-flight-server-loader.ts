@@ -1,8 +1,4 @@
-// TODO: add ts support for next-swc api
-// @ts-ignore
 import { parse } from '../../swc'
-// @ts-ignore
-import { getBaseSWCOptions } from '../../swc/options'
 import { getRawPageExtensions } from '../../utils'
 
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
@@ -46,11 +42,7 @@ async function parseImportsInfo({
   source: string
   defaultExportName: string
 }> {
-  const opts = getBaseSWCOptions({
-    filename: resourcePath,
-    globalWindow: isClientCompilation,
-  })
-  const ast = await parse(source, { ...opts.jsc.parser, isModule: true })
+  const ast = await parse(source, { filename: resourcePath, isModule: true })
   const { body } = ast
   let transformedSource = ''
   let lastIndex = 0
