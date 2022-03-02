@@ -29,6 +29,7 @@ swc_ecmascript = {version = "0.132.0", features = ["codegen", "minifier", "optim
 swc_node_base = "0.5.1"
 swc_stylis = "0.96.1"
 tracing = {version = "0.1.28", features = ["release_max_level_off"]}
+handlebars = "4.2.1"
 
 [dev-dependencies]
 swc_ecma_transforms_testing = "0.69.0"
