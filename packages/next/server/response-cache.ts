@@ -60,15 +60,17 @@ type ResponseGenerator = (
   hadCache: boolean
 ) => Promise<ResponseCacheEntry | null>
 
+type IncrementalCacheItem = {
+  revalidateAfter?: number | false
+  curRevalidate?: number | false
+  revalidate?: number | false
+  value: IncrementalCacheValue | null
+  isStale?: boolean
+  isMiss?: boolean
+} | null
+
 interface IncrementalCache {
-  get: (key: string) => Promise<{
-    revalidateAfter?: number | false
-    curRevalidate?: number | false
-    revalidate?: number | false
-    value: IncrementalCacheValue | null
-    isStale?: boolean
-    isMiss?: boolean
-  } | null>
+  get: (key: string) => Promise<IncrementalCacheItem>
   set: (
     key: string,
     data: IncrementalCacheValue | null,
@@ -79,10 +81,17 @@ interface IncrementalCache {
 export default class ResponseCache {
   incrementalCache: IncrementalCache
   pendingResponses: Map<string, Promise<ResponseCacheEntry | null>>
+  previousCacheItem?: {
+    key: string
+    entry: ResponseCacheEntry | null
+    expiresAt: number
+  }
+  minimalMode?: boolean
 
-  constructor(incrementalCache: IncrementalCache) {
+  constructor(incrementalCache: IncrementalCache, minimalMode: boolean) {
     this.incrementalCache = incrementalCache
     this.pendingResponses = new Map()
+    this.minimalMode = minimalMode
   }
 
   public get(
@@ -119,12 +128,28 @@ export default class ResponseCache {
       }
     }
 
+    // we keep the previous cache entry around to leverage
+    // when the incremental cache is disabled in minimal mode
+    if (
+      key &&
+      this.minimalMode &&
+      this.previousCacheItem?.key === key &&
+      this.previousCacheItem.expiresAt > Date.now()
+    ) {
+      resolve(this.previousCacheItem.entry)
+      this.pendingResponses.delete(key)
+      return promise
+    }
+
     // We wait to do any async work until after we've added our promise to
     // `pendingResponses` to ensure that any any other calls will reuse the
     // same promise until we've fully finished our work.
     ;(async () => {
+      let cachedResponse: IncrementalCacheItem = null
       try {
-        const cachedResponse = key ? await this.incrementalCache.get(key) : null
+        cachedResponse =
+          key && !this.minimalMode ? await this.incrementalCache.get(key) : null
+
         if (cachedResponse && !context.isManualRevalidate) {
           resolve({
             isStale: cachedResponse.isStale,
@@ -157,19 +182,41 @@ export default class ResponseCache {
         )
 
         if (key && cacheEntry && typeof cacheEntry.revalidate !== 'undefined') {
-          await this.incrementalCache.set(
-            key,
-            cacheEntry.value?.kind === 'PAGE'
-              ? {
-                  kind: 'PAGE',
-                  html: cacheEntry.value.html.toUnchunkedString(),
-                  pageData: cacheEntry.value.pageData,
-                }
-              : cacheEntry.value,
-            cacheEntry.revalidate
-          )
+          if (this.minimalMode) {
+            this.previousCacheItem = {
+              key,
+              entry: cacheEntry,
+              expiresAt:
+                typeof cacheEntry.revalidate !== 'number'
+                  ? Date.now() + 1000
+                  : Date.now() + cacheEntry?.revalidate * 1000,
+            }
+          } else {
+            await this.incrementalCache.set(
+              key,
+              cacheEntry.value?.kind === 'PAGE'
+                ? {
+                    kind: 'PAGE',
+                    html: cacheEntry.value.html.toUnchunkedString(),
+                    pageData: cacheEntry.value.pageData,
+                  }
+                : cacheEntry.value,
+              cacheEntry.revalidate
+            )
+          }
+        } else {
+          this.previousCacheItem = undefined
         }
       } catch (err) {
+        // when a getStaticProps path is erroring we automatically re-set the
+        // existing cache under a new expiration to prevent non-stop retrying
+        if (cachedResponse && key) {
+          await this.incrementalCache.set(
+            key,
+            cachedResponse.value,
+            Math.min(Math.max(cachedResponse.revalidate || 3, 3), 30)
+          )
+        }
         // while revalidating in the background we can't reject as
         // we already resolved the cache entry so log the error here
         if (resolved) {

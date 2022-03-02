@@ -183,13 +183,9 @@ function enhanceComponents(
   }
 }
 
-function renderFlight(
-  App: AppType,
-  Component: React.ComponentType,
-  props: any
-) {
-  const AppServer = (App as any).__next_rsc__
-    ? (App as React.ComponentType)
+function renderFlight(AppMod: any, Component: React.ComponentType, props: any) {
+  const AppServer = AppMod.__next_rsc__
+    ? (AppMod.default as React.ComponentType)
     : React.Fragment
   return (
     <AppServer>
@@ -304,17 +300,15 @@ const rscCache = new Map()
 
 function createRSCHook() {
   return (
-    writable: WritableStream<string>,
+    writable: WritableStream<Uint8Array>,
     id: string,
-    req: ReadableStream<string>,
+    req: ReadableStream<Uint8Array>,
     bootstrap: boolean
   ) => {
     let entry = rscCache.get(id)
     if (!entry) {
       const [renderStream, forwardStream] = readableStreamTee(req)
-      entry = createFromReadableStream(
-        pipeThrough(renderStream, createTextEncoderStream())
-      )
+      entry = createFromReadableStream(renderStream)
       rscCache.set(id, entry)
 
       let bootstrapped = false
@@ -325,10 +319,11 @@ function createRSCHook() {
           if (bootstrap && !bootstrapped) {
             bootstrapped = true
             writer.write(
-              `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-                0,
-                id,
-              ])})</script>`
+              encodeText(
+                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
+                  [0, id]
+                )})</script>`
+              )
             )
           }
           if (done) {
@@ -336,11 +331,11 @@ function createRSCHook() {
             writer.close()
           } else {
             writer.write(
-              `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-                1,
-                id,
-                value,
-              ])})</script>`
+              encodeText(
+                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
+                  [1, id, decodeText(value)]
+                )})</script>`
+              )
             )
             process()
           }
@@ -356,8 +351,9 @@ const useRSCResponse = createRSCHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
-  App: AppType,
   OriginalComponent: React.ComponentType,
+  AppMod: any,
+  ComponentMod: any,
   {
     cachePrefix,
     transformStream,
@@ -365,7 +361,7 @@ function createServerComponentRenderer(
     runtime,
   }: {
     cachePrefix: string
-    transformStream: TransformStream<string, string>
+    transformStream: TransformStream<Uint8Array, Uint8Array>
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
     runtime: 'nodejs' | 'edge'
   }
@@ -375,18 +371,16 @@ function createServerComponentRenderer(
     // globally for react-server-dom-webpack.
     // This is a hack until we find a better way.
     // @ts-ignore
-    globalThis.__webpack_require__ = OriginalComponent.__webpack_require__
+    globalThis.__webpack_require__ =
+      ComponentMod.__next_rsc__.__webpack_require__
   }
 
   const writable = transformStream.writable
   const ServerComponentWrapper = (props: any) => {
     const id = (React as any).useId()
-    const reqStream: ReadableStream<string> = pipeThrough(
-      renderToReadableStream(
-        renderFlight(App, OriginalComponent, props),
-        serverComponentManifest
-      ),
-      createTextDecoderStream()
+    const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
+      renderFlight(AppMod, OriginalComponent, props),
+      serverComponentManifest
     )
 
     const response = useRSCResponse(
@@ -401,11 +395,7 @@ function createServerComponentRenderer(
   }
 
   const Component = (props: any) => {
-    return (
-      <React.Suspense fallback={null}>
-        <ServerComponentWrapper {...props} />
-      </React.Suspense>
-    )
+    return <ServerComponentWrapper {...props} />
   }
 
   // Although it's not allowed to attach some static methods to Component,
@@ -467,6 +457,8 @@ export async function renderToHTML(
     images,
     reactRoot,
     runtime,
+    ComponentMod,
+    AppMod,
   } = renderOpts
 
   const hasConcurrentFeatures = !!runtime
@@ -477,24 +469,29 @@ export async function renderToHTML(
   const isServerComponent =
     !!serverComponentManifest &&
     hasConcurrentFeatures &&
-    (OriginalComponent as any).__next_rsc__
+    ComponentMod.__next_rsc__
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
   let serverComponentsInlinedTransformStream: TransformStream<
-    string,
-    string
+    Uint8Array,
+    Uint8Array
   > | null = null
 
   if (isServerComponent) {
     serverComponentsInlinedTransformStream = new TransformStream()
     const search = stringifyQuery(query)
-    Component = createServerComponentRenderer(App, OriginalComponent, {
-      cachePrefix: pathname + (search ? `?${search}` : ''),
-      transformStream: serverComponentsInlinedTransformStream,
-      serverComponentManifest,
-      runtime,
-    })
+    Component = createServerComponentRenderer(
+      OriginalComponent,
+      AppMod,
+      ComponentMod,
+      {
+        cachePrefix: pathname + (search ? `?${search}` : ''),
+        transformStream: serverComponentsInlinedTransformStream,
+        serverComponentManifest,
+        runtime,
+      }
+    )
   }
 
   const getFontDefinition = (url: string): string => {
@@ -1181,21 +1178,16 @@ export async function renderToHTML(
   if (isResSent(res) && !isSSG) return null
 
   if (renderServerComponentData) {
-    const stream: ReadableStream<string> = pipeThrough(
-      renderToReadableStream(
-        renderFlight(App, OriginalComponent, {
-          ...props.pageProps,
-          ...serverComponentProps,
-        }),
-        serverComponentManifest
-      ),
-      createTextDecoderStream()
+    const stream: ReadableStream<Uint8Array> = renderToReadableStream(
+      renderFlight(AppMod, OriginalComponent, {
+        ...props.pageProps,
+        ...serverComponentProps,
+      }),
+      serverComponentManifest
     )
+
     return new RenderResult(
-      pipeThrough(
-        pipeThrough(stream, createBufferedTransformStream()),
-        createTextEncoderStream()
-      )
+      pipeThrough(stream, createBufferedTransformStream())
     )
   }
 
@@ -1327,7 +1319,7 @@ export async function renderToHTML(
         ) : (
           <Body>
             <AppContainerWithIsomorphicFiberStructure>
-              {renderOpts.serverComponents && (App as any).__next_rsc__ ? (
+              {renderOpts.serverComponents && AppMod.__next_rsc__ ? (
                 <Component {...props.pageProps} router={router} />
               ) : (
                 <App {...props} Component={Component} router={router} />
@@ -1357,10 +1349,10 @@ export async function renderToHTML(
                   ))}
                 </>
               ),
-              generateStaticHTML: true,
             })
 
-            return await streamToString(flushEffectStream)
+            const flushed = await streamToString(flushEffectStream)
+            return flushed
           }
 
           return await renderToStream({
@@ -1368,7 +1360,6 @@ export async function renderToHTML(
             element: content,
             suffix,
             dataStream: serverComponentsInlinedTransformStream?.readable,
-            generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
             flushEffectHandler,
           })
         }
@@ -1501,7 +1492,6 @@ export async function renderToHTML(
     const documentStream = await renderToStream({
       ReactDOMServer,
       element: document,
-      generateStaticHTML: true,
     })
     documentHTML = await streamToString(documentStream)
   } else {
@@ -1607,9 +1597,7 @@ export async function renderToHTML(
     return new RenderResult(html)
   }
 
-  return new RenderResult(
-    pipeThrough(chainStreams(streams), createTextEncoderStream())
-  )
+  return new RenderResult(chainStreams(streams))
 }
 
 function errorToJSON(err: Error) {
@@ -1707,27 +1695,10 @@ function createTransformStream<Input, Output>({
   }
 }
 
-function createTextDecoderStream(): TransformStream<Uint8Array, string> {
-  const decoder = new TextDecoder()
-  return createTransformStream({
-    transform(chunk, controller) {
-      controller.enqueue(
-        typeof chunk === 'string' ? chunk : decoder.decode(chunk)
-      )
-    },
-  })
-}
-
-function createTextEncoderStream(): TransformStream<string, Uint8Array> {
-  const encoder = new TextEncoder()
-  return createTransformStream({
-    transform(chunk, controller) {
-      controller.enqueue(encoder.encode(chunk))
-    },
-  })
-}
-
-function createBufferedTransformStream(): TransformStream<string, string> {
+function createBufferedTransformStream(): TransformStream<
+  Uint8Array,
+  Uint8Array
+> {
   let bufferedString = ''
   let pendingFlush: Promise<void> | null = null
 
@@ -1735,7 +1706,7 @@ function createBufferedTransformStream(): TransformStream<string, string> {
     if (!pendingFlush) {
       pendingFlush = new Promise((resolve) => {
         setTimeout(() => {
-          controller.enqueue(bufferedString)
+          controller.enqueue(encodeText(bufferedString))
           bufferedString = ''
           pendingFlush = null
           resolve()
@@ -1747,7 +1718,7 @@ function createBufferedTransformStream(): TransformStream<string, string> {
 
   return createTransformStream({
     transform(chunk, controller) {
-      bufferedString += chunk
+      bufferedString += decodeText(chunk)
       flushBuffer(controller)
     },
 
@@ -1761,11 +1732,11 @@ function createBufferedTransformStream(): TransformStream<string, string> {
 
 function createFlushEffectStream(
   handleFlushEffect: () => Promise<string>
-): TransformStream<string, string> {
+): TransformStream<Uint8Array, Uint8Array> {
   return createTransformStream({
     async transform(chunk, controller) {
       const extraChunk = await handleFlushEffect()
-      controller.enqueue(extraChunk + chunk)
+      controller.enqueue(encodeText(extraChunk + decodeText(chunk)))
     },
   })
 }
@@ -1775,23 +1746,21 @@ function renderToStream({
   element,
   suffix,
   dataStream,
-  generateStaticHTML,
   flushEffectHandler,
 }: {
   ReactDOMServer: typeof import('react-dom/server')
   element: React.ReactElement
   suffix?: string
-  dataStream?: ReadableStream<string>
-  generateStaticHTML: boolean
+  dataStream?: ReadableStream<Uint8Array>
   flushEffectHandler?: () => Promise<string>
-}): Promise<ReadableStream<string>> {
-  return new Promise((resolve, reject) => {
+}): Promise<ReadableStream<Uint8Array>> {
+  return new Promise(async (resolve, reject) => {
     let resolved = false
 
     const closeTag = '</body></html>'
     const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
 
-    const doResolve = () => {
+    const doResolve = (renderStream: ReadableStream<Uint8Array>) => {
       if (!resolved) {
         resolved = true
 
@@ -1799,7 +1768,7 @@ function renderToStream({
         // defer to a microtask to ensure `stream` is set.
         resolve(
           Promise.resolve().then(() => {
-            const transforms: Array<TransformStream<string, string>> = [
+            const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
               createBufferedTransformStream(),
               flushEffectHandler
                 ? createFlushEffectStream(flushEffectHandler)
@@ -1820,45 +1789,51 @@ function renderToStream({
       }
     }
 
-    const renderStream = pipeThrough(
-      (ReactDOMServer as any).renderToReadableStream(element, {
-        onError(err: Error) {
-          if (!resolved) {
-            resolved = true
-            reject(err)
-          }
-        },
-        onCompleteShell() {
-          if (!generateStaticHTML) {
-            doResolve()
-          }
-        },
-        onCompleteAll() {
-          doResolve()
-        },
-      }),
-      createTextDecoderStream()
-    )
+    const renderStream: ReadableStream<Uint8Array> = await (
+      ReactDOMServer as any
+    ).renderToReadableStream(element, {
+      onError(err: Error) {
+        if (!resolved) {
+          resolved = true
+          reject(err)
+        }
+      },
+    })
+
+    doResolve(renderStream)
   })
 }
 
-function createSuffixStream(suffix: string): TransformStream<string, string> {
+function encodeText(input: string) {
+  return new TextEncoder().encode(input)
+}
+
+function decodeText(input?: Uint8Array) {
+  return new TextDecoder().decode(input)
+}
+
+function createSuffixStream(
+  suffix: string
+): TransformStream<Uint8Array, Uint8Array> {
   return createTransformStream({
     flush(controller) {
       if (suffix) {
-        controller.enqueue(suffix)
+        controller.enqueue(encodeText(suffix))
       }
     },
   })
 }
 
-function createPrefixStream(prefix: string): TransformStream<string, string> {
+function createPrefixStream(
+  prefix: string
+): TransformStream<Uint8Array, Uint8Array> {
   let prefixFlushed = false
   return createTransformStream({
     transform(chunk, controller) {
       if (!prefixFlushed && prefix) {
         prefixFlushed = true
-        controller.enqueue(chunk + prefix)
+        controller.enqueue(chunk)
+        controller.enqueue(encodeText(prefix))
       } else {
         controller.enqueue(chunk)
       }
@@ -1866,15 +1841,15 @@ function createPrefixStream(prefix: string): TransformStream<string, string> {
     flush(controller) {
       if (!prefixFlushed && prefix) {
         prefixFlushed = true
-        controller.enqueue(prefix)
+        controller.enqueue(encodeText(prefix))
       }
     },
   })
 }
 
 function createInlineDataStream(
-  dataStream: ReadableStream<string>
-): TransformStream<string, string> {
+  dataStream: ReadableStream<Uint8Array>
+): TransformStream<Uint8Array, Uint8Array> {
   let dataStreamFinished: Promise<void> | null = null
   return createTransformStream({
     transform(chunk, controller) {
@@ -1966,19 +1941,21 @@ function chainStreams<T>(streams: ReadableStream<T>[]): ReadableStream<T> {
   return readable
 }
 
-function streamFromArray(strings: string[]): ReadableStream<string> {
+function streamFromArray(strings: string[]): ReadableStream<Uint8Array> {
   // Note: we use a TransformStream here instead of instantiating a ReadableStream
   // because the built-in ReadableStream polyfill runs strings through TextEncoder.
   const { readable, writable } = new TransformStream()
 
   const writer = writable.getWriter()
-  strings.forEach((str) => writer.write(str))
+  strings.forEach((str) => writer.write(encodeText(str)))
   writer.close()
 
   return readable
 }
 
-async function streamToString(stream: ReadableStream<string>): Promise<string> {
+async function streamToString(
+  stream: ReadableStream<Uint8Array>
+): Promise<string> {
   const reader = stream.getReader()
   let bufferedString = ''
 
@@ -1989,6 +1966,6 @@ async function streamToString(stream: ReadableStream<string>): Promise<string> {
       return bufferedString
     }
 
-    bufferedString += value
+    bufferedString += decodeText(value)
   }
 }

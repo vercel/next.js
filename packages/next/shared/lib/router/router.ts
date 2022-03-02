@@ -662,6 +662,7 @@ export default class Router implements BaseRouter {
       defaultLocale,
       domainLocales,
       isPreview,
+      isRsc,
     }: {
       subscription: Subscription
       initialProps: any
@@ -676,6 +677,7 @@ export default class Router implements BaseRouter {
       defaultLocale?: string
       domainLocales?: DomainLocale[]
       isPreview?: boolean
+      isRsc?: boolean
     }
   ) {
     // represents the current component key
@@ -694,7 +696,7 @@ export default class Router implements BaseRouter {
         err,
         __N_SSG: initialProps && initialProps.__N_SSG,
         __N_SSP: initialProps && initialProps.__N_SSP,
-        __N_RSC: !!(Component as any)?.__next_rsc__,
+        __N_RSC: !!isRsc,
       }
     }
 
@@ -1533,7 +1535,7 @@ export default class Router implements BaseRouter {
           styleSheets: res.styleSheets,
           __N_SSG: res.mod.__N_SSG,
           __N_SSP: res.mod.__N_SSP,
-          __N_RSC: !!(res.page as any).__next_rsc__,
+          __N_RSC: !!res.mod.__next_rsc__,
         })))
 
       const { Component, __N_SSG, __N_SSP, __N_RSC } = routeInfo

@@ -5,11 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-// TODO: add ts support for next-swc api
-// @ts-ignore
 import { parse } from '../../swc'
-// @ts-ignore
-import { getBaseSWCOptions } from '../../swc/options'
 
 function addExportNames(names: string[], node: any) {
   switch (node.type) {
@@ -48,13 +44,8 @@ async function parseExportNamesInto(
   transformedSource: string,
   names: Array<string>
 ): Promise<void> {
-  const opts = getBaseSWCOptions({
-    filename: resourcePath,
-    globalWindow: true,
-  })
-
   const { body } = await parse(transformedSource, {
-    ...opts.jsc.parser,
+    filename: resourcePath,
     isModule: true,
   })
   for (let i = 0; i < body.length; i++) {
@@ -84,6 +75,11 @@ async function parseExportNamesInto(
           }
         }
         continue
+      case 'ExportDeclaration':
+        if (node.declaration?.identifier) {
+          addExportNames(names, node.declaration.identifier)
+        }
+        continue
       default:
         break
     }
@@ -94,11 +90,8 @@ export default async function transformSource(
   this: any,
   source: string
 ): Promise<string> {
-  const { resourcePath, resourceQuery } = this
+  const { resourcePath } = this
 
-  if (resourceQuery !== '?flight') return source
-
-  let url = resourcePath
   const transformedSource = source
   if (typeof transformedSource !== 'string') {
     throw new Error('Expected source to have been transformed to a string.')
@@ -108,7 +101,7 @@ export default async function transformSource(
   await parseExportNamesInto(resourcePath, transformedSource, names)
 
   // next.js/packages/next/<component>.js
-  if (/[\\/]next[\\/](link|image)\.js$/.test(url)) {
+  if (/[\\/]next[\\/](link|image)\.js$/.test(resourcePath)) {
     names.push('default')
   }
 
@@ -122,7 +115,7 @@ export default async function transformSource(
       newSrc += 'export const ' + name + ' = '
     }
     newSrc += '{ $$typeof: MODULE_REFERENCE, filepath: '
-    newSrc += JSON.stringify(url)
+    newSrc += JSON.stringify(resourcePath)
     newSrc += ', name: '
     newSrc += JSON.stringify(name)
     newSrc += '};\n'

@@ -179,7 +179,10 @@ const appElement: HTMLElement | null = document.getElementById('__next')
 let lastRenderReject: (() => void) | null
 let webpackHMR: any
 export let router: Router
+
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
+let isAppRSC: boolean
+
 headManager.getIsSsr = () => {
   return router.isSsr
 }
@@ -291,6 +294,7 @@ export async function initNext(
 
     const { component: app, exports: mod } = appEntrypoint
     CachedApp = app as AppComponent
+    isAppRSC = !!mod.__next_rsc__
     const exportedReportWebVitals = mod && mod.reportWebVitals
     onPerfEntry = ({
       id,
@@ -419,6 +423,7 @@ export async function initNext(
     defaultLocale,
     domainLocales,
     isPreview,
+    isRsc: rsc,
   })
 
   const renderCtx: RenderRouteInfo = {
@@ -542,9 +547,10 @@ function renderReactElement(
 
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
   if (process.env.__NEXT_REACT_ROOT) {
+    const ReactDOMClient = require('react-dom/client')
     if (!reactRoot) {
       // Unlike with createRoot, you don't need a separate root.render() call here
-      reactRoot = (ReactDOM as any).hydrateRoot(domEl, reactEl)
+      reactRoot = (ReactDOMClient as any).hydrateRoot(domEl, reactEl)
       // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
       shouldHydrate = false
     } else {
@@ -640,7 +646,7 @@ function AppContainer({
 }
 
 function renderApp(App: AppComponent, appProps: AppProps) {
-  if (process.env.__NEXT_RSC && (App as any).__next_rsc__) {
+  if (process.env.__NEXT_RSC && isAppRSC) {
     const { Component, err: _, router: __, ...props } = appProps
     return <Component {...props} />
   } else {
@@ -807,13 +813,11 @@ if (process.env.__NEXT_RSC) {
 
     return (
       <RefreshContext.Provider value={refreshCache}>
-        <React.Suspense fallback={null}>
-          <ServerRoot
-            cacheKey={cacheKey}
-            serialized={__flight_serialized__}
-            _fresh={__flight_fresh__}
-          />
-        </React.Suspense>
+        <ServerRoot
+          cacheKey={cacheKey}
+          serialized={__flight_serialized__}
+          _fresh={__flight_fresh__}
+        />
       </RefreshContext.Provider>
     )
   }
