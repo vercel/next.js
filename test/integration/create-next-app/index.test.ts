@@ -398,7 +398,7 @@ describe('create next app', () => {
 
   it('should use pnpm as the package manager on supplying --use-pnpm', async () => {
     await usingTempDir(async (cwd) => {
-      const projectName = 'use-npm'
+      const projectName = 'use-pnpm'
       const res = await run([projectName, '--use-pnpm'], { cwd })
       expect(res.exitCode).toBe(0)
 
