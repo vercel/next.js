@@ -11,7 +11,7 @@ const examplePath = 'examples/basic-css'
 
 const run = (args, options) => execa('node', [cli].concat(args), options)
 
-async function usingTempDir(fn, options) {
+async function usingTempDir(fn: (...args: any[]) => any, options?: any) {
   const folder = path.join(os.tmpdir(), Math.random().toString(36).substring(2))
   await fs.mkdirp(folder, options)
   try {
@@ -390,6 +390,54 @@ describe('create next app', () => {
         'package-lock.json',
         'node_modules/next',
       ]
+      files.forEach((file) =>
+        expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
+      )
+    })
+  })
+
+  it('should use pnpm as the package manager on supplying --use-pnpm', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'use-npm'
+      const res = await run([projectName, '--use-pnpm'], { cwd })
+      expect(res.exitCode).toBe(0)
+
+      const files = [
+        'package.json',
+        'pages/index.js',
+        '.gitignore',
+        '.eslintrc.json',
+        'pnpm-lock.yaml',
+        'node_modules/next',
+      ]
+      files.forEach((file) =>
+        expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
+      )
+    })
+  })
+
+  it.only('should use pnpm as the package manager on supplying --use-pnpm with example', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'use-pnpm'
+      const res = await run(
+        [
+          projectName,
+          '--use-pnpm',
+          '--example',
+          `${exampleRepo}/${examplePath}`,
+        ],
+        { cwd }
+      )
+      expect(res.exitCode).toBe(0)
+
+      const files = [
+        'package.json',
+        'pages/index.js',
+        '.gitignore',
+        'pnpm-lock.yaml',
+        'node_modules/next',
+      ]
+
       files.forEach((file) =>
         expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
       )
