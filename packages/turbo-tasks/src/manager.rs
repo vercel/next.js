@@ -1,6 +1,7 @@
 use std::{
     any::{Any, TypeId},
     cell::Cell,
+    future::Future,
     hash::Hash,
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -155,12 +156,12 @@ impl TurboTasks {
     pub(crate) fn schedule(&'static self, task: Arc<Task>) -> JoinHandle<()> {
         if self
             .currently_scheduled_tasks
-            .fetch_add(1, Ordering::Relaxed)
+            .fetch_add(1, Ordering::AcqRel)
             == 0
         {
             *self.start.lock().unwrap() = Some(Instant::now());
         }
-        self.scheduled_tasks.fetch_add(1, Ordering::Relaxed);
+        self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
         Builder::new()
             // that's expensive
             // .name(format!("{:?} {:?}", &*task, &*task as *const Task))
@@ -179,16 +180,16 @@ impl TurboTasks {
                 }
                 if self
                     .currently_scheduled_tasks
-                    .fetch_sub(1, Ordering::Relaxed)
+                    .fetch_sub(1, Ordering::AcqRel)
                     == 1
                 {
                     // That's not super race-condition-safe, but it's only for statistical reasons
-                    let total = self.scheduled_tasks.load(Ordering::Relaxed);
-                    self.scheduled_tasks.store(0, Ordering::Relaxed);
+                    let total = self.scheduled_tasks.load(Ordering::Acquire);
+                    self.scheduled_tasks.store(0, Ordering::Release);
                     if let Some(start) = *self.start.lock().unwrap() {
                         *self.last_update.lock().unwrap() = Some((start.elapsed(), total));
-                        self.event.notify(usize::MAX);
                     }
+                    self.event.notify(usize::MAX);
                 }
             })
             .unwrap()
@@ -203,6 +204,24 @@ impl TurboTasks {
         TURBO_TASKS.with(|c| c.get())
     }
 
+    pub(crate) fn schedule_background_job(
+        &'static self,
+        job: impl Future<Output = ()> + Send + 'static,
+    ) {
+        Builder::new()
+            .spawn(async move {
+                TURBO_TASKS.with(|c| c.set(Some(self)));
+                if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
+                    let listener = self.event.listen();
+                    if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
+                        listener.await;
+                    }
+                }
+                job.await;
+            })
+            .unwrap();
+    }
+
     pub(crate) fn schedule_notify_tasks(tasks_iter: impl Iterator<Item = Arc<Task>>) {
         TASKS_TO_NOTIFY.with(|tasks| {
             let mut temp = Vec::new();
@@ -212,6 +231,14 @@ impl TurboTasks {
             }
             tasks.swap(Cell::from_mut(&mut temp));
         });
+    }
+
+    pub(crate) fn schedule_deactivate_tasks(tasks: Vec<Arc<Task>>) {
+        TurboTasks::current()
+            .unwrap()
+            .schedule_background_job(async move {
+                Task::deactivate_tasks(tasks);
+            });
     }
 
     pub(crate) fn intern<

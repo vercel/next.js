@@ -78,13 +78,15 @@ pub struct TasksList {
 }
 
 impl TasksList {
-    pub fn add(&mut self, task: Arc<Task>) {
+    pub fn add(&mut self, task: Arc<Task>) -> bool {
         match self.map.entry(StrongListEntry::new(task)) {
             Entry::Occupied(mut e) => {
                 *e.get_mut() += 1;
+                false
             }
             Entry::Vacant(e) => {
                 e.insert(1);
+                true
             }
         }
     }
@@ -102,9 +104,13 @@ impl TasksList {
     //     }
     // }
 
-    // pub fn is_empty(&self) -> bool {
-    //     self.map.is_empty()
-    // }
+    pub fn remove_all(&mut self, task: Arc<Task>) -> bool {
+        self.map.remove(&StrongListEntry::new(task)).is_some()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.map.is_empty()
+    }
 
     pub fn drain(
         &mut self,
@@ -114,6 +120,10 @@ impl TasksList {
 
     pub fn iter(&self) -> Map<Keys<StrongListEntry, u8>, fn(&StrongListEntry) -> &Arc<Task>> {
         self.map.keys().map(StrongListEntry::get_item)
+    }
+
+    pub fn len(&self) -> usize {
+        self.map.len()
     }
 }
 

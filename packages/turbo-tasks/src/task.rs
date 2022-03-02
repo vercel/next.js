@@ -1,6 +1,6 @@
 use crate::{
     slot::{Slot, SlotRef, WeakSlotRef},
-    tasks_list::{TasksList, WeakTasksList},
+    tasks_list::TasksList,
     viz::TaskSnapshot,
     NativeFunction, SlotValueType, TraitType, TurboTasks,
 };
@@ -11,13 +11,16 @@ use event_listener::{Event, EventListener};
 use std::{
     any::{Any, TypeId},
     cell::Cell,
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fmt::{self, Debug, Display, Formatter},
     future::Future,
     hash::Hash,
     mem::swap,
     pin::Pin,
-    sync::{Arc, Mutex, RwLock, RwLockWriteGuard, Weak},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex, RwLock, RwLockWriteGuard, Weak,
+    },
     time::Instant,
 };
 use weak_table::WeakHashSet;
@@ -65,7 +68,9 @@ pub struct Task {
     inputs: Vec<SlotRef>,
     ty: TaskType,
     state: RwLock<TaskState>,
-    // TODO use a concurrent set instead
+    active_parents: AtomicUsize,
+    // TODO technically we need no lock here as it's only written
+    // during execution, which doesn't happen in parallel
     /// dependencies are only modified from execution
     ///
     /// dependencies are cleared when entering Dirty state
@@ -91,8 +96,6 @@ struct TaskState {
     active: bool,
     // TODO using a Atomic might be possible here
     state_type: TaskStateType,
-    // TODO use a concurrent set
-    parents: WeakTasksList,
 
     /// outdated_children are set when an execution has started
     outdated_children: Option<TasksList>,
@@ -153,6 +156,7 @@ impl Task {
             inputs,
             ty: TaskType::Native(native_fn, bound_fn),
             state: Default::default(),
+            active_parents: Default::default(),
             dependencies: Default::default(),
             previous_nodes: Default::default(),
         })
@@ -166,6 +170,7 @@ impl Task {
             inputs,
             ty: TaskType::ResolveNative(native_fn),
             state: Default::default(),
+            active_parents: Default::default(),
             dependencies: Default::default(),
             previous_nodes: Default::default(),
         }
@@ -180,6 +185,7 @@ impl Task {
             inputs,
             ty: TaskType::ResolveTrait(trait_type, trait_fn_name),
             state: Default::default(),
+            active_parents: Default::default(),
             dependencies: Default::default(),
             previous_nodes: Default::default(),
         }
@@ -194,39 +200,47 @@ impl Task {
                 state_type: Scheduled,
                 ..Default::default()
             }),
+            active_parents: AtomicUsize::new(1),
             dependencies: Default::default(),
             previous_nodes: Default::default(),
         }
     }
 
-    fn remove_children(self: &Arc<Self>, children: TasksList) {
-        let start = Instant::now();
-        let mut count = 0;
-        for child in children.into_iter() {
-            let mut state = child.state.write().unwrap();
-            state.parents.remove(self.clone());
-            if state.parents.is_empty() {
-                count += child.deactivate(state);
-            } else {
-                drop(state);
-            }
+    fn remove_children(&self, children: TasksList) {
+        if !children.is_empty() {
+            let tasks = children
+                .into_iter()
+                .filter(|task| task.active_parents.fetch_sub(1, Ordering::AcqRel) == 1)
+                .collect();
+            TurboTasks::schedule_deactivate_tasks(tasks);
         }
-        let elapsed = start.elapsed();
-        if elapsed.as_millis() >= 100 {
-            println!(
-                "remove_children({}) took {} ms: {:?}",
-                count,
-                elapsed.as_millis(),
-                &**self
-            );
-        } else if elapsed.as_millis() >= 1 {
-            println!(
-                "remove_children({}) took {} µs: {:?}",
-                count,
-                elapsed.as_micros(),
-                &**self
-            );
+    }
+
+    pub fn deactivate_tasks(tasks: Vec<Arc<Task>>) {
+        // let start = Instant::now();
+        // let mut count = 0;
+        // let mut len = 0;
+        for child in tasks.into_iter() {
+            child.deactivate(1);
+            // count += child.deactivate(1);
+            // len += 1;
         }
+        // let elapsed = start.elapsed();
+        // if elapsed.as_millis() >= 10 {
+        //     println!(
+        //         "deactivate_tasks({}, {}) took {} ms",
+        //         count,
+        //         len,
+        //         elapsed.as_millis(),
+        //     );
+        // } else if count > 10000 {
+        //     println!(
+        //         "deactivate_tasks({}, {}) took {} µs",
+        //         count,
+        //         len,
+        //         elapsed.as_micros(),
+        //     );
+        // }
     }
 
     fn clear_dependencies(self: &Arc<Self>) {
@@ -249,7 +263,7 @@ impl Task {
                 elapsed.as_millis(),
                 &**self
             );
-        } else if elapsed.as_millis() >= 1 {
+        } else if elapsed.as_millis() >= 1 || count > 10000 {
             println!(
                 "clear_dependencies({}) took {} µs: {:?}",
                 count,
@@ -259,20 +273,18 @@ impl Task {
         }
     }
 
-    fn outdate_children(&self, state: &mut RwLockWriteGuard<TaskState>) {
+    fn outdate_children(&self, mut state: RwLockWriteGuard<TaskState>) {
+        // old outdated children can be dropped
+        // the new children will be move accurate
         let outdated_children = state.outdated_children.take();
-        match outdated_children {
-            Some(mut children) => {
-                for child in state.children.drain() {
-                    children.add(child);
-                }
-                state.outdated_children = Some(children);
-            }
-            None => {
-                let mut new_children = TasksList::default();
-                swap(&mut new_children, &mut state.children);
-                state.outdated_children = Some(new_children);
-            }
+
+        let mut new_children = TasksList::default();
+        swap(&mut new_children, &mut state.children);
+        state.outdated_children = Some(new_children);
+        drop(state);
+
+        if let Some(outdated_children) = outdated_children {
+            self.remove_children(outdated_children);
         }
     }
 
@@ -289,8 +301,8 @@ impl Task {
             }
             Scheduled => {
                 state.state_type = InProgress;
-                self.outdate_children(&mut state);
                 state.executions += 1;
+                self.outdate_children(state);
             }
             Dirty => {
                 let state_type = Task::state_string(&state);
@@ -367,7 +379,13 @@ impl Task {
     }
 
     /// This method should be called after adding the first parent
-    fn activate(self: &Arc<Self>, mut state: RwLockWriteGuard<TaskState>) -> usize {
+    fn activate(self: &Arc<Self>) -> usize {
+        let mut state = self.state.write().unwrap();
+
+        if self.active_parents.load(Ordering::Acquire) == 0 {
+            return 0;
+        }
+
         if state.active {
             return 0;
         }
@@ -379,12 +397,8 @@ impl Task {
         // This locks the whole tree, but avoids cloning children
 
         for child in state.children.iter() {
-            let mut state = child.state.write().unwrap();
-            if state.parents.is_empty() {
-                state.parents.add(self.clone());
-                count += child.activate(state);
-            } else {
-                state.parents.add(self.clone());
+            if child.active_parents.fetch_add(1, Ordering::AcqRel) == 0 {
+                count += child.activate();
             }
         }
         match state.state_type {
@@ -401,7 +415,13 @@ impl Task {
     }
 
     /// This method should be called after removing the last parent
-    fn deactivate(self: &Arc<Self>, mut state: RwLockWriteGuard<TaskState>) -> usize {
+    fn deactivate(self: &Arc<Self>, depth: u8) -> usize {
+        let mut state = self.state.write().unwrap();
+
+        if self.active_parents.load(Ordering::Acquire) != 0 {
+            return 0;
+        }
+
         if !state.active {
             return 0;
         }
@@ -410,19 +430,27 @@ impl Task {
 
         let mut count = 1;
 
-        // This locks the whole tree, but avoids cloning children
+        if depth < 4 {
+            // This locks the whole tree, but avoids cloning children
 
-        for child in state.children.iter() {
-            let mut state = child.state.write().unwrap();
-            state.parents.remove(self.clone());
-            if state.parents.is_empty() {
-                count += child.deactivate(state);
-            } else {
-                drop(state);
+            for child in state.children.iter() {
+                if child.active_parents.fetch_sub(1, Ordering::AcqRel) == 1 {
+                    count += child.deactivate(depth + 1);
+                }
             }
+            drop(state);
+            count
+        } else {
+            let mut scheduled = Vec::new();
+            for child in state.children.iter() {
+                if child.active_parents.fetch_sub(1, Ordering::AcqRel) == 1 {
+                    scheduled.push(child.clone());
+                }
+            }
+            drop(state);
+            TurboTasks::schedule_deactivate_tasks(scheduled);
+            count
         }
-        drop(state);
-        count
     }
 
     // #[must_use]
@@ -945,34 +973,43 @@ impl Task {
             let mut parent_state = parent.state.write().unwrap();
             #[cfg(feature = "assert_task_state")]
             assert!(parent_state.state_type != Dirty && parent_state.state_type != Scheduled);
-            parent_state.children.add(self.clone());
-            let active = parent_state.active;
-
-            if active {
-                let mut state = self.state.write().unwrap();
-                if state.parents.is_empty() {
-                    state.parents.add(parent.clone());
-                    let start = Instant::now();
-                    let count = self.activate(state);
-                    let elapsed = start.elapsed();
-                    if elapsed.as_millis() >= 100 {
-                        println!(
-                            "activate({}) took {} ms: {:?}",
-                            count,
-                            elapsed.as_millis(),
-                            &**self
-                        );
-                    } else if elapsed.as_millis() >= 1 {
-                        println!(
-                            "activate({}) took {} µs: {:?}",
-                            count,
-                            elapsed.as_micros(),
-                            &**self
-                        );
-                    }
+            let is_new;
+            if let Some(mut outdated_children) = parent_state.outdated_children.take() {
+                if outdated_children.remove_all(self.clone()) {
+                    parent_state.children.add(self.clone());
+                    is_new = false
                 } else {
-                    state.parents.add(parent.clone());
-                    drop(state);
+                    is_new = parent_state.children.add(self.clone())
+                }
+                if !outdated_children.is_empty() {
+                    parent_state.outdated_children = Some(outdated_children);
+                }
+            } else {
+                is_new = parent_state.children.add(self.clone())
+            }
+            let active = parent_state.active;
+            drop(parent_state);
+
+            if active && is_new {
+                if self.active_parents.fetch_add(1, Ordering::AcqRel) == 0 {
+                    // let start = Instant::now();
+                    let count = self.activate();
+                    // let elapsed = start.elapsed();
+                    // if elapsed.as_millis() >= 100 {
+                    //     println!(
+                    //         "activate({}) took {} ms: {:?}",
+                    //         count,
+                    //         elapsed.as_millis(),
+                    //         &**self
+                    //     );
+                    // } else if elapsed.as_millis() >= 1 || count > 10000 {
+                    //     println!(
+                    //         "activate({}) took {} µs: {:?}",
+                    //         count,
+                    //         elapsed.as_micros(),
+                    //         &**self
+                    //     );
+                    // }
                 }
             }
         }
@@ -1047,14 +1084,7 @@ pub struct Invalidator {
 impl Invalidator {
     pub fn invalidate(self) {
         if let Some(task) = self.task.upgrade() {
-            let start = Instant::now();
             task.invaldate(self.turbo_tasks);
-            let elapsed = start.elapsed();
-            if elapsed.as_millis() >= 100 {
-                println!("invalidate took {} ms", elapsed.as_millis());
-            } else {
-                println!("invalidate took {} µs", elapsed.as_micros());
-            }
         }
     }
 }

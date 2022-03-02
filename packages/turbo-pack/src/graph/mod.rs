@@ -48,6 +48,7 @@ impl AggregatedGraphRef {
             }
         }
     }
+
     async fn references(self) -> AggregatedGraphsSetRef {
         match &*self.await {
             AggregatedGraph::Leaf(asset) => {
@@ -76,8 +77,12 @@ impl AggregatedGraphRef {
     }
 
     async fn cost(self) -> AggregationCostRef {
-        let references = self.references();
-        AggregationCost(references.await.set.len()).into()
+        match &*self.await {
+            AggregatedGraph::Leaf(asset) => {
+                AggregationCost(asset.clone().references().await.assets.len()).into()
+            }
+            AggregatedGraph::Node { references, .. } => AggregationCost(references.len()).into(),
+        }
     }
 
     async fn valued_references(self) -> AggregatedGraphsValuedReferencesRef {
@@ -193,47 +198,51 @@ async fn aggregate_more(node: AggregatedGraphRef) -> AggregatedGraphRef {
     let aggregation = if depth > 0 && depth % 2 == 0 { 3 } else { 2 };
     // let aggregation = depth + 2;
     // let aggregation = 2;
-    for _ in 1..aggregation {
+    for _ in 0..aggregation {
         for node in in_progress.iter() {
             content.insert(node.clone());
         }
-        let mut next = HashSet::new();
-        for valued_refs in in_progress
-            .into_iter()
+        let valued_refs = in_progress
+            .drain()
             .map(|node| node.clone().valued_references())
-            .collect::<Vec<_>>()
-        {
+            .collect::<Vec<_>>();
+        for valued_refs in valued_refs {
             let valued_refs = valued_refs.await;
             for reference in valued_refs.inner.iter() {
+                debug_assert!(reference.get().await.depth() == depth);
+                debug_assert!(!references.contains(reference));
                 content.insert(reference.clone());
             }
             for reference in valued_refs.references.iter() {
+                debug_assert!(reference.get().await.depth() == depth);
                 if content.contains(reference) {
                     continue;
                 }
                 references.insert(reference.clone());
             }
             for reference in valued_refs.outer.iter() {
+                debug_assert!(reference.get().await.depth() == depth);
                 if content.contains(reference) {
                     continue;
                 }
                 references.remove(&reference);
-                next.insert(reference.clone());
+                in_progress.insert(reference.clone());
             }
         }
-        in_progress = next;
     }
     for node in in_progress.into_iter() {
+        debug_assert!(!references.contains(&node));
         references.insert(node);
     }
+    debug_assert!(references.iter().all(|n| !content.contains(n)));
+    debug_assert!(content.iter().all(|n| !references.contains(n)));
     // #[cfg(debug_assertions)]
     // println!(
-    //     "aggregate_more({}, depth: {}, inner: {}, boundary: {}, root_cost: {})",
+    //     "aggregate_more({}, depth: {}, content: {}, references: {})",
     //     root.path().await.path,
     //     depth + 1,
-    //     inner.len(),
-    //     boundary.len(),
-    //     root_cost
+    //     content.len(),
+    //     references.len()
     // );
     AggregatedGraph::Node {
         depth: depth + 1,
