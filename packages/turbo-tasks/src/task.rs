@@ -102,9 +102,6 @@ struct TaskState {
     // TODO using a Atomic might be possible here
     state_type: TaskStateType,
 
-    /// outdated_children are set when an execution has started
-    outdated_children: Option<HashSet<Arc<Task>>>,
-
     /// children are only modified from execution
     children: HashSet<Arc<Task>>,
     output_slot: Slot,
@@ -207,22 +204,20 @@ impl Task {
         }
     }
 
-    fn remove_children(&self, children: HashSet<Arc<Task>>) {
-        if !children.is_empty() {
-            let tasks = children
-                .into_iter()
-                .filter(|task| task.active_parents.fetch_sub(1, Ordering::AcqRel) == 1)
-                .collect();
-            TurboTasks::schedule_deactivate_tasks(tasks);
+    pub(crate) fn remove_tasks(tasks: HashSet<Arc<Task>>, turbo_tasks: &'static TurboTasks) {
+        for task in tasks.into_iter() {
+            if task.active_parents.fetch_sub(1, Ordering::AcqRel) == 1 {
+                task.deactivate(1, turbo_tasks);
+            }
         }
     }
 
-    pub fn deactivate_tasks(tasks: Vec<Arc<Task>>) {
+    pub(crate) fn deactivate_tasks(tasks: Vec<Arc<Task>>, turbo_tasks: &'static TurboTasks) {
         // let start = Instant::now();
         // let mut count = 0;
         // let mut len = 0;
         for child in tasks.into_iter() {
-            child.deactivate(1);
+            child.deactivate(1, turbo_tasks);
             // count += child.deactivate(1);
             // len += 1;
         }
@@ -277,22 +272,7 @@ impl Task {
         }
     }
 
-    fn outdate_children(&self, mut state: RwLockWriteGuard<TaskState>) {
-        // old outdated children can be dropped
-        // the new children will be move accurate
-        let outdated_children = state.outdated_children.take();
-
-        let mut new_children = HashSet::new();
-        swap(&mut new_children, &mut state.children);
-        state.outdated_children = Some(new_children);
-        drop(state);
-
-        if let Some(outdated_children) = outdated_children {
-            self.remove_children(outdated_children);
-        }
-    }
-
-    pub(crate) fn execution_started(self: &Arc<Task>) -> bool {
+    pub(crate) fn execution_started(self: &Arc<Task>, turbo_tasks: &'static TurboTasks) -> bool {
         let mut state = self.state.write().unwrap();
         if !state.active {
             return false;
@@ -305,7 +285,11 @@ impl Task {
             Scheduled => {
                 state.state_type = InProgress;
                 state.executions += 1;
-                self.outdate_children(state);
+                if !state.children.is_empty() {
+                    let mut set = HashSet::new();
+                    swap(&mut set, &mut state.children);
+                    turbo_tasks.schedule_remove_tasks(set);
+                }
             }
             Dirty => {
                 let state_type = Task::state_string(&state);
@@ -344,7 +328,6 @@ impl Task {
             let mut execution_data = self.execution_data.lock().unwrap();
             Cell::from_mut(&mut execution_data.previous_nodes).swap(cell);
         });
-        let outdated_children;
         let mut schedule_task = false;
         {
             let mut state = self.state.write().unwrap();
@@ -352,7 +335,6 @@ impl Task {
                 InProgress => {
                     state.state_type = Done;
                     state.event.notify(usize::MAX);
-                    outdated_children = state.outdated_children.take();
                 }
                 InProgressDirty => {
                     if state.active {
@@ -361,7 +343,6 @@ impl Task {
                     } else {
                         state.state_type = Dirty;
                     }
-                    outdated_children = state.outdated_children.take();
                 }
                 Dirty | Scheduled | Done => {
                     panic!(
@@ -370,9 +351,6 @@ impl Task {
                     )
                 }
             };
-        }
-        if let Some(outdated_children) = outdated_children {
-            self.remove_children(outdated_children);
         }
         if schedule_task {
             turbo_tasks.schedule(self);
@@ -416,7 +394,7 @@ impl Task {
     }
 
     /// This method should be called after removing the last parent
-    fn deactivate(self: &Arc<Self>, depth: u8) -> usize {
+    fn deactivate(self: &Arc<Self>, depth: u8, turbo_tasks: &'static TurboTasks) -> usize {
         let mut state = self.state.write().unwrap();
 
         if self.active_parents.load(Ordering::Acquire) != 0 {
@@ -436,7 +414,7 @@ impl Task {
 
             for child in state.children.iter() {
                 if child.active_parents.fetch_sub(1, Ordering::AcqRel) == 1 {
-                    count += child.deactivate(depth + 1);
+                    count += child.deactivate(depth + 1, turbo_tasks);
                 }
             }
             drop(state);
@@ -449,7 +427,7 @@ impl Task {
                 }
             }
             drop(state);
-            TurboTasks::schedule_deactivate_tasks(scheduled);
+            turbo_tasks.schedule_deactivate_tasks(scheduled);
             count
         }
     }
@@ -697,12 +675,6 @@ impl Task {
     pub(crate) fn connect_parent(self: &Arc<Self>, parent: &Arc<Self>) {
         let mut parent_state = parent.state.write().unwrap();
         if parent_state.children.insert(self.clone()) {
-            if let Some(mut outdated_children) = parent_state.outdated_children.take() {
-                outdated_children.remove(self);
-                if !outdated_children.is_empty() {
-                    parent_state.outdated_children = Some(outdated_children);
-                }
-            }
             let active = parent_state.active;
             drop(parent_state);
 

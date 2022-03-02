@@ -1,6 +1,7 @@
 use std::{
     any::{Any, TypeId},
     cell::Cell,
+    collections::HashSet,
     future::Future,
     hash::Hash,
     sync::{
@@ -166,7 +167,7 @@ impl TurboTasks {
             // that's expensive
             // .name(format!("{:?} {:?}", &*task, &*task as *const Task))
             .spawn(async move {
-                if task.execution_started() {
+                if task.execution_started(self) {
                     Task::set_current(task.clone());
                     TURBO_TASKS.with(|c| c.set(Some(self)));
                     let result = task.execute(self).await;
@@ -233,12 +234,16 @@ impl TurboTasks {
         });
     }
 
-    pub(crate) fn schedule_deactivate_tasks(tasks: Vec<Arc<Task>>) {
-        TurboTasks::current()
-            .unwrap()
-            .schedule_background_job(async move {
-                Task::deactivate_tasks(tasks);
-            });
+    pub(crate) fn schedule_deactivate_tasks(&'static self, tasks: Vec<Arc<Task>>) {
+        self.schedule_background_job(async move {
+            Task::deactivate_tasks(tasks, self);
+        });
+    }
+
+    pub(crate) fn schedule_remove_tasks(&'static self, tasks: HashSet<Arc<Task>>) {
+        self.schedule_background_job(async move {
+            Task::remove_tasks(tasks, self);
+        });
     }
 
     pub(crate) fn intern<
