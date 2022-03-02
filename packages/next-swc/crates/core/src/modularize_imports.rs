@@ -20,7 +20,9 @@ pub struct Config {
 #[serde(rename_all = "camelCase")]
 pub struct PackageConfig {
     pub transform: String,
+    #[serde(default)]
     pub prevent_full_import: bool,
+    #[serde(default)]
     pub skip_default_conversion: bool,
 }
 
@@ -174,7 +176,7 @@ pub fn modularize_imports(config: Config) -> impl Fold {
         .register_helper("camelCase", Box::new(helper_camel_case));
     for (mut k, v) in config.packages {
         // XXX: Should we keep this hack?
-        if !k.starts_with("^") && !k.ends_with("$") {
+        if !k.starts_with('^') && !k.ends_with('$') {
             k = format!("^{}$", k);
         }
         folder
