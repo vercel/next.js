@@ -373,7 +373,10 @@ export default abstract class Server {
         }
       },
     })
-    this.responseCache = new ResponseCache(this.incrementalCache)
+    this.responseCache = new ResponseCache(
+      this.incrementalCache,
+      this.minimalMode
+    )
   }
 
   public logError(err: Error): void {
@@ -1274,7 +1277,7 @@ export default abstract class Server {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG || this.minimalMode || opts.supportsDynamicHTML
+      isPreviewMode || !isSSG || opts.supportsDynamicHTML
         ? null // Preview mode and manual revalidate bypasses the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
