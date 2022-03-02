@@ -1146,6 +1146,7 @@ export default async function getBaseWebpackConfig(
         'noop-loader',
         'next-middleware-loader',
         'next-middleware-ssr-loader',
+        'next-middleware-wasm-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1529,6 +1530,14 @@ export default async function getBaseWebpackConfig(
 
   const webpack5Config = webpackConfig as webpack5.Configuration
 
+  webpack5Config.module?.rules?.unshift({
+    test: /\.wasm$/,
+    issuerLayer: 'middleware',
+    loader: 'next-middleware-wasm-loader',
+    type: 'javascript/auto',
+    resourceQuery: /module/i,
+  })
+
   webpack5Config.experiments = {
     layers: true,
     cacheUnaffected: true,
@@ -1589,7 +1598,12 @@ export default async function getBaseWebpackConfig(
     if (!webpack5Config.optimization) {
       webpack5Config.optimization = {}
     }
-    webpack5Config.optimization.providedExports = false
+
+    // For Server Components, it's necessary to have provided exports collected
+    // to generate the correct flight manifest.
+    if (!hasServerComponents) {
+      webpack5Config.optimization.providedExports = false
+    }
     webpack5Config.optimization.usedExports = false
   }
 

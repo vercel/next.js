@@ -722,7 +722,7 @@ export default function Image({
         ref={imgRef}
         style={{ ...imgStyle, ...blurStyle }}
       />
-      {isLazy && (
+      {(isLazy || placeholder === 'blur') && (
         <noscript>
           <img
             {...rest}

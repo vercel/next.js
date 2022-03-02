@@ -82,12 +82,15 @@ export class FlightManifestPlugin {
         const moduleExports: any = json[resource] || {}
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
-        const providedExports = exportsInfo.getProvidedExports()
         const moduleExportedKeys = ['', '*'].concat(
-          // TODO: improve exports detection
-          providedExports === true || providedExports == null
-            ? 'default'
-            : providedExports
+          [...exportsInfo.exports]
+            .map((exportInfo) => {
+              if (exportInfo.provided) {
+                return exportInfo.name
+              }
+              return null
+            })
+            .filter(Boolean)
         )
 
         moduleExportedKeys.forEach((name) => {

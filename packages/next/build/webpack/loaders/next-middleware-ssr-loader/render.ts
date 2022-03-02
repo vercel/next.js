@@ -17,11 +17,11 @@ process.cwd = () => ''
 export function getRender({
   dev,
   page,
+  appMod,
   pageMod,
   errorMod,
   error500Mod,
   Document,
-  App,
   buildManifest,
   reactLoadableManifest,
   serverComponentManifest,
@@ -31,11 +31,11 @@ export function getRender({
 }: {
   dev: boolean
   page: string
+  appMod: any
   pageMod: any
   errorMod: any
   error500Mod: any
   Document: DocumentType
-  App: AppType
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   serverComponentManifest: any | null
@@ -48,7 +48,8 @@ export function getRender({
     buildManifest,
     reactLoadableManifest,
     Document,
-    App,
+    App: appMod.default as AppType,
+    AppMod: appMod,
   }
 
   const server = new WebServer({

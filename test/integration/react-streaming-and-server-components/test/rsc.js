@@ -28,6 +28,7 @@ export default function (context, { runtime, env }) {
     expect(homeHTML).toContain('header:test-util')
     expect(homeHTML).toContain('path:/')
     expect(homeHTML).toContain('foo.client')
+    expect(homeHTML).toContain('named.client')
   })
 
   it('should reuse the inline flight response without sending extra requests', async () => {
@@ -77,10 +78,7 @@ export default function (context, { runtime, env }) {
 
   it('should support next/link in server components', async () => {
     const linkHTML = await renderViaHTTP(context.appPort, '/next-api/link')
-    const linkText = getNodeBySelector(
-      linkHTML,
-      'div[hidden] > a[href="/"]'
-    ).text()
+    const linkText = getNodeBySelector(linkHTML, '#__next > a[href="/"]').text()
 
     expect(linkText).toContain('go home')
 
@@ -114,7 +112,7 @@ export default function (context, { runtime, env }) {
       const imageHTML = await renderViaHTTP(context.appPort, '/next-api/image')
       const imageTag = getNodeBySelector(
         imageHTML,
-        'div[hidden] > span > span > img'
+        '#__next > span > span > img'
       )
 
       expect(imageTag.attr('src')).toContain('data:image')
@@ -176,13 +174,13 @@ export default function (context, { runtime, env }) {
     expect(
       getNodeBySelector(
         clientExportsHTML,
-        'div[hidden] > div > #named-exports'
+        '#__next > div > #named-exports'
       ).text()
     ).toBe('abcde')
     expect(
       getNodeBySelector(
         clientExportsHTML,
-        'div[hidden] > div > #default-exports-arrow'
+        '#__next > div > #default-exports-arrow'
       ).text()
     ).toBe('client-default-export-arrow')
 
