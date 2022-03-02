@@ -1278,13 +1278,9 @@ export default abstract class Server {
       resolvedUrlPathname = stripNextDataPath(resolvedUrlPathname)
       urlPathname = stripNextDataPath(urlPathname)
     }
-    const canLeveragePreviousCache = !!req.headers['x-nextjs-dedupe']
 
     let ssgCacheKey =
-      isPreviewMode ||
-      !isSSG ||
-      (this.minimalMode && !canLeveragePreviousCache) ||
-      opts.supportsDynamicHTML
+      isPreviewMode || !isSSG || opts.supportsDynamicHTML
         ? null // Preview mode and manual revalidate bypasses the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
@@ -1520,7 +1516,6 @@ export default abstract class Server {
       },
       {
         isManualRevalidate,
-        canLeveragePreviousCache,
       }
     )
 

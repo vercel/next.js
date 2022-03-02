@@ -82,7 +82,7 @@ export default class ResponseCache {
   previousCacheItem?: {
     key: string
     entry: ResponseCacheEntry | null
-    expiresAt: number | false
+    expiresAt: number
   }
   minimalMode?: boolean
 
@@ -97,7 +97,6 @@ export default class ResponseCache {
     responseGenerator: ResponseGenerator,
     context: {
       isManualRevalidate?: boolean
-      canLeveragePreviousCache?: boolean
     }
   ): Promise<ResponseCacheEntry | null> {
     const pendingResponse = key ? this.pendingResponses.get(key) : null
@@ -134,12 +133,11 @@ export default class ResponseCache {
     if (
       key &&
       this.minimalMode &&
-      context.canLeveragePreviousCache &&
       this.previousCacheItem?.key === key &&
-      (this.previousCacheItem.expiresAt === false ||
-        this.previousCacheItem.expiresAt > Date.now())
+      this.previousCacheItem.expiresAt > Date.now()
     ) {
       resolve(this.previousCacheItem.entry)
+      this.pendingResponses.delete(key)
       return promise
     }
 
@@ -188,7 +186,7 @@ export default class ResponseCache {
               entry: cacheEntry,
               expiresAt:
                 typeof cacheEntry.revalidate !== 'number'
-                  ? false
+                  ? Date.now() + 1000
                   : Date.now() + cacheEntry?.revalidate * 1000,
             }
           } else {
@@ -204,6 +202,8 @@ export default class ResponseCache {
               cacheEntry.revalidate
             )
           }
+        } else {
+          this.previousCacheItem = undefined
         }
       } catch (err) {
         // while revalidating in the background we can't reject as
