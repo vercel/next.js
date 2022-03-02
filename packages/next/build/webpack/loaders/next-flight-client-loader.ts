@@ -5,11 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-// TODO: add ts support for next-swc api
-// @ts-ignore
 import { parse } from '../../swc'
-// @ts-ignore
-import { getBaseSWCOptions } from '../../swc/options'
 
 function addExportNames(names: string[], node: any) {
   switch (node.type) {
@@ -48,13 +44,8 @@ async function parseExportNamesInto(
   transformedSource: string,
   names: Array<string>
 ): Promise<void> {
-  const opts = getBaseSWCOptions({
-    filename: resourcePath,
-    globalWindow: true,
-  })
-
   const { body } = await parse(transformedSource, {
-    ...opts.jsc.parser,
+    filename: resourcePath,
     isModule: true,
   })
   for (let i = 0; i < body.length; i++) {
@@ -82,6 +73,11 @@ async function parseExportNamesInto(
           for (let j = 0; j < specificers.length; j++) {
             addExportNames(names, specificers[j].exported)
           }
+        }
+        continue
+      case 'ExportDeclaration':
+        if (node.declaration?.identifier) {
+          addExportNames(names, node.declaration.identifier)
         }
         continue
       default:

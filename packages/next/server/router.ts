@@ -317,7 +317,19 @@ export default class Router {
         currentPathnameNoBasePath,
         this.locales
       )
+
       const activeBasePath = keepBasePath ? this.basePath : ''
+
+      // don't match API routes when they are locale prefixed
+      // e.g. /api/hello shouldn't match /en/api/hello as a page
+      // rewrites/redirects can match though
+      if (
+        !isCustomRoute &&
+        localePathResult.detectedLocale &&
+        localePathResult.pathname.match(/^\/api(?:\/|$)/)
+      ) {
+        continue
+      }
 
       if (keepLocale) {
         if (
