@@ -5,32 +5,27 @@ import { parse } from '../../swc'
 import { getBaseSWCOptions } from '../../swc/options'
 import { getRawPageExtensions } from '../../utils'
 
-const getIsClientComponent =
-  (pageExtensions: string[]) => (importSource: string) => {
-    return new RegExp(`\\.client(\\.(${pageExtensions.join('|')}))?`).test(
-      importSource
-    )
-  }
+const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
 
-const getIsServerComponent =
-  (pageExtensions: string[]) => (importSource: string) => {
-    return new RegExp(`\\.server(\\.(${pageExtensions.join('|')}))?`).test(
-      importSource
-    )
-  }
-
-function isNextComponent(importSource: string) {
-  return (
-    importSource.includes('next/link') || importSource.includes('next/image')
+const createClientComponentFilter = (pageExtensions: string[]) => {
+  // Special cases for Next.js APIs that are considered as client components:
+  // - .client.[ext]
+  // - next/link, next/image
+  // - .[imageExt]
+  const regex = new RegExp(
+    '(' +
+      `\\.client(\\.(${pageExtensions.join('|')}))?|` +
+      `next/link|next/image|` +
+      `\\.(${imageExtensions.join('|')})` +
+      ')$'
   )
+
+  return (importSource: string) => regex.test(importSource)
 }
 
-export function isImageImport(importSource: string) {
-  // TODO: share extension with next/image
-  // TODO: add other static assets, jpeg -> jpg
-  return ['jpg', 'jpeg', 'png', 'webp', 'avif'].some((imageExt) =>
-    importSource.endsWith('.' + imageExt)
-  )
+const createServerComponentFilter = (pageExtensions: string[]) => {
+  const regex = new RegExp(`\\.server(\\.(${pageExtensions.join('|')}))?$`)
+  return (importSource: string) => regex.test(importSource)
 }
 
 async function parseImportsInfo({
@@ -57,7 +52,6 @@ async function parseImportsInfo({
   })
   const ast = await parse(source, { ...opts.jsc.parser, isModule: true })
   const { body } = ast
-  const beginPos = ast.span.start
   let transformedSource = ''
   let lastIndex = 0
   let defaultExportName
@@ -74,16 +68,18 @@ async function parseImportsInfo({
 
           const importDeclarations = source.substring(
             lastIndex,
-            node.source.span.start - beginPos
+            node.source.span.start
           )
 
-          if (
-            !(
-              isClientComponent(importSource) ||
-              isNextComponent(importSource) ||
-              isImageImport(importSource)
-            )
-          ) {
+          if (isClientComponent(importSource)) {
+            // A client component. It should be loaded as module reference.
+            transformedSource += importDeclarations
+            transformedSource += JSON.stringify(`${importSource}?__sc_client__`)
+            imports.push(`require(${JSON.stringify(importSource)})`)
+          } else {
+            // This is a special case to avoid the Duplicate React error.
+            // Since we already include React in the SSR runtime,
+            // here we can't create a new module with the ?__rsc_server__ query.
             if (
               ['react/jsx-runtime', 'react/jsx-dev-runtime'].includes(
                 importSource
@@ -96,11 +92,6 @@ async function parseImportsInfo({
             // component.
             transformedSource += importDeclarations
             transformedSource += JSON.stringify(`${importSource}?__sc_server__`)
-          } else {
-            // A client component. It should be loaded as module reference.
-            transformedSource += importDeclarations
-            transformedSource += JSON.stringify(`${importSource}?__sc_client__`)
-            imports.push(`require(${JSON.stringify(importSource)})`)
           }
         } else {
           // For the client compilation, we skip all modules imports but
@@ -108,12 +99,7 @@ async function parseImportsInfo({
           // have to be imported from either server or client components.
           if (
             !(
-              isClientComponent(importSource) ||
-              isServerComponent(importSource) ||
-              // Special cases for Next.js APIs that are considered as client
-              // components:
-              isNextComponent(importSource) ||
-              isImageImport(importSource)
+              isClientComponent(importSource) || isServerComponent(importSource)
             )
           ) {
             continue
@@ -122,7 +108,7 @@ async function parseImportsInfo({
           imports.push(`require(${JSON.stringify(importSource)})`)
         }
 
-        lastIndex = node.source.span.end - beginPos
+        lastIndex = node.source.span.end
         break
       }
       case 'ExportDefaultDeclaration': {
@@ -170,8 +156,8 @@ export default async function transformSource(
   }
 
   const rawRawPageExtensions = getRawPageExtensions(pageExtensions)
-  const isServerComponent = getIsServerComponent(rawRawPageExtensions)
-  const isClientComponent = getIsClientComponent(rawRawPageExtensions)
+  const isServerComponent = createServerComponentFilter(rawRawPageExtensions)
+  const isClientComponent = createClientComponentFilter(rawRawPageExtensions)
 
   if (!isClientCompilation) {
     // We only apply the loader to server components, or shared components that
