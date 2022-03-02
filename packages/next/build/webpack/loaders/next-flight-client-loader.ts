@@ -80,6 +80,8 @@ async function parseExportNamesInto(
           addExportNames(names, node.declaration.identifier)
         }
         continue
+      default:
+        break
     }
   }
 }
