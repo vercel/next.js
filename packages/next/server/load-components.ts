@@ -36,6 +36,7 @@ export type LoadComponentsReturnType = {
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
   ComponentMod: any
+  AppMod: any
 }
 
 export async function loadDefaultErrorComponents(
@@ -46,7 +47,8 @@ export async function loadDefaultErrorComponents(
     require(`next/dist/pages/_document` +
       (hasConcurrentFeatures ? '-concurrent' : ''))
   )
-  const App = interopDefault(require('next/dist/pages/_app'))
+  const AppMod = require('next/dist/pages/_app')
+  const App = interopDefault(AppMod)
   const ComponentMod = require('next/dist/pages/_error')
   const Component = interopDefault(ComponentMod)
 
@@ -58,6 +60,7 @@ export async function loadDefaultErrorComponents(
     buildManifest: require(join(distDir, `fallback-${BUILD_MANIFEST}`)),
     reactLoadableManifest: {},
     ComponentMod,
+    AppMod,
   }
 }
 
@@ -124,6 +127,7 @@ export async function loadComponents(
     reactLoadableManifest,
     pageConfig: ComponentMod.config || {},
     ComponentMod,
+    AppMod,
     getServerSideProps,
     getStaticProps,
     getStaticPaths,

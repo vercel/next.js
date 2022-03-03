@@ -25,7 +25,6 @@ const nodeArgs = ['-r', join(__dirname, 'require-hook.js')]
 const appDir = join(__dirname, '../app')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const dynamicHello = new File(join(appDir, 'components/dynamic-hello.js'))
-const unwrappedPage = new File(join(appDir, 'pages/suspense/unwrapped.js'))
 const invalidPage = new File(join(appDir, 'pages/invalid.js'))
 
 const USING_CREATE_ROOT = 'Using the createRoot API for React'
@@ -95,20 +94,6 @@ describe('React 18 Support', () => {
 
 describe('Basics', () => {
   runTests('default setting with react 18', (context) => basics(context))
-
-  it('suspense is not allowed in blocking rendering mode (dev)', async () => {
-    // set dynamic.suspense = true but not wrapping with <Suspense>
-    unwrappedPage.replace('wrapped = true', 'wrapped = false')
-    const appPort = await findPort()
-    const app = await launchApp(appDir, appPort, { nodeArgs })
-    const html = await renderViaHTTP(appPort, '/suspense/unwrapped')
-    unwrappedPage.restore()
-    await killApp(app)
-
-    expect(html).toContain(
-      'A React component suspended while rendering, but no fallback UI was specified'
-    )
-  })
 })
 
 // React 18 with Strict Mode enabled might cause double invocation of lifecycle methods.
