@@ -164,6 +164,11 @@ describe('Prerender', () => {
       initialRevalidateSeconds: 1,
       srcRoute: '/blocking-fallback-some/[slug]',
     },
+    '/blocking-fallback/test-errors-1': {
+      dataRoute: `/_next/data/${next.buildId}/blocking-fallback/test-errors-1.json`,
+      initialRevalidateSeconds: 1,
+      srcRoute: '/blocking-fallback/[slug]',
+    },
     '/blog': {
       dataRoute: `/_next/data/${next.buildId}/blog.json`,
       initialRevalidateSeconds: 10,
@@ -1905,6 +1910,50 @@ describe('Prerender', () => {
     }
 
     if (!(global as any).isNextDev) {
+      it('should automatically reset cache TTL when an error occurs and build cache was available', async () => {
+        await next.patchFile('error.txt', 'yes')
+        await waitFor(2000)
+
+        for (let i = 0; i < 5; i++) {
+          const res = await fetchViaHTTP(
+            next.url,
+            '/blocking-fallback/test-errors-1'
+          )
+          expect(res.status).toBe(200)
+        }
+        await next.deleteFile('error.txt')
+        expect(
+          next.cliOutput.match(
+            /throwing error for \/blocking-fallback\/test-errors-1/
+          ).length
+        ).toBe(1)
+      })
+
+      it('should automatically reset cache TTL when an error occurs and runtime cache was available', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback/test-errors-2'
+        )
+
+        expect(res.status).toBe(200)
+        await waitFor(2000)
+        await next.patchFile('error.txt', 'yes')
+
+        for (let i = 0; i < 5; i++) {
+          const res = await fetchViaHTTP(
+            next.url,
+            '/blocking-fallback/test-errors-2'
+          )
+          expect(res.status).toBe(200)
+        }
+        await next.deleteFile('error.txt')
+        expect(
+          next.cliOutput.match(
+            /throwing error for \/blocking-fallback\/test-errors-2/
+          ).length
+        ).toBe(1)
+      })
+
       it('should handle manual revalidate for fallback: blocking', async () => {
         const res = await fetchViaHTTP(
           next.url,

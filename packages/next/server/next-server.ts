@@ -120,7 +120,8 @@ export default class NextNodeServer extends BaseServer {
         new ImageOptimizerCache({
           distDir: this.distDir,
           nextConfig: this.nextConfig,
-        })
+        }),
+        this.minimalMode
       )
     }
 
@@ -1269,6 +1270,7 @@ export default class NextNodeServer extends BaseServer {
           name: middlewareInfo.name,
           paths: middlewareInfo.paths,
           env: middlewareInfo.env,
+          wasm: middlewareInfo.wasm,
           request: {
             headers: params.request.headers,
             method,
