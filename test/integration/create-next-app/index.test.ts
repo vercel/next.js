@@ -9,7 +9,8 @@ const cli = require.resolve('create-next-app/dist/index.js')
 const exampleRepo = 'https://github.com/vercel/next.js/tree/canary'
 const examplePath = 'examples/basic-css'
 
-const run = (args, options) => execa('node', [cli].concat(args), options)
+const run = (args, options: execa.Options) =>
+  execa('node', [cli].concat(args), options)
 
 async function usingTempDir(fn: (...args: any[]) => any, options?: any) {
   const folder = path.join(os.tmpdir(), Math.random().toString(36).substring(2))
@@ -98,40 +99,37 @@ describe('create next app', () => {
     })
   })
 
-  it('should support typescript flag', async () => {
+  it.only('should support typescript flag', async () => {
     await usingTempDir(async (cwd) => {
       const projectName = 'typescript'
-      const res = await run([projectName, '--typescript'], { cwd })
+      const res = await run([projectName, '--typescript'], {
+        cwd,
+        stdio: 'inherit',
+      })
       expect(res.exitCode).toBe(0)
 
-      const pkgJSONPath = path.join(cwd, projectName, 'package.json')
+      const files = [
+        'package.json',
+        'pages/index.tsx',
+        'pages/_app.tsx',
+        'pages/api/hello.ts',
+        'tsconfig.json',
+        'next-env.d.ts',
+        '.eslintrc.json',
+        'node_modules/next',
+        // check we copied default `.gitignore`
+        '.gitignore',
+      ]
 
-      expect(fs.existsSync(pkgJSONPath)).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/_app.tsx'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/api/hello.ts'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'tsconfig.json'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'next-env.d.ts'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, '.eslintrc.json'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'node_modules/next'))
-      ).toBe(true)
-      // check we copied default `.gitignore`
-      expect(
-        fs.existsSync(path.join(cwd, projectName, '.gitignore'))
-      ).toBeTruthy()
+      const pages = fs.readdirSync(path.join(cwd, projectName, 'pages'))
+      const root = fs.readdirSync(path.join(cwd, projectName))
+      console.log({ pages, root })
+
+      files.forEach((file) =>
+        expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
+      )
+
+      const pkgJSONPath = path.join(cwd, projectName, 'package.json')
 
       // Assert for dependencies specific to the typescript template
       const pkgJSON = require(pkgJSONPath)
