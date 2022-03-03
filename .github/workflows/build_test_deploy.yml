@@ -415,7 +415,7 @@ jobs:
 
       - uses: pnpm/action-setup@v2.2.1
         with:
-          version: 6.29.1
+          version: 6.32.2
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
