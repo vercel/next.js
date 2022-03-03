@@ -21,8 +21,6 @@ async function get$(path, query) {
   return cheerio.load(html)
 }
 
-const tsconfig = new File(path.resolve(__dirname, '../tsconfig.json'))
-
 function runTests() {
   describe('default behavior', () => {
     beforeAll(async () => {
@@ -61,6 +59,8 @@ function runTests() {
 describe('typescript paths', () => {
   runTests()
 })
+
+const tsconfig = new File(path.resolve(__dirname, '../tsconfig.json'))
 
 describe('typescript paths without baseurl', () => {
   beforeAll(async () => {

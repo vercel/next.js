@@ -146,11 +146,11 @@ function runTests() {
   })
 }
 
-const jsconfig = new File(path.resolve(__dirname, '../jsconfig.json'))
-
 describe('jsconfig paths', () => {
   runTests()
 })
+
+const jsconfig = new File(path.resolve(__dirname, '../jsconfig.json'))
 
 describe('jsconfig paths without baseurl', () => {
   beforeAll(() => {
