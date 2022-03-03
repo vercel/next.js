@@ -125,11 +125,11 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
-  const packageManager = !!program.useYarn
-    ? 'yarn'
+  const packageManager = !!program.useNpm
+    ? 'npm'
     : !!program.usePnpm
     ? 'pnpm'
-    : 'npm'
+    : 'yarn'
 
   const example = typeof program.example === 'string' && program.example.trim()
   try {
