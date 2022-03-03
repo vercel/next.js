@@ -103,35 +103,64 @@ type Entrypoints = {
   edgeServer: webpack5.EntryObject
 }
 
-export async function getPageRuntime(pageFilePath: string) {
-  let pageRuntime: string | undefined = undefined
-  const pageContent = await fs.promises.readFile(pageFilePath, {
-    encoding: 'utf8',
-  })
-  // branch prunes for entry page without runtime option
-  if (pageContent.includes('runtime')) {
-    const { body } = await parse(pageContent, {
-      filename: pageFilePath,
-      isModule: true,
-    })
-    body.some((node: any) => {
-      const { type, declaration } = node
-      const valueNode = declaration?.declarations?.[0]
-      if (type === 'ExportDeclaration' && valueNode?.id?.value === 'config') {
-        const props = valueNode.init.properties
-        const runtimeKeyValue = props.find(
-          (prop: any) => prop.key.value === 'runtime'
-        )
-        const runtime = runtimeKeyValue?.value?.value
-        pageRuntime =
-          runtime === 'edge' || runtime === 'nodejs' ? runtime : pageRuntime
-        return true
-      }
-      return false
-    })
+const cachedPageRuntimeConfig = new Map<
+  string,
+  [number, 'nodejs' | 'edge' | undefined]
+>()
+export async function getPageRuntime(
+  pageFilePath: string
+): Promise<'nodejs' | 'edge' | undefined> {
+  const cached = cachedPageRuntimeConfig.get(pageFilePath)
+  if (cached) {
+    return cached[1]
   }
 
+  let pageRuntime: 'nodejs' | 'edge' | undefined = undefined
+  let pageContent: string
+  try {
+    pageContent = await fs.promises.readFile(pageFilePath, {
+      encoding: 'utf8',
+    })
+  } catch (err) {
+    return undefined
+  }
+
+  // branch prunes for entry page without runtime option
+  if (pageContent.includes('runtime')) {
+    try {
+      const { body } = await parse(pageContent, {
+        filename: pageFilePath,
+        isModule: true,
+      })
+      body.some((node: any) => {
+        const { type, declaration } = node
+        const valueNode = declaration?.declarations?.[0]
+        if (type === 'ExportDeclaration' && valueNode?.id?.value === 'config') {
+          const props = valueNode.init.properties
+          const runtimeKeyValue = props.find(
+            (prop: any) => prop.key.value === 'runtime'
+          )
+          const runtime = runtimeKeyValue?.value?.value
+          pageRuntime =
+            runtime === 'edge' || runtime === 'nodejs' ? runtime : pageRuntime
+          return true
+        }
+        return false
+      })
+    } catch (err) {
+      return undefined
+    }
+  }
+
+  cachedPageRuntimeConfig.set(pageFilePath, [Date.now(), pageRuntime])
   return pageRuntime
+}
+
+export function invalidatePageRuntime(pageFilePath: string, safeTime: number) {
+  const cached = cachedPageRuntimeConfig.get(pageFilePath)
+  if (cached && cached[0] < safeTime) {
+    cachedPageRuntimeConfig.delete(pageFilePath)
+  }
 }
 
 export async function createPagesRuntimeMapping(

@@ -65,7 +65,7 @@ export class FlightManifestPlugin {
   }
 
   createAsset(assets: any, compilation: any) {
-    const json: any = {}
+    const manifest: any = {}
     const { clientComponentsRegex } = this
     compilation.chunkGroups.forEach((chunkGroup: any) => {
       function recordModule(id: string, _chunk: any, mod: any) {
@@ -79,7 +79,7 @@ export class FlightManifestPlugin {
           return
         }
 
-        const moduleExports: any = json[resource] || {}
+        const moduleExports: any = manifest[resource] || {}
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
         const moduleExportedKeys = ['', '*'].concat(
@@ -102,7 +102,7 @@ export class FlightManifestPlugin {
             }
           }
         })
-        json[resource] = moduleExports
+        manifest[resource] = moduleExports
       }
 
       chunkGroup.chunks.forEach((chunk: any) => {
@@ -126,13 +126,12 @@ export class FlightManifestPlugin {
       })
     })
 
-    const output =
-      (this.runtime === 'edge' ? 'self.__RSC_MANIFEST=' : '') +
-      JSON.stringify(json)
-    assets[
-      `server/${MIDDLEWARE_FLIGHT_MANIFEST}${
-        this.runtime === 'edge' ? '.js' : '.json'
-      }`
-    ] = new sources.RawSource(output)
+    // With switchable runtime, we need to emit the manifest files for both
+    // runtimes.
+    const file = `server/${MIDDLEWARE_FLIGHT_MANIFEST}`
+    const json = JSON.stringify(manifest)
+
+    assets[file + '.js'] = new sources.RawSource('self.__RSC_MANIFEST=' + json)
+    assets[file + '.json'] = new sources.RawSource(json)
   }
 }

@@ -27,11 +27,7 @@ export default function () {
   return (
     <>
       Current Runtime:{' '}
-      {typeof window === 'undefined'
-        ? typeof ReadableStream === 'undefined'
-          ? 'node-server'
-          : 'edge-server'
-        : 'browser'}
+      {process.version ? `Node.js ${process.version}` : 'Edge/Browser'}
       <br />
       <div className="suspense">
         <Suspense fallback="next_streaming_fallback">
@@ -42,4 +38,8 @@ export default function () {
       <Counter />
     </>
   )
+}
+
+export const config = {
+  runtime: 'edge',
 }

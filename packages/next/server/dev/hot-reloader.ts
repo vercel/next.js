@@ -42,6 +42,7 @@ import { Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
+import { getPageRuntime } from '../../build/entries'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -499,9 +500,14 @@ export default class HotReloader {
             const isServerComponent =
               this.hasServerComponents &&
               isFlightPage(this.config, absolutePagePath)
-            const isEdgeSSRPage = this.runtime === 'edge' && !isApiRoute
+
+            const pageRuntimeConfig = await getPageRuntime(absolutePagePath)
+            const isEdgeSSRPage = pageRuntimeConfig === 'edge' && !isApiRoute
 
             if (isNodeServerCompilation && isEdgeSSRPage && !isCustomError) {
+              return
+            }
+            if (isEdgeServerCompilation && !isEdgeSSRPage) {
               return
             }
 
