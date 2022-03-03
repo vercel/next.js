@@ -1,3 +1,4 @@
+import fs from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
@@ -12,6 +13,7 @@ import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-lo
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
 import { NextConfigComplete } from '../server/config-shared'
+import { parse } from '../build/swc'
 import { isCustomErrorPage, isFlightPage, isReservedPage } from './utils'
 import { ssrEntries } from './webpack/plugins/middleware-plugin'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
@@ -101,6 +103,60 @@ type Entrypoints = {
   edgeServer: webpack5.EntryObject
 }
 
+export async function getPageRuntime(pageFilePath: string) {
+  let pageRuntime: string | undefined = undefined
+  const pageContent = await fs.promises.readFile(pageFilePath, {
+    encoding: 'utf8',
+  })
+  // branch prunes for entry page without runtime option
+  if (pageContent.includes('runtime')) {
+    const { body } = await parse(pageContent, {
+      filename: pageFilePath,
+      isModule: true,
+    })
+    body.some((node: any) => {
+      const { type, declaration } = node
+      const valueNode = declaration?.declarations?.[0]
+      if (type === 'ExportDeclaration' && valueNode?.id?.value === 'config') {
+        const props = valueNode.init.properties
+        const runtimeKeyValue = props.find(
+          (prop: any) => prop.key.value === 'runtime'
+        )
+        const runtime = runtimeKeyValue?.value?.value
+        pageRuntime =
+          runtime === 'edge' || runtime === 'nodejs' ? runtime : pageRuntime
+        return true
+      }
+      return false
+    })
+  }
+
+  return pageRuntime
+}
+
+export async function createPagesRuntimeMapping(
+  pagesDir: string,
+  pages: PagesMapping
+) {
+  const pagesRuntime: Record<string, string> = {}
+
+  const promises = Object.keys(pages).map(async (page) => {
+    const absolutePagePath = pages[page]
+    const isReserved = isReservedPage(page)
+    if (!isReserved) {
+      const pageFilePath = join(
+        pagesDir,
+        absolutePagePath.replace(PAGES_DIR_ALIAS, '')
+      )
+      const runtime = await getPageRuntime(pageFilePath)
+      if (runtime) {
+        pagesRuntime[page] = runtime
+      }
+    }
+  })
+  return await Promise.all(promises)
+}
+
 export function createEntrypoints(
   pages: PagesMapping,
   target: 'server' | 'serverless' | 'experimental-serverless-trace',
@@ -144,6 +200,9 @@ export function createEntrypoints(
     reactRoot: config.experimental.reactRoot ? 'true' : '',
   }
 
+  const globalRuntime = config.experimental.runtime
+  const edgeRuntime = globalRuntime === 'edge'
+
   Object.keys(pages).forEach((page) => {
     const absolutePagePath = pages[page]
     const bundleFile = normalizePagePath(page)
@@ -156,8 +215,6 @@ export function createEntrypoints(
     const isReserved = isReservedPage(page)
     const isCustomError = isCustomErrorPage(page)
     const isFlight = isFlightPage(config, absolutePagePath)
-
-    const edgeRuntime = config.experimental.runtime === 'edge'
 
     if (page.match(MIDDLEWARE_ROUTE)) {
       const loaderOpts: MiddlewareLoaderOptions = {
