@@ -121,9 +121,8 @@ describe('create next app', () => {
         '.gitignore',
       ]
 
-      const pages = fs.readdirSync(path.join(cwd, projectName, 'pages'))
       const root = fs.readdirSync(path.join(cwd, projectName))
-      console.log({ pages, root })
+      console.log({ root })
 
       files.forEach((file) =>
         expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
