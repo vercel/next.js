@@ -67,6 +67,7 @@ import isError from '../lib/is-error'
 import { readableStreamTee } from './web/utils'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
+import { execOnce } from '../shared/lib/utils'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
@@ -1760,61 +1761,70 @@ function renderToStream({
   flushEffectHandler?: () => Promise<string>
 }): Promise<ReadableStream<Uint8Array>> {
   return new Promise(async (resolve, reject) => {
-    let resolved = false
-
     const closeTag = '</body></html>'
     const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
 
-    const doResolve = (renderStream: ReadableStream<Uint8Array>) => {
-      if (!resolved) {
-        resolved = true
+    const doResolve = execOnce((renderStream: ReadableStream<Uint8Array>) => {
+      // React will call our callbacks synchronously, so we need to
+      // defer to a microtask to ensure `stream` is set.
+      resolve(
+        Promise.resolve().then(() => {
+          const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
+            createBufferedTransformStream(),
+            flushEffectHandler
+              ? createFlushEffectStream(flushEffectHandler)
+              : null,
+            suffixUnclosed != null ? createPrefixStream(suffixUnclosed) : null,
+            dataStream ? createInlineDataStream(dataStream) : null,
+            suffixUnclosed != null ? createSuffixStream(closeTag) : null,
+          ].filter(Boolean) as any
 
-        // React will call our callbacks synchronously, so we need to
-        // defer to a microtask to ensure `stream` is set.
-        resolve(
-          Promise.resolve().then(() => {
-            const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
-              createBufferedTransformStream(),
-              flushEffectHandler
-                ? createFlushEffectStream(flushEffectHandler)
-                : null,
-              suffixUnclosed != null
-                ? createPrefixStream(suffixUnclosed)
-                : null,
-              dataStream ? createInlineDataStream(dataStream) : null,
-              suffixUnclosed != null ? createSuffixStream(closeTag) : null,
-            ].filter(Boolean) as any
+          return transforms.reduce(
+            (readable, transform) => pipeThrough(readable, transform),
+            renderStream
+          )
+        })
+      )
+    })
 
-            return transforms.reduce(
-              (readable, transform) => pipeThrough(readable, transform),
-              renderStream
-            )
-          })
-        )
+    let completeCallback: (value?: unknown) => void
+    const allComplete = new Promise((resolveError, rejectError) => {
+      completeCallback = execOnce((err: unknown) => {
+        if (err) {
+          rejectError(err)
+        } else {
+          resolveError(null)
+        }
+      })
+    })
+
+    async function bailOnError() {
+      try {
+        await allComplete
+      } catch (err) {
+        reject(err)
       }
     }
 
-    let resolveAllComplete: (value?: unknown) => void
-    const allCompleted = new Promise((r) => {
-      resolveAllComplete = r
-    })
     const renderStream: ReadableStream<Uint8Array> = await (
       ReactDOMServer as any
     ).renderToReadableStream(element, {
       onError(err: Error) {
-        if (!resolved) {
-          resolved = true
+        if (generateStaticHTML) {
+          completeCallback(err)
+        } else {
           reject(err)
         }
       },
       onCompleteAll() {
-        resolveAllComplete()
+        completeCallback()
       },
     })
 
     if (generateStaticHTML) {
-      await allCompleted
+      await bailOnError()
     }
+
     doResolve(renderStream)
   })
 }

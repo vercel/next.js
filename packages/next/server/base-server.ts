@@ -990,7 +990,10 @@ export default abstract class Server {
           : !!this.renderOpts.supportsDynamicHTML,
       },
     } as const
-    const payload = await fn(ctx)
+    let payload: ResponsePayload | null = null
+    try {
+      payload = await fn(ctx)
+    } catch (_) {}
     if (payload === null) {
       return
     }
