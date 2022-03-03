@@ -25,6 +25,7 @@ import rsc from './rsc'
 import streaming from './streaming'
 import basic from './basic'
 import functions from './functions'
+import runtime from './runtime'
 
 const documentWithGip = `
 import { Html, Head, Main, NextScript } from 'next/document'
@@ -153,6 +154,7 @@ describe('Edge runtime - prod', () => {
   basic(context, { env: 'prod' })
   streaming(context, { env: 'prod' })
   rsc(context, { runtime: 'edge', env: 'prod' })
+  runtime(context, { runtime: 'edge', env: 'prod' })
 })
 
 describe('Edge runtime - dev', () => {
@@ -186,6 +188,7 @@ describe('Edge runtime - dev', () => {
   basic(context, { env: 'dev' })
   streaming(context, { env: 'dev' })
   rsc(context, { runtime: 'edge', env: 'dev' })
+  runtime(context, { runtime: 'edge', env: 'prod' })
 })
 
 const nodejsRuntimeBasicSuite = {
