@@ -18,14 +18,12 @@ import { MIDDLEWARE_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 type Options = {
   dev: boolean
   clientComponentsRegex: RegExp
-  runtime?: 'nodejs' | 'edge'
 }
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
 
 export class FlightManifestPlugin {
   dev: boolean = false
-  runtime?: 'nodejs' | 'edge'
   clientComponentsRegex: RegExp
 
   constructor(options: Options) {
@@ -33,7 +31,6 @@ export class FlightManifestPlugin {
       this.dev = options.dev
     }
     this.clientComponentsRegex = options.clientComponentsRegex
-    this.runtime = options.runtime
   }
 
   apply(compiler: any) {

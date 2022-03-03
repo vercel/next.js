@@ -1490,7 +1490,7 @@ export default async function getBaseWebpackConfig(
         }),
       hasServerComponents &&
         !isServer &&
-        new FlightManifestPlugin({ dev, clientComponentsRegex, runtime }),
+        new FlightManifestPlugin({ dev, clientComponentsRegex }),
       !dev &&
         !isServer &&
         new TelemetryPlugin(
