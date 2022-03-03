@@ -272,7 +272,7 @@ fn shake_exports_fixture_default(input: PathBuf) {
     );
 }
 
-#[fixture("tests/fixture/emotion/**/input.tsx")]
+#[fixture("tests/fixture/emotion/*/input.tsx")]
 fn next_emotion_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.ts");
     test_fixture(
@@ -303,8 +303,6 @@ fn next_emotion_fixture(input: PathBuf) {
                     },
                     &input,
                     tr.cm.clone(),
-                    true,
-                    true,
                 ),
                 jsx,
             )

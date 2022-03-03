@@ -1,4 +1,4 @@
-import { css } from '@emotion/react'
+import { css, Global } from '@emotion/react'
 import styled from '@emotion/styled'
 import { PureComponent } from 'react'
 import ReactDOM from 'react-dom'
@@ -15,25 +15,59 @@ const styles = css({
   width: '20px',
 })
 
-const DicContainer = styled.div({
+const styles2 = css`
+  color: red;
+  width: 20px;
+`
+
+const DivContainer = styled.div({
   background: 'red',
 })
+
+const DivContainer2 = styled.div`
+  background: red;
+`
 
 const SpanContainer = styled('span')({
   background: 'yellow',
 })
 
 const Container = styled('button')`
+  background: red;
   ${stylesInCallback}
   ${() =>
     css({
       background: 'red',
     })}
+  color: yellow;
+  font-size: 12px;
 `
+
+const Container2 = styled.div`
+  background: red;
+`
+
 export class SimpleComponent extends PureComponent {
   render() {
     return (
-      <Container>
+      <Container
+        css={css`
+          color: hotpink;
+        `}
+      >
+        <Global
+          styles={css`
+            html,
+            body {
+              padding: 3rem 1rem;
+              margin: 0;
+              background: papayawhip;
+              min-height: 100%;
+              font-family: Helvetica, Arial, sans-serif;
+              font-size: 24px;
+            }
+          `}
+        />
         <span>hello</span>
       </Container>
     )

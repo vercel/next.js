@@ -41,7 +41,6 @@ use swc_common::{FileName, SourceFile, SourceMap};
 use swc_ecmascript::ast::EsVersion;
 use swc_ecmascript::parser::parse_file_as_module;
 use swc_ecmascript::transforms::pass::noop;
-use swc_ecmascript::transforms::react::Runtime;
 use swc_ecmascript::{
     visit::Fold,
 };
@@ -178,37 +177,9 @@ pub fn custom_before_pass(
                 if !config.enabled.unwrap_or(false) {
                     return None;
                 }
-                let is_react_jsx_runtime = opts
-                    .swc
-                    .config
-                    .jsc
-                    .transform
-                    .as_ref()
-                    .and_then(|t| t.react.runtime)
-                    .map(|r| matches!(r, Runtime::Automatic))
-                    .unwrap_or(false);
-                let es_module_interop = opts
-                    .swc
-                    .config
-                    .module
-                    .as_ref()
-                    .map(|m| {
-                        if let ModuleConfig::CommonJs(c) = m {
-                            !c.no_interop
-                        } else {
-                            true
-                        }
-                    })
-                    .unwrap_or(true);
                 if let FileName::Real(path) = &file.name {
                     path.to_str().map(|_| {
-                        Either::Left(emotion::EmotionTransformer::new(
-                            config.clone(),
-                            path,
-                            cm,
-                            is_react_jsx_runtime,
-                            es_module_interop,
-                        ))
+                        Either::Left(emotion::EmotionTransformer::new(config.clone(), path, cm))
                     })
                 } else {
                     None
