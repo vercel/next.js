@@ -69,7 +69,7 @@ export class FlightManifestPlugin {
     const { clientComponentsRegex } = this
     compilation.chunkGroups.forEach((chunkGroup: any) => {
       function recordModule(id: string, _chunk: any, mod: any) {
-        const resource = mod.resource?.replace(/\?flight$/, '')
+        const resource = mod.resource?.replace(/\?__sc_client__$/, '')
 
         // TODO: Hook into deps instead of the target module.
         // That way we know by the type of dep whether to include.
@@ -82,12 +82,15 @@ export class FlightManifestPlugin {
         const moduleExports: any = json[resource] || {}
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
-        const providedExports = exportsInfo.getProvidedExports()
         const moduleExportedKeys = ['', '*'].concat(
-          // TODO: improve exports detection
-          providedExports === true || providedExports == null
-            ? 'default'
-            : providedExports
+          [...exportsInfo.exports]
+            .map((exportInfo) => {
+              if (exportInfo.provided) {
+                return exportInfo.name
+              }
+              return null
+            })
+            .filter(Boolean)
         )
 
         moduleExportedKeys.forEach((name) => {

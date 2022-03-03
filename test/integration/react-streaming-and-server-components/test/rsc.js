@@ -28,6 +28,7 @@ export default function (context, { runtime, env }) {
     expect(homeHTML).toContain('header:test-util')
     expect(homeHTML).toContain('path:/')
     expect(homeHTML).toContain('foo.client')
+    expect(homeHTML).toContain('named.client')
   })
 
   it('should reuse the inline flight response without sending extra requests', async () => {
@@ -55,12 +56,29 @@ export default function (context, { runtime, env }) {
     expect(html).toContain('foo.client')
   })
 
+  it('should resolve different kinds of components correctly', async () => {
+    const html = await renderViaHTTP(context.appPort, '/shared')
+    const main = getNodeBySelector(html, '#main').html()
+
+    // Should have 5 occurrences of "client_component".
+    expect([...main.matchAll(/client_component/g)].length).toBe(5)
+
+    // Should have 2 occurrences of "shared:server", and 2 occurrences of
+    // "shared:client".
+    const sharedServerModule = [...main.matchAll(/shared:server:(\d+)/g)]
+    const sharedClientModule = [...main.matchAll(/shared:client:(\d+)/g)]
+    expect(sharedServerModule.length).toBe(2)
+    expect(sharedClientModule.length).toBe(2)
+
+    // Should have 2 modules created for the shared component.
+    expect(sharedServerModule[0][1]).toBe(sharedServerModule[1][1])
+    expect(sharedClientModule[0][1]).toBe(sharedClientModule[1][1])
+    expect(sharedServerModule[0][1]).not.toBe(sharedClientModule[0][1])
+  })
+
   it('should support next/link in server components', async () => {
     const linkHTML = await renderViaHTTP(context.appPort, '/next-api/link')
-    const linkText = getNodeBySelector(
-      linkHTML,
-      'div[hidden] > a[href="/"]'
-    ).text()
+    const linkText = getNodeBySelector(linkHTML, '#__next > a[href="/"]').text()
 
     expect(linkText).toContain('go home')
 
@@ -94,7 +112,7 @@ export default function (context, { runtime, env }) {
       const imageHTML = await renderViaHTTP(context.appPort, '/next-api/image')
       const imageTag = getNodeBySelector(
         imageHTML,
-        'div[hidden] > span > span > img'
+        '#__next > span > span > img'
       )
 
       expect(imageTag.attr('src')).toContain('data:image')
@@ -156,13 +174,13 @@ export default function (context, { runtime, env }) {
     expect(
       getNodeBySelector(
         clientExportsHTML,
-        'div[hidden] > div > #named-exports'
+        '#__next > div > #named-exports'
       ).text()
     ).toBe('abcde')
     expect(
       getNodeBySelector(
         clientExportsHTML,
-        'div[hidden] > div > #default-exports-arrow'
+        '#__next > div > #default-exports-arrow'
       ).text()
     ).toBe('client-default-export-arrow')
 

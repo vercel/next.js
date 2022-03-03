@@ -11,6 +11,7 @@ import {
   initNextServerScript,
   killApp,
   renderViaHTTP,
+  waitFor,
 } from 'next-test-utils'
 
 describe('should set-up next', () => {
@@ -155,7 +156,30 @@ describe('should set-up next', () => {
     expect(typeof requiredFilesManifest.appDir).toBe('string')
   })
 
+  it('should de-dupe HTML/data requests', async () => {
+    const res = await fetchViaHTTP(appPort, '/gsp', undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+    const props = JSON.parse($('#props').text())
+    expect(props.gspCalls).toBeDefined()
+
+    const res2 = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/gsp.json`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res2.status).toBe(200)
+    const { pageProps: props2 } = await res2.json()
+    expect(props2.gspCalls).toBe(props.gspCalls)
+  })
+
   it('should set correct SWR headers with notFound gsp', async () => {
+    await waitFor(2000)
     await next.patchFile('standalone/data.txt', 'show')
 
     const res = await fetchViaHTTP(appPort, '/gsp', undefined, {
@@ -166,6 +190,7 @@ describe('should set-up next', () => {
       's-maxage=1, stale-while-revalidate'
     )
 
+    await waitFor(2000)
     await next.patchFile('standalone/data.txt', 'hide')
 
     const res2 = await fetchViaHTTP(appPort, '/gsp', undefined, {
@@ -244,6 +269,7 @@ describe('should set-up next', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
+    await waitFor(2000)
     const html2 = await renderViaHTTP(appPort, '/fallback/first')
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
