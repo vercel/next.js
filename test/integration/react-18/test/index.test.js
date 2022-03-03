@@ -10,7 +10,6 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
-  fetchViaHTTP,
   hasRedbox,
   getRedboxHeader,
 } from 'next-test-utils'

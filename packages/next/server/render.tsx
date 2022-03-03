@@ -1795,8 +1795,8 @@ function renderToStream({
     }
 
     let resolveAllComplete: (value?: unknown) => void
-    const allCompleted = new Promise((resolve) => {
-      resolveAllComplete = resolve
+    const allCompleted = new Promise((r) => {
+      resolveAllComplete = r
     })
     const renderStream: ReadableStream<Uint8Array> = await (
       ReactDOMServer as any
