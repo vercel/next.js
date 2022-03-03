@@ -3,9 +3,9 @@ import type { RenderOpts } from './render'
 import type RenderResult from './render-result'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { Params } from './router'
-import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
 
+import { PayloadOptions } from './send-payload'
 import BaseServer, { Options } from './base-server'
 import { renderToHTML } from './render'
 
@@ -131,7 +131,6 @@ export default class NextWebServer extends BaseServer {
       query,
       {
         ...renderOpts,
-        supportsDynamicHTML: true,
         disableOptimizedLoading: true,
         runtime: 'edge',
       }
@@ -175,7 +174,9 @@ export default class NextWebServer extends BaseServer {
         // Not implemented: on/removeListener
       } as any)
     } else {
-      res.body(await options.result.toUnchunkedString())
+      // TODO: generate Etag
+      const payload = await options.result.toUnchunkedString()
+      res.body(payload)
     }
 
     res.send()

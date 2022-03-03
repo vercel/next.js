@@ -1349,6 +1349,7 @@ export async function renderToHTML(
                   ))}
                 </>
               ),
+              generateStaticHTML: true,
             })
 
             const flushed = await streamToString(flushEffectStream)
@@ -1360,6 +1361,7 @@ export async function renderToHTML(
             element: content,
             suffix,
             dataStream: serverComponentsInlinedTransformStream?.readable,
+            generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
             flushEffectHandler,
           })
         }
@@ -1492,6 +1494,7 @@ export async function renderToHTML(
     const documentStream = await renderToStream({
       ReactDOMServer,
       element: document,
+      generateStaticHTML: true,
     })
     documentHTML = await streamToString(documentStream)
   } else {
@@ -1746,12 +1749,14 @@ function renderToStream({
   element,
   suffix,
   dataStream,
+  generateStaticHTML,
   flushEffectHandler,
 }: {
   ReactDOMServer: typeof import('react-dom/server')
   element: React.ReactElement
   suffix?: string
   dataStream?: ReadableStream<Uint8Array>
+  generateStaticHTML: boolean
   flushEffectHandler?: () => Promise<string>
 }): Promise<ReadableStream<Uint8Array>> {
   return new Promise(async (resolve, reject) => {
@@ -1789,6 +1794,10 @@ function renderToStream({
       }
     }
 
+    let resolveAllComplete: (value?: unknown) => void
+    const allCompleted = new Promise((resolve) => {
+      resolveAllComplete = resolve
+    })
     const renderStream: ReadableStream<Uint8Array> = await (
       ReactDOMServer as any
     ).renderToReadableStream(element, {
@@ -1798,8 +1807,14 @@ function renderToStream({
           reject(err)
         }
       },
+      onCompleteAll() {
+        resolveAllComplete()
+      },
     })
 
+    if (generateStaticHTML) {
+      await allCompleted
+    }
     doResolve(renderStream)
   })
 }
