@@ -4,6 +4,6 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
-    "@builder.io/partytown": "0.3.6"
+    "@builder.io/partytown": "0.4.2"
   }
 }

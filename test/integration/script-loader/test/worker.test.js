@@ -17,14 +17,7 @@ let server
 let appPort
 
 async function bootApp(dir) {
-  // await nextBuild(dir)
-
-  const { stdout, stderr } = await nextBuild(dir, [], {
-    stdout: true,
-    stderr: true,
-  })
-  const output = stdout + stderr
-  console.log(output, 'outputtt')
+  await nextBuild(dir)
 
   const app = nextServer({
     dir,
@@ -37,8 +30,8 @@ async function bootApp(dir) {
 }
 
 if (process.env.TEST_PARTYTOWN) {
-  describe('Next.js Script - Worker Strategy', () => {
-    it('Partytown snippet is not injected to head if worker strategy is not used for a Script', async () => {
+  describe('Next.js Script - Worker strategy', () => {
+    it('Partytown snippet is not injected to head if not enabled in configuration', async () => {
       let browser
 
       await bootApp(appDir)
@@ -57,7 +50,7 @@ if (process.env.TEST_PARTYTOWN) {
       }
     })
 
-    it('Partytown snippet is injected to head if worker strategy is used for a Script', async () => {
+    it('Partytown snippet is injected to head if enabled in configuration', async () => {
       let { partytownSnippet } = require(join(
         appWithPartytownDir,
         'node_modules/@builder.io/partytown/integration'
@@ -70,23 +63,12 @@ if (process.env.TEST_PARTYTOWN) {
       try {
         browser = await webdriver(appPort, '/')
 
-        await waitFor(100000)
-
         const snippetScript = await browser.eval(
           `document.querySelector('script[data-partytown]').innerHTML`
-        )
-        const configScript = await browser.eval(
-          `document.querySelector('script[data-partytown-config]').innerHTML`
         )
 
         expect(snippetScript).not.toEqual(null)
         expect(snippetScript).toEqual(partytownSnippet())
-
-        // Partytown config is also injected to head
-        expect(configScript).not.toEqual(null)
-        expect(configScript).toEqual(
-          'partytown = {"forward":["dataLayer.push","fbq"]};'
-        )
       } finally {
         if (browser) await browser.close()
         stopApp(server)
@@ -111,7 +93,7 @@ if (process.env.TEST_PARTYTOWN) {
 
         expect(predefinedWorkerScripts).toEqual(1)
 
-        await waitFor(2000)
+        await waitFor(1000)
 
         // Partytown modifes type to "text/partytown-x" after it has been executed in the web worker
         const processedWorkerScripts = await browser.eval(
@@ -130,5 +112,5 @@ if (process.env.TEST_PARTYTOWN) {
     })
   })
 } else {
-  it('Should skip testing electron without process.env.TEST_PARTYTOWN set', () => {})
+  it('Should skip testing partytown without process.env.TEST_PARTYTOWN set', () => {})
 }

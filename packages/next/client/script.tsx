@@ -1,6 +1,5 @@
 import React, { useEffect, useContext } from 'react'
 import { ScriptHTMLAttributes } from 'react'
-import { join } from 'path'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { DOMAttributeNames } from './head-manager'
 import { requestIdleCallback } from './request-idle-callback'
@@ -28,38 +27,6 @@ const ignoreProps = [
   'onError',
   'strategy',
 ]
-
-const injectPartytownSnippet = async () => {
-  const { enablePartytown, partytownConfig } = process.env
-    .__NEXT_OPTIMIZE_SCRIPTS as any
-
-  if (enablePartytown) {
-    if (
-      partytownConfig &&
-      !document.querySelector(`script[data-partytown-config]`)
-    ) {
-      // Only add partytown config if not already present from SSR
-      const scriptEl = document.createElement('script')
-      scriptEl.dataset.partytownConfig = ''
-      scriptEl.innerHTML = `partytown = ${JSON.stringify(partytownConfig)};`
-      document.head.appendChild(scriptEl)
-    }
-
-    if (!document.querySelector(`script[data-partytown]`)) {
-      // Only inject partytown snippet if not already present from SSR
-      try {
-        const {
-          partytownSnippet,
-        } = require('@builder.io/partytown/integration'!)
-
-        const scriptEl = document.createElement('script')
-        scriptEl.dataset.partytown = ''
-        scriptEl.innerHTML = partytownSnippet()
-        document.head.appendChild(scriptEl)
-      } catch (err) {}
-    }
-  }
-}
 
 const loadScript = (props: ScriptProps): void => {
   const {
@@ -180,17 +147,10 @@ function Script(props: ScriptProps): JSX.Element | null {
   const { updateScripts, scripts, getIsSsr } = useContext(HeadManagerContext)
 
   useEffect(() => {
-    const injectPartytownClientSide = async () => {
-      await injectPartytownSnippet()
-    }
-
     if (strategy === 'afterInteractive') {
       loadScript(props)
     } else if (strategy === 'lazyOnload') {
       loadLazyScript(props)
-    } else if (strategy === 'worker') {
-      // inject partytown snippet client-side
-      injectPartytownClientSide()
     }
   }, [props, strategy])
 

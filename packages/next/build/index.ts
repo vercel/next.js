@@ -2114,7 +2114,7 @@ export default async function build(
       console.log('')
     }
 
-    if (Boolean(config.experimental.optimizeScripts?.enablePartytown)) {
+    if (Boolean(config.experimental.optimizeScripts)) {
       await nextBuildSpan
         .traceChild('verify-partytown-setup')
         .traceAsyncFn(async () => {

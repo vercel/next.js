@@ -79,25 +79,15 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
       partytownSnippet,
     } = require(/* webpackIgnore: true */ '@builder.io/partytown/integration'!)
 
-    return optimizeScripts?.enablePartytown && scriptLoader.worker?.length ? (
+    return optimizeScripts ? (
       <>
-        {optimizeScripts?.partytownConfig && (
-          <script
-            data-partytown-config=""
-            dangerouslySetInnerHTML={{
-              __html: `partytown = ${JSON.stringify(
-                optimizeScripts?.partytownConfig
-              )};`,
-            }}
-          />
-        )}
         <script
           data-partytown=""
           dangerouslySetInnerHTML={{
             __html: partytownSnippet(),
           }}
         />
-        {scriptLoader.worker.map((file: ScriptProps, index: number) => {
+        {(scriptLoader.worker || []).map((file: ScriptProps, index: number) => {
           const { strategy, ...scriptProps } = file
           return (
             <script

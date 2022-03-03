@@ -216,10 +216,7 @@ export type RenderOptsPartial = {
   optimizeFonts: boolean
   fontManifest?: FontManifest
   optimizeCss: any
-  optimizeScripts?: {
-    enablePartytown?: boolean
-    partytownConfig?: any
-  }
+  optimizeScripts: any
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string

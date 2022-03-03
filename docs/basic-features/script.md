@@ -130,17 +130,17 @@ Examples of scripts that do not need to load immediately and can be lazy-loaded 
 
 Scripts that use the `worker` strategy are relocated and executed in a web worker with [Partytown](https://partytown.builder.io/). This can improve the performance of your site by dedicating the main thread to the rest of your application code.
 
-This strategy is still experimental and can only be used if enabled in `next.config.js`:
+This strategy is still experimental and can only be used if the `optimizeScripts` flag is enabled in `next.config.js`:
 
 ```js
 module.exports = {
   experimental: {
-    enablePartytown: true,
+    optimizeScripts: true,
   },
 }
 ```
 
-Then, run `next` (normally `npm run dev` or `yarn dev`) and Next.js will guide you through the installation of the required package to finish the setup:
+Then, run `next` (normally `npm run dev` or `yarn dev`) and Next.js will guide you through the installation of the required packages to finish the setup:
 
 ```bash
 npm run dev
@@ -154,7 +154,7 @@ npm run dev
 # ...
 ```
 
-Once enabled, defining `strategy="worker` will automatically instantiate Partytown in your application and off-load the script to a web worker.
+Once setup is complete, defining `strategy="worker` will automatically instantiate Partytown in your application and off-load the script to a web worker.
 
 ```jsx
 <Script src="https://example.com/analytics.js" strategy="worker" />
@@ -168,18 +168,32 @@ In order for Partytown to intercept scripts in a worker, a number of its static 
 
 #### Configuration
 
-Although the `worker` strategy does not require any additional configuration to work, a config object can be set in order to modify any of Partytown's settings, including enabling `debug` mode and forwarding events and triggers.
+Although the `worker` strategy does not require any additional configuration to work, Partytown supports the use of a config object to modify some of its settings, including enabling `debug` mode and forwarding events and triggers.
 
-```js
-module.exports = {
-  experimental: {
-    enablePartytown: true,
-    partytownConfig: {
-      debug: true,
-      forward: ['dataLayer.push', 'fbq'],
-    },
-  },
+If you would like to add additonal configuration options, you can include it within the `next/head` element of a page:
+
+```jsx
+import Head from 'next/head'
+
+const Home = () => {
+  return (
+    <>
+      <Head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              partytown = {
+                debug: true,
+              };
+            `,
+          }}
+        />
+      </Head>
+    </>
+  )
 }
+
+export default Home
 ```
 
 Take a look at Partytown's [configuration options](https://partytown.builder.io/configuration) to see the full list of properties that can be added.

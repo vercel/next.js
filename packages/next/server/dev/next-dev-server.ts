@@ -365,7 +365,7 @@ export default class DevServer extends Server {
       this.nextConfig
     )
 
-    if (this.nextConfig.experimental.optimizeScripts?.enablePartytown)
+    if (this.nextConfig.experimental.optimizeScripts)
       await verifyPartytownSetup(this.dir, this.publicDir)
 
     this.customRoutes = await loadCustomRoutes(this.nextConfig)

@@ -155,10 +155,7 @@ export default abstract class Server {
     fontManifest?: FontManifest
     disableOptimizedLoading?: boolean
     optimizeCss: any
-    optimizeScripts?: {
-      enablePartytown?: boolean
-      partytownConfig?: any
-    }
+    optimizeScripts: any
     locale?: string
     locales?: string[]
     defaultLocale?: string
