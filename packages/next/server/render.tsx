@@ -1763,23 +1763,6 @@ async function renderToStream({
   const closeTag = '</body></html>'
   const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
 
-  const doResolve = (renderStream: ReadableStream<Uint8Array>) => {
-    // React will call our callbacks synchronously, so we need to
-    // defer to a microtask to ensure `stream` is set.
-    const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
-      createBufferedTransformStream(),
-      flushEffectHandler ? createFlushEffectStream(flushEffectHandler) : null,
-      suffixUnclosed != null ? createPrefixStream(suffixUnclosed) : null,
-      dataStream ? createInlineDataStream(dataStream) : null,
-      suffixUnclosed != null ? createSuffixStream(closeTag) : null,
-    ].filter(Boolean) as any
-
-    return transforms.reduce(
-      (readable, transform) => pipeThrough(readable, transform),
-      renderStream
-    )
-  }
-
   let completeCallback: (value?: unknown) => void
   const allComplete = new Promise((resolveError, rejectError) => {
     completeCallback = execOnce((err: unknown) => {
@@ -1806,7 +1789,18 @@ async function renderToStream({
     await allComplete
   }
 
-  return doResolve(renderStream)
+  const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
+    createBufferedTransformStream(),
+    flushEffectHandler ? createFlushEffectStream(flushEffectHandler) : null,
+    suffixUnclosed != null ? createPrefixStream(suffixUnclosed) : null,
+    dataStream ? createInlineDataStream(dataStream) : null,
+    suffixUnclosed != null ? createSuffixStream(closeTag) : null,
+  ].filter(Boolean) as any
+
+  return transforms.reduce(
+    (readable, transform) => pipeThrough(readable, transform),
+    renderStream
+  )
 }
 
 function encodeText(input: string) {
