@@ -336,7 +336,8 @@ export default class HotReloader {
             this.buildId,
             this.previewProps,
             this.config,
-            []
+            [],
+            this.pagesDir
           )
         )
 
@@ -413,7 +414,8 @@ export default class HotReloader {
           this.buildId,
           this.previewProps,
           this.config,
-          []
+          [],
+          this.pagesDir
         )
       ).client,
     })

@@ -106,8 +106,9 @@ describe('Edge runtime - prod', () => {
     const distServerDir = join(distDir, 'server')
     const files = [
       'middleware-build-manifest.js',
-      'middleware-flight-manifest.js',
       'middleware-ssr-runtime.js',
+      'middleware-flight-manifest.js',
+      'middleware-flight-manifest.json',
       'middleware-manifest.json',
     ]
 

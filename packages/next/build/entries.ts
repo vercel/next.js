@@ -173,8 +173,13 @@ export async function getPageRuntime(
     } catch (err) {}
   }
 
-  if (isRuntimeRequired && !pageRuntime) {
-    pageRuntime = globalRuntimeFallback
+  if (!pageRuntime) {
+    if (isRuntimeRequired) {
+      pageRuntime = globalRuntimeFallback
+    } else {
+      // @TODO: Remove this branch to fully implement the RFC.
+      pageRuntime = globalRuntimeFallback
+    }
   }
 
   cachedPageRuntimeConfig.set(pageFilePath, [Date.now(), pageRuntime])
@@ -191,36 +196,14 @@ export function invalidatePageRuntimeCache(
   }
 }
 
-export async function createPagesRuntimeMapping(
-  pagesDir: string,
-  pages: PagesMapping
-) {
-  const pagesRuntime: Record<string, string> = {}
-
-  const promises = Object.keys(pages).map(async (page) => {
-    const absolutePagePath = pages[page]
-    const isReserved = isReservedPage(page)
-    if (!isReserved) {
-      const pageFilePath = join(
-        pagesDir,
-        absolutePagePath.replace(PAGES_DIR_ALIAS, '')
-      )
-      const runtime = await getPageRuntime(pageFilePath)
-      if (runtime) {
-        pagesRuntime[page] = runtime
-      }
-    }
-  })
-  return await Promise.all(promises)
-}
-
 export async function createEntrypoints(
   pages: PagesMapping,
   target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
   previewMode: __ApiPreviewProps,
   config: NextConfigComplete,
-  loadedEnvFiles: LoadedEnvFiles
+  loadedEnvFiles: LoadedEnvFiles,
+  pagesDir: string
 ): Promise<Entrypoints> {
   const client: webpack5.EntryObject = {}
   const server: webpack5.EntryObject = {}
@@ -273,7 +256,10 @@ export async function createEntrypoints(
       const isCustomError = isCustomErrorPage(page)
       const isFlight = isFlightPage(config, absolutePagePath)
       const isEdgeRuntime =
-        (await getPageRuntime(absolutePagePath, globalRuntime)) === 'edge'
+        (await getPageRuntime(
+          join(pagesDir, absolutePagePath.slice(PAGES_DIR_ALIAS.length + 1)),
+          globalRuntime
+        )) === 'edge'
 
       if (page.match(MIDDLEWARE_ROUTE)) {
         const loaderOpts: MiddlewareLoaderOptions = {
