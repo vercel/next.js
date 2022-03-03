@@ -179,7 +179,10 @@ export async function getPageRuntime(
   return pageRuntime
 }
 
-export function invalidatePageRuntime(pageFilePath: string, safeTime: number) {
+export function invalidatePageRuntimeCache(
+  pageFilePath: string,
+  safeTime: number
+) {
   const cached = cachedPageRuntimeConfig.get(pageFilePath)
   if (cached && cached[0] < safeTime) {
     cachedPageRuntimeConfig.delete(pageFilePath)
