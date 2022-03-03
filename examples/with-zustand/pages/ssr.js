@@ -10,9 +10,6 @@ export default function SSR() {
 // exported when you use `getServerSideProps` or `getInitialProps`
 export function getServerSideProps() {
   const zustandStore = initializeStore()
-
-  zustandStore.getState().tick(Date.now(), false)
-
   return {
     props: {
       // the "stringify and then parse again" piece is required as next.js
