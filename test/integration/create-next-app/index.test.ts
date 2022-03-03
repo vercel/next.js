@@ -9,7 +9,7 @@ const cli = require.resolve('create-next-app/dist/index.js')
 const exampleRepo = 'https://github.com/vercel/next.js/tree/canary'
 const examplePath = 'examples/basic-css'
 
-const run = (args, options: execa.Options) =>
+const run = (args: string[], options: execa.Options) =>
   execa('node', [cli].concat(args), options)
 
 async function usingTempDir(fn: (...args: any[]) => any, options?: any) {
@@ -99,13 +99,10 @@ describe('create next app', () => {
     })
   })
 
-  it.only('should support typescript flag', async () => {
+  it('should support typescript flag', async () => {
     await usingTempDir(async (cwd) => {
       const projectName = 'typescript'
-      const res = await run([projectName, '--typescript'], {
-        cwd,
-        stdio: 'inherit',
-      })
+      const res = await run([projectName, '--typescript'], { cwd })
       expect(res.exitCode).toBe(0)
 
       const files = [
@@ -120,9 +117,6 @@ describe('create next app', () => {
         // check we copied default `.gitignore`
         '.gitignore',
       ]
-
-      const root = fs.readdirSync(path.join(cwd, projectName))
-      console.log({ root })
 
       files.forEach((file) =>
         expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
