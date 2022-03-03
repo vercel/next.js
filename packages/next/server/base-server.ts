@@ -16,6 +16,7 @@ import type { CacheFs } from '../shared/lib/utils'
 import type { PreviewData } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
+import type { PayloadOptions } from './send-payload'
 
 import { join, resolve } from 'path'
 import { parse as parseQs } from 'querystring'
@@ -42,7 +43,7 @@ import * as envConfig from '../shared/lib/runtime-config'
 import { DecodeError, normalizeRepeatedSlashes } from '../shared/lib/utils'
 import { isTargetLikeServerless } from './utils'
 import Router, { replaceBasePath, route } from './router'
-import { PayloadOptions, setRevalidateHeaders } from './send-payload'
+import { setRevalidateHeaders } from './send-payload/revalidate-headers'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage, isBot } from './utils'
@@ -372,7 +373,10 @@ export default abstract class Server {
         }
       },
     })
-    this.responseCache = new ResponseCache(this.incrementalCache)
+    this.responseCache = new ResponseCache(
+      this.incrementalCache,
+      this.minimalMode
+    )
   }
 
   public logError(err: Error): void {
@@ -559,9 +563,6 @@ export default abstract class Server {
       if (url.locale?.path.detectedLocale) {
         req.url = formatUrl(url)
         addRequestMeta(req, '__nextStrippedLocale', true)
-        if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
-          return this.render404(req, res, parsedUrl)
-        }
       }
 
       if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
@@ -1276,7 +1277,7 @@ export default abstract class Server {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG || this.minimalMode || opts.supportsDynamicHTML
+      isPreviewMode || !isSSG || opts.supportsDynamicHTML
         ? null // Preview mode and manual revalidate bypasses the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
@@ -1525,6 +1526,21 @@ export default abstract class Server {
         throw new Error('invariant: cache entry required but not generated')
       }
       return null
+    }
+
+    if (isSSG) {
+      // set x-nextjs-cache header to match the header
+      // we set for the image-optimizer
+      res.setHeader(
+        'x-nextjs-cache',
+        isManualRevalidate
+          ? 'REVALIDATED'
+          : cacheEntry.isMiss
+          ? 'MISS'
+          : cacheEntry.isStale
+          ? 'STALE'
+          : 'HIT'
+      )
     }
 
     const { revalidate, value: cachedData } = cacheEntry

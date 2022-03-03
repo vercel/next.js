@@ -259,7 +259,13 @@ export class ImageError extends Error {
 
   constructor(statusCode: number, message: string) {
     super(message)
-    this.statusCode = statusCode
+
+    // ensure an error status is used > 400
+    if (statusCode >= 400) {
+      this.statusCode = statusCode
+    } else {
+      this.statusCode = 500
+    }
   }
 }
 
@@ -540,10 +546,18 @@ export async function imageOptimizer(
       throw new ImageError(500, 'Unable to optimize buffer')
     }
   } catch (error) {
-    return {
-      buffer: upstreamBuffer,
-      contentType: upstreamType!,
-      maxAge,
+    if (upstreamBuffer && upstreamType) {
+      // If we fail to optimize, fallback to the original image
+      return {
+        buffer: upstreamBuffer,
+        contentType: upstreamType,
+        maxAge: nextConfig.images.minimumCacheTTL,
+      }
+    } else {
+      throw new ImageError(
+        500,
+        'Unable to optimize image and unable to fallback to upstream image'
+      )
     }
   }
 }

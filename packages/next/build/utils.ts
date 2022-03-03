@@ -881,7 +881,7 @@ export async function isPageStatic(
         throw new Error('INVALID_DEFAULT_EXPORT')
       }
 
-      const hasFlightData = !!(Comp as any).__next_rsc__
+      const hasFlightData = !!(mod as any).__next_rsc__
       const hasGetInitialProps = !!(Comp as any).getInitialProps
       const hasStaticProps = !!mod.getStaticProps
       const hasStaticPaths = !!mod.getStaticPaths
@@ -1111,23 +1111,23 @@ export function getRawPageExtensions(pageExtensions: string[]): string[] {
 
 export function isFlightPage(
   nextConfig: NextConfigComplete,
-  pagePath: string
+  filePath: string
 ): boolean {
   if (
     !(
       nextConfig.experimental.serverComponents &&
       nextConfig.experimental.runtime
     )
-  )
+  ) {
     return false
+  }
 
   const rawPageExtensions = getRawPageExtensions(
     nextConfig.pageExtensions || []
   )
-  const isRscPage = rawPageExtensions.some((ext) => {
-    return new RegExp(`\\.server\\.${ext}$`).test(pagePath)
+  return rawPageExtensions.some((ext) => {
+    return filePath.endsWith(`.server.${ext}`)
   })
-  return isRscPage
 }
 
 export function getUnresolvedModuleFromError(

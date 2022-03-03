@@ -1,7 +1,6 @@
 import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
-import { stringify } from 'querystring'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import path, { join as pathJoin, relative as relativePath } from 'path'
@@ -51,6 +50,7 @@ import { getRawPageExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { shouldUseReactRoot } from '../server/config'
+import { getMiddlewareSourceMapPlugins } from './webpack/plugins/middleware-source-maps-plugin'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -1146,6 +1146,7 @@ export default async function getBaseWebpackConfig(
         'noop-loader',
         'next-middleware-loader',
         'next-middleware-ssr-loader',
+        'next-middleware-wasm-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1179,10 +1180,11 @@ export default async function getBaseWebpackConfig(
                 ...codeCondition,
                 test: serverComponentsRegex,
                 use: {
-                  loader: `next-flight-server-loader?${stringify({
+                  loader: 'next-flight-server-loader',
+                  options: {
                     client: 1,
-                    pageExtensions: JSON.stringify(rawPageExtensions),
-                  })}`,
+                    pageExtensions: rawPageExtensions,
+                  },
                 },
               },
             ]
@@ -1194,22 +1196,16 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 ...codeCondition,
-                test: serverComponentsRegex,
                 use: {
-                  loader: `next-flight-server-loader?${stringify({
-                    pageExtensions: JSON.stringify(rawPageExtensions),
-                  })}`,
+                  loader: 'next-flight-server-loader',
+                  options: {
+                    pageExtensions: rawPageExtensions,
+                  },
                 },
               },
               {
-                ...codeCondition,
-                test: clientComponentsRegex,
-                use: {
-                  loader: 'next-flight-client-loader',
-                },
-              },
-              {
-                test: /next[\\/](dist[\\/]client[\\/])?(link|image)/,
+                test: codeCondition.test,
+                resourceQuery: /__sc_client__/,
                 use: {
                   loader: 'next-flight-client-loader',
                 },
@@ -1272,6 +1268,12 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
+      ...(!dev &&
+      !isServer &&
+      !!config.experimental.middlewareSourceMaps &&
+      !config.productionBrowserSourceMaps
+        ? getMiddlewareSourceMapPlugins()
+        : []),
       hasReactRefresh && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       targetWeb &&
@@ -1528,6 +1530,14 @@ export default async function getBaseWebpackConfig(
 
   const webpack5Config = webpackConfig as webpack5.Configuration
 
+  webpack5Config.module?.rules?.unshift({
+    test: /\.wasm$/,
+    issuerLayer: 'middleware',
+    loader: 'next-middleware-wasm-loader',
+    type: 'javascript/auto',
+    resourceQuery: /module/i,
+  })
+
   webpack5Config.experiments = {
     layers: true,
     cacheUnaffected: true,
@@ -1588,7 +1598,12 @@ export default async function getBaseWebpackConfig(
     if (!webpack5Config.optimization) {
       webpack5Config.optimization = {}
     }
-    webpack5Config.optimization.providedExports = false
+
+    // For Server Components, it's necessary to have provided exports collected
+    // to generate the correct flight manifest.
+    if (!hasServerComponents) {
+      webpack5Config.optimization.providedExports = false
+    }
     webpack5Config.optimization.usedExports = false
   }
 
@@ -1848,11 +1863,11 @@ export default async function getBaseWebpackConfig(
     }
 
     const fileNames = [
-      '/tmp/test.css',
-      '/tmp/test.scss',
-      '/tmp/test.sass',
-      '/tmp/test.less',
-      '/tmp/test.styl',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.css',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.scss',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.sass',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.less',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.styl',
     ]
 
     if (rule instanceof RegExp && fileNames.some((input) => rule.test(input))) {
