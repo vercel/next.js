@@ -107,15 +107,16 @@ const cachedPageRuntimeConfig = new Map<
   string,
   [number, 'nodejs' | 'edge' | undefined]
 >()
+
 export async function getPageRuntime(
-  pageFilePath: string
+  pageFilePath: string,
+  globalRuntimeFallback?: 'nodejs' | 'edge'
 ): Promise<'nodejs' | 'edge' | undefined> {
   const cached = cachedPageRuntimeConfig.get(pageFilePath)
   if (cached) {
     return cached[1]
   }
 
-  let pageRuntime: 'nodejs' | 'edge' | undefined = undefined
   let pageContent: string
   try {
     pageContent = await fs.promises.readFile(pageFilePath, {
@@ -125,31 +126,53 @@ export async function getPageRuntime(
     return undefined
   }
 
-  // branch prunes for entry page without runtime option
-  if (pageContent.includes('runtime')) {
+  // When gSSP or gSP is used, this page requires an execution runtime. If the
+  // page config is not present, we fallback to the global runtime. Related
+  // discussion:
+  // https://github.com/vercel/next.js/discussions/34179
+  let isRuntimeRequired: boolean = false
+  let pageRuntime: 'nodejs' | 'edge' | undefined = undefined
+
+  // Since these configurations should always be static analyzable, we can
+  // skip these cases that "runtime" and "gSP", "gSSP" are not included in the
+  // source code.
+  if (/runtime|getStaticProps|getServerSideProps/.test(pageContent)) {
     try {
       const { body } = await parse(pageContent, {
         filename: pageFilePath,
         isModule: true,
       })
-      body.some((node: any) => {
+
+      for (const node of body) {
         const { type, declaration } = node
-        const valueNode = declaration?.declarations?.[0]
-        if (type === 'ExportDeclaration' && valueNode?.id?.value === 'config') {
-          const props = valueNode.init.properties
-          const runtimeKeyValue = props.find(
-            (prop: any) => prop.key.value === 'runtime'
-          )
-          const runtime = runtimeKeyValue?.value?.value
-          pageRuntime =
-            runtime === 'edge' || runtime === 'nodejs' ? runtime : pageRuntime
-          return true
+        if (type === 'ExportDeclaration') {
+          // `export const config`
+          const valueNode = declaration?.declarations?.[0]
+          if (valueNode?.id?.value === 'config') {
+            const props = valueNode.init.properties
+            const runtimeKeyValue = props.find(
+              (prop: any) => prop.key.value === 'runtime'
+            )
+            const runtime = runtimeKeyValue?.value?.value
+            pageRuntime =
+              runtime === 'edge' || runtime === 'nodejs' ? runtime : pageRuntime
+          } else if (declaration?.type === 'FunctionDeclaration') {
+            // `export function getStaticProps` and
+            // `export function getServerSideProps`
+            if (
+              declaration.identifier?.value === 'getStaticProps' ||
+              declaration.identifier?.value === 'getServerSideProps'
+            ) {
+              isRuntimeRequired = true
+            }
+          }
         }
-        return false
-      })
-    } catch (err) {
-      return undefined
-    }
+      }
+    } catch (err) {}
+  }
+
+  if (isRuntimeRequired && !pageRuntime) {
+    pageRuntime = globalRuntimeFallback
   }
 
   cachedPageRuntimeConfig.set(pageFilePath, [Date.now(), pageRuntime])

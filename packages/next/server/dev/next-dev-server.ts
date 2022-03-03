@@ -281,7 +281,10 @@ export default class DevServer extends Server {
           pageName = pageName.replace(/\/index$/, '') || '/'
 
           invalidatePageRuntime(fileName, safeTime)
-          const pageRuntimeConfig = await getPageRuntime(fileName)
+          const pageRuntimeConfig = await getPageRuntime(
+            fileName,
+            this.nextConfig.experimental.runtime
+          )
           const isEdgeRuntime = pageRuntimeConfig === 'edge'
 
           if (
