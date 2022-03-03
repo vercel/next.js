@@ -980,20 +980,15 @@ export default abstract class Server {
       query: NextParsedUrlQuery
     }
   ): Promise<void> {
-    const userAgent = partialContext.req.headers['user-agent']
+    const isBotRequest = isBot(partialContext.req.headers['user-agent'] || '')
     const ctx = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        supportsDynamicHTML: userAgent
-          ? !isBot(userAgent)
-          : !!this.renderOpts.supportsDynamicHTML,
+        supportsDynamicHTML: !isBotRequest,
       },
     } as const
-    let payload: ResponsePayload | null = null
-    try {
-      payload = await fn(ctx)
-    } catch (_) {}
+    const payload = await fn(ctx)
     if (payload === null) {
       return
     }
@@ -1180,11 +1175,13 @@ export default abstract class Server {
     }
 
     if (opts.supportsDynamicHTML === true) {
+      const isBotRequest = isBot(req.headers['user-agent'] || '')
       // Disable dynamic HTML in cases that we know it won't be generated,
       // so that we can continue generating a cache key when possible.
       opts.supportsDynamicHTML =
         !isSSG &&
         !isLikeServerless &&
+        !isBotRequest &&
         !query.amp &&
         typeof components.Document?.getInitialProps !== 'function'
     }

@@ -37,26 +37,12 @@ export default async function basic(context, { env }) {
   })
 
   it('should render 500 error correctly', async () => {
-    const errGipHTML = await renderViaHTTP(context.appPort, '/err')
-    const errSuspenseHTML = await renderViaHTTP(
-      context.appPort,
-      '/err/suspense'
-    )
-    const errSuspenseRender = await renderViaHTTP(
-      context.appPort,
-      '/err/render'
-    )
-
-    ;[errGipHTML, errSuspenseHTML, errSuspenseRender].forEach((html, index) => {
-      if (env === 'dev') {
-        // TODO: extract suspense error in streaming properly
-        if (index === 0) {
-          // In dev mode it should show the error popup.
-          expect(html).toContain('Error: oops')
-        }
-      } else {
-        expect(html).toContain('custom-500-page')
-      }
-    })
+    const html = await renderViaHTTP(context.appPort, '/err')
+    if (env === 'dev') {
+      // In dev mode it should show the error popup.
+      expect(html).toContain('Error: oops')
+    } else {
+      expect(html).toContain('custom-500-page')
+    }
   })
 }

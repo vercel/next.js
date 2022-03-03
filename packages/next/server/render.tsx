@@ -1745,7 +1745,7 @@ function createFlushEffectStream(
   })
 }
 
-function renderToStream({
+async function renderToStream({
   ReactDOMServer,
   element,
   suffix,
@@ -1760,73 +1760,53 @@ function renderToStream({
   generateStaticHTML: boolean
   flushEffectHandler?: () => Promise<string>
 }): Promise<ReadableStream<Uint8Array>> {
-  return new Promise(async (resolve, reject) => {
-    const closeTag = '</body></html>'
-    const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
+  const closeTag = '</body></html>'
+  const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
 
-    const doResolve = execOnce((renderStream: ReadableStream<Uint8Array>) => {
-      // React will call our callbacks synchronously, so we need to
-      // defer to a microtask to ensure `stream` is set.
-      resolve(
-        Promise.resolve().then(() => {
-          const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
-            createBufferedTransformStream(),
-            flushEffectHandler
-              ? createFlushEffectStream(flushEffectHandler)
-              : null,
-            suffixUnclosed != null ? createPrefixStream(suffixUnclosed) : null,
-            dataStream ? createInlineDataStream(dataStream) : null,
-            suffixUnclosed != null ? createSuffixStream(closeTag) : null,
-          ].filter(Boolean) as any
+  const doResolve = (renderStream: ReadableStream<Uint8Array>) => {
+    // React will call our callbacks synchronously, so we need to
+    // defer to a microtask to ensure `stream` is set.
+    const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
+      createBufferedTransformStream(),
+      flushEffectHandler ? createFlushEffectStream(flushEffectHandler) : null,
+      suffixUnclosed != null ? createPrefixStream(suffixUnclosed) : null,
+      dataStream ? createInlineDataStream(dataStream) : null,
+      suffixUnclosed != null ? createSuffixStream(closeTag) : null,
+    ].filter(Boolean) as any
 
-          return transforms.reduce(
-            (readable, transform) => pipeThrough(readable, transform),
-            renderStream
-          )
-        })
-      )
-    })
+    return transforms.reduce(
+      (readable, transform) => pipeThrough(readable, transform),
+      renderStream
+    )
+  }
 
-    let completeCallback: (value?: unknown) => void
-    const allComplete = new Promise((resolveError, rejectError) => {
-      completeCallback = execOnce((err: unknown) => {
-        if (err) {
-          rejectError(err)
-        } else {
-          resolveError(null)
-        }
-      })
-    })
-
-    async function bailOnError() {
-      try {
-        await allComplete
-      } catch (err) {
-        reject(err)
+  let completeCallback: (value?: unknown) => void
+  const allComplete = new Promise((resolveError, rejectError) => {
+    completeCallback = execOnce((err: unknown) => {
+      if (err) {
+        rejectError(err)
+      } else {
+        resolveError(null)
       }
-    }
-
-    const renderStream: ReadableStream<Uint8Array> = await (
-      ReactDOMServer as any
-    ).renderToReadableStream(element, {
-      onError(err: Error) {
-        if (generateStaticHTML) {
-          completeCallback(err)
-        } else {
-          reject(err)
-        }
-      },
-      onCompleteAll() {
-        completeCallback()
-      },
     })
-
-    if (generateStaticHTML) {
-      await bailOnError()
-    }
-
-    doResolve(renderStream)
   })
+
+  const renderStream: ReadableStream<Uint8Array> = await (
+    ReactDOMServer as any
+  ).renderToReadableStream(element, {
+    onError(err: Error) {
+      completeCallback(err)
+    },
+    onCompleteAll() {
+      completeCallback()
+    },
+  })
+
+  if (generateStaticHTML) {
+    await allComplete
+  }
+
+  return doResolve(renderStream)
 }
 
 function encodeText(input: string) {
