@@ -1,26 +1,26 @@
-
-import { defineSchema, defineConfig } from "tinacms";
+import { defineSchema, defineConfig } from 'tinacms'
 
 export default defineSchema({
   collections: [
     {
-      label: "Blog Posts",
-      name: "posts",
-      path: "_posts",
+      label: 'Blog Posts',
+      name: 'posts',
+      path: '_posts',
       fields: [
         {
-          type: "string",
-          label: "Title",
-          name: "title",
-        },{
-          type: "string",
-          label: "Excerpt",
-          name: "excerpt"
+          type: 'string',
+          label: 'Title',
+          name: 'title',
         },
         {
-          type: "string",
-          label: "Cover Image",
-          name: "coverImage"
+          type: 'string',
+          label: 'Excerpt',
+          name: 'excerpt',
+        },
+        {
+          type: 'string',
+          label: 'Cover Image',
+          name: 'coverImage',
         },
         {
           type: 'string',
@@ -28,10 +28,10 @@ export default defineSchema({
           name: 'date',
         },
         {
-          type: "object",
-          label: "author",
-          name: "author",
-          fields:[
+          type: 'object',
+          label: 'author',
+          name: 'author',
+          fields: [
             {
               type: 'string',
               label: 'Name',
@@ -42,36 +42,33 @@ export default defineSchema({
               label: 'Picture',
               name: 'picture',
             },
-          ]
+          ],
         },
         {
-          type: "object",
-          label: "OG Image",
-          name: "ogImage",
-          fields:[
+          type: 'object',
+          label: 'OG Image',
+          name: 'ogImage',
+          fields: [
             {
               type: 'string',
               label: 'Url',
               name: 'url',
             },
-          ]
+          ],
         },
         {
-          type: "string",
-          label: "Blog Post Body",
-          name: "body",
+          type: 'string',
+          label: 'Blog Post Body',
+          name: 'body',
           isBody: true,
           ui: {
-            component: "textarea"
+            component: 'textarea',
           },
         },
       ],
     },
   ],
-});
-
-
-
+})
 
 // Your tina config
 // ==============
@@ -92,17 +89,17 @@ export const tinaConfig = defineConfig({
     /**
      * 1. Import `tinacms` and `RouteMappingPlugin`
      **/
-    import("tinacms").then(({ RouteMappingPlugin }) => {
+    import('tinacms').then(({ RouteMappingPlugin }) => {
       /**
        * 2. Define the `RouteMappingPlugin` see https://tina.io/docs/tinacms-context/#the-routemappingplugin for more details
        **/
       const RouteMapping = new RouteMappingPlugin((collection, document) => {
-        return undefined;
-      });
+        return undefined
+      })
       /**
        * 3. Add the `RouteMappingPlugin` to the `cms`.
        **/
-      cms.plugins.add(RouteMapping);
-    });
+      cms.plugins.add(RouteMapping)
+    })
   },
-});
+})
