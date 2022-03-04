@@ -124,7 +124,7 @@ Examples of scripts that do not need to load immediately and can be lazy-loaded 
 - Chat support plugins
 - Social media widgets
 
-### Off-loading Scripts To A Web Worker
+### Off-loading Scripts To A Web Worker (experimental)
 
 > **Note: The `worker` strategy is not yet stable and can cause unexpected issues in your application. Use with caution.**
 
@@ -162,41 +162,50 @@ Once setup is complete, defining `strategy="worker` will automatically instantia
 
 There are a number of trade-offs that need to be considered when loading a third-party script in a web worker. Please see Partytown's[Trade-Offs](https://partytown.builder.io/trade-offs) documentation for more information.
 
-#### Static Library Files
-
-In order for Partytown to intercept scripts in a worker, a number of its static library files must be served in the `public` folder of your application. When the experimental `enablePartytown` flag is enabled in `next.config.js`, these files will automatically be added for you in a `~partytown` directory after every build (`next build`) and when you run the application in development mode (`next dev`).
-
 #### Configuration
 
 Although the `worker` strategy does not require any additional configuration to work, Partytown supports the use of a config object to modify some of its settings, including enabling `debug` mode and forwarding events and triggers.
 
-If you would like to add additonal configuration options, you can include it within the `next/head` element of a page:
+If you would like to add additonal configuration options, you can include it within the `<Head />` component used in a [custom `_document.js`](/docs/advanced-features/custom-document.md):
 
 ```jsx
-import Head from 'next/head'
+import Document, { Html, Head, Main, NextScript } from 'next/document'
 
-const Home = () => {
-  return (
-    <>
-      <Head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
+class MyDocument extends Document {
+  render() {
+    return (
+      <Html>
+        <Head>
+          <script
+            data-partytown-config
+            dangerouslySetInnerHTML={{
+              __html: `
               partytown = {
-                debug: true,
+                lib: "/_next/static/~partytown/",
+                debug: true
               };
             `,
-          }}
-        />
-      </Head>
-    </>
-  )
+            }}
+          />
+        </Head>
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </Html>
+    )
+  }
 }
 
-export default Home
+export default MyDocument
 ```
 
-Take a look at Partytown's [configuration options](https://partytown.builder.io/configuration) to see the full list of properties that can be added.
+In order to modify Partytown's configuration, the following conditions must be met:
+
+1. The `data-partytown-config` attribute must be used in order to overwrite the default configuration used by Next.js
+2. Unless you decide to save Partytown's library files in a separate directory, the `lib: "/_next/static/~partytown/"` property and value must be included in the configuration object in order to let Partytown know where Next.js stores the necessary static files.
+
+Take a look at Partytown's [configuration options](https://partytown.builder.io/configuration) to see the full list of other properties that can be added.
 
 ### Inline Scripts
 

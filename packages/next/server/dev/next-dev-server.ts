@@ -365,9 +365,6 @@ export default class DevServer extends Server {
       this.nextConfig
     )
 
-    if (this.nextConfig.experimental.optimizeScripts)
-      await verifyPartytownSetup(this.dir, this.publicDir)
-
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
 
     // reload router
@@ -396,6 +393,13 @@ export default class DevServer extends Server {
     await this.hotReloader.start()
     await this.startWatcher()
     this.setDevReady!()
+
+    if (this.nextConfig.experimental.optimizeScripts) {
+      await verifyPartytownSetup(
+        this.dir,
+        pathJoin(this.distDir, CLIENT_STATIC_FILES_PATH)
+      )
+    }
 
     const telemetry = new Telemetry({ distDir: this.distDir })
     telemetry.record(

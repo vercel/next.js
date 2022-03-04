@@ -19,6 +19,7 @@ export { DocumentContext, DocumentInitialProps, DocumentProps }
 export type OriginProps = {
   nonce?: string
   crossOrigin?: string
+  children?: React.ReactElement
 }
 
 type DocumentFiles = {
@@ -74,13 +75,38 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
 function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
   const { scriptLoader, crossOrigin, optimizeScripts } = context
 
+  if (!optimizeScripts) return null
+
   try {
     let {
       partytownSnippet,
     } = require(/* webpackIgnore: true */ '@builder.io/partytown/integration'!)
 
-    return optimizeScripts ? (
+    const children = Array.isArray(props.children)
+      ? props.children
+      : [props.children]
+
+    // Check to see if the user has defined their own Partytown configuration
+    const userDefinedConfig = children.find(
+      (child: React.ReactElement) =>
+        child?.props?.dangerouslySetInnerHTML?.__html.length &&
+        'data-partytown-config' in child.props
+    )
+
+    return (
       <>
+        {!userDefinedConfig && (
+          <script
+            data-partytown-config=""
+            dangerouslySetInnerHTML={{
+              __html: `
+            partytown = {
+              lib: "/_next/static/~partytown/"
+            };
+          `,
+            }}
+          />
+        )}
         <script
           data-partytown=""
           dangerouslySetInnerHTML={{
@@ -101,7 +127,7 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
           )
         })}
       </>
-    ) : null
+    )
   } catch {
     return null
   }

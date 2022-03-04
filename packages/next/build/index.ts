@@ -2118,7 +2118,10 @@ export default async function build(
       await nextBuildSpan
         .traceChild('verify-partytown-setup')
         .traceAsyncFn(async () => {
-          await verifyPartytownSetup(dir, publicDir)
+          await verifyPartytownSetup(
+            dir,
+            join(distDir, CLIENT_STATIC_FILES_PATH)
+          )
         })
     }
 

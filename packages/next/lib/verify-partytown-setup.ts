@@ -36,10 +36,10 @@ async function missingDependencyError(dir: string) {
 }
 
 async function copyPartytownStaticFiles(
-  publicDir: string,
-  deps: NecessaryDependencies
+  deps: NecessaryDependencies,
+  staticDir: string
 ) {
-  const partytownLibDir = path.join(publicDir, '~partytown')
+  const partytownLibDir = path.join(staticDir, '~partytown')
   const hasPartytownLibDir = await fileExists(partytownLibDir, 'directory')
 
   if (hasPartytownLibDir) {
@@ -51,21 +51,14 @@ async function copyPartytownStaticFiles(
     require(path.join(deps.resolved.get('@builder.io/partytown')!, '../utils'))
   )
 
-  await copyLibFiles(path.join(publicDir, '~partytown'))
-  Log.info(
-    `Partytown has been enabled for next/script. The ~partytown directory was ${
-      hasPartytownLibDir ? 'deleted and re-created' : 'created'
-    } for you in the public folder with all the necessary static files.`
-  )
+  await copyLibFiles(partytownLibDir)
 }
 
 export async function verifyPartytownSetup(
   dir: string,
-  publicDir: string
+  targetDir: string
 ): Promise<void> {
   try {
-    const hasPublicDir = await fileExists(publicDir)
-
     const partytownDeps: NecessaryDependencies = await hasNecessaryDependencies(
       dir,
       [{ file: '@builder.io/partytown', pkg: '@builder.io/partytown' }]
@@ -74,19 +67,13 @@ export async function verifyPartytownSetup(
     if (partytownDeps.missing?.length > 0) {
       await missingDependencyError(dir)
     } else {
-      if (hasPublicDir) {
-        try {
-          await copyPartytownStaticFiles(publicDir, partytownDeps)
-        } catch (err) {
-          Log.warn(
-            `Partytown library files could not be copied to the public folder. Please ensure that ${chalk.bold.cyan(
-              '@builder.io/partytown'
-            )} is installed as a dependency.`
-          )
-        }
-      } else {
+      try {
+        await copyPartytownStaticFiles(partytownDeps, targetDir)
+      } catch (err) {
         Log.warn(
-          'Public directory not found. To use Partytown, please create a `public` folder in the root directoy to serve its static files. https://nextjs.org/docs/basic-features/static-file-serving'
+          `Partytown library files could not be copied to the static directory. Please ensure that ${chalk.bold.cyan(
+            '@builder.io/partytown'
+          )} is installed as a dependency.`
         )
       }
     }
