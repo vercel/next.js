@@ -4549,10 +4549,10 @@
     "@svgr/plugin-svgo" "^5.5.0"
     loader-utils "^2.0.0"
 
-"@swc/cli@0.1.49":
-  version "0.1.49"
-  resolved "https://registry.yarnpkg.com/@swc/cli/-/cli-0.1.49.tgz#c21ad59debb790a7069e835fb24645ff59580dfc"
-  integrity sha512-r1m8C+4YoAmV+xfzPTvjsfOvOaFuCoyFTT3W/8mLoJMgx7CL4wu5/nCVVLHHC1JCJFbwSXvHTfkuHWRNcnOjtg==
+"@swc/cli@0.1.55":
+  version "0.1.55"
+  resolved "https://registry.yarnpkg.com/@swc/cli/-/cli-0.1.55.tgz#6c00b836ae56f35b4a5243f7fad5f9674470b016"
+  integrity sha512-akkLuRexFq8XTi6JNZ27mXD4wcKXLDSLj4g7YMU+/upFM8IeD1IEp1Mxtre7MzCZn+QOQgPF8N8IReJoHuSn3g==
   dependencies:
     commander "^7.1.0"
     fast-glob "^3.2.5"
