@@ -4,7 +4,7 @@ import http from 'http'
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { nextServer } from 'next-test-utils'
+import { nextServer, waitFor } from 'next-test-utils'
 import {
   fetchViaHTTP,
   findPort,
@@ -140,6 +140,7 @@ describe('Required Server Files', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
+    await waitFor(2000)
     const html2 = await renderViaHTTP(appPort, '/fallback/first')
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())

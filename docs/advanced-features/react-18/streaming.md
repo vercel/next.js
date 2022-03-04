@@ -1,7 +1,7 @@
 # Streaming SSR (Alpha)
 
 React 18 will include architectural improvements to React server-side rendering (SSR) performance. This means you can use `Suspense` in your React components in streaming SSR mode and React will render them on the server and send them through HTTP streams.
-It's worth noting that another experimental feature, React Server Components, is based on streaming. You can read more about server components related streaming APIs in [`next/streaming`](docs/api-reference/next/streaming.md). However, this guide focuses on basic React 18 streaming.
+It's worth noting that another experimental feature, React Server Components, is based on streaming. You can read more about server components related streaming APIs in [`next/streaming`](/docs/api-reference/next/streaming.md). However, this guide focuses on basic React 18 streaming.
 
 ## Enable Streaming SSR
 

@@ -1,7 +1,6 @@
 const withReact18 = require('../../react-18/test/with-react-18')
 
 module.exports = withReact18({
-  trailingSlash: true,
   reactStrictMode: true,
   onDemandEntries: {
     maxInactiveAge: 1000 * 60 * 60,

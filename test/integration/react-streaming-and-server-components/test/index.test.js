@@ -150,9 +150,10 @@ describe('Edge runtime - prod', () => {
     expect(html).toContain('foo.client')
   })
 
-  basic(context, { env: 'prod' })
-  streaming(context)
-  rsc(context, { runtime: 'edge', env: 'prod' })
+  const options = { runtime: 'edge', env: 'prod' }
+  basic(context, options)
+  streaming(context, options)
+  rsc(context, options)
 })
 
 describe('Edge runtime - dev', () => {
@@ -183,16 +184,18 @@ describe('Edge runtime - dev', () => {
     expect(res.headers.get('content-encoding')).toBe('gzip')
   })
 
-  basic(context, { env: 'dev' })
-  streaming(context)
-  rsc(context, { runtime: 'edge', env: 'dev' })
+  const options = { runtime: 'edge', env: 'dev' }
+  basic(context, options)
+  streaming(context, options)
+  rsc(context, options)
 })
 
 const nodejsRuntimeBasicSuite = {
   runTests: (context, env) => {
-    basic(context, { env })
-    streaming(context)
-    rsc(context, { runtime: 'nodejs' })
+    const options = { runtime: 'nodejs', env }
+    basic(context, options)
+    streaming(context, options)
+    rsc(context, options)
 
     if (env === 'prod') {
       it('should generate middleware SSR manifests for Node.js', async () => {

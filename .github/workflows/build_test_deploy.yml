@@ -413,6 +413,10 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
+      - uses: pnpm/action-setup@v2.2.1
+        with:
+          version: 6.32.2
+
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
