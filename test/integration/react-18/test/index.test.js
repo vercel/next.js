@@ -10,7 +10,6 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
-  fetchViaHTTP,
   hasRedbox,
   getRedboxHeader,
 } from 'next-test-utils'
@@ -145,40 +144,6 @@ function runTestsAgainstRuntime(runtime) {
           )
         })
       }
-
-      it('should stream to users', async () => {
-        const res = await fetchViaHTTP(context.appPort, '/ssr')
-        expect(res.headers.get('etag')).toBeNull()
-      })
-
-      it('should not stream to bots', async () => {
-        const res = await fetchViaHTTP(
-          context.appPort,
-          '/ssr',
-          {},
-          {
-            headers: {
-              'user-agent': 'Googlebot',
-            },
-          }
-        )
-        expect(res.headers.get('etag')).toBeDefined()
-      })
-
-      it('should not stream to google pagerender bot', async () => {
-        const res = await fetchViaHTTP(
-          context.appPort,
-          '/ssr',
-          {},
-          {
-            headers: {
-              'user-agent':
-                'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36 Google-PageRenderer Google (+https://developers.google.com/+/web/snippet/)',
-            },
-          }
-        )
-        expect(res.headers.get('etag')).toBeDefined()
-      })
     },
     {
       beforeAll: (env) => {

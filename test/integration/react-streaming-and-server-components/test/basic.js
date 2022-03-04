@@ -37,13 +37,12 @@ export default async function basic(context, { env }) {
   })
 
   it('should render 500 error correctly', async () => {
-    const path500HTML = await renderViaHTTP(context.appPort, '/err')
-
+    const html = await renderViaHTTP(context.appPort, '/err')
     if (env === 'dev') {
       // In dev mode it should show the error popup.
-      expect(path500HTML).toContain('Error: oops')
+      expect(html).toContain('Error: oops')
     } else {
-      expect(path500HTML).toContain('custom-500-page')
+      expect(html).toContain('custom-500-page')
     }
   })
 }

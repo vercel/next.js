@@ -28,7 +28,6 @@ export default function (context, { runtime, env }) {
     expect(homeHTML).toContain('header:test-util')
     expect(homeHTML).toContain('path:/')
     expect(homeHTML).toContain('foo.client')
-    expect(homeHTML).toContain('named.client')
   })
 
   it('should reuse the inline flight response without sending extra requests', async () => {
@@ -165,34 +164,20 @@ export default function (context, { runtime, env }) {
     })
   }
 
-  it('should handle multiple named exports correctly', async () => {
-    const clientExportsHTML = await renderViaHTTP(
-      context.appPort,
-      '/client-exports'
-    )
+  it('should handle various kinds of exports correctly', async () => {
+    const html = await renderViaHTTP(context.appPort, '/various-exports')
+    const content = getNodeBySelector(html, '#__next').text()
 
-    expect(
-      getNodeBySelector(
-        clientExportsHTML,
-        '#__next > div > #named-exports'
-      ).text()
-    ).toBe('abcde')
-    expect(
-      getNodeBySelector(
-        clientExportsHTML,
-        '#__next > div > #default-exports-arrow'
-      ).text()
-    ).toBe('client-default-export-arrow')
+    expect(content).toContain('abcde')
+    expect(content).toContain('default-export-arrow.client')
+    expect(content).toContain('named.client')
 
-    const browser = await webdriver(context.appPort, '/client-exports')
-    const textNamedExports = await browser
-      .waitForElementByCss('#named-exports')
-      .text()
-    const textDefaultExportsArrow = await browser
-      .waitForElementByCss('#default-exports-arrow')
-      .text()
-    expect(textNamedExports).toBe('abcde')
-    expect(textDefaultExportsArrow).toBe('client-default-export-arrow')
+    const browser = await webdriver(context.appPort, '/various-exports')
+    const hydratedContent = await browser.waitForElementByCss('#__next').text()
+
+    expect(hydratedContent).toContain('abcde')
+    expect(hydratedContent).toContain('default-export-arrow.client')
+    expect(hydratedContent).toContain('named.client')
   })
 
   it('should handle 404 requests and missing routes correctly', async () => {

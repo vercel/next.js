@@ -4,7 +4,7 @@ let did = false
 function Error() {
   if (!did && typeof window === 'undefined') {
     did = true
-    throw new Error('broken page')
+    throw new Error('oops')
   }
 }
 
