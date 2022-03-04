@@ -359,6 +359,86 @@ function rewriteTests(log, locale = '') {
     expect($('.title').text()).toBe('About Page')
   })
 
+  it(`${locale} support colons in path`, async () => {
+    const path = `${locale}/rewrites/not:param`
+    const res = await fetchViaHTTP(context.appPort, path)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#props').text()).toBe('not:param')
+    const browser = await webdriver(context.appPort, path)
+    try {
+      expect(await browser.eval(`window.location.pathname`)).toBe(path)
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it(`${locale} can rewrite to path with colon`, async () => {
+    const path = `${locale}/rewrites/rewrite-me-with-a-colon`
+    const res = await fetchViaHTTP(context.appPort, path)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#props').text()).toBe('with:colon')
+    const browser = await webdriver(context.appPort, path)
+    try {
+      expect(await browser.eval(`window.location.pathname`)).toBe(path)
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it(`${locale} can rewrite from path with colon`, async () => {
+    const path = `${locale}/rewrites/colon:here`
+    const res = await fetchViaHTTP(context.appPort, path)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#props').text()).toBe('no-colon-here')
+    const browser = await webdriver(context.appPort, path)
+    try {
+      expect(await browser.eval(`window.location.pathname`)).toBe(path)
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it(`${locale} can rewrite from path with colon and retain query parameter`, async () => {
+    const path = `${locale}/rewrites/colon:here?qp=arg`
+    const res = await fetchViaHTTP(context.appPort, path)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#props').text()).toBe('no-colon-here')
+    expect($('#qp').text()).toBe('arg')
+    const browser = await webdriver(context.appPort, path)
+    try {
+      expect(
+        await browser.eval(
+          `window.location.href.replace(window.location.origin, '')`
+        )
+      ).toBe(path)
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it(`${locale} can rewrite to path with colon and retain query parameter`, async () => {
+    const path = `${locale}/rewrites/rewrite-me-with-a-colon?qp=arg`
+    const res = await fetchViaHTTP(context.appPort, path)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#props').text()).toBe('with:colon')
+    expect($('#qp').text()).toBe('arg')
+    const browser = await webdriver(context.appPort, path)
+    try {
+      expect(
+        await browser.eval(
+          `window.location.href.replace(window.location.origin, '')`
+        )
+      ).toBe(path)
+    } finally {
+      await browser.close()
+    }
+  })
+
   it(`${locale} should rewrite when not using localhost`, async () => {
     const res = await fetchViaHTTP(
       `http://localtest.me:${context.appPort}`,
