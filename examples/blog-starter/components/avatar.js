@@ -4,8 +4,8 @@ export default function Avatar({ name, picture }) {
     <div className="flex items-center">
       <Image
         src={picture}
-        width="48px"
-        height="48px"
+        width={48)
+        height={48)
         className="w-12 h-12 rounded-full mr-4"
         alt={name}
       />
