@@ -33,8 +33,13 @@ import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
-import { trackWebVitalMetric } from './vitals'
-import { RefreshContext } from './rsc/refresh'
+import {
+  flushBufferedVitalsMetrics,
+  trackWebVitalMetric,
+} from './streaming/vitals'
+import { RefreshContext } from './streaming/refresh'
+import { ImageConfigContext } from '../shared/lib/image-config-context'
+import { ImageConfigComplete } from '../shared/lib/image-config'
 
 /// <reference types="react-dom/experimental" />
 
@@ -58,6 +63,7 @@ type RenderRouteInfo = PrivateRouteInfo & {
   scroll?: { x: number; y: number } | null
 }
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
+type RegisterFn = (input: [string, () => void]) => void
 
 export const version = process.env.__NEXT_VERSION
 export let router: Router
@@ -78,10 +84,10 @@ let headManager: {
 
 let lastRenderReject: (() => void) | null
 let webpackHMR: any
+
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 let CachedComponent: React.ComponentType
-
-type RegisterFn = (input: [string, () => void]) => void
+let isAppRSC: boolean
 
 class Container extends React.Component<{
   fn: (err: Error, info?: any) => void
@@ -169,10 +175,9 @@ class Container extends React.Component<{
   }
 }
 
-export function initialize(
-  opts: { webpackHMR?: any },
-  callback: (assetPrefix: string) => void
-) {
+export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
+  assetPrefix: string
+}> {
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = opts.webpackHMR
@@ -269,10 +274,10 @@ export function initialize(
   }
 
   appElement = document.getElementById('__next')
-  callback(prefix)
+  return { assetPrefix: prefix }
 }
 
-export async function hydrate() {
+export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   let initialErr = initialData.err
 
   try {
@@ -283,6 +288,7 @@ export async function hydrate() {
 
     const { component: app, exports: mod } = appEntrypoint
     CachedApp = app as AppComponent
+    isAppRSC = !!mod.__next_rsc__
     const exportedReportWebVitals = mod && mod.reportWebVitals
     onPerfEntry = ({
       id,
@@ -411,6 +417,7 @@ export async function hydrate() {
     defaultLocale,
     domainLocales: initialData.domainLocales,
     isPreview: initialData.isPreview,
+    isRsc: initialData.rsc,
   })
 
   const renderCtx: RenderRouteInfo = {
@@ -421,15 +428,14 @@ export async function hydrate() {
     err: initialErr,
   }
 
-  if (process.env.NODE_ENV === 'production') {
-    render(renderCtx)
-    return emitter
-  } else {
-    return { emitter, renderCtx }
+  if (opts?.beforeRender) {
+    await opts.beforeRender()
   }
+
+  render(renderCtx)
 }
 
-export async function render(renderingProps: RenderRouteInfo): Promise<void> {
+async function render(renderingProps: RenderRouteInfo): Promise<void> {
   if (renderingProps.err) {
     await renderError(renderingProps)
     return
@@ -457,7 +463,7 @@ export async function render(renderingProps: RenderRouteInfo): Promise<void> {
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
-export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
+function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
   const { App, err } = renderErrorProps
 
   // In development runtime errors are caught by our overlay
@@ -541,9 +547,10 @@ function renderReactElement(
 
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
   if (process.env.__NEXT_REACT_ROOT) {
+    const ReactDOMClient = require('react-dom/client')
     if (!reactRoot) {
       // Unlike with createRoot, you don't need a separate root.render() call here
-      reactRoot = (ReactDOM as any).hydrateRoot(domEl, reactEl)
+      reactRoot = (ReactDOMClient as any).hydrateRoot(domEl, reactEl)
       // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
       shouldHydrate = false
     } else {
@@ -627,7 +634,11 @@ function AppContainer({
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
         <HeadManagerContext.Provider value={headManager}>
-          {children}
+          <ImageConfigContext.Provider
+            value={process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete}
+          >
+            {children}
+          </ImageConfigContext.Provider>
         </HeadManagerContext.Provider>
       </RouterContext.Provider>
     </Container>
@@ -635,7 +646,7 @@ function AppContainer({
 }
 
 function renderApp(App: AppComponent, appProps: AppProps) {
-  if (process.env.__NEXT_RSC && (App as any).__next_rsc__) {
+  if (process.env.__NEXT_RSC && isAppRSC) {
     const { Component, err: _, router: __, ...props } = appProps
     return <Component {...props} />
   } else {
@@ -697,6 +708,9 @@ if (process.env.__NEXT_RSC) {
         writer.write(encoder.encode(val))
       })
       buffer.length = 0
+      // Clean buffer but not deleting the key to mark bootstrap as complete.
+      // Then `nextServerDataCallback` will be safely skipped in the future renders.
+      serverDataBuffer.set(key, [])
     }
     serverDataWriter.set(key, writer)
   }
@@ -739,7 +753,7 @@ if (process.env.__NEXT_RSC) {
     let response = rscCache.get(cacheKey)
     if (response) return response
 
-    const bufferCacheKey = cacheKey + ',' + id
+    const bufferCacheKey = cacheKey + ',' + router.route + ',' + id
     if (serverDataBuffer.has(bufferCacheKey)) {
       const t = new TransformStream()
       const writer = t.writable.getWriter()
@@ -770,9 +784,11 @@ if (process.env.__NEXT_RSC) {
     serialized?: string
     _fresh?: boolean
   }) => {
+    React.useEffect(() => {
+      rscCache.delete(cacheKey)
+    })
     const response = useServerResponse(cacheKey, serialized)
     const root = response.readRoot()
-    rscCache.delete(cacheKey)
     return root
   }
 
@@ -797,13 +813,11 @@ if (process.env.__NEXT_RSC) {
 
     return (
       <RefreshContext.Provider value={refreshCache}>
-        <React.Suspense fallback={null}>
-          <ServerRoot
-            cacheKey={cacheKey}
-            serialized={__flight_serialized__}
-            _fresh={__flight_fresh__}
-          />
-        </React.Suspense>
+        <ServerRoot
+          cacheKey={cacheKey}
+          serialized={__flight_serialized__}
+          _fresh={__flight_fresh__}
+        />
       </RefreshContext.Provider>
     )
   }
@@ -1016,7 +1030,10 @@ function Root({
   // don't cause any hydration delay:
   React.useEffect(() => {
     measureWebVitals(onPerfEntry)
+
+    flushBufferedVitalsMetrics()
   }, [])
+
   return children as React.ReactElement
 }
 

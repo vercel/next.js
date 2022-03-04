@@ -163,11 +163,12 @@ export async function ncc_next__react_dev_overlay(task, opts) {
         )
     )
     .ncc({
+      precompiled: false,
       packageName: '@next/react-dev-overlay',
       externals: overlayExternals,
       target: 'es5',
     })
-    .target('compiled/@next/react-dev-overlay')
+    .target('dist/compiled/@next/react-dev-overlay')
 
   await task
     .source(
@@ -178,15 +179,16 @@ export async function ncc_next__react_dev_overlay(task, opts) {
         )
     )
     .ncc({
+      precompiled: false,
       packageName: '@next/react-dev-overlay',
       externals: overlayExternals,
       target: 'es5',
     })
-    .target('compiled/@next/react-dev-overlay')
+    .target('dist/compiled/@next/react-dev-overlay')
 
   const clientFile = join(
     __dirname,
-    'compiled/@next/react-dev-overlay/client.js'
+    'dist/compiled/@next/react-dev-overlay/client.js'
   )
   const content = fs.readFileSync(clientFile, 'utf8')
   // remove AMD define branch as this forces the module to not
@@ -266,7 +268,7 @@ export async function ncc_jest_worker(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function ncc_react_refresh_utils(task, opts) {
-  await fs.remove(join(__dirname, 'compiled/react-refresh'))
+  await fs.remove(join(__dirname, 'dist/compiled/react-refresh'))
   await fs.copy(
     dirname(require.resolve('react-refresh/package.json')),
     join(__dirname, 'dist/compiled/react-refresh')
@@ -310,10 +312,26 @@ export async function ncc_chalk(task, opts) {
 // eslint-disable-next-line camelcase
 externals['browserslist'] = 'next/dist/compiled/browserslist'
 export async function ncc_browserslist(task, opts) {
+  const browserslistModule = require.resolve('browserslist')
+  const nodeFile = join(dirname(browserslistModule), 'node.js')
+
+  const content = await fs.readFile(nodeFile, 'utf8')
+  // ensure ncc doesn't attempt to bundle dynamic requires
+  // so that they work at runtime correctly
+  await fs.writeFile(
+    nodeFile,
+    content.replace(
+      /require\(require\.resolve\(/g,
+      `__non_webpack_require__(__non_webpack_require__.resolve(`
+    )
+  )
+
   await task
     .source(opts.src || relative(__dirname, require.resolve('browserslist')))
     .ncc({ packageName: 'browserslist', externals })
     .target('compiled/browserslist')
+
+  await fs.writeFile(nodeFile, content)
 }
 
 // eslint-disable-next-line camelcase
@@ -814,6 +832,14 @@ export async function ncc_babel_bundle_packages(task, opts) {
     .target('compiled/babel')
 }
 
+// eslint-disable-next-line camelcase
+externals['bytes'] = 'next/dist/compiled/bytes'
+export async function ncc_bytes(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('bytes')))
+    .ncc({ packageName: 'bytes', externals })
+    .target('compiled/bytes')
+}
 // eslint-disable-next-line camelcase
 externals['ci-info'] = 'next/dist/compiled/ci-info'
 export async function ncc_ci_info(task, opts) {
@@ -1577,7 +1603,6 @@ export async function ncc(task, opts) {
         'ncc_node_html_parser',
         'ncc_watchpack',
         'ncc_chalk',
-        'ncc_browserslist',
         'ncc_napirs_triples',
         'ncc_etag',
         'ncc_p_limit',
@@ -1613,6 +1638,7 @@ export async function ncc(task, opts) {
         'ncc_tty_browserify',
         'ncc_vm_browserify',
         'ncc_babel_bundle',
+        'ncc_bytes',
         'ncc_ci_info',
         'ncc_cli_select',
         'ncc_comment_json',
@@ -1686,7 +1712,7 @@ export async function ncc(task, opts) {
   await task.parallel(['ncc_babel_bundle_packages'], opts)
   await task.serial(
     [
-      'ncc_next__react_dev_overlay',
+      'ncc_browserslist',
       'copy_regenerator_runtime',
       'copy_babel_runtime',
       'copy_constants_browserify',
@@ -1719,7 +1745,7 @@ export async function compile(task, opts) {
     ],
     opts
   )
-  await task.serial(['ncc_react_refresh_utils'])
+  await task.serial(['ncc_react_refresh_utils', 'ncc_next__react_dev_overlay'])
 }
 
 export async function bin(task, opts) {
@@ -1804,7 +1830,7 @@ export async function pages_document(task, opts) {
 
 export async function pages_document_server(task, opts) {
   await task
-    .source('pages/_document-web.tsx')
+    .source('pages/_document-concurrent.tsx')
     .swc('client', { dev: opts.dev })
     .target('dist/pages')
 }

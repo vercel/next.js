@@ -1,12 +1,4 @@
-import {
-  initialize,
-  hydrate,
-  version,
-  router,
-  emitter,
-  render,
-  renderError,
-} from './'
+import { initialize, hydrate, version, router, emitter } from './'
 import initOnDemandEntries from './dev/on-demand-entries-client'
 import initWebpackHMR from './dev/webpack-hot-middleware-client'
 import initializeBuildWatcher from './dev/dev-build-watcher'
@@ -16,8 +8,6 @@ import {
   assign,
   urlQueryToSearchParams,
 } from '../shared/lib/router/utils/querystring'
-
-const webpackHMR = initWebpackHMR()
 
 if (!window._nextSetupHydrationWarning) {
   const origConsoleError = window.console.error
@@ -45,24 +35,21 @@ window.next = {
     return router
   },
   emitter,
-  render,
-  renderError,
 }
 
-initialize({ webpackHMR }, (assetPrefix) => {
-  connectHMR({ assetPrefix, path: '/_next/webpack-hmr' })
+const webpackHMR = initWebpackHMR()
+initialize({ webpackHMR })
+  .then(({ assetPrefix }) => {
+    connectHMR({ assetPrefix, path: '/_next/webpack-hmr' })
 
-  hydrate()
-    .then(({ renderCtx }) => {
+    return hydrate({ beforeRender: displayContent }).then(() => {
       initOnDemandEntries()
 
       let buildIndicatorHandler = () => {}
 
       function devPagesManifestListener(event) {
         if (event.data.indexOf('devPagesManifest') !== -1) {
-          fetch(
-            `${assetPrefix}/_next/static/development/_devPagesManifest.json`
-          )
+          fetch(`${prefix}/_next/static/development/_devPagesManifest.json`)
             .then((res) => res.json())
             .then((manifest) => {
               window.__DEV_PAGES_MANIFEST = manifest
@@ -111,13 +98,8 @@ initialize({ webpackHMR }, (assetPrefix) => {
           buildIndicatorHandler = handler
         }, process.env.__NEXT_BUILD_INDICATOR_POSITION)
       }
-
-      // delay rendering until after styles have been applied in development
-      displayContent(() => {
-        render(renderCtx)
-      })
     })
-    .catch((err) => {
-      console.error('Error was not caught', err)
-    })
-})
+  })
+  .catch((err) => {
+    console.error('Error was not caught', err)
+  })

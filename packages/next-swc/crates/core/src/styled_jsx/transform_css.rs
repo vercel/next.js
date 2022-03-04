@@ -2,8 +2,8 @@ use easy_error::{bail, Error};
 use std::panic;
 use std::sync::Arc;
 use swc_common::util::take::Take;
-use swc_common::SourceMap;
 use swc_common::{source_map::Pos, BytePos, Span, SyntaxContext, DUMMY_SP};
+use swc_common::{SourceMap, Spanned};
 use swc_css::ast::*;
 use swc_css::codegen::{
     writer::basic::{BasicCssWriter, BasicCssWriterConfig},
@@ -21,7 +21,7 @@ use tracing::{debug, trace};
 use super::{hash_string, string_literal_expr, LocalStyle};
 
 pub fn transform_css(
-    cm: Arc<SourceMap>,
+    _cm: Arc<SourceMap>,
     style_info: &LocalStyle,
     is_global: bool,
     class_name: &Option<String>,
@@ -33,7 +33,6 @@ pub fn transform_css(
         style_info.css_span.lo,
         style_info.css_span.hi,
         ParserConfig {
-            parse_values: false,
             allow_wrong_line_comments: true,
         },
         // We ignore errors because we inject placeholders for expressions which is
@@ -45,7 +44,7 @@ pub fn transform_css(
         Err(err) => {
             HANDLER.with(|handler| {
                 // Print css parsing errors
-                err.to_diagnostics(&handler).emit();
+                err.to_diagnostics(handler).emit();
 
                 // TODO(kdy1): We may print css so the user can see the error, and report it.
 
@@ -62,7 +61,6 @@ pub fn transform_css(
     };
     // ? Do we need to support optionally prefixing?
     ss.visit_mut_with(&mut prefixer());
-    ss.visit_mut_with(&mut CssPlaceholderFixer { cm });
     ss.visit_mut_with(&mut Namespacer {
         class_name: match class_name {
             Some(s) => s.clone(),
@@ -80,17 +78,17 @@ pub fn transform_css(
         gen.emit(&ss).unwrap();
     }
 
-    if style_info.expressions.len() == 0 {
+    if style_info.expressions.is_empty() {
         return Ok(string_literal_expr(&s));
     }
 
     let mut parts: Vec<&str> = s.split("__styled-jsx-placeholder-").collect();
     let mut final_expressions = vec![];
-    for i in 1..parts.len() {
-        let (num_len, expression_index) = read_number(&parts[i]);
+    for i in parts.iter_mut().skip(1) {
+        let (num_len, expression_index) = read_number(i);
         final_expressions.push(style_info.expressions[expression_index].clone());
-        let substr = &parts[i][(num_len + 2)..];
-        parts[i] = substr;
+        let substr = &i[(num_len + 2)..];
+        *i = substr;
     }
 
     Ok(Expr::Tpl(Tpl {
@@ -129,48 +127,6 @@ fn read_number(s: &str) -> (usize, usize) {
     }
 
     unreachable!("read_number(`{}`) is invalid because it is empty", s)
-}
-
-/// This fixes invalid css which is created from interpolated expressions.
-///
-/// `__styled-jsx-placeholder-` is handled at here.
-struct CssPlaceholderFixer {
-    cm: Arc<SourceMap>,
-}
-
-impl VisitMut for CssPlaceholderFixer {
-    fn visit_mut_media_query(&mut self, q: &mut MediaQuery) {
-        q.visit_mut_children_with(self);
-
-        match q {
-            MediaQuery::Ident(q) => {
-                if !q.raw.starts_with("__styled-jsx-placeholder-") {
-                    return;
-                }
-                // We need to support both of @media ($breakPoint) {} and @media $queryString {}
-                // This is complex because @media (__styled-jsx-placeholder-0__) {} is valid
-                // while @media __styled-jsx-placeholder-0__ {} is not
-                //
-                // So we check original source code to determine if we should inject
-                // parenthesis.
-
-                // TODO(kdy1): Avoid allocation.
-                // To remove allocation, we should patch swc_common to provide a way to get
-                // source code without allocation.
-                //
-                //
-                // We need
-                //
-                // fn with_source_code (self: &mut Self, f: impl FnOnce(&str) -> Ret) -> _ {}
-                if let Ok(source) = self.cm.span_to_snippet(q.span) {
-                    if source.starts_with('(') {
-                        q.raw = format!("({})", &q.value).into();
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
 }
 
 struct Namespacer {
@@ -227,18 +183,12 @@ impl VisitMut for Namespacer {
 
                     combinator = None;
                 }
-                ComplexSelectorChildren::Combinator(v) => match v.value {
-                    CombinatorValue::Descendant => {}
-                    CombinatorValue::NextSibling
-                    | CombinatorValue::Child
-                    | CombinatorValue::LaterSibling => {
-                        combinator = Some(v.clone());
-
-                        new_selectors.push(sel);
-                    }
-                },
+                ComplexSelectorChildren::Combinator(v) => {
+                    combinator = Some(v.clone());
+                }
             };
         }
+
         node.children = new_selectors;
     }
 }
@@ -250,39 +200,71 @@ impl Namespacer {
         mut node: CompoundSelector,
     ) -> Result<Vec<ComplexSelectorChildren>, Error> {
         let mut pseudo_index = None;
-
-        let empty_tokens = Tokens {
-            span: node.span,
-            tokens: vec![],
-        };
         let mut arg_tokens;
 
         for (i, selector) in node.subclass_selectors.iter().enumerate() {
             let (name, args) = match selector {
                 SubclassSelector::PseudoClass(PseudoClassSelector { name, children, .. }) => {
-                    match children {
-                        Some(PseudoSelectorChildren::Nth(v)) => {
-                            arg_tokens = nth_to_tokens(&v);
-                            (name, &arg_tokens)
-                        }
-                        Some(PseudoSelectorChildren::Tokens(v)) => (name, v),
-                        None => (name, &empty_tokens),
-                    }
+                    arg_tokens = children
+                        .iter()
+                        .flatten()
+                        .flat_map(|v| match v {
+                            PseudoClassSelectorChildren::PreservedToken(v) => vec![v.clone()],
+                            PseudoClassSelectorChildren::AnPlusB(an_plus_b) => match an_plus_b {
+                                AnPlusB::Ident(v) => to_tokens(v).tokens,
+                                AnPlusB::AnPlusBNotation(v) => to_tokens(v).tokens,
+                            },
+                            PseudoClassSelectorChildren::Ident(v) => to_tokens(v).tokens,
+                            PseudoClassSelectorChildren::Str(v) => to_tokens(v).tokens,
+                            PseudoClassSelectorChildren::Delimiter(v) => to_tokens(v).tokens,
+                            PseudoClassSelectorChildren::SelectorList(v) => to_tokens(v).tokens,
+                            PseudoClassSelectorChildren::CompoundSelectorList(v) => {
+                                to_tokens(v).tokens
+                            }
+                            PseudoClassSelectorChildren::RelativeSelectorList(v) => {
+                                to_tokens(v).tokens
+                            }
+                            PseudoClassSelectorChildren::CompoundSelector(v) => to_tokens(v).tokens,
+                        })
+                        .collect::<Vec<_>>();
+
+                    (name, &arg_tokens)
                 }
                 SubclassSelector::PseudoElement(PseudoElementSelector {
                     name, children, ..
-                }) => match children {
-                    Some(children) => (name, children),
-                    None => (name, &empty_tokens),
-                },
+                }) => {
+                    arg_tokens = children
+                        .iter()
+                        .flatten()
+                        .flat_map(|v| match v {
+                            PseudoElementSelectorChildren::PreservedToken(v) => vec![v.clone()],
+                            PseudoElementSelectorChildren::Ident(v) => to_tokens(v).tokens,
+                            PseudoElementSelectorChildren::CompoundSelector(v) => {
+                                to_tokens(v).tokens
+                            }
+                        })
+                        .collect::<Vec<_>>();
+
+                    (name, &arg_tokens)
+                }
                 _ => continue,
             };
 
             // One off global selector
             if &name.value == "global" {
+                let args = args.clone();
+                let mut args = {
+                    let lo = args.first().map(|v| v.span.lo).unwrap_or(BytePos(0));
+                    let hi = args.last().map(|v| v.span.hi).unwrap_or(BytePos(0));
+
+                    Tokens {
+                        span: Span::new(lo, hi, Default::default()),
+                        tokens: args,
+                    }
+                };
+
                 let block_tokens = get_block_tokens(&args);
                 let mut front_tokens = get_front_selector_tokens(&args);
-                let mut args = args.clone();
                 front_tokens.extend(args.tokens);
                 front_tokens.extend(block_tokens);
                 args.tokens = front_tokens;
@@ -291,31 +273,25 @@ impl Namespacer {
                     let x: ComplexSelector = parse_tokens(
                         &args,
                         ParserConfig {
-                            parse_values: false,
                             allow_wrong_line_comments: true,
                         },
                         // TODO(kdy1): We might be able to report syntax errors.
                         &mut vec![],
                     )
                     .unwrap();
-                    return x;
+                    x
                 });
 
                 return match complex_selectors {
                     Ok(complex_selectors) => {
-                        let mut v = complex_selectors.children[1..]
-                            .iter()
-                            .cloned()
-                            .collect::<Vec<_>>();
+                        let mut v = complex_selectors.children[1..].to_vec();
 
-                        match v[0] {
-                            ComplexSelectorChildren::Combinator(Combinator {
-                                value: CombinatorValue::Descendant,
-                                ..
-                            }) => {
-                                v.remove(0);
-                            }
-                            _ => {}
+                        if let ComplexSelectorChildren::Combinator(Combinator {
+                            value: CombinatorValue::Descendant,
+                            ..
+                        }) = v[0]
+                        {
+                            v.remove(0);
                         }
 
                         if v.is_empty() {
@@ -325,32 +301,32 @@ impl Namespacer {
                         trace!("Combinator: {:?}", combinator);
                         trace!("v[0]: {:?}", v[0]);
 
-                        if combinator.is_some() {
+                        let mut result = vec![];
+
+                        if let Some(combinator) = combinator {
                             match v.get(0) {
-                                Some(ComplexSelectorChildren::Combinator(..)) => {}
-                                Some(..) => {}
+                                // `Descendant` combinator can't be the first because we removed it
+                                // above
+                                Some(ComplexSelectorChildren::Combinator(..))
+                                    if combinator.value == CombinatorValue::Descendant => {}
                                 _ => {
-                                    v.push(ComplexSelectorChildren::Combinator(
-                                        combinator.unwrap(),
-                                    ));
+                                    result.push(ComplexSelectorChildren::Combinator(combinator));
                                 }
                             }
                         }
 
                         v.iter_mut().for_each(|sel| {
                             if i < node.subclass_selectors.len() {
-                                match sel {
-                                    ComplexSelectorChildren::CompoundSelector(sel) => {
-                                        sel.subclass_selectors.extend(
-                                            node.subclass_selectors[i + 1..].iter().cloned(),
-                                        );
-                                    }
-                                    _ => {}
+                                if let ComplexSelectorChildren::CompoundSelector(sel) = sel {
+                                    sel.subclass_selectors
+                                        .extend(node.subclass_selectors[i + 1..].iter().cloned());
                                 }
                             }
                         });
 
-                        Ok(v)
+                        result.extend(v);
+
+                        Ok(result)
                     }
                     Err(_) => bail!("Failed to transform one off global selector"),
                 };
@@ -381,7 +357,15 @@ impl Namespacer {
             );
         }
 
-        Ok(vec![ComplexSelectorChildren::CompoundSelector(node)])
+        let mut result = vec![];
+
+        if let Some(combinator) = combinator {
+            result.push(ComplexSelectorChildren::Combinator(combinator));
+        }
+
+        result.push(ComplexSelectorChildren::CompoundSelector(node));
+
+        Ok(result)
     }
 }
 
@@ -390,7 +374,7 @@ fn get_front_selector_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
     vec![
         TokenAndSpan {
             span: Span {
-                lo: BytePos(start_pos + 0),
+                lo: BytePos(start_pos),
                 hi: BytePos(start_pos + 1),
                 ctxt: SyntaxContext::empty(),
             },
@@ -415,7 +399,7 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
     vec![
         TokenAndSpan {
             span: Span {
-                lo: BytePos(start_pos + 0),
+                lo: BytePos(start_pos),
                 hi: BytePos(start_pos + 1),
                 ctxt: SyntaxContext::empty(),
             },
@@ -510,21 +494,23 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
     ]
 }
 
-fn nth_to_tokens(nth: &Nth) -> Tokens {
+fn to_tokens<N: Spanned>(node: &N) -> Tokens
+where
+    for<'aa> CodeGenerator<&'aa mut BasicCssWriter<'aa, &'aa mut std::string::String>>: Emit<N>,
+{
     let mut s = String::new();
     {
         let mut wr = BasicCssWriter::new(&mut s, BasicCssWriterConfig { indent: "  " });
         let mut gen = CodeGenerator::new(&mut wr, CodegenConfig { minify: true });
 
-        gen.emit(&nth).unwrap();
+        gen.emit(node).unwrap();
     }
 
+    let span = node.span();
     let mut lexer = swc_css::parser::lexer::Lexer::new(
-        StringInput::new(&s, nth.span.lo, nth.span.hi),
+        StringInput::new(&s, span.lo, span.hi),
         ParserConfig {
-            parse_values: false,
             allow_wrong_line_comments: true,
-            ..Default::default()
         },
     );
 
@@ -535,7 +521,7 @@ fn nth_to_tokens(nth: &Nth) -> Tokens {
     }
 
     Tokens {
-        span: Span::new(nth.span.lo, nth.span.hi, Default::default()),
+        span: Span::new(span.lo, span.hi, Default::default()),
         tokens,
     }
 }

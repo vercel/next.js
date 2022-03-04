@@ -6,6 +6,16 @@ import { NextResponse } from 'next/server'
 export async function middleware(request) {
   const url = request.nextUrl
 
+  if (
+    url.pathname.startsWith('/rewrites/about') &&
+    url.searchParams.has('override')
+  ) {
+    const isExternal = url.searchParams.get('override') === 'external'
+    return NextResponse.rewrite(
+      isExternal ? 'https://vercel.com' : new URL('/rewrites/a', request.url)
+    )
+  }
+
   if (url.pathname.startsWith('/rewrites/to-blog')) {
     const slug = url.pathname.split('/').pop()
     url.pathname = `/rewrites/fallback-true-blog/${slug}`
@@ -28,6 +38,16 @@ export async function middleware(request) {
 
   if (url.pathname === '/rewrites/rewrite-me-to-about') {
     url.pathname = '/rewrites/about'
+    return NextResponse.rewrite(url)
+  }
+
+  if (url.pathname === '/rewrites/rewrite-me-with-a-colon') {
+    url.pathname = '/rewrites/with:colon'
+    return NextResponse.rewrite(url)
+  }
+
+  if (url.pathname === '/rewrites/colon:here') {
+    url.pathname = '/rewrites/no-colon-here'
     return NextResponse.rewrite(url)
   }
 

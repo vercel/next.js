@@ -34,6 +34,9 @@ export type EventLintCheckCompleted = {
   nextEslintPluginVersion?: string | null
   nextEslintPluginErrorsCount?: number
   nextEslintPluginWarningsCount?: number
+  nextRulesEnabled: {
+    [ruleName: `@next/next/${string}`]: 'off' | 'warn' | 'error'
+  }
 }
 
 export function eventLintCheckCompleted(event: EventLintCheckCompleted): {
@@ -134,6 +137,12 @@ export type EventBuildFeatureUsage = {
     | 'optimizeFonts'
     | 'swcLoader'
     | 'swcMinify'
+    | 'swcRelay'
+    | 'swcStyledComponents'
+    | 'swcReactRemoveProperties'
+    | 'swcExperimentalDecorators'
+    | 'swcRemoveConsole'
+    | 'swcImportSource'
     | 'build-lint'
   invocationCount: number
 }
