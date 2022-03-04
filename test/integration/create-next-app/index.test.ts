@@ -9,9 +9,10 @@ const cli = require.resolve('create-next-app/dist/index.js')
 const exampleRepo = 'https://github.com/vercel/next.js/tree/canary'
 const examplePath = 'examples/basic-css'
 
-const run = (args, options) => execa('node', [cli].concat(args), options)
+const run = (args: string[], options: execa.Options) =>
+  execa('node', [cli].concat(args), options)
 
-async function usingTempDir(fn, options) {
+async function usingTempDir(fn: (...args: any[]) => any, options?: any) {
   const folder = path.join(os.tmpdir(), Math.random().toString(36).substring(2))
   await fs.mkdirp(folder, options)
   try {
@@ -104,34 +105,24 @@ describe('create next app', () => {
       const res = await run([projectName, '--typescript'], { cwd })
       expect(res.exitCode).toBe(0)
 
-      const pkgJSONPath = path.join(cwd, projectName, 'package.json')
+      const files = [
+        'package.json',
+        'pages/index.tsx',
+        'pages/_app.tsx',
+        'pages/api/hello.ts',
+        'tsconfig.json',
+        'next-env.d.ts',
+        '.eslintrc.json',
+        'node_modules/next',
+        // check we copied default `.gitignore`
+        '.gitignore',
+      ]
 
-      expect(fs.existsSync(pkgJSONPath)).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/_app.tsx'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/api/hello.ts'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'tsconfig.json'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'next-env.d.ts'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, '.eslintrc.json'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'node_modules/next'))
-      ).toBe(true)
-      // check we copied default `.gitignore`
-      expect(
-        fs.existsSync(path.join(cwd, projectName, '.gitignore'))
-      ).toBeTruthy()
+      files.forEach((file) =>
+        expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
+      )
+
+      const pkgJSONPath = path.join(cwd, projectName, 'package.json')
 
       // Assert for dependencies specific to the typescript template
       const pkgJSON = require(pkgJSONPath)
@@ -390,6 +381,54 @@ describe('create next app', () => {
         'package-lock.json',
         'node_modules/next',
       ]
+      files.forEach((file) =>
+        expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
+      )
+    })
+  })
+
+  it('should use pnpm as the package manager on supplying --use-pnpm', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'use-pnpm'
+      const res = await run([projectName, '--use-pnpm'], { cwd })
+      expect(res.exitCode).toBe(0)
+
+      const files = [
+        'package.json',
+        'pages/index.js',
+        '.gitignore',
+        '.eslintrc.json',
+        'pnpm-lock.yaml',
+        'node_modules/next',
+      ]
+      files.forEach((file) =>
+        expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
+      )
+    })
+  })
+
+  it('should use pnpm as the package manager on supplying --use-pnpm with example', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'use-pnpm'
+      const res = await run(
+        [
+          projectName,
+          '--use-pnpm',
+          '--example',
+          `${exampleRepo}/${examplePath}`,
+        ],
+        { cwd }
+      )
+      expect(res.exitCode).toBe(0)
+
+      const files = [
+        'package.json',
+        'pages/index.js',
+        '.gitignore',
+        'pnpm-lock.yaml',
+        'node_modules/next',
+      ]
+
       files.forEach((file) =>
         expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
       )

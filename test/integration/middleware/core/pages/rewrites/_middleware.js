@@ -41,6 +41,16 @@ export async function middleware(request) {
     return NextResponse.rewrite(url)
   }
 
+  if (url.pathname === '/rewrites/rewrite-me-with-a-colon') {
+    url.pathname = '/rewrites/with:colon'
+    return NextResponse.rewrite(url)
+  }
+
+  if (url.pathname === '/rewrites/colon:here') {
+    url.pathname = '/rewrites/no-colon-here'
+    return NextResponse.rewrite(url)
+  }
+
   if (url.pathname === '/rewrites/rewrite-me-to-vercel') {
     return NextResponse.rewrite('https://vercel.com')
   }
