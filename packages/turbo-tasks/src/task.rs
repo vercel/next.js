@@ -18,7 +18,7 @@ use std::{
     pin::Pin,
     sync::{
         atomic::{AtomicU32, Ordering},
-        Arc, Mutex, RwLock, RwLockWriteGuard, Weak,
+        Arc, Mutex, RwLock, Weak,
     },
     time::Instant,
 };
@@ -40,6 +40,7 @@ task_local! {
 
 enum TaskType {
     Root(NativeTaskFn),
+    Once(Mutex<Option<Pin<Box<dyn Future<Output = SlotRef> + Send + 'static>>>>),
     Native(&'static NativeFunction, NativeTaskFn),
     ResolveNative(&'static NativeFunction),
     ResolveTrait(&'static TraitType, String),
@@ -49,6 +50,7 @@ impl Debug for TaskType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Root(..) => f.debug_tuple("Root").finish(),
+            Self::Once(..) => f.debug_tuple("Once").finish(),
             Self::Native(native_fn, _) => f.debug_tuple("Native").field(&native_fn.name).finish(),
             Self::ResolveNative(native_fn) => f
                 .debug_tuple("ResolveNative")
@@ -194,6 +196,20 @@ impl Task {
         Self {
             inputs: Vec::new(),
             ty: TaskType::Root(Box::new(functor)),
+            state: RwLock::new(TaskState {
+                active: true,
+                state_type: Scheduled,
+                ..Default::default()
+            }),
+            active_parents: AtomicU32::new(1),
+            execution_data: Default::default(),
+        }
+    }
+
+    pub(crate) fn new_once(functor: impl Future<Output = SlotRef> + Send + 'static) -> Self {
+        Self {
+            inputs: Vec::new(),
+            ty: TaskType::Once(Mutex::new(Some(Box::pin(functor)))),
             state: RwLock::new(TaskState {
                 active: true,
                 state_type: Scheduled,
@@ -508,6 +524,22 @@ impl Task {
     pub(crate) fn execute(self: &Arc<Self>, tt: &'static TurboTasks) -> NativeTaskFuture {
         match &self.ty {
             TaskType::Root(bound_fn) => bound_fn(),
+            TaskType::Once(mutex) => {
+                let future = mutex
+                    .lock()
+                    .unwrap()
+                    .take()
+                    .expect("Task can only be executed once");
+                // let task = self.clone();
+                Box::pin(async move {
+                    let result = future.await;
+                    // TODO wait for full completion
+                    // if task.active_parents.fetch_sub(1, Ordering::Relaxed) == 1 {
+                    //     task.deactivate(1, tt);
+                    // }
+                    result
+                })
+            }
             TaskType::Native(_, bound_fn) => bound_fn(),
             TaskType::ResolveNative(ref native_fn) => {
                 let native_fn = *native_fn;
@@ -648,6 +680,7 @@ impl Task {
                 .collect(),
             name: match &self.ty {
                 TaskType::Root(..) => "root".to_string(),
+                TaskType::Once(..) => "once".to_string(),
                 TaskType::Native(native_fn, _) => native_fn.name.clone(),
                 TaskType::ResolveNative(native_fn) => format!("[resolve] {}", native_fn.name),
                 TaskType::ResolveTrait(trait_type, fn_name) => {
@@ -749,6 +782,7 @@ impl Display for Task {
             "Task({}, {})",
             match &self.ty {
                 TaskType::Root(..) => "root".to_string(),
+                TaskType::Once(..) => "once".to_string(),
                 TaskType::Native(native_fn, _) => native_fn.name.clone(),
                 TaskType::ResolveNative(native_fn) => format!("[resolve] {}", native_fn.name),
                 TaskType::ResolveTrait(trait_type, fn_name) => {

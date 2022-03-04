@@ -1,11 +1,7 @@
+use json::JsonValue;
 use turbo_tasks_fs::{DirectoryContent, FileContent, FileJsonContent, FileSystemPathRef};
 
-use crate::{
-    asset::{AssetRef, AssetsSet, AssetsSetRef},
-    ecmascript::references::module_references,
-    reference::AssetReferenceRef,
-    source_asset::SourceAssetRef,
-};
+use crate::{asset::AssetRef, source_asset::SourceAssetRef};
 
 use self::{
     options::{
@@ -15,22 +11,8 @@ use self::{
     parse::{Request, RequestRef},
 };
 
-mod options;
-mod parse;
-
-#[turbo_tasks::function]
-pub async fn referenced_modules(asset: AssetRef) -> AssetsSetRef {
-    let references_set = module_references(asset.clone()).await;
-    let mut assets = Vec::new();
-    let context = asset.path().parent();
-    for reference in references_set.references.iter() {
-        let resolve_result = resolve(context.clone(), reference.clone());
-        if let ResolveResult::Module(module) = &*resolve_result.await {
-            assets.push(module.clone());
-        }
-    }
-    AssetsSet { assets }.into()
-}
+pub mod options;
+pub mod parse;
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, PartialEq, Eq, Clone, Debug)]
@@ -57,21 +39,6 @@ pub async fn resolve_options(context: FileSystemPathRef) -> ResolveOptionsRef {
     .into()
 }
 
-#[turbo_tasks::function]
-pub async fn resolve(context: FileSystemPathRef, reference: AssetReferenceRef) -> ResolveResultRef {
-    let input_request = reference.await.request.clone();
-
-    let request = RequestRef::parse(input_request);
-
-    let options = resolve_options(context.clone());
-
-    let result = resolve_internal(context, request, options)
-        .resolve_to_value()
-        .await;
-
-    result
-}
-
 async fn exists(fs_path: FileSystemPathRef) -> bool {
     if let FileContent::Content(_) = &*fs_path.read().await {
         true
@@ -90,15 +57,15 @@ async fn dir_exists(fs_path: FileSystemPathRef) -> bool {
 
 fn join_path(a: &str, b: &str) -> Option<String> {
     if a.is_empty() {
-        normalize_path(b.to_string())
+        normalize_path(b)
     } else if b.is_empty() {
-        normalize_path(a.to_string())
+        normalize_path(a)
     } else {
-        normalize_path([a, "/", b].concat())
+        normalize_path(&[a, "/", b].concat())
     }
 }
 
-fn normalize_path(str: String) -> Option<String> {
+fn normalize_path(str: &str) -> Option<String> {
     let mut seqments = Vec::new();
     for seqment in str.split('/') {
         match seqment {
@@ -114,8 +81,8 @@ fn normalize_path(str: String) -> Option<String> {
         }
     }
     let mut str = String::new();
-    for (i, seq) in seqments.into_iter().enumerate() {
-        if i > 0 {
+    for seq in seqments.into_iter() {
+        if !str.is_empty() && !str.ends_with("/") {
             str += "/";
         }
         str += seq;
@@ -186,7 +153,7 @@ async fn find_package(
 }
 
 #[turbo_tasks::function]
-async fn resolve_internal(
+pub async fn resolve(
     context: FileSystemPathRef,
     request: RequestRef,
     options: ResolveOptionsRef,
@@ -238,51 +205,64 @@ async fn resolve_internal(
                             FileJsonContent::NotFound.into()
                         }
                     };
+                    let package_json = package_json.await;
                     if path.is_empty() {
-                        if let FileJsonContent::Content(_package_json) = &*package_json.await {
-                            for resolve_into_package in options.get().await.into_package.iter() {
-                                match resolve_into_package {
-                                    ResolveIntoPackage::Default(req) => {
-                                        let request = RequestRef::parse(
-                                            "./".to_string()
-                                                + &normalize_path(req.clone()).unwrap(),
-                                        );
-                                        return resolve_internal(
-                                            package_path.clone(),
-                                            request,
-                                            options.clone(),
-                                        );
+                        for resolve_into_package in options.get().await.into_package.iter() {
+                            match resolve_into_package {
+                                ResolveIntoPackage::Default(req) => {
+                                    let request = RequestRef::parse(
+                                        "./".to_string() + &normalize_path(&req).unwrap(),
+                                    );
+                                    return resolve(package_path.clone(), request, options.clone());
+                                }
+                                ResolveIntoPackage::MainField(name) => {
+                                    if let FileJsonContent::Content(package_json) = &*package_json {
+                                        if let JsonValue::String(field_value) = &package_json[name]
+                                        {
+                                            let request = RequestRef::parse(
+                                                "./".to_string()
+                                                    + &normalize_path(&field_value).unwrap(),
+                                            );
+                                            return resolve(
+                                                package_path.clone(),
+                                                request,
+                                                options.clone(),
+                                            );
+                                        }
                                     }
-                                    ResolveIntoPackage::MainField(_) => todo!("resolve main field"),
-                                    ResolveIntoPackage::ExportsField(_) => {
+                                }
+                                ResolveIntoPackage::ExportsField(_) => {
+                                    if let FileJsonContent::Content(_package_json) = &*package_json
+                                    {
                                         todo!("resolve exports field")
                                     }
                                 }
                             }
-                            ResolveResult::Unresolveable.into()
-                        } else {
-                            for resolve_into_package in options.get().await.into_package.iter() {
-                                match resolve_into_package {
-                                    ResolveIntoPackage::Default(req) => {
-                                        let request = RequestRef::parse(
-                                            "./".to_string()
-                                                + &normalize_path(req.clone()).unwrap(),
-                                        );
-                                        return resolve_internal(
-                                            package_path.clone(),
-                                            request,
-                                            options.clone(),
-                                        );
-                                    }
-                                    ResolveIntoPackage::MainField(_)
-                                    | ResolveIntoPackage::ExportsField(_) => {
-                                        // ignore fields as there is no package.json
+                        }
+                        ResolveResult::Unresolveable.into()
+                    } else {
+                        for resolve_into_package in options.get().await.into_package.iter() {
+                            match resolve_into_package {
+                                ResolveIntoPackage::Default(_)
+                                | ResolveIntoPackage::MainField(_) => {
+                                    // doesn't affect packages with subpath
+                                }
+                                ResolveIntoPackage::ExportsField(name) => {
+                                    if let FileJsonContent::Content(package_json) = &*package_json {
+                                        if let JsonValue::String(_field_value) = &package_json[name]
+                                        {
+                                            todo!("resolve exports field");
+                                            // must return here as other options do not apply anymore
+                                            // return ResolveResult::Unresolveable.into();
+                                        }
                                     }
                                 }
                             }
-                            ResolveResult::Unresolveable.into()
                         }
-                    } else {
+                        if let Some(path) = normalize_path(&path) {
+                            let request = RequestRef::parse(format!("./{}", path));
+                            return resolve(package_path.clone(), request, options.clone());
+                        }
                         ResolveResult::Unresolveable.into()
                     }
                 }

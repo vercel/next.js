@@ -662,7 +662,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                                     __self.#name(#(#input_names_ref),*)
                                 },
                                 None => quote! {
-                                    true #(&& (#input_names == __self.#input_names))*
+                                    true #(&& (#input_names_ref == &__self.#input_names))*
                                 },
                             };
                             quote! {

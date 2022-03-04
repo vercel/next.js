@@ -1,17 +1,8 @@
-#[turbo_tasks::value(shared)]
-#[derive(Hash, Clone, Debug, PartialEq, Eq)]
-pub struct AssetReference {
-    pub request: String,
-}
+use crate::{asset::AssetRef, resolve::ResolveResultRef};
 
-#[turbo_tasks::value_impl]
-impl AssetReference {
-    // TODO key
-    // #[turbo_tasks::constructor(key: request)]
-    #[turbo_tasks::constructor(intern)]
-    pub fn new(request: String) -> Self {
-        Self { request }
-    }
+#[turbo_tasks::value_trait]
+pub trait AssetReference {
+    fn resolve(&self, from: AssetRef) -> ResolveResultRef;
 }
 
 #[turbo_tasks::value(shared)]

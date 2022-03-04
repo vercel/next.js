@@ -14,6 +14,7 @@ async-std = "1.10.0"
 regex = "1.5.4"
 testing = "0.18.1"
 rand = "0.8.5"
+json = "0.12.4"
 
 [dependencies.swc_common]
 version = "0.17.5"

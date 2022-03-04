@@ -1,3 +1,8 @@
+use std::fmt::Display;
+use std::io::Write;
+use std::sync::{Arc, RwLock};
+
+use swc_common::errors::Handler;
 use swc_common::input::StringInput;
 use swc_common::sync::Lrc;
 use swc_common::{FileName, SourceMap};
@@ -24,18 +29,58 @@ impl PartialEq for ParseResult {
     }
 }
 
-#[turbo_tasks::function]
-pub async fn parse(module: AssetRef) -> ParseResultRef {
-    let fs_path = module.path().await;
-    let content = module.content().await;
+#[derive(Clone)]
+struct Buffer {
+    buf: Arc<RwLock<Vec<u8>>>,
+}
 
-    match &*content {
+impl Buffer {
+    fn new() -> Self {
+        Self {
+            buf: Arc::new(RwLock::new(Vec::new())),
+        }
+    }
+
+    fn clear(&self) {
+        self.buf.write().unwrap().clear();
+    }
+}
+
+impl Display for Buffer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Ok(str) = std::str::from_utf8(&self.buf.read().unwrap()) {
+            write!(f, "{}", str)
+        } else {
+            Err(std::fmt::Error)
+        }
+    }
+}
+
+impl Write for Buffer {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.buf.write().unwrap().extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+#[turbo_tasks::function]
+pub async fn parse(source: AssetRef) -> ParseResultRef {
+    let content = source.content();
+    let fs_path = source.path().await;
+    match &*content.await {
         FileContent::NotFound => ParseResult::NotFound.into(),
         FileContent::Content(buffer) => {
             match String::from_utf8(buffer.clone()) {
                 Err(_err) => ParseResult::Unparseable.into(),
                 Ok(string) => {
                     let cm: Lrc<SourceMap> = Default::default();
+                    let buf = Buffer::new();
+                    let handler =
+                        Handler::with_emitter_writer(Box::new(buf.clone()), Some(cm.clone()));
 
                     let fm = cm.new_source_file(FileName::Custom(fs_path.path.clone()), string);
 
@@ -58,13 +103,23 @@ pub async fn parse(module: AssetRef) -> ParseResultRef {
 
                     let mut parser = Parser::new_from(lexer);
 
-                    for _e in parser.take_errors() {
+                    let mut has_errors = false;
+                    for e in parser.take_errors() {
                         // TODO report them in a stream
+                        e.into_diagnostic(&handler).emit();
+                        has_errors = true
+                    }
+
+                    if has_errors {
+                        println!("{}", buf);
+                        buf.clear();
                     }
 
                     match parser.parse_module() {
-                        Err(_err) => {
+                        Err(e) => {
                             // TODO report in in a stream
+                            e.into_diagnostic(&handler).emit();
+                            println!("{}", buf);
                             ParseResult::Unparseable.into()
                         }
                         Ok(parsed_module) => ParseResult::Ok(parsed_module).into(),

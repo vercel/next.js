@@ -73,6 +73,15 @@ impl TurboTasks {
         task
     }
 
+    pub fn spawn_once_task(
+        &'static self,
+        functor: impl Future<Output = SlotRef> + Send + 'static,
+    ) -> Arc<Task> {
+        let task = Arc::new(Task::new_once(functor));
+        self.schedule(task.clone());
+        task
+    }
+
     fn cached_call<K: PartialEq + Hash, E>(
         &'static self,
         map: &CHashMap<K, Arc<Task>>,

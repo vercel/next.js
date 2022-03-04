@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use crate::{
     asset::AssetRef,
-    reference::{AssetReferenceRef, AssetReferencesSet, AssetReferencesSetRef},
+    module,
+    reference::{AssetReference, AssetReferenceRef, AssetReferencesSet, AssetReferencesSetRef},
+    resolve::{parse::RequestRef, resolve, resolve_options, ResolveResult, ResolveResultRef},
 };
 use swc_ecmascript::{
     ast::{
@@ -11,12 +13,13 @@ use swc_ecmascript::{
     },
     visit::{self, Visit, VisitWith},
 };
+use turbo_tasks_fs::FileSystemPathRef;
 
 use super::parse::{parse, ParseResult};
 
 #[turbo_tasks::function]
-pub async fn module_references(module: AssetRef) -> AssetReferencesSetRef {
-    let parsed = parse(module).await;
+pub async fn module_references(source: AssetRef) -> AssetReferencesSetRef {
+    let parsed = parse(source).await;
     match &*parsed {
         ParseResult::Ok(module) => {
             let mut visitor = AssetReferencesVisitor::default();
@@ -99,7 +102,8 @@ struct AssetReferencesVisitor {
 impl Visit for AssetReferencesVisitor {
     fn visit_import_decl(&mut self, import: &ImportDecl) {
         let src = import.src.value.to_string();
-        self.references.push(AssetReferenceRef::new(src.clone()));
+        self.references
+            .push(EsmAssetReferenceRef::new(src.clone()).into());
         visit::visit_import_decl(self, import);
         if import.type_only {
             return;
@@ -144,7 +148,7 @@ impl Visit for AssetReferencesVisitor {
                     let evaled_expr = self.analyser.evaluate_expr(&*expr);
                     match evaled_expr {
                         StaticExpr::String(str) => {
-                            self.references.push(AssetReferenceRef::new(str));
+                            self.references.push(EsmAssetReferenceRef::new(str).into());
                             return;
                         }
                         _ => todo!(),
@@ -159,7 +163,7 @@ impl Visit for AssetReferencesVisitor {
                             let evaled_expr = self.analyser.evaluate_expr(&*expr);
                             match evaled_expr {
                                 StaticExpr::String(str) => {
-                                    self.references.push(AssetReferenceRef::new(str));
+                                    self.references.push(EsmAssetReferenceRef::new(str).into());
                                     return;
                                 }
                                 _ => todo!(),
@@ -173,7 +177,7 @@ impl Visit for AssetReferencesVisitor {
                                 let evaled_expr = self.analyser.evaluate_expr(&*expr);
                                 match evaled_expr {
                                     StaticExpr::String(str) => {
-                                        self.references.push(AssetReferenceRef::new(str));
+                                        self.references.push(EsmAssetReferenceRef::new(str).into());
                                         return;
                                     }
                                     _ => todo!(),
@@ -188,5 +192,46 @@ impl Visit for AssetReferencesVisitor {
             },
         }
         visit::visit_call_expr(self, call);
+    }
+}
+
+#[turbo_tasks::value(shared, AssetReference)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq)]
+pub struct EsmAssetReference {
+    pub request: String,
+}
+
+#[turbo_tasks::value_impl]
+impl EsmAssetReference {
+    #[turbo_tasks::constructor(intern)]
+    pub fn new(request: String) -> Self {
+        Self { request }
+    }
+}
+
+#[turbo_tasks::function(request: resolved, context: resolved, return: resolved)]
+async fn esm_resolve(request: RequestRef, context: FileSystemPathRef) -> ResolveResultRef {
+    let options = resolve_options(context.clone());
+
+    let result = resolve(context, request, options);
+
+    match &*result.await {
+        ResolveResult::Module(m) => {
+            ResolveResult::Module(module(m.clone()).resolve_to_value().await).into()
+        }
+        ResolveResult::Unresolveable => ResolveResult::Unresolveable.into(),
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl AssetReference for EsmAssetReference {
+    fn resolve(&self, from: AssetRef) -> ResolveResultRef {
+        let input_request = self.request.clone();
+
+        let request = RequestRef::parse(input_request);
+
+        let context = from.path().parent();
+
+        esm_resolve(request, context)
     }
 }

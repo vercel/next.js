@@ -6,22 +6,63 @@ use std::{
     mem::swap,
 };
 
-use asset::{Asset, AssetRef, AssetsSet, AssetsSetRef};
+use asset::AssetRef;
 use graph::{aggregate, AggregatedGraphNodeContent, AggregatedGraphRef};
-use resolve::referenced_modules;
-use turbo_tasks_fs::{FileContentRef, FileSystemPathRef};
+use module_options::{
+    module_options, ModuleRuleCondition, ModuleRuleEffect, ModuleRuleEffectKey, ModuleType,
+};
 
 pub mod asset;
-mod ecmascript;
+pub mod ecmascript;
 mod graph;
+pub mod json;
+pub mod module;
+pub mod module_options;
+pub mod rebase;
 pub mod reference;
 pub mod resolve;
 pub mod source_asset;
 mod utils;
 
 #[turbo_tasks::function]
-pub async fn emit(input: AssetRef, input_dir: FileSystemPathRef, output_dir: FileSystemPathRef) {
-    let asset = nft_asset(input, input_dir, output_dir);
+pub async fn module(source: AssetRef) -> AssetRef {
+    let path = source.path();
+    let options = module_options(path.clone().parent());
+    let options = options.await;
+    let path_value = path.await;
+
+    let mut effects = HashMap::new();
+    for rule in options.rules.iter() {
+        if rule.conditions.iter().all(|c| match c {
+            ModuleRuleCondition::ResourcePathEndsWith(end) => path_value.path.ends_with(end),
+            _ => todo!("not implemented yet"),
+        }) {
+            for (key, effect) in rule.effects.iter() {
+                effects.insert(key, effect);
+            }
+        }
+    }
+    match effects
+        .get(&ModuleRuleEffectKey::ModuleType)
+        .map(|e| {
+            if let ModuleRuleEffect::ModuleType(ty) = e {
+                ty
+            } else {
+                &ModuleType::Ecmascript
+            }
+        })
+        .unwrap_or_else(|| &ModuleType::Ecmascript)
+    {
+        ModuleType::Ecmascript => ecmascript::ModuleAssetRef::new(&source).into(),
+        ModuleType::Json => json::ModuleAssetRef::new(&source).into(),
+        ModuleType::Raw => todo!(),
+        ModuleType::Css => todo!(),
+        ModuleType::Custom(_) => todo!(),
+    }
+}
+
+#[turbo_tasks::function]
+pub async fn emit(asset: AssetRef) {
     // emit_assets_recursive_avoid_cycle(asset, CycleDetectionRef::new());
     // emit_assets_aggregated(asset);
     emit_assets_recursive(asset);
@@ -48,7 +89,7 @@ async fn emit_aggregated_assets(aggregated: AggregatedGraphRef) {
     }
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(cycle)]
 async fn emit_assets_recursive(asset: AssetRef) {
     let assets_set = asset.references().await;
     emit_asset(asset);
@@ -103,56 +144,6 @@ async fn emit_assets_recursive_avoid_cycle(asset: AssetRef, cycle_detection: Cyc
             }
             emit_assets_recursive_avoid_cycle(ref_asset, new_cycle_detection.clone());
         }
-    }
-}
-
-#[turbo_tasks::function]
-pub async fn nft_asset(
-    source: AssetRef,
-    input_dir: FileSystemPathRef,
-    output_dir: FileSystemPathRef,
-) -> AssetRef {
-    let new_path = FileSystemPathRef::rebase(source.path(), input_dir.clone(), output_dir.clone());
-
-    NftAssetSource {
-        path: new_path,
-        source,
-        input_dir,
-        output_dir,
-    }
-    .into()
-}
-
-#[turbo_tasks::value(intern, Asset)]
-#[derive(Hash, PartialEq, Eq)]
-struct NftAssetSource {
-    path: FileSystemPathRef,
-    source: AssetRef,
-    input_dir: FileSystemPathRef,
-    output_dir: FileSystemPathRef,
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for NftAssetSource {
-    async fn path(&self) -> FileSystemPathRef {
-        self.path.clone()
-    }
-
-    async fn content(&self) -> FileContentRef {
-        self.source.path().read()
-    }
-
-    async fn references(&self) -> AssetsSetRef {
-        let input_references = referenced_modules(self.source.clone());
-        let mut assets = Vec::new();
-        for asset in input_references.await.assets.iter() {
-            assets.push(nft_asset(
-                asset.clone(),
-                self.input_dir.clone(),
-                self.output_dir.clone(),
-            ));
-        }
-        AssetsSet { assets }.into()
     }
 }
 
