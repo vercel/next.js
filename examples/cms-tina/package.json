@@ -4,6 +4,7 @@
     "dev": "next",
     "build": "next build",
     "start": "next start",
+    "lint": "next lint",
     "tina-dev": "yarn tinacms server:start -c \"next dev\"",
     "tina-build": "yarn tinacms server:start -c \"next build\"",
     "tina-start": "yarn tinacms server:start -c \"next start\""
