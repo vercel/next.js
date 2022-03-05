@@ -76,7 +76,6 @@ import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { clonableBodyForRequest } from './body-streams'
-import { KeyObject } from 'crypto'
 
 export * from './base-server'
 
