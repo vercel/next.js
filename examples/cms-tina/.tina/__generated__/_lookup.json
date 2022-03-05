@@ -2,9 +2,7 @@
   "DocumentConnection": {
     "type": "DocumentConnection",
     "resolveType": "multiCollectionDocumentList",
-    "collections": [
-      "posts"
-    ]
+    "collections": ["posts"]
   },
   "Node": {
     "type": "Node",

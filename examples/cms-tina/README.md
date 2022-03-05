@@ -53,7 +53,7 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 Tina is git backed and uses markdown, JSON or MDX to power websites. To enter edit mode locally you just need to visit [http://localhost:3000/admin](http://localhost:3000/admin)
 
-You can then select the collection "Blog Posts" and then the content you would like to edit. 
+You can then select the collection "Blog Posts" and then the content you would like to edit.
 
 Once you hit save, Tina will use our graphQL modify the content on your filesystem.
 
@@ -68,7 +68,7 @@ To deploy your local project to Vercel, push it to GitHub. Once you have pushed 
 1. Select new project
 2. Select Import your site
 3. Follow steps to connect your GitHub repo.
-4. Copy your Client ID 
+4. Copy your Client ID
 
 Then [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
