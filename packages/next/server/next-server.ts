@@ -76,6 +76,7 @@ import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { clonableBodyForRequest } from './body-streams'
+import { KeyObject } from 'crypto'
 
 export * from './base-server'
 
@@ -1140,6 +1141,8 @@ export default class NextNodeServer extends BaseServer {
             parsedDestination.query
           )
 
+          this.copyAllowedHeaders(result, req)
+
           if (
             parsedDestination.protocol &&
             (parsedDestination.port
@@ -1190,6 +1193,37 @@ export default class NextNodeServer extends BaseServer {
         }
       },
     }
+  }
+
+  reservedProxyHeaders: { [key: string]: boolean } = {
+    'x-forwarded-host': true,
+    'x-forwarded-proto': true,
+    'x-forwarded-port': true,
+    'x-forwarded-for': true,
+    'sec-fetch-dest': true,
+    'sec-fetch-user': true,
+    'sec-fetch-mode': true,
+    'sec-fetch-site': true,
+    'sec-ch-ua-platform': true,
+    'sec-ch-ua-mobile': true,
+    'sec-ch-ua': true,
+    'upgrade-insecure-requests': true,
+    connection: true,
+    cookie: true,
+    host: true,
+  }
+
+  private copyAllowedHeaders(
+    result: FetchEventResult,
+    request: BaseNextRequest<any>
+  ) {
+    result.response.headers.forEach((value, key) => {
+      if (this.reservedProxyHeaders[key]) {
+        return
+      }
+
+      request.headers[key] = value
+    })
   }
 
   protected getMiddleware() {
