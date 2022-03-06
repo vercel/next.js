@@ -1,4 +1,4 @@
-import { useContext, useState, createContext, useEffect } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
 interface Theme {
   value: string
@@ -15,25 +15,24 @@ export const ThemeProvider = ({ children }: any) => {
     setTheme(getTheme())
   }, [])
 
-  return (
-    <ThemeContext.Provider
-      value={{
-        value: theme,
-        toggle: () => setTheme(toggleTheme(theme)),
-      }}
-    >
-      {children}
-    </ThemeContext.Provider>
+  const value = useMemo(
+    () => ({
+      value: theme,
+      toggle: () => setTheme(toggleTheme(theme)),
+    }),
+    [theme]
   )
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }
 
 const useLocalStorage = (theme?: string) => {
   if (theme) {
-    localStorage.setItem('theme', JSON.stringify(theme))
+    localStorage.setItem('theme', theme)
     return theme
   }
-  const jsonValue = localStorage.getItem('theme')
-  if (jsonValue) return JSON.parse(jsonValue)
+  const themeValue = localStorage.getItem('theme')
+  if (themeValue) return themeValue
   return ''
 }
 
