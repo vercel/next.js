@@ -39,21 +39,26 @@ The following steps outline how to setup `@next/mdx` in your Next.js project:
 2. Require the package and configure to support top level `.mdx` pages. The following adds the `options` object key allowing you to pass in any plugins:
 
    ```js
-   // next.config.js
+     // next.config.mjs
 
-   const withMDX = require('@next/mdx')({
-     extension: /\.mdx?$/,
-     options: {
-       remarkPlugins: [],
-       rehypePlugins: [],
-       // If you use `MDXProvider`, uncomment the following line.
-       // providerImportSource: "@mdx-js/react",
-     },
-   })
-   module.exports = withMDX({
-     // Append the default value with md extensions
-     pageExtensions: ['ts', 'tsx', 'js', 'jsx', 'md', 'mdx'],
-   })
+    import nextMdx from '@next/mdx'
+    import remarkFrontmatter from 'remark-frontmatter'
+
+    const withMDX = nextMdx({
+      extension: /\.mdx?$/,
+      options: {
+        remarkPlugins: [],
+        rehypePlugins: []
+        // If you use `MDXProvider`, uncomment the following line.
+        // providerImportSource: "@mdx-js/react",
+      }
+    })
+
+    export default withMDX({
+      // Append the default value with md extensions
+      pageExtensions: ['ts', 'tsx', 'js', 'jsx', 'md', 'mdx']
+    })
+
    ```
 
 3. Create a new MDX page within the `/pages` directory:
@@ -86,42 +91,155 @@ Checkout my React component:
 
 ### Frontmatter
 
-Frontmatter is a YAML like key/value pairing that can be used to store data about a page. `@next/mdx` does **not** support frontmatter by default, though there are many solutions for adding frontmatter to your MDX content, such as [gray-matter](https://github.com/jonschlinkert/gray-matter).
+Frontmatter is a YAML like key/value pairing that can be used to store data about a page. `@next/mdx` does **not** support frontmatter by default, though there are many solutions for adding frontmatter to your MDX content, such as [gray-matter](https://github.com/jonschlinkert/gray-matter) and [remark-frontmatter](https://github.com/remarkjs/remark-frontmatter). 
 
-To access page metadata with `@next/mdx`, you can export a meta object from within the `.mdx` file:
+You can use them in two contexts:
+- for getting the list of all pages
+- for compiling a `.mdx` page
 
-```md
-export const meta = {
-author: 'Rich Haines'
+
+
+#### List all mdx pages
+The common use case is to pass the list of all pages to `getStaticProps`. For example to dispaly blog posts with title, date and author on home page. To get this data without compiling MDX page (which might be slow for a big number of pages), you can use `gray-matter`.
+
+
+Example from [blog-starter-typescript](https://github.com/vercel/next.js/blob/canary/examples/blog-starter-typescript/lib/api.ts):
+
+```typescript
+import matter from 'gray-matter'
+
+...
+
+export function getPostBySlug (slug: string, fields: string[] = []) {
+  const realSlug = slug.replace(/\.mdx$/, '')
+  const fullPath = join(postsDirectory, `${realSlug}.mdx`)
+  const fileContents = fs.readFileSync(fullPath, 'utf8')
+  const fileMatter = matter(fileContents)
+  const { data, content } = fileMatter
+
+  type Items = {
+    [key: string]: string
+  }
+
+  const items: Items = {}
+
+  // Ensure only the minimal needed data is exposed
+  fields.forEach(field => {
+    if (field === 'slug') {
+      items[field] = realSlug
+    }
+    if (field === 'content') {
+      items[field] = content
+    }
+
+    if (typeof data[field] !== 'undefined') {
+      items[field] = data[field]
+    }
+  })
+
+  return items
 }
 
-# My MDX page
+```
+
+
+
+#### Compile MDX page
+In order to compile MDX page with `@next/mdx` and handle `frontmatter` data we need to configure two plugins:
+- [remark-frontmatter](https://github.com/remarkjs/remark-frontmatter)
+- [remark-mdx-frontmatter](https://github.com/remcohaszing/remark-mdx-frontmatter)
+
+```javascript
+// next.config.mjs
+
+import nextMdx from '@next/mdx'
+import remarkFrontmatter from 'remark-frontmatter'
+import { remarkMdxFrontmatter } from 'remark-mdx-frontmatter'
+
+const withMDX = nextMdx({
+  extension: /\.mdx?$/,
+  options: {
+    remarkPlugins: [
+      remarkFrontmatter,
+      [remarkMdxFrontmatter, { name: 'meta' }]
+    ],
+    rehypePlugins: []
+  }
+})
+
+export default withMDX({
+  pageExtensions: ['ts', 'tsx', 'js', 'jsx', 'md', 'mdx']
+})
+
+```
+
+With this configuration `frontmatter` data are extracted to variable passed to `name` option of `remarkMdxFrontmatter` plugin (_meta_ in our case) and can be easily accessed from _inside_ a MDX page. It might be super handy to pass the entire object to Layout component in the next section.
+
+```md
+---
+title: 'My MDX page'
+author: 'John Doe'
+---
+
+# Page tile: {meta.title}
+
+<Author name={meta.author} />
 ```
 
 ### Layouts
 
-To add a layout to your MDX page, create a new component and import it into the MDX page. Then you can wrap the MDX page with your layout component:
+To add a layout to your MDX page, create a new component and import it into the MDX page. Then you can wrap the MDX page with your layout component.
 
-```md
-import { MyComponent, MyLayoutComponent } from 'my-components'
+```
+layout.js
 
-export const meta = {
-author: 'Rich Haines'
+import Meta from './meta'
+import Header from './header'
+import Footer from './footer'
+
+const Layout = (props) => {
+  return (
+    <>
+      <Meta title={props.title} />
+      <Header>{props.title}</Header>
+      <Author name={props.author}
+      <main>{props.children}</main>
+      <Footer />
+    </>
+  )
 }
 
-# My MDX Page with a Layout
+export default Layout
 
-This is a list in markdown:
 
-- One
-- Two
-- Three
+```
 
-Checkout my React component:
+With `frontmatter` based on the above configuration:
+```md
+---
+title: 'My MDX page'
+author: 'John Doe'
+---
 
-<MyComponent/>
+import Layout from './layout'
 
-export default ({ children }) => <MyLayoutComponent meta={meta}>{children}</MyLayoutComponent>
+...
+
+export default ({ children }) => <Layout {...meta}>{children}</Layout>
+```
+
+Without `frontmatter`:
+```md
+import Layout from './layout'
+
+export const meta = {
+  title: 'My MDX page'
+  author: 'John Doe'
+}
+
+...
+
+export default ({ children }) => <Layout {...meta}>{children}</Layout>
 ```
 
 ### Custom Elements
