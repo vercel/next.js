@@ -1092,10 +1092,16 @@ export default class NextNodeServer extends BaseServer {
 
         result.response.headers.delete('x-middleware-next')
 
+        const MIDDLEWARE_REQUEST_HEADER_PREFIX = 'x-middleware-proxy-'
+
         for (const [key, value] of Object.entries(
           toNodeHeaders(result.response.headers)
         )) {
-          if (key !== 'content-encoding' && value !== undefined) {
+          if (
+            key !== 'content-encoding' &&
+            !key.startsWith(MIDDLEWARE_REQUEST_HEADER_PREFIX) &&
+            value !== undefined
+          ) {
             res.setHeader(key, value)
           }
         }
@@ -1140,16 +1146,44 @@ export default class NextNodeServer extends BaseServer {
             parsedDestination.query
           )
 
-          this.copyAllowedHeaders(result, req)
-
           if (
             parsedDestination.protocol &&
             (parsedDestination.port
               ? `${parsedDestination.hostname}:${parsedDestination.port}`
               : parsedDestination.hostname) !== req.headers.host
           ) {
+            const nodeReq = req as NodeNextRequest
+
+            for (const [key, value] of Object.entries(
+              toNodeHeaders(result.response.headers)
+            )) {
+              if (key && key.startsWith(MIDDLEWARE_REQUEST_HEADER_PREFIX)) {
+                const originalKey = key.substring(
+                  MIDDLEWARE_REQUEST_HEADER_PREFIX.length
+                )
+
+                if (originalKey.startsWith('x-middleware')) {
+                  Log.warn(
+                    `invalid header "${originalKey}". The x-middleware header prefix is reserved by next.js`
+                  )
+                  continue
+                }
+
+                if (this.reservedProxyHeaders[originalKey]) {
+                  Log.warn(`the header "${originalKey}" is reserved by next.js`)
+                  continue
+                }
+
+                if (value === undefined) {
+                  continue
+                }
+
+                nodeReq.headers[originalKey] = value
+              }
+            }
+
             return this.proxyRequest(
-              req as NodeNextRequest,
+              nodeReq,
               res as NodeNextResponse,
               parsedDestination
             )
@@ -1210,19 +1244,6 @@ export default class NextNodeServer extends BaseServer {
     connection: true,
     cookie: true,
     host: true,
-  }
-
-  private copyAllowedHeaders(
-    result: FetchEventResult,
-    request: BaseNextRequest<any>
-  ) {
-    result.response.headers.forEach((value, key) => {
-      if (this.reservedProxyHeaders[key]) {
-        return
-      }
-
-      request.headers[key] = value
-    })
   }
 
   protected getMiddleware() {

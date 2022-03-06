@@ -79,4 +79,23 @@ export async function middleware(request) {
     response.headers.set('x-middleware-cache', 'no-cache')
     return response
   }
+
+  if (url.pathname.startsWith('/rewrites/pass-headers')) {
+    url.pathname = '/rewrites/print-headers'
+    url.hostname = '127.0.0.1'
+    const response = NextResponse.rewrite(url)
+    response.headers.set(
+      'x-middleware-proxy-authorization',
+      'Bearer my-access-token'
+    )
+    response.headers.set(
+      'x-middleware-proxy-x-middleware-forbidden-header',
+      'should-not-be-sent-to-origin'
+    )
+    response.headers.set(
+      'x-middleware-proxy-x-forwarded-host',
+      'filter.x-forwarded.com'
+    )
+    return response
+  }
 }

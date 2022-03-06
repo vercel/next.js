@@ -49,6 +49,9 @@ export default function Home() {
       >
         Do not rewrite me
       </a>
+      <Link href="/rewrites/pass-headers">
+        <a id="pass-headers">Pass headers to rewritten URL</a>
+      </Link>
     </div>
   )
 }

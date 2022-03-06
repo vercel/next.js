@@ -499,6 +499,23 @@ function rewriteTests(log, locale = '') {
       await browser.waitForElementByCss('.refreshed', 500)
     }).rejects.toThrow()
   })
+
+  // eslint-disable-next-line jest/no-focused-tests
+  it(`${locale} should pass headers`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/pass-headers`
+    )
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    const headers = JSON.parse($('#my-headers').text())
+
+    expect(headers).toMatchObject({
+      authorization: 'Bearer my-access-token',
+      'x-forwarded-host': `localhost:${context.appPort}`,
+    })
+    expect(Object.keys(headers)).not.toContain('x-middleware-forbidden-header')
+  })
 }
 
 function redirectTests(locale = '') {
