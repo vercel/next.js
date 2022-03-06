@@ -74,6 +74,8 @@ Public methods are available on an instance of the `NextResponse` class. Dependi
 - `cookies` - An object with the cookies in the `Response`
 - `cookie()` - Set a cookie in the `Response`
 - `clearCookie()` - Accepts a `cookie` and clears it
+- `requestHeader()` - Set a header in a proxied middleware request
+- `clearRequestHeader()` - Accepts a header and clears it
 
 ```ts
 import { NextResponse } from 'next/server'
@@ -149,6 +151,25 @@ import type { NextRequest } from 'next/server'
 export function middleware(req: NextRequest) {
   const res = NextResponse.redirect('/') // creates an actual instance
   res.cookie('hello', 'world') // can be called on an instance
+  return res
+}
+```
+
+### Sending a request header to an external origin via rewrite
+
+You might want to send additional headers to an external origin that is proxied by your middleware. For example, sending a an API key to your secure API.
+
+Create an instance of `NextResponse`, then access the `requestHeader()` method before returning the response
+
+Note that additional request headers are only sent to external origins. When rewriting to a relative path on the same domain, additinoal headers are not sent.
+
+```ts
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export async function middleware(request: NextRequest) {
+  const res = NextResponse.rewrite('https://my-origin-server.com')
+  res.requestHeader('authorization', 'Bearer my-access-token') // the header will be passed to the origin server
   return res
 }
 ```

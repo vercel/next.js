@@ -67,6 +67,16 @@ export class NextResponse extends Response {
     return this.cookie(name, '', { expires: new Date(1), path: '/', ...opts })
   }
 
+  public requestHeader(name: string, value: string) {
+    this.headers.set(`x-middleware-proxy-${name}`, value)
+    return this
+  }
+
+  public clearRequestHeader(name: string) {
+    this.headers.delete(`x-middleware-proxy-${name}`)
+    return this
+  }
+
   static json(body: any) {
     return new NextResponse(JSON.stringify(body), {
       headers: { 'content-type': 'application/json' },

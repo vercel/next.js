@@ -1164,13 +1164,15 @@ export default class NextNodeServer extends BaseServer {
 
                 if (originalKey.startsWith('x-middleware')) {
                   Log.warn(
-                    `invalid header "${originalKey}". The x-middleware header prefix is reserved by next.js`
+                    `invalid header "${originalKey}". The x-middleware header prefix is reserved by next.js - https://nextjs.org/docs/messages/invalid-middleware-header`
                   )
                   continue
                 }
 
                 if (this.reservedProxyHeaders[originalKey]) {
-                  Log.warn(`the header "${originalKey}" is reserved by next.js`)
+                  Log.warn(
+                    `the header "${originalKey}" is reserved by next.js - https://nextjs.org/docs/messages/invalid-middleware-header`
+                  )
                   continue
                 }
 

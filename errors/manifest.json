@@ -637,6 +637,10 @@
         {
           "title": "client-flush-effects",
           "path": "/errors/client-flush-effects.md"
+        },
+        {
+          "title": "invalid-middleware-header",
+          "path": "/errors/invalid-middleware-header.md"
         }
       ]
     }

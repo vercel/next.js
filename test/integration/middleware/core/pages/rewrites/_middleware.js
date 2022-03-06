@@ -84,18 +84,12 @@ export async function middleware(request) {
     url.pathname = '/rewrites/print-headers'
     url.hostname = '127.0.0.1'
     const response = NextResponse.rewrite(url)
-    response.headers.set(
-      'x-middleware-proxy-authorization',
-      'Bearer my-access-token'
-    )
-    response.headers.set(
-      'x-middleware-proxy-x-middleware-forbidden-header',
+    response.requestHeader('authorization', 'Bearer my-access-token')
+    response.requestHeader(
+      'x-middleware-forbidden-header',
       'should-not-be-sent-to-origin'
     )
-    response.headers.set(
-      'x-middleware-proxy-x-forwarded-host',
-      'filter.x-forwarded.com'
-    )
+    response.requestHeader('x-forwarded-host', 'filter.x-forwarded.com')
     return response
   }
 }
