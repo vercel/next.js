@@ -457,7 +457,7 @@ module.exports = {
 
 ### Animated Images
 
-The default [loader](#loader) will automatically bypass Image Optimization for animated images and serve it as-is, since converting all the frames of an animated image on-demand is too slow.
+The default [loader](#loader) will automatically bypass Image Optimization for animated images and serve the image as-is.
 
 Auto-detection for animated files is best-effort and supports GIF, APNG, and WebP. If you want to explicitly bypass Image Optimization for a given animated image, use the [unoptimized](#unoptimized) prop.
 
