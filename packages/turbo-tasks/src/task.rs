@@ -448,11 +448,11 @@ impl Task {
         }
     }
 
-    pub(crate) fn dependent_slot_updated(self: &Arc<Self>, turbo_tasks: &Arc<TurboTasks>) {
+    pub(crate) fn dependent_slot_updated(self: &Arc<Self>, turbo_tasks: Arc<TurboTasks>) {
         self.make_dirty(turbo_tasks);
     }
 
-    fn make_dirty(self: &Arc<Self>, turbo_tasks: &Arc<TurboTasks>) {
+    fn make_dirty(self: &Arc<Self>, turbo_tasks: Arc<TurboTasks>) {
         self.clear_dependencies();
 
         let mut state = self.state.write().unwrap();
@@ -605,7 +605,7 @@ impl Task {
         }
     }
 
-    fn invaldate(self: &Arc<Self>, turbo_tasks: &Arc<TurboTasks>) {
+    fn invaldate(self: &Arc<Self>, turbo_tasks: Arc<TurboTasks>) {
         self.make_dirty(turbo_tasks)
     }
 
@@ -816,7 +816,7 @@ pub struct Invalidator {
 impl Invalidator {
     pub fn invalidate(self) {
         if let Some(task) = self.task.upgrade() {
-            task.invaldate(&self.turbo_tasks);
+            task.invaldate(self.turbo_tasks);
         }
     }
 }

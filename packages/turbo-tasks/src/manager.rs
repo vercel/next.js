@@ -65,20 +65,20 @@ impl TurboTasks {
     }
 
     pub fn spawn_root_task(
-        self: Arc<Self>,
+        self: &Arc<Self>,
         functor: impl Fn() -> NativeTaskFuture + Sync + Send + 'static,
     ) -> Arc<Task> {
         let task = Arc::new(Task::new_root(functor));
-        self.schedule(task.clone());
+        self.clone().schedule(task.clone());
         task
     }
 
     pub fn spawn_once_task(
-        self: Arc<Self>,
+        self: &Arc<Self>,
         functor: impl Future<Output = SlotRef> + Send + 'static,
     ) -> Arc<Task> {
         let task = Arc::new(Task::new_once(functor));
-        self.schedule(task.clone());
+        self.clone().schedule(task.clone());
         task
     }
 
@@ -178,13 +178,13 @@ impl TurboTasks {
             .spawn(async move {
                 if task.execution_started(&self) {
                     Task::set_current(task.clone());
-                    let tt = Arc::clone(&self);
+                    let tt = self.clone();
                     TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(tt));
                     let result = task.execute(self.clone()).await;
                     task.execution_result(result);
                     TASKS_TO_NOTIFY.with(|tasks| {
                         for task in tasks.take().iter() {
-                            task.dependent_slot_updated(&self);
+                            task.dependent_slot_updated(self.clone());
                         }
                     });
                     task.execution_completed(self.clone());
@@ -206,7 +206,7 @@ impl TurboTasks {
             .unwrap()
     }
 
-    pub async fn wait_done(&'static self) -> (Duration, usize) {
+    pub async fn wait_done(self: &Arc<Self>) -> (Duration, usize) {
         self.event.listen().await;
         self.last_update.lock().unwrap().unwrap()
     }
@@ -245,14 +245,14 @@ impl TurboTasks {
     }
 
     pub(crate) fn schedule_deactivate_tasks(self: &Arc<Self>, tasks: Vec<Arc<Task>>) {
-        let tt = Arc::clone(self);
+        let tt = self.clone();
         self.clone().schedule_background_job(async move {
             Task::deactivate_tasks(tasks, tt);
         });
     }
 
     pub(crate) fn schedule_remove_tasks(self: &Arc<Self>, tasks: HashSet<Arc<Task>>) {
-        let tt = Arc::clone(self);
+        let tt = self.clone();
         self.clone().schedule_background_job(async move {
             Task::remove_tasks(tasks, tt);
         });
