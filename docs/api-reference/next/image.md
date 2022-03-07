@@ -408,7 +408,7 @@ The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](
 
 - You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `Cache-Control` header or the value is very low.
 - You can configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
-- You can configure [formats](/docs/basic-features/image-optimization.md#acceptable-formats) to disable multiple formats in favor of a single image format.
+- You can configure [formats](#acceptable-formats) to disable multiple formats in favor of a single image format.
 
 ### Minimum Cache TTL
 
@@ -454,6 +454,12 @@ module.exports = {
   },
 }
 ```
+
+### Animated Images
+
+The default [loader](#loader) will automatically bypass Image Optimization for animated images and serve it as-is, since converting all the frames of an animated image on-demand is too slow.
+
+Auto-detection for animated files is best-effort and supports GIF, APNG, and WebP. If you want to explicitly bypass Image Optimization for a given animated image, use the [unoptimized](#unoptimized) prop.
 
 ## Related
 
