@@ -1,6 +1,6 @@
 use std::{
     any::{Any, TypeId},
-    cell::Cell,
+    cell::{Cell, RefCell},
     collections::HashSet,
     future::Future,
     hash::Hash,
@@ -40,7 +40,7 @@ pub struct TurboTasks {
 }
 
 task_local! {
-    static TURBO_TASKS: Cell<Option<&'static TurboTasks>> = Cell::new(None);
+    static TURBO_TASKS: RefCell<Option<Arc<TurboTasks>>> = RefCell::new(None);
     static TASKS_TO_NOTIFY: Cell<Vec<Arc<Task>>> = Default::default();
 }
 
@@ -126,7 +126,7 @@ impl TurboTasks {
     }
 
     pub(crate) fn native_call(
-        self: &'static TurboTasks,
+        self: Arc<Self>,
         func: &'static NativeFunction,
         inputs: Vec<SlotRef>,
     ) -> Result<SlotRef> {
@@ -137,7 +137,7 @@ impl TurboTasks {
     }
 
     pub fn dynamic_call(
-        self: &'static TurboTasks,
+        self: Arc<Self>,
         func: &'static NativeFunction,
         inputs: Vec<SlotRef>,
     ) -> Result<SlotRef> {
@@ -151,7 +151,7 @@ impl TurboTasks {
     }
 
     pub fn trait_call(
-        self: &'static TurboTasks,
+        self: Arc<Self>,
         trait_type: &'static TraitType,
         trait_fn_name: String,
         inputs: Vec<SlotRef>,
@@ -176,17 +176,18 @@ impl TurboTasks {
             // that's expensive
             // .name(format!("{:?} {:?}", &*task, &*task as *const Task))
             .spawn(async move {
-                if task.execution_started(self) {
+                if task.execution_started(&self) {
                     Task::set_current(task.clone());
-                    TURBO_TASKS.with(|c| c.set(Some(self)));
-                    let result = task.execute(self).await;
+                    let tt = self.clone();
+                    TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(tt));
+                    let result = task.execute(self.clone()).await;
                     task.execution_result(result);
                     TASKS_TO_NOTIFY.with(|tasks| {
                         for task in tasks.take().iter() {
-                            task.dependent_slot_updated(self);
+                            task.dependent_slot_updated(&self);
                         }
                     });
-                    task.execution_completed(self);
+                    task.execution_completed(&self);
                 }
                 if self
                     .currently_scheduled_tasks
@@ -210,8 +211,8 @@ impl TurboTasks {
         self.last_update.lock().unwrap().unwrap()
     }
 
-    pub(crate) fn current() -> Option<&'static Self> {
-        TURBO_TASKS.with(|c| c.get())
+    pub(crate) fn current() -> Option<Arc<Self>> {
+        TURBO_TASKS.with(|c| (*c.borrow()).clone())
     }
 
     pub(crate) fn schedule_background_job(
@@ -220,7 +221,7 @@ impl TurboTasks {
     ) {
         Builder::new()
             .spawn(async move {
-                TURBO_TASKS.with(|c| c.set(Some(self)));
+                TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(self));
                 if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
                     let listener = self.event.listen();
                     if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {

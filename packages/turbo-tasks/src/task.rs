@@ -288,7 +288,7 @@ impl Task {
         }
     }
 
-    pub(crate) fn execution_started(self: &Arc<Task>, turbo_tasks: Arc<TurboTasks>) -> bool {
+    pub(crate) fn execution_started(self: &Arc<Task>, turbo_tasks: &Arc<TurboTasks>) -> bool {
         let mut state = self.state.write().unwrap();
         if !state.active {
             return false;
@@ -339,7 +339,7 @@ impl Task {
         };
     }
 
-    pub(crate) fn execution_completed(self: Arc<Self>, turbo_tasks: Arc<TurboTasks>) {
+    pub(crate) fn execution_completed(self: Arc<Self>, turbo_tasks: &Arc<TurboTasks>) {
         PREVIOUS_NODES.with(|cell| {
             let mut execution_data = self.execution_data.lock().unwrap();
             Cell::from_mut(&mut execution_data.previous_nodes).swap(cell);
@@ -448,11 +448,11 @@ impl Task {
         }
     }
 
-    pub(crate) fn dependent_slot_updated(self: &Arc<Self>, turbo_tasks: Arc<TurboTasks>) {
+    pub(crate) fn dependent_slot_updated(self: &Arc<Self>, turbo_tasks: &Arc<TurboTasks>) {
         self.make_dirty(turbo_tasks);
     }
 
-    fn make_dirty(self: &Arc<Self>, turbo_tasks: Arc<TurboTasks>) {
+    fn make_dirty(self: &Arc<Self>, turbo_tasks: &Arc<TurboTasks>) {
         self.clear_dependencies();
 
         let mut state = self.state.write().unwrap();
@@ -605,7 +605,7 @@ impl Task {
         }
     }
 
-    fn invaldate(self: &Arc<Self>, turbo_tasks: Arc<TurboTasks>) {
+    fn invaldate(self: &Arc<Self>, turbo_tasks: &Arc<TurboTasks>) {
         self.make_dirty(turbo_tasks)
     }
 
@@ -816,7 +816,7 @@ pub struct Invalidator {
 impl Invalidator {
     pub fn invalidate(self) {
         if let Some(task) = self.task.upgrade() {
-            task.invaldate(self.turbo_tasks);
+            task.invaldate(&self.turbo_tasks);
         }
     }
 }
