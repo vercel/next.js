@@ -126,7 +126,7 @@ impl TurboTasks {
     }
 
     pub(crate) fn native_call(
-        self: Arc<Self>,
+        self: &Arc<Self>,
         func: &'static NativeFunction,
         inputs: Vec<SlotRef>,
     ) -> Result<SlotRef> {
@@ -137,7 +137,7 @@ impl TurboTasks {
     }
 
     pub fn dynamic_call(
-        self: Arc<Self>,
+        self: &Arc<Self>,
         func: &'static NativeFunction,
         inputs: Vec<SlotRef>,
     ) -> Result<SlotRef> {
@@ -151,7 +151,7 @@ impl TurboTasks {
     }
 
     pub fn trait_call(
-        self: Arc<Self>,
+        self: &Arc<Self>,
         trait_type: &'static TraitType,
         trait_fn_name: String,
         inputs: Vec<SlotRef>,
