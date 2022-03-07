@@ -1,8 +1,6 @@
 import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
-import { stringify } from 'querystring'
-import semver from 'next/dist/compiled/semver'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import path, { join as pathJoin, relative as relativePath } from 'path'
@@ -15,7 +13,6 @@ import {
   MIDDLEWARE_ROUTE,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
-import { getPackageVersion } from '../lib/get-package-version'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -52,6 +49,8 @@ import type { Span } from '../trace'
 import { getRawPageExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
+import { shouldUseReactRoot } from '../server/config'
+import { getMiddlewareSourceMapPlugins } from './webpack/plugins/middleware-source-maps-plugin'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -86,6 +85,7 @@ const devtoolRevertWarning = execOnce(
 )
 
 let loggedSwcDisabled = false
+let loggedIgnoredCompilerOptions = false
 
 function getOptimizedAliases(): { [pkg: string]: string } {
   const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch', 'index.js')
@@ -336,21 +336,7 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
   const hasReactRefresh: boolean = dev && !isServer
-  const reactDomVersion = await getPackageVersion({
-    cwd: dir,
-    name: 'react-dom',
-  })
-  const isReactExperimental = Boolean(
-    reactDomVersion && /0\.0\.0-experimental/.test(reactDomVersion)
-  )
-  const hasReact18: boolean =
-    Boolean(reactDomVersion) &&
-    (semver.gte(reactDomVersion!, '18.0.0') ||
-      semver.coerce(reactDomVersion)?.version === '18.0.0')
-
-  const hasReactRoot: boolean =
-    config.experimental.reactRoot || hasReact18 || isReactExperimental
-
+  const hasReactRoot = shouldUseReactRoot()
   const runtime = config.experimental.runtime
 
   // Make sure reactRoot is enabled when react 18 is detected
@@ -359,11 +345,7 @@ export default async function getBaseWebpackConfig(
   }
 
   // Only inform during one of the builds
-  if (
-    !isServer &&
-    config.experimental.reactRoot &&
-    !(hasReact18 || isReactExperimental)
-  ) {
+  if (!isServer && config.experimental.reactRoot && !hasReactRoot) {
     // It's fine to only mention React 18 here as we don't recommend people to try experimental.
     Log.warn('You have to use React 18 to use `experimental.reactRoot`.')
   }
@@ -434,6 +416,13 @@ export default async function getBaseWebpackConfig(
       )}" https://nextjs.org/docs/messages/swc-disabled`
     )
     loggedSwcDisabled = true
+  }
+
+  if (!loggedIgnoredCompilerOptions && !useSWCLoader && config.compiler) {
+    Log.info(
+      '`compiler` options in `next.config.js` will be ignored while using Babel https://next.js.org/docs/messages/ignored-compiler-options'
+    )
+    loggedIgnoredCompilerOptions = true
   }
 
   const getBabelOrSwcLoader = (isMiddleware: boolean) => {
@@ -802,11 +791,6 @@ export default async function getBaseWebpackConfig(
             minChunks: 1,
             reuseExistingChunk: true,
           },
-          commons: {
-            name: 'commons',
-            minChunks: totalPages,
-            priority: 20,
-          },
           middleware: {
             chunks: (chunk: webpack.compilation.Chunk) =>
               chunk.name?.match(MIDDLEWARE_ROUTE),
@@ -1162,6 +1146,7 @@ export default async function getBaseWebpackConfig(
         'noop-loader',
         'next-middleware-loader',
         'next-middleware-ssr-loader',
+        'next-middleware-wasm-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1195,10 +1180,11 @@ export default async function getBaseWebpackConfig(
                 ...codeCondition,
                 test: serverComponentsRegex,
                 use: {
-                  loader: `next-flight-server-loader?${stringify({
+                  loader: 'next-flight-server-loader',
+                  options: {
                     client: 1,
-                    pageExtensions: JSON.stringify(rawPageExtensions),
-                  })}`,
+                    pageExtensions: rawPageExtensions,
+                  },
                 },
               },
             ]
@@ -1210,22 +1196,16 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 ...codeCondition,
-                test: serverComponentsRegex,
                 use: {
-                  loader: `next-flight-server-loader?${stringify({
-                    pageExtensions: JSON.stringify(rawPageExtensions),
-                  })}`,
+                  loader: 'next-flight-server-loader',
+                  options: {
+                    pageExtensions: rawPageExtensions,
+                  },
                 },
               },
               {
-                ...codeCondition,
-                test: clientComponentsRegex,
-                use: {
-                  loader: 'next-flight-client-loader',
-                },
-              },
-              {
-                test: /next[\\/](dist[\\/]client[\\/])?(link|image)/,
+                test: codeCondition.test,
+                resourceQuery: /__sc_client__/,
                 use: {
                   loader: 'next-flight-client-loader',
                 },
@@ -1288,6 +1268,12 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
+      ...(!dev &&
+      !isServer &&
+      !!config.experimental.middlewareSourceMaps &&
+      !config.productionBrowserSourceMaps
+        ? getMiddlewareSourceMapPlugins()
+        : []),
       hasReactRefresh && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       targetWeb &&
@@ -1356,9 +1342,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_RSC': JSON.stringify(hasServerComponents),
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
           config.optimizeFonts && !dev
-        ),
-        'process.env.__NEXT_OPTIMIZE_IMAGES': JSON.stringify(
-          config.experimental.optimizeImages
         ),
         'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
           config.experimental.optimizeCss && !dev
@@ -1517,6 +1500,18 @@ export default async function getBaseWebpackConfig(
           new Map([
             ['swcLoader', useSWCLoader],
             ['swcMinify', config.swcMinify],
+            ['swcRelay', !!config.compiler?.relay],
+            ['swcStyledComponents', !!config.compiler?.styledComponents],
+            [
+              'swcReactRemoveProperties',
+              !!config.compiler?.reactRemoveProperties,
+            ],
+            [
+              'swcExperimentalDecorators',
+              !!jsConfig?.compilerOptions?.experimentalDecorators,
+            ],
+            ['swcRemoveConsole', !!config.compiler?.removeConsole],
+            ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
           ])
         ),
     ].filter(Boolean as any as ExcludesFalse),
@@ -1534,6 +1529,14 @@ export default async function getBaseWebpackConfig(
   }
 
   const webpack5Config = webpackConfig as webpack5.Configuration
+
+  webpack5Config.module?.rules?.unshift({
+    test: /\.wasm$/,
+    issuerLayer: 'middleware',
+    loader: 'next-middleware-wasm-loader',
+    type: 'javascript/auto',
+    resourceQuery: /module/i,
+  })
 
   webpack5Config.experiments = {
     layers: true,
@@ -1595,7 +1598,12 @@ export default async function getBaseWebpackConfig(
     if (!webpack5Config.optimization) {
       webpack5Config.optimization = {}
     }
-    webpack5Config.optimization.providedExports = false
+
+    // For Server Components, it's necessary to have provided exports collected
+    // to generate the correct flight manifest.
+    if (!hasServerComponents) {
+      webpack5Config.optimization.providedExports = false
+    }
     webpack5Config.optimization.usedExports = false
   }
 
@@ -1610,7 +1618,6 @@ export default async function getBaseWebpackConfig(
     reactStrictMode: config.reactStrictMode,
     reactMode: config.experimental.reactMode,
     optimizeFonts: config.optimizeFonts,
-    optimizeImages: config.experimental.optimizeImages,
     optimizeCss: config.experimental.optimizeCss,
     scrollRestoration: config.experimental.scrollRestoration,
     basePath: config.basePath,
@@ -1627,10 +1634,10 @@ export default async function getBaseWebpackConfig(
     runtime,
     swcMinify: config.swcMinify,
     swcLoader: useSWCLoader,
-    removeConsole: config.experimental.removeConsole,
-    reactRemoveProperties: config.experimental.reactRemoveProperties,
-    styledComponents: config.experimental.styledComponents,
-    relay: config.experimental.relay,
+    removeConsole: config.compiler?.removeConsole,
+    reactRemoveProperties: config.compiler?.reactRemoveProperties,
+    styledComponents: config.compiler?.styledComponents,
+    relay: config.compiler?.relay,
   })
 
   const cache: any = {
@@ -1856,11 +1863,11 @@ export default async function getBaseWebpackConfig(
     }
 
     const fileNames = [
-      '/tmp/test.css',
-      '/tmp/test.scss',
-      '/tmp/test.sass',
-      '/tmp/test.less',
-      '/tmp/test.styl',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.css',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.scss',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.sass',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.less',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.styl',
     ]
 
     if (rule instanceof RegExp && fileNames.some((input) => rule.test(input))) {

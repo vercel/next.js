@@ -7,10 +7,12 @@ description: API reference for `getStaticPaths`. Learn how to fetch data and gen
 <details>
   <summary><b>Version History</b></summary>
 
-| Version  | Changes                                                                                                         |
-| -------- | --------------------------------------------------------------------------------------------------------------- |
+| Version | Changes |
+| ------- | ------- |
+
+| `v12.1.0` | [On-demand Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation-beta) added (Beta). |
 | `v9.5.0` | Stable [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md) |
-| `v9.3.0` | `getStaticPaths` introduced.                                                                                    |
+| `v9.3.0` | `getStaticPaths` introduced. |
 
 </details>
 
@@ -110,7 +112,7 @@ export default Post
 If `fallback` is `true`, then the behavior of `getStaticProps` changes in the following ways:
 
 - The paths returned from `getStaticPaths` will be rendered to `HTML` at build time by `getStaticProps`.
-- The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will serve a [“fallback”](#fallback-pages) version of the page on the first request to such a path.
+- The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will serve a [“fallback”](#fallback-pages) version of the page on the first request to such a path. Web crawlers, such as Google, won't be served a fallback and instead the path will behave as in [`fallback: 'blocking'`](#fallback-blocking).
 - In the background, Next.js will statically generate the requested path `HTML` and `JSON`. This includes running `getStaticProps`.
 - When complete, the browser receives the `JSON` for the generated path. This will be used to automatically render the page with the required props. From the user’s perspective, the page will be swapped from the fallback page to the full page.
 - At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, like other pages pre-rendered at build time.

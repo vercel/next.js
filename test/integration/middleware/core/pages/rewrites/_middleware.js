@@ -12,7 +12,7 @@ export async function middleware(request) {
   ) {
     const isExternal = url.searchParams.get('override') === 'external'
     return NextResponse.rewrite(
-      isExternal ? 'https://example.com' : '/rewrites/a'
+      isExternal ? 'https://vercel.com' : new URL('/rewrites/a', request.url)
     )
   }
 
@@ -38,6 +38,16 @@ export async function middleware(request) {
 
   if (url.pathname === '/rewrites/rewrite-me-to-about') {
     url.pathname = '/rewrites/about'
+    return NextResponse.rewrite(url)
+  }
+
+  if (url.pathname === '/rewrites/rewrite-me-with-a-colon') {
+    url.pathname = '/rewrites/with:colon'
+    return NextResponse.rewrite(url)
+  }
+
+  if (url.pathname === '/rewrites/colon:here') {
+    url.pathname = '/rewrites/no-colon-here'
     return NextResponse.rewrite(url)
   }
 

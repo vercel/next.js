@@ -1,6 +1,7 @@
+import webdriver from 'next-webdriver'
 import { renderViaHTTP } from 'next-test-utils'
 
-export default async function basic(context, env) {
+export default async function basic(context, { env }) {
   it('should render 404 error correctly', async () => {
     const path404HTML = await renderViaHTTP(context.appPort, '/404')
     const pathNotFoundHTML = await renderViaHTTP(context.appPort, '/not-found')
@@ -26,5 +27,22 @@ export default async function basic(context, env) {
   it('should support api routes', async () => {
     const res = await renderViaHTTP(context.appPort, '/api/ping')
     expect(res).toContain('pong')
+  })
+
+  it('should handle suspense error page correctly (node stream)', async () => {
+    const browser = await webdriver(context.appPort, '/404')
+    const hydrationContent = await browser.waitForElementByCss('#__next').text()
+
+    expect(hydrationContent).toBe('custom-404-pagenext_streaming_data')
+  })
+
+  it('should render 500 error correctly', async () => {
+    const html = await renderViaHTTP(context.appPort, '/err')
+    if (env === 'dev') {
+      // In dev mode it should show the error popup.
+      expect(html).toContain('Error: oops')
+    } else {
+      expect(html).toContain('custom-500-page')
+    }
   })
 }

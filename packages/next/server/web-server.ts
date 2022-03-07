@@ -1,4 +1,4 @@
-import type { WebNextRequest, WebNextResponse } from './base-http'
+import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type { RenderOpts } from './render'
 import type RenderResult from './render-result'
 import type { NextParsedUrlQuery } from './request-meta'
@@ -131,7 +131,7 @@ export default class NextWebServer extends BaseServer {
       query,
       {
         ...renderOpts,
-        supportsDynamicHTML: true,
+        // supportsDynamicHTML: true,
         disableOptimizedLoading: true,
         runtime: 'edge',
       }
@@ -148,16 +148,38 @@ export default class NextWebServer extends BaseServer {
       options?: PayloadOptions | undefined
     }
   ): Promise<void> {
+    // Add necessary headers.
+    // @TODO: Share the isomorphic logic with server/send-payload.ts.
+    if (options.poweredByHeader && options.type === 'html') {
+      res.setHeader('X-Powered-By', 'Next.js')
+    }
+    if (!res.getHeader('Content-Type')) {
+      res.setHeader(
+        'Content-Type',
+        options.type === 'json'
+          ? 'application/json'
+          : 'text/html; charset=utf-8'
+      )
+    }
+
     // @TODO
     const writer = res.transformStream.writable.getWriter()
-    options.result.pipe({
-      write: (chunk: Uint8Array) => writer.write(chunk),
-      end: () => writer.close(),
-      destroy: (err: Error) => writer.abort(err),
-      cork: () => {},
-      uncork: () => {},
-      // Not implemented: on/removeListener
-    } as any)
+
+    if (options.result.isDynamic()) {
+      options.result.pipe({
+        write: (chunk: Uint8Array) => writer.write(chunk),
+        end: () => writer.close(),
+        destroy: (err: Error) => writer.abort(err),
+        cork: () => {},
+        uncork: () => {},
+        // Not implemented: on/removeListener
+      } as any)
+    } else {
+      // TODO: generate Etag
+      const payload = await options.result.toUnchunkedString()
+      res.body(payload)
+    }
+
     res.send()
   }
   protected async runApi() {

@@ -10,8 +10,6 @@ When an application has custom Babel configuration Next.js will automatically op
 
 Many of the integrations with external libraries that currently require custom Babel transformations will be ported to Rust-based SWC transforms in the near future. These include but are not limited to:
 
-- Styled Components
 - Emotion
-- Relay
 
 In order to prioritize transforms that will help you adopt SWC please provide your `.babelrc` on [the feedback thread](https://github.com/vercel/next.js/discussions/30174).

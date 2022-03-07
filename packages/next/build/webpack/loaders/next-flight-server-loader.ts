@@ -1,107 +1,111 @@
-// TODO: add ts support for next-swc api
-// @ts-ignore
 import { parse } from '../../swc'
-// @ts-ignore
-import { getBaseSWCOptions } from '../../swc/options'
 import { getRawPageExtensions } from '../../utils'
 
-function isClientComponent(importSource: string, pageExtensions: string[]) {
-  return new RegExp(`\\.client(\\.(${pageExtensions.join('|')}))?`).test(
-    importSource
+const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
+
+const createClientComponentFilter = (pageExtensions: string[]) => {
+  // Special cases for Next.js APIs that are considered as client components:
+  // - .client.[ext]
+  // - next/link, next/image
+  // - .[imageExt]
+  const regex = new RegExp(
+    '(' +
+      `\\.client(\\.(${pageExtensions.join('|')}))?|` +
+      `next/link|next/image|` +
+      `\\.(${imageExtensions.join('|')})` +
+      ')$'
   )
+
+  return (importSource: string) => regex.test(importSource)
 }
 
-function isServerComponent(importSource: string, pageExtensions: string[]) {
-  return new RegExp(`\\.server(\\.(${pageExtensions.join('|')}))?`).test(
-    importSource
-  )
+const createServerComponentFilter = (pageExtensions: string[]) => {
+  const regex = new RegExp(`\\.server(\\.(${pageExtensions.join('|')}))?$`)
+  return (importSource: string) => regex.test(importSource)
 }
 
-function isNextComponent(importSource: string) {
-  return (
-    importSource.includes('next/link') || importSource.includes('next/image')
-  )
-}
-
-export function isImageImport(importSource: string) {
-  // TODO: share extension with next/image
-  // TODO: add other static assets, jpeg -> jpg
-  return ['jpg', 'jpeg', 'png', 'webp', 'avif'].some((imageExt) =>
-    importSource.endsWith('.' + imageExt)
-  )
-}
-
-async function parseImportsInfo(
-  resourcePath: string,
-  source: string,
-  imports: Array<string>,
-  isClientCompilation: boolean,
-  pageExtensions: string[]
-): Promise<{
+async function parseImportsInfo({
+  resourcePath,
+  source,
+  isClientCompilation,
+  isServerComponent,
+  isClientComponent,
+}: {
+  resourcePath: string
   source: string
-  defaultExportName: string
+  isClientCompilation: boolean
+  isServerComponent: (name: string) => boolean
+  isClientComponent: (name: string) => boolean
+}): Promise<{
+  source: string
+  imports: string
 }> {
-  const opts = getBaseSWCOptions({
-    filename: resourcePath,
-    globalWindow: isClientCompilation,
-  })
-
-  const ast = await parse(source, { ...opts.jsc.parser, isModule: true })
+  const ast = await parse(source, { filename: resourcePath, isModule: true })
   const { body } = ast
-  const beginPos = ast.span.start
+
   let transformedSource = ''
   let lastIndex = 0
-  let defaultExportName
+  let imports = ''
+
   for (let i = 0; i < body.length; i++) {
     const node = body[i]
     switch (node.type) {
       case 'ImportDeclaration': {
         const importSource = node.source.value
         if (!isClientCompilation) {
-          if (
-            !(
-              isClientComponent(importSource, pageExtensions) ||
-              isNextComponent(importSource) ||
-              isImageImport(importSource)
-            )
-          ) {
+          // Server compilation for .server.js.
+          if (isServerComponent(importSource)) {
             continue
           }
+
           const importDeclarations = source.substring(
             lastIndex,
-            node.source.span.start - beginPos
+            node.source.span.start
           )
-          transformedSource += importDeclarations
-          transformedSource += JSON.stringify(`${node.source.value}?flight`)
+
+          if (isClientComponent(importSource)) {
+            // A client component. It should be loaded as module reference.
+            transformedSource += importDeclarations
+            transformedSource += JSON.stringify(`${importSource}?__sc_client__`)
+            imports += `require(${JSON.stringify(importSource)})\n`
+          } else {
+            // FIXME
+            // case: 'react'
+            // Avoid module resolution error like Cannot find `./?__rsc_server__` in react/package.json
+
+            // cases: 'react/jsx-runtime', 'react/jsx-dev-runtime'
+            // This is a special case to avoid the Duplicate React error.
+            // Since we already include React in the SSR runtime,
+            // here we can't create a new module with the ?__rsc_server__ query.
+            if (
+              ['react', 'react/jsx-runtime', 'react/jsx-dev-runtime'].includes(
+                importSource
+              )
+            ) {
+              continue
+            }
+
+            // A shared component. It should be handled as a server
+            // component.
+            transformedSource += importDeclarations
+            transformedSource += JSON.stringify(`${importSource}?__sc_server__`)
+          }
         } else {
           // For the client compilation, we skip all modules imports but
           // always keep client components in the bundle. All client components
           // have to be imported from either server or client components.
           if (
             !(
-              isClientComponent(importSource, pageExtensions) ||
-              isServerComponent(importSource, pageExtensions) ||
-              // Special cases for Next.js APIs that are considered as client
-              // components:
-              isNextComponent(importSource) ||
-              isImageImport(importSource)
+              isClientComponent(importSource) || isServerComponent(importSource)
             )
           ) {
             continue
           }
+
+          imports += `require(${JSON.stringify(importSource)})\n`
         }
 
-        lastIndex = node.source.span.end - beginPos
-        imports.push(`require(${JSON.stringify(importSource)})`)
-        continue
-      }
-      case 'ExportDefaultDeclaration': {
-        const def = node.decl
-        if (def.type === 'Identifier') {
-          defaultExportName = def.name
-        } else if (def.type === 'FunctionExpression') {
-          defaultExportName = def.identifier.value
-        }
+        lastIndex = node.source.span.end
         break
       }
       default:
@@ -113,57 +117,69 @@ async function parseImportsInfo(
     transformedSource += source.substring(lastIndex)
   }
 
-  return { source: transformedSource, defaultExportName }
+  return { source: transformedSource, imports }
 }
 
 export default async function transformSource(
   this: any,
   source: string
 ): Promise<string> {
-  const { client: isClientCompilation, pageExtensions: pageExtensionsJson } =
-    this.getOptions()
-  const { resourcePath } = this
-  const pageExtensions = JSON.parse(pageExtensionsJson)
+  const { client: isClientCompilation, pageExtensions } = this.getOptions()
+  const { resourcePath, resourceQuery } = this
 
   if (typeof source !== 'string') {
     throw new Error('Expected source to have been transformed to a string.')
   }
 
+  // We currently assume that all components are shared components (unsuffixed)
+  // from node_modules.
   if (resourcePath.includes('/node_modules/')) {
     return source
   }
 
-  const imports: string[] = []
-  const { source: transformedSource, defaultExportName } =
-    await parseImportsInfo(
-      resourcePath,
-      source,
-      imports,
-      isClientCompilation,
-      getRawPageExtensions(pageExtensions)
-    )
+  const rawRawPageExtensions = getRawPageExtensions(pageExtensions)
+  const isServerComponent = createServerComponentFilter(rawRawPageExtensions)
+  const isClientComponent = createClientComponentFilter(rawRawPageExtensions)
+
+  if (!isClientCompilation) {
+    // We only apply the loader to server components, or shared components that
+    // are imported by a server component.
+    if (
+      !isServerComponent(resourcePath) &&
+      resourceQuery !== '?__sc_server__'
+    ) {
+      return source
+    }
+  }
+
+  const { source: transformedSource, imports } = await parseImportsInfo({
+    resourcePath,
+    source,
+    isClientCompilation,
+    isServerComponent,
+    isClientComponent,
+  })
 
   /**
    * For .server.js files, we handle this loader differently.
    *
    * Server compilation output:
-   *   export default function ServerComponent() { ... }
-   *   export const __rsc_noop__ = () => { ... }
-   *   ServerComponent.__next_rsc__ = 1
-   *   ServerComponent.__webpack_require__ = __webpack_require__
+   *   (The content of the Server Component module will be kept.)
+   *   export const __next_rsc__ = { __webpack_require__, _: () => { ... } }
    *
    * Client compilation output:
-   *   The function body of Server Component will be removed
+   *   (The content of the Server Component module will be removed.)
+   *   export const __next_rsc__ = { __webpack_require__, _: () => { ... } }
    */
 
-  const noop = `export const __rsc_noop__=()=>{${imports.join(';')}}`
-  const defaultExportNoop = isClientCompilation
-    ? `export default function ${defaultExportName}(){}\n${defaultExportName}.__next_rsc__=1;`
-    : defaultExportName
-    ? `${defaultExportName}.__next_rsc__=1;${defaultExportName}.__webpack_require__=__webpack_require__;`
-    : ''
+  let rscExports = `export const __next_rsc__={
+    __webpack_require__,
+    _: () => {${imports}}
+  }`
 
-  const transformed = transformedSource + '\n' + noop + '\n' + defaultExportNoop
+  if (isClientCompilation) {
+    rscExports += '\nexport default function RSC () {}'
+  }
 
-  return transformed
+  return transformedSource + '\n' + rscExports
 }
