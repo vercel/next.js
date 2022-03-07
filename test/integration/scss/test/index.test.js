@@ -34,17 +34,19 @@ describe('SCSS Support', () => {
         env: { NODE_OPTIONS: shellQuote([`--require`, mockFile]) },
         stderr: true,
       })
+      let cleanScssErrMsg =
+        '\n\n' +
+        './styles/global.scss\n' +
+        "To use Next.js' built-in Sass support, you first need to install `sass`.\n" +
+        'Run `npm i sass` or `yarn add sass` inside your workspace.\n' +
+        '\n' +
+        'Learn more: https://err.sh/next.js/install-sass\n' +
+        '\n'
+
       expect(code).toBe(1)
       expect(stderr).toContain('Failed to compile.')
-      expect(stderr).toContain(
-        "To use Next.js' built-in Sass support, you first need to install `sass`."
-      )
-      expect(stderr).toContain(
-        'Run `npm i sass` or `yarn add sass` inside your workspace.'
-      )
-      expect(stderr).toContain(
-        'Learn more: https://err.sh/next.js/install-sass'
-      )
+      expect(stderr).toContain(cleanScssErrMsg)
+
       expect(stderr).not.toContain('Require stack:')
     })
   })
