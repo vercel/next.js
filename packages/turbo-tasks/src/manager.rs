@@ -50,8 +50,8 @@ impl TurboTasks {
     // that should be safe as long tasks can't outlife turbo task
     // so we probably want to make sure that all tasks are joined
     // when trying to drop turbo tasks
-    pub fn new() -> &'static Self {
-        Box::leak(Box::new(Self {
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self {
             interning_map: CHashMap::new(),
             resolve_task_cache: CHashMap::new(),
             native_task_cache: CHashMap::new(),
@@ -61,11 +61,11 @@ impl TurboTasks {
             start: Default::default(),
             last_update: Default::default(),
             event: Event::new(),
-        }))
+        })
     }
 
     pub fn spawn_root_task(
-        &'static self,
+        self: Arc<Self>,
         functor: impl Fn() -> NativeTaskFuture + Sync + Send + 'static,
     ) -> Arc<Task> {
         let task = Arc::new(Task::new_root(functor));
@@ -74,7 +74,7 @@ impl TurboTasks {
     }
 
     pub fn spawn_once_task(
-        &'static self,
+        self: Arc<Self>,
         functor: impl Future<Output = SlotRef> + Send + 'static,
     ) -> Arc<Task> {
         let task = Arc::new(Task::new_once(functor));
@@ -83,7 +83,7 @@ impl TurboTasks {
     }
 
     fn cached_call<K: PartialEq + Hash, E>(
-        &'static self,
+        self: Arc<Self>,
         map: &CHashMap<K, Arc<Task>>,
         key: K,
         create_new: impl FnOnce() -> Result<Task, E>,
@@ -163,7 +163,7 @@ impl TurboTasks {
         )
     }
 
-    pub(crate) fn schedule(&'static self, task: Arc<Task>) -> JoinHandle<()> {
+    pub(crate) fn schedule(self: Arc<Self>, task: Arc<Task>) -> JoinHandle<()> {
         if self
             .currently_scheduled_tasks
             .fetch_add(1, Ordering::AcqRel)
@@ -215,7 +215,7 @@ impl TurboTasks {
     }
 
     pub(crate) fn schedule_background_job(
-        &'static self,
+        self: Arc<Self>,
         job: impl Future<Output = ()> + Send + 'static,
     ) {
         Builder::new()
@@ -243,13 +243,13 @@ impl TurboTasks {
         });
     }
 
-    pub(crate) fn schedule_deactivate_tasks(&'static self, tasks: Vec<Arc<Task>>) {
+    pub(crate) fn schedule_deactivate_tasks(self: Arc<Self>, tasks: Vec<Arc<Task>>) {
         self.schedule_background_job(async move {
             Task::deactivate_tasks(tasks, self);
         });
     }
 
-    pub(crate) fn schedule_remove_tasks(&'static self, tasks: HashSet<Arc<Task>>) {
+    pub(crate) fn schedule_remove_tasks(self: Arc<Self>, tasks: HashSet<Arc<Task>>) {
         self.schedule_background_job(async move {
             Task::remove_tasks(tasks, self);
         });
