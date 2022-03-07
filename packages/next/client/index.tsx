@@ -395,11 +395,12 @@ export async function initNext(
     await window.__NEXT_PRELOADREADY(dynamicIds)
   }
 
-  let beforeRenderPromise = opts.beforeRender
-    ? opts.beforeRender().then(() => {
-        beforeRenderPromise = null
-      })
-    : null
+  // Always defer to a microtask to ensure that `router` is set before rendering
+  let beforeRenderPromise: Promise<void> | null = (
+    opts.beforeRender?.() || Promise.resolve()
+  ).then(() => {
+    beforeRenderPromise = null
+  })
 
   router = createRouter(page, query, asPath, {
     initialProps: hydrateProps,
