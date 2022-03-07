@@ -878,7 +878,7 @@ function defaultLoader({
     return src
   }
 
-  return `${normalizePathTrailingSlash(config.path)}?url=${encodeURIComponent(src)}&w=${width}&q=${
-    quality || 75
-  }`
+  return `${normalizePathTrailingSlash(config.path)}?url=${encodeURIComponent(
+    src
+  )}&w=${width}&q=${quality || 75}`
 }
