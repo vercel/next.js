@@ -1,6 +1,6 @@
 /* global location */
 import '../build/polyfills/polyfill-module'
-import React, { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
@@ -808,26 +808,10 @@ if (process.env.__NEXT_RSC) {
 }
 
 let lastAppProps: AppProps
-function doRender(input: RenderRouteInfo): Promise<any> {
-  let { App, Component, props, err, __N_RSC }: RenderRouteInfo = input
-  let styleSheets: StyleSheetTuple[] | undefined =
-    'initial' in input ? undefined : input.styleSheets
-  Component = Component || lastAppProps.Component
-  props = props || lastAppProps.props
-
-  const isRSC =
-    process.env.__NEXT_RSC && 'initial' in input ? !!initialData.rsc : !!__N_RSC
-
-  const appProps: AppProps = {
-    ...props,
-    Component: isRSC ? RSCComponent : Component,
-    err,
-    router,
+function doRender(route: RenderRouteInfo): Promise<any> {
+  let state = {
+    canceled: false,
   }
-  // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
-  lastAppProps = appProps
-
-  let canceled: boolean = false
   let resolvePromise: () => void
   const renderPromise = new Promise<void>((resolve, reject) => {
     if (lastRenderReject) {
@@ -838,7 +822,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       resolve()
     }
     lastRenderReject = () => {
-      canceled = true
+      state.canceled = true
       lastRenderReject = null
 
       const error: any = new Error('Cancel rendering route')
@@ -847,16 +831,58 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     }
   })
 
-  // This function has a return type to ensure it doesn't start returning a
-  // Promise. It should remain synchronous.
-  function onStart(): boolean {
+  // We catch runtime errors using componentDidCatch which will trigger renderError
+  renderReactElement(appElement!, (callback) => (
+    <Root
+      callback={() => {
+        callback()
+        resolvePromise()
+      }}
+      route={route}
+      state={state}
+    />
+  ))
+
+  return renderPromise
+}
+
+function Root({
+  callback,
+  route,
+  state,
+}: {
+  callback: () => void
+  route: RenderRouteInfo
+  state: { canceled: boolean }
+}) {
+  let {
+    App,
+    Component,
+    props,
+    err,
+    __N_RSC: isRSC,
+    scroll,
+  }: RenderRouteInfo = route
+  let styleSheets: StyleSheetTuple[] | undefined =
+    'initial' in route ? undefined : route.styleSheets
+  Component = Component || lastAppProps.Component
+  props = props || lastAppProps.props
+
+  const appProps: AppProps = {
+    ...props,
+    Component: isRSC ? RSCComponent : Component,
+    err,
+    router,
+  }
+
+  const onStart = useCallback(() => {
     if (
       !styleSheets ||
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
       process.env.NODE_ENV !== 'production'
     ) {
-      return false
+      return
     }
 
     const currentStyleTags: HTMLStyleElement[] = looseToArray<HTMLStyleElement>(
@@ -886,10 +912,9 @@ function doRender(input: RenderRouteInfo): Promise<any> {
         styleTag.appendChild(document.createTextNode(text))
       }
     })
-    return true
-  }
+  }, [styleSheets])
 
-  function onHeadCommit(): void {
+  const onHeadCommit = useCallback(() => {
     if (
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
@@ -898,7 +923,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       // we may as well save the CPU cycles:
       styleSheets &&
       // Ensure this render was not canceled
-      !canceled
+      !state.canceled
     ) {
       const desiredHrefs: Set<string> = new Set(styleSheets.map((s) => s.href))
       const currentStyleTags: HTMLStyleElement[] =
@@ -951,18 +976,35 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       })
     }
 
-    if (input.scroll) {
-      window.scrollTo(input.scroll.x, input.scroll.y)
+    if (scroll) {
+      window.scrollTo(scroll.x, scroll.y)
     }
+  }, [state])
+
+  // We use `useLayoutEffect` to guarantee the callback is executed
+  // as soon as React flushes the update
+  React.useLayoutEffect(callback, [callback])
+
+  if (process.env.__NEXT_TEST_MODE) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    React.useEffect(() => {
+      window.__NEXT_HYDRATED = true
+
+      if (window.__NEXT_HYDRATED_CB) {
+        window.__NEXT_HYDRATED_CB()
+      }
+    }, [])
   }
 
-  function onRootCommit(): void {
-    resolvePromise()
-  }
+  // We should ask to measure the Web Vitals after rendering completes so we
+  // don't cause any hydration delay:
+  React.useEffect(() => {
+    measureWebVitals(onPerfEntry)
 
-  onStart()
+    flushBufferedVitalsMetrics()
+  }, [])
 
-  const elem: JSX.Element = (
+  const content: JSX.Element = (
     <>
       <Head callback={onHeadCommit} />
       <AppContainer>
@@ -974,51 +1016,13 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     </>
   )
 
-  // We catch runtime errors using componentDidCatch which will trigger renderError
-  renderReactElement(appElement!, (callback) => (
-    <Root callbacks={[callback, onRootCommit]}>
-      {process.env.__NEXT_STRICT_MODE ? (
-        <React.StrictMode>{elem}</React.StrictMode>
-      ) : (
-        elem
-      )}
-    </Root>
-  ))
+  onStart()
 
-  return renderPromise
-}
-
-function Root({
-  callbacks,
-  children,
-}: React.PropsWithChildren<{
-  callbacks: Array<() => void>
-}>): React.ReactElement {
-  // We use `useLayoutEffect` to guarantee the callbacks are executed
-  // as soon as React flushes the update
-  React.useLayoutEffect(
-    () => callbacks.forEach((callback) => callback()),
-    [callbacks]
+  return process.env.__NEXT_STRICT_MODE ? (
+    <React.StrictMode>{content}</React.StrictMode>
+  ) : (
+    content
   )
-  if (process.env.__NEXT_TEST_MODE) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    React.useEffect(() => {
-      window.__NEXT_HYDRATED = true
-
-      if (window.__NEXT_HYDRATED_CB) {
-        window.__NEXT_HYDRATED_CB()
-      }
-    }, [])
-  }
-  // We should ask to measure the Web Vitals after rendering completes so we
-  // don't cause any hydration delay:
-  React.useEffect(() => {
-    measureWebVitals(onPerfEntry)
-
-    flushBufferedVitalsMetrics()
-  }, [])
-
-  return children as React.ReactElement
 }
 
 // Dummy component that we render as a child of Root so that we can
