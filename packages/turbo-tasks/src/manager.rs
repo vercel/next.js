@@ -83,7 +83,7 @@ impl TurboTasks {
     }
 
     fn cached_call<K: PartialEq + Hash, E>(
-        self: Arc<Self>,
+        self: &Arc<Self>,
         map: &CHashMap<K, Arc<Task>>,
         key: K,
         create_new: impl FnOnce() -> Result<Task, E>,
@@ -178,7 +178,7 @@ impl TurboTasks {
             .spawn(async move {
                 if task.execution_started(&self) {
                     Task::set_current(task.clone());
-                    let tt = self.clone();
+                    let tt = Arc::clone(&self);
                     TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(tt));
                     let result = task.execute(self.clone()).await;
                     task.execution_result(result);
@@ -187,7 +187,7 @@ impl TurboTasks {
                             task.dependent_slot_updated(&self);
                         }
                     });
-                    task.execution_completed(&self);
+                    task.execution_completed(self.clone());
                 }
                 if self
                     .currently_scheduled_tasks
@@ -221,7 +221,7 @@ impl TurboTasks {
     ) {
         Builder::new()
             .spawn(async move {
-                TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(self));
+                TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(self.clone()));
                 if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
                     let listener = self.event.listen();
                     if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
@@ -244,15 +244,17 @@ impl TurboTasks {
         });
     }
 
-    pub(crate) fn schedule_deactivate_tasks(self: Arc<Self>, tasks: Vec<Arc<Task>>) {
-        self.schedule_background_job(async move {
-            Task::deactivate_tasks(tasks, self);
+    pub(crate) fn schedule_deactivate_tasks(self: &Arc<Self>, tasks: Vec<Arc<Task>>) {
+        let tt = Arc::clone(self);
+        self.clone().schedule_background_job(async move {
+            Task::deactivate_tasks(tasks, tt);
         });
     }
 
-    pub(crate) fn schedule_remove_tasks(self: Arc<Self>, tasks: HashSet<Arc<Task>>) {
-        self.schedule_background_job(async move {
-            Task::remove_tasks(tasks, self);
+    pub(crate) fn schedule_remove_tasks(self: &Arc<Self>, tasks: HashSet<Arc<Task>>) {
+        let tt = Arc::clone(self);
+        self.clone().schedule_background_job(async move {
+            Task::remove_tasks(tasks, tt);
         });
     }
 

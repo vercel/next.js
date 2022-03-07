@@ -223,7 +223,7 @@ impl Task {
     pub(crate) fn remove_tasks(tasks: HashSet<Arc<Task>>, turbo_tasks: Arc<TurboTasks>) {
         for task in tasks.into_iter() {
             if task.active_parents.fetch_sub(1, Ordering::AcqRel) == 1 {
-                task.deactivate(1, turbo_tasks);
+                task.deactivate(1, &turbo_tasks);
             }
         }
     }
@@ -233,7 +233,7 @@ impl Task {
         // let mut count = 0;
         // let mut len = 0;
         for child in tasks.into_iter() {
-            child.deactivate(1, turbo_tasks);
+            child.deactivate(1, &turbo_tasks);
             // count += child.deactivate(1);
             // len += 1;
         }
@@ -339,7 +339,7 @@ impl Task {
         };
     }
 
-    pub(crate) fn execution_completed(self: Arc<Self>, turbo_tasks: &Arc<TurboTasks>) {
+    pub(crate) fn execution_completed(self: Arc<Self>, turbo_tasks: Arc<TurboTasks>) {
         PREVIOUS_NODES.with(|cell| {
             let mut execution_data = self.execution_data.lock().unwrap();
             Cell::from_mut(&mut execution_data.previous_nodes).swap(cell);
@@ -410,7 +410,7 @@ impl Task {
     }
 
     /// This method should be called after removing the last parent
-    fn deactivate(self: &Arc<Self>, depth: u8, turbo_tasks: Arc<TurboTasks>) -> usize {
+    fn deactivate(self: &Arc<Self>, depth: u8, turbo_tasks: &Arc<TurboTasks>) -> usize {
         let mut state = self.state.write().unwrap();
 
         if self.active_parents.load(Ordering::Acquire) != 0 {
