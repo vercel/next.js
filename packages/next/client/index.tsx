@@ -1,6 +1,6 @@
 /* global location */
 import '../build/polyfills/polyfill-module'
-import React, { useCallback, useState } from 'react'
+import React, { useState } from 'react'
 import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
@@ -875,7 +875,7 @@ function Root({
     router,
   }
 
-  const onStart = useCallback(() => {
+  const onStart = React.useCallback(() => {
     if (
       !styleSheets ||
       // We use `style-loader` in development, so we don't need to do anything
@@ -914,7 +914,7 @@ function Root({
     })
   }, [styleSheets])
 
-  const onHeadCommit = useCallback(() => {
+  const onHeadCommit = React.useCallback(() => {
     if (
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
