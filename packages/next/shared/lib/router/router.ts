@@ -32,7 +32,6 @@ import {
 } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
-import { parseUrl } from './utils/parse-url'
 import { searchParamsToUrlQuery } from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
@@ -1866,7 +1865,7 @@ export default class Router implements BaseRouter {
     locale: string | undefined
     isPreview: boolean
   }): Promise<PreflightEffect> {
-    const asPathname = parseUrl(options.as).pathname
+    const asPathname = pathNoQueryHash(options.as)
     const cleanedAs = delLocale(
       hasBasePath(asPathname) ? delBasePath(asPathname) : asPathname,
       options.locale
