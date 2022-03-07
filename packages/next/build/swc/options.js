@@ -18,6 +18,7 @@ export function getParserOptions({ filename, jsConfig, ...rest }) {
     decorators: enableDecorators,
     // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
     [isTypeScript ? 'tsx' : 'jsx']: isTSFile ? false : true,
+    importAssertions: true,
   }
 }
 
@@ -48,7 +49,9 @@ function getBaseSWCOptions({
           }
         : {}),
       parser: parserConfig,
-
+      experimental: {
+        keepImportAssertions: true,
+      },
       transform: {
         // Enables https://github.com/swc-project/swc/blob/0359deb4841be743d73db4536d4a22ac797d7f65/crates/swc_ecma_ext_transforms/src/jest.rs
         ...(jest
