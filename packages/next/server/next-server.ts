@@ -49,7 +49,7 @@ import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
-import { ParsedUrl } from '../shared/lib/router/utils/parse-url'
+import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
 
 import BaseServer, {
@@ -1131,12 +1131,8 @@ export default class NextNodeServer extends BaseServer {
           const rewritePath = result.response.headers.get(
             'x-middleware-rewrite'
           )!
-          const { newUrl, parsedDestination } = prepareDestination({
-            appendParamsToQuery: false,
-            destination: rewritePath,
-            params: _params,
-            query: {},
-          })
+          const parsedDestination = parseUrl(rewritePath)
+          const newUrl = parsedDestination.pathname
 
           // TODO: remove after next minor version current `v12.0.9`
           this.warnIfQueryParametersWereDeleted(
