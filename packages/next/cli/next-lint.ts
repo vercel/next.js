@@ -71,6 +71,7 @@ const nextLint: cliCommand = async (argv) => {
     '--cache-strategy': String,
     '--error-on-unmatched-pattern': Boolean,
     '--format': String,
+    '--output-file': String,
 
     // Aliases
     '-c': '--config',
