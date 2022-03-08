@@ -1,6 +1,6 @@
 use std::{
     any::{Any, TypeId},
-    cell::Cell,
+    cell::{Cell, RefCell},
     collections::HashSet,
     future::Future,
     hash::Hash,
@@ -40,7 +40,7 @@ pub struct TurboTasks {
 }
 
 task_local! {
-    static TURBO_TASKS: Cell<Option<&'static TurboTasks>> = Cell::new(None);
+    static TURBO_TASKS: RefCell<Option<Arc<TurboTasks>>> = RefCell::new(None);
     static TASKS_TO_NOTIFY: Cell<Vec<Arc<Task>>> = Default::default();
 }
 
@@ -50,8 +50,8 @@ impl TurboTasks {
     // that should be safe as long tasks can't outlife turbo task
     // so we probably want to make sure that all tasks are joined
     // when trying to drop turbo tasks
-    pub fn new() -> &'static Self {
-        Box::leak(Box::new(Self {
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self {
             interning_map: CHashMap::new(),
             resolve_task_cache: CHashMap::new(),
             native_task_cache: CHashMap::new(),
@@ -61,29 +61,29 @@ impl TurboTasks {
             start: Default::default(),
             last_update: Default::default(),
             event: Event::new(),
-        }))
+        })
     }
 
     pub fn spawn_root_task(
-        &'static self,
+        self: &Arc<Self>,
         functor: impl Fn() -> NativeTaskFuture + Sync + Send + 'static,
     ) -> Arc<Task> {
         let task = Arc::new(Task::new_root(functor));
-        self.schedule(task.clone());
+        self.clone().schedule(task.clone());
         task
     }
 
     pub fn spawn_once_task(
-        &'static self,
+        self: &Arc<Self>,
         functor: impl Future<Output = SlotRef> + Send + 'static,
     ) -> Arc<Task> {
         let task = Arc::new(Task::new_once(functor));
-        self.schedule(task.clone());
+        self.clone().schedule(task.clone());
         task
     }
 
     fn cached_call<K: PartialEq + Hash, E>(
-        &'static self,
+        self: &Arc<Self>,
         map: &CHashMap<K, Arc<Task>>,
         key: K,
         create_new: impl FnOnce() -> Result<Task, E>,
@@ -126,7 +126,7 @@ impl TurboTasks {
     }
 
     pub(crate) fn native_call(
-        self: &'static TurboTasks,
+        self: &Arc<Self>,
         func: &'static NativeFunction,
         inputs: Vec<SlotRef>,
     ) -> Result<SlotRef> {
@@ -137,7 +137,7 @@ impl TurboTasks {
     }
 
     pub fn dynamic_call(
-        self: &'static TurboTasks,
+        self: &Arc<Self>,
         func: &'static NativeFunction,
         inputs: Vec<SlotRef>,
     ) -> Result<SlotRef> {
@@ -151,7 +151,7 @@ impl TurboTasks {
     }
 
     pub fn trait_call(
-        self: &'static TurboTasks,
+        self: &Arc<Self>,
         trait_type: &'static TraitType,
         trait_fn_name: String,
         inputs: Vec<SlotRef>,
@@ -163,7 +163,7 @@ impl TurboTasks {
         )
     }
 
-    pub(crate) fn schedule(&'static self, task: Arc<Task>) -> JoinHandle<()> {
+    pub(crate) fn schedule(self: Arc<Self>, task: Arc<Task>) -> JoinHandle<()> {
         if self
             .currently_scheduled_tasks
             .fetch_add(1, Ordering::AcqRel)
@@ -176,17 +176,18 @@ impl TurboTasks {
             // that's expensive
             // .name(format!("{:?} {:?}", &*task, &*task as *const Task))
             .spawn(async move {
-                if task.execution_started(self) {
+                if task.execution_started(&self) {
                     Task::set_current(task.clone());
-                    TURBO_TASKS.with(|c| c.set(Some(self)));
-                    let result = task.execute(self).await;
+                    let tt = self.clone();
+                    TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(tt));
+                    let result = task.execute(self.clone()).await;
                     task.execution_result(result);
                     TASKS_TO_NOTIFY.with(|tasks| {
                         for task in tasks.take().iter() {
-                            task.dependent_slot_updated(self);
+                            task.dependent_slot_updated(self.clone());
                         }
                     });
-                    task.execution_completed(self);
+                    task.execution_completed(self.clone());
                 }
                 if self
                     .currently_scheduled_tasks
@@ -205,22 +206,22 @@ impl TurboTasks {
             .unwrap()
     }
 
-    pub async fn wait_done(&'static self) -> (Duration, usize) {
+    pub async fn wait_done(self: &Arc<Self>) -> (Duration, usize) {
         self.event.listen().await;
         self.last_update.lock().unwrap().unwrap()
     }
 
-    pub(crate) fn current() -> Option<&'static Self> {
-        TURBO_TASKS.with(|c| c.get())
+    pub(crate) fn current() -> Option<Arc<Self>> {
+        TURBO_TASKS.with(|c| (*c.borrow()).clone())
     }
 
     pub(crate) fn schedule_background_job(
-        &'static self,
+        self: Arc<Self>,
         job: impl Future<Output = ()> + Send + 'static,
     ) {
         Builder::new()
             .spawn(async move {
-                TURBO_TASKS.with(|c| c.set(Some(self)));
+                TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(self.clone()));
                 if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
                     let listener = self.event.listen();
                     if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
@@ -243,15 +244,17 @@ impl TurboTasks {
         });
     }
 
-    pub(crate) fn schedule_deactivate_tasks(&'static self, tasks: Vec<Arc<Task>>) {
-        self.schedule_background_job(async move {
-            Task::deactivate_tasks(tasks, self);
+    pub(crate) fn schedule_deactivate_tasks(self: &Arc<Self>, tasks: Vec<Arc<Task>>) {
+        let tt = self.clone();
+        self.clone().schedule_background_job(async move {
+            Task::deactivate_tasks(tasks, tt);
         });
     }
 
-    pub(crate) fn schedule_remove_tasks(&'static self, tasks: HashSet<Arc<Task>>) {
-        self.schedule_background_job(async move {
-            Task::remove_tasks(tasks, self);
+    pub(crate) fn schedule_remove_tasks(self: &Arc<Self>, tasks: HashSet<Arc<Task>>) {
+        let tt = self.clone();
+        self.clone().schedule_background_job(async move {
+            Task::remove_tasks(tasks, tt);
         });
     }
 
