@@ -31,6 +31,7 @@ function getBaseSWCOptions({
   nextConfig,
   resolvedBaseUrl,
   jsConfig,
+  plugin,
 }) {
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
@@ -101,6 +102,7 @@ function getBaseSWCOptions({
     removeConsole: nextConfig?.compiler?.removeConsole,
     reactRemoveProperties: nextConfig?.compiler?.reactRemoveProperties,
     relay: nextConfig?.compiler?.relay,
+    plugin,
   }
 }
 
@@ -110,6 +112,7 @@ export function getJestSWCOptions({
   esm,
   nextConfig,
   jsConfig,
+  plugin,
   // This is not passed yet as "paths" resolving needs a test first
   // resolvedBaseUrl,
 }) {
@@ -121,6 +124,7 @@ export function getJestSWCOptions({
     globalWindow: !isServer,
     nextConfig,
     jsConfig,
+    plugin,
     // resolvedBaseUrl,
   })
 
@@ -158,6 +162,7 @@ export function getLoaderSWCOptions({
   hasReactRefresh,
   nextConfig,
   jsConfig,
+  plugin,
   // This is not passed yet as "paths" resolving is handled by webpack currently.
   // resolvedBaseUrl,
 }) {
@@ -168,6 +173,7 @@ export function getLoaderSWCOptions({
     hasReactRefresh,
     nextConfig,
     jsConfig,
+    plugin,
     // resolvedBaseUrl,
   })
 

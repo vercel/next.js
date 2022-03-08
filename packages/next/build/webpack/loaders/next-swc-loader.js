@@ -36,7 +36,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
 
   let loaderOptions = this.getOptions() || {}
 
-  const { isServer, pagesDir, hasReactRefresh, nextConfig, jsConfig } =
+  const { isServer, pagesDir, hasReactRefresh, nextConfig, jsConfig, plugin } =
     loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
 
@@ -49,6 +49,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
     hasReactRefresh,
     nextConfig,
     jsConfig,
+    plugin,
   })
 
   const programmaticOptions = {
