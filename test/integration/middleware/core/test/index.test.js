@@ -484,6 +484,17 @@ function rewriteTests(log, locale = '') {
     const element = await browser.elementByCss('.title')
     expect(await element.text()).toEqual('About Bypassed Page')
   })
+
+  it(`${locale} should not call middleware with shallow push`, async () => {
+    const browser = await webdriver(context.appPort, '/rewrites')
+    await browser.elementByCss('#link-to-shallow-push').click()
+    await browser.waitForCondition(
+      'new URL(window.location.href).searchParams.get("path") === "rewrite-me-without-hard-navigation"'
+    )
+    await expect(async () => {
+      await browser.waitForElementByCss('.refreshed', 500)
+    }).rejects.toThrow()
+  })
 }
 
 function redirectTests(locale = '') {
