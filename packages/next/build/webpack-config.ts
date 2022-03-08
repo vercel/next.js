@@ -54,7 +54,7 @@ import { getMiddlewareSourceMapPlugins } from './webpack/plugins/middleware-sour
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
-  ignored: ['**/.git/**', '**/node_modules/**', '**/.next/**'],
+  ignored: ['**/.git/**', '**/.next/**'],
 })
 
 function getSupportedBrowsers(
