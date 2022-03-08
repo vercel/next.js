@@ -5,6 +5,7 @@ use crate::{
     asset::{Asset, AssetRef, AssetsSet, AssetsSetRef},
     resolve::ResolveResult,
 };
+use anyhow::Result;
 use turbo_tasks_fs::{FileContentRef, FileSystemPathRef};
 
 use self::references::module_references;
@@ -16,12 +17,9 @@ pub struct ModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ModuleAsset {
-    #[turbo_tasks::constructor(intern)]
-    pub fn new(source: &AssetRef) -> Self {
-        Self {
-            source: source.clone(),
-        }
+impl ModuleAssetRef {
+    pub fn new(source: AssetRef) -> Self {
+        Self::slot(ModuleAsset { source })
     }
 }
 
@@ -33,17 +31,17 @@ impl Asset for ModuleAsset {
     fn content(&self) -> FileContentRef {
         self.source.clone().content()
     }
-    async fn references(&self) -> AssetsSetRef {
-        let references_set = module_references(self.source.clone()).await;
+    async fn references(&self) -> Result<AssetsSetRef> {
+        let references_set = module_references(self.source.clone()).await?;
         let mut assets = Vec::new();
         for reference in references_set.references.iter() {
             let resolve_result = reference
                 .clone()
-                .resolve(ModuleAssetRef::new(&self.source).into());
-            if let ResolveResult::Module(module) = &*resolve_result.await {
+                .resolve(ModuleAssetRef::new(self.source.clone()).into());
+            if let ResolveResult::Module(module) = &*resolve_result.await? {
                 assets.push(module.clone());
             }
         }
-        AssetsSet { assets }.into()
+        Ok(AssetsSet { assets }.into())
     }
 }

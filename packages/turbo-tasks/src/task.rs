@@ -1,10 +1,11 @@
 use crate::{
     slot::{Slot, SlotRef, WeakSlotRef},
+    task_input::TaskInput,
     viz::TaskSnapshot,
     NativeFunction, SlotValueType, TraitType, TurboTasks,
 };
 use any_key::AnyHash;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_std::task_local;
 use event_listener::{Event, EventListener};
 use std::{
@@ -24,7 +25,7 @@ use std::{
 };
 use weak_table::WeakHashSet;
 
-pub type NativeTaskFuture = Pin<Box<dyn Future<Output = SlotRef> + Send>>;
+pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<SlotRef>> + Send>>;
 pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 
 #[derive(Default)]
@@ -40,7 +41,7 @@ task_local! {
 
 enum TaskType {
     Root(NativeTaskFn),
-    Once(Mutex<Option<Pin<Box<dyn Future<Output = SlotRef> + Send + 'static>>>>),
+    Once(Mutex<Option<Pin<Box<dyn Future<Output = Result<SlotRef>> + Send + 'static>>>>),
     Native(&'static NativeFunction, NativeTaskFn),
     ResolveNative(&'static NativeFunction),
     ResolveTrait(&'static TraitType, String),
@@ -66,7 +67,7 @@ impl Debug for TaskType {
 }
 
 pub struct Task {
-    inputs: Vec<SlotRef>,
+    inputs: Vec<TaskInput>,
     ty: TaskType,
     state: RwLock<TaskState>,
     active_parents: AtomicU32,
@@ -151,22 +152,19 @@ impl Default for TaskStateType {
 use TaskStateType::*;
 
 impl Task {
-    pub(crate) fn new_native(
-        inputs: Vec<SlotRef>,
-        native_fn: &'static NativeFunction,
-    ) -> Result<Self> {
-        let bound_fn = native_fn.bind(inputs.clone())?;
-        Ok(Self {
+    pub(crate) fn new_native(inputs: Vec<TaskInput>, native_fn: &'static NativeFunction) -> Self {
+        let bound_fn = native_fn.bind(inputs.clone());
+        Self {
             inputs,
             ty: TaskType::Native(native_fn, bound_fn),
             state: Default::default(),
             active_parents: Default::default(),
             execution_data: Default::default(),
-        })
+        }
     }
 
     pub(crate) fn new_resolve_native(
-        inputs: Vec<SlotRef>,
+        inputs: Vec<TaskInput>,
         native_fn: &'static NativeFunction,
     ) -> Self {
         Self {
@@ -181,7 +179,7 @@ impl Task {
     pub(crate) fn new_resolve_trait(
         trait_type: &'static TraitType,
         trait_fn_name: String,
-        inputs: Vec<SlotRef>,
+        inputs: Vec<TaskInput>,
     ) -> Self {
         Self {
             inputs,
@@ -206,7 +204,9 @@ impl Task {
         }
     }
 
-    pub(crate) fn new_once(functor: impl Future<Output = SlotRef> + Send + 'static) -> Self {
+    pub(crate) fn new_once(
+        functor: impl Future<Output = Result<SlotRef>> + Send + 'static,
+    ) -> Self {
         Self {
             inputs: Vec::new(),
             ty: TaskType::Once(Mutex::new(Some(Box::pin(functor)))),
@@ -319,12 +319,13 @@ impl Task {
         true
     }
 
-    pub(crate) fn execution_result(self: &Arc<Self>, result: SlotRef) {
+    pub(crate) fn execution_result(self: &Arc<Self>, result: Result<SlotRef>) {
         let mut state = self.state.write().unwrap();
         match state.state_type {
-            InProgress => {
-                state.output_slot.link(result);
-            }
+            InProgress => match result {
+                Ok(result) => state.output_slot.link(result),
+                Err(err) => state.output_slot.error(err),
+            },
             InProgressDirty => {
                 // We don't want to assign the output slot here
                 // as we want to avoid unnecessary updates
@@ -547,9 +548,9 @@ impl Task {
                 Box::pin(async move {
                     let mut resolved_inputs = Vec::new();
                     for input in inputs.into_iter() {
-                        resolved_inputs.push(input.resolve_to_slot().await)
+                        resolved_inputs.push(input.resolve_to_slot().await?)
                     }
-                    tt.native_call(native_fn, resolved_inputs).unwrap()
+                    Ok(tt.native_call(native_fn, resolved_inputs))
                 })
             }
             TaskType::ResolveTrait(trait_type, name) => {
@@ -560,33 +561,38 @@ impl Task {
                     let mut resolved_inputs = Vec::new();
                     let mut iter = inputs.into_iter();
                     if let Some(this) = iter.next() {
-                        let this = this.resolve_to_value().await;
-                        match this.get_trait_method(trait_type, name.clone()) {
+                        let this = this.resolve_to_slot().await?;
+                        let this_value = this.clone().resolve().await?;
+                        match this_value.get_trait_method(trait_type, name.clone()) {
                             Some(native_fn) => {
                                 resolved_inputs.push(this);
                                 for input in iter {
                                     resolved_inputs.push(input)
                                 }
-                                tt.dynamic_call(native_fn, resolved_inputs).unwrap()
+                                Ok(tt.dynamic_call(native_fn, resolved_inputs))
                             }
                             None => {
-                                if !this.has_trait(trait_type) {
+                                if !this_value.has_trait(trait_type) {
                                     // TODO avoid panic
-                                    let traits = this
+                                    let traits = this_value
                                         .traits()
                                         .iter()
                                         .map(|t| format!(" {}", t))
                                         .collect::<String>();
-                                    panic!(
+                                    Err(anyhow!(
                                         "{} doesn't implement trait {} (only{})",
-                                        this, trait_type, traits
-                                    );
+                                        this_value,
+                                        trait_type,
+                                        traits,
+                                    ))
                                 } else {
                                     // TODO avoid panic
-                                    panic!(
+                                    Err(anyhow!(
                                         "{} implements trait {}, but method {} is missing",
-                                        this, trait_type, name
-                                    );
+                                        this_value,
+                                        trait_type,
+                                        name
+                                    ))
                                 }
                             }
                         }
@@ -666,8 +672,11 @@ impl Task {
             inputs: self
                 .inputs
                 .iter()
-                .filter(|slot_ref| slot_ref.is_task_ref())
-                .map(|slot_ref| slot_ref.clone())
+                .filter_map(|task_input| match task_input {
+                    TaskInput::TaskCreated(task, i) => Some(SlotRef::TaskCreated(task.clone(), *i)),
+                    TaskInput::TaskOutput(task) => Some(SlotRef::TaskOutput(task.clone())),
+                    _ => None,
+                })
                 .collect(),
             children: state.children.iter().map(|c| c.clone()).collect(),
             dependencies: self

@@ -7,10 +7,9 @@ pub struct AssetsSet {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetsSet {
-    #[turbo_tasks::constructor(intern)]
+impl AssetsSetRef {
     pub fn empty() -> Self {
-        Self { assets: Vec::new() }
+        AssetsSet { assets: Vec::new() }.into()
     }
 }
 

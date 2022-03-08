@@ -1,3 +1,4 @@
+use anyhow::Result;
 use json::JsonValue;
 use turbo_tasks_fs::{DirectoryContent, FileContent, FileJsonContent, FileSystemPathRef};
 
@@ -22,10 +23,10 @@ pub enum ResolveResult {
 }
 
 #[turbo_tasks::function]
-pub async fn resolve_options(context: FileSystemPathRef) -> ResolveOptionsRef {
-    let context = context.await;
+pub async fn resolve_options(context: FileSystemPathRef) -> Result<ResolveOptionsRef> {
+    let context = context.await?;
     let root = FileSystemPathRef::new(context.fs.clone(), "".to_string());
-    ResolveOptions {
+    Ok(ResolveOptions {
         extensions: vec![".jsx".to_string(), ".js".to_string()],
         modules: vec![ResolveModules::Nested(
             root,
@@ -36,23 +37,25 @@ pub async fn resolve_options(context: FileSystemPathRef) -> ResolveOptionsRef {
             ResolveIntoPackage::Default("index".to_string()),
         ],
     }
-    .into()
+    .into())
 }
 
-async fn exists(fs_path: FileSystemPathRef) -> bool {
-    if let FileContent::Content(_) = &*fs_path.read().await {
+async fn exists(fs_path: FileSystemPathRef) -> Result<bool> {
+    Ok(if let FileContent::Content(_) = &*fs_path.read().await? {
         true
     } else {
         false
-    }
+    })
 }
 
-async fn dir_exists(fs_path: FileSystemPathRef) -> bool {
-    if let DirectoryContent::Entries(_) = &*fs_path.read_dir().await {
-        true
-    } else {
-        false
-    }
+async fn dir_exists(fs_path: FileSystemPathRef) -> Result<bool> {
+    Ok(
+        if let DirectoryContent::Entries(_) = &*fs_path.read_dir().await? {
+            true
+        } else {
+            false
+        },
+    )
 }
 
 fn join_path(a: &str, b: &str) -> Option<String> {
@@ -97,43 +100,36 @@ enum FindPackageResult {
     NotFound,
 }
 
-#[turbo_tasks::value(intern)]
-#[derive(Hash, PartialEq, Eq)]
-struct PackageName {
-    name: String,
-}
-
 #[turbo_tasks::function]
 async fn find_package(
     context: FileSystemPathRef,
-    name: PackageNameRef,
+    package_name: String,
     options: ResolveModulesOptionsRef,
-) -> FindPackageResultRef {
-    let package_name = name.await;
-    let options = options.await;
+) -> Result<FindPackageResultRef> {
+    let options = options.await?;
     for resolve_modules in &options.modules {
         match resolve_modules {
             ResolveModules::Nested(root, names) => {
                 let mut context = context.clone();
-                let mut context_value = context.get().await;
-                while context_value.is_inside(&*root.get().await) {
+                let mut context_value = context.get().await?;
+                while context_value.is_inside(&*root.get().await?) {
                     for name in names.iter() {
                         if let Some(nested_path) = join_path(&context_value.path, &name) {
-                            if let Some(new_path) = join_path(&nested_path, &package_name.name) {
+                            if let Some(new_path) = join_path(&nested_path, &package_name) {
                                 let fs_path =
                                     FileSystemPathRef::new(context_value.fs.clone(), nested_path);
-                                if dir_exists(fs_path).await {
+                                if dir_exists(fs_path).await? {
                                     let fs_path =
                                         FileSystemPathRef::new(context_value.fs.clone(), new_path);
-                                    if dir_exists(fs_path.clone()).await {
-                                        return FindPackageResult::Package(fs_path).into();
+                                    if dir_exists(fs_path.clone()).await? {
+                                        return Ok(FindPackageResult::Package(fs_path).into());
                                     }
                                 }
                             }
                         }
                     }
                     context = context.parent();
-                    let new_context_value = context.get().await;
+                    let new_context_value = context.get().await?;
                     if *new_context_value == *context_value {
                         break;
                     }
@@ -146,10 +142,10 @@ async fn find_package(
     }
     println!(
         "unable to find package {} in {}",
-        package_name.name,
-        context.get().await.path
+        package_name,
+        context.get().await?.path
     );
-    FindPackageResult::NotFound.into()
+    Ok(FindPackageResult::NotFound.into())
 }
 
 #[turbo_tasks::function]
@@ -157,11 +153,11 @@ pub async fn resolve(
     context: FileSystemPathRef,
     request: RequestRef,
     options: ResolveOptionsRef,
-) -> ResolveResultRef {
-    match &*request.get().await {
+) -> Result<ResolveResultRef> {
+    Ok(match &*request.get().await? {
         Request::Relative { path } => {
-            let options = options.await;
-            let context = context.await;
+            let options = options.await?;
+            let context = context.await?;
             let mut possible_requests = Vec::new();
             possible_requests.push(path.to_string());
             for ext in options.extensions.iter() {
@@ -175,8 +171,10 @@ pub async fn resolve(
             for req in possible_requests {
                 if let Some(new_path) = join_path(&context.path, &req) {
                     let fs_path = FileSystemPathRef::new(context.fs.clone(), new_path);
-                    if exists(fs_path.clone()).await {
-                        return ResolveResult::Module(SourceAssetRef::new(fs_path).into()).into();
+                    if exists(fs_path.clone()).await? {
+                        return Ok(
+                            ResolveResult::Module(SourceAssetRef::new(fs_path).into()).into()
+                        );
                     }
                 }
             }
@@ -186,15 +184,12 @@ pub async fn resolve(
         Request::Module { module, path } => {
             let package = find_package(
                 context,
-                PackageName {
-                    name: module.clone(),
-                }
-                .into(),
+                module.clone(),
                 resolve_modules_options(options.clone()),
             );
-            match &*package.await {
+            match &*package.await? {
                 FindPackageResult::Package(package_path) => {
-                    let package_path_value = package_path.get().await;
+                    let package_path_value = package_path.get().await?;
                     let package_json = {
                         if let Some(new_path) = join_path(&package_path_value.path, "package.json")
                         {
@@ -205,15 +200,19 @@ pub async fn resolve(
                             FileJsonContent::NotFound.into()
                         }
                     };
-                    let package_json = package_json.await;
+                    let package_json = package_json.await?;
                     if path.is_empty() {
-                        for resolve_into_package in options.get().await.into_package.iter() {
+                        for resolve_into_package in options.get().await?.into_package.iter() {
                             match resolve_into_package {
                                 ResolveIntoPackage::Default(req) => {
                                     let request = RequestRef::parse(
                                         "./".to_string() + &normalize_path(&req).unwrap(),
                                     );
-                                    return resolve(package_path.clone(), request, options.clone());
+                                    return Ok(resolve(
+                                        package_path.clone(),
+                                        request,
+                                        options.clone(),
+                                    ));
                                 }
                                 ResolveIntoPackage::MainField(name) => {
                                     if let FileJsonContent::Content(package_json) = &*package_json {
@@ -223,11 +222,11 @@ pub async fn resolve(
                                                 "./".to_string()
                                                     + &normalize_path(&field_value).unwrap(),
                                             );
-                                            return resolve(
+                                            return Ok(resolve(
                                                 package_path.clone(),
                                                 request,
                                                 options.clone(),
-                                            );
+                                            ));
                                         }
                                     }
                                 }
@@ -241,7 +240,7 @@ pub async fn resolve(
                         }
                         ResolveResult::Unresolveable.into()
                     } else {
-                        for resolve_into_package in options.get().await.into_package.iter() {
+                        for resolve_into_package in options.get().await?.into_package.iter() {
                             match resolve_into_package {
                                 ResolveIntoPackage::Default(_)
                                 | ResolveIntoPackage::MainField(_) => {
@@ -261,7 +260,7 @@ pub async fn resolve(
                         }
                         if let Some(path) = normalize_path(&path) {
                             let request = RequestRef::parse(format!("./{}", path));
-                            return resolve(package_path.clone(), request, options.clone());
+                            return Ok(resolve(package_path.clone(), request, options.clone()));
                         }
                         ResolveResult::Unresolveable.into()
                     }
@@ -284,5 +283,5 @@ pub async fn resolve(
             remainer: _,
         } => ResolveResult::Unresolveable.into(),
         Request::Unknown { path: _ } => ResolveResult::Unresolveable.into(),
-    }
+    })
 }

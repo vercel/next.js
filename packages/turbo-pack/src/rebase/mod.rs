@@ -1,5 +1,6 @@
 use std::hash::Hash;
 
+use anyhow::Result;
 use turbo_tasks_fs::{FileContentRef, FileSystemPathRef};
 
 use crate::asset::{Asset, AssetRef, AssetsSet, AssetsSetRef};
@@ -13,18 +14,17 @@ pub struct RebasedAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl RebasedAsset {
-    #[turbo_tasks::constructor(intern)]
+impl RebasedAssetRef {
     pub fn new(
-        source: &AssetRef,
-        input_dir: &FileSystemPathRef,
-        output_dir: &FileSystemPathRef,
+        source: AssetRef,
+        input_dir: FileSystemPathRef,
+        output_dir: FileSystemPathRef,
     ) -> Self {
-        Self {
-            source: source.clone(),
-            input_dir: input_dir.clone(),
-            output_dir: output_dir.clone(),
-        }
+        Self::slot(RebasedAsset {
+            source: source,
+            input_dir: input_dir,
+            output_dir: output_dir,
+        })
     }
 }
 
@@ -42,12 +42,19 @@ impl Asset for RebasedAsset {
         self.source.path().read()
     }
 
-    async fn references(&self) -> AssetsSetRef {
-        let input_references = self.source.references().await;
+    async fn references(&self) -> Result<AssetsSetRef> {
+        let input_references = self.source.references().await?;
         let mut assets = Vec::new();
         for asset in input_references.assets.iter() {
-            assets.push(RebasedAssetRef::new(asset, &self.input_dir, &self.output_dir).into());
+            assets.push(
+                RebasedAssetRef::new(
+                    asset.clone(),
+                    self.input_dir.clone(),
+                    self.output_dir.clone(),
+                )
+                .into(),
+            );
         }
-        AssetsSet { assets }.into()
+        Ok(AssetsSet { assets }.into())
     }
 }

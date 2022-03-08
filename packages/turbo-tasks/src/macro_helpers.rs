@@ -1,31 +1,8 @@
-use std::{any::Any, hash::Hash, sync::Arc};
+use std::{any::Any, hash::Hash};
 
-use crate::{manager::intern, slot::Slot, SlotRef, SlotValueType};
+use crate::{slot::Slot, SlotRef};
 
 pub use crate::slot::SlotRefReadResult;
-
-pub fn new_node_intern<
-    T: Any + ?Sized,
-    K: Hash + PartialEq + Eq + Send + Sync + 'static,
-    F: FnOnce() -> (&'static SlotValueType, Arc<dyn Any + Send + Sync>),
->(
-    key: K,
-    fallback: F,
-) -> SlotRef {
-    intern::<T, K, F>(key, fallback)
-}
-
-pub fn new_node_auto_intern<
-    T: Any + ?Sized,
-    K: Hash + PartialEq + Eq + Send + Sync + 'static,
-    F: FnOnce() -> (&'static SlotValueType, Arc<dyn Any + Send + Sync>),
->(
-    key: K,
-    fallback: F,
-) -> SlotRef {
-    // TODO implement decision if intern or not
-    intern::<T, K, F>(key, fallback)
-}
 
 pub fn match_previous_node_by_key<
     T: Any + ?Sized,

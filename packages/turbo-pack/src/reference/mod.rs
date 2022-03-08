@@ -12,11 +12,10 @@ pub struct AssetReferencesSet {
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReferencesSet {
-    #[turbo_tasks::constructor(intern)]
+impl AssetReferencesSetRef {
     pub fn empty() -> Self {
-        Self {
+        Self::slot(AssetReferencesSet {
             references: Vec::new(),
-        }
+        })
     }
 }

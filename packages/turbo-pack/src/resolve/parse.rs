@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 
-#[turbo_tasks::value(intern)]
+#[turbo_tasks::value]
 #[derive(Hash, PartialEq, Eq, Clone, Debug)]
 pub enum Request {
     Relative {
@@ -37,10 +37,9 @@ pub enum Request {
 }
 
 #[turbo_tasks::value_impl]
-impl Request {
-    #[turbo_tasks::constructor(intern)]
+impl RequestRef {
     pub fn parse(request: String) -> Self {
-        if request.is_empty() {
+        Self::slot(if request.is_empty() {
             Request::Empty
         } else if request.starts_with("/") {
             Request::ServerRelative { path: request }
@@ -55,26 +54,26 @@ impl Request {
                 static ref MODULE_PATH: Regex = Regex::new(r"^((?:@[^/]+/)?[^/]+)(.*)").unwrap();
             }
             if WINDOWS_PATH.is_match(&request) {
-                return Request::Windows { path: request };
+                return Self::slot(Request::Windows { path: request });
             }
             if let Some(caps) = URI_PATH.captures(&request) {
                 if let (Some(protocol), Some(remainer)) = (caps.get(1), caps.get(2)) {
                     // TODO data uri
-                    return Request::Uri {
+                    return Self::slot(Request::Uri {
                         protocol: protocol.as_str().to_string(),
                         remainer: remainer.as_str().to_string(),
-                    };
+                    });
                 }
             }
             if let Some(caps) = MODULE_PATH.captures(&request) {
                 if let (Some(module), Some(path)) = (caps.get(1), caps.get(2)) {
-                    return Request::Module {
+                    return Self::slot(Request::Module {
                         module: module.as_str().to_string(),
                         path: path.as_str().to_string(),
-                    };
+                    });
                 }
             }
             Request::Unknown { path: request }
-        }
+        })
     }
 }

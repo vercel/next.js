@@ -1,4 +1,7 @@
-use crate::{self as turbo_tasks, task::NativeTaskFn, SlotRef, TaskArgumentOptions};
+use crate::{
+    self as turbo_tasks, error::SharedError, task::NativeTaskFn, task_input::TaskInput,
+    TaskArgumentOptions,
+};
 use anyhow::Result;
 use std::{
     fmt::Debug,
@@ -13,7 +16,7 @@ pub struct NativeFunction {
     #[trace_ignore]
     pub task_argument_options: Box<dyn Fn() -> Vec<TaskArgumentOptions> + Send + Sync + 'static>,
     #[trace_ignore]
-    pub bind_fn: Box<dyn (Fn(Vec<SlotRef>) -> Result<NativeTaskFn>) + Send + Sync + 'static>,
+    pub bind_fn: Box<dyn (Fn(Vec<TaskInput>) -> Result<NativeTaskFn>) + Send + Sync + 'static>,
     #[trace_ignore]
     pub executed_count: AtomicUsize,
 }
@@ -32,7 +35,7 @@ impl NativeFunction {
     pub fn new(
         name: String,
         task_argument_options: impl Fn() -> Vec<TaskArgumentOptions> + Send + Sync + 'static,
-        bind_fn: impl (Fn(Vec<SlotRef>) -> Result<NativeTaskFn>) + Send + Sync + 'static,
+        bind_fn: impl (Fn(Vec<TaskInput>) -> Result<NativeTaskFn>) + Send + Sync + 'static,
     ) -> Self {
         Self {
             name,
@@ -42,17 +45,24 @@ impl NativeFunction {
         }
     }
 
-    pub fn bind(&'static self, inputs: Vec<SlotRef>) -> Result<NativeTaskFn> {
-        (self.bind_fn)(inputs).map(|native_fn: NativeTaskFn| -> NativeTaskFn {
-            Box::new(move || {
+    pub fn bind(&'static self, inputs: Vec<TaskInput>) -> NativeTaskFn {
+        match (self.bind_fn)(inputs) {
+            Ok(native_fn) => Box::new(move || {
                 let r = native_fn();
                 let count = self.executed_count.fetch_add(1, Ordering::Relaxed);
                 if count > 0 && count % 100000 == 0 {
                     println!("{} was executed {}k times", self.name, count / 1000);
                 }
                 r
-            })
-        })
+            }),
+            Err(err) => {
+                let err = SharedError::new(err);
+                Box::new(move || {
+                    let err = err.clone();
+                    Box::pin(async { Err(err.into()) })
+                })
+            }
+        }
     }
 }
 

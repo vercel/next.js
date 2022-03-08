@@ -1,5 +1,4 @@
 use std::{
-    any::{Any, TypeId},
     cell::{Cell, RefCell},
     collections::HashSet,
     future::Future,
@@ -11,7 +10,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use any_key::AnyHash;
 use anyhow::{anyhow, Result};
 use async_std::{
     task::{Builder, JoinHandle},
@@ -21,17 +19,13 @@ use chashmap::CHashMap;
 use event_listener::Event;
 
 use crate::{
-    slot::SlotRef, task::NativeTaskFuture, NativeFunction, SlotValueType, Task, TraitType,
+    slot::SlotRef, task::NativeTaskFuture, task_input::TaskInput, NativeFunction, Task, TraitType,
 };
 
 pub struct TurboTasks {
-    interning_map: CHashMap<
-        Box<dyn AnyHash + Send + Sync>,
-        (&'static SlotValueType, Arc<dyn Any + Sync + Send>),
-    >,
-    resolve_task_cache: CHashMap<(&'static NativeFunction, Vec<SlotRef>), Arc<Task>>,
-    native_task_cache: CHashMap<(&'static NativeFunction, Vec<SlotRef>), Arc<Task>>,
-    trait_task_cache: CHashMap<(&'static TraitType, String, Vec<SlotRef>), Arc<Task>>,
+    resolve_task_cache: CHashMap<(&'static NativeFunction, Vec<TaskInput>), Arc<Task>>,
+    native_task_cache: CHashMap<(&'static NativeFunction, Vec<TaskInput>), Arc<Task>>,
+    trait_task_cache: CHashMap<(&'static TraitType, String, Vec<TaskInput>), Arc<Task>>,
     currently_scheduled_tasks: AtomicUsize,
     scheduled_tasks: AtomicUsize,
     start: Mutex<Option<Instant>>,
@@ -52,7 +46,6 @@ impl TurboTasks {
     // when trying to drop turbo tasks
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
-            interning_map: CHashMap::new(),
             resolve_task_cache: CHashMap::new(),
             native_task_cache: CHashMap::new(),
             trait_task_cache: CHashMap::new(),
@@ -75,61 +68,53 @@ impl TurboTasks {
 
     pub fn spawn_once_task(
         self: &Arc<Self>,
-        functor: impl Future<Output = SlotRef> + Send + 'static,
+        functor: impl Future<Output = Result<SlotRef>> + Send + 'static,
     ) -> Arc<Task> {
         let task = Arc::new(Task::new_once(functor));
         self.clone().schedule(task.clone());
         task
     }
 
-    fn cached_call<K: PartialEq + Hash, E>(
+    fn cached_call<K: PartialEq + Hash>(
         self: &Arc<Self>,
         map: &CHashMap<K, Arc<Task>>,
         key: K,
-        create_new: impl FnOnce() -> Result<Task, E>,
-    ) -> Result<SlotRef, E> {
+        create_new: impl FnOnce() -> Task,
+    ) -> SlotRef {
         if let Some(cached) = map.get(&key) {
             // fast pass without key lock (only read lock on table)
             let task = cached.clone();
             drop(cached);
             Task::with_current(|parent| task.connect_parent(parent));
             // TODO maybe force (background) scheduling to avoid inactive tasks hanging in "in progress" until they become active
-            return Ok(SlotRef::TaskOutput(task));
+            SlotRef::TaskOutput(task)
         } else {
             // slow pass with key lock
-            let mut result_task;
-            match create_new() {
-                Ok(task) => {
-                    let new_task = Arc::new(task);
-                    result_task = Ok(new_task.clone());
-                    map.alter(key, |old| match old {
-                        Some(t) => {
-                            result_task = Ok(t.clone());
-                            Some(t)
-                        }
-                        None => {
-                            // This is the most likely case
-                            // so we want this to be as fast as possible
-                            // avoiding locking the map too long
-                            Some(new_task)
-                        }
-                    });
+            let new_task = Arc::new(create_new());
+            let mut result_task = new_task.clone();
+            map.alter(key, |old| match old {
+                Some(t) => {
+                    result_task = t.clone();
+                    Some(t)
                 }
-                Err(err) => {
-                    result_task = Err(err);
+                None => {
+                    // This is the most likely case
+                    // so we want this to be as fast as possible
+                    // avoiding locking the map too long
+                    Some(new_task)
                 }
-            }
-            let task = result_task?;
+            });
+            let task = result_task;
             Task::with_current(|parent| task.connect_parent(parent));
-            return Ok(SlotRef::TaskOutput(task));
+            SlotRef::TaskOutput(task)
         }
     }
 
     pub(crate) fn native_call(
         self: &Arc<Self>,
         func: &'static NativeFunction,
-        inputs: Vec<SlotRef>,
-    ) -> Result<SlotRef> {
+        inputs: Vec<TaskInput>,
+    ) -> SlotRef {
         debug_assert!(inputs.iter().all(|i| i.is_resolved() && !i.is_nothing()));
         self.cached_call(&self.native_task_cache, (func, inputs.clone()), || {
             Task::new_native(inputs, func)
@@ -139,13 +124,13 @@ impl TurboTasks {
     pub fn dynamic_call(
         self: &Arc<Self>,
         func: &'static NativeFunction,
-        inputs: Vec<SlotRef>,
-    ) -> Result<SlotRef> {
+        inputs: Vec<TaskInput>,
+    ) -> SlotRef {
         if inputs.iter().all(|i| i.is_resolved() && !i.is_nothing()) {
             self.native_call(func, inputs)
         } else {
             self.cached_call(&self.resolve_task_cache, (func, inputs.clone()), || {
-                Ok(Task::new_resolve_native(inputs, func))
+                Task::new_resolve_native(inputs, func)
             })
         }
     }
@@ -154,12 +139,12 @@ impl TurboTasks {
         self: &Arc<Self>,
         trait_type: &'static TraitType,
         trait_fn_name: String,
-        inputs: Vec<SlotRef>,
-    ) -> Result<SlotRef> {
+        inputs: Vec<TaskInput>,
+    ) -> SlotRef {
         self.cached_call(
             &self.trait_task_cache,
             (trait_type, trait_fn_name.clone(), inputs.clone()),
-            || Ok(Task::new_resolve_trait(trait_type, trait_fn_name, inputs)),
+            || Task::new_resolve_trait(trait_type, trait_fn_name, inputs),
         )
     }
 
@@ -181,6 +166,9 @@ impl TurboTasks {
                     let tt = self.clone();
                     TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(tt));
                     let result = task.execute(self.clone()).await;
+                    if let Err(err) = &result {
+                        println!("Task {} errored  {}", task, err);
+                    }
                     task.execution_result(result);
                     TASKS_TO_NOTIFY.with(|tasks| {
                         for task in tasks.take().iter() {
@@ -258,33 +246,6 @@ impl TurboTasks {
         });
     }
 
-    pub(crate) fn intern<
-        T: Any + ?Sized,
-        K: Hash + PartialEq + Eq + Send + Sync + 'static,
-        F: FnOnce() -> (&'static SlotValueType, Arc<dyn Any + Send + Sync>),
-    >(
-        &self,
-        key: K,
-        fallback: F,
-    ) -> SlotRef {
-        let mut result = None;
-        self.interning_map.alter(
-            Box::new((TypeId::of::<T>(), key)) as Box<dyn AnyHash + Send + Sync>,
-            |entry| match entry {
-                Some((ty, value)) => {
-                    result = Some(SlotRef::SharedReference(ty, value.clone()));
-                    Some((ty, value))
-                }
-                None => {
-                    let (ty, value) = fallback();
-                    result = Some(SlotRef::SharedReference(ty, value.clone()));
-                    Some((ty, value))
-                }
-            },
-        );
-        result.unwrap()
-    }
-
     pub fn cached_tasks_iter(&self) -> impl Iterator<Item = Arc<Task>> {
         let mut tasks = Vec::new();
         for (_, task) in self.resolve_task_cache.clone().into_iter() {
@@ -300,32 +261,20 @@ impl TurboTasks {
     }
 }
 
-pub fn dynamic_call(func: &'static NativeFunction, inputs: Vec<SlotRef>) -> Result<SlotRef> {
+pub fn dynamic_call(func: &'static NativeFunction, inputs: Vec<TaskInput>) -> SlotRef {
     let tt = TurboTasks::current()
-        .ok_or_else(|| anyhow!("tried to call dynamic_call outside of turbo tasks"))?;
+        .ok_or_else(|| anyhow!("tried to call dynamic_call outside of turbo tasks"))
+        .unwrap();
     tt.dynamic_call(func, inputs)
 }
 
 pub fn trait_call(
     trait_type: &'static TraitType,
     trait_fn_name: String,
-    inputs: Vec<SlotRef>,
-) -> Result<SlotRef> {
-    let tt = TurboTasks::current()
-        .ok_or_else(|| anyhow!("tried to call trait_call outside of turbo tasks"))?;
-    tt.trait_call(trait_type, trait_fn_name, inputs)
-}
-
-pub(crate) fn intern<
-    T: Any + ?Sized,
-    K: Hash + PartialEq + Eq + Send + Sync + 'static,
-    F: FnOnce() -> (&'static SlotValueType, Arc<dyn Any + Send + Sync>),
->(
-    key: K,
-    fallback: F,
+    inputs: Vec<TaskInput>,
 ) -> SlotRef {
     let tt = TurboTasks::current()
-        .ok_or_else(|| anyhow!("tried to call intern outside of turbo tasks"))
+        .ok_or_else(|| anyhow!("tried to call trait_call outside of turbo tasks"))
         .unwrap();
-    tt.intern::<T, K, F>(key, fallback)
+    tt.trait_call(trait_type, trait_fn_name, inputs)
 }

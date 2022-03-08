@@ -8,10 +8,9 @@ pub struct SourceAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl SourceAsset {
-    #[turbo_tasks::constructor(intern)]
+impl SourceAssetRef {
     pub fn new(path: FileSystemPathRef) -> Self {
-        Self { path: path.clone() }
+        Self::slot(SourceAsset { path })
     }
 }
 

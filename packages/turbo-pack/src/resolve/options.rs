@@ -1,7 +1,8 @@
+use anyhow::Result;
 use turbo_tasks::trace::TraceSlotRefs;
 use turbo_tasks_fs::FileSystemPathRef;
 
-#[turbo_tasks::value(intern)]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, PartialEq, Eq, Debug)]
 pub struct LockedVersions {}
 
@@ -25,7 +26,7 @@ pub enum ResolveIntoPackage {
     Default(String),
 }
 
-#[turbo_tasks::value(intern)]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, PartialEq, Eq, Clone, Debug)]
 pub struct ResolveOptions {
     pub extensions: Vec<String>,
@@ -33,16 +34,18 @@ pub struct ResolveOptions {
     pub into_package: Vec<ResolveIntoPackage>,
 }
 
-#[turbo_tasks::value(intern)]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, PartialEq, Eq, Clone, Debug)]
 pub struct ResolveModulesOptions {
     pub modules: Vec<ResolveModules>,
 }
 
 #[turbo_tasks::function]
-pub async fn resolve_modules_options(options: ResolveOptionsRef) -> ResolveModulesOptionsRef {
-    ResolveModulesOptions {
-        modules: options.await.modules.clone(),
+pub async fn resolve_modules_options(
+    options: ResolveOptionsRef,
+) -> Result<ResolveModulesOptionsRef> {
+    Ok(ResolveModulesOptions {
+        modules: options.await?.modules.clone(),
     }
-    .into()
+    .into())
 }

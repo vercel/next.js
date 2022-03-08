@@ -8,12 +8,11 @@ pub struct ModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ModuleAsset {
-    #[turbo_tasks::constructor(intern)]
-    pub fn new(source: &AssetRef) -> Self {
-        Self {
+impl ModuleAssetRef {
+    pub fn new(source: AssetRef) -> Self {
+        Self::slot(ModuleAsset {
             source: source.clone(),
-        }
+        })
     }
 }
 

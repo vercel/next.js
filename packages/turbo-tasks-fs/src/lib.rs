@@ -14,7 +14,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Context;
+use anyhow::{Context, Result};
 use async_std::task::block_on;
 use invalidator_map::InvalidatorMap;
 use json::{parse, JsonValue};
@@ -181,11 +181,11 @@ impl fmt::Debug for DiskFileSystem {
 
 #[turbo_tasks::value_impl]
 impl FileSystem for DiskFileSystem {
-    async fn read(&self, fs_path: FileSystemPathRef) -> FileContentRef {
+    async fn read(&self, fs_path: FileSystemPathRef) -> Result<FileContentRef> {
         let full_path = Path::new(&self.root).join(
             &fs_path
                 .get()
-                .await
+                .await?
                 .path
                 .replace("/", &MAIN_SEPARATOR.to_string()),
         );
@@ -194,14 +194,14 @@ impl FileSystem for DiskFileSystem {
             self.invalidators
                 .insert(path_to_key(full_path.as_path()), invalidator);
         }
-        match self.execute(move || fs::read(&full_path)).await {
+        Ok(match self.execute(move || fs::read(&full_path)).await {
             Ok(content) => FileContent::new(content),
             Err(_) => FileContent::not_found(),
         }
-        .into()
+        .into())
     }
-    async fn read_dir(&self, fs_path: FileSystemPathRef) -> DirectoryContentRef {
-        let fs_path = fs_path.await;
+    async fn read_dir(&self, fs_path: FileSystemPathRef) -> Result<DirectoryContentRef> {
+        let fs_path = fs_path.await?;
         let full_path =
             Path::new(&self.root).join(&fs_path.path.replace("/", &MAIN_SEPARATOR.to_string()));
         {
@@ -210,7 +210,7 @@ impl FileSystem for DiskFileSystem {
                 .insert(path_to_key(full_path.as_path()), invalidator);
         }
         let result = self.execute(move || fs::read_dir(&full_path)).await;
-        match result {
+        Ok(match result {
             Ok(res) => DirectoryContentRef::new(
                 res.map(|e| match e {
                     Ok(e) => {
@@ -237,18 +237,18 @@ impl FileSystem for DiskFileSystem {
                 .collect::<Vec<_>>(),
             ),
             Err(_) => DirectoryContentRef::not_found(),
-        }
+        })
     }
-    async fn write(&self, fs_path: FileSystemPathRef, content: FileContentRef) {
+    async fn write(&self, fs_path: FileSystemPathRef, content: FileContentRef) -> Result<()> {
         let full_path = Path::new(&self.root).join(
             &fs_path
                 .get()
-                .await
+                .await?
                 .path
                 .replace("/", &MAIN_SEPARATOR.to_string()),
         );
-        let content = content.await;
-        let old_content = fs_path.read().await;
+        let content = content.await?;
+        let old_content = fs_path.read().await?;
         if *content != *old_content {
             let create_directory = *old_content == FileContent::NotFound;
             self.execute(move || match &*content {
@@ -284,15 +284,16 @@ impl FileSystem for DiskFileSystem {
             })
             .await
         }
+        Ok(())
     }
-    async fn parent_path(&self, fs_path: FileSystemPathRef) -> FileSystemPathRef {
-        let fs_path = fs_path.await;
+    async fn parent_path(&self, fs_path: FileSystemPathRef) -> Result<FileSystemPathRef> {
+        let fs_path = fs_path.await?;
         let mut p: String = fs_path.path.clone();
         match str::rfind(&p, '/') {
             Some(index) => p.replace_range(index.., ""),
             None => p.clear(),
         }
-        FileSystemPathRef::new(fs_path.fs.clone(), p)
+        Ok(FileSystemPathRef::new(fs_path.fs.clone(), p))
     }
 }
 
@@ -303,18 +304,19 @@ pub struct FileSystemPath {
     pub path: String,
 }
 
-#[turbo_tasks::value_impl]
 impl FileSystemPath {
-    #[turbo_tasks::constructor(intern)]
+    pub fn is_inside(&self, context: &FileSystemPath) -> bool {
+        self.fs == context.fs && self.path.starts_with(&context.path)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl FileSystemPathRef {
     pub fn new(fs: FileSystemRef, path: String) -> Self {
         debug_assert!(!path.starts_with("/"));
         debug_assert!(!path.starts_with("../"));
         debug_assert!(!path.starts_with("./"));
-        Self { fs, path }
-    }
-
-    pub fn is_inside(&self, context: &FileSystemPath) -> bool {
-        self.fs == context.fs && self.path.starts_with(&context.path)
+        Self::slot(FileSystemPath { fs, path })
     }
 }
 
@@ -323,10 +325,10 @@ pub async fn rebase(
     fs_path: FileSystemPathRef,
     old_base: FileSystemPathRef,
     new_base: FileSystemPathRef,
-) -> FileSystemPathRef {
-    let fs_path = &*fs_path.await;
-    let old_base = &*old_base.await;
-    let new_base = &*new_base.await;
+) -> Result<FileSystemPathRef> {
+    let fs_path = &*fs_path.await?;
+    let old_base = &*old_base.await?;
+    let new_base = &*new_base.await?;
     let new_path;
     if old_base.path.is_empty() {
         if new_base.path.is_empty() {
@@ -343,20 +345,20 @@ pub async fn rebase(
             new_path = [new_base.path.as_str(), &fs_path.path[old_base.path.len()..]].concat();
         }
     }
-    FileSystemPathRef::new(new_base.fs.clone(), new_path)
+    Ok(FileSystemPathRef::new(new_base.fs.clone(), new_path))
 }
 
 #[turbo_tasks::value_impl]
 impl FileSystemPathRef {
-    pub async fn read(self) -> FileContentRef {
-        let this = self.get().await;
-        this.fs.read(self)
+    pub async fn read(self) -> Result<FileContentRef> {
+        let this = self.get().await?;
+        Ok(this.fs.read(self))
     }
 
-    pub async fn read_json(self) -> FileJsonContentRef {
-        let this = self.get().await;
-        let content = this.fs.read(self).await;
-        match &*content {
+    pub async fn read_json(self) -> Result<FileJsonContentRef> {
+        let this = self.get().await?;
+        let content = this.fs.read(self).await?;
+        Ok(match &*content {
             FileContent::Content(buffer) => match std::str::from_utf8(&buffer) {
                 Ok(string) => match parse(string) {
                     Ok(data) => FileJsonContent::Content(data).into(),
@@ -365,22 +367,22 @@ impl FileSystemPathRef {
                 Err(_) => FileJsonContent::Unparseable.into(),
             },
             FileContent::NotFound => FileJsonContent::NotFound.into(),
-        }
+        })
     }
 
-    pub async fn read_dir(self) -> DirectoryContentRef {
-        let this = self.get().await;
-        this.fs.read_dir(self)
+    pub async fn read_dir(self) -> Result<DirectoryContentRef> {
+        let this = self.get().await?;
+        Ok(this.fs.read_dir(self))
     }
 
-    pub async fn write(self, content: FileContentRef) {
-        let this = self.get().await;
-        this.fs.write(self, content)
+    pub async fn write(self, content: FileContentRef) -> Result<()> {
+        let this = self.get().await?;
+        Ok(this.fs.write(self, content))
     }
 
-    pub async fn parent(self) -> FileSystemPathRef {
-        let this = self.get().await;
-        this.fs.parent_path(self)
+    pub async fn parent(self) -> Result<FileSystemPathRef> {
+        let this = self.get().await?;
+        Ok(this.fs.parent_path(self))
     }
 }
 

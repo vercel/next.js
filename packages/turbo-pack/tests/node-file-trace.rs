@@ -1,11 +1,9 @@
-use std::{fs::remove_dir_all, path::PathBuf, process::Command};
+use std::{fs::remove_dir_all, path::PathBuf};
 
 use async_std::task::block_on;
 use testing::fixture;
-use turbo_pack::{
-    ecmascript::ModuleAssetRef, emit, module, rebase::RebasedAssetRef, source_asset::SourceAssetRef,
-};
-use turbo_tasks::{SlotRef, TurboTasks};
+use turbo_pack::{emit, module, rebase::RebasedAssetRef, source_asset::SourceAssetRef};
+use turbo_tasks::{NothingRef, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemRef, FileSystemPathRef};
 
 #[fixture("tests/node-file-trace/integration/react.js")]
@@ -37,9 +35,9 @@ fn integration_test(input: PathBuf) {
 
         let source = SourceAssetRef::new(input);
         let module = module(source.into());
-        let rebased = RebasedAssetRef::new(&module, &input_dir, &output_dir);
+        let rebased = RebasedAssetRef::new(module, input_dir, output_dir);
         emit(rebased.into());
-        SlotRef::Nothing
+        Ok(NothingRef::new().into())
     });
     block_on(tt.wait_done());
 

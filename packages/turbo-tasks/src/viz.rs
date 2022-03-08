@@ -84,9 +84,6 @@ impl GraphViz {
             SlotRef::TaskCreated(task, index) => {
                 format!("slot_{}_{}", self.get_id(&**task as *const Task), index)
             }
-            SlotRef::Nothing | SlotRef::SharedReference(_, _) | SlotRef::CloneableData(_, _) => {
-                panic!("no ids for immutable data")
-            }
         }
     }
 

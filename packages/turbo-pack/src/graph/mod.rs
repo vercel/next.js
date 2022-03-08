@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use anyhow::Result;
+
 use crate::asset::AssetRef;
 
 #[turbo_tasks::value(shared)]
@@ -14,12 +16,13 @@ pub enum AggregatedGraph {
 }
 
 #[turbo_tasks::value_impl]
-impl AggregatedGraph {
-    #[turbo_tasks::constructor(intern)]
+impl AggregatedGraphRef {
     fn leaf(asset: AssetRef) -> Self {
-        Self::Leaf(asset)
+        Self::slot(AggregatedGraph::Leaf(asset))
     }
+}
 
+impl AggregatedGraph {
     fn depth(&self) -> usize {
         match self {
             AggregatedGraph::Leaf(_) => 0,
@@ -30,21 +33,21 @@ impl AggregatedGraph {
 
 #[turbo_tasks::value_impl]
 impl AggregatedGraphRef {
-    pub async fn content(self) -> AggregatedGraphNodeContentRef {
-        match &*self.await {
+    pub async fn content(self) -> Result<AggregatedGraphNodeContentRef> {
+        Ok(match &*self.await? {
             AggregatedGraph::Leaf(asset) => AggregatedGraphNodeContent::Asset(asset.clone()).into(),
             AggregatedGraph::Node { content, .. } => {
                 AggregatedGraphNodeContent::Children(content.clone()).into()
             }
-        }
+        })
     }
 
-    async fn references(self) -> AggregatedGraphsSetRef {
-        match &*self.await {
+    async fn references(self) -> Result<AggregatedGraphsSetRef> {
+        Ok(match &*self.await? {
             AggregatedGraph::Leaf(asset) => {
                 let mut refs = HashSet::new();
-                for reference in asset.clone().references().await.assets.iter() {
-                    let reference = reference.clone().resolve_to_slot().await;
+                for reference in asset.clone().references().await?.assets.iter() {
+                    let reference = reference.clone().resolve_to_slot().await?;
                     if asset != &reference {
                         refs.insert(AggregatedGraphRef::leaf(reference));
                     }
@@ -59,36 +62,36 @@ impl AggregatedGraphRef {
                     .collect::<Vec<_>>()
                     .into_iter()
                 {
-                    set.insert(item.resolve_to_slot().await);
+                    set.insert(item.resolve_to_slot().await?);
                 }
                 AggregatedGraphsSet { set }.into()
             }
-        }
+        })
     }
 
-    async fn cost(self) -> AggregationCostRef {
-        match &*self.await {
+    async fn cost(self) -> Result<AggregationCostRef> {
+        Ok(match &*self.await? {
             AggregatedGraph::Leaf(asset) => {
-                AggregationCost(asset.clone().references().await.assets.len()).into()
+                AggregationCost(asset.clone().references().await?.assets.len()).into()
             }
             AggregatedGraph::Node { references, .. } => AggregationCost(references.len()).into(),
-        }
+        })
     }
 
-    async fn valued_references(self) -> AggregatedGraphsValuedReferencesRef {
-        let self_cost = self.clone().cost().await.0;
+    async fn valued_references(self) -> Result<AggregatedGraphsValuedReferencesRef> {
+        let self_cost = self.clone().cost().await?.0;
         let mut inner = HashSet::new();
         let mut outer = HashSet::new();
         let mut references = HashSet::new();
         for (reference, cost) in self
             .references()
-            .await
+            .await?
             .set
             .iter()
             .map(|reference| (reference.clone(), reference.clone().cost()))
             .collect::<Vec<_>>()
         {
-            let cost = cost.await.0;
+            let cost = cost.await?.0;
             if cost == 0 {
                 inner.insert(reference);
             } else if cost > self_cost {
@@ -97,21 +100,21 @@ impl AggregatedGraphRef {
                 outer.insert(reference);
             }
         }
-        AggregatedGraphsValuedReferences {
+        Ok(AggregatedGraphsValuedReferences {
             inner,
             outer,
             references,
         }
-        .into()
+        .into())
     }
 }
 
 #[turbo_tasks::function]
-pub async fn aggregate(asset: AssetRef) -> AggregatedGraphRef {
+pub async fn aggregate(asset: AssetRef) -> Result<AggregatedGraphRef> {
     let mut current = AggregatedGraphRef::leaf(asset);
     loop {
-        if current.clone().references().await.set.len() == 0 {
-            return current;
+        if current.clone().references().await?.set.len() == 0 {
+            return Ok(current);
         }
         current = aggregate_more(current);
     }
@@ -126,8 +129,8 @@ struct AggregationDepth(usize);
 struct AggregationCost(usize);
 
 #[turbo_tasks::function]
-async fn aggregate_more(node: AggregatedGraphRef) -> AggregatedGraphRef {
-    let node_data = node.get().await;
+async fn aggregate_more(node: AggregatedGraphRef) -> Result<AggregatedGraphRef> {
+    let node_data = node.get().await?;
     let depth = node_data.depth();
     let mut in_progress = HashSet::new();
     let mut content = HashSet::new();
@@ -147,7 +150,7 @@ async fn aggregate_more(node: AggregatedGraphRef) -> AggregatedGraphRef {
             .map(|node| node.clone().valued_references())
             .collect::<Vec<_>>();
         for valued_refs in valued_refs {
-            let valued_refs = valued_refs.await;
+            let valued_refs = valued_refs.await?;
             for reference in valued_refs.inner.iter() {
                 content.insert(reference.clone());
             }
@@ -169,12 +172,12 @@ async fn aggregate_more(node: AggregatedGraphRef) -> AggregatedGraphRef {
     for node in in_progress.into_iter() {
         references.insert(node);
     }
-    AggregatedGraph::Node {
+    Ok(AggregatedGraph::Node {
         depth: depth + 1,
         content,
         references,
     }
-    .into()
+    .into())
 }
 
 #[turbo_tasks::value(shared)]

@@ -2,6 +2,7 @@ use std::fmt::Display;
 use std::io::Write;
 use std::sync::{Arc, RwLock};
 
+use anyhow::Result;
 use swc_common::errors::Handler;
 use swc_common::input::StringInput;
 use swc_common::sync::Lrc;
@@ -68,10 +69,10 @@ impl Write for Buffer {
 }
 
 #[turbo_tasks::function]
-pub async fn parse(source: AssetRef) -> ParseResultRef {
+pub async fn parse(source: AssetRef) -> Result<ParseResultRef> {
     let content = source.content();
-    let fs_path = source.path().await;
-    match &*content.await {
+    let fs_path = source.path().await?;
+    Ok(match &*content.await? {
         FileContent::NotFound => ParseResult::NotFound.into(),
         FileContent::Content(buffer) => {
             match String::from_utf8(buffer.clone()) {
@@ -127,5 +128,5 @@ pub async fn parse(source: AssetRef) -> ParseResultRef {
                 }
             }
         }
-    }
+    })
 }

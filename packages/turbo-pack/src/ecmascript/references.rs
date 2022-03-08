@@ -6,6 +6,7 @@ use crate::{
     reference::{AssetReference, AssetReferenceRef, AssetReferencesSet, AssetReferencesSetRef},
     resolve::{parse::RequestRef, resolve, resolve_options, ResolveResult, ResolveResultRef},
 };
+use anyhow::Result;
 use swc_ecmascript::{
     ast::{
         CallExpr, Callee, ComputedPropName, Expr, ExprOrSpread, ImportDecl, ImportSpecifier, Lit,
@@ -18,9 +19,9 @@ use turbo_tasks_fs::FileSystemPathRef;
 use super::parse::{parse, ParseResult};
 
 #[turbo_tasks::function]
-pub async fn module_references(source: AssetRef) -> AssetReferencesSetRef {
-    let parsed = parse(source).await;
-    match &*parsed {
+pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef> {
+    let parsed = parse(source).await?;
+    Ok(match &*parsed {
         ParseResult::Ok(module) => {
             let mut visitor = AssetReferencesVisitor::default();
             module.visit_with(&mut visitor);
@@ -30,7 +31,7 @@ pub async fn module_references(source: AssetRef) -> AssetReferencesSetRef {
             .into()
         }
         ParseResult::Unparseable | ParseResult::NotFound => AssetReferencesSetRef::empty(),
-    }
+    })
 }
 
 enum StaticExpr {
@@ -202,25 +203,24 @@ pub struct EsmAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl EsmAssetReference {
-    #[turbo_tasks::constructor(intern)]
+impl EsmAssetReferenceRef {
     pub fn new(request: String) -> Self {
-        Self { request }
+        Self::slot(EsmAssetReference { request })
     }
 }
 
 #[turbo_tasks::function(request: resolved, context: resolved, return: resolved)]
-async fn esm_resolve(request: RequestRef, context: FileSystemPathRef) -> ResolveResultRef {
+async fn esm_resolve(request: RequestRef, context: FileSystemPathRef) -> Result<ResolveResultRef> {
     let options = resolve_options(context.clone());
 
     let result = resolve(context, request, options);
 
-    match &*result.await {
+    Ok(match &*result.await? {
         ResolveResult::Module(m) => {
-            ResolveResult::Module(module(m.clone()).resolve_to_value().await).into()
+            ResolveResult::Module(module(m.clone()).resolve_to_slot().await?).into()
         }
         ResolveResult::Unresolveable => ResolveResult::Unresolveable.into(),
-    }
+    })
 }
 
 #[turbo_tasks::value_impl]
