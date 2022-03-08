@@ -1880,11 +1880,20 @@ export default class Router implements BaseRouter {
       return { type: 'next' }
     }
 
-    const preflight = await this._getPreflightData({
-      preflightHref: options.as,
-      shouldCache: options.cache,
-      isPreview: options.isPreview,
-    })
+    let preflight: PreflightData | undefined
+    try {
+      preflight = await this._getPreflightData({
+        preflightHref: options.as,
+        shouldCache: options.cache,
+        isPreview: options.isPreview,
+      })
+    } catch (err) {
+      // If preflight request fails, we need to do a hard-navigation.
+      return {
+        type: 'redirect',
+        destination: options.as,
+      }
+    }
 
     if (preflight.rewrite) {
       // for external rewrites we need to do a hard navigation

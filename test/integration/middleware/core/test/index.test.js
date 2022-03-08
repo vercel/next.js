@@ -47,6 +47,8 @@ describe('Middleware base tests', () => {
     interfaceTests('/fr')
     urlTests(log)
     urlTests(log, '/fr')
+    errorTests()
+    errorTests('/fr')
 
     it('should have showed warning for middleware usage', () => {
       expect(log.output).toContain(middlewareWarning)
@@ -84,6 +86,8 @@ describe('Middleware base tests', () => {
     interfaceTests('/fr')
     urlTests(serverOutput)
     urlTests(serverOutput, '/fr')
+    errorTests()
+    errorTests('/fr')
 
     it('should have middleware warning during build', () => {
       expect(buildOutput).toContain(middlewareWarning)
@@ -795,6 +799,16 @@ function interfaceTests(locale = '') {
     expect(await element.text()).toEqual('Parts page')
     const logs = await browser.log()
     expect(logs.every((log) => log.source === 'log')).toEqual(true)
+  })
+}
+
+function errorTests(locale = '') {
+  it(`${locale} should hard-navigate when preflight request failed`, async () => {
+    const browser = await webdriver(context.appPort, `${locale}/errors`)
+    await browser.eval('window.__SAME_PAGE = true')
+    await browser.elementByCss('#throw-on-preflight').click()
+    await browser.waitForElementByCss('.refreshed')
+    expect(await browser.eval('window.__SAME_PAGE')).toBeUndefined()
   })
 }
 
