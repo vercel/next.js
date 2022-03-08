@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -75,5 +77,36 @@ impl RequestRef {
             }
             Request::Unknown { path: request }
         })
+    }
+}
+
+impl Display for Request {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Request::Relative { path } => write!(f, "relative '{}'", path),
+            Request::Module { module, path } => {
+                if path.is_empty() {
+                    write!(f, "module '{}'", module)
+                } else {
+                    write!(f, "module '{}' with subpath {}", module, path)
+                }
+            }
+            Request::ServerRelative { path } => write!(f, "server relative '{}'", path),
+            Request::Windows { path } => write!(f, "windows '{}'", path),
+            Request::Empty => write!(f, "empty"),
+            Request::PackageInternal { path } => write!(f, "package internal '{}'", path),
+            Request::DataUri {
+                mimetype,
+                attributes,
+                base64,
+                encoded,
+            } => write!(
+                f,
+                "data uri 'data://{}' '{}' '{}' '{}'",
+                mimetype, attributes, base64, encoded,
+            ),
+            Request::Uri { protocol, remainer } => write!(f, "uri '{}' '{}'", protocol, remainer),
+            Request::Unknown { path } => write!(f, "unknown '{}'", path),
+        }
     }
 }

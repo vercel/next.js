@@ -6,6 +6,7 @@ use std::{
 };
 
 use anyhow::{Error, Result};
+use lazy_static::__Deref;
 use weak_table::{
     traits::{WeakElement, WeakKey},
     WeakHashSet,
@@ -385,6 +386,18 @@ impl<T: Any + Send + Sync> std::ops::Deref for SlotRefReadResult<T> {
                 panic!("Invalid type")
             }
         }
+    }
+}
+
+impl<T: Display + Any + Send + Sync> Display for SlotRefReadResult<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self.deref(), f)
+    }
+}
+
+impl<T: Debug + Any + Send + Sync> Debug for SlotRefReadResult<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self.deref(), f)
     }
 }
 

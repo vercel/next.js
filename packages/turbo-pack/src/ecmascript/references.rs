@@ -213,13 +213,21 @@ impl EsmAssetReferenceRef {
 async fn esm_resolve(request: RequestRef, context: FileSystemPathRef) -> Result<ResolveResultRef> {
     let options = resolve_options(context.clone());
 
-    let result = resolve(context, request, options);
+    let result = resolve(context.clone(), request.clone(), options);
 
     Ok(match &*result.await? {
         ResolveResult::Module(m) => {
             ResolveResult::Module(module(m.clone()).resolve_to_slot().await?).into()
         }
-        ResolveResult::Unresolveable => ResolveResult::Unresolveable.into(),
+        ResolveResult::Unresolveable => {
+            // TODO report this to stream
+            println!(
+                "unable to resolve esm request {} in {}",
+                request.get().await?,
+                context.get().await?
+            );
+            ResolveResult::Unresolveable.into()
+        }
     })
 }
 

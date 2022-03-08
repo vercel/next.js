@@ -140,11 +140,6 @@ async fn find_package(
             ResolveModules::Registry(_, _) => todo!(),
         }
     }
-    println!(
-        "unable to find package {} in {}",
-        package_name,
-        context.get().await?.path
-    );
     Ok(FindPackageResult::NotFound.into())
 }
 

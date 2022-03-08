@@ -5,7 +5,7 @@
 mod invalidator_map;
 
 use std::{
-    fmt::{self, Debug},
+    fmt::{self, Debug, Display},
     fs::{self, create_dir_all},
     io::ErrorKind,
     path::{Path, PathBuf, MAIN_SEPARATOR},
@@ -319,6 +319,12 @@ impl FileSystemPathRef {
         debug_assert!(!path.starts_with("../"));
         debug_assert!(!path.starts_with("./"));
         Self::slot(FileSystemPath { fs, path })
+    }
+}
+
+impl Display for FileSystemPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.path)
     }
 }
 
