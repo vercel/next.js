@@ -164,14 +164,7 @@ class Container extends React.Component<{
   }
 
   render() {
-    if (process.env.NODE_ENV === 'production') {
-      return this.props.children
-    } else {
-      const {
-        ReactDevOverlay,
-      } = require('next/dist/compiled/@next/react-dev-overlay/client')
-      return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
-    }
+    return this.props.children
   }
 }
 
@@ -978,7 +971,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 
   onStart()
 
-  const elem: JSX.Element = (
+  let elem: JSX.Element = (
     <>
       <Head callback={onHeadCommit} />
       <AppContainer>
@@ -990,15 +983,22 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     </>
   )
 
+  elem = process.env.__NEXT_STRICT_MODE ? (
+    <React.StrictMode>{elem}</React.StrictMode>
+  ) : (
+    elem
+  )
+
+  if (process.env.NODE_ENV !== 'production') {
+    const {
+      ReactDevOverlay,
+    } = require('next/dist/compiled/@next/react-dev-overlay/client')
+    elem = <ReactDevOverlay>{elem}</ReactDevOverlay>
+  }
+
   // We catch runtime errors using componentDidCatch which will trigger renderError
   renderReactElement(appElement!, (callback) => (
-    <Root callbacks={[callback, onRootCommit]}>
-      {process.env.__NEXT_STRICT_MODE ? (
-        <React.StrictMode>{elem}</React.StrictMode>
-      ) : (
-        elem
-      )}
-    </Root>
+    <Root callbacks={[callback, onRootCommit]}>{elem}</Root>
   ))
 
   return renderPromise
