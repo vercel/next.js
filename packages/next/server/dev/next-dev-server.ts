@@ -540,9 +540,16 @@ export default class DevServer extends Server {
       return result
     } catch (error) {
       this.logErrorWithOriginalStack(error, undefined, 'client')
+
+      const preflight =
+        params.request.method === 'HEAD' &&
+        params.request.headers['x-middleware-preflight']
+      if (preflight) throw error
+
       const err = getProperError(error)
       ;(err as any).middleware = true
       const { request, response, parsedUrl } = params
+      response.statusCode = 500
       this.renderError(err, request, response, parsedUrl.pathname)
       return null
     }
