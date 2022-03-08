@@ -38,7 +38,13 @@ window.next = {
 }
 
 const webpackHMR = initWebpackHMR()
-initialize({ webpackHMR })
+initialize({
+  onError: (_) => {
+    // A Next.js rendering runtime error is always unrecoverable
+    // FIXME: let's make this recoverable (error in GIP client-transition)
+    webpackHMR.onUnrecoverableError()
+  },
+})
   .then(({ assetPrefix }) => {
     connectHMR({ assetPrefix, path: '/_next/webpack-hmr' })
 

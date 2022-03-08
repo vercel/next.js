@@ -64,6 +64,7 @@ type RenderRouteInfo = PrivateRouteInfo & {
 }
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
 type RegisterFn = (input: [string, () => void]) => void
+type ErrorHandler = (error: Error) => void
 
 export const version = process.env.__NEXT_VERSION
 export let router: Router
@@ -83,7 +84,7 @@ let headManager: {
 }
 
 let lastRenderReject: (() => void) | null
-let webpackHMR: any
+let onError: ErrorHandler | null = null
 
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 let CachedComponent: React.ComponentType
@@ -175,14 +176,12 @@ class Container extends React.Component<{
   }
 }
 
-export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
+export async function initialize(
+  opts: { onError?: ErrorHandler } = {}
+): Promise<{
   assetPrefix: string
 }> {
-  // This makes sure this specific lines are removed in production
-  if (process.env.NODE_ENV === 'development') {
-    webpackHMR = opts.webpackHMR
-  }
-
+  onError = opts.onError ?? null
   initialData = JSON.parse(
     document.getElementById('__NEXT_DATA__')!.textContent!
   )
@@ -466,13 +465,13 @@ async function render(renderingProps: RenderRouteInfo): Promise<void> {
 function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
   const { App, err } = renderErrorProps
 
+  if (onError) {
+    onError(err!)
+  }
+
   // In development runtime errors are caught by our overlay
   // In production we catch runtime errors using componentDidCatch which will trigger renderError
   if (process.env.NODE_ENV !== 'production') {
-    // A Next.js rendering runtime error is always unrecoverable
-    // FIXME: let's make this recoverable (error in GIP client-transition)
-    webpackHMR.onUnrecoverableError()
-
     // We need to render an empty <App> so that the `<ReactDevOverlay>` can
     // render itself.
     return doRender({
