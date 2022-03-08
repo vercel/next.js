@@ -374,7 +374,7 @@ module.exports = {
 
 The default [Image Optimization API](#loader-configuration) will automatically detect the browser's supported image formats via the request's `Accept` header.
 
-If the `Accept` head matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match, the Image Optimization API will fallback to the original image's format.
+If the `Accept` head matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match (or the source image is [animated](#animated-images)), the Image Optimization API will fallback to the original image's format.
 
 If no configuration is provided, the default below is used.
 
@@ -408,7 +408,7 @@ The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](
 
 - You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `Cache-Control` header or the value is very low.
 - You can configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
-- You can configure [formats](/docs/basic-features/image-optimization.md#acceptable-formats) to disable multiple formats in favor of a single image format.
+- You can configure [formats](#acceptable-formats) to disable multiple formats in favor of a single image format.
 
 ### Minimum Cache TTL
 
@@ -454,6 +454,12 @@ module.exports = {
   },
 }
 ```
+
+### Animated Images
+
+The default [loader](#loader) will automatically bypass Image Optimization for animated images and serve the image as-is.
+
+Auto-detection for animated files is best-effort and supports GIF, APNG, and WebP. If you want to explicitly bypass Image Optimization for a given animated image, use the [unoptimized](#unoptimized) prop.
 
 ## Related
 
