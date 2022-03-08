@@ -1314,7 +1314,7 @@ export default class NextNodeServer extends BaseServer {
       }
     }
 
-    originalBody?.finalize()
+    await originalBody?.finalize()
 
     return result
   }
