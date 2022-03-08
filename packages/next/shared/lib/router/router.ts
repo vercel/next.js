@@ -1165,8 +1165,9 @@ export default class Router implements BaseRouter {
      * request as it is not necessary.
      */
     if (
-      (options as any)._h !== 1 ||
-      isDynamicRoute(removePathTrailingSlash(pathname))
+      (!options.shallow || (options as any)._h === 1) &&
+      ((options as any)._h !== 1 ||
+        isDynamicRoute(removePathTrailingSlash(pathname)))
     ) {
       const effect = await this._preflightRequest({
         as,
@@ -1864,8 +1865,9 @@ export default class Router implements BaseRouter {
     locale: string | undefined
     isPreview: boolean
   }): Promise<PreflightEffect> {
+    const asPathname = pathNoQueryHash(options.as)
     const cleanedAs = delLocale(
-      hasBasePath(options.as) ? delBasePath(options.as) : options.as,
+      hasBasePath(asPathname) ? delBasePath(asPathname) : asPathname,
       options.locale
     )
 
