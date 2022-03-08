@@ -71,7 +71,7 @@ fn test(input: &Path, minify: bool) {
                 None,
                 &handler,
                 &options.swc,
-                |_| custom_before_pass(cm.clone(), fm.clone(), &options),
+                |_| custom_before_pass(cm.clone(), fm.clone(), &options, c.comments()),
                 |_| noop(),
             ) {
                 Ok(v) => {

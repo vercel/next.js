@@ -47,7 +47,7 @@ pub fn transform_sync(s: &str, opts: JsValue) -> Result<JsValue, JsValue> {
             },
             s.into(),
         );
-        let before_pass = custom_before_pass(c.cm.clone(), fm.clone(), &opts);
+        let before_pass = custom_before_pass(c.cm.clone(), fm.clone(), &opts, c.comments());
         let out = c
             .process_js_with_custom_pass(fm, None, handler, &opts.swc, |_| before_pass, |_| noop())
             .context("failed to process js file")?;

@@ -36,6 +36,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::{path::PathBuf, sync::Arc};
 use swc::config::ModuleConfig;
+use swc_common::comments::Comments;
 use swc_common::{self, chain, pass::Optional};
 use swc_common::{FileName, SourceFile, SourceMap};
 use swc_ecmascript::ast::EsVersion;
@@ -105,11 +106,12 @@ pub struct TransformOptions {
     pub emotion: Option<emotion::EmotionOptions>,
 }
 
-pub fn custom_before_pass(
+pub fn custom_before_pass<'a, C: Comments>(
     cm: Arc<SourceMap>,
     file: Arc<SourceFile>,
-    opts: &TransformOptions,
-) -> impl Fold + '_ {
+    opts: &'a TransformOptions,
+    comments: &'a C,
+) -> impl Fold + 'a {
     #[cfg(target_arch = "wasm32")]
     let relay_plugin = noop();
 
@@ -179,7 +181,12 @@ pub fn custom_before_pass(
                 }
                 if let FileName::Real(path) = &file.name {
                     path.to_str().map(|_| {
-                        Either::Left(emotion::EmotionTransformer::new(config.clone(), path, cm))
+                        Either::Left(emotion::EmotionTransformer::new(
+                            config.clone(),
+                            path,
+                            cm,
+                            comments,
+                        ))
                     })
                 } else {
                     None

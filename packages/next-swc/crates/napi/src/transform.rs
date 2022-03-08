@@ -94,7 +94,12 @@ impl Task for TransformTask {
                     };
                     let options = options.patch(&fm);
 
-                    let before_pass = custom_before_pass(self.c.cm.clone(), fm.clone(), &options);
+                    let before_pass = custom_before_pass(
+                        self.c.cm.clone(),
+                        fm.clone(),
+                        &options,
+                        self.c.comments(),
+                    );
                     self.c.process_js_with_custom_pass(
                         fm,
                         None,

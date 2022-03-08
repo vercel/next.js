@@ -10,7 +10,7 @@ use next_swc::{
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
     styled_jsx::styled_jsx,
 };
-use std::path::PathBuf;
+use std::{path::PathBuf, rc::Rc};
 use swc_common::{chain, comments::SingleThreadedComments, FileName, Mark, Span, DUMMY_SP};
 use swc_ecma_transforms_testing::{test, test_fixture};
 use swc_ecmascript::{
@@ -275,13 +275,19 @@ fn shake_exports_fixture_default(input: PathBuf) {
 #[fixture("tests/fixture/emotion/*/input.tsx")]
 fn next_emotion_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.ts");
+    let mut comments: Rc<SingleThreadedComments> = Default::default();
+    let comments_raw = &mut comments as *mut Rc<SingleThreadedComments>;
     test_fixture(
         ts_syntax(),
         &|tr| {
+            // oops, we need `FnMut` here to safety replace comments with the `tr.comments`
+            unsafe {
+                std::ptr::replace(comments_raw, tr.comments.clone());
+            };
             let top_level_mark = Mark::fresh(Mark::root());
-            let jsx = jsx::<SingleThreadedComments>(
+            let jsx = jsx::<&SingleThreadedComments>(
                 tr.cm.clone(),
-                None,
+                Some(comments.as_ref()),
                 swc_ecmascript::transforms::react::Options {
                     next: false,
                     runtime: Some(Runtime::Automatic),
@@ -301,10 +307,11 @@ fn next_emotion_fixture(input: PathBuf) {
                         auto_label: Some(true),
                         ..Default::default()
                     },
-                    &input,
+                    &PathBuf::from("input.ts"),
                     tr.cm.clone(),
+                    comments.as_ref(),
                 ),
-                jsx,
+                jsx
             )
         },
         &input,

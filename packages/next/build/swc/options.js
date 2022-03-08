@@ -64,7 +64,7 @@ function getBaseSWCOptions({
         legacyDecorator: enableDecorators,
         decoratorMetadata: emitDecoratorMetadata,
         react: {
-          importSource: nextConfig?.emotion?.enabled
+          importSource: nextConfig?.compiler?.emotion?.enabled
             ? '@emotion/react'
             : jsConfig?.compilerOptions?.jsxImportSource || 'react',
           runtime: 'automatic',
@@ -108,10 +108,7 @@ function getBaseSWCOptions({
 }
 
 function getEmotionOptions(nextConfig, development) {
-  if (
-    !nextConfig?.compiler?.emotion ||
-    !nextConfig?.compiler?.emotion?.enabled
-  ) {
+  if (!nextConfig?.compiler?.emotion) {
     return null
   }
   let autoLabel = false

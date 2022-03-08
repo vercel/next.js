@@ -1,7 +1,13 @@
+import { css } from '@emotion/react'
 import { Animated, Basic, bounce, Combined, Pink } from '../shared/styles'
 
 const Home = () => (
-  <div>
+  <div
+    css={css`
+      display: flex;
+      flex-direction: column;
+    `}
+  >
     <Basic>Cool Styles</Basic>
     <Pink>Pink text</Pink>
     <Combined>
