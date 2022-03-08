@@ -65,7 +65,10 @@ export async function middleware(request) {
     return NextResponse.rewrite(url)
   }
 
-  if (url.pathname === '/rewrites/rewrite-me-without-hard-navigation') {
+  if (
+    url.pathname === '/rewrites/rewrite-me-without-hard-navigation' ||
+    url.searchParams.get('path') === 'rewrite-me-without-hard-navigation'
+  ) {
     url.searchParams.set('middleware', 'foo')
     url.pathname =
       request.cookies['about-bypass'] === '1'
