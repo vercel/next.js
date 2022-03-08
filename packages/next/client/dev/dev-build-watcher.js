@@ -5,21 +5,15 @@ export default function initializeBuildWatcher(
   position = 'bottom-right'
 ) {
   const shadowHost = document.createElement('div')
+  const horizontalPositionProperty = position.split('-')[1]
+  const verticalPositionProperty = position.split('-')[0]
   shadowHost.id = '__next-build-watcher'
   // Make sure container is fixed and on a high zIndex so it shows
   shadowHost.style.position = 'fixed'
   // Ensure container's position to be top or bottom (default)
-  if (['top-left', 'top-right'].indexOf(position) > -1) {
-    shadowHost.style.top = '10px'
-  } else {
-    shadowHost.style.bottom = '10px'
-  }
+  shadowHost.style[verticalPositionProperty] = '10px'
   // Ensure container's position to be left or right (default)
-  if (['bottom-left', 'top-left'].indexOf(position) > -1) {
-    shadowHost.style.left = '20px'
-  } else {
-    shadowHost.style.right = '20px'
-  }
+  shadowHost.style[horizontalPositionProperty] = '20px'
   shadowHost.style.width = 0
   shadowHost.style.height = 0
   shadowHost.style.zIndex = 99999
@@ -43,7 +37,11 @@ export default function initializeBuildWatcher(
   shadowRoot.appendChild(container)
 
   // CSS
-  const css = createCss(prefix)
+  const css = createCss(prefix, {
+    horizontalPositionProperty,
+    verticalPositionProperty,
+  })
+
   shadowRoot.appendChild(css)
 
   // State
@@ -134,13 +132,16 @@ function createContainer(prefix) {
   return container
 }
 
-function createCss(prefix) {
+function createCss(
+  prefix,
+  { horizontalPositionProperty, verticalPositionProperty }
+) {
   const css = document.createElement('style')
   css.textContent = `
     #${prefix}container {
       position: absolute;
-      bottom: 10px;
-      right: 30px;
+      ${verticalPositionProperty}: 10px;
+      ${horizontalPositionProperty}: 30px;
 
       border-radius: 3px;
       background: #000;
@@ -158,7 +159,7 @@ function createCss(prefix) {
 
       display: none;
       opacity: 0;
-      transition: opacity 0.1s ease, bottom 0.1s ease;
+      transition: opacity 0.1s ease, ${verticalPositionProperty} 0.1s ease;
       animation: ${prefix}fade-in 0.1s ease-in-out;
     }
 
@@ -167,7 +168,7 @@ function createCss(prefix) {
     }
 
     #${prefix}container.${prefix}building {
-      bottom: 20px;
+      ${verticalPositionProperty}: 20px;
       opacity: 1;
     }
 
@@ -187,11 +188,11 @@ function createCss(prefix) {
 
     @keyframes ${prefix}fade-in {
       from {
-        bottom: 10px;
+        ${verticalPositionProperty}: 10px;
         opacity: 0;
       }
       to {
-        bottom: 20px;
+        ${verticalPositionProperty}: 20px;
         opacity: 1;
       }
     }
