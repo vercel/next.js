@@ -25,6 +25,7 @@ import rsc from './rsc'
 import streaming from './streaming'
 import basic from './basic'
 import functions from './functions'
+import runtime from './runtime'
 
 const documentWithGip = `
 import { Html, Head, Main, NextScript } from 'next/document'
@@ -105,8 +106,9 @@ describe('Edge runtime - prod', () => {
     const distServerDir = join(distDir, 'server')
     const files = [
       'middleware-build-manifest.js',
-      'middleware-flight-manifest.js',
       'middleware-ssr-runtime.js',
+      'middleware-flight-manifest.js',
+      'middleware-flight-manifest.json',
       'middleware-manifest.json',
     ]
 
@@ -154,6 +156,7 @@ describe('Edge runtime - prod', () => {
   basic(context, options)
   streaming(context, options)
   rsc(context, options)
+  runtime(context, options)
 })
 
 describe('Edge runtime - dev', () => {
@@ -188,6 +191,7 @@ describe('Edge runtime - dev', () => {
   basic(context, options)
   streaming(context, options)
   rsc(context, options)
+  runtime(context, options)
 })
 
 const nodejsRuntimeBasicSuite = {

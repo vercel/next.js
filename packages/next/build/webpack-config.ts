@@ -1173,44 +1173,41 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
-        // Loaders for the client compilation when RSC is enabled.
-        ...(hasServerComponents && !isServer
-          ? [
-              {
-                ...codeCondition,
-                test: serverComponentsRegex,
-                use: {
-                  loader: 'next-flight-server-loader',
-                  options: {
-                    client: 1,
-                    pageExtensions: rawPageExtensions,
+        ...(hasServerComponents
+          ? isServer
+            ? [
+                // RSC server compilation loaders
+                {
+                  ...codeCondition,
+                  use: {
+                    loader: 'next-flight-server-loader',
+                    options: {
+                      pageExtensions: rawPageExtensions,
+                    },
                   },
                 },
-              },
-            ]
-          : []),
-        // Loaders for the server compilation when RSC is enabled.
-        ...(hasServerComponents &&
-        ((runtime === 'edge' && isEdgeRuntime) ||
-          (runtime === 'nodejs' && isServer))
-          ? [
-              {
-                ...codeCondition,
-                use: {
-                  loader: 'next-flight-server-loader',
-                  options: {
-                    pageExtensions: rawPageExtensions,
+                {
+                  test: codeCondition.test,
+                  resourceQuery: /__sc_client__/,
+                  use: {
+                    loader: 'next-flight-client-loader',
                   },
                 },
-              },
-              {
-                test: codeCondition.test,
-                resourceQuery: /__sc_client__/,
-                use: {
-                  loader: 'next-flight-client-loader',
+              ]
+            : [
+                // RSC client compilation loaders
+                {
+                  ...codeCondition,
+                  test: serverComponentsRegex,
+                  use: {
+                    loader: 'next-flight-server-loader',
+                    options: {
+                      client: 1,
+                      pageExtensions: rawPageExtensions,
+                    },
+                  },
                 },
-              },
-            ]
+              ]
           : []),
         {
           test: /\.(js|cjs|mjs)$/,
@@ -1493,7 +1490,7 @@ export default async function getBaseWebpackConfig(
         }),
       hasServerComponents &&
         !isServer &&
-        new FlightManifestPlugin({ dev, clientComponentsRegex, runtime }),
+        new FlightManifestPlugin({ dev, clientComponentsRegex }),
       !dev &&
         !isServer &&
         new TelemetryPlugin(

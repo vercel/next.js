@@ -60,6 +60,7 @@ import isError, { getProperError } from '../../lib/is-error'
 import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware-regex'
 import { isCustomErrorPage, isReservedPage } from '../../build/utils'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
+import { getPageRuntime, invalidatePageRuntimeCache } from '../../build/entries'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -254,17 +255,13 @@ export default class DevServer extends Server {
       let wp = (this.webpackWatcher = new Watchpack())
       wp.watch([], [pagesDir!], 0)
 
-      wp.on('aggregated', () => {
+      wp.on('aggregated', async () => {
         const routedMiddleware = []
         const routedPages = []
         const knownFiles = wp.getTimeInfoEntries()
         const ssrMiddleware = new Set<string>()
-        const runtime = this.nextConfig.experimental.runtime
-        const isEdgeRuntime = runtime === 'edge'
-        const hasServerComponents =
-          runtime && this.nextConfig.experimental.serverComponents
 
-        for (const [fileName, { accuracy }] of knownFiles) {
+        for (const [fileName, { accuracy, safeTime }] of knownFiles) {
           if (accuracy === undefined || !regexPageExtension.test(fileName)) {
             continue
           }
@@ -283,10 +280,14 @@ export default class DevServer extends Server {
           pageName = pageName.replace(regexPageExtension, '')
           pageName = pageName.replace(/\/index$/, '') || '/'
 
-          if (hasServerComponents && pageName.endsWith('.server')) {
-            routedMiddleware.push(pageName)
-            ssrMiddleware.add(pageName)
-          } else if (
+          invalidatePageRuntimeCache(fileName, safeTime)
+          const pageRuntimeConfig = await getPageRuntime(
+            fileName,
+            this.nextConfig.experimental.runtime
+          )
+          const isEdgeRuntime = pageRuntimeConfig === 'edge'
+
+          if (
             isEdgeRuntime &&
             !(isReservedPage(pageName) || isCustomErrorPage(pageName))
           ) {
