@@ -607,7 +607,11 @@ impl Task {
     pub fn get_invalidator() -> Invalidator {
         Invalidator {
             task: Task::current().map_or_else(|| Weak::new(), |task| Arc::downgrade(&task)),
-            turbo_tasks: TurboTasks::current().unwrap(),
+            turbo_tasks: TurboTasks::current()
+                .ok_or_else(|| {
+                    anyhow!("Task::get_invalidator() can only be used in the context of TurboTasks")
+                })
+                .unwrap(),
         }
     }
 

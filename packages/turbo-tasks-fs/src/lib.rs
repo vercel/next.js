@@ -14,7 +14,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use async_std::task::block_on;
 use invalidator_map::InvalidatorMap;
 use json::{parse, JsonValue};
@@ -50,26 +50,25 @@ fn path_to_key(path: &Path) -> String {
 }
 
 #[turbo_tasks::value_impl]
-impl DiskFileSystem {
-    #[turbo_tasks::constructor]
-    pub fn new(name: String, root: String) -> Self {
+impl DiskFileSystemRef {
+    pub fn new(name: String, root: String) -> Result<Self> {
         let pool = Mutex::new(ThreadPool::new(30));
         let mut invalidators = Arc::new(InvalidatorMap::new());
         let mut dir_invalidators = Arc::new(InvalidatorMap::new());
         // create the directory for the filesystem on disk, if it doesn't exist
-        create_dir_all(&root).unwrap();
+        create_dir_all(&root)?;
         // Create a channel to receive the events.
         let (tx, rx) = channel();
         // Create a watcher object, delivering debounced events.
         // The notification back-end is selected based on the platform.
-        let mut watcher = watcher(tx, Duration::from_millis(20)).unwrap();
+        let mut watcher = watcher(tx, Duration::from_millis(20))?;
         // Add a path to be watched. All files and directories at that path and
         // below will be monitored for changes.
-        watcher.watch(&root, RecursiveMode::Recursive).unwrap();
+        watcher.watch(&root, RecursiveMode::Recursive)?;
 
         println!("watching {}...", root);
 
-        let instance = Self {
+        let instance = DiskFileSystem {
             name,
             root: root.clone(),
             invalidators: invalidators.clone(),
@@ -159,9 +158,11 @@ impl DiskFileSystem {
                 }
             }
         });
-        instance
+        Ok(Self::slot(instance))
     }
+}
 
+impl DiskFileSystem {
     async fn execute<T: Send + 'static>(&self, func: impl FnOnce() -> T + Send + 'static) -> T {
         let (tx, rx) = async_std::channel::bounded(1);
         {
@@ -212,29 +213,33 @@ impl FileSystem for DiskFileSystem {
         let result = self.execute(move || fs::read_dir(&full_path)).await;
         Ok(match result {
             Ok(res) => DirectoryContentRef::new(
-                res.map(|e| match e {
-                    Ok(e) => {
-                        let fs_path = FileSystemPathRef::new(
-                            fs_path.fs.clone(),
-                            e.path()
-                                .strip_prefix(&self.root)
-                                .unwrap()
-                                .to_str()
-                                .unwrap()
-                                .to_string(),
-                        );
-                        let file_type = e.file_type().unwrap();
-                        if file_type.is_file() {
-                            DirectoryEntry::File(fs_path).into()
-                        } else if file_type.is_dir() {
-                            DirectoryEntry::Directory(fs_path).into()
-                        } else {
-                            DirectoryEntry::Other(fs_path).into()
-                        }
+                res.filter_map(|e| -> Option<Result<DirectoryEntryRef>> {
+                    match e {
+                        Ok(e) => e
+                            .path()
+                            .strip_prefix(&self.root)
+                            .unwrap()
+                            .to_str()
+                            .map(|path| {
+                                Ok({
+                                    let fs_path = FileSystemPathRef::new(
+                                        fs_path.fs.clone(),
+                                        path.to_string(),
+                                    );
+                                    let file_type = e.file_type()?;
+                                    if file_type.is_file() {
+                                        DirectoryEntry::File(fs_path).into()
+                                    } else if file_type.is_dir() {
+                                        DirectoryEntry::Directory(fs_path).into()
+                                    } else {
+                                        DirectoryEntry::Other(fs_path).into()
+                                    }
+                                })
+                            }),
+                        Err(_) => Some(Ok(DirectoryEntry::Error.into())),
                     }
-                    Err(_) => DirectoryEntry::Error.into(),
                 })
-                .collect::<Vec<_>>(),
+                .collect::<Result<Vec<_>>>()?,
             ),
             Err(_) => DirectoryContentRef::not_found(),
         })
@@ -255,34 +260,31 @@ impl FileSystem for DiskFileSystem {
                 FileContent::Content(buffer) => {
                     if create_directory {
                         if let Some(parent) = full_path.parent() {
-                            fs::create_dir_all(parent)
-                                .with_context(|| {
-                                    format!(
-                                        "failed to create directory {} for write to {}",
-                                        parent.display(),
-                                        full_path.display()
-                                    )
-                                })
-                                .unwrap();
+                            fs::create_dir_all(parent).with_context(|| {
+                                format!(
+                                    "failed to create directory {} for write to {}",
+                                    parent.display(),
+                                    full_path.display()
+                                )
+                            })?;
                         }
                     }
                     println!("write {} bytes to {}", buffer.len(), full_path.display());
                     fs::write(full_path.clone(), buffer)
                         .with_context(|| format!("failed to write to {}", full_path.display()))
-                        .unwrap();
                 }
                 FileContent::NotFound => {
                     // println!("remove {}", full_path.display());
-                    match fs::remove_file(full_path) {
-                        Ok(_) => {}
-                        Err(err) if err.kind() == ErrorKind::NotFound => {}
-                        Err(err) => {
-                            panic!("{}", err);
+                    fs::remove_file(&full_path).or_else(move |err| {
+                        if err.kind() == ErrorKind::NotFound {
+                            Ok(())
+                        } else {
+                            Err(err).context(anyhow!("removing {} failed", full_path.display()))
                         }
-                    }
+                    })
                 }
             })
-            .await
+            .await?
         }
         Ok(())
     }

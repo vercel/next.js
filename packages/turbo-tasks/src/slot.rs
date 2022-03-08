@@ -451,11 +451,11 @@ impl SlotRef {
         }
     }
 
-    pub fn downgrade(&self) -> Option<WeakSlotRef> {
+    pub fn downgrade(&self) -> WeakSlotRef {
         match self {
-            SlotRef::TaskOutput(task) => Some(WeakSlotRef::TaskOutput(Arc::downgrade(task))),
+            SlotRef::TaskOutput(task) => WeakSlotRef::TaskOutput(Arc::downgrade(task)),
             SlotRef::TaskCreated(task, index) => {
-                Some(WeakSlotRef::TaskCreated(Arc::downgrade(task), *index))
+                WeakSlotRef::TaskCreated(Arc::downgrade(task), *index)
             }
         }
     }
@@ -608,7 +608,7 @@ impl WeakElement for WeakSlotRef {
     type Strong = SlotRef;
 
     fn new(view: &Self::Strong) -> Self {
-        view.downgrade().unwrap()
+        view.downgrade()
     }
 
     fn view(&self) -> Option<Self::Strong> {

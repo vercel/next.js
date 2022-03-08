@@ -2,7 +2,7 @@ use std::fmt::Display;
 use std::io::Write;
 use std::sync::{Arc, RwLock};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use swc_common::errors::Handler;
 use swc_common::input::StringInput;
 use swc_common::sync::Lrc;
@@ -40,10 +40,6 @@ impl Buffer {
         Self {
             buf: Arc::new(RwLock::new(Vec::new())),
         }
-    }
-
-    fn clear(&self) {
-        self.buf.write().unwrap().clear();
     }
 }
 
@@ -111,17 +107,18 @@ pub async fn parse(source: AssetRef) -> Result<ParseResultRef> {
                         has_errors = true
                     }
 
+                    // TODO report them in a stream
                     if has_errors {
                         println!("{}", buf);
-                        buf.clear();
+                        return Err(anyhow!("{}", buf));
                     }
 
                     match parser.parse_module() {
                         Err(e) => {
                             // TODO report in in a stream
                             e.into_diagnostic(&handler).emit();
-                            println!("{}", buf);
-                            ParseResult::Unparseable.into()
+                            return Err(anyhow!("{}", buf));
+                            // ParseResult::Unparseable.into()
                         }
                         Ok(parsed_module) => ParseResult::Ok(parsed_module).into(),
                     }

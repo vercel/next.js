@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use json::JsonValue;
 use turbo_tasks_fs::{DirectoryContent, FileContent, FileJsonContent, FileSystemPathRef};
 
@@ -206,7 +206,7 @@ pub async fn resolve(
                             match resolve_into_package {
                                 ResolveIntoPackage::Default(req) => {
                                     let request = RequestRef::parse(
-                                        "./".to_string() + &normalize_path(&req).unwrap(),
+                                        "./".to_string() + &normalize_path(&req).ok_or_else(|| anyhow!("ResolveIntoPackage::Default can't be used with a request that escapes the current directory"))?,
                                     );
                                     return Ok(resolve(
                                         package_path.clone(),
@@ -220,7 +220,7 @@ pub async fn resolve(
                                         {
                                             let request = RequestRef::parse(
                                                 "./".to_string()
-                                                    + &normalize_path(&field_value).unwrap(),
+                                                    + &normalize_path(&field_value).ok_or_else(|| anyhow!("package.json '{}' field contains a request that escapes the package", name))?,
                                             );
                                             return Ok(resolve(
                                                 package_path.clone(),

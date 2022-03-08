@@ -113,9 +113,7 @@ impl<T: TraceSlotRefs + ?Sized> TraceSlotRefs for Arc<T> {
 
 impl TraceSlotRefs for SlotRef {
     fn trace_node_refs(&self, context: &mut TraceSlotRefsContext) {
-        if let Some(slot_ref) = self.downgrade() {
-            context.list.push(slot_ref);
-        }
+        context.list.push(self.downgrade());
     }
 }
 
