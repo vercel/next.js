@@ -88,7 +88,7 @@ impl Display for Request {
                 if path.is_empty() {
                     write!(f, "module '{}'", module)
                 } else {
-                    write!(f, "module '{}' with subpath {}", module, path)
+                    write!(f, "module '{}' with subpath '{}'", module, path)
                 }
             }
             Request::ServerRelative { path } => write!(f, "server relative '{}'", path),
