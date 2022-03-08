@@ -15,7 +15,7 @@ fxhash = "0.2.1"
 pathdiff = "0.2.0"
 serde = "1"
 serde_json = "1"
-styled_components = "0.17.0"
+styled_components = "0.18.0"
 swc = "0.145.1"
 swc_atoms = "0.2.7"
 swc_common = { version = "0.17.11", features = ["concurrent", "sourcemap"] }
