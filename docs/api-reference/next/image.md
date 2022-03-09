@@ -16,7 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                           |
 | --------- | ------------------------------------------------------------------------------------------------- |
-| `v12.1.1` | `raw` layout added. Support added for `style` prop.                                               |
+| `v12.1.1` | `style` prop added. Experimental support for `layout="raw"` added.    |
 | `v12.1.0` | `dangerouslyAllowSVG` and `contentSecurityPolicy` configuration added.                            |
 | `v12.0.9` | `lazyRoot` prop added.                                                                            |
 | `v12.0.0` | `formats` configuration added.<br/>AVIF support added.<br/>Wrapper `<div>` changed to `<span>`.   |
