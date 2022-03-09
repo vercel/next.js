@@ -4,6 +4,7 @@ use next_swc::{
     next_ssg::next_ssg,
     page_config::page_config_test,
     react_remove_properties::remove_properties,
+    relay::{relay, Config as RelayConfig, RelayLanguageConfig},
     remove_console::remove_console,
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
     styled_jsx::styled_jsx,
@@ -34,6 +35,7 @@ fn amp_attributes_fixture(input: PathBuf) {
 fn next_dynamic_fixture(input: PathBuf) {
     let output_dev = input.parent().unwrap().join("output-dev.js");
     let output_prod = input.parent().unwrap().join("output-prod.js");
+    let output_server = input.parent().unwrap().join("output-server.js");
     test_fixture(
         syntax(),
         &|_tr| {
@@ -59,6 +61,19 @@ fn next_dynamic_fixture(input: PathBuf) {
         },
         &input,
         &output_prod,
+    );
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            next_dynamic(
+                false,
+                true,
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                Some("/some-project/src".into()),
+            )
+        },
+        &input,
+        &output_server,
     );
 }
 
@@ -98,7 +113,15 @@ fn styled_jsx_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
-        &|t| chain!(resolver(), styled_jsx(t.cm.clone())),
+        &|t| {
+            chain!(
+                resolver(),
+                styled_jsx(
+                    t.cm.clone(),
+                    FileName::Real(PathBuf::from("/some-project/src/some-file.js"))
+                )
+            )
+        },
         &input,
         &output,
     );
@@ -115,7 +138,13 @@ fn styled_jsx_fixture(input: PathBuf) {
                 let _mark = Mark::fresh(Mark::root());
             }
 
-            chain!(resolver(), styled_jsx(t.cm.clone()))
+            chain!(
+                resolver(),
+                styled_jsx(
+                    t.cm.clone(),
+                    FileName::Real(PathBuf::from("/some-project/src/some-file.js"))
+                )
+            )
         },
         &input,
         &output,
@@ -133,6 +162,28 @@ impl swc_ecmascript::visit::VisitMut for DropSpan {
 fn page_config_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(syntax(), &|_tr| page_config_test(), &input, &output);
+}
+
+#[fixture("tests/fixture/relay/**/input.ts*")]
+fn relay_no_artifact_dir_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    let config = RelayConfig {
+        language: RelayLanguageConfig::TypeScript,
+        artifact_directory: Some(PathBuf::from("__generated__")),
+        ..Default::default()
+    };
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            relay(
+                &config,
+                FileName::Real(PathBuf::from("input.tsx")),
+                Some(PathBuf::from("src/pages")),
+            )
+        },
+        &input,
+        &output,
+    );
 }
 
 #[fixture("tests/fixture/remove-console/**/input.js")]

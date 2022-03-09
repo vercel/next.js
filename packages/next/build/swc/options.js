@@ -1,10 +1,30 @@
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
-const regeneratorRuntimePath = require.resolve('regenerator-runtime')
+const regeneratorRuntimePath = require.resolve(
+  'next/dist/compiled/regenerator-runtime'
+)
+
+export function getParserOptions({ filename, jsConfig, ...rest }) {
+  const isTSFile = filename.endsWith('.ts')
+  const isTypeScript = isTSFile || filename.endsWith('.tsx')
+  const enableDecorators = Boolean(
+    jsConfig?.compilerOptions?.experimentalDecorators
+  )
+  return {
+    ...rest,
+    syntax: isTypeScript ? 'typescript' : 'ecmascript',
+    dynamicImport: true,
+    decorators: enableDecorators,
+    // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
+    [isTypeScript ? 'tsx' : 'jsx']: isTSFile ? false : true,
+    importAssertions: true,
+  }
+}
 
 function getBaseSWCOptions({
   filename,
+  jest,
   development,
   hasReactRefresh,
   globalWindow,
@@ -12,11 +32,13 @@ function getBaseSWCOptions({
   resolvedBaseUrl,
   jsConfig,
 }) {
-  const isTSFile = filename.endsWith('.ts')
-  const isTypeScript = isTSFile || filename.endsWith('.tsx')
+  const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
   const enableDecorators = Boolean(
     jsConfig?.compilerOptions?.experimentalDecorators
+  )
+  const emitDecoratorMetadata = Boolean(
+    jsConfig?.compilerOptions?.emitDecoratorMetadata
   )
   return {
     jsc: {
@@ -26,50 +48,59 @@ function getBaseSWCOptions({
             paths,
           }
         : {}),
-      parser: {
-        syntax: isTypeScript ? 'typescript' : 'ecmascript',
-        dynamicImport: true,
-        decorators: enableDecorators,
-        // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
-        [isTypeScript ? 'tsx' : 'jsx']: isTSFile ? false : true,
+      parser: parserConfig,
+      experimental: {
+        keepImportAssertions: true,
       },
-
       transform: {
+        // Enables https://github.com/swc-project/swc/blob/0359deb4841be743d73db4536d4a22ac797d7f65/crates/swc_ecma_ext_transforms/src/jest.rs
+        ...(jest
+          ? {
+              hidden: {
+                jest: true,
+              },
+            }
+          : {}),
         legacyDecorator: enableDecorators,
+        decoratorMetadata: emitDecoratorMetadata,
         react: {
           importSource: jsConfig?.compilerOptions?.jsxImportSource || 'react',
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
           throwIfNamespace: true,
-          development: development,
+          development: !!development,
           useBuiltins: true,
-          refresh: hasReactRefresh,
+          refresh: !!hasReactRefresh,
         },
         optimizer: {
           simplify: false,
-          globals: {
-            typeofs: {
-              window: globalWindow ? 'object' : 'undefined',
-            },
-            envs: {
-              NODE_ENV: development ? '"development"' : '"production"',
-            },
-            // TODO: handle process.browser to match babel replacing as well
-          },
+          globals: jest
+            ? null
+            : {
+                typeofs: {
+                  window: globalWindow ? 'object' : 'undefined',
+                },
+                envs: {
+                  NODE_ENV: development ? '"development"' : '"production"',
+                },
+                // TODO: handle process.browser to match babel replacing as well
+              },
         },
         regenerator: {
           importPath: regeneratorRuntimePath,
         },
       },
     },
-    styledComponents: nextConfig?.experimental?.styledComponents
+    sourceMaps: jest ? 'inline' : undefined,
+    styledComponents: nextConfig?.compiler?.styledComponents
       ? {
           displayName: Boolean(development),
         }
       : null,
-    removeConsole: nextConfig?.experimental?.removeConsole,
-    reactRemoveProperties: nextConfig?.experimental?.reactRemoveProperties,
+    removeConsole: nextConfig?.compiler?.removeConsole,
+    reactRemoveProperties: nextConfig?.compiler?.reactRemoveProperties,
+    relay: nextConfig?.compiler?.relay,
   }
 }
 
@@ -84,6 +115,7 @@ export function getJestSWCOptions({
 }) {
   let baseOptions = getBaseSWCOptions({
     filename,
+    jest: true,
     development: false,
     hasReactRefresh: false,
     globalWindow: !isServer,
@@ -101,6 +133,13 @@ export function getJestSWCOptions({
         // Targets the current version of Node.js
         node: process.versions.node,
       },
+      // we always transpile optional chaining and nullish coalescing
+      // since it can cause issues with webpack even if the node target
+      // supports them
+      include: [
+        'proposal-optional-chaining',
+        'proposal-nullish-coalescing-operator',
+      ],
     },
     module: {
       type: esm && !isNextDist ? 'es6' : 'commonjs',
@@ -149,6 +188,13 @@ export function getLoaderSWCOptions({
           // Targets the current version of Node.js
           node: process.versions.node,
         },
+        // we always transpile optional chaining and nullish coalescing
+        // since it can cause issues with webpack even if the node target
+        // supports them
+        include: [
+          'proposal-optional-chaining',
+          'proposal-nullish-coalescing-operator',
+        ],
       },
     }
   } else {

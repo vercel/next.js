@@ -4,10 +4,11 @@ use pathdiff::diff_paths;
 use swc_atoms::js_word;
 use swc_common::{FileName, DUMMY_SP};
 use swc_ecmascript::ast::{
-    ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, CallExpr, Expr, ExprOrSpread,
-    ExprOrSuper, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr, ObjectLit,
-    Prop, PropName, PropOrSpread, Str, StrKind,
+    ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
+    ExprOrSpread, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr, MemberProp,
+    Null, ObjectLit, Prop, PropName, PropOrSpread, Str, StrKind,
 };
+use swc_ecmascript::utils::ExprFactory;
 use swc_ecmascript::utils::{
     ident::{Id, IdentLike},
     HANDLER,
@@ -62,22 +63,18 @@ impl Fold for NextDynamicPatcher {
 
     fn fold_call_expr(&mut self, expr: CallExpr) -> CallExpr {
         if self.is_next_dynamic_first_arg {
-            if let ExprOrSuper::Expr(e) = &expr.callee {
-                if let Expr::Ident(Ident { sym, .. }) = &**e {
-                    if sym == "import" {
-                        if let Expr::Lit(Lit::Str(Str { value, .. })) = &*expr.args[0].expr {
-                            self.dynamically_imported_specifier = Some(value.to_string());
-                        }
-                    }
+            if let Callee::Import(..) = &expr.callee {
+                if let Expr::Lit(Lit::Str(Str { value, .. })) = &*expr.args[0].expr {
+                    self.dynamically_imported_specifier = Some(value.to_string());
                 }
             }
             return expr.fold_children_with(self);
         }
         let mut expr = expr.fold_children_with(self);
-        if let ExprOrSuper::Expr(i) = &expr.callee {
+        if let Callee::Expr(i) = &expr.callee {
             if let Expr::Ident(identifier) = &**i {
                 if self.dynamic_bindings.contains(&identifier.to_id()) {
-                    if expr.args.len() == 0 {
+                    if expr.args.is_empty() {
                         HANDLER.with(|handler| {
                             handler
                                 .struct_span_err(
@@ -119,7 +116,7 @@ impl Fold for NextDynamicPatcher {
                     expr.args[0].expr = expr.args[0].expr.clone().fold_with(self);
                     self.is_next_dynamic_first_arg = false;
 
-                    if let None = self.dynamically_imported_specifier {
+                    if self.dynamically_imported_specifier.is_none() {
                         return expr;
                     }
 
@@ -181,21 +178,18 @@ impl Fold for NextDynamicPatcher {
                                     body: BlockStmtOrExpr::Expr(Box::new(Expr::Array(ArrayLit {
                                         elems: vec![Some(ExprOrSpread {
                                             expr: Box::new(Expr::Call(CallExpr {
-                                                callee: ExprOrSuper::Expr(Box::new(Expr::Member(
+                                                callee: Callee::Expr(Box::new(Expr::Member(
                                                     MemberExpr {
-                                                        obj: ExprOrSuper::Expr(Box::new(
-                                                            Expr::Ident(Ident {
-                                                                sym: js_word!("require"),
-                                                                span: DUMMY_SP,
-                                                                optional: false,
-                                                            }),
-                                                        )),
-                                                        prop: Box::new(Expr::Ident(Ident {
-                                                            sym: "resolveWeak".into(),
+                                                        obj: Box::new(Expr::Ident(Ident {
+                                                            sym: js_word!("require"),
                                                             span: DUMMY_SP,
                                                             optional: false,
                                                         })),
-                                                        computed: false,
+                                                        prop: MemberProp::Ident(Ident {
+                                                            sym: "resolveWeak".into(),
+                                                            span: DUMMY_SP,
+                                                            optional: false,
+                                                        }),
                                                         span: DUMMY_SP,
                                                     },
                                                 ))),
@@ -236,14 +230,50 @@ impl Fold for NextDynamicPatcher {
                             value: generated,
                         })))];
 
+                    let mut has_ssr_false = false;
+
                     if expr.args.len() == 2 {
                         if let Expr::Object(ObjectLit {
                             props: options_props,
                             ..
                         }) = &*expr.args[1].expr
                         {
+                            for prop in options_props.iter() {
+                                if let Some(KeyValueProp { key, value }) = match prop {
+                                    PropOrSpread::Prop(prop) => match &**prop {
+                                        Prop::KeyValue(key_value_prop) => Some(key_value_prop),
+                                        _ => None,
+                                    },
+                                    _ => None,
+                                } {
+                                    if let Some(Ident {
+                                        sym,
+                                        span: _,
+                                        optional: _,
+                                    }) = match key {
+                                        PropName::Ident(ident) => Some(ident),
+                                        _ => None,
+                                    } {
+                                        if sym == "ssr" {
+                                            if let Some(Lit::Bool(Bool {
+                                                value: false,
+                                                span: _,
+                                            })) = match &**value {
+                                                Expr::Lit(lit) => Some(lit),
+                                                _ => None,
+                                            } {
+                                                has_ssr_false = true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             props.extend(options_props.iter().cloned());
                         }
+                    }
+
+                    if has_ssr_false && self.is_server {
+                        expr.args[0] = Lit::Null(Null { span: DUMMY_SP }).as_arg();
                     }
 
                     let second_arg = ExprOrSpread {

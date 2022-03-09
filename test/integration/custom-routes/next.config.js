@@ -220,6 +220,10 @@ module.exports = {
           source: '/old-blog/:path*',
           destination: '/blog/:path*',
         },
+        {
+          source: '/overridden',
+          destination: 'https://vercel.com',
+        },
       ],
     }
   },

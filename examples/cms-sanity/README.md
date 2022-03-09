@@ -2,6 +2,11 @@
 
 This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Sanity](https://www.sanity.io/) as the data source.
 
+You'll get:
+
+- Sanity Studio running on localhost
+- Sub-second as-you-type previews in Next.js
+
 ## Demo
 
 ### [https://next-blog-sanity.vercel.app/](https://next-blog-sanity.vercel.app/)
@@ -29,6 +34,7 @@ Once you have access to [the environment variables you'll need](#step-4-set-up-e
 - [Ghost](/examples/cms-ghost)
 - [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## How to use
 
@@ -84,11 +90,30 @@ SANITY_API_TOKEN=...
 SANITY_PREVIEW_SECRET=...
 ```
 
-### Step 5. Prepare project for previewing
+### Step 5. Prepare the project for previewing
 
-Go to https://www.sanity.io/docs/preview-content-on-site and follow the three steps on that page. It should be done inside the studio project generated in Step 2.
+5.1. Install the `@sanity/production-preview` plugin with `sanity install @sanity/production-preview`.
 
-When you get to the second step about creating a file called `resolveProductionUrl.js`, copy the following instead:
+5.2. Create a file called `resolveProductionUrl.js` (we'll get back to that file in a bit).
+
+5.3. Open your studio's sanity.json, and add the following entry to the parts-array:
+
+```diff
+{
+  "plugins": [
+    "@sanity/production-preview"
+  ],
+  "parts": [
+    //...
++   {
++     "implements": "part:@sanity/production-preview/resolve-production-url",
++     "path": "./resolveProductionUrl.js"
++   }
+  ]
+}
+```
+
+Now, go back to `resolveProductionUrl.js` and add a function that will receive the full document that was selected for previewing:
 
 ```js
 const previewSecret = 'MY_SECRET' // Copy the string you used for SANITY_PREVIEW_SECRET
@@ -98,6 +123,8 @@ export default function resolveProductionUrl(document) {
   return `${projectUrl}/api/preview?secret=${previewSecret}&slug=${document.slug.current}`
 }
 ```
+
+For more information on live previewing check the [full guide.](https://www.sanity.io/guides/nextjs-live-preview)
 
 ### Step 6. Copy the schema file
 
@@ -167,3 +194,8 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-sanity&project-name=cms-sanity&repository-name=cms-sanity&env=NEXT_PUBLIC_SANITY_PROJECT_ID,SANITY_API_TOKEN,SANITY_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Sanity&envLink=https://vercel.link/cms-sanity-env)
+
+#### Next steps
+
+- Invalidate your routes in production [on-demand](https://nextjs.org/blog/next-12-1#on-demand-incremental-static-regeneration-beta) with GROQ powered webhooks
+- Mount your preview inside the Sanity Studio for comfortable side-by-side editing

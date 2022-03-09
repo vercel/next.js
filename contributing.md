@@ -1,15 +1,18 @@
 # Contributing to Next.js
 
-Read about our [Commitment to Open Source](https://vercel.com/oss). To
-contribute to [our examples](examples), please see **[Adding
-examples](#adding-examples)** below.
+[Watch the 40-minute walkthrough video on how to contribute to Next.js.](https://www.youtube.com/watch?v=cuoNzXFLitc)
+
+---
+
+- Read about our [Commitment to Open Source](https://vercel.com/oss).
+- To contribute to [our examples](examples), please see [Adding examples](#adding-examples) below.
+- Before jumping into a PR be sure to search [existing PRs](https://github.com/vercel/next.js/pulls) or [issues](https://github.com/vercel/next.js/issues) for an open or closed item that relates to your submission.
 
 ## Developing
 
-The development branch is `canary`, and this is the branch that all pull
-requests should be made against. After publishing a stable release, the changes
-in the `canary` branch are rebased into `master`. The changes on the `canary`
-branch are published to the `@canary` dist-tag daily.
+The development branch is `canary`. This is the branch that all pull
+requests should be made against. The changes on the `canary`
+branch are published to the `@canary` tag on npm regularly.
 
 To develop locally:
 
@@ -203,15 +206,8 @@ In general, all warnings and errors added should have these links attached.
 
 Below are the steps to add a new link:
 
-1. Create a new markdown file under the `errors` directory based on
-   `errors/template.md`:
-
-   ```shell
-   cp errors/template.md errors/<error-file-name>.md
-   ```
-
-2. Add the newly added file to `errors/manifest.json`
-3. Add the following url to your warning/error:
+1. Run `yarn new-error` which will create the error document and update the manifest automatically.
+2. Add the following url to your warning/error:
    `https://nextjs.org/docs/messages/<file-path-without-dotmd>`.
 
    For example, to link to `errors/api-routes-static-export.md` you use the url:

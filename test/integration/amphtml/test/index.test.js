@@ -2,7 +2,7 @@
 
 import { validateAMP } from 'amp-test-utils'
 import cheerio from 'cheerio'
-import { readFileSync, writeFileSync } from 'fs-extra'
+import { readFileSync, writeFileSync, rename } from 'fs-extra'
 import {
   check,
   findPort,
@@ -31,6 +31,10 @@ describe('AMP Usage', () => {
     let output = ''
 
     beforeAll(async () => {
+      await rename(
+        join(appDir, 'pages/invalid-amp.js'),
+        join(appDir, 'pages/invalid-amp.js.bak')
+      )
       const result = await nextBuild(appDir, undefined, {
         stdout: true,
         stderr: true,
@@ -46,7 +50,13 @@ describe('AMP Usage', () => {
       server = await startApp(app)
       context.appPort = appPort = server.address().port
     })
-    afterAll(() => stopApp(server))
+    afterAll(async () => {
+      await rename(
+        join(appDir, 'pages/invalid-amp.js.bak'),
+        join(appDir, 'pages/invalid-amp.js')
+      )
+      return stopApp(server)
+    })
 
     it('should have amp optimizer in trace', async () => {
       const trace = JSON.parse(
@@ -242,7 +252,7 @@ describe('AMP Usage', () => {
         const html = await renderViaHTTP(appPort, '/styled?amp=1')
         const $ = cheerio.load(html)
         expect($('style[amp-custom]').first().text()).toMatch(
-          /div.jsx-\d+{color:red}span.jsx-\d+{color:blue}body{background-color:green}/
+          /div.jsx-[a-zA-Z0-9]{1,}{color:red}span.jsx-[a-zA-Z0-9]{1,}{color:blue}body{background-color:green}/
         )
       })
 
@@ -548,7 +558,6 @@ describe('AMP Usage', () => {
 
       await killApp(ampDynamic)
 
-      expect(inspectPayload).toContain('warn')
       expect(inspectPayload).toContain('error')
     })
 

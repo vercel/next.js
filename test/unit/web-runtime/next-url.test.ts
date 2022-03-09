@@ -170,3 +170,21 @@ it('allows to change the port', () => {
   url.port = ''
   expect(url.href).toEqual('https://localhost/foo')
 })
+
+it('allows to clone a new copy', () => {
+  const url = new NextURL('/root/es/bar', {
+    base: 'http://127.0.0.1',
+    basePath: '/root',
+    i18n: {
+      defaultLocale: 'en',
+      locales: ['en', 'es', 'fr'],
+    },
+  })
+
+  const clone = url.clone()
+  clone.pathname = '/test'
+  clone.basePath = '/root-test'
+
+  expect(url.toString()).toEqual('http://localhost/root/es/bar')
+  expect(clone.toString()).toEqual('http://localhost/root-test/es/test')
+})
