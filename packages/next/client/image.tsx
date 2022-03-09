@@ -592,7 +592,7 @@ export default function Image({
       }
     }
 
-    if (style) {
+    if (style && layout !== 'raw') {
       let overwrittenStyles = Object.keys(style).filter(
         (key) => key in layoutStyle
       )

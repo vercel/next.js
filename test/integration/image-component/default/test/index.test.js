@@ -668,10 +668,10 @@ function runTests(mode) {
           .map((log) => log.message)
           .join('\n')
         expect(warnings).toMatch(
-          /Image with src \/test.png is assigned the following styles, which are overwritten by automtically-generated styles: padding/gm
+          /Image with src \/test.png is assigned the following styles, which are overwritten by automatically-generated styles: padding/gm
         )
         expect(warnings).toMatch(
-          /Image with src \/test.jpg is assigned the following styles, which are overwritten by automtically-generated styles: width, margin/gm
+          /Image with src \/test.jpg is assigned the following styles, which are overwritten by automatically-generated styles: width, margin/gm
         )
         expect(warnings).not.toMatch(
           /Image with src \/test.webp is assigned the following styles/gm
