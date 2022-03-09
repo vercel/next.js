@@ -634,7 +634,13 @@ export default function Image({
     }
   }
 
-  const imgStyle = Object.assign({}, style, layout === 'raw' ? {} : layoutStyle)
+  const imgStyle = Object.assign(
+    {},
+    style,
+    layout === 'raw'
+      ? { aspectRatio: `${widthInt} / ${heightInt}` }
+      : layoutStyle
+  )
 
   const blurStyle =
     placeholder === 'blur'
@@ -851,7 +857,9 @@ const ImageElement = ({
       <img
         {...rest}
         {...imgAttributes}
-        {...(layout === 'raw' ? { height: heightInt, width: widthInt } : {})}
+        {...(layout === 'raw' && !sizes
+          ? { height: heightInt, width: widthInt }
+          : {})}
         decoding="async"
         data-nimg={layout}
         className={className}
@@ -872,7 +880,7 @@ const ImageElement = ({
               sizes,
               loader,
             })}
-            {...(layout === 'raw'
+            {...(layout === 'raw' && !sizes
               ? { height: heightInt, width: widthInt }
               : {})}
             decoding="async"
