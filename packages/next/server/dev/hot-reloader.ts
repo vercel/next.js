@@ -329,7 +329,7 @@ export default class HotReloader {
 
       const entrypoints = await webpackConfigSpan
         .traceChild('create-entrypoints')
-        .traceFn(() =>
+        .traceAsyncFn(() =>
           createEntrypoints(
             this.pagesMapping,
             this.buildId,

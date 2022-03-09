@@ -251,10 +251,8 @@ export async function createEntrypoints(
         })
       }
 
-      if (isApiRoute) {
-        if (!isEdgeRuntime || isReserved || isCustomError) {
-          server[serverBundlePath] = [absolutePagePath]
-        }
+      if (!isEdgeRuntime || isReserved || isCustomError) {
+        server[serverBundlePath] = [absolutePagePath]
       }
 
       if (page === '/_document') {

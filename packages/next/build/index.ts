@@ -299,7 +299,9 @@ export default async function build(
 
     const entrypoints = await nextBuildSpan
       .traceChild('create-entrypoints')
-      .traceFn(() => createEntrypoints(mappedPages, buildId, config, pagesDir))
+      .traceAsyncFn(() =>
+        createEntrypoints(mappedPages, buildId, config, pagesDir)
+      )
     const pageKeys = Object.keys(mappedPages)
     const hasMiddleware = pageKeys.some((page) => MIDDLEWARE_ROUTE.test(page))
     const conflictingPublicFiles: string[] = []
