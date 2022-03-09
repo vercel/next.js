@@ -72,7 +72,7 @@ The layout behavior of the image as the viewport changes size.
 | `fixed`               | Sized to `width` and `height` exactly                          | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A     | yes                   |
 | `responsive`          | Scale to fit width of container                                | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` | yes                   |
 | `fill`                | Grow in both X and Y axes to fill container                    | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` | yes                   |
-| `raw`                 | Insert the image element with no automatic layout behavior     | Behaves like `responsive` if the images has the `sizes` prop, and like `fixed` if it does not               | optional| no                    |
+| `raw`                 | Insert the image element with no automatic layout behavior     | Behaves like `responsive` if the image has the `sizes` prop, and like `fixed` if it does not               | optional| no                    |
 
 - [Demo the `intrinsic` layout (default)](https://image-component.nextjs.gallery/layout-intrinsic)
   - When `intrinsic`, the image will scale the dimensions down for smaller viewports, but maintain the original dimensions for larger viewports.
