@@ -1,6 +1,8 @@
 import Link from 'next/link'
+import { useRouter } from 'next/router'
 
 export default function Home() {
+  const router = useRouter()
   return (
     <div>
       <p className="title">Home Page</p>
@@ -32,6 +34,21 @@ export default function Home() {
       <Link href="/rewrites/about?override=internal">
         <a id="override-with-internal-rewrite">Rewrite me to internal path</a>
       </Link>
+      <div />
+      <a
+        href=""
+        id="link-to-shallow-push"
+        onClick={(e) => {
+          e.preventDefault()
+          router.push(
+            '/rewrites?path=rewrite-me-without-hard-navigation&message=refreshed',
+            undefined,
+            { shallow: true }
+          )
+        }}
+      >
+        Do not rewrite me
+      </a>
     </div>
   )
 }

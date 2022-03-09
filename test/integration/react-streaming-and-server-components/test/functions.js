@@ -31,12 +31,20 @@ export default function (context) {
     const { pages } = content
     const pageNames = Object.keys(pages)
 
-    const paths = ['/', '/next-api/link', '/routes/[dynamic]']
+    const paths = [
+      '/',
+      '/next-api/link',
+      '/routes/[dynamic]',
+      // @TODO: Implement per-page runtime in functions-manifest.
+      // '/runtime'
+    ]
+
     paths.forEach((path) => {
       const { runtime, files } = pages[path]
       expect(pageNames).toContain(path)
-      // Runtime of page `/` is undefined since it's configured as nodejs.
-      expect(runtime).toBe(path === '/' ? undefined : 'web')
+
+      // Runtime of page `/runtime` is configured as `nodejs`.
+      expect(runtime).toBe(path === '/runtime' ? 'nodejs' : 'web')
       expect(files.every((f) => f.startsWith('server/'))).toBe(true)
     })
 

@@ -1,6 +1,4 @@
 import Foo from '../components/foo.client'
-import { Named } from '../components/named.client'
-
 import Link from 'next/link'
 
 const envVar = process.env.ENV_VAR_TEST
@@ -13,9 +11,6 @@ export default function Index({ header, router }) {
       <div>{'path:' + router.pathname}</div>
       <div>{'env:' + envVar}</div>
       <div>{'header:' + header}</div>
-      <div>
-        <Named />
-      </div>
       <div>
         <Foo />
       </div>
@@ -35,10 +30,4 @@ export function getServerSideProps({ req }) {
       header,
     },
   }
-}
-
-export const config = {
-  amp: false,
-  unstable_runtimeJS: false,
-  runtime: 'nodejs',
 }

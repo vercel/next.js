@@ -67,6 +67,7 @@ import isError from '../lib/is-error'
 import { readableStreamTee } from './web/utils'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
+import { execOnce } from '../shared/lib/utils'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
@@ -358,22 +359,16 @@ function createServerComponentRenderer(
     cachePrefix,
     transformStream,
     serverComponentManifest,
-    runtime,
   }: {
     cachePrefix: string
     transformStream: TransformStream<Uint8Array, Uint8Array>
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
-    runtime: 'nodejs' | 'edge'
   }
 ) {
-  if (runtime === 'nodejs') {
-    // For the nodejs runtime, we need to expose the `__webpack_require__` API
-    // globally for react-server-dom-webpack.
-    // This is a hack until we find a better way.
-    // @ts-ignore
-    globalThis.__webpack_require__ =
-      ComponentMod.__next_rsc__.__webpack_require__
-  }
+  // We need to expose the `__webpack_require__` API globally for
+  // react-server-dom-webpack. This is a hack until we find a better way.
+  // @ts-ignore
+  globalThis.__webpack_require__ = ComponentMod.__next_rsc__.__webpack_require__
 
   const writable = transformStream.writable
   const ServerComponentWrapper = (props: any) => {
@@ -489,7 +484,6 @@ export async function renderToHTML(
         cachePrefix: pathname + (search ? `?${search}` : ''),
         transformStream: serverComponentsInlinedTransformStream,
         serverComponentManifest,
-        runtime,
       }
     )
   }
@@ -1349,6 +1343,7 @@ export async function renderToHTML(
                   ))}
                 </>
               ),
+              generateStaticHTML: true,
             })
 
             const flushed = await streamToString(flushEffectStream)
@@ -1360,6 +1355,7 @@ export async function renderToHTML(
             element: content,
             suffix,
             dataStream: serverComponentsInlinedTransformStream?.readable,
+            generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
             flushEffectHandler,
           })
         }
@@ -1492,6 +1488,7 @@ export async function renderToHTML(
     const documentStream = await renderToStream({
       ReactDOMServer,
       element: document,
+      generateStaticHTML: true,
     })
     documentHTML = await streamToString(documentStream)
   } else {
@@ -1741,67 +1738,62 @@ function createFlushEffectStream(
   })
 }
 
-function renderToStream({
+async function renderToStream({
   ReactDOMServer,
   element,
   suffix,
   dataStream,
+  generateStaticHTML,
   flushEffectHandler,
 }: {
   ReactDOMServer: typeof import('react-dom/server')
   element: React.ReactElement
   suffix?: string
   dataStream?: ReadableStream<Uint8Array>
+  generateStaticHTML: boolean
   flushEffectHandler?: () => Promise<string>
 }): Promise<ReadableStream<Uint8Array>> {
-  return new Promise(async (resolve, reject) => {
-    let resolved = false
+  const closeTag = '</body></html>'
+  const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
 
-    const closeTag = '</body></html>'
-    const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
-
-    const doResolve = (renderStream: ReadableStream<Uint8Array>) => {
-      if (!resolved) {
-        resolved = true
-
-        // React will call our callbacks synchronously, so we need to
-        // defer to a microtask to ensure `stream` is set.
-        resolve(
-          Promise.resolve().then(() => {
-            const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
-              createBufferedTransformStream(),
-              flushEffectHandler
-                ? createFlushEffectStream(flushEffectHandler)
-                : null,
-              suffixUnclosed != null
-                ? createPrefixStream(suffixUnclosed)
-                : null,
-              dataStream ? createInlineDataStream(dataStream) : null,
-              suffixUnclosed != null ? createSuffixStream(closeTag) : null,
-            ].filter(Boolean) as any
-
-            return transforms.reduce(
-              (readable, transform) => pipeThrough(readable, transform),
-              renderStream
-            )
-          })
-        )
+  let completeCallback: (value?: unknown) => void
+  const allComplete = new Promise((resolveError, rejectError) => {
+    completeCallback = execOnce((err: unknown) => {
+      if (err) {
+        rejectError(err)
+      } else {
+        resolveError(null)
       }
-    }
-
-    const renderStream: ReadableStream<Uint8Array> = await (
-      ReactDOMServer as any
-    ).renderToReadableStream(element, {
-      onError(err: Error) {
-        if (!resolved) {
-          resolved = true
-          reject(err)
-        }
-      },
     })
-
-    doResolve(renderStream)
   })
+
+  const renderStream: ReadableStream<Uint8Array> = await (
+    ReactDOMServer as any
+  ).renderToReadableStream(element, {
+    onError(err: Error) {
+      completeCallback(err)
+    },
+    onCompleteAll() {
+      completeCallback()
+    },
+  })
+
+  if (generateStaticHTML) {
+    await allComplete
+  }
+
+  const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
+    createBufferedTransformStream(),
+    flushEffectHandler ? createFlushEffectStream(flushEffectHandler) : null,
+    suffixUnclosed != null ? createPrefixStream(suffixUnclosed) : null,
+    dataStream ? createInlineDataStream(dataStream) : null,
+    suffixUnclosed != null ? createSuffixStream(closeTag) : null,
+  ].filter(Boolean) as any
+
+  return transforms.reduce(
+    (readable, transform) => pipeThrough(readable, transform),
+    renderStream
+  )
 }
 
 function encodeText(input: string) {
@@ -1828,17 +1820,25 @@ function createPrefixStream(
   prefix: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let prefixFlushed = false
+  let prefixPrefixFlushFinished: Promise<void> | null = null
   return createTransformStream({
     transform(chunk, controller) {
+      controller.enqueue(chunk)
       if (!prefixFlushed && prefix) {
         prefixFlushed = true
-        controller.enqueue(chunk)
-        controller.enqueue(encodeText(prefix))
-      } else {
-        controller.enqueue(chunk)
+        prefixPrefixFlushFinished = new Promise((res) => {
+          // NOTE: streaming flush
+          // Enqueue prefix part before the major chunks are enqueued so that
+          // prefix won't be flushed too early to interrupt the data stream
+          setTimeout(() => {
+            controller.enqueue(encodeText(prefix))
+            res()
+          })
+        })
       }
     },
     flush(controller) {
+      if (prefixPrefixFlushFinished) return prefixPrefixFlushFinished
       if (!prefixFlushed && prefix) {
         prefixFlushed = true
         controller.enqueue(encodeText(prefix))
@@ -1858,6 +1858,7 @@ function createInlineDataStream(
       if (!dataStreamFinished) {
         const dataStreamReader = dataStream.getReader()
 
+        // NOTE: streaming flush
         // We are buffering here for the inlined data stream because the
         // "shell" stream might be chunkenized again by the underlying stream
         // implementation, e.g. with a specific high-water mark. To ensure it's
