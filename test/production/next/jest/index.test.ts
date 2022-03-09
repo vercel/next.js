@@ -80,6 +80,21 @@ describe('next/jest', () => {
             });
           });
         `,
+        'lib/hello.mjs': `
+          import path from 'path'
+
+          export default function hello() {
+            return path.join('hello', 'world')
+          }
+        `,
+        'test/mjs-support.test.js': `
+          import path from 'path'
+          import hello from '../lib/hello.mjs'
+          
+          it('should transpile .mjs file correctly', async () => {
+            expect(hello()).toBe(path.join('hello', 'world'))
+          })
+        `,
         'test/mock.test.js': `
           import router from 'next/router'
 

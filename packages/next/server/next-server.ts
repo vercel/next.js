@@ -48,7 +48,7 @@ import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
-import { ParsedUrl } from '../shared/lib/router/utils/parse-url'
+import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
 
 import BaseServer, {
@@ -118,7 +118,8 @@ export default class NextNodeServer extends BaseServer {
         new ImageOptimizerCache({
           distDir: this.distDir,
           nextConfig: this.nextConfig,
-        })
+        }),
+        this.minimalMode
       )
     }
 
@@ -662,7 +663,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getServerComponentManifest() {
-    if (this.nextConfig.experimental.runtime !== 'nodejs') return undefined
+    if (!this.nextConfig.experimental.runtime) return undefined
     return require(join(
       this.distDir,
       'server',
@@ -1101,12 +1102,8 @@ export default class NextNodeServer extends BaseServer {
           const rewritePath = result.response.headers.get(
             'x-middleware-rewrite'
           )!
-          const { newUrl, parsedDestination } = prepareDestination({
-            appendParamsToQuery: false,
-            destination: rewritePath,
-            params: _params,
-            query: {},
-          })
+          const parsedDestination = parseUrl(rewritePath)
+          const newUrl = parsedDestination.pathname
 
           // TODO: remove after next minor version current `v12.0.9`
           this.warnIfQueryParametersWereDeleted(
@@ -1240,6 +1237,7 @@ export default class NextNodeServer extends BaseServer {
           name: middlewareInfo.name,
           paths: middlewareInfo.paths,
           env: middlewareInfo.env,
+          wasm: middlewareInfo.wasm,
           request: {
             headers: params.request.headers,
             method,
@@ -1287,7 +1285,7 @@ export default class NextNodeServer extends BaseServer {
       }
     }
 
-    originalBody?.finalize()
+    await originalBody?.finalize()
 
     return result
   }

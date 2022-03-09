@@ -367,7 +367,10 @@ export default abstract class Server {
         }
       },
     })
-    this.responseCache = new ResponseCache(this.incrementalCache)
+    this.responseCache = new ResponseCache(
+      this.incrementalCache,
+      this.minimalMode
+    )
   }
 
   public logError(err: Error): void {
@@ -554,9 +557,6 @@ export default abstract class Server {
       if (url.locale?.path.detectedLocale) {
         req.url = formatUrl(url)
         addRequestMeta(req, '__nextStrippedLocale', true)
-        if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
-          return this.render404(req, res, parsedUrl)
-        }
       }
 
       if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
@@ -974,12 +974,12 @@ export default abstract class Server {
       query: NextParsedUrlQuery
     }
   ): Promise<void> {
-    const userAgent = partialContext.req.headers['user-agent']
+    const isBotRequest = isBot(partialContext.req.headers['user-agent'] || '')
     const ctx = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        supportsDynamicHTML: userAgent ? !isBot(userAgent) : false,
+        supportsDynamicHTML: !isBotRequest,
       },
     } as const
     const payload = await fn(ctx)
@@ -1166,10 +1166,12 @@ export default abstract class Server {
     }
 
     if (opts.supportsDynamicHTML === true) {
+      const isBotRequest = isBot(req.headers['user-agent'] || '')
       // Disable dynamic HTML in cases that we know it won't be generated,
       // so that we can continue generating a cache key when possible.
       opts.supportsDynamicHTML =
         !isSSG &&
+        !isBotRequest &&
         !query.amp &&
         typeof components.Document?.getInitialProps !== 'function'
     }
@@ -1267,7 +1269,7 @@ export default abstract class Server {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG || this.minimalMode || opts.supportsDynamicHTML
+      isPreviewMode || !isSSG || opts.supportsDynamicHTML
         ? null // Preview mode and manual revalidate bypasses the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
