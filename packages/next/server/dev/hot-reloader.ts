@@ -330,7 +330,12 @@ export default class HotReloader {
       const entrypoints = await webpackConfigSpan
         .traceChild('create-entrypoints')
         .traceFn(() =>
-          createEntrypoints(this.pagesMapping, this.buildId, this.config, this.pagesDir)
+          createEntrypoints(
+            this.pagesMapping,
+            this.buildId,
+            this.config,
+            this.pagesDir
+          )
         )
 
       const hasReactRoot = shouldUseReactRoot()
@@ -396,15 +401,17 @@ export default class HotReloader {
         fallback: [],
       },
       isDevFallback: true,
-      entrypoints: (await createEntrypoints(
-        {
-          '/_app': 'next/dist/pages/_app',
-          '/_error': 'next/dist/pages/_error',
-        },
-        this.buildId,
-        this.config,
-        this.pagesDir
-      )).client,
+      entrypoints: (
+        await createEntrypoints(
+          {
+            '/_app': 'next/dist/pages/_app',
+            '/_error': 'next/dist/pages/_error',
+          },
+          this.buildId,
+          this.config,
+          this.pagesDir
+        )
+      ).client,
     })
     const fallbackCompiler = webpack(fallbackConfig)
 

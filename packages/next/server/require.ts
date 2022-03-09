@@ -78,10 +78,7 @@ export function getMiddlewareInfo(params: {
   env: string[]
   wasm: WasmBinding[]
 } {
-  const serverBuildPath = join(
-    params.distDir,
-    SERVER_DIRECTORY
-  )
+  const serverBuildPath = join(params.distDir, SERVER_DIRECTORY)
 
   const middlewareManifest: MiddlewareManifest = require(join(
     serverBuildPath,
