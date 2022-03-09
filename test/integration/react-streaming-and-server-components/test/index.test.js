@@ -24,7 +24,6 @@ import css from './css'
 import rsc from './rsc'
 import streaming from './streaming'
 import basic from './basic'
-import functions from './functions'
 import runtime from './runtime'
 
 const documentWithGip = `
@@ -278,8 +277,6 @@ runSuite('CSS', 'prod', cssSuite)
 
 runSuite('Custom Document', 'dev', documentSuite)
 runSuite('Custom Document', 'prod', documentSuite)
-
-runSuite('Functions manifest', 'build', { runTests: functions })
 
 function runSuite(suiteName, env, options) {
   const context = { appDir, distDir }

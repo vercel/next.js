@@ -1,3 +1,5 @@
+// TODO: rewrite against the stable edge functions standard
+
 import { relative } from 'path'
 import { sources, webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { normalizePagePath } from '../../../server/normalize-page-path'
