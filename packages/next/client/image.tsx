@@ -590,7 +590,7 @@ export default function Image({
       )
       if (overwrittenStyles.length) {
         warnOnce(
-          `Image with src ${src} is assigned the following styles, which are overwritten by automtically-generated styles: ${overwrittenStyles.join(
+          `Image with src ${src} is assigned the following styles, which are overwritten by automatically-generated styles: ${overwrittenStyles.join(
             ', '
           )}`
         )
