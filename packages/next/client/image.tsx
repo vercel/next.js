@@ -481,7 +481,6 @@ export default function Image({
   }
 
   if (process.env.NODE_ENV !== 'production' && layout !== 'raw' && style) {
-    
   }
 
   if (process.env.NODE_ENV !== 'production') {
@@ -584,7 +583,7 @@ export default function Image({
         )
       }
     }
-    
+
     if (style) {
       let overwrittenStyles = Object.keys(style).filter(
         (key) => key in layoutStyle
@@ -597,7 +596,7 @@ export default function Image({
         )
       }
     }
-    
+
     if (
       typeof window !== 'undefined' &&
       !perfObserver &&
