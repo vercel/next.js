@@ -20,6 +20,6 @@ export default function Index() {
   )
 }
 
-export const config = {
-  runtime: 'edge',
-}
+// export const config = {
+//   runtime: 'edge',
+// }

@@ -1113,12 +1113,7 @@ export function isFlightPage(
   nextConfig: NextConfigComplete,
   filePath: string
 ): boolean {
-  if (
-    !(
-      nextConfig.experimental.serverComponents &&
-      nextConfig.experimental.runtime
-    )
-  ) {
+  if (!nextConfig.experimental.serverComponents) {
     return false
   }
 
