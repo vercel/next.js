@@ -9,6 +9,8 @@ import {
 import { useIntersection } from './use-intersection'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 
+const experimentalLayoutRaw = (process.env.__NEXT_IMAGE_OPTS as any)
+  .experimentalLayoutRaw
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
@@ -380,6 +382,12 @@ export default function Image({
 
     // Remove property so it's not spread into image:
     delete rest['layout']
+  }
+
+  if (layout === 'raw' && !experimentalLayoutRaw) {
+    throw new Error(
+      `The "raw" layout is currently experimental and may be subject to breaking change. To use layout="raw", include 'experimental: { images: layoutRaw} } in your next.config file.`
+    )
   }
 
   let staticSrc = ''
