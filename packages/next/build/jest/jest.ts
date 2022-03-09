@@ -100,7 +100,7 @@ export default function nextJest(options: { dir?: string } = {}) {
 
         transform: {
           // Use SWC to compile tests
-          '^.+\\.(js|jsx|ts|tsx)$': [
+          '^.+\\.(js|jsx|ts|tsx|mjs)$': [
             require.resolve('../swc/jest-transformer'),
             {
               nextConfig,

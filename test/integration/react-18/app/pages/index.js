@@ -19,7 +19,3 @@ export default function Index() {
     </div>
   )
 }
-
-// export const config = {
-//   runtime: 'edge',
-// }

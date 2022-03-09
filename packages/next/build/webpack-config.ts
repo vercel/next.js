@@ -44,7 +44,6 @@ import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
-import FunctionsManifestPlugin from './webpack/plugins/functions-manifest-plugin'
 import type { Span } from '../trace'
 import { getRawPageExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
@@ -1446,14 +1445,6 @@ export default async function getBaseWebpackConfig(
       // replacement is done before its process.env.* handling
       (!isServer || isEdgeRuntime) &&
         new MiddlewarePlugin({ dev, isEdgeRuntime }),
-      process.env.ENABLE_FILE_SYSTEM_API === '1' &&
-        isEdgeRuntime &&
-        new FunctionsManifestPlugin({
-          dev,
-          pagesDir,
-          isEdgeRuntime,
-          pageExtensions: config.pageExtensions,
-        }),
       !isServer &&
         new BuildManifestPlugin({
           buildId,
