@@ -467,9 +467,7 @@ module.exports = {
 
 ### Experimental "raw" layout mode
 
-The image component currently supports an additional `layout="raw"` mode, which renders the image without wrappers or styling. This layout mode is currently an experimental feature, while user feedback is gathered. We expect the "raw" layout mode to graduate to full support in the near future.
-
-Currently, there is the possibility of breaking changes to the `layout="raw"` interface, so the feature is locked behind an experimental feature flag. If you would like to use the `raw` layout mode, you must add the following to your `next.config.js`:
+The image component currently supports an additional `layout="raw"` mode, which renders the image without wrappers or styling. This layout mode is currently an experimental feature, while user feedback is gathered. As there is the possibility of breaking changes to the `layout="raw"` interface, the feature is locked behind an experimental feature flag. If you would like to use the `raw` layout mode, you must add the following to your `next.config.js`:
 
 ```js
 module.exports = {
