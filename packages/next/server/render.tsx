@@ -1820,17 +1820,25 @@ function createPrefixStream(
   prefix: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let prefixFlushed = false
+  let prefixPrefixFlushFinished: Promise<void> | null = null
   return createTransformStream({
     transform(chunk, controller) {
+      controller.enqueue(chunk)
       if (!prefixFlushed && prefix) {
         prefixFlushed = true
-        controller.enqueue(chunk)
-        controller.enqueue(encodeText(prefix))
-      } else {
-        controller.enqueue(chunk)
+        prefixPrefixFlushFinished = new Promise((res) => {
+          // NOTE: streaming flush
+          // Enqueue prefix part before the major chunks are enqueued so that
+          // prefix won't be flushed too early to interrupt the data stream
+          setTimeout(() => {
+            controller.enqueue(encodeText(prefix))
+            res()
+          })
+        })
       }
     },
     flush(controller) {
+      if (prefixPrefixFlushFinished) return prefixPrefixFlushFinished
       if (!prefixFlushed && prefix) {
         prefixFlushed = true
         controller.enqueue(encodeText(prefix))
@@ -1850,6 +1858,7 @@ function createInlineDataStream(
       if (!dataStreamFinished) {
         const dataStreamReader = dataStream.getReader()
 
+        // NOTE: streaming flush
         // We are buffering here for the inlined data stream because the
         // "shell" stream might be chunkenized again by the underlying stream
         // implementation, e.g. with a specific high-water mark. To ensure it's
