@@ -67,7 +67,6 @@ import isError from '../lib/is-error'
 import { readableStreamTee } from './web/utils'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
-import { execOnce } from '../shared/lib/utils'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
@@ -1733,6 +1732,7 @@ function createFlushEffectStream(
   return createTransformStream({
     async transform(chunk, controller) {
       const extraChunk = await handleFlushEffect()
+      // those should flush together at once
       controller.enqueue(encodeText(extraChunk + decodeText(chunk)))
     },
   })
@@ -1755,31 +1755,12 @@ async function renderToStream({
 }): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
   const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
-
-  let completeCallback: (value?: unknown) => void
-  const allComplete = new Promise((resolveError, rejectError) => {
-    completeCallback = execOnce((err: unknown) => {
-      if (err) {
-        rejectError(err)
-      } else {
-        resolveError(null)
-      }
-    })
-  })
-
-  const renderStream: ReadableStream<Uint8Array> = await (
-    ReactDOMServer as any
-  ).renderToReadableStream(element, {
-    onError(err: Error) {
-      completeCallback(err)
-    },
-    onCompleteAll() {
-      completeCallback()
-    },
-  })
+  const renderStream: ReadableStream<Uint8Array> & {
+    allReady?: Promise<void>
+  } = await (ReactDOMServer as any).renderToReadableStream(element)
 
   if (generateStaticHTML) {
-    await allComplete
+    await renderStream.allReady
   }
 
   const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
