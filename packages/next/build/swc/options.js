@@ -64,7 +64,7 @@ function getBaseSWCOptions({
         legacyDecorator: enableDecorators,
         decoratorMetadata: emitDecoratorMetadata,
         react: {
-          importSource: nextConfig?.compiler?.emotion?.enabled
+          importSource: nextConfig?.experimental?.emotion
             ? '@emotion/react'
             : jsConfig?.compilerOptions?.jsxImportSource || 'react',
           runtime: 'automatic',
@@ -108,11 +108,11 @@ function getBaseSWCOptions({
 }
 
 function getEmotionOptions(nextConfig, development) {
-  if (!nextConfig?.compiler?.emotion) {
+  if (!nextConfig?.experimental?.emotion) {
     return null
   }
   let autoLabel = false
-  switch (nextConfig?.compiler?.emotion?.autoLabel) {
+  switch (nextConfig?.experimental?.emotion?.autoLabel) {
     case 'never':
       autoLabel = false
       break
@@ -127,9 +127,9 @@ function getEmotionOptions(nextConfig, development) {
   return {
     enabled: true,
     autoLabel,
-    labelFormat: nextConfig?.compiler?.emotion?.labelFormat,
+    labelFormat: nextConfig?.experimental?.emotion?.labelFormat,
     sourcemap: development
-      ? nextConfig?.compiler?.emotion?.sourceMap ?? true
+      ? nextConfig?.experimental?.emotion?.sourceMap ?? true
       : false,
   }
 }

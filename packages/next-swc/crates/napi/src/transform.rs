@@ -98,7 +98,7 @@ impl Task for TransformTask {
                         self.c.cm.clone(),
                         fm.clone(),
                         &options,
-                        self.c.comments(),
+                        self.c.comments().clone(),
                     );
                     self.c.process_js_with_custom_pass(
                         fm,

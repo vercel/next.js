@@ -106,11 +106,11 @@ pub struct TransformOptions {
     pub emotion: Option<emotion::EmotionOptions>,
 }
 
-pub fn custom_before_pass<'a, C: Comments>(
+pub fn custom_before_pass<'a, C: Comments + 'a>(
     cm: Arc<SourceMap>,
     file: Arc<SourceFile>,
     opts: &'a TransformOptions,
-    comments: &'a C,
+    comments: C,
 ) -> impl Fold + 'a {
     #[cfg(target_arch = "wasm32")]
     let relay_plugin = noop();

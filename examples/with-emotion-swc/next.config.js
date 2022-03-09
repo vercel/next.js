@@ -2,7 +2,7 @@
 
 const nextConfig = {
   reactStrictMode: true,
-  compiler: {
+  experimental: {
     emotion: true,
   },
 }

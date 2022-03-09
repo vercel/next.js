@@ -7,6 +7,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use swc::sourcemap::{RawToken, SourceMap as RawSourcemap};
+use swc_atoms::JsWord;
 use swc_common::comments::Comments;
 use swc_common::util::take::Take;
 use swc_common::{BytePos, SourceMap, DUMMY_SP};
@@ -14,10 +15,11 @@ use swc_ecmascript::ast::{
     ArrayLit, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElementName, JSXExpr,
     JSXExprContainer, JSXObject,
 };
+use swc_ecmascript::utils::ExprFactory;
 use swc_ecmascript::{
     ast::{
         Callee, Expr, ExprOrSpread, Ident, ImportDecl, ImportSpecifier, JSXElement, KeyValueProp,
-        Lit, MemberProp, ObjectLit, Pat, Prop, PropName, PropOrSpread, Tpl, VarDeclarator,
+        MemberProp, ObjectLit, Pat, Prop, PropName, PropOrSpread, Tpl, VarDeclarator,
     },
     codegen::util::SourceMapperExt,
     visit::{swc_ecma_ast::CallExpr, Fold, FoldWith},
@@ -28,12 +30,12 @@ mod hash;
 static EMOTION_OFFICIAL_LIBRARIES: Lazy<Vec<EmotionModuleConfig>> = Lazy::new(|| {
     vec![
         EmotionModuleConfig {
-            module_name: "@emotion/styled".to_owned(),
+            module_name: "@emotion/styled".into(),
             exported_names: vec![],
             default_export: Some(ExprKind::Styled),
         },
         EmotionModuleConfig {
-            module_name: "@emotion/react".to_owned(),
+            module_name: "@emotion/react".into(),
             exported_names: vec![
                 ExportItem {
                     name: "css".to_owned(),
@@ -51,7 +53,7 @@ static EMOTION_OFFICIAL_LIBRARIES: Lazy<Vec<EmotionModuleConfig>> = Lazy::new(||
             ..Default::default()
         },
         EmotionModuleConfig {
-            module_name: "@emotion/primitives".to_owned(),
+            module_name: "@emotion/primitives".into(),
             exported_names: vec![ExportItem {
                 name: "css".to_owned(),
                 kind: ExprKind::Css,
@@ -59,7 +61,7 @@ static EMOTION_OFFICIAL_LIBRARIES: Lazy<Vec<EmotionModuleConfig>> = Lazy::new(||
             default_export: Some(ExprKind::Styled),
         },
         EmotionModuleConfig {
-            module_name: "@emotion/native".to_owned(),
+            module_name: "@emotion/native".into(),
             exported_names: vec![ExportItem {
                 name: "css".to_owned(),
                 kind: ExprKind::Css,
@@ -94,7 +96,7 @@ impl Default for EmotionOptions {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct EmotionModuleConfig {
-    module_name: String,
+    module_name: JsWord,
     exported_names: Vec<ExportItem>,
     default_export: Option<ExprKind>,
 }
@@ -137,32 +139,32 @@ enum PackageMeta {
     Namespace(EmotionModuleConfig),
 }
 
-pub fn emotion<'a, C: Comments>(
+pub fn emotion<C: Comments>(
     emotion_options: EmotionOptions,
     path: &Path,
     cm: Arc<SourceMap>,
-    comments: &'a C,
-) -> impl Fold + 'a {
+    comments: C,
+) -> impl Fold {
     EmotionTransformer::new(emotion_options, path, cm, comments)
 }
 
-pub struct EmotionTransformer<'a, C: Comments> {
+pub struct EmotionTransformer<C: Comments> {
     pub options: EmotionOptions,
     filepath_hash: Option<u32>,
     filepath: PathBuf,
     dir: Option<String>,
     filename: Option<String>,
     cm: Arc<SourceMap>,
-    comments: &'a C,
-    import_packages: FxHashMap<String, PackageMeta>,
+    comments: C,
+    import_packages: FxHashMap<JsWord, PackageMeta>,
     emotion_target_class_name_count: usize,
     current_context: Option<String>,
     // skip `css` transformation if it in JSX Element/Attribute
     in_jsx_element: bool,
 }
 
-impl<'a, C: Comments> EmotionTransformer<'a, C> {
-    pub fn new(options: EmotionOptions, path: &Path, cm: Arc<SourceMap>, comments: &'a C) -> Self {
+impl<C: Comments> EmotionTransformer<C> {
+    pub fn new(options: EmotionOptions, path: &Path, cm: Arc<SourceMap>, comments: C) -> Self {
         EmotionTransformer {
             options,
             filepath_hash: None,
@@ -260,7 +262,7 @@ impl<'a, C: Comments> EmotionTransformer<'a, C> {
                             for exported in c.exported_names.iter() {
                                 if named.local.as_ref() == exported.name {
                                     self.import_packages.insert(
-                                        named.local.as_ref().to_owned(),
+                                        named.local.sym.clone(),
                                         PackageMeta::Named(exported.kind),
                                     );
                                 }
@@ -268,15 +270,13 @@ impl<'a, C: Comments> EmotionTransformer<'a, C> {
                         }
                         ImportSpecifier::Default(default) => {
                             if let Some(kind) = c.default_export {
-                                self.import_packages.insert(
-                                    default.local.as_ref().to_owned(),
-                                    PackageMeta::Named(kind),
-                                );
+                                self.import_packages
+                                    .insert(default.local.sym.clone(), PackageMeta::Named(kind));
                             }
                         }
                         ImportSpecifier::Namespace(namespace) => {
                             self.import_packages.insert(
-                                namespace.local.as_ref().to_owned(),
+                                namespace.local.sym.clone(),
                                 PackageMeta::Namespace(c.clone()),
                             );
                         }
@@ -295,7 +295,7 @@ impl<'a, C: Comments> EmotionTransformer<'a, C> {
         self.emotion_target_class_name_count += 1;
         PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
             key: PropName::Ident(Ident::new(key.into(), DUMMY_SP)),
-            value: Box::new(Expr::Lit(Lit::Str(stable_class_name.into()))),
+            value: stable_class_name.into(),
         })))
     }
 
@@ -309,19 +309,13 @@ impl<'a, C: Comments> EmotionTransformer<'a, C> {
                 if let Some(q) = tagged_tpl.quasis.get_mut(i) {
                     let q = q.take();
                     let minified =
-                        minify_css_string(q.raw.value.as_ref(), index == 0, index == args_len - 1);
+                        minify_css_string(&q.raw.value, index == 0, index == args_len - 1);
                     if !minified.replace(" ", "").is_empty() {
-                        args.push(ExprOrSpread {
-                            spread: None,
-                            expr: Box::new(Expr::Lit(Lit::Str(minified.into()))),
-                        });
+                        args.push(minified.as_arg());
                     }
                 }
             } else if let Some(e) = tagged_tpl.exprs.get_mut(i) {
-                args.push(ExprOrSpread {
-                    spread: None,
-                    expr: e.take(),
-                });
+                args.push(e.take().as_arg());
             }
         }
         args
@@ -358,10 +352,7 @@ impl<'a, C: Comments> EmotionTransformer<'a, C> {
     fn create_styles_attr(&mut self, mut raw_attr: Box<Expr>, pos: BytePos) -> JSXAttrValue {
         if let Expr::Array(array_lit) = raw_attr.as_mut() {
             if let Some(cm) = self.create_sourcemap(pos) {
-                array_lit.elems.push(Some(ExprOrSpread {
-                    spread: None,
-                    expr: Box::new(Expr::Lit(Lit::Str(cm.into()))),
-                }));
+                array_lit.elems.push(Some(cm.as_arg()));
             }
             JSXAttrValue::JSXExprContainer(JSXExprContainer {
                 span: DUMMY_SP,
@@ -374,15 +365,9 @@ impl<'a, C: Comments> EmotionTransformer<'a, C> {
                     span: DUMMY_SP,
                     elems: {
                         let mut elements = Vec::with_capacity(2);
-                        elements.push(Some(ExprOrSpread {
-                            spread: None,
-                            expr: raw_attr,
-                        }));
+                        elements.push(Some(raw_attr.as_arg()));
                         if let Some(cm) = self.create_sourcemap(pos) {
-                            elements.push(Some(ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(Expr::Lit(Lit::Str(cm.into()))),
-                            }));
+                            elements.push(Some(cm.as_arg()));
                         }
                         elements
                     },
@@ -392,7 +377,7 @@ impl<'a, C: Comments> EmotionTransformer<'a, C> {
     }
 }
 
-impl<'a, C: Comments> Fold for EmotionTransformer<'a, C> {
+impl<C: Comments> Fold for EmotionTransformer<C> {
     // Collect import modules that indicator if this file need to be transformed
     fn fold_import_decl(&mut self, expr: ImportDecl) -> ImportDecl {
         if expr.type_only {
@@ -419,24 +404,16 @@ impl<'a, C: Comments> Fold for EmotionTransformer<'a, C> {
             match e.as_mut() {
                 // css({})
                 Expr::Ident(i) => {
-                    if let Some(package) = self.import_packages.get(i.as_ref()) {
+                    if let Some(package) = self.import_packages.get(&i.sym) {
                         if !expr.args.is_empty() {
                             if let PackageMeta::Named(kind) = package {
                                 if matches!(kind, ExprKind::Css) && !self.in_jsx_element {
                                     self.comments.add_pure_comment(expr.span.lo());
                                     if self.options.auto_label.unwrap_or(false) {
-                                        expr.args.push(ExprOrSpread {
-                                            spread: None,
-                                            expr: Box::new(Expr::Lit(Lit::Str(
-                                                self.create_label(true).into(),
-                                            ))),
-                                        });
+                                        expr.args.push(self.create_label(true).as_arg());
                                     }
                                     if let Some(cm) = self.create_sourcemap(expr.span.lo) {
-                                        expr.args.push(ExprOrSpread {
-                                            spread: None,
-                                            expr: Box::new(Expr::Lit(Lit::Str(cm.into()))),
-                                        });
+                                        expr.args.push(cm.as_arg());
                                     }
                                 }
                             }
@@ -448,7 +425,7 @@ impl<'a, C: Comments> Fold for EmotionTransformer<'a, C> {
                     if let Callee::Expr(callee_exp) = &c.callee {
                         if let Expr::Ident(i) = callee_exp.as_ref() {
                             if let Some(PackageMeta::Named(ExprKind::Styled)) =
-                                self.import_packages.get(i.as_ref())
+                                self.import_packages.get(&i.sym)
                             {
                                 if !c.args.is_empty() {
                                     let mut args_props = Vec::with_capacity(2);
@@ -461,25 +438,20 @@ impl<'a, C: Comments> Fold for EmotionTransformer<'a, C> {
                                                     "label".into(),
                                                     DUMMY_SP,
                                                 )),
-                                                value: Box::new(Expr::Lit(Lit::Str(
-                                                    self.create_label(false).into(),
-                                                ))),
+                                                value: self.create_label(false).into(),
                                             }),
                                         )));
                                     }
                                     if let Some(cm) = self.create_sourcemap(expr.span.lo()) {
-                                        c.args.push(ExprOrSpread {
-                                            spread: None,
-                                            expr: Box::new(Expr::Lit(Lit::Str(cm.into()))),
-                                        });
+                                        c.args.push(cm.as_arg());
                                     }
-                                    c.args.push(ExprOrSpread {
-                                        spread: None,
-                                        expr: Box::new(Expr::Object(ObjectLit {
+                                    c.args.push(
+                                        Expr::Object(ObjectLit {
                                             span: DUMMY_SP,
                                             props: args_props,
-                                        })),
-                                    });
+                                        })
+                                        .as_arg(),
+                                    );
                                 }
                             }
                         }
@@ -489,18 +461,13 @@ impl<'a, C: Comments> Fold for EmotionTransformer<'a, C> {
                 // customEmotionReact.css({})
                 Expr::Member(m) => {
                     if let Expr::Ident(i) = m.obj.as_ref() {
-                        if let Some(package) = self.import_packages.get(i.as_ref()) {
+                        if let Some(package) = self.import_packages.get(&i.sym) {
                             if let PackageMeta::Named(kind) = package {
                                 if matches!(kind, ExprKind::Styled) {
                                     if let MemberProp::Ident(prop) = &m.prop {
                                         let mut args_props = Vec::with_capacity(2);
                                         args_props.push(self.create_label_prop_node("target"));
-                                        let mut args = vec![ExprOrSpread {
-                                            spread: None,
-                                            expr: Box::new(Expr::Lit(Lit::Str(
-                                                prop.as_ref().into(),
-                                            ))),
-                                        }];
+                                        let mut args = vec![prop.sym.as_ref().as_arg()];
                                         if !self.in_jsx_element {
                                             self.comments.add_pure_comment(expr.span.lo());
                                             if self.options.auto_label.unwrap_or(false) {
@@ -510,39 +477,34 @@ impl<'a, C: Comments> Fold for EmotionTransformer<'a, C> {
                                                             "label".into(),
                                                             DUMMY_SP,
                                                         )),
-                                                        value: Box::new(Expr::Lit(Lit::Str(
-                                                            self.create_label(false).into(),
-                                                        ))),
+                                                        value: self.create_label(false).into(),
                                                     }),
                                                 )));
                                             }
-                                            args.push(ExprOrSpread {
-                                                spread: None,
-                                                expr: Box::new(Expr::Object(ObjectLit {
+                                            args.push(
+                                                Expr::Object(ObjectLit {
                                                     span: DUMMY_SP,
                                                     props: args_props,
-                                                })),
-                                            });
+                                                })
+                                                .as_arg(),
+                                            );
                                             if let Some(cm) = self.create_sourcemap(expr.span.lo())
                                             {
-                                                args.push(ExprOrSpread {
-                                                    spread: None,
-                                                    expr: Box::new(Expr::Lit(Lit::Str(cm.into()))),
-                                                });
+                                                args.push(cm.as_arg());
                                             }
                                         }
                                         return CallExpr {
                                             span: expr.span,
                                             type_args: expr.type_args,
                                             args: expr.args,
-                                            callee: Callee::Expr(Box::new(Expr::Call(CallExpr {
+                                            callee: CallExpr {
                                                 span: DUMMY_SP,
                                                 type_args: None,
-                                                callee: Callee::Expr(Box::new(Expr::Ident(
-                                                    Ident::new(i.sym.clone(), i.span),
-                                                ))),
+                                                callee: Ident::new(i.sym.clone(), i.span)
+                                                    .as_callee(),
                                                 args,
-                                            }))),
+                                            }
+                                            .as_callee(),
                                         };
                                     }
                                 }
@@ -554,18 +516,10 @@ impl<'a, C: Comments> Fold for EmotionTransformer<'a, C> {
                                 {
                                     self.comments.add_pure_comment(expr.span.lo());
                                     if self.options.auto_label.unwrap_or(false) {
-                                        expr.args.push(ExprOrSpread {
-                                            spread: None,
-                                            expr: Box::new(Expr::Lit(Lit::Str(
-                                                self.create_label(true).into(),
-                                            ))),
-                                        });
+                                        expr.args.push(self.create_label(true).as_arg());
                                     }
-                                    if let Some(sm) = self.create_sourcemap(expr.span.lo()) {
-                                        expr.args.push(ExprOrSpread {
-                                            spread: None,
-                                            expr: Box::new(Expr::Lit(Lit::Str(sm.into()))),
-                                        });
+                                    if let Some(cm) = self.create_sourcemap(expr.span.lo()) {
+                                        expr.args.push(cm.as_arg());
                                     }
                                 }
                             }
@@ -586,7 +540,7 @@ impl<'a, C: Comments> Fold for EmotionTransformer<'a, C> {
                     if let Callee::Expr(callee) = &call.callee {
                         if let Expr::Ident(i) = callee.as_ref() {
                             if let Some(PackageMeta::Named(ExprKind::Styled)) =
-                                self.import_packages.get(i.as_ref())
+                                self.import_packages.get(&i.sym)
                             {
                                 let mut callee = call.take();
                                 let mut object_props = Vec::with_capacity(2);
@@ -599,28 +553,23 @@ impl<'a, C: Comments> Fold for EmotionTransformer<'a, C> {
                                                 "label".into(),
                                                 DUMMY_SP,
                                             )),
-                                            value: Box::new(Expr::Lit(Lit::Str(
-                                                self.create_label(false).into(),
-                                            ))),
+                                            value: self.create_label(false).into(),
                                         }),
                                     )));
                                 }
                                 if let Some(cm) = self.create_sourcemap(call.span.lo()) {
-                                    callee.args.push(ExprOrSpread {
-                                        spread: None,
-                                        expr: Box::new(Expr::Lit(Lit::Str(cm.into()))),
-                                    });
+                                    callee.args.push(cm.as_arg());
                                 }
-                                callee.args.push(ExprOrSpread {
-                                    spread: None,
-                                    expr: Box::new(Expr::Object(ObjectLit {
+                                callee.args.push(
+                                    Expr::Object(ObjectLit {
                                         span: DUMMY_SP,
                                         props: object_props,
-                                    })),
-                                });
+                                    })
+                                    .as_arg(),
+                                );
                                 return Expr::Call(CallExpr {
                                     span: DUMMY_SP,
-                                    callee: Callee::Expr(Box::new(Expr::Call(callee))),
+                                    callee: callee.as_callee(),
                                     args: self
                                         .create_args_from_tagged_tpl(&mut tagged_tpl.tpl)
                                         .into_iter()
@@ -635,29 +584,21 @@ impl<'a, C: Comments> Fold for EmotionTransformer<'a, C> {
                 // css``
                 Expr::Ident(i) => {
                     if let Some(PackageMeta::Named(ExprKind::Css)) =
-                        self.import_packages.get(i.as_ref())
+                        self.import_packages.get(&i.sym)
                     {
                         let mut args = self.create_args_from_tagged_tpl(&mut tagged_tpl.tpl);
                         if !self.in_jsx_element {
                             self.comments.add_pure_comment(i.span.lo());
                             if self.options.auto_label.unwrap_or(false) {
-                                args.push(ExprOrSpread {
-                                    spread: None,
-                                    expr: Box::new(Expr::Lit(Lit::Str(
-                                        self.create_label(false).into(),
-                                    ))),
-                                });
+                                args.push(self.create_label(false).as_arg());
                             }
                             if let Some(cm) = self.create_sourcemap(tagged_tpl.span.lo()) {
-                                args.push(ExprOrSpread {
-                                    spread: None,
-                                    expr: Box::new(Expr::Lit(Lit::Str(cm.into()))),
-                                });
+                                args.push(cm.as_arg());
                             }
                         }
                         return Expr::Call(CallExpr {
                             span: DUMMY_SP,
-                            callee: Callee::Expr(Box::new(Expr::Ident(i.take()))),
+                            callee: i.take().as_callee(),
                             args,
                             type_args: None,
                         });
@@ -667,7 +608,7 @@ impl<'a, C: Comments> Fold for EmotionTransformer<'a, C> {
                 // customEmotionReact.css``
                 Expr::Member(member_expr) => {
                     if let Expr::Ident(i) = member_expr.obj.as_mut() {
-                        if let Some(p) = self.import_packages.get(i.as_ref()) {
+                        if let Some(p) = self.import_packages.get(&i.sym) {
                             match p {
                                 PackageMeta::Named(ExprKind::Styled) => {
                                     if let MemberProp::Ident(prop) = &mut member_expr.prop {
@@ -680,9 +621,7 @@ impl<'a, C: Comments> Fold for EmotionTransformer<'a, C> {
                                                         "label".into(),
                                                         DUMMY_SP,
                                                     )),
-                                                    value: Box::new(Expr::Lit(Lit::Str(
-                                                        self.create_label(false).into(),
-                                                    ))),
+                                                    value: self.create_label(false).into(),
                                                 }),
                                             )));
                                         }
@@ -691,37 +630,26 @@ impl<'a, C: Comments> Fold for EmotionTransformer<'a, C> {
                                         if let Some(cm) =
                                             self.create_sourcemap(member_expr.span.lo())
                                         {
-                                            args.push(ExprOrSpread {
-                                                spread: None,
-                                                expr: Box::new(Expr::Lit(Lit::Str(cm.into()))),
-                                            });
+                                            args.push(cm.as_arg());
                                         }
                                         self.comments.add_pure_comment(member_expr.span.lo());
                                         return Expr::Call(CallExpr {
                                             span: DUMMY_SP,
                                             type_args: None,
-                                            callee: Callee::Expr(Box::new(Expr::Call(CallExpr {
+                                            callee: CallExpr {
                                                 type_args: None,
                                                 span: DUMMY_SP,
-                                                callee: Callee::Expr(Box::new(Expr::Ident(
-                                                    i.take(),
-                                                ))),
+                                                callee: i.take().as_callee(),
                                                 args: vec![
-                                                    ExprOrSpread {
-                                                        spread: None,
-                                                        expr: Box::new(Expr::Lit(Lit::Str(
-                                                            prop.take().sym.into(),
-                                                        ))),
-                                                    },
-                                                    ExprOrSpread {
-                                                        spread: None,
-                                                        expr: Box::new(Expr::Object(ObjectLit {
-                                                            span: DUMMY_SP,
-                                                            props: object_props,
-                                                        })),
-                                                    },
+                                                    prop.take().sym.as_arg(),
+                                                    Expr::Object(ObjectLit {
+                                                        span: DUMMY_SP,
+                                                        props: object_props,
+                                                    })
+                                                    .as_arg(),
                                                 ],
-                                            }))),
+                                            }
+                                            .as_callee(),
                                             args,
                                         });
                                     }
@@ -734,30 +662,18 @@ impl<'a, C: Comments> Fold for EmotionTransformer<'a, C> {
                                         self.comments.add_pure_comment(member_expr.span.lo());
                                         return Expr::Call(CallExpr {
                                             span: DUMMY_SP,
-                                            callee: Callee::Expr(Box::new(Expr::Member(
-                                                member_expr.take(),
-                                            ))),
+                                            callee: member_expr.take().as_callee(),
                                             args: {
                                                 let mut args = self.create_args_from_tagged_tpl(
                                                     &mut tagged_tpl.tpl,
                                                 );
                                                 if self.options.auto_label.unwrap_or(false) {
-                                                    args.push(ExprOrSpread {
-                                                        spread: None,
-                                                        expr: Box::new(Expr::Lit(Lit::Str(
-                                                            self.create_label(true).into(),
-                                                        ))),
-                                                    });
+                                                    args.push(self.create_label(true).as_arg());
                                                 }
                                                 if let Some(cm) =
                                                     self.create_sourcemap(tagged_tpl.span.lo())
                                                 {
-                                                    args.push(ExprOrSpread {
-                                                        spread: None,
-                                                        expr: Box::new(Expr::Lit(Lit::Str(
-                                                            cm.into(),
-                                                        ))),
-                                                    });
+                                                    args.push(cm.as_arg());
                                                 }
                                                 args
                                             },
@@ -781,7 +697,7 @@ impl<'a, C: Comments> Fold for EmotionTransformer<'a, C> {
         match &mut expr.opening.name {
             JSXElementName::Ident(i) => {
                 if let Some(PackageMeta::Named(ExprKind::GlobalJSX)) =
-                    self.import_packages.get(i.as_ref())
+                    self.import_packages.get(&i.sym)
                 {
                     self.rewrite_styles_attr(&mut expr.opening.attrs, i.span.lo());
                 }
@@ -791,7 +707,7 @@ impl<'a, C: Comments> Fold for EmotionTransformer<'a, C> {
                     if let Some(PackageMeta::Namespace(EmotionModuleConfig {
                         exported_names,
                         ..
-                    })) = self.import_packages.get(i.as_ref())
+                    })) = self.import_packages.get(&i.sym)
                     {
                         if exported_names.iter().any(|item| {
                             matches!(item.kind, ExprKind::GlobalJSX)
