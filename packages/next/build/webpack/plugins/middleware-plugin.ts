@@ -10,6 +10,7 @@ import {
   MIDDLEWARE_SSR_RUNTIME_WEBPACK,
 } from '../../../shared/lib/constants'
 import { nonNullable } from '../../../lib/non-nullable'
+import type { WasmBinding } from '../loaders/next-middleware-wasm-loader'
 
 const PLUGIN_NAME = 'MiddlewarePlugin'
 const MIDDLEWARE_FULL_ROUTE_REGEX = /^pages[/\\]?(.*)\/_middleware$/
@@ -27,6 +28,7 @@ export interface MiddlewareManifest {
       name: string
       page: string
       regexp: string
+      wasm?: WasmBinding[]
     }
   }
 }
@@ -49,9 +51,14 @@ function getPageFromEntrypointName(pagePath: string) {
   return page
 }
 
+export type PerRoute = {
+  envPerRoute: Map<string, string[]>
+  wasmPerRoute: Map<string, WasmBinding[]>
+}
+
 export function getEntrypointInfo(
   compilation: webpack5.Compilation,
-  envPerRoute: Map<string, string[]>,
+  { envPerRoute, wasmPerRoute }: PerRoute,
   isEdgeRuntime: boolean
 ) {
   const entrypoints = compilation.entrypoints
@@ -87,6 +94,7 @@ export function getEntrypointInfo(
 
     infos.push({
       env: envPerRoute.get(entrypoint.name) || [],
+      wasm: wasmPerRoute.get(entrypoint.name) || [],
       files,
       name: entrypoint.name,
       page,
@@ -114,10 +122,14 @@ export default class MiddlewarePlugin {
   createAssets(
     compilation: webpack5.Compilation,
     assets: any,
-    envPerRoute: Map<string, string[]>,
+    { envPerRoute, wasmPerRoute }: PerRoute,
     isEdgeRuntime: boolean
   ) {
-    const infos = getEntrypointInfo(compilation, envPerRoute, isEdgeRuntime)
+    const infos = getEntrypointInfo(
+      compilation,
+      { envPerRoute, wasmPerRoute },
+      isEdgeRuntime
+    )
     infos.forEach((info) => {
       middlewareManifest.middleware[info.page] = info
     })
@@ -152,7 +164,7 @@ export function collectAssets(
   createAssets: (
     compilation: webpack5.Compilation,
     assets: any,
-    envPerRoute: Map<string, string[]>,
+    { envPerRoute, wasmPerRoute }: PerRoute,
     isEdgeRuntime: boolean
   ) => void,
   options: {
@@ -175,6 +187,7 @@ export function collectAssets(
       })
 
       const envPerRoute = new Map<string, string[]>()
+      const wasmPerRoute = new Map<string, WasmBinding[]>()
 
       compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, () => {
         const { moduleGraph } = compilation as any
@@ -187,6 +200,7 @@ export function collectAssets(
           ) {
             const middlewareEntries = new Set<webpack5.Module>()
             const env = new Set<string>()
+            const wasm = new Set<WasmBinding>()
 
             const addEntriesFromDependency = (dep: any) => {
               const module = moduleGraph.getModule(dep)
@@ -203,6 +217,9 @@ export function collectAssets(
             const queue = new Set(middlewareEntries)
             for (const module of queue) {
               const { buildInfo } = module
+              if (buildInfo.nextWasmMiddlewareBinding) {
+                wasm.add(buildInfo.nextWasmMiddlewareBinding)
+              }
               if (
                 !options.dev &&
                 buildInfo &&
@@ -247,6 +264,7 @@ export function collectAssets(
             }
 
             envPerRoute.set(name, Array.from(env))
+            wasmPerRoute.set(name, Array.from(wasm))
           }
         }
       })
@@ -375,7 +393,12 @@ export function collectAssets(
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => {
-          createAssets(compilation, assets, envPerRoute, options.isEdgeRuntime)
+          createAssets(
+            compilation,
+            assets,
+            { envPerRoute, wasmPerRoute },
+            options.isEdgeRuntime
+          )
         }
       )
     }

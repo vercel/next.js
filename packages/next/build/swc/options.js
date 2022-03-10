@@ -5,7 +5,24 @@ const regeneratorRuntimePath = require.resolve(
   'next/dist/compiled/regenerator-runtime'
 )
 
-export function getBaseSWCOptions({
+export function getParserOptions({ filename, jsConfig, ...rest }) {
+  const isTSFile = filename.endsWith('.ts')
+  const isTypeScript = isTSFile || filename.endsWith('.tsx')
+  const enableDecorators = Boolean(
+    jsConfig?.compilerOptions?.experimentalDecorators
+  )
+  return {
+    ...rest,
+    syntax: isTypeScript ? 'typescript' : 'ecmascript',
+    dynamicImport: true,
+    decorators: enableDecorators,
+    // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
+    [isTypeScript ? 'tsx' : 'jsx']: isTSFile ? false : true,
+    importAssertions: true,
+  }
+}
+
+function getBaseSWCOptions({
   filename,
   jest,
   development,
@@ -15,8 +32,7 @@ export function getBaseSWCOptions({
   resolvedBaseUrl,
   jsConfig,
 }) {
-  const isTSFile = filename.endsWith('.ts')
-  const isTypeScript = isTSFile || filename.endsWith('.tsx')
+  const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
   const enableDecorators = Boolean(
     jsConfig?.compilerOptions?.experimentalDecorators
@@ -32,14 +48,10 @@ export function getBaseSWCOptions({
             paths,
           }
         : {}),
-      parser: {
-        syntax: isTypeScript ? 'typescript' : 'ecmascript',
-        dynamicImport: true,
-        decorators: enableDecorators,
-        // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
-        [isTypeScript ? 'tsx' : 'jsx']: isTSFile ? false : true,
+      parser: parserConfig,
+      experimental: {
+        keepImportAssertions: true,
       },
-
       transform: {
         // Enables https://github.com/swc-project/swc/blob/0359deb4841be743d73db4536d4a22ac797d7f65/crates/swc_ecma_ext_transforms/src/jest.rs
         ...(jest

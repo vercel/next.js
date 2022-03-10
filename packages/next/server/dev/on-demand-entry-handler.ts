@@ -10,6 +10,7 @@ import { reportTrigger } from '../../build/output'
 import type ws from 'ws'
 import { NextConfigComplete } from '../config-shared'
 import { isCustomErrorPage } from '../../build/utils'
+import { getPageRuntime } from '../../build/entries'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -204,7 +205,12 @@ export default function onDemandEntryHandler(
 
       const isMiddleware = normalizedPage.match(MIDDLEWARE_ROUTE)
       const isApiRoute = normalizedPage.match(API_ROUTE) && !isMiddleware
-      const isEdgeServer = nextConfig.experimental.runtime === 'edge'
+      const pageRuntimeConfig = await getPageRuntime(
+        absolutePagePath,
+        nextConfig.experimental.runtime
+      )
+      const isEdgeServer = pageRuntimeConfig === 'edge'
+
       const isCustomError = isCustomErrorPage(page)
 
       let entriesChanged = false

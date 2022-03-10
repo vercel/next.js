@@ -183,13 +183,9 @@ function enhanceComponents(
   }
 }
 
-function renderFlight(
-  App: AppType,
-  Component: React.ComponentType,
-  props: any
-) {
-  const AppServer = (App as any).__next_rsc__
-    ? (App as React.ComponentType)
+function renderFlight(AppMod: any, Component: React.ComponentType, props: any) {
+  const AppServer = AppMod.__next_rsc__
+    ? (AppMod.default as React.ComponentType)
     : React.Fragment
   return (
     <AppServer>
@@ -355,33 +351,29 @@ const useRSCResponse = createRSCHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
-  App: AppType,
   OriginalComponent: React.ComponentType,
+  AppMod: any,
+  ComponentMod: any,
   {
     cachePrefix,
     transformStream,
     serverComponentManifest,
-    runtime,
   }: {
     cachePrefix: string
     transformStream: TransformStream<Uint8Array, Uint8Array>
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
-    runtime: 'nodejs' | 'edge'
   }
 ) {
-  if (runtime === 'nodejs') {
-    // For the nodejs runtime, we need to expose the `__webpack_require__` API
-    // globally for react-server-dom-webpack.
-    // This is a hack until we find a better way.
-    // @ts-ignore
-    globalThis.__webpack_require__ = OriginalComponent.__webpack_require__
-  }
+  // We need to expose the `__webpack_require__` API globally for
+  // react-server-dom-webpack. This is a hack until we find a better way.
+  // @ts-ignore
+  globalThis.__webpack_require__ = ComponentMod.__next_rsc__.__webpack_require__
 
   const writable = transformStream.writable
   const ServerComponentWrapper = (props: any) => {
     const id = (React as any).useId()
     const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
-      renderFlight(App, OriginalComponent, props),
+      renderFlight(AppMod, OriginalComponent, props),
       serverComponentManifest
     )
 
@@ -397,11 +389,7 @@ function createServerComponentRenderer(
   }
 
   const Component = (props: any) => {
-    return (
-      <React.Suspense fallback={null}>
-        <ServerComponentWrapper {...props} />
-      </React.Suspense>
-    )
+    return <ServerComponentWrapper {...props} />
   }
 
   // Although it's not allowed to attach some static methods to Component,
@@ -463,6 +451,8 @@ export async function renderToHTML(
     images,
     reactRoot,
     runtime,
+    ComponentMod,
+    AppMod,
   } = renderOpts
 
   const hasConcurrentFeatures = !!runtime
@@ -473,7 +463,7 @@ export async function renderToHTML(
   const isServerComponent =
     !!serverComponentManifest &&
     hasConcurrentFeatures &&
-    (OriginalComponent as any).__next_rsc__
+    ComponentMod.__next_rsc__
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
@@ -485,12 +475,16 @@ export async function renderToHTML(
   if (isServerComponent) {
     serverComponentsInlinedTransformStream = new TransformStream()
     const search = stringifyQuery(query)
-    Component = createServerComponentRenderer(App, OriginalComponent, {
-      cachePrefix: pathname + (search ? `?${search}` : ''),
-      transformStream: serverComponentsInlinedTransformStream,
-      serverComponentManifest,
-      runtime,
-    })
+    Component = createServerComponentRenderer(
+      OriginalComponent,
+      AppMod,
+      ComponentMod,
+      {
+        cachePrefix: pathname + (search ? `?${search}` : ''),
+        transformStream: serverComponentsInlinedTransformStream,
+        serverComponentManifest,
+      }
+    )
   }
 
   const getFontDefinition = (url: string): string => {
@@ -1178,7 +1172,7 @@ export async function renderToHTML(
 
   if (renderServerComponentData) {
     const stream: ReadableStream<Uint8Array> = renderToReadableStream(
-      renderFlight(App, OriginalComponent, {
+      renderFlight(AppMod, OriginalComponent, {
         ...props.pageProps,
         ...serverComponentProps,
       }),
@@ -1318,7 +1312,7 @@ export async function renderToHTML(
         ) : (
           <Body>
             <AppContainerWithIsomorphicFiberStructure>
-              {renderOpts.serverComponents && (App as any).__next_rsc__ ? (
+              {renderOpts.serverComponents && AppMod.__next_rsc__ ? (
                 <Component {...props.pageProps} router={router} />
               ) : (
                 <App {...props} Component={Component} router={router} />
@@ -1738,12 +1732,13 @@ function createFlushEffectStream(
   return createTransformStream({
     async transform(chunk, controller) {
       const extraChunk = await handleFlushEffect()
+      // those should flush together at once
       controller.enqueue(encodeText(extraChunk + decodeText(chunk)))
     },
   })
 }
 
-function renderToStream({
+async function renderToStream({
   ReactDOMServer,
   element,
   suffix,
@@ -1758,60 +1753,28 @@ function renderToStream({
   generateStaticHTML: boolean
   flushEffectHandler?: () => Promise<string>
 }): Promise<ReadableStream<Uint8Array>> {
-  return new Promise((resolve, reject) => {
-    let resolved = false
+  const closeTag = '</body></html>'
+  const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
+  const renderStream: ReadableStream<Uint8Array> & {
+    allReady?: Promise<void>
+  } = await (ReactDOMServer as any).renderToReadableStream(element)
 
-    const closeTag = '</body></html>'
-    const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
+  if (generateStaticHTML) {
+    await renderStream.allReady
+  }
 
-    const doResolve = () => {
-      if (!resolved) {
-        resolved = true
+  const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
+    createBufferedTransformStream(),
+    flushEffectHandler ? createFlushEffectStream(flushEffectHandler) : null,
+    suffixUnclosed != null ? createPrefixStream(suffixUnclosed) : null,
+    dataStream ? createInlineDataStream(dataStream) : null,
+    suffixUnclosed != null ? createSuffixStream(closeTag) : null,
+  ].filter(Boolean) as any
 
-        // React will call our callbacks synchronously, so we need to
-        // defer to a microtask to ensure `stream` is set.
-        resolve(
-          Promise.resolve().then(() => {
-            const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
-              createBufferedTransformStream(),
-              flushEffectHandler
-                ? createFlushEffectStream(flushEffectHandler)
-                : null,
-              suffixUnclosed != null
-                ? createPrefixStream(suffixUnclosed)
-                : null,
-              dataStream ? createInlineDataStream(dataStream) : null,
-              suffixUnclosed != null ? createSuffixStream(closeTag) : null,
-            ].filter(Boolean) as any
-
-            return transforms.reduce(
-              (readable, transform) => pipeThrough(readable, transform),
-              renderStream
-            )
-          })
-        )
-      }
-    }
-
-    const renderStream: ReadableStream<Uint8Array> = (
-      ReactDOMServer as any
-    ).renderToReadableStream(element, {
-      onError(err: Error) {
-        if (!resolved) {
-          resolved = true
-          reject(err)
-        }
-      },
-      onCompleteShell() {
-        if (!generateStaticHTML) {
-          doResolve()
-        }
-      },
-      onCompleteAll() {
-        doResolve()
-      },
-    })
-  })
+  return transforms.reduce(
+    (readable, transform) => pipeThrough(readable, transform),
+    renderStream
+  )
 }
 
 function encodeText(input: string) {
@@ -1838,17 +1801,25 @@ function createPrefixStream(
   prefix: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let prefixFlushed = false
+  let prefixPrefixFlushFinished: Promise<void> | null = null
   return createTransformStream({
     transform(chunk, controller) {
+      controller.enqueue(chunk)
       if (!prefixFlushed && prefix) {
         prefixFlushed = true
-        controller.enqueue(chunk)
-        controller.enqueue(encodeText(prefix))
-      } else {
-        controller.enqueue(chunk)
+        prefixPrefixFlushFinished = new Promise((res) => {
+          // NOTE: streaming flush
+          // Enqueue prefix part before the major chunks are enqueued so that
+          // prefix won't be flushed too early to interrupt the data stream
+          setTimeout(() => {
+            controller.enqueue(encodeText(prefix))
+            res()
+          })
+        })
       }
     },
     flush(controller) {
+      if (prefixPrefixFlushFinished) return prefixPrefixFlushFinished
       if (!prefixFlushed && prefix) {
         prefixFlushed = true
         controller.enqueue(encodeText(prefix))
@@ -1868,6 +1839,7 @@ function createInlineDataStream(
       if (!dataStreamFinished) {
         const dataStreamReader = dataStream.getReader()
 
+        // NOTE: streaming flush
         // We are buffering here for the inlined data stream because the
         // "shell" stream might be chunkenized again by the underlying stream
         // implementation, e.g. with a specific high-water mark. To ensure it's

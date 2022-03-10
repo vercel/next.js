@@ -9,6 +9,7 @@ import {
 import { useIntersection } from './use-intersection'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils'
+import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
@@ -722,7 +723,7 @@ export default function Image({
         ref={imgRef}
         style={{ ...imgStyle, ...blurStyle }}
       />
-      {isLazy && (
+      {(isLazy || placeholder === 'blur') && (
         <noscript>
           <img
             {...rest}
@@ -877,7 +878,7 @@ function defaultLoader({
     return src
   }
 
-  return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${
-    quality || 75
-  }`
+  return `${normalizePathTrailingSlash(config.path)}?url=${encodeURIComponent(
+    src
+  )}&w=${width}&q=${quality || 75}`
 }
