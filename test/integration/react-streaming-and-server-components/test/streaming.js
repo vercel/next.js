@@ -222,7 +222,7 @@ export default function (context, { env, runtime }) {
     const html = await res1.text()
     const body = await getNodeBySelector(html, '#__next')
     // Resolve data instead of fallback
-    expect(body.text()).toContain('next_streaming_data')
+    expect(body.text()).toBe('next_streaming_data')
 
     if (runtime === 'nodejs') {
       expect(res1.headers.get('etag')).toBeDefined()
