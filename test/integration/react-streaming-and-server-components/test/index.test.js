@@ -2,7 +2,6 @@
 
 import { join } from 'path'
 import fs from 'fs-extra'
-import webdriver from 'next-webdriver'
 
 import { fetchViaHTTP, findPort, killApp, renderViaHTTP } from 'next-test-utils'
 
