@@ -2,7 +2,7 @@ import { createNext } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
-describe('PostCSS config as string', () => {
+describe('PostCSS plugin config as string', () => {
   let next: NextInstance
 
   beforeAll(async () => {
