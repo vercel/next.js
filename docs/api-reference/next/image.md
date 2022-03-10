@@ -85,7 +85,7 @@ The layout behavior of the image as the viewport changes size.
   - When `fill`, the image will stretch both width and height to the dimensions of the parent element, provided the parent element is relative.
   - This is usually paired with the [`objectFit`](#objectFit) property.
   - Ensure the parent element has `position: relative` in their stylesheet.
-- When `raw`[\*](#Experimental-raw-layout-mode), the image will be rendered as a single image element with no wrappers, sizers or other responsive behavior.
+- When `raw`[\*](#experimental-raw-layout-mode), the image will be rendered as a single image element with no wrappers, sizers or other responsive behavior.
   - If your image styling will change the size of a `raw` image, you should include the `sizes` property for proper image serving. Otherwise your image will receive a fixed height and width.
   - The other layout modes are optimized for performance and should cover nearly all use cases. It is recommended to try to use those modes before using `raw`.
 - [Demo background image](https://image-component.nextjs.gallery/background)
