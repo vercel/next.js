@@ -890,7 +890,7 @@ const ImageElement = ({
             loading={loading || 'lazy'}
           />
         </noscript>
-      )}
+      }
     </>
   )
 }
