@@ -48,8 +48,6 @@ describe('PostCSS plugin config as string', () => {
   afterAll(() => next.destroy())
 
   it('should work', async () => {
-    console.log('output', next.cliOutput)
-
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('hello world')
   })
