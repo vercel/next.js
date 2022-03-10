@@ -16,7 +16,10 @@ describe('root dir', () => {
           path.join(__dirname, 'app/next.config.js')
         ),
       },
-      dependencies: {},
+      dependencies: {
+        react: '18.0.0-rc.2',
+        'react-dom': '18.0.0-rc.2',
+      },
     })
   })
   afterAll(() => next.destroy())
