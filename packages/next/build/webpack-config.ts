@@ -1,7 +1,6 @@
 import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
-import { stringify } from 'querystring'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import path, { join as pathJoin, relative as relativePath } from 'path'
@@ -45,16 +44,16 @@ import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
-import FunctionsManifestPlugin from './webpack/plugins/functions-manifest-plugin'
 import type { Span } from '../trace'
 import { getRawPageExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { shouldUseReactRoot } from '../server/config'
+import { getMiddlewareSourceMapPlugins } from './webpack/plugins/middleware-source-maps-plugin'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
-  ignored: ['**/.git/**', '**/node_modules/**', '**/.next/**'],
+  ignored: ['**/.git/**', '**/.next/**'],
 })
 
 function getSupportedBrowsers(
@@ -791,11 +790,6 @@ export default async function getBaseWebpackConfig(
             minChunks: 1,
             reuseExistingChunk: true,
           },
-          commons: {
-            name: 'commons',
-            minChunks: totalPages,
-            priority: 20,
-          },
           middleware: {
             chunks: (chunk: webpack.compilation.Chunk) =>
               chunk.name?.match(MIDDLEWARE_ROUTE),
@@ -1151,6 +1145,7 @@ export default async function getBaseWebpackConfig(
         'noop-loader',
         'next-middleware-loader',
         'next-middleware-ssr-loader',
+        'next-middleware-wasm-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1177,49 +1172,41 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
-        // Loaders for the client compilation when RSC is enabled.
-        ...(hasServerComponents && !isServer
-          ? [
-              {
-                ...codeCondition,
-                test: serverComponentsRegex,
-                use: {
-                  loader: `next-flight-server-loader?${stringify({
-                    client: 1,
-                    pageExtensions: JSON.stringify(rawPageExtensions),
-                  })}`,
+        ...(hasServerComponents
+          ? isServer
+            ? [
+                // RSC server compilation loaders
+                {
+                  ...codeCondition,
+                  use: {
+                    loader: 'next-flight-server-loader',
+                    options: {
+                      pageExtensions: rawPageExtensions,
+                    },
+                  },
                 },
-              },
-            ]
-          : []),
-        // Loaders for the server compilation when RSC is enabled.
-        ...(hasServerComponents &&
-        ((runtime === 'edge' && isEdgeRuntime) ||
-          (runtime === 'nodejs' && isServer))
-          ? [
-              {
-                ...codeCondition,
-                test: serverComponentsRegex,
-                use: {
-                  loader: `next-flight-server-loader?${stringify({
-                    pageExtensions: JSON.stringify(rawPageExtensions),
-                  })}`,
+                {
+                  test: codeCondition.test,
+                  resourceQuery: /__sc_client__/,
+                  use: {
+                    loader: 'next-flight-client-loader',
+                  },
                 },
-              },
-              {
-                ...codeCondition,
-                test: clientComponentsRegex,
-                use: {
-                  loader: 'next-flight-client-loader',
+              ]
+            : [
+                // RSC client compilation loaders
+                {
+                  ...codeCondition,
+                  test: serverComponentsRegex,
+                  use: {
+                    loader: 'next-flight-server-loader',
+                    options: {
+                      client: 1,
+                      pageExtensions: rawPageExtensions,
+                    },
+                  },
                 },
-              },
-              {
-                test: /next[\\/](dist[\\/]client[\\/])?(link|image)/,
-                use: {
-                  loader: 'next-flight-client-loader',
-                },
-              },
-            ]
+              ]
           : []),
         {
           test: /\.(js|cjs|mjs)$/,
@@ -1277,6 +1264,12 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
+      ...(!dev &&
+      !isServer &&
+      !!config.experimental.middlewareSourceMaps &&
+      !config.productionBrowserSourceMaps
+        ? getMiddlewareSourceMapPlugins()
+        : []),
       hasReactRefresh && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       targetWeb &&
@@ -1453,14 +1446,6 @@ export default async function getBaseWebpackConfig(
       // replacement is done before its process.env.* handling
       (!isServer || isEdgeRuntime) &&
         new MiddlewarePlugin({ dev, isEdgeRuntime }),
-      process.env.ENABLE_FILE_SYSTEM_API === '1' &&
-        isEdgeRuntime &&
-        new FunctionsManifestPlugin({
-          dev,
-          pagesDir,
-          isEdgeRuntime,
-          pageExtensions: config.pageExtensions,
-        }),
       !isServer &&
         new BuildManifestPlugin({
           buildId,
@@ -1497,7 +1482,7 @@ export default async function getBaseWebpackConfig(
         }),
       hasServerComponents &&
         !isServer &&
-        new FlightManifestPlugin({ dev, clientComponentsRegex, runtime }),
+        new FlightManifestPlugin({ dev, clientComponentsRegex }),
       !dev &&
         !isServer &&
         new TelemetryPlugin(
@@ -1533,6 +1518,14 @@ export default async function getBaseWebpackConfig(
   }
 
   const webpack5Config = webpackConfig as webpack5.Configuration
+
+  webpack5Config.module?.rules?.unshift({
+    test: /\.wasm$/,
+    issuerLayer: 'middleware',
+    loader: 'next-middleware-wasm-loader',
+    type: 'javascript/auto',
+    resourceQuery: /module/i,
+  })
 
   webpack5Config.experiments = {
     layers: true,
@@ -1594,7 +1587,12 @@ export default async function getBaseWebpackConfig(
     if (!webpack5Config.optimization) {
       webpack5Config.optimization = {}
     }
-    webpack5Config.optimization.providedExports = false
+
+    // For Server Components, it's necessary to have provided exports collected
+    // to generate the correct flight manifest.
+    if (!hasServerComponents) {
+      webpack5Config.optimization.providedExports = false
+    }
     webpack5Config.optimization.usedExports = false
   }
 
@@ -1854,11 +1852,11 @@ export default async function getBaseWebpackConfig(
     }
 
     const fileNames = [
-      '/tmp/test.css',
-      '/tmp/test.scss',
-      '/tmp/test.sass',
-      '/tmp/test.less',
-      '/tmp/test.styl',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.css',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.scss',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.sass',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.less',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.styl',
     ]
 
     if (rule instanceof RegExp && fileNames.some((input) => rule.test(input))) {

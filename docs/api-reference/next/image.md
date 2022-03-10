@@ -384,7 +384,7 @@ module.exports = {
 
 The default [Image Optimization API](#loader-configuration) will automatically detect the browser's supported image formats via the request's `Accept` header.
 
-If the `Accept` head matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match, the Image Optimization API will fallback to the original image's format.
+If the `Accept` head matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match (or the source image is [animated](#animated-images)), the Image Optimization API will fallback to the original image's format.
 
 If no configuration is provided, the default below is used.
 
@@ -418,7 +418,7 @@ The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](
 
 - You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `Cache-Control` header or the value is very low.
 - You can configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
-- You can configure [formats](/docs/basic-features/image-optimization.md#acceptable-formats) to disable multiple formats in favor of a single image format.
+- You can configure [formats](#acceptable-formats) to disable multiple formats in favor of a single image format.
 
 ### Minimum Cache TTL
 
@@ -465,6 +465,7 @@ module.exports = {
 }
 ```
 
+
 ### Experimental "raw" layout mode
 
 The image component currently supports an additional `layout="raw"` mode, which renders the image without wrappers or styling. This layout mode is currently an experimental feature, while user feedback is gathered. As there is the possibility of breaking changes to the `layout="raw"` interface, the feature is locked behind an experimental feature flag. If you would like to use the `raw` layout mode, you must add the following to your `next.config.js`:
@@ -482,6 +483,13 @@ module.exports = {
 > Note on CLS with `layout="raw"`:
 > It is possible to cause [layout shift](https://web.dev/cls/) with the image component in `raw` mode. If you include a `sizes` property, the image component will not pass `height` and `width` attributes to the image, to allow you to apply your own responsive sizing.
 > An [aspect-ratio](https://developer.mozilla.org/en-US/docs/Web/CSS/aspect-ratio) style property is automatically applied to prevent layout shift, but this won't apply on [older browsers](https://caniuse.com/mdn-css_properties_aspect-ratio).
+
+### Animated Images
+
+The default [loader](#loader) will automatically bypass Image Optimization for animated images and serve the image as-is.
+
+Auto-detection for animated files is best-effort and supports GIF, APNG, and WebP. If you want to explicitly bypass Image Optimization for a given animated image, use the [unoptimized](#unoptimized) prop.
+
 
 ## Related
 

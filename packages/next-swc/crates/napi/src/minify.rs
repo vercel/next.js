@@ -79,7 +79,7 @@ impl Task for MinifyTask {
         try_with_handler(self.c.cm.clone(), true, |handler| {
             let fm = self.code.to_file(self.c.cm.clone());
 
-            self.c.minify(fm, &handler, &self.opts)
+            self.c.minify(fm, handler, &self.opts)
         })
         .convert_err()
     }
@@ -110,8 +110,8 @@ pub fn minify_sync(cx: CallContext) -> napi::Result<JsObject> {
 
     let fm = code.to_file(c.cm.clone());
 
-    let output = try_with_handler(c.cm.clone(), true, |handler| c.minify(fm, &handler, &opts))
+    let output = try_with_handler(c.cm.clone(), true, |handler| c.minify(fm, handler, &opts))
         .convert_err()?;
 
-    complete_output(&cx.env, output)
+    complete_output(cx.env, output)
 }

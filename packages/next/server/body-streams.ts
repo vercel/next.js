@@ -58,14 +58,20 @@ export function clonableBodyForRequest<T extends IncomingMessage>(
 ) {
   let bufferedBodyStream: BodyStream | null = null
 
+  const endPromise = new Promise((resolve, reject) => {
+    incomingMessage.on('end', resolve)
+    incomingMessage.on('error', reject)
+  })
+
   return {
     /**
      * Replaces the original request body if necessary.
      * This is done because once we read the body from the original request,
      * we can't read it again.
      */
-    finalize(): void {
+    async finalize(): Promise<void> {
       if (bufferedBodyStream) {
+        await endPromise
         replaceRequestBody(
           incomingMessage,
           bodyStreamToNodeStream(bufferedBodyStream)

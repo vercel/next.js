@@ -68,6 +68,29 @@ export const config = {
 }
 ```
 
+`responseLimit` is automatically enabled, warning when an API routes' response body is over 4MB.
+
+If you are not using Next.js in a serverless environment, and understand the performance implications of not using a CDN or dedicated media host, you can set this limit to `false`.
+
+```js
+export const config = {
+  api: {
+    responseLimit: false,
+  },
+}
+```
+
+`responseLimit` can also take the number of bytes or any string format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
+This value will be the maximum response size before a warning is displayed. Default is 4MB. (see above)
+
+```js
+export const config = {
+  api: {
+    responseLimit: '8mb',
+  },
+}
+```
+
 ## Connect/Express middleware support
 
 You can also use [Connect](https://github.com/senchalabs/connect) compatible middleware.

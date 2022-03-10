@@ -14,7 +14,11 @@ import {
   normalizeConfig,
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
-import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
+import {
+  ImageConfig,
+  imageConfigDefault,
+  VALID_LOADERS,
+} from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { hasNextSupport } from '../telemetry/ci-info'
 
@@ -729,7 +733,7 @@ export default async function loadConfig(
   return completeConfig
 }
 
-export function shouldUseReactRoot() {
+export const shouldUseReactRoot = execOnce(() => {
   const reactDomVersion = require('react-dom').version
   const isReactExperimental = Boolean(
     reactDomVersion && /0\.0\.0-experimental/.test(reactDomVersion)
@@ -740,7 +744,7 @@ export function shouldUseReactRoot() {
       semver.coerce(reactDomVersion)?.version === '18.0.0')
 
   return hasReact18 || isReactExperimental
-}
+})
 
 export function setHttpAgentOptions(
   options: NextConfigComplete['httpAgentOptions']

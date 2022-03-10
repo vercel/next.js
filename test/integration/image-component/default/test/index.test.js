@@ -1256,7 +1256,7 @@ function runTests(mode) {
     }
   })
 
-  it('should be valid W3C HTML', async () => {
+  it('should be valid HTML', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/valid-html-w3c')
@@ -1267,8 +1267,10 @@ function runTests(mode) {
         url,
         format: 'json',
         isLocal: true,
+        validator: 'whatwg',
       })
-      expect(result.messages).toEqual([])
+      expect(result.isValid).toBe(true)
+      expect(result.errors).toEqual([])
     } finally {
       if (browser) {
         await browser.close()
