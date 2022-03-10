@@ -1,0 +1,15 @@
+.json-preview {
+  width: 50px;
+  text-align: center;
+}
+
+.json-preview:hover {
+  background: #edf1f7;
+  cursor: pointer;
+}
+
+.json-copy {
+  cursor: pointer;
+  position: absolute;
+  right: 2.5rem;
+}
