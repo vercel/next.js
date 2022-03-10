@@ -517,10 +517,13 @@ export default function Image({
         }
       })
       try {
-        perfObserver.observe({ type: 'largest-contentful-paint', buffered: true })
+        perfObserver.observe({
+          type: 'largest-contentful-paint',
+          buffered: true,
+        })
       } catch (err) {
         // Log error but don't crash the app
-        console.error(err);
+        console.error(err)
       }
     }
   }
