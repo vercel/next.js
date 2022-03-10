@@ -1,7 +1,8 @@
-export default function Page(props) {
+export default function Page({ children }) {
   return (
     <>
-      <p>hello from root/dashboard</p>
+      <h1>Dashboard</h1>
+      {children}
     </>
   )
 }

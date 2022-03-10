@@ -2,6 +2,7 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { renderViaHTTP } from 'next-test-utils'
 import path from 'path'
+import cheerio from 'cheerio'
 
 describe('root dir', () => {
   let next: NextInstance
@@ -42,5 +43,11 @@ describe('root dir', () => {
   it('should serve from root', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard')
     expect(html).toContain('hello from root/dashboard')
+  })
+
+  it('should include parent route', async () => {
+    const html = await renderViaHTTP(next.url, '/dashboard')
+    const $ = cheerio.load(html)
+    expect($('h1').text()).toBe('Dashboard')
   })
 })
