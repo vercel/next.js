@@ -11,7 +11,8 @@ import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils'
 import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 
-const experimentalLayoutRaw = (process.env.__NEXT_IMAGE_OPTS as any)?.experimentalLayoutRaw
+const experimentalLayoutRaw = (process.env.__NEXT_IMAGE_OPTS as any)
+  ?.experimentalLayoutRaw
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
@@ -769,6 +770,7 @@ export default function Image({
     loading,
     config,
     unoptimized,
+    placeholder,
     loader,
     srcString,
     ...rest,
