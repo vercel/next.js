@@ -1,4 +1,4 @@
-use std::{fs::remove_dir_all, path::PathBuf};
+use std::{fs::remove_dir_all, io::ErrorKind, path::PathBuf};
 
 use async_std::task::block_on;
 use testing::fixture;
@@ -6,7 +6,7 @@ use turbo_pack::{emit, module, rebase::RebasedAssetRef, source_asset::SourceAsse
 use turbo_tasks::{NothingRef, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemRef, FileSystemPathRef};
 
-#[fixture("tests/node-file-trace/integration/react.js")]
+#[fixture("tests/node-file-trace/integration/argon2.js")]
 fn integration_test(input: PathBuf) {
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let mut tests_root = package_root.clone();
@@ -22,7 +22,15 @@ fn integration_test(input: PathBuf) {
     let directory = tests_output_root.join(&input).to_string_lossy().to_string();
     let input = input.replace('\\', "/");
 
-    remove_dir_all(&directory).unwrap();
+    remove_dir_all(&directory)
+        .or_else(|err| {
+            if err.kind() == ErrorKind::NotFound {
+                Ok(())
+            } else {
+                Err(err)
+            }
+        })
+        .unwrap();
 
     let tt = TurboTasks::new();
     tt.spawn_once_task(async move {

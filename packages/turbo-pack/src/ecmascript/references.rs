@@ -2,11 +2,15 @@ use std::collections::HashMap;
 
 use crate::{
     asset::AssetRef,
-    module,
+    errors, module,
     reference::{AssetReference, AssetReferenceRef, AssetReferencesSet, AssetReferencesSetRef},
     resolve::{parse::RequestRef, resolve, resolve_options, ResolveResult, ResolveResultRef},
 };
 use anyhow::Result;
+use swc_common::{
+    errors::{DiagnosticId, Handler, HANDLER},
+    Spanned,
+};
 use swc_ecmascript::{
     ast::{
         CallExpr, Callee, ComputedPropName, Expr, ExprOrSpread, ImportDecl, ImportSpecifier, Lit,
@@ -16,15 +20,24 @@ use swc_ecmascript::{
 };
 use turbo_tasks_fs::FileSystemPathRef;
 
-use super::parse::{parse, ParseResult};
+use super::parse::{parse, Buffer, ParseResult};
 
 #[turbo_tasks::function]
 pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef> {
     let parsed = parse(source).await?;
     Ok(match &*parsed {
-        ParseResult::Ok(module) => {
+        ParseResult::Ok { module, source_map } => {
             let mut visitor = AssetReferencesVisitor::default();
-            module.visit_with(&mut visitor);
+            let buf = Buffer::new();
+            let handler =
+                Handler::with_emitter_writer(Box::new(buf.clone()), Some(source_map.clone()));
+            HANDLER.set(&handler, || {
+                module.visit_with(&mut visitor);
+            });
+            if !buf.is_empty() {
+                // TODO report them in a stream
+                println!("{}", buf);
+            }
             AssetReferencesSet {
                 references: visitor.references,
             }
@@ -34,6 +47,7 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
     })
 }
 
+#[derive(Debug)]
 enum StaticExpr {
     String(String),
     FreeVar(Vec<String>),
@@ -152,7 +166,21 @@ impl Visit for AssetReferencesVisitor {
                             self.references.push(EsmAssetReferenceRef::new(str).into());
                             return;
                         }
-                        _ => todo!(),
+                        _ => {
+                            HANDLER.with(|handler| {
+                                handler.span_warn_with_code(
+                                    expr.span(),
+                                    &format!(
+                                        "import({:?}) is not statically analyse-able",
+                                        evaled_expr
+                                    ),
+                                    DiagnosticId::Error(
+                                        errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT
+                                            .to_string(),
+                                    ),
+                                )
+                            });
+                        }
                     }
                 }
                 _ => {}
@@ -167,10 +195,35 @@ impl Visit for AssetReferencesVisitor {
                                     self.references.push(EsmAssetReferenceRef::new(str).into());
                                     return;
                                 }
-                                _ => todo!(),
+                                _ => {
+                                    HANDLER.with(|handler| {
+                                        handler.span_warn_with_code(
+                                            expr.span(),
+                                            &format!(
+                                                "require({:?}) is not statically analyse-able",
+                                                evaled_expr
+                                            ),
+                                            DiagnosticId::Error(
+                                                errors::failed_to_analyse::ecmascript::REQUIRE
+                                                    .to_string(),
+                                            ),
+                                        )
+                                    });
+                                }
                             }
                         }
-                        _ => todo!(),
+                        _ => {
+                            HANDLER.with(|handler| {
+                                handler.span_warn_with_code(
+                                    expr.span(),
+                                    &format!(
+                                        "require() has unexpected arguments and is not statically analyse-able"
+                                    ),
+                                    DiagnosticId::Error(errors::failed_to_analyse::ecmascript::REQUIRE
+                                        .to_string()),
+                                )
+                            });
+                        }
                     },
                     [module, fn_name] if module == "fs" && fn_name == "readFileSync" => {
                         match &call.args[..] {
@@ -181,10 +234,34 @@ impl Visit for AssetReferencesVisitor {
                                         self.references.push(EsmAssetReferenceRef::new(str).into());
                                         return;
                                     }
-                                    _ => todo!(),
+                                    _ => {
+                                        HANDLER.with(|handler| {
+                                        handler.span_warn_with_code(
+                                            expr.span(),
+                                            &format!(
+                                                "fs.{}({:?}) is not statically analyse-able",
+                                                fn_name, evaled_expr
+                                            ),
+                                            DiagnosticId::Error(errors::failed_to_analyse::ecmascript::FS_METHOD
+                                                .to_string()),
+                                        )
+                                    });
+                                    }
                                 }
                             }
-                            _ => todo!(),
+                            _ => {
+                                HANDLER.with(|handler| {
+                                    handler.span_warn_with_code(
+                                        expr.span(),
+                                        &format!(
+                                            "fs.{}() has unexpected arguments and is not statically analyse-able",
+                                            fn_name
+                                        ),
+                                        DiagnosticId::Error(errors::failed_to_analyse::ecmascript::FS_METHOD
+                                            .to_string()),
+                                    )
+                                });
+                            }
                         }
                     }
                     _ => {}

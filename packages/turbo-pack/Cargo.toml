@@ -18,7 +18,7 @@ json = "0.12.4"
 
 [dependencies.swc_common]
 version = "0.17.5"
-features = []
+features = ["concurrent"]
 
 [dependencies.swc_ecmascript]
 version = "0.114.2"

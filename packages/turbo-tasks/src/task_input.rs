@@ -184,35 +184,58 @@ impl From<String> for TaskInput {
     }
 }
 
-impl TryFrom<TaskInput> for String {
+impl From<&str> for TaskInput {
+    fn from(s: &str) -> Self {
+        TaskInput::String(s.to_string())
+    }
+}
+
+impl From<usize> for TaskInput {
+    fn from(v: usize) -> Self {
+        TaskInput::Usize(v)
+    }
+}
+
+impl TryFrom<&TaskInput> for String {
     type Error = anyhow::Error;
 
-    fn try_from(value: TaskInput) -> Result<Self, Self::Error> {
+    fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
         match value {
-            TaskInput::String(str) => Ok(str),
+            TaskInput::String(str) => Ok(str.to_string()),
             _ => Err(anyhow!("invalid task input type, expected string")),
         }
     }
 }
 
-impl TryFrom<TaskInput> for usize {
+impl<'a> TryFrom<&'a TaskInput> for &'a str {
     type Error = anyhow::Error;
 
-    fn try_from(value: TaskInput) -> Result<Self, Self::Error> {
+    fn try_from(value: &'a TaskInput) -> Result<Self, Self::Error> {
         match value {
-            TaskInput::Usize(value) => Ok(value),
+            TaskInput::String(str) => Ok(&str),
+            _ => Err(anyhow!("invalid task input type, expected string")),
+        }
+    }
+}
+
+impl TryFrom<&TaskInput> for usize {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
+        match value {
+            TaskInput::Usize(value) => Ok(*value),
             _ => Err(anyhow!("invalid task input type, expected usize")),
         }
     }
 }
 
-impl TryFrom<TaskInput> for SlotRef {
+impl TryFrom<&TaskInput> for SlotRef {
     type Error = anyhow::Error;
 
-    fn try_from(value: TaskInput) -> Result<Self, Self::Error> {
+    fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
         match value {
-            TaskInput::TaskOutput(task) => Ok(SlotRef::TaskOutput(task)),
-            TaskInput::TaskCreated(task, index) => Ok(SlotRef::TaskCreated(task, index)),
+            TaskInput::TaskOutput(task) => Ok(SlotRef::TaskOutput(task.clone())),
+            TaskInput::TaskCreated(task, index) => Ok(SlotRef::TaskCreated(task.clone(), *index)),
             _ => Err(anyhow!("invalid task input type, expected slot ref")),
         }
     }

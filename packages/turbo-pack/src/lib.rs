@@ -1,5 +1,7 @@
 #![feature(trivial_bounds)]
 #![feature(into_future)]
+#![feature(map_try_insert)]
+#![feature(option_get_or_insert_default)]
 
 use std::{
     collections::{HashMap, HashSet},
@@ -16,6 +18,7 @@ use turbo_tasks::NothingRef;
 
 pub mod asset;
 pub mod ecmascript;
+mod errors;
 mod graph;
 pub mod json;
 pub mod module;

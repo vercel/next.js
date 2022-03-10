@@ -1,10 +1,18 @@
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, HashMap},
+};
+
 use anyhow::{anyhow, Result};
 use json::JsonValue;
-use turbo_tasks_fs::{DirectoryContent, FileContent, FileJsonContent, FileSystemPathRef};
+use turbo_tasks_fs::{
+    DirectoryContent, FileContent, FileJsonContent, FileJsonContentRef, FileSystemPathRef,
+};
 
-use crate::{asset::AssetRef, source_asset::SourceAssetRef};
+use crate::{asset::AssetRef, resolve::options::ConditionValue, source_asset::SourceAssetRef};
 
 use self::{
+    exports::{ExportsField, ExportsValue},
     options::{
         resolve_modules_options, ResolveIntoPackage, ResolveModules, ResolveModulesOptionsRef,
         ResolveOptions, ResolveOptionsRef,
@@ -12,6 +20,7 @@ use self::{
     parse::{Request, RequestRef},
 };
 
+mod exports;
 pub mod options;
 pub mod parse;
 
@@ -33,6 +42,11 @@ pub async fn resolve_options(context: FileSystemPathRef) -> Result<ResolveOption
             vec!["node_modules".to_string()],
         )],
         into_package: vec![
+            ResolveIntoPackage::ExportsField {
+                field: "exports".to_string(),
+                conditions: BTreeMap::new(),
+                unspecified_conditions: ConditionValue::Unknown,
+            },
             ResolveIntoPackage::MainField("main".to_string()),
             ResolveIntoPackage::Default("index".to_string()),
         ],
@@ -91,6 +105,36 @@ fn normalize_path(str: &str) -> Option<String> {
         str += seq;
     }
     Some(str)
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(PartialEq, Eq)]
+enum ExportsFieldResult {
+    Some(#[trace_ignore] ExportsField),
+    None,
+}
+
+#[turbo_tasks::function]
+async fn exports_field(
+    package_json: FileJsonContentRef,
+    field: &str,
+) -> Result<ExportsFieldResultRef> {
+    if let FileJsonContent::Content(package_json) = &*package_json.await? {
+        let field_value = &package_json[field];
+        if let JsonValue::Null = field_value {
+            return Ok(ExportsFieldResult::None.into());
+        }
+        let exports_field: Result<ExportsField> = field_value.try_into();
+        match exports_field {
+            Ok(exports_field) => Ok(ExportsFieldResult::Some(exports_field).into()),
+            Err(_err) => {
+                // TODO report error to stream
+                Ok(ExportsFieldResult::None.into())
+            }
+        }
+    } else {
+        Ok(ExportsFieldResult::None.into())
+    }
 }
 
 #[turbo_tasks::value(shared)]
@@ -177,6 +221,39 @@ pub async fn resolve(
             ResolveResult::Unresolveable.into()
         }
         Request::Module { module, path } => {
+            fn handle_exports_field(
+                package_path: &FileSystemPathRef,
+                options: &ResolveOptionsRef,
+                exports_field: &ExportsField,
+                path: &str,
+                conditions: &BTreeMap<String, ConditionValue>,
+                unspecified_conditions: &ConditionValue,
+            ) -> Result<ResolveResultRef> {
+                let mut results = Vec::new();
+                let mut conditions_state = HashMap::new();
+                let values = exports_field
+                    .lookup(path)
+                    .collect::<Result<Vec<Cow<'_, ExportsValue>>>>()?;
+                for value in values.iter() {
+                    if value.add_results(
+                        conditions,
+                        unspecified_conditions,
+                        &mut conditions_state,
+                        &mut results,
+                    ) {
+                        break;
+                    }
+                }
+                if let Some(path) = results.first() {
+                    if let Some(path) = normalize_path(path) {
+                        let request = RequestRef::parse(format!("./{}", path));
+                        return Ok(resolve(package_path.clone(), request, options.clone()));
+                    }
+                }
+                // other options do not apply anymore when an exports field exist
+                return Ok(ResolveResult::Unresolveable.into());
+            }
+
             let package = find_package(
                 context,
                 module.clone(),
@@ -195,9 +272,9 @@ pub async fn resolve(
                             FileJsonContent::NotFound.into()
                         }
                     };
-                    let package_json = package_json.await?;
+                    let options_value = options.get().await?;
                     if path.is_empty() {
-                        for resolve_into_package in options.get().await?.into_package.iter() {
+                        for resolve_into_package in options_value.into_package.iter() {
                             match resolve_into_package {
                                 ResolveIntoPackage::Default(req) => {
                                     let request = RequestRef::parse(
@@ -210,9 +287,10 @@ pub async fn resolve(
                                     ));
                                 }
                                 ResolveIntoPackage::MainField(name) => {
-                                    if let FileJsonContent::Content(package_json) = &*package_json {
-                                        if let JsonValue::String(field_value) = &package_json[name]
-                                        {
+                                    if let FileJsonContent::Content(package_json) =
+                                        &*package_json.get().await?
+                                    {
+                                        if let Some(field_value) = package_json[name].as_str() {
                                             let request = RequestRef::parse(
                                                 "./".to_string()
                                                     + &normalize_path(&field_value).ok_or_else(|| anyhow!("package.json '{}' field contains a request that escapes the package", name))?,
@@ -225,30 +303,52 @@ pub async fn resolve(
                                         }
                                     }
                                 }
-                                ResolveIntoPackage::ExportsField(_) => {
-                                    if let FileJsonContent::Content(_package_json) = &*package_json
+                                ResolveIntoPackage::ExportsField {
+                                    field,
+                                    conditions,
+                                    unspecified_conditions,
+                                } => {
+                                    if let ExportsFieldResult::Some(exports_field) =
+                                        &*exports_field(package_json.clone(), field).await?
                                     {
-                                        todo!("resolve exports field")
+                                        // other options do not apply anymore when an exports field exist
+                                        return handle_exports_field(
+                                            package_path,
+                                            &options,
+                                            exports_field,
+                                            ".",
+                                            conditions,
+                                            unspecified_conditions,
+                                        );
                                     }
                                 }
                             }
                         }
                         ResolveResult::Unresolveable.into()
                     } else {
-                        for resolve_into_package in options.get().await?.into_package.iter() {
+                        for resolve_into_package in options_value.into_package.iter() {
                             match resolve_into_package {
                                 ResolveIntoPackage::Default(_)
                                 | ResolveIntoPackage::MainField(_) => {
                                     // doesn't affect packages with subpath
                                 }
-                                ResolveIntoPackage::ExportsField(name) => {
-                                    if let FileJsonContent::Content(package_json) = &*package_json {
-                                        if let JsonValue::String(_field_value) = &package_json[name]
-                                        {
-                                            todo!("resolve exports field");
-                                            // must return here as other options do not apply anymore
-                                            // return ResolveResult::Unresolveable.into();
-                                        }
+                                ResolveIntoPackage::ExportsField {
+                                    field,
+                                    conditions,
+                                    unspecified_conditions,
+                                } => {
+                                    if let ExportsFieldResult::Some(exports_field) =
+                                        &*exports_field(package_json.clone(), field).await?
+                                    {
+                                        // other options do not apply anymore when an exports field exist
+                                        return handle_exports_field(
+                                            package_path,
+                                            &options,
+                                            exports_field,
+                                            &path[1..],
+                                            conditions,
+                                            unspecified_conditions,
+                                        );
                                     }
                                 }
                             }

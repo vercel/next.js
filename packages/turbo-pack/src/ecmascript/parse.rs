@@ -16,7 +16,12 @@ use crate::asset::AssetRef;
 
 #[turbo_tasks::value(shared)]
 pub enum ParseResult {
-    Ok(#[trace_ignore] Module),
+    Ok {
+        #[trace_ignore]
+        module: Module,
+        #[trace_ignore]
+        source_map: Arc<SourceMap>,
+    },
     Unparseable,
     NotFound,
 }
@@ -24,22 +29,26 @@ pub enum ParseResult {
 impl PartialEq for ParseResult {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Ok(_), Self::Ok(_)) => false,
+            (Self::Ok { .. }, Self::Ok { .. }) => false,
             _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }
     }
 }
 
 #[derive(Clone)]
-struct Buffer {
+pub struct Buffer {
     buf: Arc<RwLock<Vec<u8>>>,
 }
 
 impl Buffer {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             buf: Arc::new(RwLock::new(Vec::new())),
         }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.buf.read().unwrap().is_empty()
     }
 }
 
@@ -120,7 +129,11 @@ pub async fn parse(source: AssetRef) -> Result<ParseResultRef> {
                             return Err(anyhow!("{}", buf));
                             // ParseResult::Unparseable.into()
                         }
-                        Ok(parsed_module) => ParseResult::Ok(parsed_module).into(),
+                        Ok(parsed_module) => ParseResult::Ok {
+                            module: parsed_module,
+                            source_map: cm.clone(),
+                        }
+                        .into(),
                     }
                 }
             }

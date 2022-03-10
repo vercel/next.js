@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use anyhow::Result;
 use turbo_tasks::trace::TraceSlotRefs;
 use turbo_tasks_fs::FileSystemPathRef;
@@ -20,8 +22,29 @@ pub enum ResolveModules {
 }
 
 #[derive(TraceSlotRefs, Hash, PartialEq, Eq, Clone, Debug)]
+pub enum ConditionValue {
+    Set,
+    Unset,
+    Unknown,
+}
+
+impl From<bool> for ConditionValue {
+    fn from(v: bool) -> Self {
+        if v {
+            ConditionValue::Set
+        } else {
+            ConditionValue::Unset
+        }
+    }
+}
+
+#[derive(TraceSlotRefs, Hash, PartialEq, Eq, Clone, Debug)]
 pub enum ResolveIntoPackage {
-    ExportsField(String),
+    ExportsField {
+        field: String,
+        conditions: BTreeMap<String, ConditionValue>,
+        unspecified_conditions: ConditionValue,
+    },
     MainField(String),
     Default(String),
 }

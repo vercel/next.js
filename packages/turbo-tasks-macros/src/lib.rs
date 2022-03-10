@@ -291,10 +291,10 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
                 
-        impl std::convert::TryFrom<turbo_tasks::TaskInput> for #ref_ident {
+        impl std::convert::TryFrom<&turbo_tasks::TaskInput> for #ref_ident {
             type Error = turbo_tasks::Error;
 
-            fn try_from(value: turbo_tasks::TaskInput) -> Result<Self, Self::Error> {
+            fn try_from(value: &turbo_tasks::TaskInput) -> Result<Self, Self::Error> {
                 Ok(Self { node: value.try_into()? })
             }
         }
@@ -547,10 +547,10 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
         }
 
                         
-        impl std::convert::TryFrom<turbo_tasks::TaskInput> for #ref_ident {
+        impl std::convert::TryFrom<&turbo_tasks::TaskInput> for #ref_ident {
             type Error = turbo_tasks::Error;
 
-            fn try_from(value: turbo_tasks::TaskInput) -> Result<Self, Self::Error> {
+            fn try_from(value: &turbo_tasks::TaskInput) -> Result<Self, Self::Error> {
                 Ok(Self { node: value.try_into()? })
             }
         }
@@ -1111,14 +1111,14 @@ fn gen_native_function_code(
                 });
                 if self_is_ref_type {
                     input_from_node.push(quote! {
-                        let __self = std::convert::TryInto::<#self_ref_type>::try_into(__self)?;
+                        let __self = std::convert::TryInto::<#self_ref_type>::try_into(&__self)?;
                     });
                     input_arguments.push(quote! {
                         __self
                     });
                 } else {
                     input_from_node.push(quote! {
-                        let __self = std::convert::TryInto::<#self_ref_type>::try_into(__self)?.await?;
+                        let __self = std::convert::TryInto::<#self_ref_type>::try_into(&__self)?.await?;
                     });
                     input_arguments.push(quote! {
                         &*__self
@@ -1141,7 +1141,7 @@ fn gen_native_function_code(
                     let #pat = std::clone::Clone::clone(&#pat);
                 });
                 input_from_node.push(quote! {
-                    let #pat = std::convert::TryFrom::<turbo_tasks::TaskInput>::try_from(#pat)?;
+                    let #pat = std::convert::TryFrom::<&turbo_tasks::TaskInput>::try_from(&#pat)?;
                 });
                 input_arguments.push(quote! {
                     #pat
@@ -1221,8 +1221,18 @@ pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
                             .filter(|field| !ignore_field(field))
                             .filter_map(|field| field.ident.clone())
                             .collect();
+                        let ident_pats: Vec<_> = named.iter()
+                            .filter_map(|field| {
+                                let ident = field.ident.as_ref()?;
+                                if ignore_field(field) {
+                                    Some(quote! { #ident: _ })
+                                } else {
+                                    Some(quote! { ref #ident })
+                                }
+                            })
+                            .collect();
                         quote! {
-                            #ident::#variant_ident{ #(ref #idents),* } => {
+                            #ident::#variant_ident{ #(#ident_pats),* } => {
                                 #(
                                     turbo_tasks::trace::TraceSlotRefs::trace_node_refs(#idents, context);
                                 )*
