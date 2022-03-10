@@ -45,9 +45,12 @@ describe('root dir', () => {
     expect(html).toContain('hello from root/dashboard')
   })
 
-  it('should include parent route', async () => {
-    const html = await renderViaHTTP(next.url, '/dashboard')
+  it('should not include parent route', async () => {
+    const html = await renderViaHTTP(next.url, '/dashboard/integrations')
     const $ = cheerio.load(html)
-    expect($('h1').text()).toBe('Dashboard')
+    // Should not be nested in dashboard
+    expect($('h1').text()).toBeUndefined()
+    // Should still include the page text
+    expect($('p').text()).toBe('hello from root/dashboard/integrations')
   })
 })
