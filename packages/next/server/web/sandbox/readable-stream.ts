@@ -39,17 +39,17 @@ class ReadableStream<T> {
 
     const pull = () => {
       if (opts.pull) {
-        if (!pullPromise) {
+        const shouldPull =
+          controller.desiredSize !== null && controller.desiredSize > 0
+        if (!pullPromise && shouldPull) {
           pullPromise = Promise.resolve().then(() => {
-            pullPromise = 0
+            pullPromise = null
             opts.pull!(controller)
           })
+          return pullPromise
         }
       }
-    }
-
-    if (opts.start) {
-      opts.start(controller)
+      return Promise.resolve()
     }
 
     if (opts.cancel) {
@@ -59,7 +59,21 @@ class ReadableStream<T> {
       }
     }
 
-    pull()
+    function startPull() {
+      const getReader = readable.getReader.bind(readable)
+      readable.getReader = () => {
+        pull()
+        return getReader()
+      }
+    }
+
+    if (opts.start) {
+      opts.start(controller).then(() => {
+        startPull()
+      })
+    } else {
+      startPull()
+    }
 
     return readable
   }

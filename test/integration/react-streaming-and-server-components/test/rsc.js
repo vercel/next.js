@@ -1,16 +1,9 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
-import cheerio from 'cheerio'
 import { renderViaHTTP, check } from 'next-test-utils'
 import { join } from 'path'
 import fs from 'fs-extra'
-
-import { distDir } from './utils'
-
-function getNodeBySelector(html, selector) {
-  const $ = cheerio.load(html)
-  return $(selector)
-}
+import { distDir, getNodeBySelector } from './utils'
 
 export default function (context, { runtime, env }) {
   it('should render server components correctly', async () => {
