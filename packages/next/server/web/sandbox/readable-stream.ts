@@ -59,7 +59,7 @@ class ReadableStream<T> {
       }
     }
 
-    function startPull() {
+    function registerPull() {
       const getReader = readable.getReader.bind(readable)
       readable.getReader = () => {
         pull()
@@ -69,9 +69,9 @@ class ReadableStream<T> {
 
     const started = opts.start && opts.start(controller)
     if (typeof started.then === 'function') {
-      started.then(() => startPull())
+      started.then(() => registerPull())
     } else {
-      startPull()
+      registerPull()
     }
 
     return readable
