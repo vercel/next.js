@@ -91,6 +91,7 @@ function getBaseSWCOptions({
           importPath: regeneratorRuntimePath,
         },
       },
+      externalHelpers: nextConfig?.experimental?.swcExternalHelpers,
     },
     sourceMaps: jest ? 'inline' : undefined,
     styledComponents: nextConfig?.compiler?.styledComponents

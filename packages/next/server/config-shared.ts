@@ -77,6 +77,7 @@ export interface ExperimentalConfig {
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
   swcFileReading?: boolean
+  swcExternalHelpers?: boolean
   cpus?: number
   sharedPool?: boolean
   plugins?: boolean
@@ -461,6 +462,7 @@ export const defaultConfig: NextConfig = {
     disableOptimizedLoading: false,
     gzipSize: true,
     swcFileReading: true,
+    swcExternalHelpers: false,
     craCompat: false,
     esmExternals: true,
     // default to 50MB limit

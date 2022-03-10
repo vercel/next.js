@@ -441,6 +441,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     )
   }
 
+  if (result.experimental?.swcExternalHelpers) {
+    Log.warn(
+      'SWC externalHelpers exprimental option is enabled, please make sure @swc/helpers is installed. [!!FIXME with actual link!!]'
+    )
+  }
+
   if (
     result.experimental?.outputFileTracingRoot &&
     !isAbsolute(result.experimental.outputFileTracingRoot)
