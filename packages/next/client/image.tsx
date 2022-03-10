@@ -758,22 +758,20 @@ export default function Image({
   }, [srcString, layout, placeholder, isVisible])
   const imgElementArgs = {
     isLazy,
-    ...{
-      imgAttributes,
-      heightInt,
-      widthInt,
-      qualityInt,
-      layout,
-      className,
-      imgStyle,
-      blurStyle,
-      imgRef,
-      loading,
-      config,
-      unoptimized,
-      loader,
-    },
-    srcString: srcString,
+    imgAttributes,
+    heightInt,
+    widthInt,
+    qualityInt,
+    layout,
+    className,
+    imgStyle,
+    blurStyle,
+    imgRef,
+    loading,
+    config,
+    unoptimized,
+    loader,
+    srcString,
     ...rest,
   }
   return (
@@ -866,7 +864,7 @@ const ImageElement = ({
         ref={imgRef}
         style={{ ...imgStyle, ...blurStyle }}
       />
-      {(isLazy || placeholder === 'blur') && 
+      {(isLazy || placeholder === 'blur') && (
         <noscript>
           <img
             {...rest}
@@ -891,7 +889,7 @@ const ImageElement = ({
             loading={loading || 'lazy'}
           />
         </noscript>
-      }
+      )}
     </>
   )
 }

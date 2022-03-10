@@ -465,7 +465,6 @@ module.exports = {
 }
 ```
 
-
 ### Experimental "raw" layout mode
 
 The image component currently supports an additional `layout="raw"` mode, which renders the image without wrappers or styling. This layout mode is currently an experimental feature, while user feedback is gathered. As there is the possibility of breaking changes to the `layout="raw"` interface, the feature is locked behind an experimental feature flag. If you would like to use the `raw` layout mode, you must add the following to your `next.config.js`:
@@ -489,7 +488,6 @@ module.exports = {
 The default [loader](#loader) will automatically bypass Image Optimization for animated images and serve the image as-is.
 
 Auto-detection for animated files is best-effort and supports GIF, APNG, and WebP. If you want to explicitly bypass Image Optimization for a given animated image, use the [unoptimized](#unoptimized) prop.
-
 
 ## Related
 
