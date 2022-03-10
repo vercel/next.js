@@ -67,7 +67,7 @@ impl Display for Buffer {
                 .collect::<Vec<_>>();
             if lines.len() > 50 {
                 let (first, rem) = lines.split_at(25);
-                let (rem, last) = rem.split_at(rem.len() - 25);
+                let (_, last) = rem.split_at(rem.len() - 25);
                 lines = first
                     .into_iter()
                     .chain(&["...".to_string()])

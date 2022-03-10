@@ -278,7 +278,7 @@ impl Task {
                 elapsed.as_millis(),
                 &**self
             );
-        } else if elapsed.as_millis() >= 1 || count > 10000 {
+        } else if elapsed.as_millis() >= 10 || count > 10000 {
             println!(
                 "clear_dependencies({}) took {} µs: {:?}",
                 count,
