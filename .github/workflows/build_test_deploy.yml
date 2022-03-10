@@ -1198,3 +1198,47 @@ jobs:
         with:
           name: wasm-dev-binary
           path: packages/next-swc/crates/wasm/pkg-nodejs
+
+  releaseBuildPerformanceMetrics:
+    name: Performance Metrics for Release Build
+    runs-on: ubuntu-latest
+    needs: [publishRelease]
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - uses: actions/cache@v2
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+
+      - name: Set Git Short sha Env
+        run: echo "GIT_SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
+
+      - name: Check Git Short sha Env
+        run: echo ${GIT_SHORT_SHA}
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-binaries
+          path: packages/next-swc/native
+
+      - name: Generate metrics data
+        run: |
+          cp packages/next-swc/native/next-swc.linux-x64-gnu.node packages/next-swc/native
+          yarn --cwd bench/nested-deps install
+          node bench/nested-deps/bench.mjs build
+
+      - uses: datadog/agent-github-action@v1
+        with:
+          api_key: ${{ secrets.DATA_DOG_API_KEY }}
+
+      - name: Sending metrics data to Datadog
+        run: |
+          node scripts/trace-dd.mjs bench/nested-deps/.next/trace build ${GIT_SHORT_SHA} ./bench/nested-deps/next.config.js
+        env:
+          DD_ENV: canary
+          DD_SERVICE: http://localhost:8126
