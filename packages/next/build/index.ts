@@ -186,7 +186,10 @@ export default async function build(
     setGlobal('telemetry', telemetry)
 
     const publicDir = path.join(dir, 'public')
-    const pagesDir = findPagesDir(dir).pages
+    const { pages: pagesDir, root: rootDir } = findPagesDir(
+      dir,
+      config.experimental.rootDir
+    )
     const hasPublicDir = await fileExists(publicDir)
 
     telemetry.record(
@@ -218,7 +221,7 @@ export default async function build(
       .traceAsyncFn(() =>
         verifyTypeScriptSetup(
           dir,
-          pagesDir,
+          [pagesDir, rootDir].filter(Boolean) as string[],
           !ignoreTypeScriptErrors,
           config,
           cacheDir
@@ -276,6 +279,15 @@ export default async function build(
     const pagePaths: string[] = await nextBuildSpan
       .traceChild('collect-pages')
       .traceAsyncFn(() => collectPages(pagesDir, config.pageExtensions))
+
+    let rootPaths: string[] | undefined
+
+    if (rootDir) {
+      rootPaths = await nextBuildSpan
+        .traceChild('collect-root-paths')
+        .traceAsyncFn(() => collectPages(rootDir, config.pageExtensions))
+    }
+
     // needed for static exporting since we want to replace with HTML
     // files
     const allStaticPages = new Set<string>()
@@ -285,6 +297,21 @@ export default async function build(
       previewModeId: crypto.randomBytes(16).toString('hex'),
       previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
       previewModeEncryptionKey: crypto.randomBytes(32).toString('hex'),
+    }
+
+    let mappedRootPaths: ReturnType<typeof createPagesMapping> | undefined
+
+    if (rootPaths && rootDir) {
+      mappedRootPaths = nextBuildSpan
+        .traceChild('create-root-mapping')
+        .traceFn(() =>
+          createPagesMapping(rootPaths!, config.pageExtensions, {
+            isDev: false,
+            isRoot: true,
+            hasServerComponents: true,
+            globalRuntime: runtime,
+          })
+        )
     }
 
     const mappedPages = nextBuildSpan
@@ -300,7 +327,14 @@ export default async function build(
     const entrypoints = await nextBuildSpan
       .traceChild('create-entrypoints')
       .traceAsyncFn(() =>
-        createEntrypoints(mappedPages, buildId, config, pagesDir)
+        createEntrypoints(
+          mappedPages,
+          buildId,
+          config,
+          pagesDir,
+          rootDir,
+          mappedRootPaths
+        )
       )
     const pageKeys = Object.keys(mappedPages)
     const hasMiddleware = pageKeys.some((page) => MIDDLEWARE_ROUTE.test(page))
@@ -598,6 +632,7 @@ export default async function build(
               isServer: false,
               config,
               pagesDir,
+              rootDir,
               entrypoints: entrypoints.client,
               rewrites,
               runWebpackSpan,
@@ -608,6 +643,7 @@ export default async function build(
               isServer: true,
               config,
               pagesDir,
+              rootDir,
               entrypoints: entrypoints.server,
               rewrites,
               runWebpackSpan,

@@ -149,6 +149,7 @@ export default class HotReloader {
   private buildId: string
   private middlewares: any[]
   private pagesDir: string
+  private rootDir?: string
   private distDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
   private config: NextConfigComplete
@@ -173,6 +174,7 @@ export default class HotReloader {
     {
       config,
       pagesDir,
+      rootDir,
       distDir,
       buildId,
       previewProps,
@@ -180,6 +182,7 @@ export default class HotReloader {
     }: {
       config: NextConfigComplete
       pagesDir: string
+      rootDir?: string
       distDir: string
       buildId: string
       previewProps: __ApiPreviewProps
@@ -190,6 +193,7 @@ export default class HotReloader {
     this.dir = dir
     this.middlewares = []
     this.pagesDir = pagesDir
+    this.rootDir = rootDir
     this.distDir = distDir
     this.clientStats = null
     this.serverStats = null
@@ -351,6 +355,7 @@ export default class HotReloader {
                 config: this.config,
                 buildId: this.buildId,
                 pagesDir: this.pagesDir,
+                rootDir: this.rootDir,
                 rewrites: this.rewrites,
                 entrypoints: entrypoints.client,
                 runWebpackSpan: this.hotReloaderSpan,
@@ -360,6 +365,7 @@ export default class HotReloader {
                 isServer: true,
                 config: this.config,
                 buildId: this.buildId,
+                rootDir: this.rootDir,
                 pagesDir: this.pagesDir,
                 rewrites: this.rewrites,
                 entrypoints: entrypoints.server,
@@ -801,6 +807,7 @@ export default class HotReloader {
 
     this.onDemandEntries = onDemandEntryHandler(this.watcher, multiCompiler, {
       pagesDir: this.pagesDir,
+      rootDir: this.rootDir,
       nextConfig: this.config,
       ...(this.config.onDemandEntries as {
         maxInactiveAge: number

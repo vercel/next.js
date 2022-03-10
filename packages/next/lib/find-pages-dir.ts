@@ -21,11 +21,18 @@ function findDir(dir: string, name: string): string | null {
   return null
 }
 
-export function findPagesDir(dir: string): {
-  pages: string
-} {
+export function findPagesDir(
+  dir: string,
+  root?: boolean
+): { pages: string; root?: string } {
   const pagesDir = findDir(dir, 'pages')
+  let rootDir: undefined | string
 
+  if (root) {
+    rootDir = findDir(dir, 'root') || undefined
+  }
+
+  // TODO: allow "root" dir without pages dir
   if (pagesDir === null) {
     throw new Error(
       "> Couldn't find a `pages` directory. Please create one under the project root"
@@ -34,5 +41,6 @@ export function findPagesDir(dir: string): {
 
   return {
     pages: pagesDir,
+    root: rootDir,
   }
 }

@@ -31,11 +31,13 @@ export default function onDemandEntryHandler(
   multiCompiler: webpack.MultiCompiler,
   {
     pagesDir,
+    rootDir,
     nextConfig,
     maxInactiveAge,
     pagesBufferLength,
   }: {
     pagesDir: string
+    rootDir?: string
     nextConfig: NextConfigComplete
     maxInactiveAge: number
     pagesBufferLength: number
@@ -163,12 +165,29 @@ export default function onDemandEntryHandler(
         console.error(err)
         throw pageNotFoundError(page)
       }
+      let pagePath: string | null = null
+      let isRoot = false
 
-      let pagePath = await findPageFile(
-        pagesDir,
-        normalizedPagePath,
-        nextConfig.pageExtensions
-      )
+      // check rootDir first
+      if (rootDir) {
+        pagePath = await findPageFile(
+          rootDir,
+          normalizedPagePath,
+          nextConfig.pageExtensions
+        )
+
+        if (pagePath) {
+          isRoot = true
+        }
+      }
+
+      if (!pagePath) {
+        pagePath = await findPageFile(
+          pagesDir,
+          normalizedPagePath,
+          nextConfig.pageExtensions
+        )
+      }
 
       // Default the /_error route to the Next.js provided default page
       if (page === '/_error' && pagePath === null) {
@@ -197,7 +216,7 @@ export default function onDemandEntryHandler(
         pageUrl = pageUrl === '' ? '/' : pageUrl
         const bundleFile = normalizePagePath(pageUrl)
         bundlePath = posix.join('pages', bundleFile)
-        absolutePagePath = join(pagesDir, pagePath)
+        absolutePagePath = join(isRoot ? rootDir! : pagesDir, pagePath)
         page = posix.normalize(pageUrl)
       }
 

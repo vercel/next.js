@@ -170,7 +170,13 @@ export default class DevServer extends Server {
     }
 
     this.isCustomServer = !options.isNextDevCommand
-    this.pagesDir = findPagesDir(this.dir).pages
+    // TODO: hot-reload root/pages dirs?
+    const { pages: pagesDir, root: rootDir } = findPagesDir(
+      this.dir,
+      this.nextConfig.experimental.rootDir
+    )
+    this.pagesDir = pagesDir
+    this.rootDir = rootDir
   }
 
   protected getBuildId(): string {
@@ -359,7 +365,7 @@ export default class DevServer extends Server {
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
     await verifyTypeScriptSetup(
       this.dir,
-      this.pagesDir!,
+      [this.pagesDir!, this.rootDir].filter(Boolean) as string[],
       false,
       this.nextConfig
     )
@@ -381,6 +387,7 @@ export default class DevServer extends Server {
 
     this.hotReloader = new HotReloader(this.dir, {
       pagesDir: this.pagesDir!,
+      rootDir: this.rootDir,
       distDir: this.distDir,
       config: this.nextConfig,
       previewProps: this.getPreviewProps(),
@@ -435,6 +442,16 @@ export default class DevServer extends Server {
       // so it doesn't exist so don't throw and return false
       // to ensure we return 404 instead of 500
       return false
+    }
+
+    // check rootDir first if enabled
+    if (this.rootDir) {
+      const pageFile = await findPageFile(
+        this.rootDir,
+        normalizedPath,
+        this.nextConfig.pageExtensions
+      )
+      if (pageFile) return true
     }
 
     const pageFile = await findPageFile(

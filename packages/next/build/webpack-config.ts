@@ -10,6 +10,7 @@ import {
   NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
   MIDDLEWARE_ROUTE,
+  ROOT_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -302,6 +303,7 @@ export default async function getBaseWebpackConfig(
     isServer = false,
     isEdgeRuntime = false,
     pagesDir,
+    rootDir,
     reactProductionProfiling = false,
     entrypoints,
     rewrites,
@@ -314,6 +316,7 @@ export default async function getBaseWebpackConfig(
     isServer?: boolean
     isEdgeRuntime?: boolean
     pagesDir: string
+    rootDir?: string
     reactProductionProfiling?: boolean
     entrypoints: webpack5.EntryObject
     rewrites: CustomRoutes['rewrites']
@@ -586,6 +589,7 @@ export default async function getBaseWebpackConfig(
       ...customDocumentAliases,
 
       [PAGES_DIR_ALIAS]: pagesDir,
+      ...(rootDir ? { [ROOT_DIR_ALIAS]: rootDir } : {}),
       ...(targetWeb ? getOptimizedAliases() : {}),
       ...getReactProfilingInProduction(),
 

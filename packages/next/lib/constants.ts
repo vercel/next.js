@@ -23,6 +23,7 @@ export const MIDDLEWARE_ROUTE = /_middleware$/
 // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
 // we have to use a private alias
 export const PAGES_DIR_ALIAS = 'private-next-pages'
+export const ROOT_DIR_ALIAS = 'private-next-root'
 
 export const PUBLIC_DIR_MIDDLEWARE_CONFLICT = `You can not have a '_next' folder inside of your public folder. This conflicts with the internal '/_next' route. https://nextjs.org/docs/messages/public-next-folder-conflict`
 

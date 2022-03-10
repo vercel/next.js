@@ -131,6 +131,7 @@ export default abstract class Server {
   protected nextConfig: NextConfigComplete
   protected distDir: string
   protected pagesDir?: string
+  protected rootDir?: string
   protected publicDir: string
   protected hasStaticDir: boolean
   protected pagesManifest?: PagesManifest

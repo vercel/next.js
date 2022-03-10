@@ -2,7 +2,7 @@ import fs from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
-import { API_ROUTE, PAGES_DIR_ALIAS } from '../lib/constants'
+import { API_ROUTE, PAGES_DIR_ALIAS, ROOT_DIR_ALIAS } from '../lib/constants'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { normalizePagePath } from '../server/normalize-page-path'
 import { warn } from './output/log'
@@ -34,15 +34,18 @@ export function createPagesMapping(
   extensions: string[],
   {
     isDev,
+    isRoot,
     hasServerComponents,
     globalRuntime,
   }: {
     isDev: boolean
+    isRoot?: boolean
     hasServerComponents: boolean
     globalRuntime?: 'nodejs' | 'edge'
   }
 ): PagesMapping {
   const previousPages: PagesMapping = {}
+  const pathAlias = isRoot ? ROOT_DIR_ALIAS : PAGES_DIR_ALIAS
 
   // Do not process .d.ts files inside the `pages` folder
   pagePaths = extensions.includes('ts')
@@ -70,7 +73,7 @@ export function createPagesMapping(
       } else {
         previousPages[pageKey] = pagePath
       }
-      result[pageKey] = join(PAGES_DIR_ALIAS, pagePath).replace(/\\/g, '/')
+      result[pageKey] = join(pathAlias, pagePath).replace(/\\/g, '/')
       return result
     },
     {}
@@ -81,9 +84,9 @@ export function createPagesMapping(
   // that HMR can work properly when a file is added/removed
   const documentPage = `_document${globalRuntime ? '-concurrent' : ''}`
   if (isDev) {
-    pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
-    pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
-    pages['/_document'] = `${PAGES_DIR_ALIAS}/_document`
+    pages['/_app'] = `${pathAlias}/_app`
+    pages['/_error'] = `${pathAlias}/_error`
+    pages['/_document'] = `${pathAlias}/_document`
   } else {
     pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
     pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
@@ -196,16 +199,18 @@ export async function createEntrypoints(
   pages: PagesMapping,
   buildId: string,
   config: NextConfigComplete,
-  pagesDir: string
+  pagesDir: string,
+  rootDir?: string,
+  rootPaths?: PagesMapping
 ): Promise<Entrypoints> {
   const client: webpack5.EntryObject = {}
   const server: webpack5.EntryObject = {}
   const edgeServer: webpack5.EntryObject = {}
   const globalRuntime = config.experimental.runtime
 
-  await Promise.all(
-    Object.keys(pages).map(async (page) => {
-      const absolutePagePath = pages[page]
+  const getEntryHandler =
+    (dir: string, mapping: PagesMapping) => async (page: string) => {
+      const absolutePagePath = mapping[page]
       const bundleFile = normalizePagePath(page)
       const isApiRoute = page.match(API_ROUTE)
 
@@ -217,7 +222,7 @@ export async function createEntrypoints(
       const isFlight = isFlightPage(config, absolutePagePath)
       const isEdgeRuntime =
         (await getPageRuntime(
-          join(pagesDir, absolutePagePath.slice(PAGES_DIR_ALIAS.length + 1)),
+          join(dir, absolutePagePath.slice(PAGES_DIR_ALIAS.length + 1)),
           globalRuntime
         )) === 'edge'
 
@@ -280,8 +285,14 @@ export async function createEntrypoints(
             ? [pageLoader, require.resolve('../client/router')]
             : pageLoader
       }
-    })
-  )
+    }
+
+  if (rootDir && rootPaths) {
+    const entryHandler = getEntryHandler(rootDir, rootPaths)
+    await Promise.all(Object.keys(rootPaths).map(entryHandler))
+  }
+  const entryHandler = getEntryHandler(pagesDir, pages)
+  await Promise.all(Object.keys(pages).map(entryHandler))
 
   return {
     client,
