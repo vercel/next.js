@@ -3,6 +3,7 @@
 #![feature(into_future)]
 
 mod invalidator_map;
+pub mod util;
 
 use std::{
     fmt::{self, Debug, Display},
@@ -14,13 +15,14 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use async_std::task::block_on;
 use invalidator_map::InvalidatorMap;
 use json::{parse, JsonValue};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use threadpool::ThreadPool;
 use turbo_tasks::Task;
+use util::normalize_path;
 
 #[turbo_tasks::value_trait]
 pub trait FileSystem {
@@ -222,10 +224,7 @@ impl FileSystem for DiskFileSystem {
                             .to_str()
                             .map(|path| {
                                 Ok({
-                                    let fs_path = FileSystemPathRef::new(
-                                        fs_path.fs.clone(),
-                                        path.to_string(),
-                                    );
+                                    let fs_path = FileSystemPathRef::new(fs_path.fs.clone(), path);
                                     let file_type = e.file_type()?;
                                     if file_type.is_file() {
                                         DirectoryEntry::File(fs_path).into()
@@ -269,7 +268,7 @@ impl FileSystem for DiskFileSystem {
                             })?;
                         }
                     }
-                    println!("write {} bytes to {}", buffer.len(), full_path.display());
+                    // println!("write {} bytes to {}", buffer.len(), full_path.display());
                     fs::write(full_path.clone(), buffer)
                         .with_context(|| format!("failed to write to {}", full_path.display()))
                 }
@@ -295,7 +294,7 @@ impl FileSystem for DiskFileSystem {
             Some(index) => p.replace_range(index.., ""),
             None => p.clear(),
         }
-        Ok(FileSystemPathRef::new(fs_path.fs.clone(), p))
+        Ok(FileSystemPathRef::new(fs_path.fs.clone(), &p))
     }
 }
 
@@ -314,10 +313,18 @@ impl FileSystemPath {
 
 #[turbo_tasks::value_impl]
 impl FileSystemPathRef {
-    pub fn new(fs: FileSystemRef, path: String) -> Self {
-        debug_assert!(!path.starts_with("/"));
-        debug_assert!(!path.starts_with("../"));
-        debug_assert!(!path.starts_with("./"));
+    pub fn new(fs: FileSystemRef, path: &str) -> Result<Self> {
+        if let Some(path) = normalize_path(path) {
+            Ok(FileSystemPathRef::new_normalized(fs, path))
+        } else {
+            bail!(
+                "FileSystemPathRef::new(fs, \"{}\") leaves the filesystem root",
+                path
+            );
+        }
+    }
+
+    pub fn new_normalized(fs: FileSystemRef, path: String) -> Self {
         Self::slot(FileSystemPath { fs, path })
     }
 }
@@ -353,7 +360,7 @@ pub async fn rebase(
             new_path = [new_base.path.as_str(), &fs_path.path[old_base.path.len()..]].concat();
         }
     }
-    Ok(FileSystemPathRef::new(new_base.fs.clone(), new_path))
+    Ok(FileSystemPathRef::new(new_base.fs.clone(), &new_path))
 }
 
 #[turbo_tasks::value_impl]

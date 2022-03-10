@@ -4,12 +4,12 @@
 #![feature(option_get_or_insert_default)]
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     mem::swap,
 };
 
 use anyhow::Result;
-use asset::AssetRef;
+use asset::{AssetRef, AssetsSet, AssetsSetRef};
 use graph::{aggregate, AggregatedGraphNodeContent, AggregatedGraphRef};
 use module_options::{
     module_options, ModuleRuleCondition, ModuleRuleEffect, ModuleRuleEffectKey, ModuleType,
@@ -246,4 +246,23 @@ async fn print_references(list: ReferencesListRef) -> Result<()> {
         );
     }
     Ok(())
+}
+
+#[turbo_tasks::function]
+pub async fn all_assets(asset: AssetRef) -> Result<AssetsSetRef> {
+    let mut queue = VecDeque::new();
+    queue.push_back(asset.references());
+    let mut assets = HashSet::new();
+    assets.insert(asset);
+    while let Some(references) = queue.pop_front() {
+        for asset in references.await?.assets.iter() {
+            if assets.insert(asset.clone()) {
+                queue.push_back(asset.references());
+            }
+        }
+    }
+    Ok(AssetsSet {
+        assets: assets.into_iter().collect(),
+    }
+    .into())
 }

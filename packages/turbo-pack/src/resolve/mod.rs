@@ -6,6 +6,7 @@ use std::{
 use anyhow::{anyhow, Result};
 use json::JsonValue;
 use turbo_tasks_fs::{
+    util::{join_path, normalize_path},
     DirectoryContent, FileContent, FileJsonContent, FileJsonContentRef, FileSystemPathRef,
 };
 
@@ -34,7 +35,7 @@ pub enum ResolveResult {
 #[turbo_tasks::function]
 pub async fn resolve_options(context: FileSystemPathRef) -> Result<ResolveOptionsRef> {
     let context = context.await?;
-    let root = FileSystemPathRef::new(context.fs.clone(), "".to_string());
+    let root = FileSystemPathRef::new(context.fs.clone(), "");
     Ok(ResolveOptions {
         extensions: vec![".jsx".to_string(), ".js".to_string()],
         modules: vec![ResolveModules::Nested(
@@ -70,41 +71,6 @@ async fn dir_exists(fs_path: FileSystemPathRef) -> Result<bool> {
             false
         },
     )
-}
-
-fn join_path(a: &str, b: &str) -> Option<String> {
-    if a.is_empty() {
-        normalize_path(b)
-    } else if b.is_empty() {
-        normalize_path(a)
-    } else {
-        normalize_path(&[a, "/", b].concat())
-    }
-}
-
-fn normalize_path(str: &str) -> Option<String> {
-    let mut seqments = Vec::new();
-    for seqment in str.split('/') {
-        match seqment {
-            "." => {}
-            ".." => {
-                if seqments.pop().is_none() {
-                    return None;
-                }
-            }
-            seqment => {
-                seqments.push(seqment);
-            }
-        }
-    }
-    let mut str = String::new();
-    for seq in seqments.into_iter() {
-        if !str.is_empty() && !str.ends_with("/") {
-            str += "/";
-        }
-        str += seq;
-    }
-    Some(str)
 }
 
 #[turbo_tasks::value(shared)]
@@ -160,11 +126,15 @@ async fn find_package(
                     for name in names.iter() {
                         if let Some(nested_path) = join_path(&context_value.path, &name) {
                             if let Some(new_path) = join_path(&nested_path, &package_name) {
-                                let fs_path =
-                                    FileSystemPathRef::new(context_value.fs.clone(), nested_path);
+                                let fs_path = FileSystemPathRef::new_normalized(
+                                    context_value.fs.clone(),
+                                    nested_path,
+                                );
                                 if dir_exists(fs_path).await? {
-                                    let fs_path =
-                                        FileSystemPathRef::new(context_value.fs.clone(), new_path);
+                                    let fs_path = FileSystemPathRef::new_normalized(
+                                        context_value.fs.clone(),
+                                        new_path,
+                                    );
                                     if dir_exists(fs_path.clone()).await? {
                                         return Ok(FindPackageResult::Package(fs_path).into());
                                     }
@@ -209,7 +179,7 @@ pub async fn resolve(
 
             for req in possible_requests {
                 if let Some(new_path) = join_path(&context.path, &req) {
-                    let fs_path = FileSystemPathRef::new(context.fs.clone(), new_path);
+                    let fs_path = FileSystemPathRef::new_normalized(context.fs.clone(), new_path);
                     if exists(fs_path.clone()).await? {
                         return Ok(
                             ResolveResult::Module(SourceAssetRef::new(fs_path).into()).into()
@@ -265,8 +235,10 @@ pub async fn resolve(
                     let package_json = {
                         if let Some(new_path) = join_path(&package_path_value.path, "package.json")
                         {
-                            let fs_path =
-                                FileSystemPathRef::new(package_path_value.fs.clone(), new_path);
+                            let fs_path = FileSystemPathRef::new_normalized(
+                                package_path_value.fs.clone(),
+                                new_path,
+                            );
                             fs_path.read_json()
                         } else {
                             FileJsonContent::NotFound.into()

@@ -36,10 +36,10 @@ fn integration_test(input: PathBuf) {
     tt.spawn_once_task(async move {
         println!("{:?}, {}, {}", tests_output_root, input, directory);
         let input_fs = DiskFileSystemRef::new("tests".to_string(), tests_root.clone());
-        let input = FileSystemPathRef::new(input_fs.into(), input);
+        let input = FileSystemPathRef::new(input_fs.into(), &input);
         let input_dir = input.clone().parent().parent();
         let output_fs = DiskFileSystemRef::new("output".to_string(), directory.clone());
-        let output_dir = FileSystemPathRef::new(output_fs.into(), "".to_string());
+        let output_dir = FileSystemPathRef::new(output_fs.into(), "");
 
         let source = SourceAssetRef::new(input);
         let module = module(source.into());

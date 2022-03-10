@@ -68,9 +68,9 @@ impl TurboTasks {
 
     pub fn spawn_once_task(
         self: &Arc<Self>,
-        functor: impl Future<Output = Result<SlotRef>> + Send + 'static,
+        future: impl Future<Output = Result<SlotRef>> + Send + 'static,
     ) -> Arc<Task> {
-        let task = Arc::new(Task::new_once(functor));
+        let task = Arc::new(Task::new_once(future));
         self.clone().schedule(task.clone());
         task
     }

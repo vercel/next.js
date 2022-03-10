@@ -55,6 +55,27 @@ impl Buffer {
 impl Display for Buffer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Ok(str) = std::str::from_utf8(&self.buf.read().unwrap()) {
+            let mut lines = str
+                .lines()
+                .map(|line| {
+                    if line.len() > 300 {
+                        format!("{}...{}\n", &line[..150], &line[line.len() - 150..])
+                    } else {
+                        format!("{}\n", line)
+                    }
+                })
+                .collect::<Vec<_>>();
+            if lines.len() > 50 {
+                let (first, rem) = lines.split_at(25);
+                let (rem, last) = rem.split_at(rem.len() - 25);
+                lines = first
+                    .into_iter()
+                    .chain(&["...".to_string()])
+                    .chain(last.into_iter())
+                    .map(|s| s.clone())
+                    .collect();
+            }
+            let str = lines.concat();
             write!(f, "{}", str)
         } else {
             Err(std::fmt::Error)
