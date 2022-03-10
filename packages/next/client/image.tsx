@@ -130,7 +130,7 @@ type ImageElementProps = Omit<ImageProps, 'src'> & {
   layout: LayoutValue
   imgStyle: ImgElementStyle
   blurStyle: ImgElementStyle
-  lazy: boolean
+  isLazy: boolean
   imgRef: React.RefObject<HTMLImageElement>
   loading: LoadingValue
   config: ImageConfig
@@ -757,7 +757,7 @@ export default function Image({
     handleLoading(imgRef, srcString, layout, placeholder, onLoadingCompleteRef)
   }, [srcString, layout, placeholder, isVisible])
   const imgElementArgs = {
-    lazy: isLazy,
+    isLazy,
     ...{
       imgAttributes,
       heightInt,
@@ -841,7 +841,7 @@ const ImageElement = ({
   className,
   imgStyle,
   blurStyle,
-  lazy,
+  isLazy,
   imgRef,
   loading,
   sizes,
@@ -865,7 +865,7 @@ const ImageElement = ({
         ref={imgRef}
         style={{ ...imgStyle, ...blurStyle }}
       />
-      {lazy && 
+      {isLazy && (
         <noscript>
           <img
             {...rest}
@@ -890,7 +890,7 @@ const ImageElement = ({
             loading={loading || 'lazy'}
           />
         </noscript>
-      }
+      )}
     </>
   )
 }
