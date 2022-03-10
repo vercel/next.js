@@ -377,7 +377,7 @@ export default function Image({
 
   if (layout === 'raw' && !experimentalLayoutRaw) {
     throw new Error(
-      `The "raw" layout is currently experimental and may be subject to breaking changes. To use layout="raw", include 'experimental: { images: layoutRaw } in your next.config file.`
+      `The "raw" layout is currently experimental and may be subject to breaking changes. To use layout="raw", include \`experimental: { images: { layoutRaw: true } }\` in your next.config.js file.`
     )
   }
 
@@ -843,6 +843,7 @@ const ImageElement = ({
   blurStyle,
   isLazy,
   imgRef,
+  placeholder,
   loading,
   sizes,
   srcString,
@@ -865,7 +866,7 @@ const ImageElement = ({
         ref={imgRef}
         style={{ ...imgStyle, ...blurStyle }}
       />
-      {isLazy && (
+      {(isLazy || placeholder === 'blur') && 
         <noscript>
           <img
             {...rest}
@@ -890,7 +891,7 @@ const ImageElement = ({
             loading={loading || 'lazy'}
           />
         </noscript>
-      )}
+      }
     </>
   )
 }
