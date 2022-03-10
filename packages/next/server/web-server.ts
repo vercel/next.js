@@ -131,7 +131,7 @@ export default class NextWebServer extends BaseServer {
       query,
       {
         ...renderOpts,
-        supportsDynamicHTML: true,
+        // supportsDynamicHTML: true,
         disableOptimizedLoading: true,
         runtime: 'edge',
       }
@@ -148,6 +148,20 @@ export default class NextWebServer extends BaseServer {
       options?: PayloadOptions | undefined
     }
   ): Promise<void> {
+    // Add necessary headers.
+    // @TODO: Share the isomorphic logic with server/send-payload.ts.
+    if (options.poweredByHeader && options.type === 'html') {
+      res.setHeader('X-Powered-By', 'Next.js')
+    }
+    if (!res.getHeader('Content-Type')) {
+      res.setHeader(
+        'Content-Type',
+        options.type === 'json'
+          ? 'application/json'
+          : 'text/html; charset=utf-8'
+      )
+    }
+
     // @TODO
     const writer = res.transformStream.writable.getWriter()
 
@@ -161,7 +175,9 @@ export default class NextWebServer extends BaseServer {
         // Not implemented: on/removeListener
       } as any)
     } else {
-      res.body(await options.result.toUnchunkedString())
+      // TODO: generate Etag
+      const payload = await options.result.toUnchunkedString()
+      res.body(payload)
     }
 
     res.send()

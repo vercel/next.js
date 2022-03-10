@@ -104,6 +104,7 @@ import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { recursiveCopy } from '../lib/recursive-copy'
+import { shouldUseReactRoot } from '../server/config'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -154,10 +155,11 @@ export default async function build(
     // Currently, when the runtime option is set (either `nodejs` or `edge`),
     // we enable concurrent features (Fizz-related rendering architecture).
     const runtime = config.experimental.runtime
+    const hasReactRoot = shouldUseReactRoot()
     const hasConcurrentFeatures = !!runtime
 
     const hasServerComponents =
-      hasConcurrentFeatures && !!config.experimental.serverComponents
+      hasReactRoot && !!config.experimental.serverComponents
 
     const { target } = config
     const buildId: string = await nextBuildSpan
@@ -296,20 +298,21 @@ export default async function build(
         createPagesMapping(pagePaths, config.pageExtensions, {
           isDev: false,
           hasServerComponents,
-          runtime,
+          globalRuntime: runtime,
         })
       )
 
-    const entrypoints = nextBuildSpan
+    const entrypoints = await nextBuildSpan
       .traceChild('create-entrypoints')
-      .traceFn(() =>
+      .traceAsyncFn(() =>
         createEntrypoints(
           mappedPages,
           target,
           buildId,
           previewProps,
           config,
-          loadedEnvFiles
+          loadedEnvFiles,
+          pagesDir
         )
       )
     const pageKeys = Object.keys(mappedPages)
@@ -576,13 +579,15 @@ export default async function build(
           BUILD_MANIFEST,
           PRERENDER_MANIFEST,
           path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
-          hasServerComponents
-            ? path.join(
-                SERVER_DIRECTORY,
-                MIDDLEWARE_FLIGHT_MANIFEST +
-                  (runtime === 'edge' ? '.js' : '.json')
-              )
-            : null,
+          ...(hasServerComponents
+            ? [
+                path.join(SERVER_DIRECTORY, MIDDLEWARE_FLIGHT_MANIFEST + '.js'),
+                path.join(
+                  SERVER_DIRECTORY,
+                  MIDDLEWARE_FLIGHT_MANIFEST + '.json'
+                ),
+              ]
+            : []),
           REACT_LOADABLE_MANIFEST,
           config.optimizeFonts
             ? path.join(
@@ -629,7 +634,7 @@ export default async function build(
               rewrites,
               runWebpackSpan,
             }),
-            runtime === 'edge'
+            hasReactRoot
               ? getBaseWebpackConfig(dir, {
                   buildId,
                   reactProductionProfiling,

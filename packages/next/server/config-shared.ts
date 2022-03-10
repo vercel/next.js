@@ -5,7 +5,7 @@ import {
   ImageConfig,
   ImageConfigComplete,
   imageConfigDefault,
-} from './image-config'
+} from '../shared/lib/image-config'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -109,6 +109,7 @@ export interface ExperimentalConfig {
   images?: {
     layoutRaw: boolean
   }
+  middlewareSourceMaps?: boolean
 }
 
 /**

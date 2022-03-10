@@ -24,8 +24,8 @@ describe('react 18 streaming SSR in minimal mode', () => {
         },
       },
       dependencies: {
-        react: '18.0.0-rc.0',
-        'react-dom': '18.0.0-rc.0',
+        react: '18.0.0-rc.2',
+        'react-dom': '18.0.0-rc.2',
       },
     })
   })
@@ -47,8 +47,8 @@ describe('react 18 streaming SSR with custom next configs', () => {
     next = await createNext({
       files: {
         'pages/hello.js': `
-          export default function Page() { 
-            return <p>hello</p>
+          export default function Page() {
+            return <p>hello nextjs</p>
           }
         `,
       },
@@ -60,8 +60,8 @@ describe('react 18 streaming SSR with custom next configs', () => {
         },
       },
       dependencies: {
-        react: '18.0.0-rc.0',
-        'react-dom': '18.0.0-rc.0',
+        react: '18.0.0-rc.2',
+        'react-dom': '18.0.0-rc.2',
       },
     })
   })
@@ -69,10 +69,17 @@ describe('react 18 streaming SSR with custom next configs', () => {
 
   it('should redirect paths without trailing-slash and render when slash is appended', async () => {
     const page = '/hello'
-    const html = await renderViaHTTP(next.url, page + '/')
-    const res = await fetchViaHTTP(next.url, page, {}, { redirect: 'manual' })
+    const redirectRes = await fetchViaHTTP(
+      next.url,
+      page,
+      {},
+      { redirect: 'manual' }
+    )
+    const res = await fetchViaHTTP(next.url, page + '/')
+    const html = await res.text()
 
-    expect(html).toContain('hello')
-    expect(res.status).toBe(308)
+    expect(redirectRes.status).toBe(308)
+    expect(res.status).toBe(200)
+    expect(html).toContain('hello nextjs')
   })
 })
