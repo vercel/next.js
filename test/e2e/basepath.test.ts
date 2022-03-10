@@ -727,9 +727,21 @@ describe('basePath', () => {
 
         const eventLog = await browser.eval('window._getEventLog()')
         expect(eventLog).toEqual([
-          ['routeChangeStart', `${basePath}/other-page`, { shallow: false }],
-          ['beforeHistoryChange', `${basePath}/other-page`, { shallow: false }],
-          ['routeChangeComplete', `${basePath}/other-page`, { shallow: false }],
+          [
+            'routeChangeStart',
+            `${basePath}/other-page`,
+            { shallow: false, scroll: false, method: 'pushState' },
+          ],
+          [
+            'beforeHistoryChange',
+            `${basePath}/other-page`,
+            { shallow: false, scroll: false, method: 'pushState' },
+          ],
+          [
+            'routeChangeComplete',
+            `${basePath}/other-page`,
+            { shallow: false, scroll: false, method: 'pushState' },
+          ],
         ])
       } finally {
         await browser.close()
@@ -747,12 +759,12 @@ describe('basePath', () => {
           [
             'hashChangeStart',
             `${basePath}/hello#some-hash`,
-            { shallow: false },
+            { shallow: false, scroll: false, method: 'pushState' },
           ],
           [
             'hashChangeComplete',
             `${basePath}/hello#some-hash`,
-            { shallow: false },
+            { shallow: false, scroll: false, method: 'pushState' },
           ],
         ])
       } finally {
@@ -773,17 +785,33 @@ describe('basePath', () => {
 
         const eventLog = await browser.eval('window._getEventLog()')
         expect(eventLog).toEqual([
-          ['routeChangeStart', `${basePath}/slow-route`, { shallow: false }],
+          [
+            'routeChangeStart',
+            `${basePath}/slow-route`,
+            { shallow: false, scroll: false, method: 'pushState' },
+          ],
           [
             'routeChangeError',
             'Route Cancelled',
             true,
             `${basePath}/slow-route`,
-            { shallow: false },
+            { shallow: false, scroll: false, method: 'pushState' },
           ],
-          ['routeChangeStart', `${basePath}/other-page`, { shallow: false }],
-          ['beforeHistoryChange', `${basePath}/other-page`, { shallow: false }],
-          ['routeChangeComplete', `${basePath}/other-page`, { shallow: false }],
+          [
+            'routeChangeStart',
+            `${basePath}/other-page`,
+            { shallow: false, scroll: false, method: 'pushState' },
+          ],
+          [
+            'beforeHistoryChange',
+            `${basePath}/other-page`,
+            { shallow: false, scroll: false, method: 'pushState' },
+          ],
+          [
+            'routeChangeComplete',
+            `${basePath}/other-page`,
+            { shallow: false, scroll: false, method: 'pushState' },
+          ],
         ])
       } finally {
         await browser.close()
@@ -800,13 +828,17 @@ describe('basePath', () => {
 
         const eventLog = await browser.eval('window._getEventLog()')
         expect(eventLog).toEqual([
-          ['routeChangeStart', `${basePath}/error-route`, { shallow: false }],
+          [
+            'routeChangeStart',
+            `${basePath}/error-route`,
+            { shallow: false, scroll: false, method: 'pushState' },
+          ],
           [
             'routeChangeError',
             'Failed to load static props',
             null,
             `${basePath}/error-route`,
-            { shallow: false },
+            { shallow: false, scroll: false, method: 'pushState' },
           ],
         ])
       } finally {

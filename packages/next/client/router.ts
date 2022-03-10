@@ -70,7 +70,7 @@ type HistoryMethod = 'replaceState' | 'pushState'
 type Options = {
   shallow: Required<TransitionOptions>['shallow']
   scroll: Required<TransitionOptions>['scroll']
-  locale: TransitionOptions['locale']
+  locale?: TransitionOptions['locale']
   method: HistoryMethod
 }
 
