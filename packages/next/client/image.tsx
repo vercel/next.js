@@ -865,7 +865,7 @@ const ImageElement = ({
         ref={imgRef}
         style={{ ...imgStyle, ...blurStyle }}
       />
-      {lazy && 
+      {(lazy || placeholder === 'blur') && 
         <noscript>
           <img
             {...rest}
