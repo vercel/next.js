@@ -375,12 +375,6 @@ export default function Image({
     delete rest['layout']
   }
 
-  if (layout === 'raw' && !experimentalLayoutRaw) {
-    throw new Error(
-      `The "raw" layout is currently experimental and may be subject to breaking changes. To use layout="raw", include \`experimental: { images: { layoutRaw: true } }\` in your next.config.js file.`
-    )
-  }
-
   let staticSrc = ''
   if (isStaticImport(src)) {
     const staticImageData = isStaticRequire(src) ? src.default : src
@@ -495,6 +489,11 @@ export default function Image({
         `Image with src "${src}" has invalid "layout" property. Provided "${layout}" should be one of ${VALID_LAYOUT_VALUES.map(
           String
         ).join(',')}.`
+      )
+    }
+    if (layout === 'raw' && !experimentalLayoutRaw) {
+      throw new Error(
+        `The "raw" layout is currently experimental and may be subject to breaking changes. To use layout="raw", include \`experimental: { images: { layoutRaw: true } }\` in your next.config.js file.`
       )
     }
     if (
