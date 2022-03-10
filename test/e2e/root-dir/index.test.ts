@@ -50,7 +50,7 @@ describe('root dir', () => {
     const $ = cheerio.load(html)
     // Should not be nested in dashboard
     expect($('h1').text()).toBeUndefined()
-    // Should still include the page text
+    // Should include the page text
     expect($('p').text()).toBe('hello from root/dashboard/integrations')
   })
 
@@ -59,7 +59,25 @@ describe('root dir', () => {
     const $ = cheerio.load(html)
     // Should not be nested in dashboard
     expect($('h1').text()).toBeUndefined()
-    // Should still include the page text
+    // Should include the page text
     expect($('p').text()).toBe('hello from root/dashboard/changelog')
+  })
+
+  it('should serve nested parent', async () => {
+    const html = await renderViaHTTP(next.url, '/dashboard/deployments/123')
+    const $ = cheerio.load(html)
+    // Should be nested in dashboard
+    expect($('h1').text()).toBe('Dashboard')
+    // Should be nested in deployments
+    expect($('h2').text()).toBe('Deployments')
+  })
+
+  it('should serve dynamic parameter', async () => {
+    const html = await renderViaHTTP(next.url, '/dashboard/deployments/123')
+    const $ = cheerio.load(html)
+    // Should include the page text with the parameter
+    expect($('p').text()).toBe(
+      'hello from root/dashboard/deployments/[id]. ID is: 123'
+    )
   })
 })
