@@ -201,7 +201,7 @@ Alternatively, you can deploy using our template by clicking on the Deploy butto
 ### Step 11. Setup Revalidation Webhook
 
 - Open your Sanity manager, go to **API**, and **Create new webhook**.
-- Set the **URL** to use the vercel app url from [Step 10](#step-10-deploy-on-vercel) and append `/api/revalidate`, for example: `https://cms-sanity.vercel.app/api/revalidate`
+- Set the **URL** to use the Vercel app url from [Step 10](#step-10-deploy-on-vercel) and append `/api/revalidate`, for example: `https://cms-sanity.vercel.app/api/revalidate`
 - Set the **Trigger on** field to <label><input type=checkbox checked> Create</label> <label><input type=checkbox checked> Update</label> <label><input type=checkbox checked> Delete</label>
 - Set the **Filter** to `_type == "post" || _type == "author"`
 - Set the **Secret** to the same value you gave `SANITY_STUDIO_REVALIDATE_SECRET` earlier.
