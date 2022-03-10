@@ -68,7 +68,7 @@ class ReadableStream<T> {
     }
 
     const started = opts.start && opts.start(controller)
-    if (typeof started.then === 'function') {
+    if (started && typeof started.then === 'function') {
       started.then(() => registerPull())
     } else {
       registerPull()
