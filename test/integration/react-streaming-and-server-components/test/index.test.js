@@ -146,11 +146,6 @@ describe('Edge runtime - prod', () => {
     expect(content.clientInfo).not.toContainEqual([['/404', true]])
   })
 
-  it('should support React.lazy and dynamic imports', async () => {
-    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
-    expect(html).toContain('foo.client')
-  })
-
   const options = { runtime: 'edge', env: 'prod' }
   basic(context, options)
   streaming(context, options)
@@ -169,15 +164,6 @@ describe('Edge runtime - dev', () => {
   afterAll(async () => {
     error500Page.delete()
     await killApp(context.server)
-  })
-
-  it('should support React.lazy and dynamic imports', async () => {
-    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
-    expect(html).toContain('loading...')
-
-    const browser = await webdriver(context.appPort, '/dynamic-imports')
-    const content = await browser.eval(`window.document.body.innerText`)
-    expect(content).toMatchInlineSnapshot('"foo.client"')
   })
 
   it('should have content-type and content-encoding headers', async () => {

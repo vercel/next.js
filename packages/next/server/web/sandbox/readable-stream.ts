@@ -43,7 +43,7 @@ class ReadableStream<T> {
           controller.desiredSize !== null && controller.desiredSize > 0
         if (!pullPromise && shouldPull) {
           pullPromise = Promise.resolve().then(() => {
-            pullPromise = null
+            pullPromise = 0
             opts.pull!(controller)
           })
           return pullPromise
@@ -67,10 +67,9 @@ class ReadableStream<T> {
       }
     }
 
-    if (opts.start) {
-      opts.start(controller).then(() => {
-        startPull()
-      })
+    const started = opts.start && opts.start(controller)
+    if (typeof started.then === 'function') {
+      started.then(() => startPull())
     } else {
       startPull()
     }
