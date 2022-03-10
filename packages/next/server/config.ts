@@ -686,6 +686,15 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
+    if (
+      userConfig.experimental?.rootDir &&
+      !userConfig.experimental?.serverComponents
+    ) {
+      throw new Error(
+        '`experimental.rootDir` config requires `experimental.serverComponents` to be enabled.'
+      )
+    }
+
     return assignDefaults({
       configOrigin: relative(dir, path),
       configFile: path,
