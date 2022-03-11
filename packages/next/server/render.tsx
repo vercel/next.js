@@ -1238,12 +1238,14 @@ export async function renderToHTML(
     // 1. Using `Document.getInitialProps` in the Edge runtime.
     // 2. Using the class component `Document` with concurrent features.
 
-    const isBuiltinDocument = !!(Document as any).__next_internal_document
+    const builtinDocument = (Document as any).__next_internal_document as
+      | typeof Document
+      | undefined
 
     if (runtime === 'edge' && Document.getInitialProps) {
       // In the Edge runtime, `Document.getInitialProps` isn't supported.
       // We throw an error here if it's customized.
-      if (!isBuiltinDocument) {
+      if (!builtinDocument) {
         throw new Error(
           '`getInitialProps` in Document component is not supported with the Edge Runtime.'
         )
@@ -1251,8 +1253,8 @@ export async function renderToHTML(
     }
 
     // We make it a function component to enable streaming.
-    if (hasConcurrentFeatures && isBuiltinDocument) {
-      Document = (Document as any).render
+    if (hasConcurrentFeatures && builtinDocument) {
+      Document = builtinDocument
     }
 
     if (!hasConcurrentFeatures && Document.getInitialProps) {
