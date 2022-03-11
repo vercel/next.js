@@ -54,4 +54,13 @@ export default async function basic(context, { env }) {
     const html = await renderViaHTTP(context.appPort, '/err/suspense')
     expect(html).toContain('error-fallback')
   })
+
+  it('should support React.lazy and dynamic imports', async () => {
+    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
+    expect(html).toContain('foo.client')
+
+    const browser = await webdriver(context.appPort, '/dynamic-imports')
+    const content = await browser.eval(`window.document.body.innerText`)
+    expect(content).toMatchInlineSnapshot('"foo.client"')
+  })
 }
