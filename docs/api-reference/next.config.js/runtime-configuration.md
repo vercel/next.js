@@ -41,7 +41,7 @@ console.log(serverRuntimeConfig.mySecret)
 // Will be available on both server-side and client-side
 console.log(publicRuntimeConfig.staticFolder)
 
-function MyImage() {
+const ImagePage: NextPage = () => {
   return (
     <div>
       <Image
@@ -53,7 +53,9 @@ function MyImage() {
   )
 }
 
-export default MyImage
+ImagePage.getInitialProps = async ({}) => ({});
+
+export default ImagePage
 ```
 
 ## Related
