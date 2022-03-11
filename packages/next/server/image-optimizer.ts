@@ -419,7 +419,12 @@ export async function imageOptimizer(
 
   if (mimeType) {
     contentType = mimeType
-  } else if (upstreamType?.startsWith('image/') && getExtension(upstreamType)) {
+  } else if (
+    upstreamType?.startsWith('image/') &&
+    getExtension(upstreamType) &&
+    upstreamType !== WEBP &&
+    upstreamType !== AVIF
+  ) {
     contentType = upstreamType
   } else {
     contentType = JPEG
