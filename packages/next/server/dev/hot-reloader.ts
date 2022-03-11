@@ -324,7 +324,6 @@ export default class HotReloader {
             this.config.pageExtensions,
             {
               isDev: true,
-              globalRuntime: this.runtime,
               hasServerComponents: this.hasServerComponents,
             }
           )
