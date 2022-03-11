@@ -292,7 +292,7 @@ export function interpolateAs(
   }
 }
 
-function omitParmsFromQuery(query: ParsedUrlQuery, params: string[]) {
+function omitParamsFromQuery(query: ParsedUrlQuery, params: string[]) {
   const filteredQuery: ParsedUrlQuery = {}
 
   Object.keys(query).forEach((key) => {
@@ -369,7 +369,7 @@ export function resolveHref(
         interpolatedAs = formatWithValidation({
           pathname: result,
           hash: finalUrl.hash,
-          query: omitParmsFromQuery(query, params),
+          query: omitParamsFromQuery(query, params),
         })
       }
     }
@@ -1245,7 +1245,7 @@ export default class Router implements BaseRouter {
         as = formatWithValidation(
           Object.assign({}, parsedAs, {
             pathname: interpolatedAs.result,
-            query: omitParmsFromQuery(query, interpolatedAs.params!),
+            query: omitParamsFromQuery(query, interpolatedAs.params!),
           })
         )
       } else {
