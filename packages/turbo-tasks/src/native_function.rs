@@ -9,14 +9,19 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+/// A native (rust) turbo-tasks function. It's used internally by `#[turbo_tasks::function]`.
 #[turbo_tasks::value]
 pub struct NativeFunction {
+    /// A readable name of the function that is used to reporting purposes.
     pub name: String,
-    // TODO avoid a function to avoid allocting many vectors
+    /// Configuration about how arguments are passed. e. g. if they are passed unresolved or resolved.
     #[trace_ignore]
-    pub task_argument_options: Box<dyn Fn() -> Vec<TaskArgumentOptions> + Send + Sync + 'static>,
+    pub task_argument_options: Vec<TaskArgumentOptions>,
+    /// The functor that creates a functor from inputs. The inner functor handles the task execution.
     #[trace_ignore]
-    pub bind_fn: Box<dyn (Fn(Vec<TaskInput>) -> Result<NativeTaskFn>) + Send + Sync + 'static>,
+    pub bind_fn: Box<dyn (Fn(&Vec<TaskInput>) -> Result<NativeTaskFn>) + Send + Sync + 'static>,
+    // TODO move to Task
+    /// A counter that tracks total executions of that function
     #[trace_ignore]
     pub executed_count: AtomicUsize,
 }
@@ -29,23 +34,26 @@ impl Debug for NativeFunction {
     }
 }
 
-#[turbo_tasks::value_impl]
+#[turbo_tasks::value_impl(into: new)]
 impl NativeFunction {
     #[turbo_tasks::constructor]
     pub fn new(
         name: String,
-        task_argument_options: impl Fn() -> Vec<TaskArgumentOptions> + Send + Sync + 'static,
-        bind_fn: impl (Fn(Vec<TaskInput>) -> Result<NativeTaskFn>) + Send + Sync + 'static,
+        task_argument_options: Vec<TaskArgumentOptions>,
+        bind_fn: impl (Fn(&Vec<TaskInput>) -> Result<NativeTaskFn>) + Send + Sync + 'static,
     ) -> Self {
+        let mut task_argument_options = task_argument_options;
+        task_argument_options.shrink_to_fit();
         Self {
             name,
-            task_argument_options: Box::new(task_argument_options),
+            task_argument_options,
             bind_fn: Box::new(bind_fn),
             executed_count: AtomicUsize::new(0),
         }
     }
 
-    pub fn bind(&'static self, inputs: Vec<TaskInput>) -> NativeTaskFn {
+    /// Creates a functor for execution from a fixed set of inputs.
+    pub fn bind(&'static self, inputs: &Vec<TaskInput>) -> NativeTaskFn {
         match (self.bind_fn)(inputs) {
             Ok(native_fn) => Box::new(move || {
                 let r = native_fn();

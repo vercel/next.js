@@ -37,7 +37,7 @@ impl Asset for ModuleAsset {
         for reference in references_set.references.iter() {
             let resolve_result = reference
                 .clone()
-                .resolve(ModuleAssetRef::new(self.source.clone()).into());
+                .resolve_reference(ModuleAssetRef::new(self.source.clone()).into());
             if let ResolveResult::Module(module) = &*resolve_result.await? {
                 assets.push(module.clone());
             }

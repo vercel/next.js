@@ -33,8 +33,14 @@ pub struct TurboTasks {
     event: Event,
 }
 
+// TODO implement our own thread pool and make these thread locals instead
 task_local! {
+    /// The current TurboTasks instance
     static TURBO_TASKS: RefCell<Option<Arc<TurboTasks>>> = RefCell::new(None);
+
+    /// Affected [Task]s, that are tracked during task execution
+    /// These tasks will be invalidated when the execution finishes
+    /// or before reading a slot value
     static TASKS_TO_NOTIFY: Cell<Vec<Arc<Task>>> = Default::default();
 }
 
@@ -57,6 +63,7 @@ impl TurboTasks {
         })
     }
 
+    /// Creates a new root task
     pub fn spawn_root_task(
         self: &Arc<Self>,
         functor: impl Fn() -> NativeTaskFuture + Sync + Send + 'static,
@@ -66,6 +73,9 @@ impl TurboTasks {
         task
     }
 
+    // TODO make sure that all dependencies settle before reading them
+    /// Creates a new root task, that is only executed once.
+    /// Dependencies will not invalidate the task.
     pub fn spawn_once_task(
         self: &Arc<Self>,
         future: impl Future<Output = Result<SlotRef>> + Send + 'static,
@@ -75,6 +85,7 @@ impl TurboTasks {
         task
     }
 
+    /// Helper to get a [Task] from a HashMap or create a new one
     fn cached_call<K: PartialEq + Hash>(
         self: &Arc<Self>,
         map: &CHashMap<K, Arc<Task>>,
@@ -110,6 +121,8 @@ impl TurboTasks {
         }
     }
 
+    /// Call a native function with arguments.
+    /// All inputs must be resolved.
     pub(crate) fn native_call(
         self: &Arc<Self>,
         func: &'static NativeFunction,
@@ -121,6 +134,7 @@ impl TurboTasks {
         })
     }
 
+    /// Call a native function with arguments. Resolves arguments when needed with a wrapper [Task].
     pub fn dynamic_call(
         self: &Arc<Self>,
         func: &'static NativeFunction,
@@ -170,11 +184,7 @@ impl TurboTasks {
                         println!("Task {} errored  {}", task, err);
                     }
                     task.execution_result(result);
-                    TASKS_TO_NOTIFY.with(|tasks| {
-                        for task in tasks.take().iter() {
-                            task.dependent_slot_updated(self.clone());
-                        }
-                    });
+                    self.notify_scheduled_tasks_with_turbo_tasks();
                     task.execution_completed(self.clone());
                 }
                 if self
@@ -203,6 +213,16 @@ impl TurboTasks {
         TURBO_TASKS.with(|c| (*c.borrow()).clone())
     }
 
+    pub(crate) fn with_current<T>(func: impl FnOnce(&Arc<TurboTasks>) -> T) -> T {
+        TURBO_TASKS.with(|c| {
+            if let Some(arc) = c.borrow().as_ref() {
+                func(arc)
+            } else {
+                panic!("Outside of TurboTasks");
+            }
+        })
+    }
+
     pub(crate) fn schedule_background_job(
         self: Arc<Self>,
         job: impl Future<Output = ()> + Send + 'static,
@@ -219,6 +239,28 @@ impl TurboTasks {
                 job.await;
             })
             .unwrap();
+    }
+
+    pub(crate) fn notify_scheduled_tasks() {
+        TASKS_TO_NOTIFY.with(|tasks| {
+            let tasks = tasks.take();
+            if tasks.is_empty() {
+                return;
+            }
+            TurboTasks::with_current(|current| {
+                for task in tasks.into_iter() {
+                    task.dependent_slot_updated(current);
+                }
+            })
+        });
+    }
+
+    pub(crate) fn notify_scheduled_tasks_with_turbo_tasks(self: &Arc<TurboTasks>) {
+        TASKS_TO_NOTIFY.with(|tasks| {
+            for task in tasks.take().into_iter() {
+                task.dependent_slot_updated(self);
+            }
+        });
     }
 
     pub(crate) fn schedule_notify_tasks(tasks_iter: impl Iterator<Item = Arc<Task>>) {

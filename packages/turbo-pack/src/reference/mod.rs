@@ -2,7 +2,7 @@ use crate::{asset::AssetRef, resolve::ResolveResultRef};
 
 #[turbo_tasks::value_trait]
 pub trait AssetReference {
-    fn resolve(&self, from: AssetRef) -> ResolveResultRef;
+    fn resolve_reference(&self, from: AssetRef) -> ResolveResultRef;
 }
 
 #[turbo_tasks::value(shared)]

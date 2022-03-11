@@ -5,6 +5,7 @@ use std::{
 
 use anyhow::Error;
 
+/// A error struct that is backed by an Arc to allow cloning errors
 #[derive(Debug, Clone)]
 pub struct SharedError {
     inner: Arc<Error>,

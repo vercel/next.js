@@ -294,7 +294,7 @@ async fn esm_resolve(request: RequestRef, context: FileSystemPathRef) -> Result<
 
     Ok(match &*result.await? {
         ResolveResult::Module(m) => {
-            ResolveResult::Module(module(m.clone()).resolve_to_slot().await?).into()
+            ResolveResult::Module(module(m.clone()).resolve().await?).into()
         }
         ResolveResult::Unresolveable => {
             // TODO report this to stream
@@ -310,7 +310,7 @@ async fn esm_resolve(request: RequestRef, context: FileSystemPathRef) -> Result<
 
 #[turbo_tasks::value_impl]
 impl AssetReference for EsmAssetReference {
-    fn resolve(&self, from: AssetRef) -> ResolveResultRef {
+    fn resolve_reference(&self, from: AssetRef) -> ResolveResultRef {
         let input_request = self.request.clone();
 
         let request = RequestRef::parse(input_request);

@@ -37,7 +37,7 @@ pub enum TaskInput {
 }
 
 impl TaskInput {
-    pub async fn resolve(self) -> Result<TaskInput> {
+    pub async fn resolve_to_value(self) -> Result<TaskInput> {
         let mut current = self;
         loop {
             current = match current {
@@ -52,14 +52,14 @@ impl TaskInput {
                 }
                 TaskInput::TaskCreated(ref task, index) => Task::with_current(|reader| {
                     reader.add_dependency(SlotRef::TaskCreated(task.clone(), index));
-                    task.with_created_slot(index, |slot| slot.resolve(reader.clone()))
+                    task.with_created_slot_mut(index, |slot| slot.resolve(reader.clone()))
                 })?,
                 _ => return Ok(current),
             }
         }
     }
 
-    pub async fn resolve_to_slot(self) -> Result<TaskInput> {
+    pub async fn resolve(self) -> Result<TaskInput> {
         let mut current = self;
         loop {
             current = match current {

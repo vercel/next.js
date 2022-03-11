@@ -8,10 +8,23 @@ use std::{
 
 use crate::NativeFunction;
 
+// TODO this type need some refactoring when multiple languages are added to turbo-task
+// In this case a trait_method might be of a different function type.
+// It probably need to be a FunctionRef.
+// That's also needed in a distributed world, where the function might be only available
+// on a remote instance.
+
+/// A definition of a type of data.
+///
+/// Contains a list of traits and trait methods that are available on that type.
 pub struct SlotValueType {
+    /// A readable name of the type
     pub name: String,
+    /// A locally unique id of the type for comparing
     pub(crate) id: u32,
+    /// List of traits available
     pub(crate) traits: HashSet<&'static TraitType>,
+    /// List of trait methods available
     pub(crate) trait_methods: HashMap<(&'static TraitType, String), &'static NativeFunction>,
 }
 
@@ -44,6 +57,7 @@ impl Debug for SlotValueType {
 static NEXT_SLOT_VALUE_TYPE_ID: AtomicU32 = AtomicU32::new(1);
 
 impl SlotValueType {
+    /// This is internally used by `#[turbo_tasks::value]`
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -53,6 +67,7 @@ impl SlotValueType {
         }
     }
 
+    /// This is internally used by `#[turbo_tasks::value(Trait)]`
     pub fn register_trait_method(
         &mut self,
         trait_type: &'static TraitType,
@@ -62,6 +77,7 @@ impl SlotValueType {
         self.trait_methods.insert((trait_type, name), native_fn);
     }
 
+    /// This is internally used by `#[turbo_tasks::value(Trait)]`
     pub fn register_trait(&mut self, trait_type: &'static TraitType) {
         self.traits.insert(trait_type);
     }

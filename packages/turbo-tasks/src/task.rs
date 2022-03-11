@@ -2,7 +2,7 @@ use crate::{
     slot::{Slot, SlotRef},
     task_input::TaskInput,
     viz::TaskSnapshot,
-    NativeFunction, SlotValueType, TraitType, TurboTasks,
+    NativeFunction, TraitType, TurboTasks,
 };
 use any_key::AnyHash;
 use anyhow::{anyhow, Result};
@@ -19,7 +19,7 @@ use std::{
     pin::Pin,
     sync::{
         atomic::{AtomicU32, Ordering},
-        Arc, Mutex, RwLock, Weak,
+        Arc, Mutex, RwLock,
     },
     time::Instant,
 };
@@ -64,6 +64,8 @@ impl Debug for TaskType {
     }
 }
 
+/// A Task is an instantiation of an Function with some arguments.
+/// The same combinations of Function and arguments usually results in the same Task instance.
 pub struct Task {
     inputs: Vec<TaskInput>,
     ty: TaskType,
@@ -151,7 +153,7 @@ use TaskStateType::*;
 
 impl Task {
     pub(crate) fn new_native(inputs: Vec<TaskInput>, native_fn: &'static NativeFunction) -> Self {
-        let bound_fn = native_fn.bind(inputs.clone());
+        let bound_fn = native_fn.bind(&inputs);
         Self {
             inputs,
             ty: TaskType::Native(native_fn, bound_fn),
@@ -447,11 +449,11 @@ impl Task {
         }
     }
 
-    pub(crate) fn dependent_slot_updated(self: &Arc<Self>, turbo_tasks: Arc<TurboTasks>) {
+    pub(crate) fn dependent_slot_updated(self: Arc<Self>, turbo_tasks: &Arc<TurboTasks>) {
         self.make_dirty(turbo_tasks);
     }
 
-    fn make_dirty(self: &Arc<Self>, turbo_tasks: Arc<TurboTasks>) {
+    fn make_dirty(self: &Arc<Self>, turbo_tasks: &Arc<TurboTasks>) {
         self.clear_dependencies();
 
         let mut state = self.state.write().unwrap();
@@ -463,7 +465,7 @@ impl Task {
                 if state.active {
                     state.state_type = Scheduled;
                     drop(state);
-                    turbo_tasks.schedule(self.clone());
+                    turbo_tasks.clone().schedule(self.clone());
                 } else {
                     state.state_type = Dirty;
                     drop(state);
@@ -546,7 +548,7 @@ impl Task {
                 Box::pin(async move {
                     let mut resolved_inputs = Vec::new();
                     for input in inputs.into_iter() {
-                        resolved_inputs.push(input.resolve_to_slot().await?)
+                        resolved_inputs.push(input.resolve().await?)
                     }
                     Ok(tt.native_call(native_fn, resolved_inputs))
                 })
@@ -559,8 +561,8 @@ impl Task {
                     let mut resolved_inputs = Vec::new();
                     let mut iter = inputs.into_iter();
                     if let Some(this) = iter.next() {
-                        let this = this.resolve_to_slot().await?;
-                        let this_value = this.clone().resolve().await?;
+                        let this = this.resolve().await?;
+                        let this_value = this.clone().resolve_to_value().await?;
                         match this_value.get_trait_method(trait_type, name.clone()) {
                             Some(native_fn) => {
                                 resolved_inputs.push(this);
@@ -604,7 +606,11 @@ impl Task {
 
     pub fn get_invalidator() -> Invalidator {
         Invalidator {
-            task: Task::current().map_or_else(|| Weak::new(), |task| Arc::downgrade(&task)),
+            task: Task::current()
+                .ok_or_else(|| {
+                    anyhow!("Task::get_invalidator() can only be used in the context of a Task")
+                })
+                .unwrap(),
             turbo_tasks: TurboTasks::current()
                 .ok_or_else(|| {
                     anyhow!("Task::get_invalidator() can only be used in the context of TurboTasks")
@@ -613,7 +619,7 @@ impl Task {
         }
     }
 
-    fn invaldate(self: &Arc<Self>, turbo_tasks: Arc<TurboTasks>) {
+    fn invaldate(self: Arc<Self>, turbo_tasks: &Arc<TurboTasks>) {
         self.make_dirty(turbo_tasks)
     }
 
@@ -627,31 +633,18 @@ impl Task {
         func(&mut state.output_slot)
     }
 
-    pub(crate) fn with_created_slot<T>(
+    pub(crate) fn with_created_slot<T>(&self, index: usize, func: impl FnOnce(&Slot) -> T) -> T {
+        let state = self.state.read().unwrap();
+        func(&state.created_slots[index])
+    }
+
+    pub(crate) fn with_created_slot_mut<T>(
         &self,
         index: usize,
         func: impl FnOnce(&mut Slot) -> T,
     ) -> T {
         let mut state = self.state.write().unwrap();
         func(&mut state.created_slots[index])
-    }
-
-    pub async fn wait_done(self: &Arc<Self>) {
-        loop {
-            match {
-                let state = self.state.read().unwrap();
-                if state.state_type == TaskStateType::Done {
-                    None
-                } else {
-                    Some(state.event.listen())
-                }
-            } {
-                Some(listener) => listener.await,
-                None => {
-                    return;
-                }
-            }
-        }
     }
 
     pub fn reset_executions(&self) {
@@ -820,15 +813,14 @@ impl PartialEq for Task {
 impl Eq for Task {}
 
 pub struct Invalidator {
-    task: Weak<Task>,
+    task: Arc<Task>,
     turbo_tasks: Arc<TurboTasks>,
 }
 
 impl Invalidator {
     pub fn invalidate(self) {
-        if let Some(task) = self.task.upgrade() {
-            task.invaldate(self.turbo_tasks);
-        }
+        let Invalidator { task, turbo_tasks } = self;
+        task.invaldate(&turbo_tasks);
     }
 }
 
@@ -897,7 +889,5 @@ pub(crate) fn match_previous_node_by_type<T: Any + ?Sized, F: FnOnce(&mut Slot)>
 
 pub enum TaskArgumentOptions {
     Unresolved,
-    Slot,
-    Resolved(&'static SlotValueType),
-    Trait(&'static TraitType),
+    Resolved,
 }

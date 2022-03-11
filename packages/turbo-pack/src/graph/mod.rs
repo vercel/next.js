@@ -47,7 +47,7 @@ impl AggregatedGraphRef {
             AggregatedGraph::Leaf(asset) => {
                 let mut refs = HashSet::new();
                 for reference in asset.clone().references().await?.assets.iter() {
-                    let reference = reference.clone().resolve_to_slot().await?;
+                    let reference = reference.clone().resolve().await?;
                     if asset != &reference {
                         refs.insert(AggregatedGraphRef::leaf(reference));
                     }
@@ -62,7 +62,7 @@ impl AggregatedGraphRef {
                     .collect::<Vec<_>>()
                     .into_iter()
                 {
-                    set.insert(item.resolve_to_slot().await?);
+                    set.insert(item.resolve().await?);
                 }
                 AggregatedGraphsSet { set }.into()
             }

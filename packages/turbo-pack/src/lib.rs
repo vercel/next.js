@@ -145,7 +145,7 @@ async fn emit_assets_recursive_avoid_cycle(
         let cycle_detection_value = cycle_detection.get().await?;
         let new_cycle_detection = cycle_detection.concat(asset.clone());
         for ref_asset in assets_set.assets.iter() {
-            let ref_asset = ref_asset.clone().resolve_to_slot().await?;
+            let ref_asset = ref_asset.clone().resolve().await?;
             if ref_asset == asset {
                 continue;
             }

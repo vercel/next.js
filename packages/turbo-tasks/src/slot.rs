@@ -1,17 +1,15 @@
+use anyhow::{anyhow, Error, Result};
+use lazy_static::__Deref;
 use std::{
     any::Any,
     fmt::{Debug, Display},
     hash::{Hash, Hasher},
     sync::{Arc, Weak},
 };
-
-use anyhow::{Error, Result};
-use lazy_static::__Deref;
 use weak_table::WeakHashSet;
 
 use crate::{
     error::SharedError,
-    task::TaskArgumentOptions,
     task_input::{SharedReference, TaskInput},
     viz::SlotSnapshot,
     SlotValueType, Task, TurboTasks,
@@ -242,18 +240,18 @@ impl Slot {
     fn read<T: Any + Send + Sync>(&mut self, reader: Arc<Task>) -> Result<SlotReadResult<T>> {
         self.dependent_tasks.insert(reader);
         match &self.content {
-            SlotContent::Empty => Ok(SlotReadResult::Final(SlotRefReadResult::nothing())),
+            SlotContent::Empty => Err(anyhow!("Slot it empty")),
             SlotContent::Error(err) => Err(err.clone().into()),
             SlotContent::SharedReference(_, data) => match Arc::downcast(data.clone()) {
                 Ok(data) => Ok(SlotReadResult::Final(SlotRefReadResult::shared_reference(
                     data,
                 ))),
-                Err(_) => Ok(SlotReadResult::Final(SlotRefReadResult::invalid_type())),
+                Err(_) => Err(anyhow!("Unexpected type in slot")),
             },
             SlotContent::Cloneable(_, data) => {
                 match Box::<dyn Any + Send + Sync>::downcast(data.as_any()) {
                     Ok(data) => Ok(SlotReadResult::Final(SlotRefReadResult::cloned_data(data))),
-                    Err(_) => Ok(SlotReadResult::Final(SlotRefReadResult::invalid_type())),
+                    Err(_) => Err(anyhow!("Unexpected type in slot")),
                 }
             }
             SlotContent::Link(slot_ref) => Ok(SlotReadResult::Link(slot_ref.clone())),
@@ -335,28 +333,23 @@ enum SlotReadResult<T: Any + Send + Sync> {
     Link(SlotRef),
 }
 
+/// The result of reading a ValueRef.
+/// Can be dereferenced to the concrete type.
+///
+/// This type is needed because the content of the slot can change
+/// concurrently, so we can't return a reference to the data directly.
+/// Instead the data or an [Arc] to the data is cloned out of the slot
+/// and hold by this type.
 pub struct SlotRefReadResult<T: Any + Send + Sync> {
     inner: SlotRefReadResultInner<T>,
 }
 
 pub enum SlotRefReadResultInner<T: Any + Send + Sync> {
-    Nothing,
     SharedReference(Arc<T>),
     ClonedData(Box<T>),
-    InvalidType,
 }
 
 impl<T: Any + Send + Sync> SlotRefReadResult<T> {
-    fn nothing() -> Self {
-        Self {
-            inner: SlotRefReadResultInner::Nothing,
-        }
-    }
-    fn invalid_type() -> Self {
-        Self {
-            inner: SlotRefReadResultInner::InvalidType,
-        }
-    }
     fn shared_reference(shared_ref: Arc<T>) -> Self {
         Self {
             inner: SlotRefReadResultInner::SharedReference(shared_ref),
@@ -374,14 +367,8 @@ impl<T: Any + Send + Sync> std::ops::Deref for SlotRefReadResult<T> {
 
     fn deref(&self) -> &Self::Target {
         match &self.inner {
-            SlotRefReadResultInner::Nothing => {
-                panic!("Nothing in slot")
-            }
             SlotRefReadResultInner::SharedReference(a) => a,
             SlotRefReadResultInner::ClonedData(a) => a,
-            SlotRefReadResultInner::InvalidType => {
-                panic!("Invalid type")
-            }
         }
     }
 }
@@ -407,17 +394,11 @@ trait SlotConsumer {
 pub enum SlotRef {
     TaskOutput(Arc<Task>),
     TaskCreated(Arc<Task>, usize),
-    // Nothing,
-    // SharedReference(&'static SlotValueType, Arc<dyn Any + Send + Sync>),
-    // CloneableData(&'static SlotValueType, Box<dyn CloneableData>),
 }
 
 impl SlotRef {
-    pub fn get_default_task_argument_options() -> TaskArgumentOptions {
-        TaskArgumentOptions::Unresolved
-    }
-
     pub async fn into_read<T: Any + Send + Sync>(self) -> Result<SlotRefReadResult<T>> {
+        TurboTasks::notify_scheduled_tasks();
         let mut current = self;
         loop {
             match match current {
@@ -432,7 +413,7 @@ impl SlotRef {
                 }
                 SlotRef::TaskCreated(ref task, index) => Task::with_current(|reader| {
                     reader.add_dependency(current.clone());
-                    task.with_created_slot(index, |slot| slot.read(reader.clone()))
+                    task.with_created_slot_mut(index, |slot| slot.read(reader.clone()))
                 })?,
             } {
                 SlotReadResult::Final(result) => {
@@ -443,11 +424,16 @@ impl SlotRef {
         }
     }
 
-    pub async fn resolve_to_slot(self) -> Result<SlotRef> {
+    pub async fn resolve(self) -> Result<SlotRef> {
         let mut current = self;
+        let mut notified = false;
         loop {
             current = match current {
                 SlotRef::TaskOutput(ref task) => {
+                    if !notified {
+                        TurboTasks::notify_scheduled_tasks();
+                        notified = true;
+                    }
                     task.with_done_output_slot(|slot| {
                         Task::with_current(|reader| {
                             reader.add_dependency(current.clone());
@@ -469,7 +455,7 @@ impl SlotRef {
                 });
             }
             SlotRef::TaskCreated(task, index) => {
-                task.with_created_slot(*index, |slot| {
+                task.with_created_slot_mut(*index, |slot| {
                     slot.dependent_tasks.remove(reader);
                 });
             }

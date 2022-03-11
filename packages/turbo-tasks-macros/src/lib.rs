@@ -16,7 +16,7 @@ use syn::{
     Attribute, Error, Expr, Field, Fields, FieldsNamed, FieldsUnnamed, FnArg, ImplItem,
     ImplItemMethod, Item, ItemEnum, ItemFn, ItemImpl, ItemStruct, ItemTrait, Pat, PatIdent,
     PatType, Path, PathArguments, PathSegment, Receiver, Result, ReturnType, Signature, Token,
-    TraitItem, TraitItemMethod, Type, TypePath, TypeTuple, AngleBracketedGenericArguments, GenericArgument, 
+    TraitItem, TraitItemMethod, Type, TypePath, TypeTuple, AngleBracketedGenericArguments, GenericArgument, TypeReference, 
 };
 
 fn get_ref_ident(ident: &Ident) -> Ident {
@@ -259,6 +259,15 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             };
         }
 
+        /// A reference to a value created by a turbo-tasks function.
+        /// The type can either point to a slot in a [turbo_tasks::Task] or to the output of
+        /// a [turbo_tasks::Task], which then transitively points to a slot again, or
+        /// to an fatal execution error.
+        /// 
+        /// `.resolve().await?` can be used to resolve it until it points to a slot.
+        /// This is useful when storing the reference somewhere or when comparing it with other references.
+        /// 
+        /// A reference is equal to another reference with it points to the same thing. No resolving is applied on comparision.
         #[derive(Clone, Debug, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq)]
         #vis struct #ref_ident {
             node: turbo_tasks::SlotRef,
@@ -273,12 +282,21 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 ) }
             }
 
+            /// Reads the value of the reference.
+            /// 
+            /// This is async and will rethrow any fatal error that happened during task execution.
+            /// 
+            /// Reading the value will make the current task depend on the slot and the task outputs.
+            /// This will lead to invalidation of the current task when one of these changes.
             pub async fn get(&self) -> turbo_tasks::Result<turbo_tasks::SlotRefReadResult<#ident>> {
                 self.node.clone().into_read::<#ident>().await
             }
 
-            pub async fn resolve_to_slot(self) -> turbo_tasks::Result<Self> {
-                Ok(Self { node: self.node.resolve_to_slot().await? })
+            /// Resolve the reference until it points to a slot directly.
+            /// 
+            /// This is async and will rethrow any fatal error that happened during task execution.
+            pub async fn resolve(self) -> turbo_tasks::Result<Self> {
+                Ok(Self { node: self.node.resolve().await? })
             }
        }
 
@@ -539,8 +557,8 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
         }
 
         impl #ref_ident {
-            pub async fn resolve_to_slot(self) -> turbo_tasks::Result<Self> {
-                Ok(Self { node: self.node.resolve_to_slot().await? })
+            pub async fn resolve(self) -> turbo_tasks::Result<Self> {
+                Ok(Self { node: self.node.resolve().await? })
             }
 
             #(#trait_fns)*
@@ -1084,8 +1102,9 @@ fn gen_native_function_code(
 ) -> (TokenStream2, Vec<TokenStream2>) {
     let mut task_argument_options = Vec::new();
     let mut input_extraction = Vec::new();
+    let mut input_convert = Vec::new();
     let mut input_clone = Vec::new();
-    let mut input_from_node = Vec::new();
+    let mut input_final = Vec::new();
     let mut input_arguments = Vec::new();
     let mut input_slot_ref_arguments = Vec::new();
 
@@ -1099,26 +1118,27 @@ fn gen_native_function_code(
                 }
                 let self_ref_type = self_ref_type.unwrap();
                 task_argument_options.push(quote! {
-                    turbo_tasks::TaskArgumentOptions::Slot
+                    turbo_tasks::TaskArgumentOptions::Resolved
                 });
                 input_extraction.push(quote! {
                     let __self = __iter
                         .next()
                         .ok_or_else(|| anyhow::anyhow!(concat!(#name_code, "() self argument missing")))?;
                 });
+                input_convert.push(quote! {
+                    let __self = std::convert::TryInto::<#self_ref_type>::try_into(__self)?;
+                });
                 input_clone.push(quote! {
                     let __self = std::clone::Clone::clone(&__self);
                 });
                 if self_is_ref_type {
-                    input_from_node.push(quote! {
-                        let __self = std::convert::TryInto::<#self_ref_type>::try_into(&__self)?;
-                    });
+                    input_final.push(quote! {});
                     input_arguments.push(quote! {
                         __self
                     });
                 } else {
-                    input_from_node.push(quote! {
-                        let __self = std::convert::TryInto::<#self_ref_type>::try_into(&__self)?.await?;
+                    input_final.push(quote! {
+                        let __self = __self.await?;
                     });
                     input_arguments.push(quote! {
                         &*__self
@@ -1128,24 +1148,47 @@ fn gen_native_function_code(
                     self.into()
                 });
             }
-            FnArg::Typed(PatType { pat, .. }) => {
+            FnArg::Typed(PatType { pat, ty, .. }) => {
                 task_argument_options.push(quote! {
-                    turbo_tasks::TaskArgumentOptions::Slot
+                    turbo_tasks::TaskArgumentOptions::Resolved
                 });
                 input_extraction.push(quote! {
                     let #pat = __iter
                         .next()
                         .ok_or_else(|| anyhow::anyhow!(concat!(#name_code, "() argument ", stringify!(#index), " (", stringify!(#pat), ") missing")))?;
                 });
-                input_clone.push(quote! {
-                    let #pat = std::clone::Clone::clone(&#pat);
+                input_final.push(quote! {
                 });
-                input_from_node.push(quote! {
-                    let #pat = std::convert::TryFrom::<&turbo_tasks::TaskInput>::try_from(&#pat)?;
-                });
-                input_arguments.push(quote! {
-                    #pat
-                });
+                if let Type::Reference(TypeReference { and_token, lifetime: _, mutability, elem }) = &**ty {
+                    let ty = if let Type::Path(TypePath { qself: None, path }) = &**elem {
+                        if path.is_ident("str") {
+                            quote! { String }
+                        } else {
+                            quote! { #elem }
+                        }
+                    } else {
+                        quote! { #elem }
+                    };
+                    input_convert.push(quote! {
+                        let #pat = std::convert::TryInto::<#ty>::try_into(#pat)?;
+                    });
+                    input_clone.push(quote! {
+                        let #pat = std::clone::Clone::clone(&#pat);
+                    });
+                    input_arguments.push(quote! {
+                        #and_token #mutability #pat
+                    });
+                } else {
+                    input_convert.push(quote! {
+                        let #pat = std::convert::TryInto::<#ty>::try_into(#pat)?;
+                    });
+                    input_clone.push(quote! {
+                        let #pat = std::clone::Clone::clone(&#pat);
+                    });
+                    input_arguments.push(quote! {
+                        #pat
+                    });
+                }
                 input_slot_ref_arguments.push(quote! {
                     #pat.into()
                 });
@@ -1173,16 +1216,17 @@ fn gen_native_function_code(
     (
         quote! {
             lazy_static::lazy_static! {
-                static ref #function_ident: turbo_tasks::NativeFunction = turbo_tasks::NativeFunction::new(#name_code.to_string(), || vec![#(#task_argument_options),*], |inputs| {
-                    let mut __iter = inputs.into_iter();
+                static ref #function_ident: turbo_tasks::NativeFunction = turbo_tasks::NativeFunction::new(#name_code.to_string(), vec![#(#task_argument_options),*], |inputs| {
+                    let mut __iter = inputs.iter();
                     #(#input_extraction)*
                     if __iter.next().is_some() {
                         return Err(anyhow::anyhow!(concat!(#name_code, "() called with too many arguments")));
                     }
+                    #(#input_convert)*
                     Ok(Box::new(move || {
                         #(#input_clone)*
                         Box::pin(async move {
-                            #(#input_from_node)*
+                            #(#input_final)*
                             #original_call_code
                         })
                     }))

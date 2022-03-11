@@ -4,6 +4,7 @@ use crate::{slot::Slot, SlotRef};
 
 pub use crate::slot::SlotRefReadResult;
 
+/// Internally used by turbo-tasks-macros
 pub fn match_previous_node_by_key<
     T: Any + ?Sized,
     K: Hash + PartialEq + Eq + Send + Sync + 'static,
@@ -15,6 +16,7 @@ pub fn match_previous_node_by_key<
     crate::task::match_previous_node_by_key::<T, K, F>(key, functor)
 }
 
+/// Internally used by turbo-tasks-macros
 pub fn match_previous_node_by_type<T: Any + ?Sized, F: FnOnce(&mut Slot)>(functor: F) -> SlotRef {
     crate::task::match_previous_node_by_type::<T, F>(functor)
 }

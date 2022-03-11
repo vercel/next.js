@@ -29,6 +29,7 @@ impl TraceSlotRefsContext {
 /// the referenced Slots/Tasks allows pushing them earlier.
 ///
 /// `#[derive(TraceSlotRefs)]` is available.
+/// `#[trace_ignore]` can be used on fields to skip tracing for them.
 pub trait TraceSlotRefs {
     fn trace_node_refs(&self, context: &mut TraceSlotRefsContext);
     fn get_node_refs(&self) -> Vec<SlotRef> {
