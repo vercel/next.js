@@ -54,6 +54,15 @@ describe('root dir', () => {
     expect($('p').text()).toBe('hello from root/dashboard/integrations')
   })
 
+  it('should not include parent document when new root', async () => {
+    const html = await renderViaHTTP(next.url, '/dashboard/integrations')
+    const $ = cheerio.load(html)
+
+    // Root has to provide it's own document
+    expect($('html').hasClass('this-is-the-document-html')).toBeFalsy()
+    expect($('body').hasClass('this-is-the-document-body')).toBeFalsy()
+  })
+
   it('should not include parent when not in directory', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard/changelog')
     const $ = cheerio.load(html)
@@ -79,5 +88,13 @@ describe('root dir', () => {
     expect($('p').text()).toBe(
       'hello from root/dashboard/deployments/[id]. ID is: 123'
     )
+  })
+
+  it('should include document html and body', async () => {
+    const html = await renderViaHTTP(next.url, '/dashboard')
+    const $ = cheerio.load(html)
+
+    expect($('html').hasClass('this-is-the-document-html')).toBeTruthy()
+    expect($('body').hasClass('this-is-the-document-body')).toBeTruthy()
   })
 })
