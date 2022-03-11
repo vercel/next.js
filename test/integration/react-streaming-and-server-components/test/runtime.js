@@ -36,7 +36,7 @@ export default async function runtime(context, { runtime, env }) {
         '/runtime',
         '/runtime-rsc',
       ]) {
-        expect(key in pagesManifest)
+        expect(key in pagesManifest).toBeTruthy()
       }
     })
   }
