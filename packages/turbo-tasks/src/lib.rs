@@ -19,7 +19,7 @@ pub use anyhow::{Error, Result};
 pub use manager::{dynamic_call, trait_call, TurboTasks};
 pub use native_function::{NativeFunction, NativeFunctionRef};
 pub use nothing::{Nothing, NothingRef};
-pub use slot::{SlotRef, SlotRefReadResult, WeakSlotRef};
+pub use slot::{SlotRef, SlotRefReadResult};
 pub use slot_value_type::{SlotValueType, TraitMethod, TraitType};
 pub use task::{Invalidator, Task, TaskArgumentOptions};
 pub use task_input::TaskInput;

@@ -1,5 +1,5 @@
 use crate::{
-    slot::{Slot, SlotRef, WeakSlotRef},
+    slot::{Slot, SlotRef},
     task_input::TaskInput,
     viz::TaskSnapshot,
     NativeFunction, SlotValueType, TraitType, TurboTasks,
@@ -23,8 +23,6 @@ use std::{
     },
     time::Instant,
 };
-use weak_table::WeakHashSet;
-
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<SlotRef>> + Send>>;
 pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 
@@ -84,7 +82,7 @@ struct TaskExecutionData {
     /// dependencies are cleared when entering Dirty state
     ///
     ///
-    dependencies: WeakHashSet<WeakSlotRef>,
+    dependencies: HashSet<SlotRef>,
     previous_nodes: PreviousNodesMap,
 }
 

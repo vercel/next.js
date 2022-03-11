@@ -4,10 +4,10 @@ use std::{
     time::Duration,
 };
 
-use crate::{SlotRef, WeakSlotRef};
+use crate::SlotRef;
 
 pub struct TraceSlotRefsContext {
-    list: Vec<WeakSlotRef>,
+    list: Vec<SlotRef>,
 }
 
 impl TraceSlotRefsContext {
@@ -15,14 +15,23 @@ impl TraceSlotRefsContext {
         Self { list: Vec::new() }
     }
 
-    pub(crate) fn into_vec(self) -> Vec<WeakSlotRef> {
+    pub(crate) fn into_vec(self) -> Vec<SlotRef> {
         self.list
     }
 }
 
+/// Trait that allows to walk data to find all [SlotRef]s contained.
+///
+/// This is important for Garbagge Collection to mark all Slots and
+/// therefore Tasks that are still in use.
+///
+/// It can also be used to optimize transferring of Tasks, where knowning
+/// the referenced Slots/Tasks allows pushing them earlier.
+///
+/// `#[derive(TraceSlotRefs)]` is available.
 pub trait TraceSlotRefs {
     fn trace_node_refs(&self, context: &mut TraceSlotRefsContext);
-    fn get_node_refs(&self) -> Vec<WeakSlotRef> {
+    fn get_node_refs(&self) -> Vec<SlotRef> {
         let mut context = TraceSlotRefsContext::new();
         self.trace_node_refs(&mut context);
         context.into_vec()
@@ -113,13 +122,7 @@ impl<T: TraceSlotRefs + ?Sized> TraceSlotRefs for Arc<T> {
 
 impl TraceSlotRefs for SlotRef {
     fn trace_node_refs(&self, context: &mut TraceSlotRefsContext) {
-        context.list.push(self.downgrade());
-    }
-}
-
-impl TraceSlotRefs for WeakSlotRef {
-    fn trace_node_refs(&self, context: &mut TraceSlotRefsContext) {
-        context.list.push(self.clone())
+        context.list.push(self.clone());
     }
 }
 
