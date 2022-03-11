@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
 };
 
 use anyhow::{anyhow, Result};
@@ -10,7 +10,10 @@ use turbo_tasks_fs::{
     DirectoryContent, FileContent, FileJsonContent, FileJsonContentRef, FileSystemPathRef,
 };
 
-use crate::{asset::AssetRef, resolve::options::ConditionValue, source_asset::SourceAssetRef};
+use crate::{
+    asset::AssetRef, reference::AssetReferencesSetRef, resolve::options::ConditionValue,
+    source_asset::SourceAssetRef,
+};
 
 use self::{
     exports::{ExportsField, ExportsValue},
@@ -26,9 +29,12 @@ pub mod options;
 pub mod parse;
 
 #[turbo_tasks::value(shared)]
-#[derive(Hash, PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ResolveResult {
-    Module(AssetRef),
+    Nested(AssetReferencesSetRef),
+    Single(AssetRef, Option<AssetReferencesSetRef>),
+    Keyed(HashMap<String, AssetRef>, Option<AssetReferencesSetRef>),
+    Alternatives(HashSet<AssetRef>, Option<AssetReferencesSetRef>),
     Unresolveable,
 }
 
@@ -181,9 +187,11 @@ pub async fn resolve(
                 if let Some(new_path) = join_path(&context.path, &req) {
                     let fs_path = FileSystemPathRef::new_normalized(context.fs.clone(), new_path);
                     if exists(fs_path.clone()).await? {
-                        return Ok(
-                            ResolveResult::Module(SourceAssetRef::new(fs_path).into()).into()
-                        );
+                        return Ok(ResolveResult::Single(
+                            SourceAssetRef::new(fs_path).into(),
+                            None,
+                        )
+                        .into());
                     }
                 }
             }

@@ -1,5 +1,7 @@
 use turbo_tasks_fs::{FileContentRef, FileSystemPathRef};
 
+use crate::reference::AssetReferencesSetRef;
+
 #[turbo_tasks::value(shared)]
 #[derive(Hash, PartialEq, Eq)]
 pub struct AssetsSet {
@@ -17,5 +19,5 @@ impl AssetsSetRef {
 pub trait Asset {
     fn path(&self) -> FileSystemPathRef;
     fn content(&self) -> FileContentRef;
-    fn references(&self) -> AssetsSetRef;
+    fn references(&self) -> AssetReferencesSetRef;
 }

@@ -14,6 +14,7 @@ use graph::{aggregate, AggregatedGraphNodeContent, AggregatedGraphRef};
 use module_options::{
     module_options, ModuleRuleCondition, ModuleRuleEffect, ModuleRuleEffectKey, ModuleType,
 };
+use reference::all_referenced_assets;
 use turbo_tasks::NothingRef;
 
 pub mod asset;
@@ -98,7 +99,7 @@ async fn emit_aggregated_assets(aggregated: AggregatedGraphRef) -> Result<()> {
 
 #[turbo_tasks::function(cycle)]
 async fn emit_assets_recursive(asset: AssetRef) -> Result<()> {
-    let assets_set = asset.references().await?;
+    let assets_set = all_referenced_assets(asset.clone()).await?;
     emit_asset(asset);
     for asset in assets_set.assets.iter() {
         emit_assets_recursive(asset.clone());
@@ -138,7 +139,7 @@ async fn emit_assets_recursive_avoid_cycle(
     asset: AssetRef,
     cycle_detection: CycleDetectionRef,
 ) -> Result<()> {
-    let assets_set = asset.references().await?;
+    let assets_set = all_referenced_assets(asset.clone()).await?;
     emit_asset(asset.clone());
     if !assets_set.assets.is_empty() {
         let cycle_detection_value = cycle_detection.get().await?;
@@ -181,7 +182,7 @@ async fn compute_back_references(aggregated: AggregatedGraphRef) -> Result<Refer
     Ok(match &*aggregated.content().await? {
         AggregatedGraphNodeContent::Asset(asset) => {
             let mut referenced_by = HashMap::new();
-            for reference in asset.clone().references().await?.assets.iter() {
+            for reference in all_referenced_assets(asset.clone()).await?.assets.iter() {
                 referenced_by.insert(reference.clone(), [asset.clone()].into_iter().collect());
             }
             ReferencesList { referenced_by }.into()
@@ -250,13 +251,13 @@ async fn print_references(list: ReferencesListRef) -> Result<()> {
 #[turbo_tasks::function]
 pub async fn all_assets(asset: AssetRef) -> Result<AssetsSetRef> {
     let mut queue = VecDeque::new();
-    queue.push_back(asset.references());
+    queue.push_back(all_referenced_assets(asset.clone()));
     let mut assets = HashSet::new();
     assets.insert(asset);
     while let Some(references) = queue.pop_front() {
         for asset in references.await?.assets.iter() {
             if assets.insert(asset.clone()) {
-                queue.push_back(asset.references());
+                queue.push_back(all_referenced_assets(asset.clone()));
             }
         }
     }

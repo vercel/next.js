@@ -67,6 +67,14 @@ ignore!(
 );
 ignore!(String, Duration);
 
+impl<T: TraceSlotRefs> TraceSlotRefs for Option<T> {
+    fn trace_node_refs(&self, context: &mut TraceSlotRefsContext) {
+        if let Some(item) = self {
+            TraceSlotRefs::trace_node_refs(item, context);
+        }
+    }
+}
+
 impl<T: TraceSlotRefs> TraceSlotRefs for Vec<T> {
     fn trace_node_refs(&self, context: &mut TraceSlotRefsContext) {
         for item in self.iter() {

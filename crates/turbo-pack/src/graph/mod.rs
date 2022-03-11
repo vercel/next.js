@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 
-use crate::asset::AssetRef;
+use crate::{asset::AssetRef, reference::all_referenced_assets};
 
 #[turbo_tasks::value(shared)]
 #[derive(PartialEq, Eq)]
@@ -46,7 +46,7 @@ impl AggregatedGraphRef {
         Ok(match &*self.await? {
             AggregatedGraph::Leaf(asset) => {
                 let mut refs = HashSet::new();
-                for reference in asset.clone().references().await?.assets.iter() {
+                for reference in all_referenced_assets(asset.clone()).await?.assets.iter() {
                     let reference = reference.clone().resolve().await?;
                     if asset != &reference {
                         refs.insert(AggregatedGraphRef::leaf(reference));
@@ -72,7 +72,7 @@ impl AggregatedGraphRef {
     async fn cost(self) -> Result<AggregationCostRef> {
         Ok(match &*self.await? {
             AggregatedGraph::Leaf(asset) => {
-                AggregationCost(asset.clone().references().await?.assets.len()).into()
+                AggregationCost(all_referenced_assets(asset.clone()).await?.assets.len()).into()
             }
             AggregatedGraph::Node { references, .. } => AggregationCost(references.len()).into(),
         })

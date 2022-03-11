@@ -1,4 +1,7 @@
-use crate::asset::{Asset, AssetRef, AssetsSetRef};
+use crate::{
+    asset::{Asset, AssetRef},
+    reference::AssetReferencesSetRef,
+};
 use turbo_tasks_fs::{FileContentRef, FileSystemPathRef};
 
 #[turbo_tasks::value(Asset)]
@@ -22,7 +25,7 @@ impl Asset for SourceAsset {
     fn content(&self) -> FileContentRef {
         self.path.clone().read()
     }
-    fn references(&self) -> AssetsSetRef {
-        AssetsSetRef::empty()
+    fn references(&self) -> AssetReferencesSetRef {
+        AssetReferencesSetRef::empty()
     }
 }

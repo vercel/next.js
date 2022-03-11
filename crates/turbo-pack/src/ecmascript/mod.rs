@@ -2,8 +2,8 @@ mod parse;
 mod references;
 
 use crate::{
-    asset::{Asset, AssetRef, AssetsSet, AssetsSetRef},
-    resolve::ResolveResult,
+    asset::{Asset, AssetRef},
+    reference::AssetReferencesSetRef,
 };
 use anyhow::Result;
 use turbo_tasks_fs::{FileContentRef, FileSystemPathRef};
@@ -31,17 +31,7 @@ impl Asset for ModuleAsset {
     fn content(&self) -> FileContentRef {
         self.source.clone().content()
     }
-    async fn references(&self) -> Result<AssetsSetRef> {
-        let references_set = module_references(self.source.clone()).await?;
-        let mut assets = Vec::new();
-        for reference in references_set.references.iter() {
-            let resolve_result = reference
-                .clone()
-                .resolve_reference(ModuleAssetRef::new(self.source.clone()).into());
-            if let ResolveResult::Module(module) = &*resolve_result.await? {
-                assets.push(module.clone());
-            }
-        }
-        Ok(AssetsSet { assets }.into())
+    async fn references(&self) -> AssetReferencesSetRef {
+        module_references(self.source.clone())
     }
 }
