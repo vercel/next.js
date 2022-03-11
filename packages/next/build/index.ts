@@ -960,15 +960,16 @@ export default async function build(
             let ssgPageRoutes: string[] | null = null
             let isMiddlewareRoute = !!page.match(MIDDLEWARE_ROUTE)
 
-            const pagePath = pagePaths.find((path) =>
-              path.startsWith(actualPage + '.')
+            const pagePath = pagePaths.find((_path) =>
+              _path.startsWith(actualPage + '.')
             )
-            const pageRuntime = pagePath
-              ? await getPageRuntime(
-                  join(pagesDir, pagePath),
-                  config.experimental.runtime
-                )
-              : null
+            const pageRuntime =
+              hasConcurrentFeatures && pagePath
+                ? await getPageRuntime(
+                    join(pagesDir, pagePath),
+                    config.experimental.runtime
+                  )
+                : null
 
             if (
               !isMiddlewareRoute &&
