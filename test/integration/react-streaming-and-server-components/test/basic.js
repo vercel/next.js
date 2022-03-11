@@ -37,13 +37,30 @@ export default async function basic(context, { env }) {
   })
 
   it('should render 500 error correctly', async () => {
-    const path500HTML = await renderViaHTTP(context.appPort, '/err')
+    const errPaths = ['/err', '/err/render']
+    const promises = errPaths.map(async (pagePath) => {
+      const html = await renderViaHTTP(context.appPort, pagePath)
+      if (env === 'dev') {
+        // In dev mode it should show the error popup.
+        expect(html).toContain('Error: oops')
+      } else {
+        expect(html).toContain('custom-500-page')
+      }
+    })
+    await Promise.all(promises)
+  })
 
-    if (env === 'dev') {
-      // In dev mode it should show the error popup.
-      expect(path500HTML).toContain('Error: oops')
-    } else {
-      expect(path500HTML).toContain('custom-500-page')
-    }
+  it('should render fallback if error raised from suspense during streaming', async () => {
+    const html = await renderViaHTTP(context.appPort, '/err/suspense')
+    expect(html).toContain('error-fallback')
+  })
+
+  it('should support React.lazy and dynamic imports', async () => {
+    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
+    expect(html).toContain('foo.client')
+
+    const browser = await webdriver(context.appPort, '/dynamic-imports')
+    const content = await browser.eval(`window.document.body.innerText`)
+    expect(content).toMatchInlineSnapshot('"foo.client"')
   })
 }

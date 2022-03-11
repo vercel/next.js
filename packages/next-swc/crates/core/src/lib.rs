@@ -39,11 +39,9 @@ use swc::config::ModuleConfig;
 use swc_common::{self, chain, pass::Optional};
 use swc_common::{SourceFile, SourceMap};
 use swc_ecmascript::ast::EsVersion;
+use swc_ecmascript::parser::parse_file_as_module;
 use swc_ecmascript::transforms::pass::noop;
-use swc_ecmascript::{
-    parser::{lexer::Lexer, Parser, StringInput},
-    visit::Fold,
-};
+use swc_ecmascript::visit::Fold;
 
 pub mod amp_attributes;
 mod auto_cjs;
@@ -178,9 +176,8 @@ impl TransformOptions {
             self.swc.config.module.is_none() && fm.src.contains("module.exports") && {
                 let syntax = self.swc.config.jsc.syntax.unwrap_or_default();
                 let target = self.swc.config.jsc.target.unwrap_or_else(EsVersion::latest);
-                let lexer = Lexer::new(syntax, target, StringInput::from(&*fm), None);
-                let mut p = Parser::new_from(lexer);
-                p.parse_module()
+
+                parse_file_as_module(fm, syntax, target, None, &mut vec![])
                     .map(|m| contains_cjs(&m))
                     .unwrap_or_default()
             };

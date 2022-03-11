@@ -131,7 +131,6 @@ export default class NextWebServer extends BaseServer {
       query,
       {
         ...renderOpts,
-        supportsDynamicHTML: true,
         disableOptimizedLoading: true,
         runtime: 'edge',
       }
@@ -175,7 +174,9 @@ export default class NextWebServer extends BaseServer {
         // Not implemented: on/removeListener
       } as any)
     } else {
-      res.body(await options.result.toUnchunkedString())
+      // TODO: generate Etag
+      const payload = await options.result.toUnchunkedString()
+      res.body(payload)
     }
 
     res.send()
