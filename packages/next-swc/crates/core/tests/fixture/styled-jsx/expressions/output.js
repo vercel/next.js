@@ -75,9 +75,9 @@ export default (({ display  })=><div className={"jsx-1ada4ad4dab7822f " + _JSXSt
 
     <_JSXStyle id={"4e4be2da62837c76"}>{`@media(min-width:${mediumScreen}){p.jsx-1ada4ad4dab7822f{color:green}p.jsx-1ada4ad4dab7822f{color:${`red`}}}p.jsx-1ada4ad4dab7822f{color:red}`}</_JSXStyle>
 
-    <_JSXStyle id={"27040f0829fb73d4"}>{`p.jsx-1ada4ad4dab7822f{-webkit-animation-duration:${animationDuration};animation-duration:${animationDuration}}`}</_JSXStyle>
+    <_JSXStyle id={"27040f0829fb73d4"}>{`p.jsx-1ada4ad4dab7822f{-webkit-animation-duration:${animationDuration};-moz-animation-duration:${animationDuration};-o-animation-duration:${animationDuration};animation-duration:${animationDuration}}`}</_JSXStyle>
 
-    <_JSXStyle id={"3e72d735e703a530"}>{`p.jsx-1ada4ad4dab7822f{-webkit-animation:${animationDuration} forwards ${animationName};animation:${animationDuration} forwards ${animationName}}div.jsx-1ada4ad4dab7822f{background:${color}}`}</_JSXStyle>
+    <_JSXStyle id={"3e72d735e703a530"}>{`p.jsx-1ada4ad4dab7822f{-webkit-animation:${animationDuration} forwards ${animationName};-moz-animation:${animationDuration} forwards ${animationName};-o-animation:${animationDuration} forwards ${animationName};animation:${animationDuration} forwards ${animationName}}div.jsx-1ada4ad4dab7822f{background:${color}}`}</_JSXStyle>
 
 
 
