@@ -78,8 +78,36 @@ describe('Without global runtime configuration', () => {
     })
   })
 
+  it('should build /node-ssr as a dynamic page with the nodejs runtime', async () => {
+    await testRoute(context.appPort, '/node-ssr', {
+      isStatic: false,
+      isEdge: false,
+    })
+  })
+
+  it('should build /node-ssg as a static page with the nodejs runtime', async () => {
+    await testRoute(context.appPort, '/node-ssg', {
+      isStatic: true,
+      isEdge: false,
+    })
+  })
+
   it('should build /node-rsc as a static page with the nodejs runtime', async () => {
     await testRoute(context.appPort, '/node-rsc', {
+      isStatic: true,
+      isEdge: false,
+    })
+  })
+
+  it('should build /node-rsc-ssr as a dynamic page with the nodejs runtime', async () => {
+    await testRoute(context.appPort, '/node-rsc-ssr', {
+      isStatic: false,
+      isEdge: false,
+    })
+  })
+
+  it('should build /node-rsc-ssg as a static page with the nodejs runtime', async () => {
+    await testRoute(context.appPort, '/node-rsc-ssg', {
       isStatic: true,
       isEdge: false,
     })
