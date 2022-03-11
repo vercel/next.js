@@ -431,7 +431,6 @@ export async function renderToHTML(
     dev = false,
     ampPath = '',
     App,
-    Document,
     pageConfig = {},
     buildManifest,
     fontManifest,
@@ -457,6 +456,7 @@ export async function renderToHTML(
 
   const hasConcurrentFeatures = !!runtime
 
+  let Document = renderOpts.Document
   const OriginalComponent = renderOpts.Component
 
   // We don't need to opt-into the flight inlining logic if the page isn't a RSC.
@@ -1234,14 +1234,28 @@ export async function renderToHTML(
    */
   const generateStaticHTML = supportsDynamicHTML !== true
   const renderDocument = async () => {
+    // For `Document`, there are two cases that we don't support:
+    // 1. Using `Document.getInitialProps` in the Edge runtime.
+    // 2. Using the class component `Document` with concurrent features.
+
+    const isBuiltinDocument = !!(Document as any).__next_internal_document
+
     if (runtime === 'edge' && Document.getInitialProps) {
-      // In the Edge runtime, Document.getInitialProps isn't supported.
-      throw new Error(
-        '`getInitialProps` in Document component is not supported with the Edge Runtime.'
-      )
+      // In the Edge runtime, `Document.getInitialProps` isn't supported.
+      // We throw an error here if it's customized.
+      if (!isBuiltinDocument) {
+        throw new Error(
+          '`getInitialProps` in Document component is not supported with the Edge Runtime.'
+        )
+      }
     }
 
-    if (!runtime && Document.getInitialProps) {
+    // We make it a function component to enable streaming.
+    if (hasConcurrentFeatures && isBuiltinDocument) {
+      Document = (Document as any).render
+    }
+
+    if (!hasConcurrentFeatures && Document.getInitialProps) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
       ): RenderPageResult | Promise<RenderPageResult> => {
