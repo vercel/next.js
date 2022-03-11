@@ -186,7 +186,7 @@
     "cookie": "0.4.1",
     "cross-spawn": "6.0.5",
     "crypto-browserify": "3.12.0",
-    "cssnano-simple": "3.0.0",
+    "cssnano-simple": "3.0.1",
     "debug": "4.1.1",
     "devalue": "2.0.1",
     "domain-browser": "4.19.0",
