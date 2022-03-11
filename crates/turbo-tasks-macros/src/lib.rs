@@ -84,6 +84,8 @@ enum IntoMode {
     None,
     New,
     Shared,
+
+    // TODO remove that
     Value
 }
 
@@ -148,6 +150,23 @@ impl Parse for ValueArguments {
     }
 }
 
+/// Creates a ValueRef struct for a `struct` or `enum` that represent
+/// that type placed into a slot in a [Task].
+/// 
+/// That ValueRef object can be `.await?`ed to get a readonly reference
+/// to the original value.
+/// 
+/// `into` argument (`#[turbo_tasks::value(into: xxx)]`)
+/// 
+/// When provided the ValueRef implement `From<Value>` to allow to convert
+/// a Value to a ValueRef by placing it into a slot in a Task.
+/// 
+/// `into: new`: Always overrides the value in the slot. Invalidating all dependent tasks.
+/// 
+/// `into: shared`: Compares with the existing value in the slot, before overriding it.
+/// Requires Value to implement [Eq].
+/// 
+/// TODO: add more documentation: presets, traits
 #[allow_internal_unstable(into_future, trivial_bounds)]
 #[proc_macro_attribute]
 pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
