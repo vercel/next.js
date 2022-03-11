@@ -949,9 +949,7 @@ export default class DevServer extends Server {
     // Build the error page to ensure the fallback is built too.
     // TODO: See if this can be moved into hotReloader or removed.
     await this.hotReloader!.ensurePage('/_error')
-    return await loadDefaultErrorComponents(this.distDir, {
-      hasConcurrentFeatures: !!this.renderOpts.runtime,
-    })
+    return await loadDefaultErrorComponents(this.distDir)
   }
 
   protected setImmutableAssetCacheControl(res: BaseNextResponse): void {

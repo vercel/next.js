@@ -171,7 +171,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
     return ctx.defaultGetInitialProps(ctx)
   }
 
-  render() {
+  static render() {
     return (
       <Html>
         <Head />

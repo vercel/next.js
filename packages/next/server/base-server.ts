@@ -1176,6 +1176,10 @@ export default abstract class Server {
 
     if (opts.supportsDynamicHTML === true) {
       const isBotRequest = isBot(req.headers['user-agent'] || '')
+      const isSupportedDocument =
+        (components.Document as any).__next_internal_document ||
+        typeof components.Document?.getInitialProps !== 'function'
+
       // Disable dynamic HTML in cases that we know it won't be generated,
       // so that we can continue generating a cache key when possible.
       opts.supportsDynamicHTML =
@@ -1183,7 +1187,7 @@ export default abstract class Server {
         !isLikeServerless &&
         !isBotRequest &&
         !query.amp &&
-        typeof components.Document?.getInitialProps !== 'function'
+        isSupportedDocument
     }
 
     const defaultLocale = isSSG
