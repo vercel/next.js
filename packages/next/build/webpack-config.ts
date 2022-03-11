@@ -1342,8 +1342,8 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
           config.experimental.optimizeCss && !dev
         ),
-        'process.env.__NEXT_OPTIMIZE_SCRIPTS': JSON.stringify(
-          config.experimental.optimizeScripts && !dev
+        'process.env.__NEXT_SCRIPT_WORKERS': JSON.stringify(
+          config.experimental.nextScriptWorkers && !dev
         ),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
@@ -1614,7 +1614,7 @@ export default async function getBaseWebpackConfig(
     reactMode: config.experimental.reactMode,
     optimizeFonts: config.optimizeFonts,
     optimizeCss: config.experimental.optimizeCss,
-    optimizeScripts: config.experimental.optimizeScripts,
+    nextScriptWorkers: config.experimental.nextScriptWorkers,
     scrollRestoration: config.experimental.scrollRestoration,
     basePath: config.basePath,
     pageEnv: config.experimental.pageEnv,

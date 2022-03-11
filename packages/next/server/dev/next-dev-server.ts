@@ -394,7 +394,7 @@ export default class DevServer extends Server {
     await this.startWatcher()
     this.setDevReady!()
 
-    if (this.nextConfig.experimental.optimizeScripts) {
+    if (this.nextConfig.experimental.nextScriptWorkers) {
       await verifyPartytownSetup(
         this.dir,
         pathJoin(this.distDir, CLIENT_STATIC_FILES_PATH)

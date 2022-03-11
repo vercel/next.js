@@ -155,7 +155,7 @@ export default abstract class Server {
     fontManifest?: FontManifest
     disableOptimizedLoading?: boolean
     optimizeCss: any
-    optimizeScripts: any
+    nextScriptWorkers: any
     locale?: string
     locales?: string[]
     defaultLocale?: string
@@ -316,7 +316,7 @@ export default abstract class Server {
           ? this.getFontManifest()
           : undefined,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
-      optimizeScripts: this.nextConfig.experimental.optimizeScripts,
+      nextScriptWorkers: this.nextConfig.experimental.nextScriptWorkers,
       disableOptimizedLoading: this.nextConfig.experimental.runtime
         ? true
         : this.nextConfig.experimental.disableOptimizedLoading,
@@ -1333,7 +1333,7 @@ export default abstract class Server {
           locales,
           defaultLocale,
           optimizeCss: this.renderOpts.optimizeCss,
-          optimizeScripts: this.renderOpts.optimizeScripts,
+          nextScriptWorkers: this.renderOpts.nextScriptWorkers,
           distDir: this.distDir,
           fontManifest: this.renderOpts.fontManifest,
           domainLocales: this.renderOpts.domainLocales,

@@ -192,7 +192,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           defaultLocale,
           domainLocales: i18n?.domains,
           optimizeCss: process.env.__NEXT_OPTIMIZE_CSS,
-          optimizeScripts: process.env.__NEXT_OPTIMIZE_SCRIPTS,
+          nextScriptWorkers: process.env.__NEXT_SCRIPT_WORKERS,
           crossOrigin: process.env.__NEXT_CROSS_ORIGIN,
         },
         options

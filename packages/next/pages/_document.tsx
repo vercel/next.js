@@ -73,9 +73,9 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
 }
 
 function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
-  const { scriptLoader, crossOrigin, optimizeScripts } = context
+  const { assetPrefix, scriptLoader, crossOrigin, nextScriptWorkers } = context
 
-  if (!optimizeScripts) return null
+  if (!nextScriptWorkers) return null
 
   try {
     let {
@@ -101,7 +101,7 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
             dangerouslySetInnerHTML={{
               __html: `
             partytown = {
-              lib: "/_next/static/~partytown/"
+              lib: "${assetPrefix}/_next/static/~partytown/"
             };
           `,
             }}
@@ -128,7 +128,10 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
         })}
       </>
     )
-  } catch {
+  } catch (err) {
+    console.warn(
+      `Warning: Partytown could not be instantiated in your application due to an error. ${err}`
+    )
     return null
   }
 }

@@ -111,8 +111,8 @@ export default class NextNodeServer extends BaseServer {
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
-    if (this.renderOpts.optimizeScripts) {
-      process.env.__NEXT_OPTIMIZE_SCRIPTS = JSON.stringify(true)
+    if (this.renderOpts.nextScriptWorkers) {
+      process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
 
     if (!this.minimalMode) {

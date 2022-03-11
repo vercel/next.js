@@ -86,7 +86,7 @@ export interface ExperimentalConfig {
   workerThreads?: boolean
   pageEnv?: boolean
   optimizeCss?: boolean
-  optimizeScripts?: boolean
+  nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
   conformance?: boolean
@@ -456,7 +456,7 @@ export const defaultConfig: NextConfig = {
     workerThreads: false,
     pageEnv: false,
     optimizeCss: false,
-    optimizeScripts: false,
+    nextScriptWorkers: false,
     scrollRestoration: false,
     externalDir: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,

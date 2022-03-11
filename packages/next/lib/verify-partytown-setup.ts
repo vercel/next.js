@@ -28,7 +28,7 @@ async function missingDependencyError(dir: string) {
       '\n\n' +
       chalk.bold(
         `If you are not trying to use Partytown, please disable the experimental ${chalk.cyan(
-          '"optimizeScripts"'
+          '"nextScriptWorkers"'
         )} flag in next.config.js.`
       ) +
       '\n'

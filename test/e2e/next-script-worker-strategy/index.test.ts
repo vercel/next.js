@@ -4,7 +4,7 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import { BrowserInterface } from 'test/lib/browsers/base'
 import { waitFor } from 'next-test-utils'
 
-describe('experimental.optimizeScripts: false with no Partytown dependency', () => {
+describe('experimental.nextScriptWorkers: false with no Partytown dependency', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -47,14 +47,14 @@ describe('experimental.optimizeScripts: false with no Partytown dependency', () 
   })
 })
 
-describe('experimental.optimizeScripts: true with required Partytown dependency', () => {
+describe('experimental.nextScriptWorkers: true with required Partytown dependency', () => {
   let next: NextInstance
 
   beforeAll(async () => {
     next = await createNext({
       nextConfig: {
         experimental: {
-          optimizeScripts: true,
+          nextScriptWorkers: true,
         },
       },
       files: {
@@ -131,14 +131,14 @@ describe('experimental.optimizeScripts: true with required Partytown dependency'
   })
 })
 
-describe('experimental.optimizeScripts: true with config override', () => {
+describe('experimental.nextScriptWorkers: true with config override', () => {
   let next: NextInstance
 
   beforeAll(async () => {
     next = await createNext({
       nextConfig: {
         experimental: {
-          optimizeScripts: true,
+          nextScriptWorkers: true,
         },
       },
       files: {

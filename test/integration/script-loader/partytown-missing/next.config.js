@@ -1,5 +1,5 @@
 module.exports = {
   experimental: {
-    optimizeScripts: true,
+    nextScriptWorkers: true,
   },
 }

@@ -130,12 +130,12 @@ Examples of scripts that do not need to load immediately and can be lazy-loaded 
 
 Scripts that use the `worker` strategy are relocated and executed in a web worker with [Partytown](https://partytown.builder.io/). This can improve the performance of your site by dedicating the main thread to the rest of your application code.
 
-This strategy is still experimental and can only be used if the `optimizeScripts` flag is enabled in `next.config.js`:
+This strategy is still experimental and can only be used if the `nextScriptWorkers` flag is enabled in `next.config.js`:
 
 ```js
 module.exports = {
   experimental: {
-    optimizeScripts: true,
+    nextScriptWorkers: true,
   },
 }
 ```
@@ -160,7 +160,7 @@ Once setup is complete, defining `strategy="worker` will automatically instantia
 <Script src="https://example.com/analytics.js" strategy="worker" />
 ```
 
-There are a number of trade-offs that need to be considered when loading a third-party script in a web worker. Please see Partytown's[Trade-Offs](https://partytown.builder.io/trade-offs) documentation for more information.
+There are a number of trade-offs that need to be considered when loading a third-party script in a web worker. Please see Partytown's [Trade-Offs](https://partytown.builder.io/trade-offs) documentation for more information.
 
 #### Configuration
 
@@ -204,6 +204,36 @@ In order to modify Partytown's configuration, the following conditions must be m
 
 1. The `data-partytown-config` attribute must be used in order to overwrite the default configuration used by Next.js
 2. Unless you decide to save Partytown's library files in a separate directory, the `lib: "/_next/static/~partytown/"` property and value must be included in the configuration object in order to let Partytown know where Next.js stores the necessary static files.
+
+> **Note**: If you are using an [asset prefix](/docs/api-reference/next.config.js/cdn-support-with-asset-prefix.md) and would like to modify Partytown's default configuration, you must include it as part of the `lib` path:
+>
+> ```jsx
+> import { assetPrefix } from '../next.config'
+>
+> class MyDocument extends Document {
+>   render() {
+>     return (
+>       <Html>
+>         <Head>
+>           <script
+>             data-partytown-config=""
+>             dangerouslySetInnerHTML={{
+>               __html: `
+>               partytown = {
+>                 lib: "${assetPrefix}/_next/static/~partytown/"
+>               };
+>             `,
+>             }}
+>           />
+>         </Head>
+>         // ...
+>       </Html>
+>     )
+>   }
+> }
+>
+> export default MyDocument
+> ```
 
 Take a look at Partytown's [configuration options](https://partytown.builder.io/configuration) to see the full list of other properties that can be added.
 
