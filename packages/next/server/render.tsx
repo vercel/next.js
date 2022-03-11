@@ -455,7 +455,7 @@ export async function renderToHTML(
     AppMod,
   } = renderOpts
 
-  const hasConcurrentFeatures = !!runtime
+  const hasConcurrentFeatures = reactRoot
 
   const OriginalComponent = renderOpts.Component
 
@@ -1241,7 +1241,7 @@ export async function renderToHTML(
       )
     }
 
-    if (!runtime && Document.getInitialProps) {
+    if (!hasConcurrentFeatures && Document.getInitialProps) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
       ): RenderPageResult | Promise<RenderPageResult> => {
@@ -1472,6 +1472,7 @@ export async function renderToHTML(
     optimizeCss: renderOpts.optimizeCss,
     optimizeFonts: renderOpts.optimizeFonts,
     runtime,
+    hasConcurrentFeatures,
   }
 
   const document = (

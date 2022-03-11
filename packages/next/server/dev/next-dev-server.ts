@@ -61,6 +61,7 @@ import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware
 import { isCustomErrorPage, isReservedPage } from '../../build/utils'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { getPageRuntime, invalidatePageRuntimeCache } from '../../build/entries'
+import { shouldUseReactRoot } from '../config'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -950,7 +951,7 @@ export default class DevServer extends Server {
     // TODO: See if this can be moved into hotReloader or removed.
     await this.hotReloader!.ensurePage('/_error')
     return await loadDefaultErrorComponents(this.distDir, {
-      hasConcurrentFeatures: !!this.renderOpts.runtime,
+      hasConcurrentFeatures: shouldUseReactRoot(),
     })
   }
 

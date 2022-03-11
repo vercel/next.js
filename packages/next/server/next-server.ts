@@ -690,12 +690,17 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getServerComponentManifest() {
-    if (!this.nextConfig.experimental.runtime) return undefined
-    return require(join(
-      this.distDir,
-      'server',
-      MIDDLEWARE_FLIGHT_MANIFEST + '.json'
-    ))
+    if (!this.nextConfig.experimental.serverComponents) return undefined
+    try {
+      return require(join(
+        this.distDir,
+        'server',
+        MIDDLEWARE_FLIGHT_MANIFEST + '.json'
+      ))
+    } catch (err) {
+      console.error(err)
+      return undefined
+    }
   }
 
   protected getCacheFilesystem(): CacheFs {
