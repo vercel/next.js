@@ -229,7 +229,7 @@ export async function bundle(options) {
 }
 
 export async function parse(src, options) {
-  let bindings = loadBindingsSync()
+  let bindings = await loadBindings()
   let parserOptions = getParserOptions(options)
   return bindings.parse(src, parserOptions).then((astStr) => JSON.parse(astStr))
 }
