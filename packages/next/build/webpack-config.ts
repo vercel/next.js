@@ -1440,8 +1440,11 @@ export default async function getBaseWebpackConfig(
         }),
       ((isServerless && isServer) || isEdgeRuntime) && new ServerlessPlugin(),
       isServer &&
-        !isEdgeRuntime &&
-        new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
+        new PagesManifestPlugin({
+          serverless: isLikeServerless,
+          dev,
+          isEdgeRuntime,
+        }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
       (!isServer || isEdgeRuntime) &&
