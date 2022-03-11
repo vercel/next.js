@@ -1401,7 +1401,11 @@ export default async function getBaseWebpackConfig(
           contextRegExp: /next[\\/]dist[\\/]/,
         }),
       isEdgeRuntime && new InlineAsyncChunksPlugin(),
-      isServer && !isEdgeRuntime && new PagesManifestPlugin({ dev }),
+      isServer &&
+        new PagesManifestPlugin({
+          dev,
+          isEdgeRuntime,
+        }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
       (!isServer || isEdgeRuntime) &&
