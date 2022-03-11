@@ -9,13 +9,6 @@ use turbo_pack::{
 use turbo_tasks::{NothingRef, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemRef, FileSystemPathRef, FileSystemRef};
 
-// #[derive(Parser, Debug)]
-// #[clap(author, version, about, long_about = None)]
-// struct Args {
-//     #[clap(subcommand)]
-//     command: Command,
-// }
-
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 enum Args {

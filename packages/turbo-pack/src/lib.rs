@@ -73,7 +73,6 @@ pub async fn emit(asset: AssetRef) {
     // emit_assets_recursive_avoid_cycle(asset, CycleDetectionRef::new());
     // emit_assets_aggregated(asset);
     emit_assets_recursive(asset);
-    // print_most_referenced(asset);
 }
 
 #[turbo_tasks::function]

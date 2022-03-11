@@ -634,7 +634,6 @@ impl Task {
                             }
                             None => {
                                 if !this_value.has_trait(trait_type) {
-                                    // TODO avoid panic
                                     let traits = this_value
                                         .traits()
                                         .iter()
@@ -647,7 +646,6 @@ impl Task {
                                         traits,
                                     ))
                                 } else {
-                                    // TODO avoid panic
                                     Err(anyhow!(
                                         "{} implements trait {}, but method {} is missing",
                                         this_value,

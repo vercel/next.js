@@ -48,6 +48,4 @@ fn integration_test(input: PathBuf) {
         Ok(NothingRef::new().into())
     });
     block_on(tt.wait_done());
-
-    // Command::new("node").args("");
 }
