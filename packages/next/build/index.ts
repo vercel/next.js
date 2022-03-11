@@ -299,7 +299,6 @@ export default async function build(
         createPagesMapping(pagePaths, config.pageExtensions, {
           isDev: false,
           hasServerComponents,
-          globalRuntime: runtime,
         })
       )
 
