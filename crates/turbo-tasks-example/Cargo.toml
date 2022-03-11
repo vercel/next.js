@@ -1,0 +1,16 @@
+[package]
+name = "turbo-tasks-example"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+any_key = "0.1.1"
+anyhow = "1.0.47"
+async-std = "1.10.0"
+lazy_static = "1.4.0"
+rand = "0.8.4"
+"turbo-tasks" = { path = "../turbo-tasks" }
+"turbo-tasks-fs" = { path = "../turbo-tasks-fs" }
+"turbo-pack" = { path = "../turbo-pack" }
