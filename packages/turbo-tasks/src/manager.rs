@@ -1,5 +1,5 @@
 use std::{
-    cell::{Cell, RefCell},
+    cell::RefCell,
     collections::HashSet,
     future::Future,
     hash::Hash,
@@ -10,7 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use async_std::{
     task::{Builder, JoinHandle},
     task_local,
@@ -41,7 +41,7 @@ task_local! {
     /// Affected [Task]s, that are tracked during task execution
     /// These tasks will be invalidated when the execution finishes
     /// or before reading a slot value
-    static TASKS_TO_NOTIFY: Cell<Vec<Arc<Task>>> = Default::default();
+    static TASKS_TO_NOTIFY: RefCell<Vec<Arc<Task>>> = Default::default();
 }
 
 impl TurboTasks {
@@ -134,7 +134,7 @@ impl TurboTasks {
         })
     }
 
-    /// Call a native function with arguments. Resolves arguments when needed with a wrapper [Task].
+    /// Calls a native function with arguments. Resolves arguments when needed with a wrapper [Task].
     pub fn dynamic_call(
         self: &Arc<Self>,
         func: &'static NativeFunction,
@@ -149,6 +149,8 @@ impl TurboTasks {
         }
     }
 
+    /// Calls a trait method with arguments. First input is the `self` object.
+    /// Uses a wrapper task to resolve
     pub fn trait_call(
         self: &Arc<Self>,
         trait_type: &'static TraitType,
@@ -241,6 +243,7 @@ impl TurboTasks {
             .unwrap();
     }
 
+    /// Eagerly notifies all tasks that were scheduled for notifications via `schedule_notify_tasks()`
     pub(crate) fn notify_scheduled_tasks() {
         TASKS_TO_NOTIFY.with(|tasks| {
             let tasks = tasks.take();
@@ -255,6 +258,7 @@ impl TurboTasks {
         });
     }
 
+    /// Eagerly notifies all tasks that were scheduled for notifications via `schedule_notify_tasks()`
     pub(crate) fn notify_scheduled_tasks_with_turbo_tasks(self: &Arc<TurboTasks>) {
         TASKS_TO_NOTIFY.with(|tasks| {
             for task in tasks.take().into_iter() {
@@ -263,17 +267,15 @@ impl TurboTasks {
         });
     }
 
+    /// Enqueues tasks for notification of changed dependencies. This will eventually call `dependent_slot_updated()` on all tasks.
     pub(crate) fn schedule_notify_tasks(tasks_iter: impl Iterator<Item = Arc<Task>>) {
         TASKS_TO_NOTIFY.with(|tasks| {
-            let mut temp = Vec::new();
-            tasks.swap(Cell::from_mut(&mut temp));
-            for task in tasks_iter {
-                temp.push(task);
-            }
-            tasks.swap(Cell::from_mut(&mut temp));
+            let mut list = tasks.borrow_mut();
+            list.extend(tasks_iter);
         });
     }
 
+    /// Schedules a background job that will deactive a list of tasks, when their active_parents count is still zero.
     pub(crate) fn schedule_deactivate_tasks(self: &Arc<Self>, tasks: Vec<Arc<Task>>) {
         let tt = self.clone();
         self.clone().schedule_background_job(async move {
@@ -281,6 +283,7 @@ impl TurboTasks {
         });
     }
 
+    /// Schedules a background job that will decrease the active_parents count from each task by one and might deactive them after that.
     pub(crate) fn schedule_remove_tasks(self: &Arc<Self>, tasks: HashSet<Arc<Task>>) {
         let tt = self.clone();
         self.clone().schedule_background_job(async move {
@@ -288,6 +291,7 @@ impl TurboTasks {
         });
     }
 
+    /// Get a snapshot of all cached Tasks.
     pub fn cached_tasks_iter(&self) -> impl Iterator<Item = Arc<Task>> {
         let mut tasks = Vec::new();
         for (_, task) in self.resolve_task_cache.clone().into_iter() {
@@ -303,20 +307,16 @@ impl TurboTasks {
     }
 }
 
+/// see [TurboTasks] `dynamic_call`
 pub fn dynamic_call(func: &'static NativeFunction, inputs: Vec<TaskInput>) -> SlotRef {
-    let tt = TurboTasks::current()
-        .ok_or_else(|| anyhow!("tried to call dynamic_call outside of turbo tasks"))
-        .unwrap();
-    tt.dynamic_call(func, inputs)
+    TurboTasks::with_current(|tt| tt.dynamic_call(func, inputs))
 }
 
+/// see [TurboTasks] `trait_call`
 pub fn trait_call(
     trait_type: &'static TraitType,
     trait_fn_name: String,
     inputs: Vec<TaskInput>,
 ) -> SlotRef {
-    let tt = TurboTasks::current()
-        .ok_or_else(|| anyhow!("tried to call trait_call outside of turbo tasks"))
-        .unwrap();
-    tt.trait_call(trait_type, trait_fn_name, inputs)
+    TurboTasks::with_current(|tt| tt.trait_call(trait_type, trait_fn_name, inputs))
 }

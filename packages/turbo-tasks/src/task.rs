@@ -8,6 +8,8 @@ use any_key::AnyHash;
 use anyhow::{anyhow, Result};
 use async_std::task_local;
 use event_listener::{Event, EventListener};
+#[cfg(feature = "report_expensive")]
+use std::time::Instant;
 use std::{
     any::{Any, TypeId},
     cell::Cell,
@@ -21,27 +23,44 @@ use std::{
         atomic::{AtomicU32, Ordering},
         Arc, Mutex, RwLock,
     },
-    time::Instant,
 };
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<SlotRef>> + Send>>;
 pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 
+/// Stores previous slot locations for keys or types.
 #[derive(Default)]
-struct PreviousNodesMap {
+struct PreviousSlotsMap {
     by_key: HashMap<Box<dyn AnyHash + Sync + Send>, usize>,
     by_type: HashMap<TypeId, (usize, Vec<usize>)>,
 }
 
 task_local! {
   static CURRENT_TASK: Cell<Option<Arc<Task>>> = Cell::new(None);
-  static PREVIOUS_NODES: Cell<PreviousNodesMap> = Cell::new(Default::default());
+  static PREVIOUS_SLOTS: Cell<PreviousSlotsMap> = Cell::new(Default::default());
 }
 
+/// Different Task types
 enum TaskType {
+    /// A root task that will track dependencies and re-execute when dependencies change.
+    /// Task will eventually settle to the correct execution.
     Root(NativeTaskFn),
+
+    // TODO implement these strongly consistency
+    /// A single root task execution. It won't track dependencies.
+    /// Task will definitely include all invalidations that happened before the start of the task.
+    /// It may or may not include invalidations that happened after that.
+    /// It may see these invalidations partially applied.
     Once(Mutex<Option<Pin<Box<dyn Future<Output = Result<SlotRef>> + Send + 'static>>>>),
+
+    /// A normal task execution a native (rust) function
     Native(&'static NativeFunction, NativeTaskFn),
+
+    /// A resolve task, which resolves arguments and calls the function with resolve arguments.
+    /// The inner function call will do a cache lookup.
     ResolveNative(&'static NativeFunction),
+
+    /// A trait method resolve task. It resolves the first (`self`) argument and looks up the trait method on that value.
+    /// Then it calls that method. The method call will do a cache lookup and might resolve arguments before.
     ResolveTrait(&'static TraitType, String),
 }
 
@@ -67,25 +86,37 @@ impl Debug for TaskType {
 /// A Task is an instantiation of an Function with some arguments.
 /// The same combinations of Function and arguments usually results in the same Task instance.
 pub struct Task {
+    // TODO move that into TaskType where needed
+    // TODO we currently only use that for visualization
+    // TODO this can be removed
+    /// The arguments of the Task
     inputs: Vec<TaskInput>,
+    /// The type of the task
     ty: TaskType,
+    /// The mutable state of the task
     state: RwLock<TaskState>,
+    /// A counter how many other active Tasks are using that task.
+    /// When this counter reaches 0 the task will be marked inactive.
+    /// When it becomes non-zero the task will be marked active.
     active_parents: AtomicU32,
     // TODO technically we need no lock here as it's only written
     // during execution, which doesn't happen in parallel
+    /// Mutable state that is used during task execution.
+    /// It will only be accessed from the task execution, which happens non-concurrently.
     execution_data: Mutex<TaskExecutionData>,
 }
 
-/// task data that is only modified during task execution
+/// Task data that is only modified during task execution.
 #[derive(Default)]
 struct TaskExecutionData {
-    /// dependencies are only modified from execution
+    /// Slots that the task has read during execution.
+    /// The Task will keep these tasks alive as invalidations that happen there might affect this task.
     ///
-    /// dependencies are cleared when entering Dirty state
-    ///
-    ///
+    /// This back-edge is [Slot] `dependent_tasks`, which is a weak edge.
     dependencies: HashSet<SlotRef>,
-    previous_nodes: PreviousNodesMap,
+
+    /// Mappings from key or data type to slot index, to store the data in the same slot again.
+    previous_nodes: PreviousSlotsMap,
 }
 
 impl Debug for Task {
@@ -99,10 +130,17 @@ impl Debug for Task {
     }
 }
 
+/// The state of a [Task]
 #[derive(Default)]
 struct TaskState {
+    /// true, when the task is transitively a child of a root task.
+    ///
+    /// It will be set to `false` in a background process, so it might be still `true` even if it's no longer connected.
     active: bool,
+
     // TODO using a Atomic might be possible here
+    /// More flags of task state, where not all combinations are possible.
+    /// dirty, scheduled, in progress
     state_type: TaskStateType,
 
     /// children are only modified from execution
@@ -117,7 +155,7 @@ struct TaskState {
 enum TaskStateType {
     /// Ready
     ///
-    /// on dirty this will move to Dirty or Scheduled depending on active flag
+    /// on invalidation this will move to Dirty or Scheduled depending on active flag
     Done,
 
     /// Execution is invalid, but not yet scheduled
@@ -127,14 +165,14 @@ enum TaskStateType {
 
     /// Execution is invalid and scheduled
     ///
-    /// on start this will move to InProgress
+    /// on start this will move to InProgress or Dirty depending on active flag
     Scheduled,
 
     /// Execution is happening
     ///
     /// on finish this will move to Done
     ///
-    /// on dirty this will move to InProgressDirty
+    /// on invalidation this will move to InProgressDirty
     InProgress,
 
     /// Invalid execution is happening
@@ -228,33 +266,56 @@ impl Task {
         }
     }
 
+    #[cfg(not(feature = "report_expensive"))]
     pub(crate) fn deactivate_tasks(tasks: Vec<Arc<Task>>, turbo_tasks: Arc<TurboTasks>) {
-        // let start = Instant::now();
-        // let mut count = 0;
-        // let mut len = 0;
         for child in tasks.into_iter() {
             child.deactivate(1, &turbo_tasks);
-            // count += child.deactivate(1);
-            // len += 1;
         }
-        // let elapsed = start.elapsed();
-        // if elapsed.as_millis() >= 10 {
-        //     println!(
-        //         "deactivate_tasks({}, {}) took {} ms",
-        //         count,
-        //         len,
-        //         elapsed.as_millis(),
-        //     );
-        // } else if count > 10000 {
-        //     println!(
-        //         "deactivate_tasks({}, {}) took {} µs",
-        //         count,
-        //         len,
-        //         elapsed.as_micros(),
-        //     );
-        // }
     }
 
+    #[cfg(feature = "report_expensive")]
+    pub(crate) fn deactivate_tasks(tasks: Vec<Arc<Task>>, turbo_tasks: Arc<TurboTasks>) {
+        let start = Instant::now();
+        let mut count = 0;
+        let mut len = 0;
+        for child in tasks.into_iter() {
+            count += child.deactivate(1, &turbo_tasks);
+            len += 1;
+        }
+        let elapsed = start.elapsed();
+        if elapsed.as_millis() >= 10 {
+            println!(
+                "deactivate_tasks({}, {}) took {} ms",
+                count,
+                len,
+                elapsed.as_millis(),
+            );
+        } else if count > 10000 {
+            println!(
+                "deactivate_tasks({}, {}) took {} µs",
+                count,
+                len,
+                elapsed.as_micros(),
+            );
+        }
+    }
+
+    #[cfg(not(feature = "report_expensive"))]
+    fn clear_dependencies(self: &Arc<Self>) {
+        let mut execution_data = self.execution_data.lock().unwrap();
+        let dependencies = execution_data
+            .dependencies
+            .drain()
+            .map(|d| d.clone())
+            .collect::<Vec<_>>();
+        drop(execution_data);
+
+        for dep in dependencies.into_iter() {
+            dep.remove_dependent_task(self);
+        }
+    }
+
+    #[cfg(feature = "report_expensive")]
     fn clear_dependencies(self: &Arc<Self>) {
         let start = Instant::now();
         let mut execution_data = self.execution_data.lock().unwrap();
@@ -341,7 +402,7 @@ impl Task {
     }
 
     pub(crate) fn execution_completed(self: Arc<Self>, turbo_tasks: Arc<TurboTasks>) {
-        PREVIOUS_NODES.with(|cell| {
+        PREVIOUS_SLOTS.with(|cell| {
             let mut execution_data = self.execution_data.lock().unwrap();
             Cell::from_mut(&mut execution_data.previous_nodes).swap(cell);
         });
@@ -478,7 +539,7 @@ impl Task {
     }
 
     pub(crate) fn set_current(task: Arc<Task>) {
-        PREVIOUS_NODES.with(|cell| {
+        PREVIOUS_SLOTS.with(|cell| {
             let mut execution_data = task.execution_data.lock().unwrap();
             let previous_nodes = &mut execution_data.previous_nodes;
             for list in previous_nodes.by_type.values_mut() {
@@ -604,6 +665,7 @@ impl Task {
         }
     }
 
+    /// Get an [Invalidator] that can be used to invalidate the current [Task] based on external events.
     pub fn get_invalidator() -> Invalidator {
         Invalidator {
             task: Task::current()
@@ -619,25 +681,30 @@ impl Task {
         }
     }
 
+    /// Called by the [Invalidator]. Invalidate the [Task]. When the task is active it will be scheduled for execution.
     fn invaldate(self: Arc<Self>, turbo_tasks: &Arc<TurboTasks>) {
         self.make_dirty(turbo_tasks)
     }
 
+    /// Access to the output slot.
     pub(crate) fn with_output_slot<T>(&self, func: impl FnOnce(&Slot) -> T) -> T {
         let state = self.state.read().unwrap();
         func(&state.output_slot)
     }
 
+    /// Access to the output slot.
     pub(crate) fn with_output_slot_mut<T>(&self, func: impl FnOnce(&mut Slot) -> T) -> T {
         let mut state = self.state.write().unwrap();
         func(&mut state.output_slot)
     }
 
+    /// Access to a slot.
     pub(crate) fn with_created_slot<T>(&self, index: usize, func: impl FnOnce(&Slot) -> T) -> T {
         let state = self.state.read().unwrap();
         func(&state.created_slots[index])
     }
 
+    /// Access to a slot.
     pub(crate) fn with_created_slot_mut<T>(
         &self,
         index: usize,
@@ -647,6 +714,7 @@ impl Task {
         func(&mut state.created_slots[index])
     }
 
+    /// For testing purposes
     pub fn reset_executions(&self) {
         let mut state = self.state.write().unwrap();
         if state.executions > 1 {
@@ -654,6 +722,9 @@ impl Task {
         }
     }
 
+    /// Get a snapshot of the task information for visulization.
+    ///
+    /// Note that the information might be outdated or inconsistent due to concurrent operations.
     pub fn get_snapshot_for_visualization(self: &Arc<Self>) -> TaskSnapshot {
         let state = self.state.read().unwrap();
         let mut slots: Vec<_> = state
@@ -717,25 +788,29 @@ impl Task {
 
             if active {
                 if self.active_parents.fetch_add(1, Ordering::AcqRel) == 0 {
+                    #[cfg(not(feature = "report_expensive"))]
                     self.activate();
-                    // let start = Instant::now();
-                    // let count = self.activate();
-                    // let elapsed = start.elapsed();
-                    // if elapsed.as_millis() >= 100 {
-                    //     println!(
-                    //         "activate({}) took {} ms: {:?}",
-                    //         count,
-                    //         elapsed.as_millis(),
-                    //         &**self
-                    //     );
-                    // } else if elapsed.as_millis() >= 1 || count > 10000 {
-                    //     println!(
-                    //         "activate({}) took {} µs: {:?}",
-                    //         count,
-                    //         elapsed.as_micros(),
-                    //         &**self
-                    //     );
-                    // }
+                    #[cfg(feature = "report_expensive")]
+                    {
+                        let start = Instant::now();
+                        let count = self.activate();
+                        let elapsed = start.elapsed();
+                        if elapsed.as_millis() >= 100 {
+                            println!(
+                                "activate({}) took {} ms: {:?}",
+                                count,
+                                elapsed.as_millis(),
+                                &**self
+                            );
+                        } else if elapsed.as_millis() >= 10 || count > 10000 {
+                            println!(
+                                "activate({}) took {} µs: {:?}",
+                                count,
+                                elapsed.as_micros(),
+                                &**self
+                            );
+                        }
+                    }
                 }
             }
         }
@@ -833,8 +908,8 @@ pub(crate) fn match_previous_node_by_key<
     functor: F,
 ) -> SlotRef {
     Task::with_current(|task| {
-        PREVIOUS_NODES.with(|cell| {
-            let mut map = PreviousNodesMap::default();
+        PREVIOUS_SLOTS.with(|cell| {
+            let mut map = PreviousSlotsMap::default();
             cell.swap(Cell::from_mut(&mut map));
             let entry =
                 map.by_key
@@ -859,8 +934,8 @@ pub(crate) fn match_previous_node_by_type<T: Any + ?Sized, F: FnOnce(&mut Slot)>
     functor: F,
 ) -> SlotRef {
     Task::with_current(|task| {
-        PREVIOUS_NODES.with(|cell| {
-            let mut map = PreviousNodesMap::default();
+        PREVIOUS_SLOTS.with(|cell| {
+            let mut map = PreviousSlotsMap::default();
             cell.swap(Cell::from_mut(&mut map));
             let list = map
                 .by_type
