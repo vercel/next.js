@@ -1177,7 +1177,7 @@ export default abstract class Server {
     if (opts.supportsDynamicHTML === true) {
       const isBotRequest = isBot(req.headers['user-agent'] || '')
       const isSupportedDocument =
-        !!(components.Document as any).__next_internal_document ||
+        (components.Document as any)?.__next_internal_document ||
         typeof components.Document?.getInitialProps !== 'function'
 
       // Disable dynamic HTML in cases that we know it won't be generated,

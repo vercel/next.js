@@ -186,15 +186,18 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
 
 // Add a speical property to the built-in `Document` component so later we can
 // identify if a user customized `Document` is used or not.
-;(Document as any).__next_internal_document = () => (
-  <Html>
-    <Head />
-    <body>
-      <Main />
-      <NextScript />
-    </body>
-  </Html>
-)
+;(Document as any).__next_internal_document =
+  function InternalFunctionDocument() {
+    return (
+      <Html>
+        <Head />
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </Html>
+    )
+  }
 
 export function Html(
   props: React.DetailedHTMLProps<
