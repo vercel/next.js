@@ -49,7 +49,7 @@ describe('root dir', () => {
     const html = await renderViaHTTP(next.url, '/dashboard/integrations')
     const $ = cheerio.load(html)
     // Should not be nested in dashboard
-    expect($('h1').text()).toBeUndefined()
+    expect($('h1').text()).toBeFalsy()
     // Should include the page text
     expect($('p').text()).toBe('hello from root/dashboard/integrations')
   })
@@ -67,7 +67,7 @@ describe('root dir', () => {
     const html = await renderViaHTTP(next.url, '/dashboard/changelog')
     const $ = cheerio.load(html)
     // Should not be nested in dashboard
-    expect($('h1').text()).toBeUndefined()
+    expect($('h1').text()).toBeFalsy()
     // Should include the page text
     expect($('p').text()).toBe('hello from root/dashboard/changelog')
   })

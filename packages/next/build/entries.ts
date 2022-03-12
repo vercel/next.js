@@ -80,14 +80,16 @@ export function createPagesMapping(
   // we alias these in development and allow webpack to
   // allow falling back to the correct source file so
   // that HMR can work properly when a file is added/removed
-  if (isDev) {
-    pages['/_app'] = `${pathAlias}/_app`
-    pages['/_error'] = `${pathAlias}/_error`
-    pages['/_document'] = `${pathAlias}/_document`
-  } else {
-    pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
-    pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
-    pages['/_document'] = pages['/_document'] || `next/dist/pages/_document`
+  if (!isRoot) {
+    if (isDev) {
+      pages['/_app'] = `${pathAlias}/_app`
+      pages['/_error'] = `${pathAlias}/_error`
+      pages['/_document'] = `${pathAlias}/_document`
+    } else {
+      pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
+      pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
+      pages['/_document'] = pages['/_document'] || `next/dist/pages/_document`
+    }
   }
   return pages
 }
@@ -205,13 +207,14 @@ export async function createEntrypoints(
   const globalRuntime = config.experimental.runtime
 
   const getEntryHandler =
-    (dir: string, mapping: PagesMapping) => async (page: string) => {
+    (dir: string, mapping: PagesMapping, isRoot: boolean) =>
+    async (page: string) => {
       const absolutePagePath = mapping[page]
       const bundleFile = normalizePagePath(page)
       const isApiRoute = page.match(API_ROUTE)
 
       const clientBundlePath = posix.join('pages', bundleFile)
-      const serverBundlePath = posix.join('pages', bundleFile)
+      const serverBundlePath = posix.join(isRoot ? 'root' : 'pages', bundleFile)
 
       const isReserved = isReservedPage(page)
       const isCustomError = isCustomErrorPage(page)
@@ -263,7 +266,7 @@ export async function createEntrypoints(
         return
       }
 
-      if (!isApiRoute) {
+      if (!isApiRoute && !isRoot) {
         const pageLoaderOpts: ClientPagesLoaderOptions = {
           page,
           absolutePagePath,
@@ -284,10 +287,10 @@ export async function createEntrypoints(
     }
 
   if (rootDir && rootPaths) {
-    const entryHandler = getEntryHandler(rootDir, rootPaths)
+    const entryHandler = getEntryHandler(rootDir, rootPaths, true)
     await Promise.all(Object.keys(rootPaths).map(entryHandler))
   }
-  const entryHandler = getEntryHandler(pagesDir, pages)
+  const entryHandler = getEntryHandler(pagesDir, pages, false)
   await Promise.all(Object.keys(pages).map(entryHandler))
 
   return {

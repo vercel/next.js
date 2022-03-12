@@ -1406,6 +1406,7 @@ export default async function getBaseWebpackConfig(
         new PagesManifestPlugin({
           dev,
           isEdgeRuntime,
+          rootDirEnabled: !!config.experimental.rootDir,
         }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling

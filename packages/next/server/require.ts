@@ -4,6 +4,7 @@ import {
   FONT_MANIFEST,
   MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
+  ROOT_PATHS_MANIFEST,
   SERVER_DIRECTORY,
 } from '../shared/lib/constants'
 import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
@@ -21,9 +22,16 @@ export function pageNotFoundError(page: string): Error {
 export function getPagePath(
   page: string,
   distDir: string,
-  locales?: string[]
+  locales?: string[],
+  rootDirEnabled?: boolean
 ): string {
   const serverBuildPath = join(distDir, SERVER_DIRECTORY)
+  let rootPathsManifest: undefined | PagesManifest
+
+  if (rootDirEnabled) {
+    rootPathsManifest = require(join(serverBuildPath, ROOT_PATHS_MANIFEST))
+  }
+
   const pagesManifest = require(join(
     serverBuildPath,
     PAGES_MANIFEST
@@ -35,27 +43,42 @@ export function getPagePath(
     console.error(err)
     throw pageNotFoundError(page)
   }
-  let pagePath = pagesManifest[page]
+  const checkManifest = (manifest: PagesManifest) => {
+    let curPath = manifest[page]
 
-  if (!pagesManifest[page] && locales) {
-    const manifestNoLocales: typeof pagesManifest = {}
+    if (!pagesManifest[page] && locales) {
+      const manifestNoLocales: PagesManifest = {}
 
-    for (const key of Object.keys(pagesManifest)) {
-      manifestNoLocales[normalizeLocalePath(key, locales).pathname] =
-        pagesManifest[key]
+      for (const key of Object.keys(manifest)) {
+        manifestNoLocales[normalizeLocalePath(key, locales).pathname] =
+          manifest[key]
+      }
+      curPath = manifestNoLocales[page]
     }
-    pagePath = manifestNoLocales[page]
+    return curPath
+  }
+  let pagePath: string | undefined
+
+  if (rootPathsManifest) {
+    pagePath = checkManifest(rootPathsManifest)
+  }
+
+  if (!pagePath) {
+    pagePath = checkManifest(pagesManifest)
   }
 
   if (!pagePath) {
     throw pageNotFoundError(page)
   }
-
   return join(serverBuildPath, pagePath)
 }
 
-export function requirePage(page: string, distDir: string): any {
-  const pagePath = getPagePath(page, distDir)
+export function requirePage(
+  page: string,
+  distDir: string,
+  rootDirEnabled?: boolean
+): any {
+  const pagePath = getPagePath(page, distDir, undefined, rootDirEnabled)
   if (pagePath.endsWith('.html')) {
     return promises.readFile(pagePath, 'utf8')
   }

@@ -34,6 +34,7 @@ import {
   ROUTES_MANIFEST,
   MIDDLEWARE_FLIGHT_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
+  ROOT_PATHS_MANIFEST,
 } from '../shared/lib/constants'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
@@ -155,6 +156,14 @@ export default class NextNodeServer extends BaseServer {
     const serverBuildDir = join(this.distDir, SERVER_DIRECTORY)
     const pagesManifestPath = join(serverBuildDir, PAGES_MANIFEST)
     return require(pagesManifestPath)
+  }
+
+  protected getRootPathsManifest(): PagesManifest | undefined {
+    if (this.nextConfig.experimental.rootDir) {
+      const serverBuildDir = join(this.distDir, SERVER_DIRECTORY)
+      const rootPathsManifestPath = join(serverBuildDir, ROOT_PATHS_MANIFEST)
+      return require(rootPathsManifestPath)
+    }
   }
 
   protected getBuildId(): string {
@@ -603,7 +612,12 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getPagePath(pathname: string, locales?: string[]): string {
-    return getPagePath(pathname, this.distDir, locales)
+    return getPagePath(
+      pathname,
+      this.distDir,
+      locales,
+      this.nextConfig.experimental.rootDir
+    )
   }
 
   protected async findPageComponents(
@@ -628,7 +642,11 @@ export default class NextNodeServer extends BaseServer {
 
     for (const pagePath of paths) {
       try {
-        const components = await loadComponents(this.distDir, pagePath!)
+        const components = await loadComponents(
+          this.distDir,
+          pagePath!,
+          this.nextConfig.experimental.rootDir
+        )
 
         if (
           query.__nextLocale &&

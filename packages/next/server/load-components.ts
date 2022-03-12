@@ -8,7 +8,7 @@ import {
   REACT_LOADABLE_MANIFEST,
 } from '../shared/lib/constants'
 import { join } from 'path'
-import { requirePage } from './require'
+import { getPagePath, requirePage } from './require'
 import { BuildManifest } from './get-page-files'
 import { interopDefault } from '../lib/interop-default'
 import {
@@ -37,6 +37,7 @@ export type LoadComponentsReturnType = {
   getServerSideProps?: GetServerSideProps
   ComponentMod: any
   AppMod: any
+  isRootPath?: boolean
 }
 
 export async function loadDefaultErrorComponents(distDir: string) {
@@ -60,12 +61,13 @@ export async function loadDefaultErrorComponents(distDir: string) {
 
 export async function loadComponents(
   distDir: string,
-  pathname: string
+  pathname: string,
+  rootDirEnabled?: boolean
 ): Promise<LoadComponentsReturnType> {
   const [DocumentMod, AppMod, ComponentMod] = await Promise.all([
     requirePage('/_document', distDir),
     requirePage('/_app', distDir),
-    requirePage(pathname, distDir),
+    requirePage(pathname, distDir, rootDirEnabled),
   ])
 
   const [buildManifest, reactLoadableManifest] = await Promise.all([
@@ -78,6 +80,12 @@ export async function loadComponents(
   const App = interopDefault(AppMod)
 
   const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
+  let isRootPath = false
+
+  if (rootDirEnabled) {
+    const pagePath = getPagePath(pathname, distDir, undefined, rootDirEnabled)
+    isRootPath = !!pagePath?.match(/server[/\\]root[/\\]/)
+  }
 
   return {
     App,
@@ -91,5 +99,6 @@ export async function loadComponents(
     getServerSideProps,
     getStaticProps,
     getStaticPaths,
+    isRootPath,
   }
 }
