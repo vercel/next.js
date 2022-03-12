@@ -41,6 +41,9 @@ The loading strategy of the script.
 | `beforeInteractive` | Load script before the page becomes interactive            |
 | `afterInteractive`  | Load script immediately after the page becomes interactive |
 | `lazyOnload`        | Load script during browser idle time                       |
+| `worker`            | Load script in a web worker                                |
+
+> **Note: `worker` is an experimental strategy that can only be used when enabled in `next.config.js`. See [Off-loading Scripts To A Web Worker](/docs/basic-features/script#off-loading-scripts-to-a-web-worker-experimental).**
 
 ### onLoad
 
