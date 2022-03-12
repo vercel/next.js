@@ -69,11 +69,6 @@ impl ContentHash {
     }
 }
 
-#[turbo_tasks::value]
-struct ContentHashSet {
-    value: Vec<ContentHashRef>,
-}
-
 #[turbo_tasks::function]
 async fn hash_directory(directory: FileSystemPathRef) -> Result<ContentHashRef> {
     let content = directory.clone().read_dir();
@@ -106,7 +101,7 @@ async fn hash_file(file_path: FileSystemPathRef) -> Result<ContentHashRef> {
     Ok(match &*content {
         FileContent::Content(bytes) => {
             let content = &*String::from_utf8_lossy(&bytes);
-            hash_content(content)
+            hash_content(ContentHashRef::new(content.into()))
         }
         FileContent::NotFound => {
             // report error
@@ -115,10 +110,11 @@ async fn hash_file(file_path: FileSystemPathRef) -> Result<ContentHashRef> {
     })
 }
 
-fn hash_content(content: &str) -> ContentHashRef {
+#[turbo_tasks::function]
+async fn hash_content(content: ContentHashRef) -> Result<ContentHashRef> {
     let mut hasher = Sha256::new();
-    hasher.update(content);
+    hasher.update(content.await?.value.clone());
     let result = format!("{:x}", hasher.finalize());
 
-    ContentHashRef::new(result)
+    Ok(ContentHashRef::new(result))
 }
