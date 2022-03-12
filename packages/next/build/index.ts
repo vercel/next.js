@@ -310,7 +310,6 @@ export default async function build(
             isDev: false,
             isRoot: true,
             hasServerComponents: true,
-            globalRuntime: runtime,
           })
         )
     }

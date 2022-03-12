@@ -1180,10 +1180,7 @@ export default abstract class Server {
       // Disable dynamic HTML in cases that we know it won't be generated,
       // so that we can continue generating a cache key when possible.
       opts.supportsDynamicHTML =
-        !isSSG &&
-        !isBotRequest &&
-        !query.amp &&
-        isSupportedDocument
+        !isSSG && !isBotRequest && !query.amp && isSupportedDocument
     }
 
     const defaultLocale = isSSG
