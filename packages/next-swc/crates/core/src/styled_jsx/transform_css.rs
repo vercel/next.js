@@ -72,7 +72,7 @@ pub fn transform_css(
 
     let mut s = String::new();
     {
-        let mut wr = BasicCssWriter::new(&mut s, BasicCssWriterConfig { indent: "  " });
+        let mut wr = BasicCssWriter::new(&mut s, None, BasicCssWriterConfig::default());
         let mut gen = CodeGenerator::new(&mut wr, CodegenConfig { minify: true });
 
         gen.emit(&ss).unwrap();
@@ -144,7 +144,7 @@ impl VisitMut for Namespacer {
 
             let mut code = String::new();
             {
-                let mut wr = BasicCssWriter::new(&mut code, BasicCssWriterConfig { indent: "  " });
+                let mut wr = BasicCssWriter::new(&mut code, None, BasicCssWriterConfig::default());
                 let mut gen = CodeGenerator::new(&mut wr, CodegenConfig { minify: true });
 
                 gen.emit(&*node).unwrap();
@@ -500,7 +500,7 @@ where
 {
     let mut s = String::new();
     {
-        let mut wr = BasicCssWriter::new(&mut s, BasicCssWriterConfig { indent: "  " });
+        let mut wr = BasicCssWriter::new(&mut s, None, BasicCssWriterConfig::default());
         let mut gen = CodeGenerator::new(&mut wr, CodegenConfig { minify: true });
 
         gen.emit(node).unwrap();

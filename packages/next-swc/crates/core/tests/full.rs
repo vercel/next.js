@@ -71,8 +71,10 @@ fn test(input: &Path, minify: bool) {
                 None,
                 &handler,
                 &options.swc,
-                |_| custom_before_pass(cm.clone(), fm.clone(), &options, c.comments()),
-                |_| noop(),
+                |_, comments| {
+                    custom_before_pass(cm.clone(), fm.clone(), &options, comments.clone())
+                },
+                |_, _| noop(),
             ) {
                 Ok(v) => {
                     NormalizedOutput::from(v.code)

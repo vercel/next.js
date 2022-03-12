@@ -15,7 +15,8 @@ use swc_ecmascript::ast::{
     ArrayLit, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElementName, JSXExpr,
     JSXExprContainer, JSXObject,
 };
-use swc_ecmascript::utils::ExprFactory;
+use swc_ecmascript::utils::ident::IdentLike;
+use swc_ecmascript::utils::{ExprFactory, Id};
 use swc_ecmascript::{
     ast::{
         Callee, Expr, ExprOrSpread, Ident, ImportDecl, ImportSpecifier, JSXElement, KeyValueProp,
@@ -156,7 +157,7 @@ pub struct EmotionTransformer<C: Comments> {
     filename: Option<String>,
     cm: Arc<SourceMap>,
     comments: C,
-    import_packages: FxHashMap<JsWord, PackageMeta>,
+    import_packages: FxHashMap<Id, PackageMeta>,
     emotion_target_class_name_count: usize,
     current_context: Option<String>,
     // skip `css` transformation if it in JSX Element/Attribute
@@ -262,7 +263,7 @@ impl<C: Comments> EmotionTransformer<C> {
                             for exported in c.exported_names.iter() {
                                 if named.local.as_ref() == exported.name {
                                     self.import_packages.insert(
-                                        named.local.sym.clone(),
+                                        named.local.to_id(),
                                         PackageMeta::Named(exported.kind),
                                     );
                                 }
@@ -271,14 +272,12 @@ impl<C: Comments> EmotionTransformer<C> {
                         ImportSpecifier::Default(default) => {
                             if let Some(kind) = c.default_export {
                                 self.import_packages
-                                    .insert(default.local.sym.clone(), PackageMeta::Named(kind));
+                                    .insert(default.local.to_id(), PackageMeta::Named(kind));
                             }
                         }
                         ImportSpecifier::Namespace(namespace) => {
-                            self.import_packages.insert(
-                                namespace.local.sym.clone(),
-                                PackageMeta::Namespace(c.clone()),
-                            );
+                            self.import_packages
+                                .insert(namespace.local.to_id(), PackageMeta::Namespace(c.clone()));
                         }
                     }
                 }
@@ -310,7 +309,7 @@ impl<C: Comments> EmotionTransformer<C> {
                     let q = q.take();
                     let minified =
                         minify_css_string(&q.raw.value, index == 0, index == args_len - 1);
-                    if !minified.replace(" ", "").is_empty() {
+                    if !minified.replace(' ', "").is_empty() {
                         args.push(minified.as_arg());
                     }
                 }
@@ -404,7 +403,7 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
             match e.as_mut() {
                 // css({})
                 Expr::Ident(i) => {
-                    if let Some(package) = self.import_packages.get(&i.sym) {
+                    if let Some(package) = self.import_packages.get(&i.to_id()) {
                         if !expr.args.is_empty() {
                             if let PackageMeta::Named(kind) = package {
                                 if matches!(kind, ExprKind::Css) && !self.in_jsx_element {
@@ -425,7 +424,7 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                     if let Callee::Expr(callee_exp) = &c.callee {
                         if let Expr::Ident(i) = callee_exp.as_ref() {
                             if let Some(PackageMeta::Named(ExprKind::Styled)) =
-                                self.import_packages.get(&i.sym)
+                                self.import_packages.get(&i.to_id())
                             {
                                 if !c.args.is_empty() {
                                     let mut args_props = Vec::with_capacity(2);
@@ -461,7 +460,7 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                 // customEmotionReact.css({})
                 Expr::Member(m) => {
                     if let Expr::Ident(i) = m.obj.as_ref() {
-                        if let Some(package) = self.import_packages.get(&i.sym) {
+                        if let Some(package) = self.import_packages.get(&i.to_id()) {
                             if let PackageMeta::Named(kind) = package {
                                 if matches!(kind, ExprKind::Styled) {
                                     if let MemberProp::Ident(prop) = &m.prop {
@@ -540,7 +539,7 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                     if let Callee::Expr(callee) = &call.callee {
                         if let Expr::Ident(i) = callee.as_ref() {
                             if let Some(PackageMeta::Named(ExprKind::Styled)) =
-                                self.import_packages.get(&i.sym)
+                                self.import_packages.get(&i.to_id())
                             {
                                 let mut callee = call.take();
                                 let mut object_props = Vec::with_capacity(2);
@@ -584,7 +583,7 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                 // css``
                 Expr::Ident(i) => {
                     if let Some(PackageMeta::Named(ExprKind::Css)) =
-                        self.import_packages.get(&i.sym)
+                        self.import_packages.get(&i.to_id())
                     {
                         let mut args = self.create_args_from_tagged_tpl(&mut tagged_tpl.tpl);
                         if !self.in_jsx_element {
@@ -608,7 +607,7 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                 // customEmotionReact.css``
                 Expr::Member(member_expr) => {
                     if let Expr::Ident(i) = member_expr.obj.as_mut() {
-                        if let Some(p) = self.import_packages.get(&i.sym) {
+                        if let Some(p) = self.import_packages.get(&i.to_id()) {
                             match p {
                                 PackageMeta::Named(ExprKind::Styled) => {
                                     if let MemberProp::Ident(prop) = &mut member_expr.prop {
@@ -697,7 +696,7 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
         match &mut expr.opening.name {
             JSXElementName::Ident(i) => {
                 if let Some(PackageMeta::Named(ExprKind::GlobalJSX)) =
-                    self.import_packages.get(&i.sym)
+                    self.import_packages.get(&i.to_id())
                 {
                     self.rewrite_styles_attr(&mut expr.opening.attrs, i.span.lo());
                 }
@@ -707,7 +706,7 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                     if let Some(PackageMeta::Namespace(EmotionModuleConfig {
                         exported_names,
                         ..
-                    })) = self.import_packages.get(&i.sym)
+                    })) = self.import_packages.get(&i.to_id())
                     {
                         if exported_names.iter().any(|item| {
                             matches!(item.kind, ExprKind::GlobalJSX)

@@ -42,9 +42,7 @@ use swc_common::{FileName, SourceFile, SourceMap};
 use swc_ecmascript::ast::EsVersion;
 use swc_ecmascript::parser::parse_file_as_module;
 use swc_ecmascript::transforms::pass::noop;
-use swc_ecmascript::{
-    visit::Fold,
-};
+use swc_ecmascript::visit::Fold;
 
 pub mod amp_attributes;
 mod auto_cjs;
