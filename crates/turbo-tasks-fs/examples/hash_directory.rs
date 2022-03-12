@@ -91,8 +91,7 @@ async fn hash_directory(directory: FileSystemPathRef) -> Result<ContentHashRef> 
             println!("{}: not found", directory.await?.path);
         }
     };
-    let hashes_str = hashes.join(",");
-    Ok(ContentHashRef::new(hashes_str))
+    Ok(hash_content(&hashes.join(",")))
 }
 
 #[turbo_tasks::function]
@@ -101,7 +100,7 @@ async fn hash_file(file_path: FileSystemPathRef) -> Result<ContentHashRef> {
     Ok(match &*content {
         FileContent::Content(bytes) => {
             let content = &*String::from_utf8_lossy(&bytes);
-            hash_content(ContentHashRef::new(content.into()))
+            hash_content(content.into())
         }
         FileContent::NotFound => {
             // report error
@@ -111,9 +110,9 @@ async fn hash_file(file_path: FileSystemPathRef) -> Result<ContentHashRef> {
 }
 
 #[turbo_tasks::function]
-async fn hash_content(content: ContentHashRef) -> Result<ContentHashRef> {
+fn hash_content(content: &str) -> Result<ContentHashRef> {
     let mut hasher = Sha256::new();
-    hasher.update(content.await?.value.clone());
+    hasher.update(content);
     let result = format!("{:x}", hasher.finalize());
 
     Ok(ContentHashRef::new(result))
