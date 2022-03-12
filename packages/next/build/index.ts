@@ -30,6 +30,7 @@ import loadCustomRoutes, {
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyAndLint } from '../lib/verifyAndLint'
+import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_ID_FILE,
@@ -320,7 +321,6 @@ export default async function build(
         createPagesMapping(pagePaths, config.pageExtensions, {
           isDev: false,
           hasServerComponents,
-          globalRuntime: runtime,
         })
       )
 
@@ -2104,6 +2104,17 @@ export default async function build(
           "You'll receive a Real Experience Score computed by all of your visitors."
       )
       console.log('')
+    }
+
+    if (Boolean(config.experimental.nextScriptWorkers)) {
+      await nextBuildSpan
+        .traceChild('verify-partytown-setup')
+        .traceAsyncFn(async () => {
+          await verifyPartytownSetup(
+            dir,
+            join(distDir, CLIENT_STATIC_FILES_PATH)
+          )
+        })
     }
 
     await nextBuildSpan

@@ -83,6 +83,7 @@ export interface ExperimentalConfig {
   reactMode?: 'legacy' | 'concurrent' | 'blocking'
   workerThreads?: boolean
   optimizeCss?: boolean
+  nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
   conformance?: boolean
@@ -450,6 +451,7 @@ export const defaultConfig: NextConfig = {
     isrFlushToDisk: true,
     workerThreads: false,
     optimizeCss: false,
+    nextScriptWorkers: false,
     scrollRestoration: false,
     externalDir: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,

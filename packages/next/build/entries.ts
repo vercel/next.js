@@ -36,12 +36,10 @@ export function createPagesMapping(
     isDev,
     isRoot,
     hasServerComponents,
-    globalRuntime,
   }: {
     isDev: boolean
     isRoot?: boolean
     hasServerComponents: boolean
-    globalRuntime?: 'nodejs' | 'edge'
   }
 ): PagesMapping {
   const previousPages: PagesMapping = {}
@@ -82,7 +80,6 @@ export function createPagesMapping(
   // we alias these in development and allow webpack to
   // allow falling back to the correct source file so
   // that HMR can work properly when a file is added/removed
-  const documentPage = `_document${globalRuntime ? '-concurrent' : ''}`
   if (isDev) {
     pages['/_app'] = `${pathAlias}/_app`
     pages['/_error'] = `${pathAlias}/_error`
@@ -90,8 +87,7 @@ export function createPagesMapping(
   } else {
     pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
     pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
-    pages['/_document'] =
-      pages['/_document'] || `next/dist/pages/${documentPage}`
+    pages['/_document'] = pages['/_document'] || `next/dist/pages/_document`
   }
   return pages
 }

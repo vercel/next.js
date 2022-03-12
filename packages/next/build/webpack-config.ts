@@ -552,9 +552,7 @@ export default async function getBaseWebpackConfig(
         prev.push(path.join(pagesDir, `_document.${ext}`))
         return prev
       }, [] as string[]),
-      `next/dist/pages/_document${
-        hasConcurrentFeatures ? '-concurrent' : ''
-      }.js`,
+      `next/dist/pages/_document.js`,
     ]
   }
 
@@ -1322,6 +1320,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
           config.experimental.optimizeCss && !dev
         ),
+        'process.env.__NEXT_SCRIPT_WORKERS': JSON.stringify(
+          config.experimental.nextScriptWorkers && !dev
+        ),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
         ),
@@ -1510,6 +1511,7 @@ export default async function getBaseWebpackConfig(
   webpack5Config.module!.parser = {
     javascript: {
       url: 'relative',
+      commonjsMagicComments: true,
     },
   }
   webpack5Config.module!.generator = {
@@ -1569,6 +1571,7 @@ export default async function getBaseWebpackConfig(
     reactMode: config.experimental.reactMode,
     optimizeFonts: config.optimizeFonts,
     optimizeCss: config.experimental.optimizeCss,
+    nextScriptWorkers: config.experimental.nextScriptWorkers,
     scrollRestoration: config.experimental.scrollRestoration,
     basePath: config.basePath,
     excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
