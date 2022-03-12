@@ -2,12 +2,12 @@ use anyhow::{anyhow, Context, Result};
 use async_std::task::{block_on, spawn};
 use clap::Parser;
 use std::{collections::HashSet, env::current_dir, path::PathBuf, time::Instant};
-use turbo_pack::{
+use turbo_tasks::{NothingRef, TurboTasks};
+use turbo_tasks_fs::{DiskFileSystemRef, FileSystemPathRef, FileSystemRef};
+use turbopack::{
     all_assets, asset::AssetRef, emit, module, rebase::RebasedAssetRef,
     source_asset::SourceAssetRef,
 };
-use turbo_tasks::{NothingRef, TurboTasks};
-use turbo_tasks_fs::{DiskFileSystemRef, FileSystemPathRef, FileSystemRef};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]

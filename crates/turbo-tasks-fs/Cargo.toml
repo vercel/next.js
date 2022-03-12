@@ -14,3 +14,6 @@ notify = "4.0.17"
 threadpool = "1.8.1"
 concurrent-queue = "1.2.2"
 json = "0.12.4"
+
+[dev-dependencies]
+sha2 = "0.10.2"

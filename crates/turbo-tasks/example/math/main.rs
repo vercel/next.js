@@ -10,10 +10,10 @@ use random::RandomIdRef;
 use std::fs;
 use std::time::Instant;
 use std::{env::current_dir, time::Duration};
-use turbo_pack::ecmascript::ModuleAssetRef;
-use turbo_pack::emit;
-use turbo_pack::rebase::RebasedAssetRef;
-use turbo_pack::source_asset::SourceAssetRef;
+use turbopack::ecmascript::ModuleAssetRef;
+use turbopack::emit;
+use turbopack::rebase::RebasedAssetRef;
+use turbopack::source_asset::SourceAssetRef;
 use turbo_tasks::viz::GraphViz;
 use turbo_tasks::{NothingRef, TurboTasks};
 
@@ -37,33 +37,7 @@ fn main() {
 
         let task = tt.spawn_root_task(|| {
             Box::pin(async {
-                // make_math().await;
-
-                let root = current_dir().unwrap().to_str().unwrap().to_string();
-                let disk_fs = DiskFileSystemRef::new("project".to_string(), root);
-
-                // Smart Pointer cast
-                let fs: FileSystemRef = disk_fs.into();
-
-                // ls(fs).await;
-                let input = FileSystemPathRef::new(fs.clone(), "demo");
-                let output = FileSystemPathRef::new(fs.clone(), "out");
-                let entry = FileSystemPathRef::new(fs.clone(), "demo/index.js");
-
-                let source = SourceAssetRef::new(entry);
-                let module = ModuleAssetRef::new(source.into());
-                let rebased = RebasedAssetRef::new(module.into(), input, output);
-                emit(rebased.into());
-
-                // copy_all(
-                //     entry,
-                //     CopyAllOptions {
-                //         input_dir: input,
-                //         output_dir: output,
-                //     }
-                //     .into(),
-                // )
-                // .await;
+                make_math().await;
 
                 Ok(NothingRef::new().into())
             })
@@ -143,47 +117,4 @@ fn make_math() {
         }
         .into(),
     );
-}
-
-#[turbo_tasks::function]
-async fn ls(fs: FileSystemRef) {
-    let directory_ref = FileSystemPathRef::new(fs, "");
-    print_sizes(directory_ref.clone());
-}
-
-#[turbo_tasks::function]
-async fn print_sizes(directory: FileSystemPathRef) -> Result<()> {
-    let content = directory.clone().read_dir();
-    match &*content.await? {
-        DirectoryContent::Entries(entries) => {
-            for entry in entries.iter() {
-                match &*entry.get().await? {
-                    DirectoryEntry::File(path) => {
-                        print_size(path.clone(), path.clone().read());
-                    }
-                    DirectoryEntry::Directory(path) => {
-                        print_sizes(path.clone());
-                    }
-                    _ => {}
-                }
-            }
-        }
-        DirectoryContent::NotFound => {
-            println!("{}: not found", directory.await?.path);
-        }
-    };
-    Ok(())
-}
-
-#[turbo_tasks::function]
-async fn print_size(path: FileSystemPathRef, content: FileContentRef) -> Result<()> {
-    match &*content.await? {
-        FileContent::Content(buffer) => {
-            println!("{:?}: Size {}", *path.await?, buffer.len());
-        }
-        FileContent::NotFound => {
-            println!("{:?}: not found", *path.await?);
-        }
-    }
-    Ok(())
 }

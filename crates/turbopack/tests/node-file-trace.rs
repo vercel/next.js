@@ -2,9 +2,9 @@ use std::{fs::remove_dir_all, io::ErrorKind, path::PathBuf};
 
 use async_std::task::block_on;
 use testing::fixture;
-use turbo_pack::{emit, module, rebase::RebasedAssetRef, source_asset::SourceAssetRef};
 use turbo_tasks::{NothingRef, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemRef, FileSystemPathRef};
+use turbopack::{emit, module, rebase::RebasedAssetRef, source_asset::SourceAssetRef};
 
 #[fixture("tests/node-file-trace/integration/argon2.js")]
 fn integration_test(input: PathBuf) {

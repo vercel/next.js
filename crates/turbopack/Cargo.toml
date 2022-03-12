@@ -1,5 +1,5 @@
 [package]
-name = "turbo-pack"
+name = "turbopack"
 version = "0.1.0"
 edition = "2021"
 
