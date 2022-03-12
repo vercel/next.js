@@ -131,7 +131,6 @@ export default class NextWebServer extends BaseServer {
       query,
       {
         ...renderOpts,
-        // supportsDynamicHTML: true,
         disableOptimizedLoading: true,
         runtime: 'edge',
       }
