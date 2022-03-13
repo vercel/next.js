@@ -92,6 +92,34 @@ The above `next` import is a function that receives an object with the following
 
 The returned `app` can then be used to let Next.js handle requests as required.
 
+## Rendering Error Pages with Custom Servers
+
+When using custom servers, users should use `renderError` to render error pages in an error handler. This is in case of an [unhandled server exception](https://nextjs.org/docs/advanced-features/error-handling#handling-server-errors) where a 404 error page will be loaded rather than a [custom error page](https://nextjs.org/docs/advanced-features/custom-error-page#more-advanced-error-page-customizing).
+
+```js
+app.renderError(err, req, res, pathname, query, setHeaders)
+```
+
+The above is an example of using the `renderError` function with its parameters.<br>
+Below is the source of the function.
+
+```js
+public async renderError(
+    err: Error | null,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    pathname: string,
+    query: NextParsedUrlQuery = {},
+    setHeaders = true
+  ): Promise<void> {
+    if (setHeaders) {
+      res.setHeader(
+        'Cache-Control',
+        'no-cache, no-store, max-age=0, must-revalidate'
+      )
+    }
+```
+
 ## Disabling file-system routing
 
 By default, `Next` will serve each file in the `pages` folder under a pathname matching the filename. If your project uses a custom server, this behavior may result in the same content being served from multiple paths, which can present problems with SEO and UX.
