@@ -5,7 +5,7 @@ import { sendRenderResult } from '../../../../server/send-payload'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 
 import { renderToHTML } from '../../../../server/render'
-import { tryGetPreviewData } from '../../../../server/api-utils'
+import { tryGetPreviewData } from '../../../../server/api-utils/node'
 import { denormalizePagePath } from '../../../../server/denormalize-page-path'
 import { setLazyProp, getCookieParser } from '../../../../server/api-utils'
 import { getRedirectStatus } from '../../../../lib/load-custom-routes'
@@ -191,9 +191,8 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           locale: detectedLocale,
           defaultLocale,
           domainLocales: i18n?.domains,
-          optimizeImages: process.env.__NEXT_OPTIMIZE_IMAGES,
           optimizeCss: process.env.__NEXT_OPTIMIZE_CSS,
-          concurrentFeatures: process.env.__NEXT_CONCURRENT_FEATURES,
+          nextScriptWorkers: process.env.__NEXT_SCRIPT_WORKERS,
           crossOrigin: process.env.__NEXT_CROSS_ORIGIN,
         },
         options

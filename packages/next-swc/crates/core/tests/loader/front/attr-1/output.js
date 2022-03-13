@@ -2,7 +2,7 @@ import _JSXStyle from "styled-jsx/style";
 export default function Foo() {
     return(/*#__PURE__*/ React.createElement("div", {
         render: function(v) {
-            /*#__PURE__*/ return(React.createElement("form", {
+            return(/*#__PURE__*/ React.createElement("form", {
                 className: "jsx-eb368961fd3b0a99"
             }));
         },

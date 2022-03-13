@@ -1,6 +1,7 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
-import { fetchViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, waitFor } from 'next-test-utils'
+import { getNodeBySelector } from './utils'
 
 async function resolveStreamResponse(response, onData) {
   let result = ''
@@ -16,19 +17,7 @@ async function resolveStreamResponse(response, onData) {
   return result
 }
 
-export default function (context) {
-  it('should disable cache for fizz pages', async () => {
-    const urls = ['/', '/next-api/image', '/next-api/link']
-    await Promise.all(
-      urls.map(async (url) => {
-        const { headers } = await fetchViaHTTP(context.appPort, url)
-        expect(headers.get('cache-control')).toBe(
-          'no-cache, no-store, max-age=0, must-revalidate'
-        )
-      })
-    )
-  })
-
+export default function (context, { env, runtime }) {
   it('should support streaming for fizz response', async () => {
     await fetchViaHTTP(context.appPort, '/streaming', null, {}).then(
       async (response) => {
@@ -103,5 +92,141 @@ export default function (context) {
     expect(await browser.eval(`window.partial_hydration_counter_result`)).toBe(
       'count: 1'
     )
+  })
+
+  it('should flush the suffix at the very end', async () => {
+    await fetchViaHTTP(context.appPort, '/').then(async (response) => {
+      const result = await resolveStreamResponse(response)
+      expect(result).toMatch(/<\/body><\/html>/)
+    })
+  })
+
+  if (env === 'dev') {
+    it('should warn when stylesheets or scripts are in head', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head')
+
+        await browser.waitForElementByCss('h1')
+        await waitFor(1000)
+        const browserLogs = await browser.log('browser')
+        let foundStyles = false
+        let foundScripts = false
+        const logs = []
+        browserLogs.forEach(({ message }) => {
+          if (message.includes('Do not add stylesheets using next/head')) {
+            foundStyles = true
+            logs.push(message)
+          }
+          if (message.includes('Do not add <script> tags using next/head')) {
+            foundScripts = true
+            logs.push(message)
+          }
+        })
+
+        expect(foundStyles).toEqual(true)
+        expect(foundScripts).toEqual(true)
+
+        // Warnings are unique
+        expect(logs.length).toEqual(new Set(logs).size)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should warn when scripts are in head', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head')
+        await browser.waitForElementByCss('h1')
+        await waitFor(1000)
+        const browserLogs = await browser.log('browser')
+        let found = false
+        browserLogs.forEach((log) => {
+          if (log.message.includes('Use next/script instead')) {
+            found = true
+          }
+        })
+        expect(found).toEqual(true)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should not warn when application/ld+json scripts are in head', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head-with-json-ld-snippet')
+        await browser.waitForElementByCss('h1')
+        await waitFor(1000)
+        const browserLogs = await browser.log('browser')
+        let found = false
+        browserLogs.forEach((log) => {
+          if (log.message.includes('Use next/script instead')) {
+            found = true
+          }
+        })
+        expect(found).toEqual(false)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  }
+
+  it('should stream to users', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/streaming')
+    let flushCount = 0
+    await resolveStreamResponse(res, () => {
+      flushCount++
+    })
+    expect(flushCount).toBeGreaterThan(1)
+    if (runtime === 'nodejs') {
+      expect(res.headers.get('etag')).toBeNull()
+    }
+  })
+
+  it('should not stream to crawlers or google pagerender bot', async () => {
+    const res1 = await fetchViaHTTP(
+      context.appPort,
+      '/streaming',
+      {},
+      {
+        headers: {
+          'user-agent': 'Googlebot',
+        },
+      }
+    )
+
+    const res2 = await fetchViaHTTP(
+      context.appPort,
+      '/streaming',
+      {},
+      {
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36 Google-PageRenderer Google (+https://developers.google.com/+/web/snippet/)',
+        },
+      }
+    )
+    let flushCount = 0
+    await resolveStreamResponse(res2, () => {
+      flushCount++
+    })
+    expect(flushCount).toBe(1)
+    const html = await res1.text()
+    const body = await getNodeBySelector(html, '#__next')
+    // Resolve data instead of fallback
+    expect(body.text()).toBe('next_streaming_data')
+
+    if (runtime === 'nodejs') {
+      expect(res1.headers.get('etag')).toBeDefined()
+      expect(res2.headers.get('etag')).toBeDefined()
+    }
   })
 }

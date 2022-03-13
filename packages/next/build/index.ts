@@ -30,6 +30,7 @@ import loadCustomRoutes, {
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyAndLint } from '../lib/verifyAndLint'
+import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_ID_FILE,
@@ -104,6 +105,7 @@ import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { recursiveCopy } from '../lib/recursive-copy'
+import { shouldUseReactRoot } from '../server/config'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -151,9 +153,14 @@ export default async function build(
     setGlobal('phase', PHASE_PRODUCTION_BUILD)
     setGlobal('distDir', distDir)
 
-    const hasConcurrentFeatures = !!config.experimental.concurrentFeatures
+    // Currently, when the runtime option is set (either `nodejs` or `edge`),
+    // we enable concurrent features (Fizz-related rendering architecture).
+    const runtime = config.experimental.runtime
+    const hasReactRoot = shouldUseReactRoot()
+    const hasConcurrentFeatures = !!runtime
+
     const hasServerComponents =
-      hasConcurrentFeatures && !!config.experimental.serverComponents
+      hasReactRoot && !!config.experimental.serverComponents
 
     const { target } = config
     const buildId: string = await nextBuildSpan
@@ -292,20 +299,20 @@ export default async function build(
         createPagesMapping(pagePaths, config.pageExtensions, {
           isDev: false,
           hasServerComponents,
-          hasConcurrentFeatures,
         })
       )
 
-    const entrypoints = nextBuildSpan
+    const entrypoints = await nextBuildSpan
       .traceChild('create-entrypoints')
-      .traceFn(() =>
+      .traceAsyncFn(() =>
         createEntrypoints(
           mappedPages,
           target,
           buildId,
           previewProps,
           config,
-          loadedEnvFiles
+          loadedEnvFiles,
+          pagesDir
         )
       )
     const pageKeys = Object.keys(mappedPages)
@@ -423,7 +430,7 @@ export default async function build(
       pages404: boolean
       basePath: string
       redirects: Array<ReturnType<typeof buildCustomRoute>>
-      rewrites:
+      rewrites?:
         | Array<ReturnType<typeof buildCustomRoute>>
         | {
             beforeFiles: Array<ReturnType<typeof buildCustomRoute>>
@@ -528,6 +535,13 @@ export default async function build(
       await recursiveDelete(distDir, /^cache/)
     }
 
+    // Ensure commonjs handling is used for files in the distDir (generally .next)
+    // Files outside of the distDir can be "type": "module"
+    await promises.writeFile(
+      path.join(distDir, 'package.json'),
+      '{"type": "commonjs"}'
+    )
+
     // We need to write the manifest with rewrites before build
     // so serverless can import the manifest
     await nextBuildSpan
@@ -550,7 +564,14 @@ export default async function build(
       .traceChild('generate-required-server-files')
       .traceFn(() => ({
         version: 1,
-        config: { ...config, configFile: undefined },
+        config: {
+          ...config,
+          configFile: undefined,
+          experimental: {
+            ...config.experimental,
+            trustHostHeader: ciEnvironment.hasNextSupport,
+          },
+        },
         appDir: dir,
         files: [
           ROUTES_MANIFEST,
@@ -558,9 +579,15 @@ export default async function build(
           BUILD_MANIFEST,
           PRERENDER_MANIFEST,
           path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
-          hasServerComponents
-            ? path.join(SERVER_DIRECTORY, MIDDLEWARE_FLIGHT_MANIFEST + '.js')
-            : null,
+          ...(hasServerComponents
+            ? [
+                path.join(SERVER_DIRECTORY, MIDDLEWARE_FLIGHT_MANIFEST + '.js'),
+                path.join(
+                  SERVER_DIRECTORY,
+                  MIDDLEWARE_FLIGHT_MANIFEST + '.json'
+                ),
+              ]
+            : []),
           REACT_LOADABLE_MANIFEST,
           config.optimizeFonts
             ? path.join(
@@ -607,16 +634,16 @@ export default async function build(
               rewrites,
               runWebpackSpan,
             }),
-            hasConcurrentFeatures
+            hasReactRoot
               ? getBaseWebpackConfig(dir, {
                   buildId,
                   reactProductionProfiling,
                   isServer: true,
-                  webServerRuntime: true,
+                  isEdgeRuntime: true,
                   config,
                   target,
                   pagesDir,
-                  entrypoints: entrypoints.serverWeb,
+                  entrypoints: entrypoints.edgeServer,
                   rewrites,
                   runWebpackSpan,
                 })
@@ -650,7 +677,7 @@ export default async function build(
           }
         } else {
           const serverResult = await runCompiler(configs[1], { runWebpackSpan })
-          const serverWebResult = configs[2]
+          const edgeServerResult = configs[2]
             ? await runCompiler(configs[2], { runWebpackSpan })
             : null
 
@@ -658,12 +685,12 @@ export default async function build(
             warnings: [
               ...clientResult.warnings,
               ...serverResult.warnings,
-              ...(serverWebResult?.warnings || []),
+              ...(edgeServerResult?.warnings || []),
             ],
             errors: [
               ...clientResult.errors,
               ...serverResult.errors,
-              ...(serverWebResult?.errors || []),
+              ...(edgeServerResult?.errors || []),
             ],
           }
         }
@@ -710,7 +737,7 @@ export default async function build(
       const moduleName = getUnresolvedModuleFromError(error)
       if (hasConcurrentFeatures && moduleName) {
         const err = new Error(
-          `Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`${moduleName}\` imported.\n\n`
+          `Native Node.js APIs are not supported in the Edge Runtime. Found \`${moduleName}\` imported.\n\n`
         ) as NextError
         err.code = 'EDGE_RUNTIME_UNSUPPORTED_API'
         throw err
@@ -1888,6 +1915,9 @@ export default async function build(
       })
     }
 
+    // ensure the worker is not left hanging
+    staticWorkers.close()
+
     const analysisEnd = process.hrtime(analysisBegin)
     telemetry.record(
       eventBuildOptimize(pagePaths, {
@@ -2021,6 +2051,12 @@ export default async function build(
       for (const file of [
         ...requiredServerFiles.files,
         path.join(config.distDir, SERVER_FILES_MANIFEST),
+        ...loadedEnvFiles.reduce<string[]>((acc, envFile) => {
+          if (['.env', '.env.production'].includes(envFile.path)) {
+            acc.push(envFile.path)
+          }
+          return acc
+        }, []),
       ]) {
         const filePath = path.join(dir, file)
         await promises.copyFile(
@@ -2075,6 +2111,17 @@ export default async function build(
           "You'll receive a Real Experience Score computed by all of your visitors."
       )
       console.log('')
+    }
+
+    if (Boolean(config.experimental.nextScriptWorkers)) {
+      await nextBuildSpan
+        .traceChild('verify-partytown-setup')
+        .traceAsyncFn(async () => {
+          await verifyPartytownSetup(
+            dir,
+            join(distDir, CLIENT_STATIC_FILES_PATH)
+          )
+        })
     }
 
     await nextBuildSpan

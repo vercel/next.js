@@ -217,7 +217,7 @@ export default function Home() {
 
 ## Site Configuration
 
-With Gatsby, your site's metadata (name, description, etc) is located inside `gatsby-config.js`. This is then exposed through the GraphQL API and consumed through a `pageQuery` or a static query inside a component.
+With Gatsby, your site's metadata (name, description, etc.) is located inside `gatsby-config.js`. This is then exposed through the GraphQL API and consumed through a `pageQuery` or a static query inside a component.
 
 With Next.js, we recommend creating a config file similar to below. You can then import this file anywhere without having to use GraphQL to access your site's metadata.
 

@@ -28,9 +28,9 @@ export default async function middlewareSSRLoader(this: any) {
 
     import { getRender } from 'next/dist/build/webpack/loaders/next-middleware-ssr-loader/render'
 
-    import App from ${stringifiedAppPath}
     import Document from ${stringifiedDocumentPath}
 
+    const appMod = require(${stringifiedAppPath})
     const pageMod = require(${stringifiedPagePath})
     const errorMod = require(${stringifiedErrorPath})
     const error500Mod = ${stringified500Path} ? require(${stringified500Path}) : null
@@ -39,42 +39,26 @@ export default async function middlewareSSRLoader(this: any) {
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
     const rscManifest = self.__RSC_MANIFEST
 
-    if (typeof pageMod.default !== 'function') {
-      throw new Error('Your page must export a \`default\` component')
-    }
-
     // Set server context
-    self.__current_route = ${JSON.stringify(page)}
     self.__server_context = {
-      Component: pageMod.default,
-      pageConfig: pageMod.config || {},
-      buildManifest,
-      reactLoadableManifest,
-      Document,
-      App,
-      getStaticProps: pageMod.getStaticProps,
-      getServerSideProps: pageMod.getServerSideProps,
-      getStaticPaths: pageMod.getStaticPaths,
-      ComponentMod: undefined,
-      serverComponentManifest: ${isServerComponent} ? rscManifest : null,
-
-      // components
-      errorMod,
-      error500Mod,
-
-      // renderOpts
+      page: ${JSON.stringify(page)},
       buildId: ${JSON.stringify(buildId)},
-      dev: ${dev},
-      env: process.env,
-      supportsDynamicHTML: true,
-      concurrentFeatures: true,
-      disableOptimizedLoading: true,
     }
   
     const render = getRender({
+      dev: ${dev},
+      page: ${JSON.stringify(page)},
+      appMod,
+      pageMod,
+      errorMod,
+      error500Mod,
       Document,
+      buildManifest,
+      reactLoadableManifest,
+      serverComponentManifest: ${isServerComponent} ? rscManifest : null,
       isServerComponent: ${isServerComponent},
       config: ${stringifiedConfig},
+      buildId: ${JSON.stringify(buildId)},
     })
 
     export default function rscMiddleware(opts) {

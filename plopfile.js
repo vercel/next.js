@@ -15,7 +15,18 @@ module.exports = function (plop) {
         type: 'list',
         name: 'type',
         message: 'Test type',
-        choices: ['e2e', 'unit', 'production', 'development'],
+        choices: [
+          {
+            name: 'e2e - Test "next dev" and "next build && next start"',
+            value: 'e2e',
+          },
+          {
+            name: 'production - Test "next build && next start"',
+            value: 'production',
+          },
+          { name: 'development - Test "next dev"', value: 'development' },
+          { name: 'unit - Test individual files', value: 'unit' },
+        ],
       },
     ],
     actions: function (data) {
