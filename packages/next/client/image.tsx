@@ -417,11 +417,12 @@ export default function Image({
     isLazy = false
   }
 
-  const [setIntersection, isIntersected, resetIntersected] = useIntersection<HTMLImageElement>({
-    rootRef: lazyRoot,
-    rootMargin: lazyBoundary,
-    disabled: !isLazy,
-  })
+  const [setIntersection, isIntersected, resetIntersected] =
+    useIntersection<HTMLImageElement>({
+      rootRef: lazyRoot,
+      rootMargin: lazyBoundary,
+      disabled: !isLazy,
+    })
   const isVisible = !isLazy || isIntersected
 
   const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
