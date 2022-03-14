@@ -50,7 +50,6 @@ export async function getAllPostsForHome(preview) {
             featuredImage
             author {
               name
-              slug
               picture
             }
           }
@@ -78,7 +77,6 @@ export async function getPostBySlug(slug, preview) {
             body
             author {
               name
-              slug
               picture
             }
           }
