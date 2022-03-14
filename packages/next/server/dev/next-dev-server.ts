@@ -739,6 +739,10 @@ export default class DevServer extends Server {
     return undefined
   }
 
+  protected getRootPathsManifest(): undefined {
+    return undefined
+  }
+
   protected getMiddleware(): never[] {
     return []
   }
