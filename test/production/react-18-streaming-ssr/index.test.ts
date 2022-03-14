@@ -46,6 +46,16 @@ describe('react 18 streaming SSR with custom next configs', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
+        'pages/index.js': `
+          export default function Page() {
+            return (
+              <div>
+                <style jsx>{\`p { color: blue } \`}</style>
+                <p>index</p>
+              </div>
+            )
+          }
+        `,
         'pages/hello.js': `
           export default function Page() {
             return <p>hello nextjs</p>
@@ -63,9 +73,15 @@ describe('react 18 streaming SSR with custom next configs', () => {
         react: '18.0.0-rc.2',
         'react-dom': '18.0.0-rc.2',
       },
+      installCommand: 'npm install',
     })
   })
   afterAll(() => next.destroy())
+
+  it('should render styled-jsx styles in streaming', async () => {
+    const html = await renderViaHTTP(next.url, '/')
+    expect(html).toContain('color:blue')
+  })
 
   it('should redirect paths without trailing-slash and render when slash is appended', async () => {
     const page = '/hello'

@@ -72,7 +72,7 @@
     "@next/env": "12.1.1-canary.10",
     "caniuse-lite": "^1.0.30001283",
     "postcss": "8.4.5",
-    "styled-jsx": "5.0.0",
+    "styled-jsx": "5.0.1",
     "use-subscription": "1.5.1"
   },
   "peerDependencies": {
