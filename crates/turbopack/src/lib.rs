@@ -22,7 +22,6 @@ pub mod ecmascript;
 mod errors;
 mod graph;
 pub mod json;
-pub mod module;
 pub mod module_options;
 pub mod rebase;
 pub mod reference;
