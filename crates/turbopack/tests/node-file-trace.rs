@@ -1,6 +1,11 @@
-use std::{fs::remove_dir_all, io::ErrorKind, path::PathBuf};
+use std::{
+    fs::remove_dir_all,
+    io::ErrorKind,
+    path::{Path, PathBuf},
+};
 
-use async_std::task::block_on;
+use anyhow::{Context, Error};
+use async_std::{process::Command, task::block_on};
 use testing::fixture;
 use turbo_tasks::{NothingRef, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemRef, FileSystemPathRef};
@@ -58,4 +63,25 @@ fn integration_test(input: PathBuf) {
 }
 
 #[turbo_tasks::function]
-async fn exec_node(path: FileSystemPathRef) {}
+async fn exec_node(path: FileSystemPathRef) -> Result<(), Error> {
+    let mut cmd = Command::new("node");
+
+    let p = path.get().await?;
+    let f = Path::new("tests_output")
+        .join("node-file-trace")
+        .join(&p.path)
+        .join(&p.path);
+    eprintln!("File: {}", f.display());
+
+    cmd.arg(&f);
+
+    let output = cmd.output().await.context("failed to spawn process")?;
+
+    eprintln!(
+        "---------- Stdout ----------\n{}\n---------- Stderr ----------\n {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    Ok(())
+}
