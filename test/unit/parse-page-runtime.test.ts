@@ -24,4 +24,12 @@ describe('parse page runtime config', () => {
     )
     expect(runtime).toBe(undefined)
   })
+
+  it('should fallback to the global runtime configuration if a runtime is needed', async () => {
+    const runtime = await getPageRuntime(
+      join(fixtureDir, 'page-runtime/fallback.js'),
+      'edge'
+    )
+    expect(runtime).toBe('edge')
+  })
 })

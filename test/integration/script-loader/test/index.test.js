@@ -12,21 +12,27 @@ import {
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 
-let appDir = join(__dirname, '..')
+let appDir = join(__dirname, '../base')
+let appWithPartytownMissingDir = join(__dirname, '../partytown-missing')
 let server
 let appPort
 
-describe('Script Loader', () => {
-  beforeAll(async () => {
-    await nextBuild(appDir)
-    const app = nextServer({
-      dir: appDir,
-      dev: false,
-      quiet: true,
-    })
+async function bootApp(dir) {
+  await nextBuild(dir)
 
-    server = await startApp(app)
-    appPort = server.address().port
+  const app = nextServer({
+    dir,
+    dev: false,
+    quiet: true,
+  })
+
+  server = await startApp(app)
+  appPort = server.address().port
+}
+
+describe('Next.js Script - Primary Strategies', () => {
+  beforeAll(async () => {
+    await bootApp(appDir)
   })
   afterAll(() => {
     stopApp(server)
@@ -185,5 +191,17 @@ describe('Script Loader', () => {
     } finally {
       if (browser) await browser.close()
     }
+  })
+
+  it('Error message is shown if Partytown is not installed locally', async () => {
+    const { stdout, stderr } = await nextBuild(appWithPartytownMissingDir, [], {
+      stdout: true,
+      stderr: true,
+    })
+    const output = stdout + stderr
+
+    expect(output.replace(/\n|\r/g, '')).toContain(
+      `It looks like you're trying to use Partytown with next/script but do not have the required package(s) installed.Please install Partytown by running:	npm install @builder.io/partytownIf you are not trying to use Partytown, please disable the experimental "nextScriptWorkers" flag in next.config.js.`
+    )
   })
 })
