@@ -4,7 +4,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-[https://next-blog-webiny.vercel.app/](https://next-blog-webiny.vercel.app/)
+[https://webiny-headlesscms-nextjs-example.vercel.app/](https://webiny-headlesscms-nextjs-example.vercel.app/)
 
 ## Deploy your own
 
