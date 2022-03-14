@@ -23,3 +23,6 @@ features = ["concurrent"]
 [dependencies.swc_ecmascript]
 version = "0.114.2"
 features = ["parser", "visit"]
+
+[dev-dependencies]
+async-std ={version= "1.10.0",features=["unstable"]}
