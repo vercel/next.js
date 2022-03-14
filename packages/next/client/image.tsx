@@ -112,7 +112,7 @@ export type ImageProps = Omit<
   priority?: boolean
   loading?: LoadingValue
   lazyRoot?: React.RefObject<HTMLElement> | null
-  lazyBoundary?: string
+  lazyBoundary?: string | null
   placeholder?: PlaceholderValue
   blurDataURL?: string
   unoptimized?: boolean
@@ -195,6 +195,7 @@ type GenImgAttrsData = {
   unoptimized: boolean
   layout: LayoutValue
   loader: ImageLoader
+  loading: LoadingValue
   width?: number
   quality?: number
   sizes?: string
@@ -204,6 +205,7 @@ type GenImgAttrsResult = {
   src: string
   srcSet: string | undefined
   sizes: string | undefined
+  loading: string | undefined
 }
 
 function generateImgAttrs({
@@ -213,17 +215,19 @@ function generateImgAttrs({
   layout,
   width,
   quality,
+  loading,
   sizes,
   loader,
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
-    return { src, srcSet: undefined, sizes: undefined }
+    return { src, srcSet: undefined, sizes: undefined, loading }
   }
 
   const { widths, kind } = getWidths(config, width, layout, sizes)
   const last = widths.length - 1
 
   return {
+    loading,
     sizes: !sizes && kind === 'w' ? '100vw' : sizes,
     srcSet: widths
       .map(
@@ -343,7 +347,7 @@ export default function Image({
   priority = false,
   loading,
   lazyRoot = null,
-  lazyBoundary = '200px',
+  lazyBoundary = null,
   className,
   quality,
   width,
@@ -417,12 +421,17 @@ export default function Image({
     isLazy = false
   }
 
+  const canUseNativeLoadingStrategy = !(lazyRoot || lazyBoundary)
+  if (canUseNativeLoadingStrategy && isLazy) {
+    loading = 'lazy'
+  }
   const [setIntersection, isIntersected] = useIntersection<HTMLImageElement>({
     rootRef: lazyRoot,
-    rootMargin: lazyBoundary,
-    disabled: !isLazy,
+    rootMargin: lazyBoundary || '200px',
+    disabled: !isLazy || canUseNativeLoadingStrategy,
   })
-  const isVisible = !isLazy || isIntersected
+  const shouldRenderFullImgAttr =
+    !isLazy || canUseNativeLoadingStrategy || isIntersected
 
   const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
     boxSizing: 'border-box',
@@ -698,9 +707,10 @@ export default function Image({
     src: emptyDataURL,
     srcSet: undefined,
     sizes: undefined,
+    loading: undefined,
   }
 
-  if (isVisible) {
+  if (shouldRenderFullImgAttr) {
     imgAttributes = generateImgAttrs({
       config,
       src,
@@ -708,6 +718,7 @@ export default function Image({
       layout,
       width: widthInt,
       quality: qualityInt,
+      loading: canUseNativeLoadingStrategy ? loading : undefined,
       sizes,
       loader,
     })
@@ -754,7 +765,7 @@ export default function Image({
 
   useEffect(() => {
     handleLoading(imgRef, srcString, layout, placeholder, onLoadingCompleteRef)
-  }, [srcString, layout, placeholder, isVisible])
+  }, [srcString, layout, placeholder, shouldRenderFullImgAttr])
   const imgElementArgs = {
     isLazy,
     imgAttributes,
@@ -875,6 +886,7 @@ const ImageElement = ({
               layout,
               width: widthInt,
               quality: qualityInt,
+              loading,
               sizes,
               loader,
             })}

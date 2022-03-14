@@ -167,8 +167,7 @@ function runTests(mode) {
     expect(noscriptEl.attribs.srcset).toBeDefined()
 
     expect(el.attribs.src).toBeDefined()
-    expect(el.attribs.srcset).toBeUndefined()
-    expect(el.attribs.srcSet).toBeUndefined()
+    expect(el.attribs.srcset).toMatch(/_next/)
   })
 
   it('should update the image on src change', async () => {

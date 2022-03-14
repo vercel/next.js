@@ -106,6 +106,9 @@ function runTests() {
 
 function lazyLoadingTests() {
   it('should have loaded the first image immediately', async () => {
+    expect(await browser.elementById('lazy-top').getAttribute('loading')).toBe(
+      'lazy'
+    )
     expect(await browser.elementById('lazy-top').getAttribute('src')).toBe(
       'https://example.com/myaccount/lazy1.jpg?auto=format&fit=max&w=2000'
     )
@@ -169,22 +172,12 @@ function lazyLoadingTests() {
       await browser.elementById('lazy-bottom').getAttribute('srcset')
     ).toBeFalsy()
   })
-  it('should load the fourth image lazily after scrolling down', async () => {
+  it('should default to lazy', async () => {
     expect(
-      await browser.elementById('lazy-without-attribute').getAttribute('src')
-    ).toBe(emptyImage)
-    expect(
-      await browser.elementById('lazy-without-attribute').getAttribute('srcset')
-    ).toBeFalsy()
-    let viewportHeight = await browser.eval(`window.innerHeight`)
-    let topOfBottomImage = await browser.eval(
-      `document.getElementById('lazy-without-attribute').parentElement.offsetTop`
-    )
-    let buffer = 150
-    await browser.eval(
-      `window.scrollTo(0, ${topOfBottomImage - (viewportHeight + buffer)})`
-    )
-    await waitFor(200)
+      await browser
+        .elementById('lazy-without-attribute')
+        .getAttribute('loading')
+    ).toBe('lazy')
     expect(
       await browser.elementById('lazy-without-attribute').getAttribute('src')
     ).toBe('https://example.com/myaccount/lazy4.jpg?auto=format&fit=max&w=1600')
@@ -196,6 +189,9 @@ function lazyLoadingTests() {
   })
 
   it('should load the fifth image eagerly, without scrolling', async () => {
+    expect(
+      await browser.elementById('eager-loading').getAttribute('loading')
+    ).toBe('eager')
     expect(await browser.elementById('eager-loading').getAttribute('src')).toBe(
       'https://example.com/myaccount/lazy5.jpg?auto=format&fit=max&w=2000'
     )

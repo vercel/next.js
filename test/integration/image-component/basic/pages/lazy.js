@@ -18,6 +18,7 @@ const Lazy = () => {
         id="lazy-mid"
         src="lazy2.jpg"
         loading="lazy"
+        lazyBoundary="200px"
         height={400}
         width={300}
         className="exampleclass"
@@ -30,6 +31,7 @@ const Lazy = () => {
         width={300}
         unoptimized
         loading="lazy"
+        lazyBoundary="200px"
       ></Image>
       <div style={{ height: '2000px' }}></div>
       <Image
