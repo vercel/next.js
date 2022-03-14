@@ -450,7 +450,7 @@ export async function renderToHTML(
     supportsDynamicHTML,
     images,
     reactRoot,
-    runtime,
+    runtime: globalRuntime,
     ComponentMod,
     AppMod,
   } = renderOpts
@@ -1243,7 +1243,7 @@ export async function renderToHTML(
       | typeof Document
       | undefined
 
-    if (runtime === 'edge' && Document.getInitialProps) {
+    if (process.browser && Document.getInitialProps) {
       // In the Edge runtime, `Document.getInitialProps` isn't supported.
       // We throw an error here if it's customized.
       if (!builtinDocument) {
@@ -1489,7 +1489,7 @@ export async function renderToHTML(
     optimizeCss: renderOpts.optimizeCss,
     optimizeFonts: renderOpts.optimizeFonts,
     nextScriptWorkers: renderOpts.nextScriptWorkers,
-    runtime,
+    runtime: globalRuntime,
     hasConcurrentFeatures,
   }
 
