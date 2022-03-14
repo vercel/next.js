@@ -31,7 +31,7 @@ export type LoadComponentsReturnType = {
   pageConfig: PageConfig
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
-  serverComponentManifest: any | null
+  serverComponentManifest?: any | null
   Document: DocumentType
   App: AppType
   getStaticProps?: GetStaticProps
