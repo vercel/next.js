@@ -104,6 +104,9 @@ export interface ExperimentalConfig {
   urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
   outputStandalone?: boolean
+  images?: {
+    layoutRaw: boolean
+  }
   middlewareSourceMaps?: boolean
   rootDir?: boolean
 }
@@ -467,6 +470,9 @@ export const defaultConfig: NextConfig = {
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
     outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
     rootDir: false,
+    images: {
+      layoutRaw: false,
+    },
   },
 }
 
