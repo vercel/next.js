@@ -266,10 +266,12 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     let slot = match slot_mode {
-        IntoMode::None => quote! {
-            none_slot_mode
-        } ,
+        IntoMode::None => quote! {} ,
         IntoMode::New => quote! {
+            /// Places a value in a slot of the current task.
+            /// Overrides the current value. Doesn't check of equallity.
+            ///
+            /// Slot is selected based on the value type and call order of `slot`.
             fn slot(content: #ident) -> #ref_ident {
                 #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
                     |__slot| {
@@ -278,6 +280,10 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 ) }
             }
 
+            /// Places a value in a slot of the current task.
+            /// Overrides the current value. Doesn't check of equallity.
+            ///
+            /// Slot is selected by the provided `key`. `key` must not be used twice during the current task.
             fn keyed_slot<T: std::hash::Hash + std::cmp::PartialEq + std::cmp::Eq + Send + Sync + 'static>(key: T, content: #ident) -> #ref_ident {
                 #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_key::<#ident, T, _>(
                     key,
@@ -306,6 +312,11 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             }
         },
         IntoMode::Shared => quote! {
+            /// Places a value in a slot of the current task.
+            /// If there is already a value in the slot it only overrides the value when
+            /// it's not equal to the provided value. (Requires `Eq` trait to be implemented on the type.)
+            ///
+            /// Slot is selected based on the value type and call order of `slot`.
             fn slot(content: #ident) -> #ref_ident {
                 #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
                     |__slot| {
@@ -314,6 +325,11 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 ) }
             }
 
+            /// Places a value in a slot of the current task.
+            /// If there is already a value in the slot it only overrides the value when
+            /// it's not equal to the provided value. (Requires `Eq` trait to be implemented on the type.)
+            ///
+            /// Slot is selected by the provided `key`. `key` must not be used twice during the current task.
             fn keyed_slot<T: std::hash::Hash + std::cmp::PartialEq + std::cmp::Eq + Send + Sync + 'static>(key: T, content: #ident) -> #ref_ident {
                 #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_key::<#ident, T, _>(
                     key,
