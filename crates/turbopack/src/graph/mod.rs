@@ -120,11 +120,7 @@ pub async fn aggregate(asset: AssetRef) -> Result<AggregatedGraphRef> {
     }
 }
 
-#[turbo_tasks::value(value)]
-#[derive(Clone, Hash, Debug, PartialEq, Eq)]
-struct AggregationDepth(usize);
-
-#[turbo_tasks::value(value)]
+#[turbo_tasks::value(shared)]
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 struct AggregationCost(usize);
 

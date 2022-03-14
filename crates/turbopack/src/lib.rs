@@ -15,7 +15,7 @@ use module_options::{
     module_options, ModuleRuleCondition, ModuleRuleEffect, ModuleRuleEffectKey, ModuleType,
 };
 use reference::all_referenced_assets;
-use turbo_tasks::NothingRef;
+use turbo_tasks::CompletionRef;
 
 pub mod asset;
 pub mod ecmascript;
@@ -72,27 +72,29 @@ pub async fn module(source: AssetRef) -> Result<AssetRef> {
 #[turbo_tasks::function]
 pub async fn emit(asset: AssetRef) {
     // emit_assets_recursive_avoid_cycle(asset, CycleDetectionRef::new());
-    // emit_assets_aggregated(asset);
     emit_assets_recursive(asset);
 }
 
 #[turbo_tasks::function]
-async fn emit_assets_aggregated(asset: AssetRef) -> NothingRef {
-    let aggregated = aggregate(asset);
-    emit_aggregated_assets(aggregated);
-    NothingRef::new()
+pub async fn emit_with_completion(asset: AssetRef) -> CompletionRef {
+    emit_assets_aggregated(asset)
 }
 
 #[turbo_tasks::function]
-async fn emit_aggregated_assets(aggregated: AggregatedGraphRef) -> Result<()> {
+async fn emit_assets_aggregated(asset: AssetRef) -> CompletionRef {
+    let aggregated = aggregate(asset);
+    emit_aggregated_assets(aggregated)
+}
+
+#[turbo_tasks::function]
+async fn emit_aggregated_assets(aggregated: AggregatedGraphRef) -> Result<CompletionRef> {
     Ok(match &*aggregated.content().await? {
-        AggregatedGraphNodeContent::Asset(asset) => {
-            emit_asset(asset.clone());
-        }
+        AggregatedGraphNodeContent::Asset(asset) => emit_asset(asset.clone()),
         AggregatedGraphNodeContent::Children(children) => {
             for aggregated in children {
-                emit_aggregated_assets(aggregated.clone());
+                emit_aggregated_assets(aggregated.clone()).await?;
             }
+            CompletionRef::new()
         }
     })
 }
@@ -159,8 +161,8 @@ async fn emit_assets_recursive_avoid_cycle(
 }
 
 #[turbo_tasks::function]
-pub fn emit_asset(asset: AssetRef) {
-    asset.path().write(asset.content());
+pub fn emit_asset(asset: AssetRef) -> CompletionRef {
+    asset.path().write(asset.content())
 }
 
 #[turbo_tasks::function]

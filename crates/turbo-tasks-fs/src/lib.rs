@@ -21,7 +21,7 @@ use invalidator_map::InvalidatorMap;
 use json::{parse, JsonValue};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use threadpool::ThreadPool;
-use turbo_tasks::Task;
+use turbo_tasks::{CompletionRef, Task};
 use util::normalize_path;
 
 #[turbo_tasks::value_trait]
@@ -29,7 +29,7 @@ pub trait FileSystem {
     fn read(&self, fs_path: FileSystemPathRef) -> FileContentRef;
     fn read_dir(&self, fs_path: FileSystemPathRef) -> DirectoryContentRef;
     fn parent_path(&self, fs_path: FileSystemPathRef) -> FileSystemPathRef;
-    fn write(&self, from: FileSystemPathRef, content: FileContentRef);
+    fn write(&self, from: FileSystemPathRef, content: FileContentRef) -> CompletionRef;
 }
 
 #[turbo_tasks::value(FileSystem)]
@@ -243,7 +243,11 @@ impl FileSystem for DiskFileSystem {
             Err(_) => DirectoryContentRef::not_found(),
         })
     }
-    async fn write(&self, fs_path: FileSystemPathRef, content: FileContentRef) -> Result<()> {
+    async fn write(
+        &self,
+        fs_path: FileSystemPathRef,
+        content: FileContentRef,
+    ) -> Result<CompletionRef> {
         let full_path = Path::new(&self.root).join(
             &fs_path
                 .get()
@@ -283,9 +287,9 @@ impl FileSystem for DiskFileSystem {
                     })
                 }
             })
-            .await?
+            .await?;
         }
-        Ok(())
+        Ok(CompletionRef::new())
     }
     async fn parent_path(&self, fs_path: FileSystemPathRef) -> Result<FileSystemPathRef> {
         let fs_path = fs_path.await?;
@@ -390,7 +394,7 @@ impl FileSystemPathRef {
         Ok(this.fs.read_dir(self))
     }
 
-    pub async fn write(self, content: FileContentRef) -> Result<()> {
+    pub async fn write(self, content: FileContentRef) -> Result<CompletionRef> {
         let this = self.get().await?;
         Ok(this.fs.write(self, content))
     }

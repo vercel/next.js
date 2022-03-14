@@ -10,10 +10,11 @@ use testing::fixture;
 use turbo_tasks::{NothingRef, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemRef, FileSystemPathRef};
 use turbopack::{
-    asset::Asset, emit, module, rebase::RebasedAssetRef, source_asset::SourceAssetRef,
+    asset::Asset, emit_with_completion, module, rebase::RebasedAssetRef,
+    source_asset::SourceAssetRef,
 };
 
-#[fixture("tests/node-file-trace/integration/argon2.js")]
+#[fixture("tests/node-file-trace/integration/react.js")]
 fn integration_test(input: PathBuf) {
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let mut tests_root = package_root.clone();
@@ -53,7 +54,7 @@ fn integration_test(input: PathBuf) {
         let rebased = RebasedAssetRef::new(module, input_dir, output_dir);
 
         let output_path = rebased.path();
-        emit(rebased.into());
+        emit_with_completion(rebased.into()).await?;
 
         exec_node(output_path);
 
