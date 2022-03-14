@@ -4,7 +4,9 @@ use async_std::task::block_on;
 use testing::fixture;
 use turbo_tasks::{NothingRef, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemRef, FileSystemPathRef};
-use turbopack::{emit, module, rebase::RebasedAssetRef, source_asset::SourceAssetRef};
+use turbopack::{
+    asset::Asset, emit, module, rebase::RebasedAssetRef, source_asset::SourceAssetRef,
+};
 
 #[fixture("tests/node-file-trace/integration/argon2.js")]
 fn integration_test(input: PathBuf) {
@@ -44,8 +46,16 @@ fn integration_test(input: PathBuf) {
         let source = SourceAssetRef::new(input);
         let module = module(source.into());
         let rebased = RebasedAssetRef::new(module, input_dir, output_dir);
+
+        let output_path = rebased.path();
         emit(rebased.into());
+
+        exec_node(output_path);
+
         Ok(NothingRef::new().into())
     });
     block_on(tt.wait_done());
 }
+
+#[turbo_tasks::function]
+async fn exec_node(path: FileSystemPathRef) {}
