@@ -453,6 +453,7 @@ export async function renderToHTML(
     runtime,
     ComponentMod,
     AppMod,
+    isRootPath,
   } = renderOpts
 
   const hasConcurrentFeatures = !!runtime
@@ -464,7 +465,7 @@ export async function renderToHTML(
   const isServerComponent =
     !!serverComponentManifest &&
     hasConcurrentFeatures &&
-    ComponentMod.__next_rsc__
+    (ComponentMod.__next_rsc__ || isRootPath)
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
