@@ -93,13 +93,14 @@ impl Parse for IntoMode {
     fn parse(input: ParseStream) -> Result<Self> {
         let ident = input.parse::<Ident>()?;
         match ident.to_string().as_str() {
+            "none" => Ok(IntoMode::None),
             "new" => Ok(IntoMode::New),
             "shared" => Ok(IntoMode::Shared),
             "value" => Ok(IntoMode::Value),
             _ => {
                 return Err(Error::new_spanned(
                     &ident,
-                    format!("unexpected {}, expected \"new\", \"shared\" or \"value\"", ident.to_string()),
+                    format!("unexpected {}, expected \"none\", \"new\", \"shared\" or \"value\"", ident.to_string()),
                 ))
             },
         }
@@ -108,12 +109,13 @@ impl Parse for IntoMode {
 
 struct ValueArguments {
     traits: Vec<Ident>,
-    into_mode: IntoMode
+    into_mode: IntoMode,
+    slot_mode: IntoMode,
 }
 
 impl Parse for ValueArguments {
     fn parse(input: ParseStream) -> Result<Self> {
-        let mut result = ValueArguments { traits: Vec::new(), into_mode: IntoMode::None };
+        let mut result = ValueArguments { traits: Vec::new(), into_mode: IntoMode::None, slot_mode: IntoMode::Shared };
         if input.is_empty() {
             return Ok(result);
         }
@@ -122,13 +124,19 @@ impl Parse for ValueArguments {
             match ident.to_string().as_str() {
                 "value" => {
                     result.into_mode = IntoMode::Value;
+                    result.slot_mode = IntoMode::Value;
                 },
                 "shared" => {
                     result.into_mode = IntoMode::Shared;
+                    result.slot_mode = IntoMode::Shared;
                 },
                 "into" => {
                     input.parse::<Token![:]>()?;
                     result.into_mode = input.parse::<IntoMode>()?;
+                },
+                "slot" => {
+                    input.parse::<Token![:]>()?;
+                    result.slot_mode = input.parse::<IntoMode>()?;
                 },
                 _ => {
                     result.traits.push(ident);
@@ -171,7 +179,7 @@ impl Parse for ValueArguments {
 #[proc_macro_attribute]
 pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let item = parse_macro_input!(input as Item);
-    let ValueArguments { traits, into_mode } = parse_macro_input!(args as ValueArguments);
+    let ValueArguments { traits, into_mode, slot_mode } = parse_macro_input!(args as ValueArguments);
 
     let (vis, ident) = match &item {
         Item::Enum(ItemEnum { vis, ident, .. }) => (vis, ident),
@@ -257,6 +265,66 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         },
     };
 
+    let slot = match slot_mode {
+        IntoMode::None => quote! {
+            none_slot_mode
+        } ,
+        IntoMode::New => quote! {
+            fn slot(content: #ident) -> #ref_ident {
+                #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
+                    |__slot| {
+                        __slot.update_shared(&#slot_value_type_ident, content);
+                    }
+                ) }
+            }
+
+            fn keyed_slot<T: std::hash::Hash + std::cmp::PartialEq + std::cmp::Eq + Send + Sync + 'static>(key: T, content: #ident) -> #ref_ident {
+                #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_key::<#ident, T, _>(
+                    key,
+                    |__slot| {
+                        __slot.update_shared(&#slot_value_type_ident, content);
+                    }
+                ) }
+            }
+        },
+        IntoMode::Value => quote! {
+            fn slot(content: #ident) -> #ref_ident {
+                #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
+                    |__slot| {
+                        __slot.compare_and_update_cloneable(&#slot_value_type_ident, content);
+                    }
+                ) }
+            }
+
+            fn keyed_slot<T: std::hash::Hash + std::cmp::PartialEq + std::cmp::Eq + Send + Sync + 'static>(key: T, content: #ident) -> #ref_ident {
+                #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_key::<#ident, T, _>(
+                    key,
+                    |__slot| {
+                        __slot.compare_and_update_cloneable(&#slot_value_type_ident, content);
+                    }
+                ) }
+            }
+        },
+        IntoMode::Shared => quote! {
+            fn slot(content: #ident) -> #ref_ident {
+                #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
+                    |__slot| {
+                        __slot.compare_and_update_shared(&#slot_value_type_ident, content);
+                    }
+                ) }
+            }
+
+            fn keyed_slot<T: std::hash::Hash + std::cmp::PartialEq + std::cmp::Eq + Send + Sync + 'static>(key: T, content: #ident) -> #ref_ident {
+                #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_key::<#ident, T, _>(
+                    key,
+                    |__slot| {
+                        __slot.compare_and_update_shared(&#slot_value_type_ident, content);
+                    }
+                ) }
+            }
+        },
+    };
+
     let trait_registrations: Vec<_> = traits
         .iter()
         .map(|trait_ident| {
@@ -293,13 +361,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         }
 
         impl #ref_ident {
-            fn slot(content: #ident) -> #ref_ident {
-                #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
-                    |__slot| {
-                        __slot.update_shared(&#slot_value_type_ident, content);
-                    }
-                ) }
-            }
+            #slot
 
             /// Reads the value of the reference.
             /// 
@@ -317,7 +379,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             pub async fn resolve(self) -> turbo_tasks::Result<Self> {
                 Ok(Self { node: self.node.resolve().await? })
             }
-       }
+        }
 
         // #[cfg(feature = "into_future")]
         impl std::future::IntoFuture for #ref_ident {

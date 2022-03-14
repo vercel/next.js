@@ -10,7 +10,7 @@ pub async fn module_options(_context: FileSystemPathRef) -> ModuleOptionsRef {
 
 #[turbo_tasks::function]
 pub async fn the_module_options() -> ModuleOptionsRef {
-    ModuleOptions {
+    ModuleOptionsRef::slot(ModuleOptions {
         rules: vec![
             ModuleRule::new(
                 vec![ModuleRuleCondition::ResourcePathEndsWith(
@@ -23,11 +23,10 @@ pub async fn the_module_options() -> ModuleOptionsRef {
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript)],
             ),
         ],
-    }
-    .into()
+    })
 }
 
-#[turbo_tasks::value(into: new)]
+#[turbo_tasks::value(slot: new)]
 pub struct ModuleOptions {
     pub rules: Vec<ModuleRule>,
 }

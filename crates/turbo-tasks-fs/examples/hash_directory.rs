@@ -5,8 +5,8 @@
 use anyhow::Result;
 use async_std::task::{block_on, spawn};
 use sha2::{Digest, Sha256};
-use std::env::current_dir;
 use std::time::Instant;
+use std::{collections::BTreeMap, env::current_dir};
 use turbo_tasks::{NothingRef, TurboTasks};
 
 use turbo_tasks_fs::{
@@ -28,7 +28,7 @@ fn main() {
                 let fs: FileSystemRef = disk_fs.into();
                 let input = FileSystemPathRef::new(fs.clone(), "demo");
                 let dir_hash = hash_directory(input);
-                println!("DIR HASH: {}", dir_hash.await?.value);
+                print_hash(dir_hash);
                 Ok(NothingRef::new().into())
             })
         });
@@ -57,31 +57,50 @@ fn main() {
 }
 
 #[turbo_tasks::value]
+#[derive(PartialEq, Eq)]
 struct ContentHash {
     value: String,
 }
 
-#[turbo_tasks::value_impl]
-impl ContentHash {
-    #[turbo_tasks::constructor]
+impl ContentHashRef {
     pub fn new(value: String) -> Self {
-        Self { value }
+        Self::slot(ContentHash { value })
     }
 }
 
 #[turbo_tasks::function]
+async fn print_hash(dir_hash: ContentHashRef) -> Result<()> {
+    println!("DIR HASH: {}", dir_hash.await?.value);
+    Ok(())
+}
+
+async fn filename(path: &FileSystemPathRef) -> Result<String> {
+    Ok(path
+        .get()
+        .await?
+        .path
+        .split('/')
+        .last()
+        .unwrap()
+        .to_string())
+}
+
+#[turbo_tasks::function]
 async fn hash_directory(directory: FileSystemPathRef) -> Result<ContentHashRef> {
+    let dir_path = directory.get().await?.path.clone();
     let content = directory.clone().read_dir();
-    let mut hashes = vec![];
+    let mut hashes = BTreeMap::new();
     match &*content.await? {
         DirectoryContent::Entries(entries) => {
             for entry in entries.iter() {
                 match &*entry.get().await? {
                     DirectoryEntry::File(path) => {
-                        hashes.push(hash_file(path.clone()).await?.value.clone())
+                        let name = filename(path).await?;
+                        hashes.insert(name, hash_file(path.clone()).await?.value.clone());
                     }
                     DirectoryEntry::Directory(path) => {
-                        hashes.push(hash_directory(path.clone()).await?.value.clone());
+                        let name = filename(path).await?;
+                        hashes.insert(name, hash_directory(path.clone()).await?.value.clone());
                     }
                     _ => {}
                 }
@@ -91,29 +110,27 @@ async fn hash_directory(directory: FileSystemPathRef) -> Result<ContentHashRef> 
             println!("{}: not found", directory.await?.path);
         }
     };
-    Ok(hash_content(&hashes.join(",")))
+    let hash = hash_content(hashes.into_values().collect::<Vec<String>>().join(","));
+    println!("hash_directory({})", dir_path);
+    Ok(hash)
 }
 
 #[turbo_tasks::function]
 async fn hash_file(file_path: FileSystemPathRef) -> Result<ContentHashRef> {
     let content = file_path.clone().read().await?;
     Ok(match &*content {
-        FileContent::Content(bytes) => {
-            let content = &*String::from_utf8_lossy(&bytes);
-            hash_content(content.into())
-        }
+        FileContent::Content(bytes) => hash_content(bytes),
         FileContent::NotFound => {
             // report error
-            ContentHashRef::new("".into())
+            ContentHashRef::new("".to_string())
         }
     })
 }
 
-#[turbo_tasks::function]
-fn hash_content(content: &str) -> Result<ContentHashRef> {
+fn hash_content(content: impl AsRef<[u8]>) -> ContentHashRef {
     let mut hasher = Sha256::new();
     hasher.update(content);
     let result = format!("{:x}", hasher.finalize());
 
-    Ok(ContentHashRef::new(result))
+    ContentHashRef::new(result)
 }

@@ -5,7 +5,7 @@ use crate::{self as turbo_tasks};
 /// to have a concrete reference that can be awaited.
 /// It will invalidate the awaiting task everytime the referenced
 /// task has been executed.
-#[turbo_tasks::value]
+#[turbo_tasks::value(slot: new)]
 pub struct Completion;
 
 // no #[turbo_tasks::value_impl] to inline new into the caller task

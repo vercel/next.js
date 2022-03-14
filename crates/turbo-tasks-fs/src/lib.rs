@@ -32,7 +32,7 @@ pub trait FileSystem {
     fn write(&self, from: FileSystemPathRef, content: FileContentRef) -> CompletionRef;
 }
 
-#[turbo_tasks::value(FileSystem)]
+#[turbo_tasks::value(slot: new, FileSystem)]
 pub struct DiskFileSystem {
     pub name: String,
     pub root: String,

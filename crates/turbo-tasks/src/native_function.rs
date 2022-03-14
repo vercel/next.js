@@ -10,7 +10,7 @@ use std::{
 };
 
 /// A native (rust) turbo-tasks function. It's used internally by `#[turbo_tasks::function]`.
-#[turbo_tasks::value]
+#[turbo_tasks::value(slot: new)]
 pub struct NativeFunction {
     /// A readable name of the function that is used to reporting purposes.
     pub name: String,
@@ -34,7 +34,7 @@ impl Debug for NativeFunction {
     }
 }
 
-#[turbo_tasks::value_impl(into: new)]
+#[turbo_tasks::value_impl]
 impl NativeFunction {
     #[turbo_tasks::constructor]
     pub fn new(
