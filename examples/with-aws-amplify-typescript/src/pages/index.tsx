@@ -14,7 +14,7 @@ import { GRAPHQL_AUTH_MODE } from '@aws-amplify/api'
 import { useRouter } from 'next/router'
 import { GetServerSideProps } from 'next'
 
-const styles = require('../styles/Home.module.css')
+import styles from '../styles/Home.module.css'
 
 Amplify.configure({ ...awsExports, ssr: true })
 
