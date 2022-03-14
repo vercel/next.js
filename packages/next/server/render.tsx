@@ -464,7 +464,7 @@ export async function renderToHTML(
   const isServerComponent =
     !!serverComponentManifest &&
     hasConcurrentFeatures &&
-    (ComponentMod.__next_rsc__ || renderOpts.isRootPath)
+    ComponentMod.__next_rsc__
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
