@@ -7,7 +7,8 @@ import { deleteTodo } from '../../graphql/mutations'
 import { getTodo, listTodos } from '../../graphql/queries'
 import { GetStaticProps, GetStaticPaths } from 'next'
 import { GRAPHQL_AUTH_MODE } from '@aws-amplify/api'
-import styles from '../../styles/Home.module.css'
+
+const styles = require('../../styles/Home.module.css')
 
 Amplify.configure({ ...awsExports, ssr: true })
 
