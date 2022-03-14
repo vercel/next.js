@@ -19,7 +19,8 @@ use chashmap::CHashMap;
 use event_listener::Event;
 
 use crate::{
-    slot::SlotRef, task::NativeTaskFuture, task_input::TaskInput, NativeFunction, Task, TraitType,
+    slot_ref::SlotRef, task::NativeTaskFuture, task_input::TaskInput, NativeFunction, Task,
+    TraitType,
 };
 
 pub struct TurboTasks {

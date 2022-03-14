@@ -322,8 +322,8 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         // #[cfg(feature = "into_future")]
         impl std::future::IntoFuture for #ref_ident {
             type Output = turbo_tasks::Result<turbo_tasks::macro_helpers::SlotRefReadResult<#ident>>;
-            type Future = std::pin::Pin<std::boxed::Box<dyn std::future::Future<Output = turbo_tasks::Result<turbo_tasks::macro_helpers::SlotRefReadResult<#ident>>> + Send + Sync + 'static>>;
-            fn into_future(self) -> Self::Future {
+            type IntoFuture = std::pin::Pin<std::boxed::Box<dyn std::future::Future<Output = turbo_tasks::Result<turbo_tasks::macro_helpers::SlotRefReadResult<#ident>>> + Send + Sync + 'static>>;
+            fn into_future(self) -> Self::IntoFuture {
                 Box::pin(self.node.clone().into_read::<#ident>())
             }
         }

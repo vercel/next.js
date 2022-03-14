@@ -12,7 +12,7 @@ pub struct TaskSnapshot {
     pub children: Vec<Arc<Task>>,
     pub dependencies: Vec<SlotRef>,
     pub slots: Vec<SlotRef>,
-    pub output_slot: SlotRef,
+    pub output: SlotRef,
     pub executions: u32,
 }
 

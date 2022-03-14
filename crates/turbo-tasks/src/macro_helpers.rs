@@ -2,7 +2,7 @@ use std::{any::Any, hash::Hash};
 
 use crate::{slot::Slot, SlotRef};
 
-pub use crate::slot::SlotRefReadResult;
+pub use crate::slot_ref::SlotRefReadResult;
 
 /// Internally used by turbo-tasks-macros
 pub fn match_previous_node_by_key<

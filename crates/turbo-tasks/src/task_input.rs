@@ -41,15 +41,15 @@ impl TaskInput {
         let mut current = self;
         loop {
             current = match current {
-                TaskInput::TaskOutput(ref task) => {
-                    task.with_done_output_slot(|slot| {
+                TaskInput::TaskOutput(ref task) => task
+                    .with_done_output(|output| {
                         Task::with_current(|reader| {
                             reader.add_dependency(SlotRef::TaskOutput(task.clone()));
-                            slot.resolve(reader.clone())
+                            output.read(reader.clone())
                         })
                     })
                     .await?
-                }
+                    .into(),
                 TaskInput::TaskCreated(ref task, index) => Task::with_current(|reader| {
                     reader.add_dependency(SlotRef::TaskCreated(task.clone(), index));
                     task.with_created_slot_mut(index, |slot| slot.resolve(reader.clone()))
@@ -63,15 +63,15 @@ impl TaskInput {
         let mut current = self;
         loop {
             current = match current {
-                TaskInput::TaskOutput(ref task) => {
-                    task.with_done_output_slot(|slot| {
+                TaskInput::TaskOutput(ref task) => task
+                    .with_done_output(|output| {
                         Task::with_current(|reader| {
                             reader.add_dependency(SlotRef::TaskOutput(task.clone()));
-                            slot.resolve(reader.clone())
+                            output.read(reader.clone())
                         })
                     })
                     .await?
-                }
+                    .into(),
                 _ => return Ok(current),
             }
         }

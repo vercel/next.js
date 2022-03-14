@@ -1,7 +1,5 @@
 use crate::{
-    slot::{Slot, SlotRef},
-    task_input::TaskInput,
-    viz::TaskSnapshot,
+    output::Output, slot::Slot, slot_ref::SlotRef, task_input::TaskInput, viz::TaskSnapshot,
     NativeFunction, TraitType, TurboTasks,
 };
 use any_key::AnyHash;
@@ -145,7 +143,8 @@ struct TaskState {
 
     /// children are only modified from execution
     children: HashSet<Arc<Task>>,
-    output_slot: Slot,
+
+    output: Output,
     created_slots: Vec<Slot>,
     event: Event,
     executions: u32,
@@ -384,8 +383,8 @@ impl Task {
         let mut state = self.state.write().unwrap();
         match state.state_type {
             InProgress => match result {
-                Ok(result) => state.output_slot.link(result),
-                Err(err) => state.output_slot.error(err),
+                Ok(result) => state.output.link(result),
+                Err(err) => state.output.error(err),
             },
             InProgressDirty => {
                 // We don't want to assign the output slot here
@@ -685,15 +684,15 @@ impl Task {
     }
 
     /// Access to the output slot.
-    pub(crate) fn with_output_slot<T>(&self, func: impl FnOnce(&Slot) -> T) -> T {
+    pub(crate) fn with_output<T>(&self, func: impl FnOnce(&Output) -> T) -> T {
         let state = self.state.read().unwrap();
-        func(&state.output_slot)
+        func(&state.output)
     }
 
     /// Access to the output slot.
-    pub(crate) fn with_output_slot_mut<T>(&self, func: impl FnOnce(&mut Slot) -> T) -> T {
+    pub(crate) fn with_output_mut<T>(&self, func: impl FnOnce(&mut Output) -> T) -> T {
         let mut state = self.state.write().unwrap();
-        func(&mut state.output_slot)
+        func(&mut state.output)
     }
 
     /// Access to a slot.
@@ -761,7 +760,7 @@ impl Task {
                 }
             },
             state: Task::state_string(&state),
-            output_slot: SlotRef::TaskOutput(self.clone()),
+            output: SlotRef::TaskOutput(self.clone()),
             slots,
             executions: state.executions,
         }
@@ -814,11 +813,11 @@ impl Task {
         }
     }
 
-    pub(crate) async fn with_done_output_slot<T>(
+    pub(crate) async fn with_done_output<T>(
         self: &Arc<Self>,
-        mut func: impl FnOnce(&mut Slot) -> T,
+        mut func: impl FnOnce(&mut Output) -> T,
     ) -> T {
-        fn get_or_wait<T, F: FnOnce(&mut Slot) -> T>(
+        fn get_or_wait<T, F: FnOnce(&mut Output) -> T>(
             this: &Arc<Task>,
             func: F,
         ) -> Result<T, (F, EventListener)> {
@@ -826,7 +825,7 @@ impl Task {
                 let mut state = this.state.write().unwrap();
                 match state.state_type {
                     Done => {
-                        let result = func(&mut state.output_slot);
+                        let result = func(&mut state.output);
                         drop(state);
 
                         Ok(result)
