@@ -88,17 +88,17 @@ async function run(): Promise<void> {
   }
 
   if (!projectPath) {
-    console.log()
-    console.log('Please specify the project directory:')
     console.log(
-      `  ${chalk.cyan(program.name())} ${chalk.green('<project-directory>')}`
-    )
-    console.log()
-    console.log('For example:')
-    console.log(`  ${chalk.cyan(program.name())} ${chalk.green('my-next-app')}`)
-    console.log()
-    console.log(
-      `Run ${chalk.cyan(`${program.name()} --help`)} to see all options.`
+      `
+      
+      Please specify the project directory:
+        ${chalk.cyan(program.name())} ${chalk.green('<project-directory>')}
+      
+      For example:
+        ${chalk.cyan(program.name())} ${chalk.green('my-next-app')}
+      
+      Run ${chalk.cyan(`${program.name()} --help`)} to see all options.
+      `
     )
     process.exit(1)
   }
@@ -173,19 +173,13 @@ async function notifyUpdate(): Promise<void> {
     if (res?.latest) {
       const pkgManager = getPkgManager()
 
-      console.log()
       console.log(
+        `
         chalk.yellow.bold('A new version of `create-next-app` is available!')
+        You can update by running: ${chalk.cyan(pkgManager === 'yarn' ? 'yarn global add create-next-app' : `${pkgManager} install --global create-next-app` )}
+        
+        `
       )
-      console.log(
-        'You can update by running: ' +
-          chalk.cyan(
-            pkgManager === 'yarn'
-              ? 'yarn global add create-next-app'
-              : `${pkgManager} install --global create-next-app`
-          )
-      )
-      console.log()
     }
     process.exit()
   } catch {
@@ -201,8 +195,11 @@ run()
     if (reason.command) {
       console.log(`  ${chalk.cyan(reason.command)} has failed.`)
     } else {
-      console.log(chalk.red('Unexpected error. Please report it as a bug:'))
-      console.log(reason)
+      console.log(
+        `
+        ${chalk.red('Unexpected error. Please report it as a bug:')}
+        ${reason}
+        `
     }
     console.log()
 
