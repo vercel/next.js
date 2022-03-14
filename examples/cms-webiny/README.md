@@ -62,7 +62,7 @@ Once you have an app up and running click into the "HeadlessCMS" app in the side
 - A `rich text` field with the value "body"
 - A `reference` field with the value "Author"
 
-Next, choose **API Keys** in the sidebar. Add an API key with any name and description. Select "Headless CMS" and choose a Custom access level for all content model groups with the values `read` and `preview`. Save the API token and the Token itself will be revealed.
+Next, choose **API Keys** in the sidebar. Add an API key with any name and description. Select "Headless CMS" and choose a Custom access level for all content model groups with the values `read` and `preview`. Save the API token and the token itself will be revealed.
 
 You will be able to use the same API token for both published and draft posts.
 
@@ -72,7 +72,7 @@ Copy the `.env.local.example` file to `.env.local`, then set the variables as fo
 
 - `PREVIEW_API_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 - WEBINY_API_SECRET this will be your security token generated in Webiny
-- You can find the values for `NEXT_PUBLIC_WEBINY_API_URL` and `NEXT_PUBLIC_WEBINY_PREVIEW_API_URL` two ways: From your local webiny project root, run `yarn webiny info`, alternatively go to **API Playground** in the sidebar. At the top of the graphQL explorer are four tabs, one for each of our APIs, and you'll see both the Read API and the Preview API on those tabs. The URL for your environment is just below the tab. ([More info here if you get stuck](https://www.webiny.com/docs/headless-cms/basics/graphql-api))
+- You can find the values for `NEXT_PUBLIC_WEBINY_API_URL` and `NEXT_PUBLIC_WEBINY_PREVIEW_API_URL` two ways: From your local Webiny project root, run `yarn webiny info`, alternatively go to **API Playground** in the sidebar. At the top of the GraphQL explorer are four tabs, one for each of our APIs, and you'll see both the Read API and the Preview API on those tabs. The URL for your environment is just below the tab. ([More info here if you get stuck](https://www.webiny.com/docs/headless-cms/basics/graphql-api))
 
 ### Step 3. Run Next.js in development mode
 
