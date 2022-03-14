@@ -16,7 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                               |
 | --------- | ----------------------------------------------------------------------------------------------------- |
-| `v12.1.1` | `style` prop added. Experimental[\*](#Experimental-raw-layout-mode) support for `layout="raw"` added. |
+| `v12.1.1` | `style` prop added. Experimental[\*](#experimental-raw-layout-mode) support for `layout="raw"` added. |
 | `v12.1.0` | `dangerouslyAllowSVG` and `contentSecurityPolicy` configuration added.                                |
 | `v12.0.9` | `lazyRoot` prop added.                                                                                |
 | `v12.0.0` | `formats` configuration added.<br/>AVIF support added.<br/>Wrapper `<div>` changed to `<span>`.       |
@@ -72,7 +72,7 @@ The layout behavior of the image as the viewport changes size.
 | `fixed`                                  | Sized to `width` and `height` exactly                      | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A      | yes                   |
 | `responsive`                             | Scale to fit width of container                            | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw`  | yes                   |
 | `fill`                                   | Grow in both X and Y axes to fill container                | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw`  | yes                   |
-| `raw`[\*](#Experimental-raw-layout-mode) | Insert the image element with no automatic layout behavior | Behaves like `responsive` if the image has the `sizes` prop, and like `fixed` if it does not                | optional | no                    |
+| `raw`[\*](#experimental-raw-layout-mode) | Insert the image element with no automatic layout behavior | Behaves like `responsive` if the image has the `sizes` prop, and like `fixed` if it does not                | optional | no                    |
 
 - [Demo the `intrinsic` layout (default)](https://image-component.nextjs.gallery/layout-intrinsic)
   - When `intrinsic`, the image will scale the dimensions down for smaller viewports, but maintain the original dimensions for larger viewports.
@@ -126,7 +126,7 @@ const MyImage = (props) => {
 
 A string that provides information about how wide the image will be at different breakpoints. Defaults to `100vw` (the full width of the screen) when using `layout="responsive"` or `layout="fill"`.
 
-If you are using `layout="fill"`, `layout="responsive"`, or `layout="raw"`[\*](#Experimental-raw-layout-mode) it's important to assign `sizes` for any image that takes up less than the full viewport width.
+If you are using `layout="fill"`, `layout="responsive"`, or `layout="raw"`[\*](#experimental-raw-layout-mode) it's important to assign `sizes` for any image that takes up less than the full viewport width.
 
 For example, when the parent element will constrain the image to always be less than half the viewport width, use `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
 
@@ -171,7 +171,7 @@ In some cases, you may need more advanced usage. The `<Image />` component optio
 
 Allows [passing CSS styles](https://reactjs.org/docs/dom-elements.html#style) to the underlying image element.
 
-Note that all `layout` modes other than `"raw"`[\*](#Experimental-raw-layout-mode) apply their own styles to the image element, and these automatic styles take precedence over the `style` prop.
+Note that all `layout` modes other than `"raw"`[\*](#experimental-raw-layout-mode) apply their own styles to the image element, and these automatic styles take precedence over the `style` prop.
 
 ### objectFit
 
