@@ -464,7 +464,7 @@ export async function renderToHTML(
   const isServerComponent =
     !!serverComponentManifest &&
     hasConcurrentFeatures &&
-    ComponentMod.__next_rsc__
+    !!ComponentMod.__next_rsc__
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
@@ -1329,7 +1329,8 @@ export async function renderToHTML(
         ) : (
           <Body>
             <AppContainerWithIsomorphicFiberStructure>
-              {renderOpts.serverComponents && AppMod.__next_rsc__ ? (
+              {isServerComponent && AppMod.__next_rsc__ ? (
+                // _app.server.js is used.
                 <Component {...props.pageProps} router={router} />
               ) : (
                 <App {...props} Component={Component} router={router} />
@@ -1361,7 +1362,6 @@ export async function renderToHTML(
               ),
               generateStaticHTML: true,
             })
-
             const flushed = await streamToString(flushEffectStream)
             return flushed
           }
