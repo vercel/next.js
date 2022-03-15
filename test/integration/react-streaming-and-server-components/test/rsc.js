@@ -159,7 +159,7 @@ export default function (context, { runtime, env }) {
 
   it('should not pick browser field from package.json for external libraries', async () => {
     const html = await renderViaHTTP(context.appPort, '/external-imports')
-    expect(html).toContain('isomorphic-text')
+    expect(html).toContain('isomorphic-export')
   })
 
   it('should handle various kinds of exports correctly', async () => {
