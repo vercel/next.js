@@ -111,6 +111,13 @@ export interface ExperimentalConfig {
     layoutRaw: boolean
   }
   middlewareSourceMaps?: boolean
+  emotion?:
+    | boolean
+    | {
+        sourceMap?: boolean
+        autoLabel?: 'dev-only' | 'always' | 'never'
+        labelFormat?: string
+      }
 }
 
 /**
