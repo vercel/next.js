@@ -12,10 +12,10 @@ To avoid the above pitfalls, Next.js provides a static 404 page by default witho
 
 ### Customizing The 404 Page
 
-To create a custom 404 page you can create a `pages/404.js` file. This file is statically generated at build time.
+To create a custom 404 page you can create a `pages/404.jsx` file. This file is statically generated at build time.
 
 ```jsx
-// pages/404.js
+// pages/404.jsx
 export default function Custom404() {
   return <h1>404 - Page Not Found</h1>
 }
@@ -29,10 +29,10 @@ Server-rendering an error page for every visit adds complexity to responding to 
 
 ### Customizing The 500 Page
 
-To customize the 500 page you can create a `pages/500.js` file. This file is statically generated at build time.
+To customize the 500 page you can create a `pages/500.jsx` file. This file is statically generated at build time.
 
 ```jsx
-// pages/500.js
+// pages/500.jsx
 export default function Custom500() {
   return <h1>500 - Server-side error occurred</h1>
 }
@@ -42,7 +42,7 @@ export default function Custom500() {
 
 ### More Advanced Error Page Customizing
 
-500 errors are handled both client-side and server-side by the `Error` component. If you wish to override it, define the file `pages/_error.js` and add the following code:
+500 errors are handled both client-side and server-side by the `Error` component. If you wish to override it, define the file `pages/_error.jsx` and add the following code:
 
 ```jsx
 function Error({ statusCode }) {
@@ -63,7 +63,7 @@ Error.getInitialProps = ({ res, err }) => {
 export default Error
 ```
 
-> `pages/_error.js` is only used in production. In development you’ll get an error with the call stack to know where the error originated from.
+> `pages/_error.jsx` is only used in production. In development you’ll get an error with the call stack to know where the error originated from.
 
 ### Reusing the built-in error page
 
