@@ -74,7 +74,7 @@ use turbopack::{
 #[fixture("tests/node-file-trace/integration/passport.js")]
 #[fixture("tests/node-file-trace/integration/path-platform.js")]
 // #[fixture("tests/node-file-trace/integration/pdf2json.js")] // fs.readFileSync(_basePath + fieldName, 'utf8') )
-#[fixture("tests/node-file-trace/integration/pdfkit.js")] // fs.readFileSync(__dirname + '/data.trie')
+// #[fixture("tests/node-file-trace/integration/pdfkit.js")] // fs.readFileSync(__dirname + '/data.trie')
 #[fixture("tests/node-file-trace/integration/pg.js")]
 #[fixture("tests/node-file-trace/integration/playwright-core.js")]
 // #[fixture("tests/node-file-trace/integration/polyfill-library.js")] // thread 'async-std/runtime' has overflowed its stack
