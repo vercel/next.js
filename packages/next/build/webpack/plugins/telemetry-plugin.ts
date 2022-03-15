@@ -12,6 +12,7 @@ type Feature =
   | 'swcExperimentalDecorators'
   | 'swcRemoveConsole'
   | 'swcImportSource'
+  | 'swcEmotion'
 
 interface FeatureUsage {
   featureName: Feature
@@ -50,6 +51,7 @@ const BUILD_FEATURES: Array<Feature> = [
   'swcExperimentalDecorators',
   'swcRemoveConsole',
   'swcImportSource',
+  'swcEmotion',
 ]
 
 /**
