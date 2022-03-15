@@ -74,6 +74,8 @@ If the page is using `getServerSideProps` or `getInitialProps`, then it will use
 
 If the page is using `getStaticProps` or automatic static optimization, then it will have s-maxage=REVALIDATE_SECONDS, stale-while-revalidate or if revalidate is not used s-maxage=31536000, stale-while-revalidate.
 
+If you want a different Cache-Control while using SSR you can use res.setHeader('Cache-Control', 'value_you_prefer').
+
 > **Note:** Your deployment provider must support edge caching for dynamic responses. If you are self-hosting, you will need to add this logic to the edge yourself using a key/value store. If you are using Vercel, [edge caching works without configuration](https://vercel.com/docs/edge-network/caching).
 
 ## Reducing JavaScript Size
