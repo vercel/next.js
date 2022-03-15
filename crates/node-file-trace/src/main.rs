@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use async_std::task::{block_on, spawn};
 use clap::Parser;
-use std::{collections::HashSet, env::current_dir, path::PathBuf, time::Instant};
+use std::{collections::BTreeSet, env::current_dir, path::PathBuf, time::Instant};
 use turbo_tasks::{NothingRef, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemRef, FileSystemPathRef, FileSystemRef};
 use turbopack::{
@@ -124,7 +124,7 @@ fn main() {
             let input = process_input(&dir, &context, input).unwrap();
             let tt = TurboTasks::new();
             tt.spawn_once_task(async move {
-                let mut result = HashSet::new();
+                let mut result = BTreeSet::new();
                 let fs = create_fs(&context);
                 for module in input_to_modules(&fs, &input) {
                     let set = all_assets(module);
