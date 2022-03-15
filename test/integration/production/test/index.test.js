@@ -589,6 +589,20 @@ describe('Production Usage', () => {
       expect(body).toEqual('API hello works')
     })
 
+    it('should work with pages/api/readfile-dirname.js', async () => {
+      const url = `http://localhost:${appPort}`
+      const res = await fetchViaHTTP(url, `/api/readfile-dirname`)
+      const body = await res.text()
+      expect(body).toBe('item')
+    })
+
+    it('should work with pages/api/readfile-processcwd.js', async () => {
+      const url = `http://localhost:${appPort}`
+      const res = await fetchViaHTTP(url, `/api/readfile-processcwd`)
+      const body = await res.text()
+      expect(body).toBe('item')
+    })
+
     it('should work with dynamic params and search string', async () => {
       const url = `http://localhost:${appPort}`
       const res = await fetchViaHTTP(url, `/api/post-1?val=1`)
