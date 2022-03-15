@@ -8,18 +8,19 @@ export default (context, render) => {
     return cheerio.load(html)
   }
 
-  it('should render fallback on server side if suspense without preload', async () => {
+  it('should render fallback on server side if suspense without ssr', async () => {
     const $ = await get$('/suspense/no-preload')
     const nextData = JSON.parse($('#__NEXT_DATA__').text())
     const content = $('#__next').text()
-    expect(content).toBe('rab')
+    expect(content).toBe('fallback')
     expect(nextData.dynamicIds).toBeUndefined()
   })
 
-  it('should render fallback on server side if suspended on server with preload', async () => {
-    const $ = await get$('/suspense/thrown')
-    const html = $('body').html()
-    expect(html).toContain('loading')
-    expect(JSON.parse($('#__NEXT_DATA__').text()).dynamicIds).toBeUndefined()
-  })
+  // Testing the same thing as above.
+  // it('should render import fallback on server side if suspended without ssr', async () => {
+  //   const $ = await get$('/suspense/thrown')
+  //   const html = $('body').html()
+  //   expect(html).toContain('loading')
+  //   expect(JSON.parse($('#__NEXT_DATA__').text()).dynamicIds).toBeUndefined()
+  // })
 }
