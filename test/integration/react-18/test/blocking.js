@@ -17,10 +17,10 @@ export default (context, render) => {
   })
 
   // Testing the same thing as above.
-  // it('should render import fallback on server side if suspended without ssr', async () => {
-  //   const $ = await get$('/suspense/thrown')
-  //   const html = $('body').html()
-  //   expect(html).toContain('loading')
-  //   expect(JSON.parse($('#__NEXT_DATA__').text()).dynamicIds).toBeUndefined()
-  // })
+  it.skip('should render import fallback on server side if suspended without ssr', async () => {
+    const $ = await get$('/suspense/thrown')
+    const html = $('body').html()
+    expect(html).toContain('loading')
+    expect(JSON.parse($('#__NEXT_DATA__').text()).dynamicIds).toBeUndefined()
+  })
 }
