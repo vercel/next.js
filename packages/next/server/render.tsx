@@ -67,7 +67,6 @@ import isError from '../lib/is-error'
 import { readableStreamTee } from './web/utils'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
-import { execOnce } from '../shared/lib/utils'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
@@ -217,6 +216,7 @@ export type RenderOptsPartial = {
   optimizeFonts: boolean
   fontManifest?: FontManifest
   optimizeCss: any
+  nextScriptWorkers: any
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
@@ -359,22 +359,16 @@ function createServerComponentRenderer(
     cachePrefix,
     transformStream,
     serverComponentManifest,
-    runtime,
   }: {
     cachePrefix: string
     transformStream: TransformStream<Uint8Array, Uint8Array>
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
-    runtime: 'nodejs' | 'edge'
   }
 ) {
-  if (runtime === 'nodejs') {
-    // For the nodejs runtime, we need to expose the `__webpack_require__` API
-    // globally for react-server-dom-webpack.
-    // This is a hack until we find a better way.
-    // @ts-ignore
-    globalThis.__webpack_require__ =
-      ComponentMod.__next_rsc__.__webpack_require__
-  }
+  // We need to expose the `__webpack_require__` API globally for
+  // react-server-dom-webpack. This is a hack until we find a better way.
+  // @ts-ignore
+  globalThis.__webpack_require__ = ComponentMod.__next_rsc__.__webpack_require__
 
   const writable = transformStream.writable
   const ServerComponentWrapper = (props: any) => {
@@ -438,7 +432,6 @@ export async function renderToHTML(
     dev = false,
     ampPath = '',
     App,
-    Document,
     pageConfig = {},
     buildManifest,
     fontManifest,
@@ -464,6 +457,7 @@ export async function renderToHTML(
 
   const hasConcurrentFeatures = !!runtime
 
+  let Document = renderOpts.Document
   const OriginalComponent = renderOpts.Component
 
   // We don't need to opt-into the flight inlining logic if the page isn't a RSC.
@@ -490,7 +484,6 @@ export async function renderToHTML(
         cachePrefix: pathname + (search ? `?${search}` : ''),
         transformStream: serverComponentsInlinedTransformStream,
         serverComponentManifest,
-        runtime,
       }
     )
   }
@@ -1242,14 +1235,30 @@ export async function renderToHTML(
    */
   const generateStaticHTML = supportsDynamicHTML !== true
   const renderDocument = async () => {
+    // For `Document`, there are two cases that we don't support:
+    // 1. Using `Document.getInitialProps` in the Edge runtime.
+    // 2. Using the class component `Document` with concurrent features.
+
+    const builtinDocument = (Document as any).__next_internal_document as
+      | typeof Document
+      | undefined
+
     if (runtime === 'edge' && Document.getInitialProps) {
-      // In the Edge runtime, Document.getInitialProps isn't supported.
-      throw new Error(
-        '`getInitialProps` in Document component is not supported with the Edge Runtime.'
-      )
+      // In the Edge runtime, `Document.getInitialProps` isn't supported.
+      // We throw an error here if it's customized.
+      if (!builtinDocument) {
+        throw new Error(
+          '`getInitialProps` in Document component is not supported with the Edge Runtime.'
+        )
+      }
     }
 
-    if (!runtime && Document.getInitialProps) {
+    // We make it a function component to enable streaming.
+    if (hasConcurrentFeatures && builtinDocument) {
+      Document = builtinDocument
+    }
+
+    if (!hasConcurrentFeatures && Document.getInitialProps) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
       ): RenderPageResult | Promise<RenderPageResult> => {
@@ -1479,6 +1488,7 @@ export async function renderToHTML(
     crossOrigin: renderOpts.crossOrigin,
     optimizeCss: renderOpts.optimizeCss,
     optimizeFonts: renderOpts.optimizeFonts,
+    nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime,
   }
 
@@ -1740,6 +1750,7 @@ function createFlushEffectStream(
   return createTransformStream({
     async transform(chunk, controller) {
       const extraChunk = await handleFlushEffect()
+      // those should flush together at once
       controller.enqueue(encodeText(extraChunk + decodeText(chunk)))
     },
   })
@@ -1762,31 +1773,12 @@ async function renderToStream({
 }): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
   const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
-
-  let completeCallback: (value?: unknown) => void
-  const allComplete = new Promise((resolveError, rejectError) => {
-    completeCallback = execOnce((err: unknown) => {
-      if (err) {
-        rejectError(err)
-      } else {
-        resolveError(null)
-      }
-    })
-  })
-
-  const renderStream: ReadableStream<Uint8Array> = await (
-    ReactDOMServer as any
-  ).renderToReadableStream(element, {
-    onError(err: Error) {
-      completeCallback(err)
-    },
-    onCompleteAll() {
-      completeCallback()
-    },
-  })
+  const renderStream: ReadableStream<Uint8Array> & {
+    allReady?: Promise<void>
+  } = await (ReactDOMServer as any).renderToReadableStream(element)
 
   if (generateStaticHTML) {
-    await allComplete
+    await renderStream.allReady
   }
 
   const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
@@ -1827,17 +1819,25 @@ function createPrefixStream(
   prefix: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let prefixFlushed = false
+  let prefixPrefixFlushFinished: Promise<void> | null = null
   return createTransformStream({
     transform(chunk, controller) {
+      controller.enqueue(chunk)
       if (!prefixFlushed && prefix) {
         prefixFlushed = true
-        controller.enqueue(chunk)
-        controller.enqueue(encodeText(prefix))
-      } else {
-        controller.enqueue(chunk)
+        prefixPrefixFlushFinished = new Promise((res) => {
+          // NOTE: streaming flush
+          // Enqueue prefix part before the major chunks are enqueued so that
+          // prefix won't be flushed too early to interrupt the data stream
+          setTimeout(() => {
+            controller.enqueue(encodeText(prefix))
+            res()
+          })
+        })
       }
     },
     flush(controller) {
+      if (prefixPrefixFlushFinished) return prefixPrefixFlushFinished
       if (!prefixFlushed && prefix) {
         prefixFlushed = true
         controller.enqueue(encodeText(prefix))
@@ -1857,6 +1857,7 @@ function createInlineDataStream(
       if (!dataStreamFinished) {
         const dataStreamReader = dataStream.getReader()
 
+        // NOTE: streaming flush
         // We are buffering here for the inlined data stream because the
         // "shell" stream might be chunkenized again by the underlying stream
         // implementation, e.g. with a specific high-water mark. To ensure it's

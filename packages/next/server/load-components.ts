@@ -39,14 +39,8 @@ export type LoadComponentsReturnType = {
   AppMod: any
 }
 
-export async function loadDefaultErrorComponents(
-  distDir: string,
-  { hasConcurrentFeatures }: { hasConcurrentFeatures: boolean }
-) {
-  const Document = interopDefault(
-    require(`next/dist/pages/_document` +
-      (hasConcurrentFeatures ? '-concurrent' : ''))
-  )
+export async function loadDefaultErrorComponents(distDir: string) {
+  const Document = interopDefault(require('next/dist/pages/_document'))
   const AppMod = require('next/dist/pages/_app')
   const App = interopDefault(AppMod)
   const ComponentMod = require('next/dist/pages/_error')

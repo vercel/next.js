@@ -111,6 +111,9 @@ export default class NextNodeServer extends BaseServer {
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
+    if (this.renderOpts.nextScriptWorkers) {
+      process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
+    }
 
     if (!this.minimalMode) {
       const { ImageOptimizerCache } =
@@ -690,7 +693,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getServerComponentManifest() {
-    if (this.nextConfig.experimental.runtime !== 'nodejs') return undefined
+    if (!this.nextConfig.experimental.runtime) return undefined
     return require(join(
       this.distDir,
       'server',
@@ -1314,7 +1317,7 @@ export default class NextNodeServer extends BaseServer {
       }
     }
 
-    originalBody?.finalize()
+    await originalBody?.finalize()
 
     return result
   }
