@@ -1352,6 +1352,7 @@ export default async function getBaseWebpackConfig(
           imageSizes: config.images.imageSizes,
           path: config.images.path,
           loader: config.images.loader,
+          experimentalLayoutRaw: config.experimental?.images?.layoutRaw,
           ...(dev
             ? {
                 // pass domains in development to allow validating on the client
@@ -1505,6 +1506,7 @@ export default async function getBaseWebpackConfig(
             ],
             ['swcRemoveConsole', !!config.compiler?.removeConsole],
             ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
+            ['swcEmotion', !!config.experimental.emotion],
           ])
         ),
     ].filter(Boolean as any as ExcludesFalse),
@@ -1633,6 +1635,7 @@ export default async function getBaseWebpackConfig(
     reactRemoveProperties: config.compiler?.reactRemoveProperties,
     styledComponents: config.compiler?.styledComponents,
     relay: config.compiler?.relay,
+    emotion: config.experimental?.emotion,
   })
 
   const cache: any = {

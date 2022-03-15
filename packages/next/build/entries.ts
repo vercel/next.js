@@ -144,7 +144,7 @@ export async function getPageRuntime(
       for (const node of body) {
         const { type, declaration } = node
         if (type === 'ExportDeclaration') {
-          // `export const config`
+          // Match `export const config`
           const valueNode = declaration?.declarations?.[0]
           if (valueNode?.id?.value === 'config') {
             const props = valueNode.init.properties
@@ -155,13 +155,28 @@ export async function getPageRuntime(
             pageRuntime =
               runtime === 'edge' || runtime === 'nodejs' ? runtime : pageRuntime
           } else if (declaration?.type === 'FunctionDeclaration') {
-            // `export function getStaticProps` and
-            // `export function getServerSideProps`
+            // Match `export function getStaticProps | getServerSideProps`
+            const identifier = declaration.identifier?.value
             if (
-              declaration.identifier?.value === 'getStaticProps' ||
-              declaration.identifier?.value === 'getServerSideProps'
+              identifier === 'getStaticProps' ||
+              identifier === 'getServerSideProps'
             ) {
               isRuntimeRequired = true
+            }
+          }
+        } else if (type === 'ExportNamedDeclaration') {
+          // Match `export { getStaticProps | getServerSideProps } <from '../..'>`
+          const { specifiers } = node
+          for (const specifier of specifiers) {
+            const { orig } = specifier
+            const hasDataFetchingExports =
+              specifier.type === 'ExportSpecifier' &&
+              orig?.type === 'Identifier' &&
+              (orig?.value === 'getStaticProps' ||
+                orig?.value === 'getServerSideProps')
+            if (hasDataFetchingExports) {
+              isRuntimeRequired = true
+              break
             }
           }
         }
