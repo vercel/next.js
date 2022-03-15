@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use anyhow::Result;
 
 use crate::{
@@ -31,19 +33,33 @@ impl AssetReferencesSetRef {
 pub async fn all_referenced_assets(asset: AssetRef) -> Result<AssetsSetRef> {
     let references_set = asset.references().await?;
     let mut assets = Vec::new();
+    let mut queue = VecDeque::new();
     for reference in references_set.references.iter() {
-        let resolve_result = reference.clone().resolve_reference();
+        queue.push_back(reference.clone().resolve_reference());
+    }
+    // that would be non-deterministic:
+    // while let Some(result) = race_pop(&mut queue).await {
+    // match &*result? {
+    while let Some(resolve_result) = queue.pop_front() {
         match &*resolve_result.await? {
             ResolveResult::Single(module, references) => {
                 assets.push(module.clone());
-                if references.is_some() {
-                    todo!();
+                if let Some(references) = references {
+                    for reference in references {
+                        queue.push_back(reference.clone().resolve_reference());
+                    }
                 }
             }
             ResolveResult::Nested(_) => todo!(),
             ResolveResult::Keyed(_, _) => todo!(),
             ResolveResult::Alternatives(_, _) => todo!(),
-            ResolveResult::Unresolveable => {}
+            ResolveResult::Unresolveable(references) => {
+                if let Some(references) = references {
+                    for reference in references {
+                        queue.push_back(reference.clone().resolve_reference());
+                    }
+                }
+            }
         }
     }
     Ok(AssetsSet { assets }.into())

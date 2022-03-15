@@ -15,6 +15,8 @@ use turbopack::{
 };
 
 #[fixture("tests/node-file-trace/integration/react.js")]
+#[fixture("tests/node-file-trace/integration/analytics-node.js")]
+#[fixture("tests/node-file-trace/integration/apollo.js")]
 fn integration_test(input: PathBuf) {
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let mut tests_root = package_root.clone();

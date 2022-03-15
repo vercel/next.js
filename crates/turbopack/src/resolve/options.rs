@@ -57,6 +57,16 @@ pub struct ResolveOptions {
     pub into_package: Vec<ResolveIntoPackage>,
 }
 
+#[turbo_tasks::value_impl]
+impl ResolveOptionsRef {
+    pub async fn modules(self) -> Result<ResolveModulesOptionsRef> {
+        Ok(ResolveModulesOptions {
+            modules: self.await?.modules.clone(),
+        }
+        .into())
+    }
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Hash, PartialEq, Eq, Clone, Debug)]
 pub struct ResolveModulesOptions {

@@ -11,7 +11,9 @@ use turbo_tasks_fs::{
 };
 
 use crate::{
-    asset::AssetRef, reference::AssetReferencesSetRef, resolve::options::ConditionValue,
+    asset::AssetRef,
+    reference::{AssetReference, AssetReferenceRef},
+    resolve::options::ConditionValue,
     source_asset::SourceAssetRef,
 };
 
@@ -31,11 +33,35 @@ pub mod parse;
 #[turbo_tasks::value(shared)]
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ResolveResult {
-    Nested(AssetReferencesSetRef),
-    Single(AssetRef, Option<AssetReferencesSetRef>),
-    Keyed(HashMap<String, AssetRef>, Option<AssetReferencesSetRef>),
-    Alternatives(HashSet<AssetRef>, Option<AssetReferencesSetRef>),
-    Unresolveable,
+    Nested(Vec<AssetReferenceRef>),
+    Single(AssetRef, Option<Vec<AssetReferenceRef>>),
+    Keyed(HashMap<String, AssetRef>, Option<Vec<AssetReferenceRef>>),
+    Alternatives(HashSet<AssetRef>, Option<Vec<AssetReferenceRef>>),
+    Unresolveable(Option<Vec<AssetReferenceRef>>),
+}
+
+impl ResolveResult {
+    fn add_reference(&mut self, reference: AssetReferenceRef) {
+        match self {
+            ResolveResult::Nested(list) => list.push(reference),
+            ResolveResult::Single(_, list)
+            | ResolveResult::Keyed(_, list)
+            | ResolveResult::Alternatives(_, list)
+            | ResolveResult::Unresolveable(list) => match list {
+                Some(list) => list.push(reference),
+                None => *list = Some(vec![reference]),
+            },
+        }
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ResolveResultRef {
+    async fn add_reference(self, reference: AssetReferenceRef) -> Result<Self> {
+        let mut this = self.await?.clone();
+        this.add_reference(reference);
+        Ok(this.into())
+    }
 }
 
 #[turbo_tasks::function]
@@ -196,11 +222,12 @@ pub async fn resolve(
                 }
             }
 
-            ResolveResult::Unresolveable.into()
+            ResolveResult::Unresolveable(None).into()
         }
         Request::Module { module, path } => {
             fn handle_exports_field(
                 package_path: &FileSystemPathRef,
+                package_json: &FileSystemPathRef,
                 options: &ResolveOptionsRef,
                 exports_field: &ExportsField,
                 path: &str,
@@ -225,11 +252,15 @@ pub async fn resolve(
                 if let Some(path) = results.first() {
                     if let Some(path) = normalize_path(path) {
                         let request = RequestRef::parse(format!("./{}", path));
-                        return Ok(resolve(package_path.clone(), request, options.clone()));
+                        let resolved = resolve(package_path.clone(), request, options.clone());
+                        let resolved = resolved.add_reference(
+                            AffectingResolvingAssetReferenceRef::new(package_json.clone()).into(),
+                        );
+                        return Ok(resolved);
                     }
                 }
                 // other options do not apply anymore when an exports field exist
-                return Ok(ResolveResult::Unresolveable.into());
+                return Ok(ResolveResult::Unresolveable(None).into());
             }
 
             let package = find_package(
@@ -247,9 +278,9 @@ pub async fn resolve(
                                 package_path_value.fs.clone(),
                                 new_path,
                             );
-                            fs_path.read_json()
+                            Some((fs_path.clone().read_json(), fs_path))
                         } else {
-                            FileJsonContent::NotFound.into()
+                            None
                         }
                     };
                     let options_value = options.get().await?;
@@ -267,19 +298,29 @@ pub async fn resolve(
                                     ));
                                 }
                                 ResolveIntoPackage::MainField(name) => {
-                                    if let FileJsonContent::Content(package_json) =
-                                        &*package_json.get().await?
+                                    if let Some((ref package_json, ref package_json_path)) =
+                                        package_json
                                     {
-                                        if let Some(field_value) = package_json[name].as_str() {
-                                            let request = RequestRef::parse(
-                                                "./".to_string()
-                                                    + &normalize_path(&field_value).ok_or_else(|| anyhow!("package.json '{}' field contains a request that escapes the package", name))?,
-                                            );
-                                            return Ok(resolve(
-                                                package_path.clone(),
-                                                request,
-                                                options.clone(),
-                                            ));
+                                        if let FileJsonContent::Content(package_json) =
+                                            &*package_json.get().await?
+                                        {
+                                            if let Some(field_value) = package_json[name].as_str() {
+                                                let request = RequestRef::parse(
+                                                    "./".to_string()
+                                                        + &normalize_path(&field_value).ok_or_else(|| anyhow!("package.json '{}' field contains a request that escapes the package", name))?,
+                                                );
+                                                return Ok(resolve(
+                                                    package_path.clone(),
+                                                    request,
+                                                    options.clone(),
+                                                )
+                                                .add_reference(
+                                                    AffectingResolvingAssetReferenceRef::new(
+                                                        package_json_path.clone(),
+                                                    )
+                                                    .into(),
+                                                ));
+                                            }
                                         }
                                     }
                                 }
@@ -288,23 +329,28 @@ pub async fn resolve(
                                     conditions,
                                     unspecified_conditions,
                                 } => {
-                                    if let ExportsFieldResult::Some(exports_field) =
-                                        &*exports_field(package_json.clone(), field).await?
+                                    if let Some((ref package_json, ref package_json_path)) =
+                                        package_json
                                     {
-                                        // other options do not apply anymore when an exports field exist
-                                        return handle_exports_field(
-                                            package_path,
-                                            &options,
-                                            exports_field,
-                                            ".",
-                                            conditions,
-                                            unspecified_conditions,
-                                        );
+                                        if let ExportsFieldResult::Some(exports_field) =
+                                            &*exports_field(package_json.clone(), field).await?
+                                        {
+                                            // other options do not apply anymore when an exports field exist
+                                            return handle_exports_field(
+                                                package_path,
+                                                &package_json_path,
+                                                &options,
+                                                exports_field,
+                                                ".",
+                                                conditions,
+                                                unspecified_conditions,
+                                            );
+                                        }
                                     }
                                 }
                             }
                         }
-                        ResolveResult::Unresolveable.into()
+                        ResolveResult::Unresolveable(None).into()
                     } else {
                         for resolve_into_package in options_value.into_package.iter() {
                             match resolve_into_package {
@@ -317,18 +363,23 @@ pub async fn resolve(
                                     conditions,
                                     unspecified_conditions,
                                 } => {
-                                    if let ExportsFieldResult::Some(exports_field) =
-                                        &*exports_field(package_json.clone(), field).await?
+                                    if let Some((ref package_json, ref package_json_path)) =
+                                        package_json
                                     {
-                                        // other options do not apply anymore when an exports field exist
-                                        return handle_exports_field(
-                                            package_path,
-                                            &options,
-                                            exports_field,
-                                            &path[1..],
-                                            conditions,
-                                            unspecified_conditions,
-                                        );
+                                        if let ExportsFieldResult::Some(exports_field) =
+                                            &*exports_field(package_json.clone(), field).await?
+                                        {
+                                            // other options do not apply anymore when an exports field exist
+                                            return handle_exports_field(
+                                                package_path,
+                                                &package_json_path,
+                                                &options,
+                                                exports_field,
+                                                &path[1..],
+                                                conditions,
+                                                unspecified_conditions,
+                                            );
+                                        }
                                     }
                                 }
                             }
@@ -337,26 +388,45 @@ pub async fn resolve(
                             let request = RequestRef::parse(format!("./{}", path));
                             return Ok(resolve(package_path.clone(), request, options.clone()));
                         }
-                        ResolveResult::Unresolveable.into()
+                        ResolveResult::Unresolveable(None).into()
                     }
                 }
-                FindPackageResult::NotFound => ResolveResult::Unresolveable.into(),
+                FindPackageResult::NotFound => ResolveResult::Unresolveable(None).into(),
             }
         }
-        Request::ServerRelative { path: _ } => ResolveResult::Unresolveable.into(),
-        Request::Windows { path: _ } => ResolveResult::Unresolveable.into(),
-        Request::Empty => ResolveResult::Unresolveable.into(),
-        Request::PackageInternal { path: _ } => ResolveResult::Unresolveable.into(),
+        Request::ServerRelative { path: _ } => ResolveResult::Unresolveable(None).into(),
+        Request::Windows { path: _ } => ResolveResult::Unresolveable(None).into(),
+        Request::Empty => ResolveResult::Unresolveable(None).into(),
+        Request::PackageInternal { path: _ } => ResolveResult::Unresolveable(None).into(),
         Request::DataUri {
             mimetype: _,
             attributes: _,
             base64: _,
             encoded: _,
-        } => ResolveResult::Unresolveable.into(),
+        } => ResolveResult::Unresolveable(None).into(),
         Request::Uri {
             protocol: _,
             remainer: _,
-        } => ResolveResult::Unresolveable.into(),
-        Request::Unknown { path: _ } => ResolveResult::Unresolveable.into(),
+        } => ResolveResult::Unresolveable(None).into(),
+        Request::Unknown { path: _ } => ResolveResult::Unresolveable(None).into(),
     })
+}
+
+#[turbo_tasks::value(AssetReference)]
+#[derive(PartialEq, Eq)]
+struct AffectingResolvingAssetReference {
+    file: FileSystemPathRef,
+}
+
+impl AffectingResolvingAssetReferenceRef {
+    fn new(file: FileSystemPathRef) -> Self {
+        Self::slot(AffectingResolvingAssetReference { file })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl AssetReference for AffectingResolvingAssetReference {
+    fn resolve_reference(&self) -> ResolveResultRef {
+        ResolveResult::Single(SourceAssetRef::new(self.file.clone()).into(), None).into()
+    }
 }

@@ -76,22 +76,28 @@ impl AssetReference for RebasedAssetReference {
     async fn resolve_reference(&self) -> Result<ResolveResultRef> {
         let result = self.reference.resolve_reference().await?;
         Ok(match &*result {
-            ResolveResult::Single(module, more) => {
-                if more.is_some() {
-                    todo!();
-                }
-                ResolveResult::Single(
-                    RebasedAssetRef::new(
-                        module.clone(),
-                        self.input_dir.clone(),
-                        self.output_dir.clone(),
-                    )
-                    .into(),
-                    None,
+            ResolveResult::Single(module, more) => ResolveResult::Single(
+                RebasedAssetRef::new(
+                    module.clone(),
+                    self.input_dir.clone(),
+                    self.output_dir.clone(),
                 )
-                .into()
-            }
-            ResolveResult::Unresolveable => ResolveResult::Unresolveable.into(),
+                .into(),
+                more.as_ref().map(|more| {
+                    more.iter()
+                        .map(|reference| {
+                            RebasedAssetReference {
+                                reference: reference.clone(),
+                                input_dir: self.input_dir.clone(),
+                                output_dir: self.output_dir.clone(),
+                            }
+                            .into()
+                        })
+                        .collect()
+                }),
+            )
+            .into(),
+            ResolveResult::Unresolveable(_) => ResolveResult::Unresolveable(None).into(),
             _ => todo!("{:?}", result),
         })
     }

@@ -333,17 +333,17 @@ async fn esm_resolve(request: RequestRef, context: FileSystemPathRef) -> Result<
     let result = resolve(context.clone(), request.clone(), options);
 
     Ok(match &*result.await? {
-        ResolveResult::Single(m, None) => {
-            ResolveResult::Single(module(m.clone()).resolve().await?, None).into()
+        ResolveResult::Single(m, additional) => {
+            ResolveResult::Single(module(m.clone()).resolve().await?, additional.clone()).into()
         }
-        ResolveResult::Unresolveable => {
+        ResolveResult::Unresolveable(inner) => {
             // TODO report this to stream
             println!(
                 "unable to resolve esm request {} in {}",
                 request.get().await?,
                 context.get().await?
             );
-            ResolveResult::Unresolveable.into()
+            ResolveResult::Unresolveable(inner.clone()).into()
         }
         _ => todo!(),
     })
