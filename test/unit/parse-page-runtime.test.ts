@@ -24,10 +24,20 @@ describe('parse page runtime config', () => {
     )
     expect(runtime).toBe(undefined)
   })
+})
 
-  it('should fallback to the global runtime configuration if a runtime is needed', async () => {
+describe('fallback to the global runtime configuration', () => {
+  it('should fallback when gSP is defined and exported', async () => {
     const runtime = await getPageRuntime(
-      join(fixtureDir, 'page-runtime/fallback.js'),
+      join(fixtureDir, 'page-runtime/fallback-with-gsp.js'),
+      'edge'
+    )
+    expect(runtime).toBe('edge')
+  })
+
+  it('should fallback when gSP is re-exported from other module', async () => {
+    const runtime = await getPageRuntime(
+      join(fixtureDir, 'page-runtime/fallback-re-export-gsp.js'),
       'edge'
     )
     expect(runtime).toBe('edge')
