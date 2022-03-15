@@ -70,7 +70,10 @@ export default function (context, { runtime, env }) {
 
   it('should support next/link in server components', async () => {
     const linkHTML = await renderViaHTTP(context.appPort, '/next-api/link')
-    const linkText = getNodeBySelector(linkHTML, '#__next > a[href="/"]').text()
+    const linkText = getNodeBySelector(
+      linkHTML,
+      '#__next > div > a[href="/"]'
+    ).text()
 
     expect(linkText).toContain('go home')
 
@@ -90,6 +93,22 @@ export default function (context, { runtime, env }) {
     await check(() => browser.elementByCss('#query').text(), 'query:2')
 
     expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
+  it('should be able to navigate between rsc pages', async () => {
+    const browser = await webdriver(context.appPort, '/')
+
+    await browser.waitForElementByCss('#next-link').click()
+    await new Promise((res) => setTimeout(res, 1000))
+    expect(await browser.url()).toBe(
+      `http://localhost:${context.appPort}/next-api/link`
+    )
+    await browser.waitForElementByCss('#home').click()
+    await new Promise((res) => setTimeout(res, 1000))
+    expect(await browser.url()).toBe(`http://localhost:${context.appPort}/`)
+    const homeContent = await browser.elementByCss('#__next').text()
+    console.log('homeContent', homeContent)
+    expect(homeContent).toContain('component:index.server')
   })
 
   it('should handle streaming server components correctly', async () => {

@@ -14,6 +14,11 @@ export default function Index({ header, router }) {
       <div>
         <Foo />
       </div>
+      <div>
+        <Link href={'/next-api/link'}>
+          <a id="next-link">next link</a>
+        </Link>
+      </div>
       <Link href={'/'}>
         <a id="refresh">refresh</a>
       </Link>

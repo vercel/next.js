@@ -6,12 +6,16 @@ export default function LinkPage({ router }) {
   return (
     <>
       <h3 id="query">query:{id}</h3>
-      <Link href={`/next-api/link?id=${id + 1}`}>
-        <a id="next_id">next id</a>
-      </Link>
-      <Link href={`/`}>
-        <a>go home</a>
-      </Link>
+      <div>
+        <Link href={`/next-api/link?id=${id + 1}`}>
+          <a id="next_id">next id</a>
+        </Link>
+      </div>
+      <div>
+        <Link href={`/`}>
+          <a id="home">go home</a>
+        </Link>
+      </div>
     </>
   )
 }

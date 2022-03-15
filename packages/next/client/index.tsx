@@ -707,10 +707,6 @@ if (process.env.__NEXT_RSC) {
       buffer.forEach((val) => {
         writer.write(encoder.encode(val))
       })
-      buffer.length = 0
-      // Clean buffer but not deleting the key to mark bootstrap as complete.
-      // Then `nextServerDataCallback` will be safely skipped in the future renders.
-      serverDataBuffer.set(key, [])
     }
     serverDataWriter.set(key, writer)
   }
@@ -754,21 +750,24 @@ if (process.env.__NEXT_RSC) {
     if (response) return response
 
     const bufferCacheKey = cacheKey + ',' + router.route + ',' + id
-    if (serverDataBuffer.has(bufferCacheKey)) {
+    const hasKey = serverDataBuffer.has(bufferCacheKey)
+    if (hasKey) {
       const t = new TransformStream()
       const writer = t.writable.getWriter()
       response = createFromFetch(Promise.resolve({ body: t.readable }))
       nextServerDataRegisterWriter(bufferCacheKey, writer)
     } else {
-      response = createFromFetch(
-        serialized
-          ? (() => {
-              const t = new TransformStream()
-              t.writable.getWriter().write(new TextEncoder().encode(serialized))
-              return Promise.resolve({ body: t.readable })
-            })()
-          : fetchFlight(getCacheKey())
-      )
+      const fetchPromise = serialized
+        ? (() => {
+            const t = new TransformStream()
+            const writer = t.writable.getWriter()
+            writer.ready.then(() => {
+              writer.write(new TextEncoder().encode(serialized))
+            })
+            return Promise.resolve({ body: t.readable })
+          })()
+        : fetchFlight(getCacheKey())
+      response = createFromFetch(fetchPromise)
     }
 
     rscCache.set(cacheKey, response)
@@ -778,11 +777,9 @@ if (process.env.__NEXT_RSC) {
   const ServerRoot = ({
     cacheKey,
     serialized,
-    _fresh,
   }: {
     cacheKey: string
     serialized?: string
-    _fresh?: boolean
   }) => {
     React.useEffect(() => {
       rscCache.delete(cacheKey)
@@ -794,7 +791,7 @@ if (process.env.__NEXT_RSC) {
 
   RSCComponent = (props: any) => {
     const cacheKey = getCacheKey()
-    const { __flight_serialized__, __flight_fresh__ } = props
+    const { __flight_serialized__ } = props
     const [, dispatch] = useState({})
     const startTransition = (React as any).startTransition
     const renrender = () => dispatch({})
@@ -813,11 +810,7 @@ if (process.env.__NEXT_RSC) {
 
     return (
       <RefreshContext.Provider value={refreshCache}>
-        <ServerRoot
-          cacheKey={cacheKey}
-          serialized={__flight_serialized__}
-          _fresh={__flight_fresh__}
-        />
+        <ServerRoot cacheKey={cacheKey} serialized={__flight_serialized__} />
       </RefreshContext.Provider>
     )
   }
