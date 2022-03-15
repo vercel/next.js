@@ -645,7 +645,7 @@ export default async function getBaseWebpackConfig(
           },
         }
       : undefined),
-    mainFields: !targetWeb ? ['main', 'module'] : ['browser', 'module', 'main'],
+    mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
     plugins: [],
   }
 
@@ -1561,7 +1561,7 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  if (targetWeb) {
+  if (!isServer) {
     webpack5Config.output!.enabledLibraryTypes = ['assign']
   }
 
