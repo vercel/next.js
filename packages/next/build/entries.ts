@@ -167,7 +167,7 @@ export async function getPageRuntime(
         } else if (type === 'ExportNamedDeclaration') {
           // Match `export { getStaticProps | getServerSideProps } <from '../..'>`
           const { specifiers } = node
-          specifiers.some((specifier: any) => {
+          for (const specifier of specifiers) {
             const { orig } = specifier
             const hasDataFetchingExports =
               specifier.type === 'ExportSpecifier' &&
@@ -176,10 +176,9 @@ export async function getPageRuntime(
                 orig?.value === 'getServerSideProps')
             if (hasDataFetchingExports) {
               isRuntimeRequired = true
-              return true
+              break
             }
-            return false
-          })
+          }
         }
       }
     } catch (err) {}
