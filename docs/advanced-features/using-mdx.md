@@ -56,25 +56,26 @@ The following steps outline how to setup `@next/mdx` in your Next.js project:
    })
    ```
 
-    > Using MDX plugins will require using next.config.mjs because all the plugins are [ECMAScript modules](https://nodejs.org/api/esm.html) modules
-    ```js
-    // next.config.mjs
-    import createMDX from "@next/mdx"
+   > Using MDX plugins will require using next.config.mjs because all the plugins are [ECMAScript modules](https://nodejs.org/api/esm.html) modules
 
-    const withMDX = createMDX({
-      extension: /\.mdx?$/,
-      options: {
-        remarkPlugins: [],
-        rehypePlugins: [],
-        // If you use `MDXProvider`, uncomment the following line.
-        // providerImportSource: "@mdx-js/react",
-      },
-    })
-    module.exports = withMDX({
-      // Append the default value with md extensions
-      pageExtensions: ['ts', 'tsx', 'js', 'jsx', 'md', 'mdx'],
-    })
-    ```
+   ```js
+   // next.config.mjs
+   import createMDX from '@next/mdx'
+
+   const withMDX = createMDX({
+     extension: /\.mdx?$/,
+     options: {
+       remarkPlugins: [],
+       rehypePlugins: [],
+       // If you use `MDXProvider`, uncomment the following line.
+       // providerImportSource: "@mdx-js/react",
+     },
+   })
+   module.exports = withMDX({
+     // Append the default value with md extensions
+     pageExtensions: ['ts', 'tsx', 'js', 'jsx', 'md', 'mdx'],
+   })
+   ```
 
 3. Create a new MDX page within the `/pages` directory:
 
@@ -117,10 +118,11 @@ author: 'Rich Haines'
 
 # My MDX page
 ```
+
 ```js
 // next.config.mjs
-import createMDX from "@next/mdx"
-import remarkFrontmatter from "remark-frontmatter"
+import createMDX from '@next/mdx'
+import remarkFrontmatter from 'remark-frontmatter'
 
 const withMDX = createMDX({
   extension: /\.mdx?$/,
