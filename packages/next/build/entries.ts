@@ -172,9 +172,13 @@ export async function getPageRuntime(
             const hasDataFetchingExports =
               specifier.type === 'ExportSpecifier' &&
               orig?.type === 'Identifier' &&
-              orig?.value === 'getStaticProps' &&
-              orig?.value === 'getServerSideProps'
-            if (hasDataFetchingExports) isRuntimeRequired = true
+              (orig?.value === 'getStaticProps' ||
+                orig?.value === 'getServerSideProps')
+            if (hasDataFetchingExports) {
+              isRuntimeRequired = true
+              return true
+            }
+            return false
           })
         }
       }
