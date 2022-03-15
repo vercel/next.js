@@ -16,8 +16,8 @@ use swc_common::{
 };
 use swc_ecmascript::{
     ast::{
-        CallExpr, Callee, ComputedPropName, Expr, ExprOrSpread, ImportDecl, ImportSpecifier, Lit,
-        MemberProp, ModuleExportName,
+        CallExpr, Callee, ComputedPropName, ExportAll, Expr, ExprOrSpread, ImportDecl,
+        ImportSpecifier, Lit, MemberProp, ModuleExportName, NamedExport,
     },
     visit::{self, Visit, VisitWith},
 };
@@ -127,6 +127,20 @@ impl AssetReferencesVisitor {
 }
 
 impl Visit for AssetReferencesVisitor {
+    fn visit_export_all(&mut self, export: &ExportAll) {
+        let src = export.src.value.to_string();
+        self.references
+            .push(EsmAssetReferenceRef::new(self.source.clone(), src.clone()).into());
+        visit::visit_export_all(self, export);
+    }
+    fn visit_named_export(&mut self, export: &NamedExport) {
+        if let Some(src) = &export.src {
+            let src = src.value.to_string();
+            self.references
+                .push(EsmAssetReferenceRef::new(self.source.clone(), src.clone()).into());
+        }
+        visit::visit_named_export(self, export);
+    }
     fn visit_import_decl(&mut self, import: &ImportDecl) {
         let src = import.src.value.to_string();
         self.references
@@ -332,19 +346,34 @@ async fn esm_resolve(request: RequestRef, context: FileSystemPathRef) -> Result<
 
     let result = resolve(context.clone(), request.clone(), options);
 
-    Ok(match &*result.await? {
-        ResolveResult::Single(m, additional) => {
-            ResolveResult::Single(module(m.clone()).resolve().await?, additional.clone()).into()
+    Ok(match result.await {
+        Ok(result) => {
+            match &*result {
+                ResolveResult::Single(m, additional) => {
+                    ResolveResult::Single(module(m.clone()).resolve().await?, additional.clone())
+                        .into()
+                }
+                ResolveResult::Unresolveable(inner) => {
+                    // TODO report this to stream
+                    println!(
+                        "unable to resolve esm request {} in {}",
+                        request.get().await?,
+                        context.get().await?
+                    );
+                    ResolveResult::Unresolveable(inner.clone()).into()
+                }
+                _ => todo!(),
+            }
         }
-        ResolveResult::Unresolveable(inner) => {
+        Err(err) => {
             // TODO report this to stream
             println!(
-                "unable to resolve esm request {} in {}",
+                "fatal error during resolving esm request {} in {}: {}",
                 request.get().await?,
-                context.get().await?
+                context.get().await?,
+                err
             );
-            ResolveResult::Unresolveable(inner.clone()).into()
+            ResolveResult::Unresolveable(None).into()
         }
-        _ => todo!(),
     })
 }

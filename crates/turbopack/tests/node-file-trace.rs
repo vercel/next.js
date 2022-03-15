@@ -81,7 +81,7 @@ use turbopack::{
 #[fixture("tests/node-file-trace/integration/pug.js")]
 #[fixture("tests/node-file-trace/integration/react.js")]
 #[fixture("tests/node-file-trace/integration/redis.js")]
-// #[fixture("tests/node-file-trace/integration/remark-prism.mjs")] // export {unified} from './lib/index.js'
+// #[fixture("tests/node-file-trace/integration/remark-prism.mjs")] // exports field need to follow all alternatives
 #[fixture("tests/node-file-trace/integration/request.js")]
 #[fixture("tests/node-file-trace/integration/rxjs.js")]
 // #[fixture("tests/node-file-trace/integration/saslprep.js")] // fs.readFileSync(path.resolve(__dirname, '../code-points.mem'))

@@ -6,7 +6,7 @@ use std::{
 use anyhow::{anyhow, Result};
 use json::JsonValue;
 use turbo_tasks_fs::{
-    util::{join_path, normalize_path},
+    util::{join_path, normalize_path, normalize_request},
     DirectoryContent, FileContent, FileJsonContent, FileJsonContentRef, FileSystemPathRef,
 };
 
@@ -41,7 +41,7 @@ pub enum ResolveResult {
 }
 
 impl ResolveResult {
-    fn add_reference(&mut self, reference: AssetReferenceRef) {
+    pub fn add_reference(&mut self, reference: AssetReferenceRef) {
         match self {
             ResolveResult::Nested(list) => list.push(reference),
             ResolveResult::Single(_, list)
@@ -51,6 +51,14 @@ impl ResolveResult {
                 Some(list) => list.push(reference),
                 None => *list = Some(vec![reference]),
             },
+        }
+    }
+
+    pub fn is_unresolveable(&self) -> bool {
+        if let ResolveResult::Unresolveable(_) = self {
+            true
+        } else {
+            false
         }
     }
 }
@@ -195,18 +203,116 @@ pub async fn resolve(
     request: RequestRef,
     options: ResolveOptionsRef,
 ) -> Result<ResolveResultRef> {
+    fn handle_exports_field(
+        package_path: &FileSystemPathRef,
+        package_json: &FileSystemPathRef,
+        options: &ResolveOptionsRef,
+        exports_field: &ExportsField,
+        path: &str,
+        conditions: &BTreeMap<String, ConditionValue>,
+        unspecified_conditions: &ConditionValue,
+    ) -> Result<ResolveResultRef> {
+        let mut results = Vec::new();
+        let mut conditions_state = HashMap::new();
+        let values = exports_field
+            .lookup(path)
+            .collect::<Result<Vec<Cow<'_, ExportsValue>>>>()?;
+        for value in values.iter() {
+            if value.add_results(
+                conditions,
+                unspecified_conditions,
+                &mut conditions_state,
+                &mut results,
+            ) {
+                break;
+            }
+        }
+        if let Some(path) = results.first() {
+            if let Some(path) = normalize_path(path) {
+                let request = RequestRef::parse(format!("./{}", path));
+                let resolved = resolve(package_path.clone(), request, options.clone());
+                let resolved = resolved.add_reference(
+                    AffectingResolvingAssetReferenceRef::new(package_json.clone()).into(),
+                );
+                return Ok(resolved);
+            }
+        }
+        // other options do not apply anymore when an exports field exist
+        return Ok(ResolveResult::Unresolveable(None).into());
+    }
+
+    async fn resolve_into_folder(
+        package_path: &FileSystemPathRef,
+        package_json: &Option<(FileJsonContentRef, FileSystemPathRef)>,
+        options: &ResolveOptionsRef,
+    ) -> Result<ResolveResultRef> {
+        let options_value = options.get().await?;
+        for resolve_into_package in options_value.into_package.iter() {
+            match resolve_into_package {
+                ResolveIntoPackage::Default(req) => {
+                    let request = RequestRef::parse(
+                        "./".to_string() + &normalize_path(&req).ok_or_else(|| anyhow!("ResolveIntoPackage::Default can't be used with a request that escapes the current directory"))?,
+                    );
+                    return Ok(resolve(package_path.clone(), request, options.clone()));
+                }
+                ResolveIntoPackage::MainField(name) => {
+                    if let Some((ref package_json, ref package_json_path)) = package_json {
+                        if let FileJsonContent::Content(package_json) = &*package_json.get().await?
+                        {
+                            if let Some(field_value) = package_json[name].as_str() {
+                                let request = RequestRef::parse(normalize_request(&field_value));
+                                let result =
+                                    resolve(package_path.clone(), request, options.clone()).await?;
+                                // we are not that strict when a main field fails to resolve
+                                // we continue to try other alternatives
+                                if !result.is_unresolveable() {
+                                    let mut result = result.clone();
+                                    result.add_reference(
+                                        AffectingResolvingAssetReferenceRef::new(
+                                            package_json_path.clone(),
+                                        )
+                                        .into(),
+                                    );
+                                    return Ok(result.into());
+                                }
+                            }
+                        }
+                    }
+                }
+                ResolveIntoPackage::ExportsField {
+                    field,
+                    conditions,
+                    unspecified_conditions,
+                } => {
+                    if let Some((ref package_json, ref package_json_path)) = package_json {
+                        if let ExportsFieldResult::Some(exports_field) =
+                            &*exports_field(package_json.clone(), field).await?
+                        {
+                            // other options do not apply anymore when an exports field exist
+                            return handle_exports_field(
+                                package_path,
+                                &package_json_path,
+                                &options,
+                                exports_field,
+                                ".",
+                                conditions,
+                                unspecified_conditions,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        Ok(ResolveResult::Unresolveable(None).into())
+    }
+
     Ok(match &*request.get().await? {
         Request::Relative { path } => {
-            let options = options.await?;
             let context = context.await?;
             let mut possible_requests = Vec::new();
             possible_requests.push(path.to_string());
-            for ext in options.extensions.iter() {
+            for ext in options.get().await?.extensions.iter() {
                 possible_requests.push(path.to_string() + ext);
-            }
-            possible_requests.push(path.to_string() + "/index");
-            for ext in options.extensions.iter() {
-                possible_requests.push(path.to_string() + "/index" + ext);
             }
 
             for req in possible_requests {
@@ -222,47 +328,26 @@ pub async fn resolve(
                 }
             }
 
+            if let Some(dir_path) = join_path(&context.path, &path) {
+                let fs_path =
+                    FileSystemPathRef::new_normalized(context.fs.clone(), dir_path.clone());
+                if dir_exists(fs_path.clone()).await? {
+                    let package_json = {
+                        if let Some(new_path) = join_path(&dir_path, "package.json") {
+                            let fs_path =
+                                FileSystemPathRef::new_normalized(context.fs.clone(), new_path);
+                            Some((fs_path.clone().read_json(), fs_path))
+                        } else {
+                            None
+                        }
+                    };
+                    return resolve_into_folder(&fs_path, &package_json, &options).await;
+                }
+            }
+
             ResolveResult::Unresolveable(None).into()
         }
         Request::Module { module, path } => {
-            fn handle_exports_field(
-                package_path: &FileSystemPathRef,
-                package_json: &FileSystemPathRef,
-                options: &ResolveOptionsRef,
-                exports_field: &ExportsField,
-                path: &str,
-                conditions: &BTreeMap<String, ConditionValue>,
-                unspecified_conditions: &ConditionValue,
-            ) -> Result<ResolveResultRef> {
-                let mut results = Vec::new();
-                let mut conditions_state = HashMap::new();
-                let values = exports_field
-                    .lookup(path)
-                    .collect::<Result<Vec<Cow<'_, ExportsValue>>>>()?;
-                for value in values.iter() {
-                    if value.add_results(
-                        conditions,
-                        unspecified_conditions,
-                        &mut conditions_state,
-                        &mut results,
-                    ) {
-                        break;
-                    }
-                }
-                if let Some(path) = results.first() {
-                    if let Some(path) = normalize_path(path) {
-                        let request = RequestRef::parse(format!("./{}", path));
-                        let resolved = resolve(package_path.clone(), request, options.clone());
-                        let resolved = resolved.add_reference(
-                            AffectingResolvingAssetReferenceRef::new(package_json.clone()).into(),
-                        );
-                        return Ok(resolved);
-                    }
-                }
-                // other options do not apply anymore when an exports field exist
-                return Ok(ResolveResult::Unresolveable(None).into());
-            }
-
             let package = find_package(
                 context,
                 module.clone(),
@@ -283,75 +368,10 @@ pub async fn resolve(
                             None
                         }
                     };
-                    let options_value = options.get().await?;
                     if path.is_empty() {
-                        for resolve_into_package in options_value.into_package.iter() {
-                            match resolve_into_package {
-                                ResolveIntoPackage::Default(req) => {
-                                    let request = RequestRef::parse(
-                                        "./".to_string() + &normalize_path(&req).ok_or_else(|| anyhow!("ResolveIntoPackage::Default can't be used with a request that escapes the current directory"))?,
-                                    );
-                                    return Ok(resolve(
-                                        package_path.clone(),
-                                        request,
-                                        options.clone(),
-                                    ));
-                                }
-                                ResolveIntoPackage::MainField(name) => {
-                                    if let Some((ref package_json, ref package_json_path)) =
-                                        package_json
-                                    {
-                                        if let FileJsonContent::Content(package_json) =
-                                            &*package_json.get().await?
-                                        {
-                                            if let Some(field_value) = package_json[name].as_str() {
-                                                let request = RequestRef::parse(
-                                                    "./".to_string()
-                                                        + &normalize_path(&field_value).ok_or_else(|| anyhow!("package.json '{}' field contains a request that escapes the package", name))?,
-                                                );
-                                                return Ok(resolve(
-                                                    package_path.clone(),
-                                                    request,
-                                                    options.clone(),
-                                                )
-                                                .add_reference(
-                                                    AffectingResolvingAssetReferenceRef::new(
-                                                        package_json_path.clone(),
-                                                    )
-                                                    .into(),
-                                                ));
-                                            }
-                                        }
-                                    }
-                                }
-                                ResolveIntoPackage::ExportsField {
-                                    field,
-                                    conditions,
-                                    unspecified_conditions,
-                                } => {
-                                    if let Some((ref package_json, ref package_json_path)) =
-                                        package_json
-                                    {
-                                        if let ExportsFieldResult::Some(exports_field) =
-                                            &*exports_field(package_json.clone(), field).await?
-                                        {
-                                            // other options do not apply anymore when an exports field exist
-                                            return handle_exports_field(
-                                                package_path,
-                                                &package_json_path,
-                                                &options,
-                                                exports_field,
-                                                ".",
-                                                conditions,
-                                                unspecified_conditions,
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        ResolveResult::Unresolveable(None).into()
+                        return resolve_into_folder(&package_path, &package_json, &options).await;
                     } else {
+                        let options_value = options.get().await?;
                         for resolve_into_package in options_value.into_package.iter() {
                             match resolve_into_package {
                                 ResolveIntoPackage::Default(_)
