@@ -616,7 +616,12 @@ export class Head extends Component<
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
-        const isReactHelmet = child?.props?.['data-react-helmet']
+        const isReactHelmet =
+          /**
+           * NOTE: react-helmet-async's HELMET_ATTRIBUTE is `data-rh` rather than `data-react-helmet`:
+           * https://github.com/staylor/react-helmet-async/blob/main/src/constants.js#L76
+           */
+          child?.props?.['data-react-helmet'] || child?.props?.['data-rh']
         if (!isReactHelmet) {
           if (child?.type === 'title') {
             console.warn(
