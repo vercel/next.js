@@ -7,12 +7,14 @@ description: API reference for `getStaticProps`. Learn how to use `getStaticProp
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                                                                                           |
-| --------- | ----------------------------------------------------------------------------------------------------------------- |
-| `v10.0.0` | `locale`, `locales`, `defaultLocale`, and `notFound` options added.                                               |
-| `v9.5.0`  | Stable [Incremental Static Regeneration](https://nextjs.org/blog/next-9-5#stable-incremental-static-regeneration) |
-| `v9.3.0`  | `getStaticProps` introduced.                                                                                      |
-| `v10.0.0` | `fallback: 'blocking'` return option added.                                                                       |
+| Version | Changes |
+| ------- | ------- |
+
+| `v12.1.0` | [On-demand Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation-beta) added (Beta). |
+| `v10.0.0` | `locale`, `locales`, `defaultLocale`, and `notFound` options added. |
+| `v10.0.0` | `fallback: 'blocking'` return option added. |
+| `v9.5.0` | Stable [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md) |
+| `v9.3.0` | `getStaticProps` introduced. |
 
 </details>
 
@@ -41,7 +43,7 @@ The `context` parameter is an object containing the following keys:
 
 ## getStaticProps return values
 
-The `getStaticProps` function should return an object with the following **optional** properties:
+The `getStaticProps` function should return an object containing either `props`, `redirect`, or `notFound` followed by an **optional** `revalidate` property.
 
 ### `props`
 
@@ -237,7 +239,7 @@ export default Blog
 For more information on what to do next, we recommend the following sections:
 
 <div class="card">
-  <a href="/docs/basic-features/data-fetching/index.md">
+  <a href="/docs/basic-features/data-fetching/overview.md">
     <b>Data Fetching:</b>
     <small>Learn more about data fetching in Next.js.</small>
   </a>

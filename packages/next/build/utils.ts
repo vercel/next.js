@@ -4,7 +4,7 @@ import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { promises as fs } from 'fs'
-import { isValidElementType } from 'react-is'
+import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
   Redirect,
@@ -881,7 +881,7 @@ export async function isPageStatic(
         throw new Error('INVALID_DEFAULT_EXPORT')
       }
 
-      const hasFlightData = !!(Comp as any).__next_rsc__
+      const hasFlightData = !!(mod as any).__next_rsc__
       const hasGetInitialProps = !!(Comp as any).getInitialProps
       const hasStaticProps = !!mod.getStaticProps
       const hasStaticPaths = !!mod.getStaticPaths
@@ -1103,19 +1103,6 @@ export function detectConflictingPaths(
   }
 }
 
-export function getCssFilePaths(buildManifest: BuildManifest): string[] {
-  const cssFiles = new Set<string>()
-  Object.values(buildManifest.pages).forEach((files) => {
-    files.forEach((file) => {
-      if (file.endsWith('.css')) {
-        cssFiles.add(file)
-      }
-    })
-  })
-
-  return [...cssFiles]
-}
-
 export function getRawPageExtensions(pageExtensions: string[]): string[] {
   return pageExtensions.filter(
     (ext) => !ext.startsWith('client.') && !ext.startsWith('server.')
@@ -1124,23 +1111,18 @@ export function getRawPageExtensions(pageExtensions: string[]): string[] {
 
 export function isFlightPage(
   nextConfig: NextConfigComplete,
-  pagePath: string
+  filePath: string
 ): boolean {
-  if (
-    !(
-      nextConfig.experimental.serverComponents &&
-      nextConfig.experimental.concurrentFeatures
-    )
-  )
+  if (!nextConfig.experimental.serverComponents) {
     return false
+  }
 
   const rawPageExtensions = getRawPageExtensions(
     nextConfig.pageExtensions || []
   )
-  const isRscPage = rawPageExtensions.some((ext) => {
-    return new RegExp(`\\.server\\.${ext}$`).test(pagePath)
+  return rawPageExtensions.some((ext) => {
+    return filePath.endsWith(`.server.${ext}`)
   })
-  return isRscPage
 }
 
 export function getUnresolvedModuleFromError(
@@ -1245,6 +1227,10 @@ process.chdir(__dirname)
 const NextServer = require('next/dist/server/next-server').default
 const http = require('http')
 const path = require('path')
+
+// Make sure commands gracefully respect termination signals (e.g. from Docker)
+process.on('SIGTERM', () => process.exit(0))
+process.on('SIGINT', () => process.exit(0))
 
 let handler
 

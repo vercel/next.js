@@ -35,7 +35,7 @@ const nextDev: cliCommand = (argv) => {
     console.log(`
       Description
         Starts the application in development mode (hot-code reloading, error
-        reporting, etc)
+        reporting, etc.)
 
       Usage
         $ next dev <dir> -p <port number>

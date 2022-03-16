@@ -6,6 +6,13 @@ type Feature =
   | 'next/dynamic'
   | 'swcLoader'
   | 'swcMinify'
+  | 'swcRelay'
+  | 'swcStyledComponents'
+  | 'swcReactRemoveProperties'
+  | 'swcExperimentalDecorators'
+  | 'swcRemoveConsole'
+  | 'swcImportSource'
+  | 'swcEmotion'
 
 interface FeatureUsage {
   featureName: Feature
@@ -35,7 +42,17 @@ const FEATURE_MODULE_MAP: ReadonlyMap<Feature, string> = new Map([
 ])
 
 // List of build features used in webpack configuration
-const BUILD_FEATURES: Array<Feature> = ['swcLoader', 'swcMinify']
+const BUILD_FEATURES: Array<Feature> = [
+  'swcLoader',
+  'swcMinify',
+  'swcRelay',
+  'swcStyledComponents',
+  'swcReactRemoveProperties',
+  'swcExperimentalDecorators',
+  'swcRemoveConsole',
+  'swcImportSource',
+  'swcEmotion',
+]
 
 /**
  * Plugin that queries the ModuleGraph to look for modules that correspond to

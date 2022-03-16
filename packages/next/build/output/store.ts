@@ -25,7 +25,7 @@ export type OutputState =
           modules: number
           errors: string[] | null
           warnings: string[] | null
-          hasServerWeb: boolean
+          hasEdgeServer: boolean
         }
       ))
 
@@ -114,9 +114,9 @@ store.subscribe((state) => {
     }
 
     const moduleName = getUnresolvedModuleFromError(cleanError)
-    if (state.hasServerWeb && moduleName) {
+    if (state.hasEdgeServer && moduleName) {
       console.error(
-        `Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`${moduleName}\` imported.\n`
+        `Native Node.js APIs are not supported in the Edge Runtime. Found \`${moduleName}\` imported.\n`
       )
       return
     }

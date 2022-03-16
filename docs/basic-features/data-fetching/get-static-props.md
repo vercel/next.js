@@ -23,7 +23,17 @@ You should use `getStaticProps` if:
 - The data can be publicly cached (not user-specific)
 - The page must be pre-rendered (for SEO) and be very fast — `getStaticProps` generates `HTML` and `JSON` files, both of which can be cached by a CDN for performance
 
-Because `getStaticProps` runs at build time, it does **not** receive data that’s only available during request time, such as query parameters or `HTTP` headers, as it generates static `HTML`. When combined with [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md) however, it will run in the background while the stale page is being revalidated, and the fresh page served to the browser.
+## When does getStaticProps run
+
+`getStaticProps` always runs on the server and never on the client. You can validate code written inside `getStaticProps` is removed from the client-side bundle [with this tool](https://next-code-elimination.vercel.app/).
+
+- `getStaticProps` always runs during `next build`
+- `getStaticProps` runs in the background when using `revalidate`
+- `getStaticProps` runs on-demand in the background when using [`unstable_revalidate`](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation-beta)
+
+When combined with [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md), `getStaticProps` will run in the background while the stale page is being revalidated, and the fresh page served to the browser.
+
+`getStaticProps` does not have access to the incoming request (such as query parameters or HTTP headers) as it generates static HTML. If you need access to the request for your page, consider using [Middleware](/docs/middleware.md) in addition to `getStaticProps`.
 
 ## Using getStaticProps to fetch data from a CMS
 
@@ -70,19 +80,47 @@ As `getStaticProps` runs only on the server-side, it will never run on the clien
 
 This means that instead of fetching an **API route** from `getStaticProps` (that itself fetches data from an external source), you can write the server-side code directly in `getStaticProps`.
 
-Take the following example. An API route is used to fetch some data from a CMS. That API route is then called directly from `getStaticProps`. This produces an additional call, reducing performance. Instead, the logic for fetching the data from the CMS can be moved to `getStaticProps`.
+Take the following example. An API route is used to fetch some data from a CMS. That API route is then called directly from `getStaticProps`. This produces an additional call, reducing performance. Instead, the logic for fetching the data from the CMS can be shared by using a `lib/` directory. Then it can be shared with `getStaticProps`.
+
+```jsx
+// lib/fetch-posts.js
+
+// The following function is shared
+// with getStaticProps and API routes
+// from a `lib/` directory
+export async function loadPosts() {
+  // Call an external API endpoint to get posts
+  const res = await fetch('https://.../posts/')
+  const data = await res.json()
+
+  return data
+}
+
+// pages/blog.js
+import { loadPosts } from '../lib/load-posts'
+
+// This function runs only on the server side
+export async function getStaticProps() {
+  // Instead of fetching your `/api` route you can call the same
+  // function directly in `getStaticProps`
+  const posts = await loadPosts()
+
+  // Props returned will be passed to the page component
+  return { props: { posts } }
+}
+```
 
 Alternatively, if you are **not** using API routes to fetch data, then the [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) API _can_ be used directly in `getStaticProps` to fetch data.
 
 To verify what Next.js eliminates from the client-side bundle, you can use the [next-code-elimination tool](https://next-code-elimination.vercel.app/).
 
-## Statically Generates both HTML and JSON
+## Statically generates both HTML and JSON
 
 When a page with `getStaticProps` is pre-rendered at build time, in addition to the page HTML file, Next.js generates a JSON file holding the result of running `getStaticProps`.
 
 This JSON file will be used in client-side routing through [`next/link`](/docs/api-reference/next/link.md) or [`next/router`](/docs/api-reference/next/router.md). When you navigate to a page that’s pre-rendered using `getStaticProps`, Next.js fetches this JSON file (pre-computed at build time) and uses it as the props for the page component. This means that client-side page transitions will **not** call `getStaticProps` as only the exported JSON is used.
 
-When using Incremental Static Generation `getStaticProps` will be executed out of band to generate the JSON needed for client-side navigation. You may see this in the form of multiple requests being made for the same page, however, this is intended and has no impact on end-user performance
+When using Incremental Static Generation, `getStaticProps` will be executed in the background to generate the JSON needed for client-side navigation. You may see this in the form of multiple requests being made for the same page, however, this is intended and has no impact on end-user performance.
 
 ## Where can I use getStaticProps
 
@@ -98,9 +136,11 @@ In development (`next dev`), `getStaticProps` will be called on every request.
 
 ## Preview Mode
 
-In some cases, you might want to temporarily bypass Static Generation and render the page at **request time** instead of build time. For example, you might be using a headless CMS and want to preview drafts before they're published.
+You can temporarily bypass static generation and render the page at **request time** instead of build time using [**Preview Mode**](/docs/advanced-features/preview-mode.md). For example, you might be using a headless CMS and want to preview drafts before they're published.
 
-This use case is supported in Next.js by the [**Preview Mode**](/docs/advanced-features/preview-mode.md) feature.
+## Related
+
+For more information on what to do next, we recommend the following sections:
 
 <div class="card">
   <a href="/docs/api-reference/data-fetching/get-static-props.md">
