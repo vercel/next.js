@@ -143,6 +143,7 @@ export type EventBuildFeatureUsage = {
     | 'swcExperimentalDecorators'
     | 'swcRemoveConsole'
     | 'swcImportSource'
+    | 'swcEmotion'
     | 'build-lint'
   invocationCount: number
 }

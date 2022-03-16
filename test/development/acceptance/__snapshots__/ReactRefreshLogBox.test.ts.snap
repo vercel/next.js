@@ -75,7 +75,7 @@ Error: error: Unexpected eof
   |                           ^
 
 Caused by:
-    0: failed to process js file
+    0: failed to process input file
     1: Syntax Error"
 `;
 
@@ -135,7 +135,7 @@ Error: error: Unexpected eof
   |                                                  ^
 
 Caused by:
-    0: failed to process js file
+    0: failed to process input file
     1: Syntax Error"
 `;
 
@@ -148,7 +148,7 @@ Error: error: Unexpected eof
   |                                                  ^
 
 Caused by:
-    0: failed to process js file
+    0: failed to process input file
     1: Syntax Error"
 `;
 
@@ -161,6 +161,6 @@ Error: error: Unexpected eof
   |       ^
 
 Caused by:
-    0: failed to process js file
+    0: failed to process input file
     1: Syntax Error"
 `;
