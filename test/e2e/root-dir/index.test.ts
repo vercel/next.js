@@ -54,6 +54,21 @@ describe('root dir', () => {
     expect($('p').text()).toBe('hello from root/dashboard/integrations')
   })
 
+  it('should not include parent when not in parent directory with route in directory', async () => {
+    const html = await renderViaHTTP(next.url, '/dashboard/rootonly/hello')
+    const $ = cheerio.load(html)
+
+    // Should be nested in /root.js
+    expect($('html').hasClass('this-is-the-document-html')).toBeTruthy()
+    expect($('body').hasClass('this-is-the-document-body')).toBeTruthy()
+
+    // Should not be nested in dashboard
+    expect($('h1').text()).toBeFalsy()
+
+    // Should render the page text
+    expect($('p').text()).toBe('hello from root/dashboard/rootonly/hello')
+  })
+
   it('should not include parent document when new root', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard/integrations')
     const $ = cheerio.load(html)
@@ -63,7 +78,7 @@ describe('root dir', () => {
     expect($('body').hasClass('this-is-the-document-body')).toBeFalsy()
   })
 
-  it('should not include parent when not in directory', async () => {
+  it('should not include parent when not in parent directory', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard/changelog')
     const $ = cheerio.load(html)
     // Should not be nested in dashboard
