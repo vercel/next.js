@@ -68,6 +68,7 @@ export async function getServerSideProps({ req, res }) {
   }
 }
 ```
+
 By default, `Cache-Control` headers will be set differently depending on how your page fetches data.
 
 If the page is using `getServerSideProps` or `getInitialProps`, then it will use the default `Cache-Control` header configured by `next start` in order to prevent accidental caching of responses that cannot be cached. If you want a different cache behavior while using SSR you can use `res.setHeader('Cache-Control', 'value_you_prefer')`.
