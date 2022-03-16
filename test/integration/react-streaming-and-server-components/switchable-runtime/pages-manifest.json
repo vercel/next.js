@@ -1,0 +1,9 @@
+{
+  "/_app": "pages/_app.js",
+  "/_error": "pages/_error.js",
+  "/edge-rsc": "pages/edge-rsc.js",
+  "/static": "pages/static.js",
+  "/node-rsc": "pages/node-rsc.js",
+  "/node": "pages/node.js",
+  "/edge": "pages/edge.js"
+}
