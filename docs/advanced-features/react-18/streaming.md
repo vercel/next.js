@@ -68,4 +68,6 @@ Currently, data fetching within `Suspense` boundaries on the server side is not 
 
 #### Styling
 
-The Next.js team is working on support for `styled-jsx` and CSS modules in streaming SSR. Stay tuned for updates.
+So far only `styled-jsx` is supported with streaming. The Next.js team is working on support for CSS modules and other CSS solutions in streaming SSR. Stay tuned for updates.
+
+Notice that for React Server Components, `styled-jsx` should be only placed in client components.
