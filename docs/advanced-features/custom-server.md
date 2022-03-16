@@ -101,24 +101,11 @@ app.renderError(err, req, res, pathname, query, setHeaders)
 ```
 
 The above is an example of using the `renderError` function with its parameters.<br>
-Below is the source of the function.
+Source code for app.renderError can be found as following:
 
-```js
-public async renderError(
-    err: Error | null,
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    pathname: string,
-    query: NextParsedUrlQuery = {},
-    setHeaders = true
-  ): Promise<void> {
-    if (setHeaders) {
-      res.setHeader(
-        'Cache-Control',
-        'no-cache, no-store, max-age=0, must-revalidate'
-      )
-    }
-```
+- [app.renderError](https://github.com/vercel/next.js/blob/dda0afd3a45a50cbcb418903f7a0ab56eae51b33/packages/next/server/base-server.ts#L2336) (public)
+- [app.renderErrorToResponse](https://github.com/vercel/next.js/blob/dda0afd3a45a50cbcb418903f7a0ab56eae51b33/packages/next/server/base-server.ts#L2369) (private)<br>
+  NOTE: `app.renderErrorToResponse` is not available to the public API and therefore should be referenced to understand how it works under the hood.
 
 ## Disabling file-system routing
 
