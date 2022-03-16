@@ -53,14 +53,12 @@ describe('Without global runtime configuration', () => {
   const context = { appDir }
 
   beforeAll(async () => {
-    // error500Page.write(page500)
     context.appPort = await findPort()
     const { stderr } = await nextBuild(context.appDir)
     context.stderr = stderr
     context.server = await nextStart(context.appDir, context.appPort)
   })
   afterAll(async () => {
-    // error500Page.delete()
     await killApp(context.server)
   })
 
