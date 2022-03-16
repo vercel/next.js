@@ -39,12 +39,7 @@ struct RemoveConsole {
 
 impl RemoveConsole {
     fn is_global_console(&self, ident: &Ident) -> bool {
-        &ident.sym == "console"
-            && self
-                .bindings
-                .iter()
-                .find(|x| x.contains(&ident.to_id()))
-                .is_none()
+        &ident.sym == "console" && !self.bindings.iter().any(|x| x.contains(&ident.to_id()))
     }
 
     fn should_remove_call(&mut self, n: &CallExpr) -> bool {
@@ -73,7 +68,7 @@ impl RemoveConsole {
         // Here we do an O(n) search on the list of excluded properties because the size
         // should be small.
         match &member_expr.prop {
-            MemberProp::Ident(i) if self.exclude.iter().find(|x| **x == i.sym).is_none() => {}
+            MemberProp::Ident(i) if !self.exclude.iter().any(|x| *x == i.sym) => {}
             _ => return false,
         }
 
@@ -85,16 +80,12 @@ impl Fold for RemoveConsole {
     noop_fold_type!();
 
     fn fold_stmt(&mut self, stmt: Stmt) -> Stmt {
-        match &stmt {
-            Stmt::Expr(e) => match &*e.expr {
-                Expr::Call(c) => {
-                    if self.should_remove_call(c) {
-                        return Stmt::Empty(EmptyStmt { span: DUMMY_SP });
-                    }
+        if let Stmt::Expr(e) = &stmt {
+            if let Expr::Call(c) = &*e.expr {
+                if self.should_remove_call(c) {
+                    return Stmt::Empty(EmptyStmt { span: DUMMY_SP });
                 }
-                _ => {}
-            },
-            _ => {}
+            }
         }
         stmt.fold_children_with(self)
     }
@@ -135,10 +126,9 @@ pub fn remove_console(config: Config) -> impl Fold {
         Config::WithOptions(x) => x.exclude,
         _ => vec![],
     };
-    let remover = RemoveConsole {
+    RemoveConsole {
         exclude,
         bindings: Default::default(),
         in_function_params: false,
-    };
-    remover
+    }
 }

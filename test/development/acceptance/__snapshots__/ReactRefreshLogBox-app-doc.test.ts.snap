@@ -15,7 +15,7 @@ error: Unexpected token \`jsx name (Component)\`. Expected this, import, async, 
   |                        ^^^^^^^^^
 
 Caused by:
-    0: failed to process js file
+    0: failed to process input file
     1: Syntax Error"
 `;
 
@@ -28,6 +28,6 @@ Error: error: Unexpected token \`{\`. Expected identifier, string literal, numer
   |                                                ^
 
 Caused by:
-    0: failed to process js file
+    0: failed to process input file
     1: Syntax Error"
 `;

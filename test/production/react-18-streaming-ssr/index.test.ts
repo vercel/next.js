@@ -1,8 +1,8 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 
-describe('react-18-streaming-ssr in minimal mode', () => {
+describe('react 18 streaming SSR in minimal mode', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -24,13 +24,10 @@ describe('react-18-streaming-ssr in minimal mode', () => {
         },
       },
       dependencies: {
-        react: '18.0.0-rc.0',
-        'react-dom': '18.0.0-rc.0',
+        react: '18.0.0-rc.2',
+        'react-dom': '18.0.0-rc.2',
       },
-      skipStart: true,
     })
-
-    await next.start()
   })
   afterAll(() => {
     delete process.env.NEXT_PRIVATE_MINIMAL_MODE
@@ -40,5 +37,65 @@ describe('react-18-streaming-ssr in minimal mode', () => {
   it('should generate html response by streaming correctly', async () => {
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('static streaming')
+  })
+})
+
+describe('react 18 streaming SSR with custom next configs', () => {
+  let next: NextInstance
+
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        'pages/index.js': `
+          export default function Page() {
+            return (
+              <div>
+                <style jsx>{\`p { color: blue } \`}</style>
+                <p>index</p>
+              </div>
+            )
+          }
+        `,
+        'pages/hello.js': `
+          export default function Page() {
+            return <p>hello nextjs</p>
+          }
+        `,
+      },
+      nextConfig: {
+        trailingSlash: true,
+        experimental: {
+          reactRoot: true,
+          runtime: 'edge',
+        },
+      },
+      dependencies: {
+        react: '18.0.0-rc.2',
+        'react-dom': '18.0.0-rc.2',
+      },
+      installCommand: 'npm install',
+    })
+  })
+  afterAll(() => next.destroy())
+
+  it('should render styled-jsx styles in streaming', async () => {
+    const html = await renderViaHTTP(next.url, '/')
+    expect(html).toContain('color:blue')
+  })
+
+  it('should redirect paths without trailing-slash and render when slash is appended', async () => {
+    const page = '/hello'
+    const redirectRes = await fetchViaHTTP(
+      next.url,
+      page,
+      {},
+      { redirect: 'manual' }
+    )
+    const res = await fetchViaHTTP(next.url, page + '/')
+    const html = await res.text()
+
+    expect(redirectRes.status).toBe(308)
+    expect(res.status).toBe(200)
+    expect(html).toContain('hello nextjs')
   })
 })

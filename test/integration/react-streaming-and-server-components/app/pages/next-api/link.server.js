@@ -15,3 +15,7 @@ export default function LinkPage({ router }) {
     </>
   )
 }
+
+export const config = {
+  runtime: 'edge',
+}
