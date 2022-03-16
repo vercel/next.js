@@ -1,0 +1,7 @@
+export function isWasm(): Promise<boolean>
+export function transform(src: string, options?: any): Promise<any>
+export function transformSync(src: string, options?: any): any
+export function minify(src: string, options: any): Promise<string>
+export function minifySync(src: string, options: any): string
+export function bundle(options: any): Promise<any>
+export function parse(src: string, options: any): any

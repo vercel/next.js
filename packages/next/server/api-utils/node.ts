@@ -6,6 +6,7 @@ import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import type { PreviewData } from 'next/types'
 
+import bytes from 'next/dist/compiled/bytes'
 import jsonwebtoken from 'next/dist/compiled/jsonwebtoken'
 import { decryptWithSecret, encryptWithSecret } from '../crypto-utils'
 import generateETag from 'next/dist/compiled/etag'
@@ -28,6 +29,7 @@ import {
   COOKIE_NAME_PRERENDER_BYPASS,
   COOKIE_NAME_PRERENDER_DATA,
   SYMBOL_PREVIEW_DATA,
+  RESPONSE_LIMIT_DEFAULT,
 } from './index'
 
 export function tryGetPreviewData(
@@ -172,6 +174,7 @@ export async function apiResolver(
     }
     const config: PageConfig = resolverModule.config || {}
     const bodyParser = config.api?.bodyParser !== false
+    const responseLimit = config.api?.responseLimit ?? true
     const externalResolver = config.api?.externalResolver || false
 
     // Parsing of cookies
@@ -198,6 +201,7 @@ export async function apiResolver(
     }
 
     let contentLength = 0
+    const maxContentLength = getMaxContentLength(responseLimit)
     const writeData = apiRes.write
     const endResponse = apiRes.end
     apiRes.write = (...args: any[2]) => {
@@ -209,9 +213,11 @@ export async function apiResolver(
         contentLength += Buffer.byteLength(args[0] || '')
       }
 
-      if (contentLength >= 4 * 1024 * 1024) {
+      if (responseLimit && contentLength >= maxContentLength) {
         console.warn(
-          `API response for ${req.url} exceeds 4MB. This will cause the request to fail in a future version. https://nextjs.org/docs/messages/api-routes-body-size-limit`
+          `API response for ${req.url} exceeds ${bytes.format(
+            maxContentLength
+          )}. API Routes are meant to respond quickly. https://nextjs.org/docs/messages/api-routes-response-size-limit`
         )
       }
 
@@ -309,7 +315,13 @@ async function unstable_revalidate(
       },
     })
 
-    if (!res.ok) {
+    // we use the cache header to determine successful revalidate as
+    // a non-200 status code can be returned from a successful revalidate
+    // e.g. notFound: true returns 404 status code but is successful
+    const cacheHeader =
+      res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
+
+    if (cacheHeader?.toUpperCase() !== 'REVALIDATED') {
       throw new Error(`Invalid response ${res.status}`)
     }
   } catch (err) {
@@ -483,4 +495,11 @@ function setPreviewData<T>(
     }),
   ])
   return res
+}
+
+function getMaxContentLength(responseLimit?: number | string | boolean) {
+  if (responseLimit && typeof responseLimit !== 'boolean') {
+    return bytes.parse(responseLimit)
+  }
+  return RESPONSE_LIMIT_DEFAULT
 }

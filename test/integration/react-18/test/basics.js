@@ -31,7 +31,7 @@ export default (context) => {
     const nextData = JSON.parse($('#__NEXT_DATA__').text())
     const content = $('#__next').text()
     // <Bar> is suspended
-    expect(content).toBe('rab')
+    expect(content).toBe('fallback')
     expect(nextData.dynamicIds).toBeUndefined()
   })
 

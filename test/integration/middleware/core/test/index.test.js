@@ -47,6 +47,8 @@ describe('Middleware base tests', () => {
     interfaceTests('/fr')
     urlTests(log)
     urlTests(log, '/fr')
+    errorTests()
+    errorTests('/fr')
 
     it('should have showed warning for middleware usage', () => {
       expect(log.output).toContain(middlewareWarning)
@@ -84,6 +86,8 @@ describe('Middleware base tests', () => {
     interfaceTests('/fr')
     urlTests(serverOutput)
     urlTests(serverOutput, '/fr')
+    errorTests()
+    errorTests('/fr')
 
     it('should have middleware warning during build', () => {
       expect(buildOutput).toContain(middlewareWarning)
@@ -359,6 +363,86 @@ function rewriteTests(log, locale = '') {
     expect($('.title').text()).toBe('About Page')
   })
 
+  it(`${locale} support colons in path`, async () => {
+    const path = `${locale}/rewrites/not:param`
+    const res = await fetchViaHTTP(context.appPort, path)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#props').text()).toBe('not:param')
+    const browser = await webdriver(context.appPort, path)
+    try {
+      expect(await browser.eval(`window.location.pathname`)).toBe(path)
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it(`${locale} can rewrite to path with colon`, async () => {
+    const path = `${locale}/rewrites/rewrite-me-with-a-colon`
+    const res = await fetchViaHTTP(context.appPort, path)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#props').text()).toBe('with:colon')
+    const browser = await webdriver(context.appPort, path)
+    try {
+      expect(await browser.eval(`window.location.pathname`)).toBe(path)
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it(`${locale} can rewrite from path with colon`, async () => {
+    const path = `${locale}/rewrites/colon:here`
+    const res = await fetchViaHTTP(context.appPort, path)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#props').text()).toBe('no-colon-here')
+    const browser = await webdriver(context.appPort, path)
+    try {
+      expect(await browser.eval(`window.location.pathname`)).toBe(path)
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it(`${locale} can rewrite from path with colon and retain query parameter`, async () => {
+    const path = `${locale}/rewrites/colon:here?qp=arg`
+    const res = await fetchViaHTTP(context.appPort, path)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#props').text()).toBe('no-colon-here')
+    expect($('#qp').text()).toBe('arg')
+    const browser = await webdriver(context.appPort, path)
+    try {
+      expect(
+        await browser.eval(
+          `window.location.href.replace(window.location.origin, '')`
+        )
+      ).toBe(path)
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it(`${locale} can rewrite to path with colon and retain query parameter`, async () => {
+    const path = `${locale}/rewrites/rewrite-me-with-a-colon?qp=arg`
+    const res = await fetchViaHTTP(context.appPort, path)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#props').text()).toBe('with:colon')
+    expect($('#qp').text()).toBe('arg')
+    const browser = await webdriver(context.appPort, path)
+    try {
+      expect(
+        await browser.eval(
+          `window.location.href.replace(window.location.origin, '')`
+        )
+      ).toBe(path)
+    } finally {
+      await browser.close()
+    }
+  })
+
   it(`${locale} should rewrite when not using localhost`, async () => {
     const res = await fetchViaHTTP(
       `http://localtest.me:${context.appPort}`,
@@ -403,6 +487,17 @@ function rewriteTests(log, locale = '') {
     expect(await browser.eval('window.__SAME_PAGE')).toBe(true)
     const element = await browser.elementByCss('.title')
     expect(await element.text()).toEqual('About Bypassed Page')
+  })
+
+  it(`${locale} should not call middleware with shallow push`, async () => {
+    const browser = await webdriver(context.appPort, '/rewrites')
+    await browser.elementByCss('#link-to-shallow-push').click()
+    await browser.waitForCondition(
+      'new URL(window.location.href).searchParams.get("path") === "rewrite-me-without-hard-navigation"'
+    )
+    await expect(async () => {
+      await browser.waitForElementByCss('.refreshed', 500)
+    }).rejects.toThrow()
   })
 }
 
@@ -704,6 +799,16 @@ function interfaceTests(locale = '') {
     expect(await element.text()).toEqual('Parts page')
     const logs = await browser.log()
     expect(logs.every((log) => log.source === 'log')).toEqual(true)
+  })
+}
+
+function errorTests(locale = '') {
+  it(`${locale} should hard-navigate when preflight request failed`, async () => {
+    const browser = await webdriver(context.appPort, `${locale}/errors`)
+    await browser.eval('window.__SAME_PAGE = true')
+    await browser.elementByCss('#throw-on-preflight').click()
+    await browser.waitForElementByCss('.refreshed')
+    expect(await browser.eval('window.__SAME_PAGE')).toBeUndefined()
   })
 }
 

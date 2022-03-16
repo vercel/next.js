@@ -4,13 +4,25 @@ import { useRouter } from 'next/router'
 
 export async function getStaticPaths() {
   return {
-    paths: [],
+    paths: [
+      {
+        params: { slug: '404-on-manual-revalidate' },
+      },
+    ],
     fallback: 'blocking',
   }
 }
 
 export async function getStaticProps({ params }) {
   await new Promise((resolve) => setTimeout(resolve, 1000))
+
+  if (process.env.NEXT_PHASE !== 'phase-production-build') {
+    if (params.slug === '404-on-manual-revalidate') {
+      return {
+        notFound: true,
+      }
+    }
+  }
 
   return {
     props: {

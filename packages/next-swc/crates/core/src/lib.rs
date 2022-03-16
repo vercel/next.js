@@ -36,18 +36,18 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::{path::PathBuf, sync::Arc};
 use swc::config::ModuleConfig;
+use swc_common::comments::Comments;
 use swc_common::{self, chain, pass::Optional};
-use swc_common::{SourceFile, SourceMap};
+use swc_common::{FileName, SourceFile, SourceMap};
 use swc_ecmascript::ast::EsVersion;
+use swc_ecmascript::parser::parse_file_as_module;
 use swc_ecmascript::transforms::pass::noop;
-use swc_ecmascript::{
-    parser::{lexer::Lexer, Parser, StringInput},
-    visit::Fold,
-};
+use swc_ecmascript::visit::Fold;
 
 pub mod amp_attributes;
 mod auto_cjs;
 pub mod disallow_re_export_all_in_page;
+pub mod emotion;
 pub mod hook_optimizer;
 pub mod next_dynamic;
 pub mod next_ssg;
@@ -99,13 +99,17 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub shake_exports: Option<shake_exports::Config>,
+
+    #[serde(default)]
+    pub emotion: Option<emotion::EmotionOptions>,
 }
 
-pub fn custom_before_pass(
+pub fn custom_before_pass<'a, C: Comments + 'a>(
     cm: Arc<SourceMap>,
     file: Arc<SourceFile>,
-    opts: &TransformOptions,
-) -> impl Fold + '_ {
+    opts: &'a TransformOptions,
+    comments: C,
+) -> impl Fold + 'a {
     #[cfg(target_arch = "wasm32")]
     let relay_plugin = noop();
 
@@ -124,7 +128,7 @@ pub fn custom_before_pass(
 
     chain!(
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
-        styled_jsx::styled_jsx(cm, file.name.clone()),
+        styled_jsx::styled_jsx(cm.clone(), file.name.clone()),
         hook_optimizer::hook_optimizer(),
         match &opts.styled_components {
             Some(config) => {
@@ -166,7 +170,27 @@ pub fn custom_before_pass(
         match &opts.shake_exports {
             Some(config) => Either::Left(shake_exports::shake_exports(config.clone())),
             None => Either::Right(noop()),
-        }
+        },
+        opts.emotion
+            .as_ref()
+            .and_then(|config| {
+                if !config.enabled.unwrap_or(false) {
+                    return None;
+                }
+                if let FileName::Real(path) = &file.name {
+                    path.to_str().map(|_| {
+                        Either::Left(emotion::EmotionTransformer::new(
+                            config.clone(),
+                            path,
+                            cm,
+                            comments,
+                        ))
+                    })
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| Either::Right(noop())),
     )
 }
 
@@ -178,9 +202,8 @@ impl TransformOptions {
             self.swc.config.module.is_none() && fm.src.contains("module.exports") && {
                 let syntax = self.swc.config.jsc.syntax.unwrap_or_default();
                 let target = self.swc.config.jsc.target.unwrap_or_else(EsVersion::latest);
-                let lexer = Lexer::new(syntax, target, StringInput::from(&*fm), None);
-                let mut p = Parser::new_from(lexer);
-                p.parse_module()
+
+                parse_file_as_module(fm, syntax, target, None, &mut vec![])
                     .map(|m| contains_cjs(&m))
                     .unwrap_or_default()
             };

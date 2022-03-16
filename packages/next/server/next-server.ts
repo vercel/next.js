@@ -9,6 +9,7 @@ import type { PrerenderManifest } from '../build'
 import type { Rewrite } from '../lib/load-custom-routes'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
+import type { PayloadOptions } from './send-payload'
 
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -43,12 +44,12 @@ import { route } from './router'
 import { run } from './web/sandbox'
 
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
-import { PayloadOptions, sendRenderResult } from './send-payload'
+import { sendRenderResult } from './send-payload'
 import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
-import { ParsedUrl } from '../shared/lib/router/utils/parse-url'
+import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
 
 import BaseServer, {
@@ -110,6 +111,9 @@ export default class NextNodeServer extends BaseServer {
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
+    if (this.renderOpts.nextScriptWorkers) {
+      process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
+    }
 
     if (!this.minimalMode) {
       const { ImageOptimizerCache } =
@@ -119,7 +123,8 @@ export default class NextNodeServer extends BaseServer {
         new ImageOptimizerCache({
           distDir: this.distDir,
           nextConfig: this.nextConfig,
-        })
+        }),
+        this.minimalMode
       )
     }
 
@@ -584,6 +589,12 @@ export default class NextNodeServer extends BaseServer {
 
   protected streamResponseChunk(res: NodeNextResponse, chunk: any) {
     res.originalResponse.write(chunk)
+
+    // When both compression and streaming are enabled, we need to explicitly
+    // flush the response to avoid it being buffered by gzip.
+    if (this.compression && 'flush' in res.originalResponse) {
+      ;(res.originalResponse as any).flush()
+    }
   }
 
   protected async imageOptimizer(
@@ -682,7 +693,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getServerComponentManifest() {
-    if (this.nextConfig.experimental.runtime !== 'nodejs') return undefined
+    if (!this.nextConfig.experimental.serverComponents) return undefined
     return require(join(
       this.distDir,
       'server',
@@ -1123,12 +1134,8 @@ export default class NextNodeServer extends BaseServer {
           const rewritePath = result.response.headers.get(
             'x-middleware-rewrite'
           )!
-          const { newUrl, parsedDestination } = prepareDestination({
-            appendParamsToQuery: false,
-            destination: rewritePath,
-            params: _params,
-            query: {},
-          })
+          const parsedDestination = parseUrl(rewritePath)
+          const newUrl = parsedDestination.pathname
 
           // TODO: remove after next minor version current `v12.0.9`
           this.warnIfQueryParametersWereDeleted(
@@ -1262,6 +1269,7 @@ export default class NextNodeServer extends BaseServer {
           name: middlewareInfo.name,
           paths: middlewareInfo.paths,
           env: middlewareInfo.env,
+          wasm: middlewareInfo.wasm,
           request: {
             headers: params.request.headers,
             method,
@@ -1309,7 +1317,7 @@ export default class NextNodeServer extends BaseServer {
       }
     }
 
-    originalBody?.finalize()
+    await originalBody?.finalize()
 
     return result
   }

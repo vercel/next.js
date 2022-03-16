@@ -47,9 +47,17 @@ pub fn transform_sync(s: &str, opts: JsValue) -> Result<JsValue, JsValue> {
             },
             s.into(),
         );
-        let before_pass = custom_before_pass(c.cm.clone(), fm.clone(), &opts);
+        let cm = c.cm.clone();
+        let file = fm.clone();
         let out = c
-            .process_js_with_custom_pass(fm, None, handler, &opts.swc, |_| before_pass, |_| noop())
+            .process_js_with_custom_pass(
+                fm,
+                None,
+                handler,
+                &opts.swc,
+                |_, comments| custom_before_pass(cm, file, &opts, comments.clone()),
+                |_, _| noop(),
+            )
             .context("failed to process js file")?;
 
         JsValue::from_serde(&out).context("failed to serialize json")
