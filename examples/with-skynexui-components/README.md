@@ -4,15 +4,9 @@ Next.js ships with [styled-jsx](https://github.com/vercel/styled-jsx) allowing y
 
 With [@skynexui/components](https://github.com/skynexui/components/) you will be allowed to use the advantages of `styled-jsx` in a component utility first approach to create your own UI with good and configurable defaults.
 
-## Preview
-
-Preview the example live on [StackBlitz](http://stackblitz.com/):
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-skynexui-components)
-
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-skynexui-components)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-skynexui-components&project-name=with-skynexui-components&repository-name=with-skynexui-components)
 
