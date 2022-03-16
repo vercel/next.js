@@ -25,19 +25,6 @@ describe('Invalid react 18 webpack config', () => {
     )
   })
 
-  it('should require `experimental.runtime` for server components', async () => {
-    writeNextConfig({
-      reactRoot: true,
-      serverComponents: true,
-    })
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    nextConfig.restore()
-
-    expect(stderr).toContain(
-      '`experimental.runtime` is required to be set along with `experimental.serverComponents`.'
-    )
-  })
-
   it('should warn user when not using react 18 and `experimental.reactRoot` is enabled', async () => {
     const reactDomPackagePah = join(appDir, 'node_modules/react-dom')
     await fs.mkdirp(reactDomPackagePah)
