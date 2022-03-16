@@ -8,7 +8,7 @@ const ScriptCache = new Map()
 const LoadCache = new Set()
 
 export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
-  strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive'
+  strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive' | 'worker'
   id?: string
   onLoad?: (e: any) => void
   onError?: (e: any) => void
@@ -99,6 +99,10 @@ const loadScript = (props: ScriptProps): void => {
     el.setAttribute(attr, value)
   }
 
+  if (strategy === 'worker') {
+    el.setAttribute('type', 'text/partytown')
+  }
+
   el.setAttribute('data-nscript', strategy)
 
   document.body.appendChild(el)
@@ -150,9 +154,9 @@ function Script(props: ScriptProps): JSX.Element | null {
     }
   }, [props, strategy])
 
-  if (strategy === 'beforeInteractive') {
+  if (strategy === 'beforeInteractive' || strategy === 'worker') {
     if (updateScripts) {
-      scripts.beforeInteractive = (scripts.beforeInteractive || []).concat([
+      scripts[strategy] = (scripts[strategy] || []).concat([
         {
           src,
           onLoad,

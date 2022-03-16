@@ -2,8 +2,8 @@ use easy_error::{bail, Error};
 use std::panic;
 use std::sync::Arc;
 use swc_common::util::take::Take;
-use swc_common::SourceMap;
 use swc_common::{source_map::Pos, BytePos, Span, SyntaxContext, DUMMY_SP};
+use swc_common::{SourceMap, Spanned};
 use swc_css::ast::*;
 use swc_css::codegen::{
     writer::basic::{BasicCssWriter, BasicCssWriterConfig},
@@ -72,7 +72,7 @@ pub fn transform_css(
 
     let mut s = String::new();
     {
-        let mut wr = BasicCssWriter::new(&mut s, BasicCssWriterConfig { indent: "  " });
+        let mut wr = BasicCssWriter::new(&mut s, None, BasicCssWriterConfig::default());
         let mut gen = CodeGenerator::new(&mut wr, CodegenConfig { minify: true });
 
         gen.emit(&ss).unwrap();
@@ -144,7 +144,7 @@ impl VisitMut for Namespacer {
 
             let mut code = String::new();
             {
-                let mut wr = BasicCssWriter::new(&mut code, BasicCssWriterConfig { indent: "  " });
+                let mut wr = BasicCssWriter::new(&mut code, None, BasicCssWriterConfig::default());
                 let mut gen = CodeGenerator::new(&mut wr, CodegenConfig { minify: true });
 
                 gen.emit(&*node).unwrap();
@@ -183,16 +183,12 @@ impl VisitMut for Namespacer {
 
                     combinator = None;
                 }
-                ComplexSelectorChildren::Combinator(v) => match v.value {
-                    CombinatorValue::Descendant => {}
-                    _ => {
-                        combinator = Some(v.clone());
-
-                        new_selectors.push(sel);
-                    }
-                },
+                ComplexSelectorChildren::Combinator(v) => {
+                    combinator = Some(v.clone());
+                }
             };
         }
+
         node.children = new_selectors;
     }
 }
@@ -204,8 +200,6 @@ impl Namespacer {
         mut node: CompoundSelector,
     ) -> Result<Vec<ComplexSelectorChildren>, Error> {
         let mut pseudo_index = None;
-
-        let empty_tokens = vec![];
         let mut arg_tokens;
 
         for (i, selector) in node.subclass_selectors.iter().enumerate() {
@@ -215,8 +209,22 @@ impl Namespacer {
                         .iter()
                         .flatten()
                         .flat_map(|v| match v {
-                            PseudoSelectorChildren::Nth(v) => nth_to_tokens(v).tokens,
-                            PseudoSelectorChildren::PreservedToken(v) => vec![v.clone()],
+                            PseudoClassSelectorChildren::PreservedToken(v) => vec![v.clone()],
+                            PseudoClassSelectorChildren::AnPlusB(an_plus_b) => match an_plus_b {
+                                AnPlusB::Ident(v) => to_tokens(v).tokens,
+                                AnPlusB::AnPlusBNotation(v) => to_tokens(v).tokens,
+                            },
+                            PseudoClassSelectorChildren::Ident(v) => to_tokens(v).tokens,
+                            PseudoClassSelectorChildren::Str(v) => to_tokens(v).tokens,
+                            PseudoClassSelectorChildren::Delimiter(v) => to_tokens(v).tokens,
+                            PseudoClassSelectorChildren::SelectorList(v) => to_tokens(v).tokens,
+                            PseudoClassSelectorChildren::CompoundSelectorList(v) => {
+                                to_tokens(v).tokens
+                            }
+                            PseudoClassSelectorChildren::RelativeSelectorList(v) => {
+                                to_tokens(v).tokens
+                            }
+                            PseudoClassSelectorChildren::CompoundSelector(v) => to_tokens(v).tokens,
                         })
                         .collect::<Vec<_>>();
 
@@ -224,10 +232,21 @@ impl Namespacer {
                 }
                 SubclassSelector::PseudoElement(PseudoElementSelector {
                     name, children, ..
-                }) => match children {
-                    Some(children) => (name, children),
-                    None => (name, &empty_tokens),
-                },
+                }) => {
+                    arg_tokens = children
+                        .iter()
+                        .flatten()
+                        .flat_map(|v| match v {
+                            PseudoElementSelectorChildren::PreservedToken(v) => vec![v.clone()],
+                            PseudoElementSelectorChildren::Ident(v) => to_tokens(v).tokens,
+                            PseudoElementSelectorChildren::CompoundSelector(v) => {
+                                to_tokens(v).tokens
+                            }
+                        })
+                        .collect::<Vec<_>>();
+
+                    (name, &arg_tokens)
+                }
                 _ => continue,
             };
 
@@ -282,12 +301,16 @@ impl Namespacer {
                         trace!("Combinator: {:?}", combinator);
                         trace!("v[0]: {:?}", v[0]);
 
+                        let mut result = vec![];
+
                         if let Some(combinator) = combinator {
                             match v.get(0) {
-                                Some(ComplexSelectorChildren::Combinator(..)) => {}
-                                Some(..) => {}
+                                // `Descendant` combinator can't be the first because we removed it
+                                // above
+                                Some(ComplexSelectorChildren::Combinator(..))
+                                    if combinator.value == CombinatorValue::Descendant => {}
                                 _ => {
-                                    v.push(ComplexSelectorChildren::Combinator(combinator));
+                                    result.push(ComplexSelectorChildren::Combinator(combinator));
                                 }
                             }
                         }
@@ -301,7 +324,9 @@ impl Namespacer {
                             }
                         });
 
-                        Ok(v)
+                        result.extend(v);
+
+                        Ok(result)
                     }
                     Err(_) => bail!("Failed to transform one off global selector"),
                 };
@@ -332,7 +357,15 @@ impl Namespacer {
             );
         }
 
-        Ok(vec![ComplexSelectorChildren::CompoundSelector(node)])
+        let mut result = vec![];
+
+        if let Some(combinator) = combinator {
+            result.push(ComplexSelectorChildren::Combinator(combinator));
+        }
+
+        result.push(ComplexSelectorChildren::CompoundSelector(node));
+
+        Ok(result)
     }
 }
 
@@ -461,17 +494,21 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
     ]
 }
 
-fn nth_to_tokens(nth: &Nth) -> Tokens {
+fn to_tokens<N: Spanned>(node: &N) -> Tokens
+where
+    for<'aa> CodeGenerator<&'aa mut BasicCssWriter<'aa, &'aa mut std::string::String>>: Emit<N>,
+{
     let mut s = String::new();
     {
-        let mut wr = BasicCssWriter::new(&mut s, BasicCssWriterConfig { indent: "  " });
+        let mut wr = BasicCssWriter::new(&mut s, None, BasicCssWriterConfig::default());
         let mut gen = CodeGenerator::new(&mut wr, CodegenConfig { minify: true });
 
-        gen.emit(&nth).unwrap();
+        gen.emit(node).unwrap();
     }
 
+    let span = node.span();
     let mut lexer = swc_css::parser::lexer::Lexer::new(
-        StringInput::new(&s, nth.span.lo, nth.span.hi),
+        StringInput::new(&s, span.lo, span.hi),
         ParserConfig {
             allow_wrong_line_comments: true,
         },
@@ -484,7 +521,7 @@ fn nth_to_tokens(nth: &Nth) -> Tokens {
     }
 
     Tokens {
-        span: Span::new(nth.span.lo, nth.span.hi, Default::default()),
+        span: Span::new(span.lo, span.hi, Default::default()),
         tokens,
     }
 }

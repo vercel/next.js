@@ -419,7 +419,12 @@ export async function imageOptimizer(
 
   if (mimeType) {
     contentType = mimeType
-  } else if (upstreamType?.startsWith('image/') && getExtension(upstreamType)) {
+  } else if (
+    upstreamType?.startsWith('image/') &&
+    getExtension(upstreamType) &&
+    upstreamType !== WEBP &&
+    upstreamType !== AVIF
+  ) {
     contentType = upstreamType
   } else {
     contentType = JPEG
@@ -546,10 +551,18 @@ export async function imageOptimizer(
       throw new ImageError(500, 'Unable to optimize buffer')
     }
   } catch (error) {
-    return {
-      buffer: upstreamBuffer,
-      contentType: upstreamType!,
-      maxAge,
+    if (upstreamBuffer && upstreamType) {
+      // If we fail to optimize, fallback to the original image
+      return {
+        buffer: upstreamBuffer,
+        contentType: upstreamType,
+        maxAge: nextConfig.images.minimumCacheTTL,
+      }
+    } else {
+      throw new ImageError(
+        500,
+        'Unable to optimize image and unable to fallback to upstream image'
+      )
     }
   }
 }

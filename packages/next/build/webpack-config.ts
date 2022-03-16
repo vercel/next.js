@@ -1,7 +1,6 @@
 import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
-import { stringify } from 'querystring'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import path, { join as pathJoin, relative as relativePath } from 'path'
@@ -45,16 +44,15 @@ import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
-import FunctionsManifestPlugin from './webpack/plugins/functions-manifest-plugin'
 import type { Span } from '../trace'
 import { getRawPageExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
-import { shouldUseReactRoot } from '../server/config'
+import { getMiddlewareSourceMapPlugins } from './webpack/plugins/middleware-source-maps-plugin'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
-  ignored: ['**/.git/**', '**/node_modules/**', '**/.next/**'],
+  ignored: ['**/.git/**', '**/.next/**'],
 })
 
 function getSupportedBrowsers(
@@ -311,6 +309,7 @@ export default async function getBaseWebpackConfig(
     rewrites,
     isDevFallback = false,
     runWebpackSpan,
+    hasReactRoot,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -324,6 +323,7 @@ export default async function getBaseWebpackConfig(
     rewrites: CustomRoutes['rewrites']
     isDevFallback?: boolean
     runWebpackSpan: Span
+    hasReactRoot: boolean
   }
 ): Promise<webpack.Configuration> {
   const { useTypeScript, jsConfig, resolvedBaseUrl } = await loadJsConfig(
@@ -336,10 +336,10 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
   const hasReactRefresh: boolean = dev && !isServer
-  const hasReactRoot = shouldUseReactRoot()
+
   const runtime = config.experimental.runtime
 
-  // Make sure reactRoot is enabled when react 18 is detected
+  // Make sure `reactRoot` is enabled when React 18 or experimental is detected.
   if (hasReactRoot) {
     config.experimental.reactRoot = true
   }
@@ -354,14 +354,14 @@ export default async function getBaseWebpackConfig(
       '`experimental.runtime` requires `experimental.reactRoot` to be enabled along with React 18.'
     )
   }
-  if (config.experimental.serverComponents && !runtime) {
+  if (config.experimental.serverComponents && !hasReactRoot) {
     throw new Error(
-      '`experimental.runtime` is required to be set along with `experimental.serverComponents`.'
+      '`experimental.serverComponents` requires React 18 to be installed.'
     )
   }
 
   const targetWeb = isEdgeRuntime || !isServer
-  const hasConcurrentFeatures = !!runtime && hasReactRoot
+  const hasConcurrentFeatures = hasReactRoot
   const hasServerComponents =
     hasConcurrentFeatures && !!config.experimental.serverComponents
   const disableOptimizedLoading = hasConcurrentFeatures
@@ -559,9 +559,7 @@ export default async function getBaseWebpackConfig(
         prev.push(path.join(pagesDir, `_document.${ext}`))
         return prev
       }, [] as string[]),
-      `next/dist/pages/_document${
-        hasConcurrentFeatures ? '-concurrent' : ''
-      }.js`,
+      `next/dist/pages/_document.js`,
     ]
   }
 
@@ -1146,6 +1144,7 @@ export default async function getBaseWebpackConfig(
         'noop-loader',
         'next-middleware-loader',
         'next-middleware-ssr-loader',
+        'next-middleware-wasm-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1172,49 +1171,41 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
-        // Loaders for the client compilation when RSC is enabled.
-        ...(hasServerComponents && !isServer
-          ? [
-              {
-                ...codeCondition,
-                test: serverComponentsRegex,
-                use: {
-                  loader: `next-flight-server-loader?${stringify({
-                    client: 1,
-                    pageExtensions: JSON.stringify(rawPageExtensions),
-                  })}`,
+        ...(hasServerComponents
+          ? isServer
+            ? [
+                // RSC server compilation loaders
+                {
+                  ...codeCondition,
+                  use: {
+                    loader: 'next-flight-server-loader',
+                    options: {
+                      pageExtensions: rawPageExtensions,
+                    },
+                  },
                 },
-              },
-            ]
-          : []),
-        // Loaders for the server compilation when RSC is enabled.
-        ...(hasServerComponents &&
-        ((runtime === 'edge' && isEdgeRuntime) ||
-          (runtime === 'nodejs' && isServer))
-          ? [
-              {
-                ...codeCondition,
-                test: serverComponentsRegex,
-                use: {
-                  loader: `next-flight-server-loader?${stringify({
-                    pageExtensions: JSON.stringify(rawPageExtensions),
-                  })}`,
+                {
+                  test: codeCondition.test,
+                  resourceQuery: /__sc_client__/,
+                  use: {
+                    loader: 'next-flight-client-loader',
+                  },
                 },
-              },
-              {
-                ...codeCondition,
-                test: clientComponentsRegex,
-                use: {
-                  loader: 'next-flight-client-loader',
+              ]
+            : [
+                // RSC client compilation loaders
+                {
+                  ...codeCondition,
+                  test: serverComponentsRegex,
+                  use: {
+                    loader: 'next-flight-server-loader',
+                    options: {
+                      client: 1,
+                      pageExtensions: rawPageExtensions,
+                    },
+                  },
                 },
-              },
-              {
-                test: /next[\\/](dist[\\/]client[\\/])?(link|image)/,
-                use: {
-                  loader: 'next-flight-client-loader',
-                },
-              },
-            ]
+              ]
           : []),
         {
           test: /\.(js|cjs|mjs)$/,
@@ -1272,6 +1263,12 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
+      ...(!dev &&
+      !isServer &&
+      !!config.experimental.middlewareSourceMaps &&
+      !config.productionBrowserSourceMaps
+        ? getMiddlewareSourceMapPlugins()
+        : []),
       hasReactRefresh && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       targetWeb &&
@@ -1344,6 +1341,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
           config.experimental.optimizeCss && !dev
         ),
+        'process.env.__NEXT_SCRIPT_WORKERS': JSON.stringify(
+          config.experimental.nextScriptWorkers && !dev
+        ),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
         ),
@@ -1352,6 +1352,7 @@ export default async function getBaseWebpackConfig(
           imageSizes: config.images.imageSizes,
           path: config.images.path,
           loader: config.images.loader,
+          experimentalLayoutRaw: config.experimental?.images?.layoutRaw,
           ...(dev
             ? {
                 // pass domains in development to allow validating on the client
@@ -1441,20 +1442,15 @@ export default async function getBaseWebpackConfig(
         }),
       ((isServerless && isServer) || isEdgeRuntime) && new ServerlessPlugin(),
       isServer &&
-        !isEdgeRuntime &&
-        new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
+        new PagesManifestPlugin({
+          serverless: isLikeServerless,
+          dev,
+          isEdgeRuntime,
+        }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
       (!isServer || isEdgeRuntime) &&
         new MiddlewarePlugin({ dev, isEdgeRuntime }),
-      process.env.ENABLE_FILE_SYSTEM_API === '1' &&
-        isEdgeRuntime &&
-        new FunctionsManifestPlugin({
-          dev,
-          pagesDir,
-          isEdgeRuntime,
-          pageExtensions: config.pageExtensions,
-        }),
       !isServer &&
         new BuildManifestPlugin({
           buildId,
@@ -1491,7 +1487,7 @@ export default async function getBaseWebpackConfig(
         }),
       hasServerComponents &&
         !isServer &&
-        new FlightManifestPlugin({ dev, clientComponentsRegex, runtime }),
+        new FlightManifestPlugin({ dev, clientComponentsRegex }),
       !dev &&
         !isServer &&
         new TelemetryPlugin(
@@ -1510,6 +1506,7 @@ export default async function getBaseWebpackConfig(
             ],
             ['swcRemoveConsole', !!config.compiler?.removeConsole],
             ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
+            ['swcEmotion', !!config.experimental.emotion],
           ])
         ),
     ].filter(Boolean as any as ExcludesFalse),
@@ -1527,6 +1524,14 @@ export default async function getBaseWebpackConfig(
   }
 
   const webpack5Config = webpackConfig as webpack5.Configuration
+
+  webpack5Config.module?.rules?.unshift({
+    test: /\.wasm$/,
+    issuerLayer: 'middleware',
+    loader: 'next-middleware-wasm-loader',
+    type: 'javascript/auto',
+    resourceQuery: /module/i,
+  })
 
   webpack5Config.experiments = {
     layers: true,
@@ -1549,6 +1554,7 @@ export default async function getBaseWebpackConfig(
   webpack5Config.module!.parser = {
     javascript: {
       url: 'relative',
+      commonjsMagicComments: true,
     },
   }
   webpack5Config.module!.generator = {
@@ -1588,7 +1594,12 @@ export default async function getBaseWebpackConfig(
     if (!webpack5Config.optimization) {
       webpack5Config.optimization = {}
     }
-    webpack5Config.optimization.providedExports = false
+
+    // For Server Components, it's necessary to have provided exports collected
+    // to generate the correct flight manifest.
+    if (!hasServerComponents) {
+      webpack5Config.optimization.providedExports = false
+    }
     webpack5Config.optimization.usedExports = false
   }
 
@@ -1604,6 +1615,7 @@ export default async function getBaseWebpackConfig(
     reactMode: config.experimental.reactMode,
     optimizeFonts: config.optimizeFonts,
     optimizeCss: config.experimental.optimizeCss,
+    nextScriptWorkers: config.experimental.nextScriptWorkers,
     scrollRestoration: config.experimental.scrollRestoration,
     basePath: config.basePath,
     pageEnv: config.experimental.pageEnv,
@@ -1623,6 +1635,7 @@ export default async function getBaseWebpackConfig(
     reactRemoveProperties: config.compiler?.reactRemoveProperties,
     styledComponents: config.compiler?.styledComponents,
     relay: config.compiler?.relay,
+    emotion: config.experimental?.emotion,
   })
 
   const cache: any = {

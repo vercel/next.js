@@ -733,7 +733,7 @@ export default async function loadConfig(
   return completeConfig
 }
 
-export function shouldUseReactRoot() {
+export const shouldUseReactRoot = execOnce(() => {
   const reactDomVersion = require('react-dom').version
   const isReactExperimental = Boolean(
     reactDomVersion && /0\.0\.0-experimental/.test(reactDomVersion)
@@ -744,7 +744,7 @@ export function shouldUseReactRoot() {
       semver.coerce(reactDomVersion)?.version === '18.0.0')
 
   return hasReact18 || isReactExperimental
-}
+})
 
 export function setHttpAgentOptions(
   options: NextConfigComplete['httpAgentOptions']
