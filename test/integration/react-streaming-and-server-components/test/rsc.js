@@ -75,7 +75,7 @@ export default function (context, { runtime, env }) {
       '#__next > div > a[href="/"]'
     ).text()
 
-    expect(linkText).toContain('go home')
+    expect(linkText).toContain('home')
 
     const browser = await webdriver(context.appPort, '/next-api/link')
 
@@ -96,24 +96,35 @@ export default function (context, { runtime, env }) {
   })
 
   it('should be able to navigate between rsc pages', async () => {
+    let content
     const browser = await webdriver(context.appPort, '/')
 
-    await browser.waitForElementByCss('#next-link').click()
+    await browser.waitForElementByCss('#goto-next-link').click()
     await new Promise((res) => setTimeout(res, 1000))
     expect(await browser.url()).toBe(
       `http://localhost:${context.appPort}/next-api/link`
     )
-    await browser.waitForElementByCss('#home').click()
+    await browser.waitForElementByCss('#goto-home').click()
     await new Promise((res) => setTimeout(res, 1000))
     expect(await browser.url()).toBe(`http://localhost:${context.appPort}/`)
-    const homeContent = await browser.elementByCss('#__next').text()
-    console.log('homeContent', homeContent)
-    expect(homeContent).toContain('component:index.server')
+    content = await browser.elementByCss('#__next').text()
+    expect(content).toContain('component:index.server')
+
+    await browser.waitForElementByCss('#goto-streaming-rsc').click()
+    await new Promise((res) => setTimeout(res, 1500))
+    expect(await browser.url()).toBe(
+      `http://localhost:${context.appPort}/streaming-rsc`
+    )
+
+    content = await browser.elementByCss('#content').text()
+    expect(content).toContain('next_streaming_data')
   })
 
   it('should handle streaming server components correctly', async () => {
     const browser = await webdriver(context.appPort, '/streaming-rsc')
-    const content = await browser.eval(`window.document.body.innerText`)
+    const content = await browser.eval(
+      `document.querySelector('#content').innerText`
+    )
     expect(content).toMatchInlineSnapshot('"next_streaming_data"')
   })
 
@@ -132,7 +143,7 @@ export default function (context, { runtime, env }) {
 
   it('should refresh correctly with next/link', async () => {
     // Select the button which is not hidden but rendered
-    const selector = '#__next #refresh'
+    const selector = '#__next #goto-next-link'
     let hasFlightRequest = false
     const browser = await webdriver(context.appPort, '/', {
       beforePageLoad(page) {
@@ -157,7 +168,7 @@ export default function (context, { runtime, env }) {
       expect(hasFlightRequest).toBe(true)
     }
     const refreshText = await browser.elementByCss(selector).text()
-    expect(refreshText).toBe('refresh')
+    expect(refreshText).toBe('next link')
   })
 
   if (env === 'dev') {

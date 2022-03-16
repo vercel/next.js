@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Nav from '../../components/nav.server'
 
 export default function LinkPage({ router }) {
   const { query } = router
@@ -11,11 +12,7 @@ export default function LinkPage({ router }) {
           <a id="next_id">next id</a>
         </Link>
       </div>
-      <div>
-        <Link href={`/`}>
-          <a id="home">go home</a>
-        </Link>
-      </div>
+      <Nav />
     </>
   )
 }

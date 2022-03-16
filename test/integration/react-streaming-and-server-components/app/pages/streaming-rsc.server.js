@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import Nav from '../components/nav.server'
 
 let result
 let promise
@@ -16,9 +17,16 @@ function Data() {
 
 export default function Page() {
   return (
-    <Suspense fallback="next_streaming_fallback">
-      <Data />
-    </Suspense>
+    <div>
+      <div id="content">
+        <Suspense fallback="next_streaming_fallback">
+          <Data />
+        </Suspense>
+      </div>
+      <div>
+        <Nav />
+      </div>
+    </div>
   )
 }
 
