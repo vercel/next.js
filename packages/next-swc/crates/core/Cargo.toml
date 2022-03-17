@@ -19,7 +19,7 @@ radix_fmt = "1"
 regex = "1.5"
 serde = "1"
 serde_json = "1"
-styled_components = "0.19.0"
+styled_components = "0.20.0"
 swc = "0.157.0"
 swc_atoms = "0.2.9"
 swc_common = { version = "0.17.17", features = ["concurrent", "sourcemap"] }
