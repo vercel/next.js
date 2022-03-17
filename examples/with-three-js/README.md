@@ -6,15 +6,9 @@ This example uses:
 [`react-three-fiber`](https://github.com/pmndrs/react-three-fiber): A React renderer for Threejs on the web and react-native.
 [`drei`](https://github.com/pmndrs/drei): A growing collection of useful helpers and abstractions for react-three-fiber.
 
-## Preview
-
-Preview the example live on [StackBlitz](http://stackblitz.com/):
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-three-js)
-
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-three-js)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-three-js&project-name=with-three-js&repository-name=with-three-js)
 
