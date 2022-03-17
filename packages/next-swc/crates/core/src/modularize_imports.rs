@@ -5,6 +5,7 @@ use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContex
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
+use swc_cached::regex::CachedRegex;
 use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{noop_fold_type, Fold};
 
@@ -28,7 +29,7 @@ pub struct PackageConfig {
 
 struct FoldImports {
     renderer: handlebars::Handlebars<'static>,
-    packages: Vec<(Regex, PackageConfig)>,
+    packages: Vec<(CachedRegex, PackageConfig)>,
 }
 
 struct Rewriter<'a> {
@@ -44,7 +45,7 @@ impl<'a> Rewriter<'a> {
             return vec![old_decl.clone()];
         }
 
-        let mut out: Vec<ImportDecl> = vec![];
+        let mut out: Vec<ImportDecl> = Vec::with_capacity(old_decl.specifiers.len());
 
         for spec in &old_decl.specifiers {
             match spec {
@@ -181,7 +182,7 @@ pub fn modularize_imports(config: Config) -> impl Fold {
         }
         folder
             .packages
-            .push((Regex::new(&k).expect("transform-imports: invalid regex"), v));
+            .push((CachedRegex::new(&k).expect("transform-imports: invalid regex"), v));
     }
     folder
 }

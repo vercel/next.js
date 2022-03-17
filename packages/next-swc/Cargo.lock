@@ -973,6 +973,7 @@ dependencies = [
  "styled_components",
  "swc",
  "swc_atoms",
+ "swc_cached",
  "swc_common",
  "swc_css",
  "swc_ecma_loader",
