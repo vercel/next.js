@@ -702,7 +702,7 @@ export class Head extends Component<
 
     return (
       <head {...this.props}>
-        {!hasConcurrentFeatures && this.context.isDevelopment && (
+        {this.context.isDevelopment && (
           <>
             <style
               data-next-hide-fouc
