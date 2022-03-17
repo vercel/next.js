@@ -71,6 +71,8 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
 
     exports.create_named_method("parse", parse::parse)?;
 
+    exports.create_named_method("getTargetTriple", util::get_target_triple)?;
+
     Ok(())
 }
 
