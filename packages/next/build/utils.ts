@@ -1,3 +1,5 @@
+import type { NextConfigComplete, PageRuntime } from '../server/config-shared'
+
 import '../server/node-polyfill-fetch'
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
@@ -37,7 +39,6 @@ import * as Log from './output/log'
 import { loadComponents } from '../server/load-components'
 import { trace } from '../trace'
 import { setHttpAgentOptions } from '../server/config'
-import { NextConfigComplete } from '../server/config-shared'
 import isError from '../lib/is-error'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
@@ -77,12 +78,11 @@ export interface PageInfo {
   totalSize: number
   static: boolean
   isSsg: boolean
-  isWebSsr: boolean
   ssgPageRoutes: string[] | null
   initialRevalidateSeconds: number | false
   pageDuration: number | undefined
   ssgPageDurations: number[] | undefined
-  runtime: 'nodejs' | 'edge' | undefined
+  runtime: PageRuntime
 }
 
 export async function printTreeView(
