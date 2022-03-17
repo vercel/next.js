@@ -79,10 +79,6 @@ export default function (context, { runtime, env }) {
 
     const browser = await webdriver(context.appPort, '/next-api/link')
 
-    // We need to make sure the app is fully hydrated before clicking, otherwise
-    // it will be a full redirection instead of being taken over by the next
-    // router. This timeout prevents it being flaky caused by fast refresh's
-    // rebuilding event.
     await new Promise((res) => setTimeout(res, 1000))
     await browser.eval('window.beforeNav = 1')
 
@@ -92,7 +88,8 @@ export default function (context, { runtime, env }) {
     await browser.waitForElementByCss('#next_id').click()
     await check(() => browser.elementByCss('#query').text(), 'query:2')
 
-    expect(await browser.eval('window.beforeNav')).toBe(1)
+    // Force navigation
+    expect(await browser.eval('window.beforeNav')).toBe(undefined)
   })
 
   it('should be able to navigate between rsc pages', async () => {

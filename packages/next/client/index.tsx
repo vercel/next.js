@@ -1,6 +1,6 @@
 /* global location */
 import '../build/polyfills/polyfill-module'
-import React, { useState } from 'react'
+import React from 'react'
 import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
@@ -703,17 +703,6 @@ if (process.env.__NEXT_RSC) {
     }
     initialServerDataWriter = writer
   }
-  // When `DOMContentLoaded`, we can close all pending writers to finish hydration.
-  document.addEventListener(
-    'DOMContentLoaded',
-    function () {
-      if (initialServerDataWriter && !initialServerDataWriter.closed) {
-        initialServerDataWriter.close()
-      }
-      initialServerDataBuffer = undefined
-    },
-    false
-  )
 
   const nextServerDataLoadingGlobal = ((self as any).__next_s =
     (self as any).__next_s || [])
@@ -735,7 +724,11 @@ if (process.env.__NEXT_RSC) {
     return fetch(url.toString())
   }
 
-  function useServerResponse(cacheKey: string, serialized?: string) {
+  function useServerResponse(
+    cacheKey: string,
+    serialized?: string,
+    fresh?: boolean
+  ) {
     let response = rscCache.get(cacheKey)
     if (response) return response
 
@@ -743,7 +736,7 @@ if (process.env.__NEXT_RSC) {
       const t = new TransformStream()
       const writer = t.writable.getWriter()
       response = createFromFetch(Promise.resolve({ body: t.readable }))
-      nextServerDataRegisterWriter(writer)
+      fresh && nextServerDataRegisterWriter(writer)
     } else {
       const fetchPromise = serialized
         ? (() => {
@@ -765,22 +758,38 @@ if (process.env.__NEXT_RSC) {
   const ServerRoot = ({
     cacheKey,
     serialized,
+    fresh,
   }: {
     cacheKey: string
     serialized?: string
+    fresh?: boolean
   }) => {
     React.useEffect(() => {
       rscCache.delete(cacheKey)
     })
-    const response = useServerResponse(cacheKey, serialized)
+    React.useEffect(() => {
+      // When `DOMContentLoaded`, we can close all pending writers to finish hydration.
+      fresh &&
+        document.addEventListener(
+          'DOMContentLoaded',
+          function () {
+            if (initialServerDataWriter && !initialServerDataWriter.closed) {
+              initialServerDataWriter.close()
+            }
+            initialServerDataBuffer = undefined
+          },
+          false
+        )
+    }, [])
+    const response = useServerResponse(cacheKey, serialized, fresh)
     const root = response.readRoot()
     return root
   }
 
   RSCComponent = (props: any) => {
     const cacheKey = getCacheKey()
-    const { __flight_serialized__ } = props
-    const [, dispatch] = useState({})
+    const { __flight_serialized__, __flight_fresh__ } = props
+    const [, dispatch] = React.useState({})
     const startTransition = (React as any).startTransition
     const rerender = () => dispatch({})
     // If there is no cache, or there is serialized data already
@@ -798,7 +807,11 @@ if (process.env.__NEXT_RSC) {
 
     return (
       <RefreshContext.Provider value={refreshCache}>
-        <ServerRoot cacheKey={cacheKey} serialized={__flight_serialized__} />
+        <ServerRoot
+          cacheKey={cacheKey}
+          serialized={__flight_serialized__}
+          fresh={__flight_fresh__}
+        />
       </RefreshContext.Provider>
     )
   }
