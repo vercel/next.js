@@ -42,6 +42,8 @@ import { Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
+import { getPageRuntime } from '../../build/entries'
+import { shouldUseReactRoot } from '../config'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -195,9 +197,7 @@ export default class HotReloader {
 
     this.config = config
     this.runtime = config.experimental.runtime
-    this.hasServerComponents = !!(
-      this.runtime && config.experimental.serverComponents
-    )
+    this.hasServerComponents = !!config.experimental.serverComponents
     this.previewProps = previewProps
     this.rewrites = rewrites
     this.hotReloaderSpan = trace('hot-reloader', undefined, {
@@ -321,26 +321,26 @@ export default class HotReloader {
             this.config.pageExtensions,
             {
               isDev: true,
-              runtime: this.config.experimental.runtime,
               hasServerComponents: this.hasServerComponents,
             }
           )
         )
 
-      const entrypoints = webpackConfigSpan
+      const entrypoints = await webpackConfigSpan
         .traceChild('create-entrypoints')
-        .traceFn(() =>
+        .traceAsyncFn(() =>
           createEntrypoints(
             this.pagesMapping,
             'server',
             this.buildId,
             this.previewProps,
             this.config,
-            []
+            [],
+            this.pagesDir
           )
         )
 
-      const hasEdgeRuntimePages = this.runtime === 'edge'
+      const hasReactRoot = shouldUseReactRoot()
 
       return webpackConfigSpan
         .traceChild('generate-webpack-config')
@@ -367,9 +367,8 @@ export default class HotReloader {
                 entrypoints: entrypoints.server,
                 runWebpackSpan: this.hotReloaderSpan,
               }),
-              // For the edge runtime, we need an extra compiler to generate the
-              // web-targeted server bundle for now.
-              hasEdgeRuntimePages
+              // The edge runtime is only supported with React root.
+              hasReactRoot
                 ? getBaseWebpackConfig(this.dir, {
                     dev: true,
                     isServer: true,
@@ -404,16 +403,19 @@ export default class HotReloader {
         fallback: [],
       },
       isDevFallback: true,
-      entrypoints: createEntrypoints(
-        {
-          '/_app': 'next/dist/pages/_app',
-          '/_error': 'next/dist/pages/_error',
-        },
-        'server',
-        this.buildId,
-        this.previewProps,
-        this.config,
-        []
+      entrypoints: (
+        await createEntrypoints(
+          {
+            '/_app': 'next/dist/pages/_app',
+            '/_error': 'next/dist/pages/_error',
+          },
+          'server',
+          this.buildId,
+          this.previewProps,
+          this.config,
+          [],
+          this.pagesDir
+        )
       ).client,
     })
     const fallbackCompiler = webpack(fallbackConfig)
@@ -499,9 +501,17 @@ export default class HotReloader {
             const isServerComponent =
               this.hasServerComponents &&
               isFlightPage(this.config, absolutePagePath)
-            const isEdgeSSRPage = this.runtime === 'edge' && !isApiRoute
+
+            const pageRuntimeConfig = await getPageRuntime(
+              absolutePagePath,
+              this.runtime
+            )
+            const isEdgeSSRPage = pageRuntimeConfig === 'edge' && !isApiRoute
 
             if (isNodeServerCompilation && isEdgeSSRPage && !isCustomError) {
+              return
+            }
+            if (isEdgeServerCompilation && !isEdgeSSRPage) {
               return
             }
 

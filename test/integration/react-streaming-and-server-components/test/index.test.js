@@ -2,7 +2,6 @@
 
 import { join } from 'path'
 import fs from 'fs-extra'
-import webdriver from 'next-webdriver'
 
 import { fetchViaHTTP, findPort, killApp, renderViaHTTP } from 'next-test-utils'
 
@@ -24,7 +23,7 @@ import css from './css'
 import rsc from './rsc'
 import streaming from './streaming'
 import basic from './basic'
-import functions from './functions'
+import runtime from './runtime'
 
 const documentWithGip = `
 import { Html, Head, Main, NextScript } from 'next/document'
@@ -105,8 +104,9 @@ describe('Edge runtime - prod', () => {
     const distServerDir = join(distDir, 'server')
     const files = [
       'middleware-build-manifest.js',
-      'middleware-flight-manifest.js',
       'middleware-ssr-runtime.js',
+      'middleware-flight-manifest.js',
+      'middleware-flight-manifest.json',
       'middleware-manifest.json',
     ]
 
@@ -145,14 +145,11 @@ describe('Edge runtime - prod', () => {
     expect(content.clientInfo).not.toContainEqual([['/404', true]])
   })
 
-  it('should support React.lazy and dynamic imports', async () => {
-    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
-    expect(html).toContain('foo.client')
-  })
-
-  basic(context, { env: 'prod' })
-  streaming(context, { env: 'prod' })
-  rsc(context, { runtime: 'edge', env: 'prod' })
+  const options = { runtime: 'edge', env: 'prod' }
+  basic(context, options)
+  streaming(context, options)
+  rsc(context, options)
+  runtime(context, options)
 })
 
 describe('Edge runtime - dev', () => {
@@ -168,31 +165,25 @@ describe('Edge runtime - dev', () => {
     await killApp(context.server)
   })
 
-  it('should support React.lazy and dynamic imports', async () => {
-    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
-    expect(html).toContain('loading...')
-
-    const browser = await webdriver(context.appPort, '/dynamic-imports')
-    const content = await browser.eval(`window.document.body.innerText`)
-    expect(content).toMatchInlineSnapshot('"foo.client"')
-  })
-
   it('should have content-type and content-encoding headers', async () => {
     const res = await fetchViaHTTP(context.appPort, '/')
     expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8')
     expect(res.headers.get('content-encoding')).toBe('gzip')
   })
 
-  basic(context, { env: 'dev' })
-  streaming(context, { env: 'dev' })
-  rsc(context, { runtime: 'edge', env: 'dev' })
+  const options = { runtime: 'edge', env: 'dev' }
+  basic(context, options)
+  streaming(context, options)
+  rsc(context, options)
+  runtime(context, options)
 })
 
 const nodejsRuntimeBasicSuite = {
   runTests: (context, env) => {
-    basic(context, { env })
-    streaming(context, { env })
-    rsc(context, { runtime: 'nodejs' })
+    const options = { runtime: 'nodejs', env }
+    basic(context, options)
+    streaming(context, options)
+    rsc(context, options)
 
     if (env === 'prod') {
       it('should generate middleware SSR manifests for Node.js', async () => {
@@ -271,8 +262,6 @@ runSuite('CSS', 'prod', cssSuite)
 
 runSuite('Custom Document', 'dev', documentSuite)
 runSuite('Custom Document', 'prod', documentSuite)
-
-runSuite('Functions manifest', 'build', { runTests: functions })
 
 function runSuite(suiteName, env, options) {
   const context = { appDir, distDir }

@@ -97,7 +97,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           profile: minimal
-          toolchain: nightly-2021-11-15
+          toolchain: nightly-2022-02-23
           components: rustfmt, clippy
 
       - name: Cache cargo registry
@@ -412,6 +412,10 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+
+      - uses: pnpm/action-setup@v2.2.1
+        with:
+          version: 6.32.2
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -728,7 +732,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           profile: minimal
-          toolchain: nightly-2021-11-15
+          toolchain: nightly-2022-02-23
 
       - name: Cache cargo registry
         uses: actions/cache@v2
@@ -807,7 +811,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2021-11-15
+          toolchain: nightly-2022-02-23
           profile: minimal
       - run: cd packages/next-swc && cargo test
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
@@ -885,8 +889,8 @@ jobs:
             # Node.js in Baidu need to compatible with `GLIBC_2.12`
             build: >-
               set -e &&
-              rustup toolchain install nightly-2021-11-15 &&
-              rustup default nightly-2021-11-15 &&
+              rustup toolchain install nightly-2022-02-23 &&
+              rustup default nightly-2022-02-23 &&
               rustup target add x86_64-unknown-linux-gnu &&
               npm i -g @napi-rs/cli@2.4.4 turbo@1.0.28 &&
               turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-gnu --zig --zig-abi-suffix 2.12 &&
@@ -896,8 +900,8 @@ jobs:
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: >-
               set -e &&
-              rustup toolchain install nightly-2021-11-15 &&
-              rustup default nightly-2021-11-15 &&
+              rustup toolchain install nightly-2022-02-23 &&
+              rustup default nightly-2022-02-23 &&
               rustup target add x86_64-unknown-linux-musl &&
               npm i -g @napi-rs/cli@2.4.4 turbo@1.0.28 &&
               turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-musl &&
@@ -918,8 +922,8 @@ jobs:
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine-zig
             build: >-
               set -e &&
-              rustup toolchain install nightly-2021-11-15 &&
-              rustup default nightly-2021-11-15 &&
+              rustup toolchain install nightly-2022-02-23 &&
+              rustup default nightly-2022-02-23 &&
               rustup target add aarch64-unknown-linux-gnu &&
               npm i -g @napi-rs/cli@2.4.4 turbo@1.0.28 &&
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu --zig --zig-abi-suffix 2.12 &&
@@ -959,8 +963,8 @@ jobs:
             build: >-
               set -e &&
               npm i -g @napi-rs/cli@2.4.4 turbo@1.0.28 &&
-              rustup toolchain install nightly-2021-11-15 &&
-              rustup default nightly-2021-11-15 &&
+              rustup toolchain install nightly-2022-02-23 &&
+              rustup default nightly-2022-02-23 &&
               rustup target add aarch64-unknown-linux-musl &&
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-musl &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
@@ -1026,7 +1030,7 @@ jobs:
         with:
           profile: minimal
           override: true
-          toolchain: nightly-2021-11-15
+          toolchain: nightly-2022-02-23
           target: ${{ matrix.settings.target }}
 
       - name: Cache cargo registry
@@ -1088,7 +1092,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-11-15
+          toolchain: nightly-2022-02-23
           override: true
           target: wasm32-unknown-unknown
 
@@ -1144,7 +1148,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-11-15
+          toolchain: nightly-2022-02-23
           override: true
           target: wasm32-unknown-unknown
 

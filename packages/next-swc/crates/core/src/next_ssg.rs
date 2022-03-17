@@ -44,6 +44,7 @@ struct State {
 }
 
 impl State {
+    #[allow(clippy::wrong_self_convention)]
     fn is_data_identifier(&mut self, i: &Ident) -> Result<bool, Error> {
         let ssg_exports = &["getStaticProps", "getStaticPaths", "getServerSideProps"];
 

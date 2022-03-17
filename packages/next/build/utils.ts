@@ -881,7 +881,7 @@ export async function isPageStatic(
         throw new Error('INVALID_DEFAULT_EXPORT')
       }
 
-      const hasFlightData = !!(Comp as any).__next_rsc__
+      const hasFlightData = !!(mod as any).__next_rsc__
       const hasGetInitialProps = !!(Comp as any).getInitialProps
       const hasStaticProps = !!mod.getStaticProps
       const hasStaticPaths = !!mod.getStaticPaths
@@ -1113,12 +1113,7 @@ export function isFlightPage(
   nextConfig: NextConfigComplete,
   filePath: string
 ): boolean {
-  if (
-    !(
-      nextConfig.experimental.serverComponents &&
-      nextConfig.experimental.runtime
-    )
-  ) {
+  if (!nextConfig.experimental.serverComponents) {
     return false
   }
 
