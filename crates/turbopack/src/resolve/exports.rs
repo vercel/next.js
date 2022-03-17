@@ -213,8 +213,14 @@ impl PrefixTree {
     fn from_json(value: &JsonValue, mut request_filter: impl FnMut(&str) -> bool, shorthand: Option<&str>) -> Result<PrefixTree> {
         if let JsonValue::Object(o) = value {
             let all_requests = o.iter().all(|(key, _)| request_filter(key));
-            let all_conditions = o.iter().all(|(key, _)| !key.starts_with(".") || !key.starts_with("#"));
-            if all_conditions {
+            let all_conditions = o.iter().all(|(key, _)| !key.starts_with(".") && !key.starts_with("#"));
+            if all_requests {
+                let mut this = Self::default();
+                for (key, value) in o.iter() {
+                    this.insert(key, value.try_into()?)?;
+                }
+                Ok(this)
+            } else if all_conditions {
                 if let Some(key) = shorthand {
                     Ok(PrefixTree([(key.to_string(), PrefixTreeEntry {
                         direct_mapping: Some(value.try_into()?),
@@ -223,12 +229,6 @@ impl PrefixTree {
                 } else {
                     bail!("object need to contain keys that are requests");
                 }
-            } else if all_requests {
-                let mut this = Self::default();
-                for (key, value) in o.iter() {
-                    this.insert(key, value.try_into()?)?;
-                }
-                Ok(this)
             } else {
                 bail!("object contains a mix of requests and conditions, but conditions need to be placed below requests");
             }
@@ -286,21 +286,15 @@ impl<'a> Iterator for PrefixTreeIterator<'a> {
     type Item = Result<Cow<'a, ExportsValue>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.stack.is_empty() {
-            return None;
-        }
-        loop {
-            let entry = self.stack.last().unwrap();
-            let i = self.stack.len();
+        while let Some(entry) = self.stack.pop() {
+            let i = self.stack.len() + 1;
             if i == self.request_parts.len() {
                 if let Some(value) = &entry.direct_mapping {
-                    self.stack.pop();
                     return Some(Ok(Cow::Borrowed(value)));
                 }
             } else {
                 if let Some((value, wildcard)) = &entry.wildcard_mapping {
                     let remaining = self.request_parts[i + 1..].join("/");
-                    self.stack.pop();
                     return Some(
                         (if *wildcard {
                             value.replace_wildcard(&remaining)
@@ -311,7 +305,7 @@ impl<'a> Iterator for PrefixTreeIterator<'a> {
                     );
                 }
             }
-            self.stack.pop();
         }
+        None
     }
 }

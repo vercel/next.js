@@ -1,9 +1,12 @@
-use std::{any::Any, fmt::Display, hash::Hash, sync::Arc};
+use std::{any::Any, fmt::Display, future::Future, hash::Hash, pin::Pin, sync::Arc};
 
 use any_key::AnyHash;
 use anyhow::{anyhow, Result};
 
-use crate::{slot::CloneableData, NativeFunction, SlotRef, SlotValueType, Task, TraitType};
+use crate::{
+    slot::CloneableData, util::try_join_all, NativeFunction, SlotRef, SlotValueType, Task,
+    TraitType,
+};
 
 #[derive(Clone)]
 pub struct SharedReference(pub Arc<dyn Any + Send + Sync>);
@@ -27,6 +30,7 @@ impl Eq for SharedReference {}
 pub enum TaskInput {
     TaskOutput(Arc<Task>),
     TaskCreated(Arc<Task>, usize),
+    List(Vec<TaskInput>),
     String(String),
     Usize(usize),
     I32(i32),
@@ -72,6 +76,18 @@ impl TaskInput {
                     })
                     .await?
                     .into(),
+                TaskInput::List(list) => {
+                    if list.iter().all(|i| i.is_resolved()) {
+                        return Ok(TaskInput::List(list));
+                    }
+                    fn resolve_all(
+                        list: Vec<TaskInput>,
+                    ) -> Pin<Box<dyn Future<Output = Result<Vec<TaskInput>>> + Send>>
+                    {
+                        Box::pin(try_join_all(list.into_iter().map(|i| i.resolve())))
+                    }
+                    return Ok(TaskInput::List(resolve_all(list).await?));
+                }
                 _ => return Ok(current),
             }
         }
@@ -120,6 +136,7 @@ impl TaskInput {
     pub fn is_resolved(&self) -> bool {
         match self {
             TaskInput::TaskOutput(_) => false,
+            TaskInput::List(list) => list.iter().all(|i| i.is_resolved()),
             _ => true,
         }
     }
@@ -139,6 +156,7 @@ impl PartialEq for TaskInput {
             (Self::TaskCreated(l0, l1), Self::TaskCreated(r0, r1)) => {
                 Arc::ptr_eq(l0, r0) && l1 == r1
             }
+            (Self::List(l0), Self::List(r0)) => l0 == r0,
             (Self::String(l0), Self::String(r0)) => l0 == r0,
             (Self::Usize(l0), Self::Usize(r0)) => l0 == r0,
             (Self::I32(l0), Self::I32(r0)) => l0 == r0,
@@ -167,6 +185,14 @@ impl Display for TaskInput {
         match self {
             TaskInput::TaskOutput(task) => write!(f, "task output {}", task),
             TaskInput::TaskCreated(task, index) => write!(f, "slot {} in {}", index, task),
+            TaskInput::List(list) => write!(
+                f,
+                "list {}",
+                list.iter()
+                    .map(|i| i.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
             TaskInput::String(s) => write!(f, "string {:?}", s),
             TaskInput::Usize(v) => write!(f, "usize {}", v),
             TaskInput::I32(v) => write!(f, "i32 {}", v),
@@ -196,6 +222,12 @@ impl From<usize> for TaskInput {
     }
 }
 
+impl<T: Into<TaskInput>> From<Vec<T>> for TaskInput {
+    fn from(s: Vec<T>) -> Self {
+        TaskInput::List(s.into_iter().map(|i| i.into()).collect())
+    }
+}
+
 impl TryFrom<&TaskInput> for String {
     type Error = anyhow::Error;
 
@@ -214,6 +246,20 @@ impl<'a> TryFrom<&'a TaskInput> for &'a str {
         match value {
             TaskInput::String(str) => Ok(&str),
             _ => Err(anyhow!("invalid task input type, expected string")),
+        }
+    }
+}
+
+impl<'a, T: TryFrom<&'a TaskInput, Error = anyhow::Error>> TryFrom<&'a TaskInput> for Vec<T> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &'a TaskInput) -> Result<Self, Self::Error> {
+        match value {
+            TaskInput::List(list) => Ok(list
+                .iter()
+                .map(|i| i.try_into())
+                .collect::<Result<Vec<_>, _>>()?),
+            _ => Err(anyhow!("invalid task input type, expected list")),
         }
     }
 }

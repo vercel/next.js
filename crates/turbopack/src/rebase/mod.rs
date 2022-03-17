@@ -6,7 +6,7 @@ use turbo_tasks_fs::{FileContentRef, FileSystemPathRef};
 use crate::{
     asset::{Asset, AssetRef},
     reference::{AssetReference, AssetReferenceRef, AssetReferencesSet, AssetReferencesSetRef},
-    resolve::{ResolveResult, ResolveResultRef},
+    resolve::ResolveResultRef,
 };
 
 #[turbo_tasks::value(Asset)]
@@ -75,30 +75,28 @@ struct RebasedAssetReference {
 impl AssetReference for RebasedAssetReference {
     async fn resolve_reference(&self) -> Result<ResolveResultRef> {
         let result = self.reference.resolve_reference().await?;
-        Ok(match &*result {
-            ResolveResult::Single(module, more) => ResolveResult::Single(
-                RebasedAssetRef::new(
-                    module.clone(),
-                    self.input_dir.clone(),
-                    self.output_dir.clone(),
-                )
-                .into(),
-                more.as_ref().map(|more| {
-                    more.iter()
-                        .map(|reference| {
-                            RebasedAssetReference {
-                                reference: reference.clone(),
-                                input_dir: self.input_dir.clone(),
-                                output_dir: self.output_dir.clone(),
-                            }
-                            .into()
-                        })
-                        .collect()
-                }),
+        Ok(result
+            .map(
+                |asset| {
+                    let asset = RebasedAssetRef::new(
+                        asset.clone(),
+                        self.input_dir.clone(),
+                        self.output_dir.clone(),
+                    )
+                    .into();
+                    async { Ok(asset) }
+                },
+                |reference| {
+                    let reference = RebasedAssetReference {
+                        reference: reference.clone(),
+                        input_dir: self.input_dir.clone(),
+                        output_dir: self.output_dir.clone(),
+                    }
+                    .into();
+                    async { Ok(reference) }
+                },
             )
-            .into(),
-            ResolveResult::Unresolveable(_) => ResolveResult::Unresolveable(None).into(),
-            _ => todo!("{:?}", result),
-        })
+            .await?
+            .into())
     }
 }

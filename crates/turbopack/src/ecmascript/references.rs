@@ -348,22 +348,27 @@ async fn esm_resolve(request: RequestRef, context: FileSystemPathRef) -> Result<
 
     Ok(match result.await {
         Ok(result) => {
-            match &*result {
-                ResolveResult::Single(m, additional) => {
-                    ResolveResult::Single(module(m.clone()).resolve().await?, additional.clone())
-                        .into()
-                }
-                ResolveResult::Unresolveable(inner) => {
+            let result = result
+                .map(
+                    |a| module(a.clone()).resolve(),
+                    |i| {
+                        let i = i.clone();
+                        async { Ok(i) }
+                    },
+                )
+                .await?;
+            match &result {
+                ResolveResult::Unresolveable(_) => {
                     // TODO report this to stream
                     println!(
                         "unable to resolve esm request {} in {}",
                         request.get().await?,
                         context.get().await?
                     );
-                    ResolveResult::Unresolveable(inner.clone()).into()
                 }
-                _ => todo!(),
+                _ => {}
             }
+            result.into()
         }
         Err(err) => {
             // TODO report this to stream

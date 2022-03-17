@@ -16,6 +16,7 @@ pub(crate) mod slot_value_type;
 mod task;
 mod task_input;
 pub mod trace;
+pub mod util;
 pub mod viz;
 
 pub use anyhow::{Error, Result};

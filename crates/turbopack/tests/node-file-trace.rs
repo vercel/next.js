@@ -21,7 +21,7 @@ use turbopack::{
 #[fixture("tests/node-file-trace/integration/aws-sdk.js")]
 #[fixture("tests/node-file-trace/integration/axios.js")]
 #[fixture("tests/node-file-trace/integration/azure-cosmos.js")]
-// #[fixture("tests/node-file-trace/integration/azure-storage.js")] // unable to resolve esm request relative './../../common/md5-wrapper' in node-file-trace/node_modules/azure-storage/lib/services/blob
+#[fixture("tests/node-file-trace/integration/azure-storage.js")]
 // #[fixture("tests/node-file-trace/integration/bcrypt.js")] // can't find *.node binding
 // #[fixture("tests/node-file-trace/integration/bindings-failure.js")] // Cannot find module 'bindings'
 // #[fixture("tests/node-file-trace/integration/browserify-middleware.js")] // node_modules/uglify-es/tools/node.js is weird
@@ -35,7 +35,7 @@ use turbopack::{
 // #[fixture("tests/node-file-trace/integration/dogfood.js")] // can't find node-file-trace
 #[fixture("tests/node-file-trace/integration/empty.js")]
 #[fixture("tests/node-file-trace/integration/env-var.js")]
-// #[fixture("tests/node-file-trace/integration/es-get-iterator.js")] // can't find node_modules/es-get-iterator/node.js
+#[fixture("tests/node-file-trace/integration/es-get-iterator.js")]
 // #[fixture("tests/node-file-trace/integration/esbuild.js")] // hanging in execution
 // #[fixture("tests/node-file-trace/integration/esm.js")] // Cannot destructure property 'dir' of 'T.package' as it is undefined.
 // #[fixture("tests/node-file-trace/integration/express-consolidate.js")] // Cannot read property 'startsWith' of undefined
@@ -43,7 +43,7 @@ use turbopack::{
 #[fixture("tests/node-file-trace/integration/express-template.js")]
 #[fixture("tests/node-file-trace/integration/express.js")]
 #[fixture("tests/node-file-trace/integration/fast-glob.js")]
-// #[fixture("tests/node-file-trace/integration/fetch-h2.js")] // can't find node_modules/already/dist/index.js
+#[fixture("tests/node-file-trace/integration/fetch-h2.js")]
 // #[fixture("tests/node-file-trace/integration/ffmpeg.js")] // Could not find ffmpeg executable
 #[fixture("tests/node-file-trace/integration/firebase-admin.js")]
 // #[fixture("tests/node-file-trace/integration/firebase.js")] // Cannot find module 'firebase/app'
@@ -81,7 +81,7 @@ use turbopack::{
 #[fixture("tests/node-file-trace/integration/pug.js")]
 #[fixture("tests/node-file-trace/integration/react.js")]
 #[fixture("tests/node-file-trace/integration/redis.js")]
-// #[fixture("tests/node-file-trace/integration/remark-prism.mjs")] // exports field need to follow all alternatives
+#[fixture("tests/node-file-trace/integration/remark-prism.mjs")] // need to copy package.json with "type": "module"
 #[fixture("tests/node-file-trace/integration/request.js")]
 #[fixture("tests/node-file-trace/integration/rxjs.js")]
 // #[fixture("tests/node-file-trace/integration/saslprep.js")] // fs.readFileSync(path.resolve(__dirname, '../code-points.mem'))

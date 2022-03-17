@@ -1,10 +1,13 @@
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap, HashSet},
+    future::Future,
+    mem,
 };
 
 use anyhow::{anyhow, Result};
 use json::JsonValue;
+use turbo_tasks::util::try_join_all;
 use turbo_tasks_fs::{
     util::{join_path, normalize_path, normalize_request},
     DirectoryContent, FileContent, FileJsonContent, FileJsonContentRef, FileSystemPathRef,
@@ -54,12 +57,129 @@ impl ResolveResult {
         }
     }
 
+    fn get_references(&self) -> Option<&Vec<AssetReferenceRef>> {
+        match self {
+            ResolveResult::Nested(list) => Some(list),
+            ResolveResult::Single(_, list)
+            | ResolveResult::Keyed(_, list)
+            | ResolveResult::Alternatives(_, list)
+            | ResolveResult::Unresolveable(list) => list.as_ref(),
+        }
+    }
+
+    pub fn merge_alternatives(&mut self, other: &ResolveResult) {
+        fn extend_option_list<T: Clone>(list: &mut Option<Vec<T>>, other: Option<&Vec<T>>) {
+            match (list.as_mut(), other) {
+                (Some(list), Some(other)) => list.extend(other.iter().map(|i| i.clone())),
+                (Some(_), None) => {}
+                (None, None) => {}
+                (None, Some(other)) => *list = Some(other.clone()),
+            };
+        }
+        match self {
+            ResolveResult::Nested(list) => {
+                let list = mem::replace(list, Vec::new());
+                *self = ResolveResult::Unresolveable(Some(list))
+            }
+            ResolveResult::Single(asset, list) => {
+                *self = ResolveResult::Alternatives(HashSet::from([asset.clone()]), list.take())
+            }
+            ResolveResult::Keyed(_, list) => {
+                *self = ResolveResult::Unresolveable(list.take());
+            }
+            ResolveResult::Alternatives(_, _) | ResolveResult::Unresolveable(_) => {
+                // already is appropriate type
+            }
+        }
+        match self {
+            ResolveResult::Nested(_) | ResolveResult::Single(_, _) | ResolveResult::Keyed(_, _) => {
+                unreachable!()
+            }
+            ResolveResult::Alternatives(assets, list) => match other {
+                ResolveResult::Single(asset, list2) => {
+                    assets.insert(asset.clone());
+                    extend_option_list(list, list2.as_ref());
+                }
+                ResolveResult::Alternatives(assets2, list2) => {
+                    assets.extend(assets2.iter().map(|i| i.clone()));
+                    extend_option_list(list, list2.as_ref());
+                }
+                ResolveResult::Nested(_)
+                | ResolveResult::Keyed(_, _)
+                | ResolveResult::Unresolveable(_) => {
+                    let mut list = list.take();
+                    extend_option_list(&mut list, other.get_references());
+                    *self = ResolveResult::Unresolveable(list);
+                }
+            },
+            ResolveResult::Unresolveable(list) => {
+                extend_option_list(list, other.get_references());
+            }
+        }
+    }
+
     pub fn is_unresolveable(&self) -> bool {
         if let ResolveResult::Unresolveable(_) = self {
             true
         } else {
             false
         }
+    }
+
+    pub async fn map<A, AF, R, RF>(&self, mut asset_fn: A, reference_fn: R) -> Result<Self>
+    where
+        A: FnMut(&AssetRef) -> AF,
+        AF: Future<Output = Result<AssetRef>>,
+        R: FnMut(&AssetReferenceRef) -> RF,
+        RF: Future<Output = Result<AssetReferenceRef>>,
+    {
+        Ok(match self {
+            ResolveResult::Nested(refs) => {
+                let refs = try_join_all(refs.iter().map(reference_fn)).await?;
+                ResolveResult::Nested(refs)
+            }
+            ResolveResult::Single(asset, refs) => {
+                let asset = asset_fn(asset).await?;
+                let refs = if let Some(refs) = refs {
+                    Some(try_join_all(refs.iter().map(reference_fn)).await?)
+                } else {
+                    None
+                };
+                ResolveResult::Single(asset, refs)
+            }
+            ResolveResult::Keyed(map, refs) => {
+                let mut new_map = HashMap::new();
+                for (key, value) in map.iter() {
+                    new_map.insert(key.clone(), asset_fn(value).await?);
+                }
+                let refs = if let Some(refs) = refs {
+                    Some(try_join_all(refs.iter().map(reference_fn)).await?)
+                } else {
+                    None
+                };
+                ResolveResult::Keyed(new_map, refs)
+            }
+            ResolveResult::Alternatives(assets, refs) => {
+                let mut new_assets = HashSet::new();
+                for asset in assets.iter() {
+                    new_assets.insert(asset_fn(asset).await?);
+                }
+                let refs = if let Some(refs) = refs {
+                    Some(try_join_all(refs.iter().map(reference_fn)).await?)
+                } else {
+                    None
+                };
+                ResolveResult::Alternatives(new_assets, refs)
+            }
+            ResolveResult::Unresolveable(refs) => {
+                let refs = if let Some(refs) = refs {
+                    Some(try_join_all(refs.iter().map(reference_fn)).await?)
+                } else {
+                    None
+                };
+                ResolveResult::Unresolveable(refs)
+            }
+        })
     }
 }
 
@@ -69,6 +189,22 @@ impl ResolveResultRef {
         let mut this = self.await?.clone();
         this.add_reference(reference);
         Ok(this.into())
+    }
+
+    async fn alternatives(results: Vec<ResolveResultRef>) -> Result<Self> {
+        if results.len() == 1 {
+            return Ok(results.into_iter().next().unwrap());
+        }
+        let mut iter = results.into_iter();
+        if let Some(current) = iter.next() {
+            let mut current = current.await?.clone();
+            for result in iter {
+                current.merge_alternatives(&*result.await?);
+            }
+            Ok(Self::slot(current))
+        } else {
+            Ok(Self::slot(ResolveResult::Unresolveable(None)))
+        }
     }
 }
 
@@ -133,8 +269,15 @@ async fn exports_field(
         let exports_field: Result<ExportsField> = field_value.try_into();
         match exports_field {
             Ok(exports_field) => Ok(ExportsFieldResult::Some(exports_field).into()),
-            Err(_err) => {
+            Err(err) => {
                 // TODO report error to stream
+                println!(
+                    "{}",
+                    err.chain()
+                        .map(|e| e.to_string())
+                        .collect::<Vec<_>>()
+                        .join(" -> ")
+                );
                 Ok(ExportsFieldResult::None.into())
             }
         }
@@ -227,18 +370,26 @@ pub async fn resolve(
                 break;
             }
         }
-        if let Some(path) = results.first() {
+        {
+            let mut duplicates_set = HashSet::new();
+            results.retain(|item| duplicates_set.insert(*item));
+        }
+        let mut resolved_results = Vec::new();
+        for path in results {
             if let Some(path) = normalize_path(path) {
                 let request = RequestRef::parse(format!("./{}", path));
-                let resolved = resolve(package_path.clone(), request, options.clone());
-                let resolved = resolved.add_reference(
-                    AffectingResolvingAssetReferenceRef::new(package_json.clone()).into(),
-                );
-                return Ok(resolved);
+                resolved_results.push(resolve(package_path.clone(), request, options.clone()));
             }
         }
         // other options do not apply anymore when an exports field exist
-        return Ok(ResolveResult::Unresolveable(None).into());
+        let resolved = match resolved_results.len() {
+            0 => ResolveResult::Unresolveable(None).into(),
+            1 => resolved_results.into_iter().next().unwrap(),
+            _ => ResolveResultRef::alternatives(resolved_results),
+        };
+        let resolved = resolved
+            .add_reference(AffectingResolvingAssetReferenceRef::new(package_json.clone()).into());
+        return Ok(resolved);
     }
 
     async fn resolve_into_folder(
@@ -395,7 +546,7 @@ pub async fn resolve(
                                                 &package_json_path,
                                                 &options,
                                                 exports_field,
-                                                &path[1..],
+                                                &format!(".{path}"),
                                                 conditions,
                                                 unspecified_conditions,
                                             );
