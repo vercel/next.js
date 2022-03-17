@@ -48,23 +48,21 @@ When using an external URL, you must add it to
 
 ### width
 
-The width of the image. Must be an integer without a unit.
-
-The meaning of the `width` property can change depending on the [`layout`](#layout) and [`sizes`](#sizes) properties since some layouts will stretch to fill the parent container and others will not.
+The `width` property can represent either the _rendered_ width or _original_ width in pixels, depending on the [`layout`](#layout) and [`sizes`](#sizes) properties.
 
 When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"` without `sizes`, the `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
-The `width` property represents the _original_ width in pixels when `layout="responsive"`, `layout="fill"`, or `layout="raw"` with `sizes` so it will only affect the aspect ratio.
 
-The width property is required, except for [statically imported images](#local-images), or those with `layout="fill"`.
+When using `layout="responsive"`, `layout="fill"`, or `layout="raw"` with `sizes`, the `width` property represents the _original_ width in pixels so it will only affect the aspect ratio.
+
+The `width` property is required, except for [statically imported images](#local-images), or those with `layout="fill"`.
 
 ### height
 
-The height of the image. Must be an integer without a unit.
+The `height` property can represent either the _rendered_ height or _original_ height in pixels, depending on the [`layout`](#layout) and [`sizes`](#sizes) properties.
 
-The meaning of the `height` property can change depending on the [`layout`](#layout) and [`sizes`](#sizes) properties since some layouts will stretch to fill the parent container and others will not.
+When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"` without `sizes`, the `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
 
-When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"` without `sizes`, the `width` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
-The `height` property represents the _original_ height in pixels when `layout="responsive"`, `layout="fill"`, or `layout="raw"` with `sizes` so it will only affect the aspect ratio.
+When using `layout="responsive"`, `layout="fill"`, or `layout="raw"` with `sizes`, the `height` property represents the _original_ height in pixels so it will only affect the aspect ratio.
 
 The `height` property is required, except for [statically imported images](#local-images), or those with `layout="fill"`.
 
