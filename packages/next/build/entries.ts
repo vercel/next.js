@@ -187,6 +187,9 @@ export async function getPageRuntime(
   if (!pageRuntime) {
     if (isRuntimeRequired) {
       pageRuntime = globalRuntimeFallback
+    } else {
+      // @TODO: Remove this branch to fully implement the RFC.
+      pageRuntime = globalRuntimeFallback
     }
   }
 
