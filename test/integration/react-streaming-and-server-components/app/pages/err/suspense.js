@@ -18,7 +18,3 @@ export default function page() {
     </>
   )
 }
-
-export const config = {
-  runtime: 'edge',
-}
