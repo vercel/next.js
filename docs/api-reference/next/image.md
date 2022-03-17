@@ -52,7 +52,7 @@ The `width` property can represent either the _rendered_ width or _original_ wid
 
 When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"` without `sizes`, the `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
 
-When using `layout="responsive"`, `layout="fill"`, or `layout="raw"` with `sizes`, the `width` property represents the _original_ width in pixels so it will only affect the aspect ratio.
+When using `layout="responsive"`, `layout="fill"`, or `layout="raw"` with `sizes`, the `width` property represents the _original_ width in pixels, so it will only affect the aspect ratio.
 
 The `width` property is required, except for [statically imported images](#local-images), or those with `layout="fill"`.
 
@@ -62,7 +62,7 @@ The `height` property can represent either the _rendered_ height or _original_ h
 
 When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"` without `sizes`, the `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
 
-When using `layout="responsive"`, `layout="fill"`, or `layout="raw"` with `sizes`, the `height` property represents the _original_ height in pixels so it will only affect the aspect ratio.
+When using `layout="responsive"`, `layout="fill"`, or `layout="raw"` with `sizes`, the `height` property represents the _original_ height in pixels, so it will only affect the aspect ratio.
 
 The `height` property is required, except for [statically imported images](#local-images), or those with `layout="fill"`.
 
