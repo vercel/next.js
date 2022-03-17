@@ -678,51 +678,38 @@ if (process.env.__NEXT_RSC) {
   } = require('next/dist/compiled/react-server-dom-webpack')
 
   const encoder = new TextEncoder()
-  const serverDataBuffer = new Map<string, string[]>()
-  const serverDataWriter = new Map<string, WritableStreamDefaultWriter>()
-  const serverDataCacheKey = getCacheKey()
+  let initialServerDataBuffer: string[] | undefined = undefined
+  let initialServerDataWriter: WritableStreamDefaultWriter | undefined =
+    undefined
   function nextServerDataCallback(seg: [number, string, string]) {
-    const key = serverDataCacheKey + ',' + seg[1]
     if (seg[0] === 0) {
-      serverDataBuffer.set(key, [])
+      initialServerDataBuffer = []
     } else {
-      const buffer = serverDataBuffer.get(key)
-      if (!buffer)
+      if (!initialServerDataBuffer)
         throw new Error('Unexpected server data: missing bootstrap script.')
 
-      const writer = serverDataWriter.get(key)
-      if (writer) {
-        writer.write(encoder.encode(seg[2]))
+      if (initialServerDataWriter) {
+        initialServerDataWriter.write(encoder.encode(seg[2]))
       } else {
-        buffer.push(seg[2])
+        initialServerDataBuffer.push(seg[2])
       }
     }
   }
-  function nextServerDataRegisterWriter(
-    key: string,
-    writer: WritableStreamDefaultWriter
-  ) {
-    const buffer = serverDataBuffer.get(key)
-    if (buffer) {
-      buffer.forEach((val) => {
+  function nextServerDataRegisterWriter(writer: WritableStreamDefaultWriter) {
+    if (initialServerDataBuffer) {
+      initialServerDataBuffer.forEach((val) => {
         writer.write(encoder.encode(val))
       })
-      buffer.length = 0
-      // Clean buffer but not deleting the key to mark bootstrap as complete.
-      // Then `nextServerDataCallback` will be safely skipped in the future renders.
-      serverDataBuffer.set(key, [])
     }
-    serverDataWriter.set(key, writer)
+    initialServerDataWriter = writer
   }
   // When `DOMContentLoaded`, we can close all pending writers to finish hydration.
   document.addEventListener(
     'DOMContentLoaded',
     function () {
-      serverDataWriter.forEach((writer) => {
-        if (!writer.closed) {
-          writer.close()
-        }
-      })
+      if (initialServerDataWriter && !initialServerDataWriter.closed) {
+        initialServerDataWriter.close()
+      }
     },
     false
   )
@@ -748,27 +735,26 @@ if (process.env.__NEXT_RSC) {
   }
 
   function useServerResponse(cacheKey: string, serialized?: string) {
-    const id = (React as any).useId()
-
     let response = rscCache.get(cacheKey)
     if (response) return response
 
-    const bufferCacheKey = cacheKey + ',' + router.route + ',' + id
-    if (serverDataBuffer.has(bufferCacheKey)) {
+    if (initialServerDataBuffer) {
       const t = new TransformStream()
       const writer = t.writable.getWriter()
       response = createFromFetch(Promise.resolve({ body: t.readable }))
-      nextServerDataRegisterWriter(bufferCacheKey, writer)
+      nextServerDataRegisterWriter(writer)
     } else {
-      response = createFromFetch(
-        serialized
-          ? (() => {
-              const t = new TransformStream()
-              t.writable.getWriter().write(new TextEncoder().encode(serialized))
-              return Promise.resolve({ body: t.readable })
-            })()
-          : fetchFlight(getCacheKey())
-      )
+      const fetchPromise = serialized
+        ? (() => {
+            const t = new TransformStream()
+            const writer = t.writable.getWriter()
+            writer.ready.then(() => {
+              writer.write(new TextEncoder().encode(serialized))
+            })
+            return Promise.resolve({ body: t.readable })
+          })()
+        : fetchFlight(getCacheKey())
+      response = createFromFetch(fetchPromise)
     }
 
     rscCache.set(cacheKey, response)
@@ -778,15 +764,16 @@ if (process.env.__NEXT_RSC) {
   const ServerRoot = ({
     cacheKey,
     serialized,
-    _fresh,
   }: {
     cacheKey: string
     serialized?: string
-    _fresh?: boolean
   }) => {
     React.useEffect(() => {
       rscCache.delete(cacheKey)
     })
+    React.useEffect(() => {
+      initialServerDataBuffer = undefined
+    }, [])
     const response = useServerResponse(cacheKey, serialized)
     const root = response.readRoot()
     return root
@@ -794,10 +781,10 @@ if (process.env.__NEXT_RSC) {
 
   RSCComponent = (props: any) => {
     const cacheKey = getCacheKey()
-    const { __flight_serialized__, __flight_fresh__ } = props
+    const { __flight_serialized__ } = props
     const [, dispatch] = useState({})
     const startTransition = (React as any).startTransition
-    const renrender = () => dispatch({})
+    const rerender = () => dispatch({})
     // If there is no cache, or there is serialized data already
     function refreshCache(nextProps: any) {
       startTransition(() => {
@@ -807,17 +794,13 @@ if (process.env.__NEXT_RSC) {
         )
 
         rscCache.set(currentCacheKey, response)
-        renrender()
+        rerender()
       })
     }
 
     return (
       <RefreshContext.Provider value={refreshCache}>
-        <ServerRoot
-          cacheKey={cacheKey}
-          serialized={__flight_serialized__}
-          _fresh={__flight_fresh__}
-        />
+        <ServerRoot cacheKey={cacheKey} serialized={__flight_serialized__} />
       </RefreshContext.Provider>
     )
   }
