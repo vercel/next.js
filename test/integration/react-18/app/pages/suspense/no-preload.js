@@ -2,7 +2,6 @@ import { Suspense } from 'react'
 import dynamic from 'next/dynamic'
 
 const Bar = dynamic(() => import('../../components/bar'), {
-  ssr: false,
   suspense: true,
   // Explicitly declare loaded modules.
   // For suspense cases, they'll be ignored.
@@ -15,7 +14,7 @@ const Bar = dynamic(() => import('../../components/bar'), {
 
 export default function NoPreload() {
   return (
-    <Suspense fallback={'fallback'}>
+    <Suspense fallback={'rab'}>
       <Bar />
     </Suspense>
   )
