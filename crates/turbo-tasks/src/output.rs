@@ -9,7 +9,7 @@ use crate::{error::SharedError, viz::SlotSnapshot, SlotRef, Task, TurboTasks};
 
 #[derive(Default, Debug)]
 pub struct Output {
-    content: OutputContent,
+    pub(crate) content: OutputContent,
     updates: u32,
     pub(crate) dependent_tasks: WeakHashSet<Weak<Task>>,
 }

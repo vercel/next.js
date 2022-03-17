@@ -10,7 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use async_std::{
     task::{Builder, JoinHandle},
     task_local,
@@ -19,8 +19,8 @@ use chashmap::CHashMap;
 use event_listener::Event;
 
 use crate::{
-    slot_ref::SlotRef, task::NativeTaskFuture, task_input::TaskInput, NativeFunction, Task,
-    TraitType,
+    output::OutputContent, slot_ref::SlotRef, task::NativeTaskFuture, task_input::TaskInput,
+    NativeFunction, NothingRef, Task, TraitType,
 };
 
 pub struct TurboTasks {
@@ -84,6 +84,33 @@ impl TurboTasks {
         let task = Arc::new(Task::new_once(future));
         self.clone().schedule(task.clone());
         task
+    }
+
+    pub async fn run_once<T: Send + 'static>(
+        self: &Arc<Self>,
+        future: impl Future<Output = Result<T>> + Send + 'static,
+    ) -> Result<T> {
+        let exchange = Arc::new(Mutex::new(None));
+        let exchange_clone = exchange.clone();
+        let task = self.spawn_once_task(async move {
+            let result = future.await;
+            *exchange_clone.lock().unwrap() = Some(result);
+            Ok(NothingRef::new().into())
+        });
+        task.with_done_output(move |output| match &output.content {
+            OutputContent::Empty => Err(anyhow!(
+                "execution failed for unknown reasons (output is empty)"
+            )),
+            OutputContent::Link(_) => exchange.lock().unwrap().take().unwrap_or_else(|| {
+                Err(anyhow!(
+                    "execution failed for unknown reasons (exchange is empty)"
+                ))
+            }),
+            OutputContent::Error(err) => {
+                Err(err.clone()).context(anyhow!("execution failed with error"))
+            }
+        })
+        .await
     }
 
     /// Helper to get a [Task] from a HashMap or create a new one

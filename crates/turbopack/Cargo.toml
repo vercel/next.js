@@ -28,3 +28,4 @@ features = ["parser", "utils", "visit"]
 
 [dev-dependencies]
 async-std ={version= "1.10.0",features=["unstable"]}
+difference = "2.0"

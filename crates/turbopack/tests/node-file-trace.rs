@@ -1,13 +1,16 @@
 use std::{
+    collections::VecDeque,
+    fmt::Display,
     fs::remove_dir_all,
     io::ErrorKind,
     path::{Path, PathBuf},
 };
 
-use anyhow::{Context, Error};
+use anyhow::{Context, Result};
 use async_std::{process::Command, task::block_on};
+use difference::{Changeset, Difference};
 use testing::fixture;
-use turbo_tasks::{NothingRef, TurboTasks};
+use turbo_tasks::TurboTasks;
 use turbo_tasks_fs::{DiskFileSystemRef, FileSystemPathRef};
 use turbopack::{
     asset::Asset, emit_with_completion, module, rebase::RebasedAssetRef,
@@ -81,7 +84,7 @@ use turbopack::{
 #[fixture("tests/node-file-trace/integration/pug.js")]
 #[fixture("tests/node-file-trace/integration/react.js")]
 #[fixture("tests/node-file-trace/integration/redis.js")]
-#[fixture("tests/node-file-trace/integration/remark-prism.mjs")] // need to copy package.json with "type": "module"
+// #[fixture("tests/node-file-trace/integration/remark-prism.mjs")] // need to copy package.json with "type": "module"
 #[fixture("tests/node-file-trace/integration/request.js")]
 #[fixture("tests/node-file-trace/integration/rxjs.js")]
 // #[fixture("tests/node-file-trace/integration/saslprep.js")] // fs.readFileSync(path.resolve(__dirname, '../code-points.mem'))
@@ -101,7 +104,6 @@ use turbopack::{
 // #[fixture("tests/node-file-trace/integration/vm2.js")] // fs.readFileSync(`${__dirname}/setup-sandbox.js`, 'utf8')
 #[fixture("tests/node-file-trace/integration/vue.js")]
 #[fixture("tests/node-file-trace/integration/when.js")]
-
 fn integration_test(input: PathBuf) {
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let mut tests_root = package_root.clone();
@@ -128,10 +130,12 @@ fn integration_test(input: PathBuf) {
         .unwrap();
 
     let tt = TurboTasks::new();
-    tt.spawn_once_task(async move {
-        println!("{:?}, {}, {}", tests_output_root, input, directory);
+    let output = block_on(tt.run_once(async move {
         let input_fs = DiskFileSystemRef::new("tests".to_string(), tests_root.clone());
         let input = FileSystemPathRef::new(input_fs.into(), &input);
+
+        let original_output = exec_node(tests_root.clone(), input.clone());
+
         let input_dir = input.clone().parent().parent();
         let output_fs = DiskFileSystemRef::new("output".to_string(), directory.clone());
         let output_dir = FileSystemPathRef::new(output_fs.into(), "");
@@ -143,33 +147,121 @@ fn integration_test(input: PathBuf) {
         let output_path = rebased.path();
         emit_with_completion(rebased.into()).await?;
 
-        exec_node(output_path);
+        let output = exec_node(directory.clone(), output_path);
 
-        Ok(NothingRef::new().into())
-    });
-    block_on(tt.wait_done());
+        let output = asset_output(original_output, output);
+
+        Ok(output.await?)
+    }))
+    .unwrap();
+
+    assert!(output.is_empty(), "{output}");
+}
+
+#[turbo_tasks::value]
+#[derive(PartialEq, Eq)]
+struct CommandOutput {
+    stdout: String,
+    stderr: String,
+}
+
+impl CommandOutput {
+    fn is_empty(&self) -> bool {
+        self.stderr.is_empty() && self.stdout.is_empty()
+    }
+}
+
+impl Display for CommandOutput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "---------- Stdout ----------\n{}\n---------- Stderr ----------\n {}",
+            &self.stdout, &self.stderr,
+        )
+    }
 }
 
 #[turbo_tasks::function]
-async fn exec_node(path: FileSystemPathRef) -> Result<(), Error> {
+async fn exec_node(directory: String, path: FileSystemPathRef) -> Result<CommandOutputRef> {
     let mut cmd = Command::new("node");
 
     let p = path.get().await?;
-    let f = Path::new("tests_output")
-        .join("node-file-trace")
-        .join(&p.path)
-        .join(&p.path);
-    eprintln!("File: {}", f.display());
+    let f = Path::new(&directory).join(&p.path);
 
     cmd.arg(&f);
 
     let output = cmd.output().await.context("failed to spawn process")?;
 
-    eprintln!(
-        "---------- Stdout ----------\n{}\n---------- Stderr ----------\n {}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
+    let output = CommandOutput {
+        stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+        stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+    };
 
-    Ok(())
+    println!("File: {}\n{}", f.display(), output,);
+
+    Ok(CommandOutputRef::slot(output))
+}
+
+fn diff(expected: &str, actual: &str) -> String {
+    if actual == expected {
+        return String::new();
+    }
+    let Changeset { diffs, .. } = Changeset::new(expected, actual, "\n");
+    let mut result = Vec::new();
+    const CONTEXT_LINES: usize = 3;
+    let mut context = VecDeque::new();
+    let mut need_context = 0;
+    let mut has_spacing = false;
+    for diff in diffs {
+        match diff {
+            Difference::Same(line) => {
+                if need_context > 0 {
+                    result.push(line);
+                    need_context -= 1;
+                } else {
+                    if context.len() == CONTEXT_LINES {
+                        has_spacing = true;
+                        context.pop_front();
+                    }
+                    context.push_back(line);
+                }
+            }
+            Difference::Add(line) => {
+                if has_spacing {
+                    result.push(format!("..."));
+                    has_spacing = false;
+                }
+                while let Some(line) = context.pop_front() {
+                    result.push(format!(" {line}"));
+                }
+                result.push(format!("+{line}"));
+                need_context = CONTEXT_LINES;
+            }
+            Difference::Rem(line) => {
+                if has_spacing {
+                    result.push(format!("..."));
+                    has_spacing = false;
+                }
+                while let Some(line) = context.pop_front() {
+                    result.push(format!(" {line}"));
+                }
+                result.push(format!("-{line}"));
+                need_context = CONTEXT_LINES;
+            }
+        }
+    }
+    result.join("\n")
+}
+
+#[turbo_tasks::function]
+async fn asset_output(
+    expected: CommandOutputRef,
+    actual: CommandOutputRef,
+) -> Result<CommandOutputRef> {
+    let expected = expected.await?;
+    let actual = actual.await?;
+    Ok(CommandOutputRef::slot(CommandOutput {
+        stdout: diff(&expected.stdout, &actual.stdout),
+        stderr: diff(&expected.stderr, &actual.stderr),
+    }))
 }

@@ -514,6 +514,10 @@ impl Task {
     }
 
     fn make_dirty(self: &Arc<Self>, turbo_tasks: &Arc<TurboTasks>) {
+        if let TaskType::Once(_) = self.ty {
+            // once task won't become dirty
+            return;
+        }
         self.clear_dependencies();
 
         let mut state = self.state.write().unwrap();
