@@ -5,7 +5,3 @@ export default function MyError() {
     throw new Error('oops')
   }
 }
-
-export const config = {
-  runtime: 'edge',
-}
