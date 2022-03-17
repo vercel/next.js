@@ -554,8 +554,11 @@ export default class NextNodeServer extends BaseServer {
       pageModule,
       {
         ...this.renderOpts.previewProps,
-        port: this.port,
-        hostname: this.hostname,
+        revalidate: (newReq: IncomingMessage, newRes: ServerResponse) =>
+          this.getRequestHandler()(
+            new NodeNextRequest(newReq),
+            new NodeNextResponse(newRes)
+          ),
         // internal config so is not typed
         trustHostHeader: (this.nextConfig.experimental as any).trustHostHeader,
       },
