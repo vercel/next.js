@@ -82,6 +82,7 @@ export interface PageInfo {
   initialRevalidateSeconds: number | false
   pageDuration: number | undefined
   ssgPageDurations: number[] | undefined
+  runtime: 'nodejs' | 'edge' | undefined
 }
 
 export async function printTreeView(
@@ -195,12 +196,12 @@ export async function printTreeView(
         ? ' '
         : item.endsWith('/_middleware')
         ? 'ƒ'
-        : pageInfo?.isWebSsr
-        ? 'ℇ'
         : pageInfo?.static
         ? '○'
         : pageInfo?.isSsg
         ? '●'
+        : pageInfo?.runtime === 'edge'
+        ? 'ℇ'
         : 'λ'
 
     usedSymbols.add(symbol)

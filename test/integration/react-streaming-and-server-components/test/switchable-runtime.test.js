@@ -2,33 +2,20 @@
 
 import { join } from 'path'
 import {
-  // File,
   nextBuild as _nextBuild,
   nextStart as _nextStart,
 } from 'next-test-utils'
 
 import { findPort, killApp, renderViaHTTP } from 'next-test-utils'
-
-const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
+import { nextBuild, nextStart } from './utils'
 
 const appDir = join(__dirname, '../switchable-runtime')
-// const nextConfig = new File(join(appDir, 'next.config.js'))
 
-async function nextBuild(dir, options) {
-  return await _nextBuild(dir, [], {
-    ...options,
-    stdout: true,
-    stderr: true,
-    nodeArgs,
-  })
-}
-
-async function nextStart(dir, port) {
-  return await _nextStart(dir, port, {
-    stdout: true,
-    stderr: true,
-    nodeArgs,
-  })
+function splitLines(text) {
+  return text
+    .split(/\r?\n/g)
+    .map((str) => str.trim())
+    .filter(Boolean)
 }
 
 async function testRoute(appPort, url, { isStatic, isEdge }) {
@@ -54,7 +41,8 @@ describe('Without global runtime configuration', () => {
 
   beforeAll(async () => {
     context.appPort = await findPort()
-    const { stderr } = await nextBuild(context.appDir)
+    const { stdout, stderr } = await nextBuild(context.appDir)
+    context.stdout = stdout
     context.stderr = stderr
     context.server = await nextStart(context.appDir, context.appPort)
   })
@@ -123,5 +111,27 @@ describe('Without global runtime configuration', () => {
       isStatic: false,
       isEdge: true,
     })
+  })
+
+  it('should display correct tree view with page types in terminal', async () => {
+    const stdoutLines = splitLines(context.stdout).filter((line) =>
+      /^[┌├└/]/.test(line)
+    )
+    const expectedOutputLines = splitLines(`
+  ┌ λ /404
+  ├ ℇ /edge
+  ├ ℇ /edge-rsc
+  ├ ○ /node
+  ├ ○ /node-rsc
+  ├ ● /node-rsc-ssg
+  ├ λ /node-rsc-ssr
+  ├ ● /node-ssg
+  ├ λ /node-ssr
+  └ ○ /static
+  `)
+    const isMatched = expectedOutputLines.every((line, index) =>
+      stdoutLines[index].startsWith(line)
+    )
+    expect(isMatched).toBe(true)
   })
 })
