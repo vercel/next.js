@@ -24,7 +24,7 @@ We recommend creating a new Next.js app using `create-next-app`, which sets up e
 ```bash
 npx create-next-app@latest
 # or
-yarn create next-app
+yarn dlx create-next-app
 ```
 
 If you want to start with a TypeScript project you can use the `--typescript` flag:
@@ -32,7 +32,7 @@ If you want to start with a TypeScript project you can use the `--typescript` fl
 ```bash
 npx create-next-app@latest --typescript
 # or
-yarn create next-app --typescript
+yarn dlx create-next-app --typescript
 ```
 
 After the installation is complete:
