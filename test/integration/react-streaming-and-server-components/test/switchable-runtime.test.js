@@ -1,11 +1,6 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import {
-  nextBuild as _nextBuild,
-  nextStart as _nextStart,
-} from 'next-test-utils'
-
 import { findPort, killApp, renderViaHTTP } from 'next-test-utils'
 import { nextBuild, nextStart } from './utils'
 
