@@ -2054,9 +2054,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css"
-version = "0.100.0"
+version = "0.103.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd76b4fffe5f5615e167985283e5581d3bf87ab41e388d0c486719d52ce0f1b3"
+checksum = "35b5f2bb2b2845da367ce7343e8c4821849694d4294fd54cdd8663bb08d04ac0"
 dependencies = [
  "swc_css_ast",
  "swc_css_codegen",
@@ -2067,9 +2067,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css_ast"
-version = "0.90.0"
+version = "0.91.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89ae602751d820bba386fb525d38f4bfdc5e5a5db8b02318c4742ab931d894f3"
+checksum = "f124ebd2d7588bb68e7902485a497a7f0e7e9876f113cd3f9f366a7bbb5bf7b4"
 dependencies = [
  "is-macro",
  "serde",
@@ -2080,9 +2080,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css_codegen"
-version = "0.97.0"
+version = "0.100.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63b975558fe80ad6246930d3bf027c58df9fdab5e112461805c03a2ea8db8279"
+checksum = "895cfa7ee88d809ecefb9af9da2c1c8c2f45e58e303967cfe0aaa96d319064d7"
 dependencies = [
  "auto_impl",
  "bitflags",
@@ -2107,9 +2107,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css_parser"
-version = "0.97.0"
+version = "0.99.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c44d90bcf8a6d8668c2d1e691a5101fa599a6fff0a82088e0b3f56214e1d9bae"
+checksum = "c7b306eb9375370f47c252d4f41068e0ca9e8d3f0d365142ba44be95287db149"
 dependencies = [
  "bitflags",
  "lexical",
@@ -2120,9 +2120,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css_utils"
-version = "0.87.0"
+version = "0.88.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f039d24094d6d8a65347ef5004aa2adb7b11dffd463af5d5c8b87481ee94ee4d"
+checksum = "e57af5708496f58a8777f1e23b82fcb8745404a480fb5588a9ed57baf48c5bbe"
 dependencies = [
  "swc_atoms",
  "swc_common",
@@ -2132,9 +2132,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css_visit"
-version = "0.89.0"
+version = "0.90.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5557d81524c4ff0ca3be95ba699802105d016b7f72f35b746c231acfb95cda72"
+checksum = "c60ac83b8c5ffc8e3ff1c2fb60036f30d7a747534df55d2f05bb01c66ed83427"
 dependencies = [
  "swc_atoms",
  "swc_common",
@@ -2670,9 +2670,9 @@ dependencies = [
 
 [[package]]
 name = "swc_stylis"
-version = "0.96.1"
+version = "0.99.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2d340493d65755389290f669345d044eebfff59f3009b14e8d09e54806d7126"
+checksum = "934358a12d57f2507a0a19bec13b573fe9236b01551417d0882d6364324527bf"
 dependencies = [
  "swc_atoms",
  "swc_common",
