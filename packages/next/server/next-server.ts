@@ -49,6 +49,7 @@ import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
+import { renderToHTML as rootRenderToHTML } from './root-render'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
 
@@ -569,6 +570,16 @@ export default class NextNodeServer extends BaseServer {
     // object here but only updating its `serverComponentManifest` field.
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
     renderOpts.serverComponentManifest = this.serverComponentManifest
+
+    if (renderOpts.isRootPath) {
+      return rootRenderToHTML(
+        req.originalRequest,
+        res.originalResponse,
+        pathname,
+        query,
+        renderOpts
+      )
+    }
 
     return renderToHTML(
       req.originalRequest,
