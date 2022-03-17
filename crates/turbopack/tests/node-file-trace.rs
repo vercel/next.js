@@ -175,7 +175,7 @@ impl Display for CommandOutput {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "---------- Stdout ----------\n{}\n---------- Stderr ----------\n {}",
+            "---------- Stdout ----------\n{}\n---------- Stderr ----------\n{}",
             &self.stdout, &self.stderr,
         )
     }
