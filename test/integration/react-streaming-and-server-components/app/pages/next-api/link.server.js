@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Nav from '../../components/nav.server'
 
 export default function LinkPage({ router }) {
   const { query } = router
@@ -6,12 +7,16 @@ export default function LinkPage({ router }) {
   return (
     <>
       <h3 id="query">query:{id}</h3>
-      <Link href={`/next-api/link?id=${id + 1}`}>
-        <a id="next_id">next id</a>
-      </Link>
-      <Link href={`/`}>
-        <a>go home</a>
-      </Link>
+      <div>
+        <Link href={`/next-api/link?id=${id + 1}`}>
+          <a id="next_id">next id</a>
+        </Link>
+      </div>
+      <Nav />
     </>
   )
+}
+
+export const config = {
+  runtime: 'edge',
 }
