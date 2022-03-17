@@ -15,6 +15,8 @@ regex = "1.5.4"
 testing = "0.19.1"
 rand = "0.8.5"
 json = "0.12.4"
+swc_atoms = "0.2.9"
+swc_ecma_transforms_base = "0.68.0"
 
 [dependencies.swc_common]
 version = "0.17.5"
@@ -22,7 +24,7 @@ features = ["concurrent"]
 
 [dependencies.swc_ecmascript]
 version = "0.133.0"
-features = ["parser", "visit"]
+features = ["parser", "utils", "visit"]
 
 [dev-dependencies]
 async-std ={version= "1.10.0",features=["unstable"]}

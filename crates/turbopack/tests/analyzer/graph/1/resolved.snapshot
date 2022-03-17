@@ -1,0 +1,140 @@
+[
+    (
+        "x",
+        Alternatives(
+            [
+                Constant(
+                    Num(
+                        Number {
+                            span: Span {
+                                lo: BytePos(
+                                    8,
+                                ),
+                                hi: BytePos(
+                                    9,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: 1.0,
+                        },
+                    ),
+                ),
+                Concat(
+                    [
+                        Alternatives(
+                            [
+                                Constant(
+                                    Str(
+                                        Str {
+                                            span: Span {
+                                                lo: BytePos(
+                                                    19,
+                                                ),
+                                                hi: BytePos(
+                                                    26,
+                                                ),
+                                                ctxt: #0,
+                                            },
+                                            value: Atom('hello' type=inline),
+                                            has_escape: false,
+                                            kind: Normal {
+                                                contains_quote: true,
+                                            },
+                                        },
+                                    ),
+                                ),
+                                Constant(
+                                    Str(
+                                        Str {
+                                            span: Span {
+                                                lo: BytePos(
+                                                    95,
+                                                ),
+                                                hi: BytePos(
+                                                    102,
+                                                ),
+                                                ctxt: #0,
+                                            },
+                                            value: Atom('world' type=inline),
+                                            has_escape: false,
+                                            kind: Normal {
+                                                contains_quote: true,
+                                            },
+                                        },
+                                    ),
+                                ),
+                            ],
+                        ),
+                        Constant(
+                            Str(
+                                Str {
+                                    span: Span {
+                                        lo: BytePos(
+                                            139,
+                                        ),
+                                        hi: BytePos(
+                                            144,
+                                        ),
+                                        ctxt: #0,
+                                    },
+                                    value: Atom('.js' type=inline),
+                                    has_escape: false,
+                                    kind: Normal {
+                                        contains_quote: true,
+                                    },
+                                },
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "y",
+        Alternatives(
+            [
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    19,
+                                ),
+                                hi: BytePos(
+                                    26,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('hello' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    95,
+                                ),
+                                hi: BytePos(
+                                    102,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('world' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+            ],
+        ),
+    ),
+]

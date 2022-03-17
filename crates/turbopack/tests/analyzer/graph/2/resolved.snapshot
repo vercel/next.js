@@ -1,0 +1,90 @@
+[
+    (
+        "x",
+        Alternatives(
+            [
+                Constant(
+                    Num(
+                        Number {
+                            span: Span {
+                                lo: BytePos(
+                                    8,
+                                ),
+                                hi: BytePos(
+                                    9,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: 1.0,
+                        },
+                    ),
+                ),
+                Constant(
+                    Num(
+                        Number {
+                            span: Span {
+                                lo: BytePos(
+                                    8,
+                                ),
+                                hi: BytePos(
+                                    9,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: 1.0,
+                        },
+                    ),
+                ),
+                Unknown,
+            ],
+        ),
+    ),
+    (
+        "y",
+        Alternatives(
+            [
+                Constant(
+                    Num(
+                        Number {
+                            span: Span {
+                                lo: BytePos(
+                                    8,
+                                ),
+                                hi: BytePos(
+                                    9,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: 1.0,
+                        },
+                    ),
+                ),
+                Unknown,
+            ],
+        ),
+    ),
+    (
+        "z",
+        Alternatives(
+            [
+                Constant(
+                    Num(
+                        Number {
+                            span: Span {
+                                lo: BytePos(
+                                    8,
+                                ),
+                                hi: BytePos(
+                                    9,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: 1.0,
+                        },
+                    ),
+                ),
+                Unknown,
+            ],
+        ),
+    ),
+]

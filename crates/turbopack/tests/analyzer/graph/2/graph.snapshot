@@ -1,0 +1,58 @@
+[
+    (
+        (
+            Atom('x' type=inline),
+            #1,
+        ),
+        Alternatives(
+            [
+                Constant(
+                    Num(
+                        Number {
+                            span: Span {
+                                lo: BytePos(
+                                    8,
+                                ),
+                                hi: BytePos(
+                                    9,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: 1.0,
+                        },
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('y' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        (
+            Atom('y' type=inline),
+            #1,
+        ),
+        Variable(
+            (
+                Atom('x' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('z' type=inline),
+            #1,
+        ),
+        Variable(
+            (
+                Atom('x' type=inline),
+                #1,
+            ),
+        ),
+    ),
+]

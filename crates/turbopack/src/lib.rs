@@ -1,3 +1,5 @@
+#![feature(box_patterns)]
+#![feature(box_syntax)]
 #![feature(trivial_bounds)]
 #![feature(into_future)]
 #![feature(map_try_insert)]
@@ -17,6 +19,7 @@ use module_options::{
 use reference::all_referenced_assets;
 use turbo_tasks::CompletionRef;
 
+mod analyzer;
 pub mod asset;
 pub mod ecmascript;
 mod errors;
