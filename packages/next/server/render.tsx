@@ -449,7 +449,7 @@ export async function renderToHTML(
     devOnlyCacheBusterQueryString,
     supportsDynamicHTML,
     images,
-    reactRoot,
+    // reactRoot,
     runtime,
     ComponentMod,
     AppMod,
@@ -1216,7 +1216,7 @@ export async function renderToHTML(
     return inAmpMode ? children : <div id="__next">{children}</div>
   }
 
-  const ReactDOMServer = reactRoot
+  const ReactDOMServer = hasConcurrentFeatures
     ? require('react-dom/server.browser')
     : require('react-dom/server')
 
@@ -1339,7 +1339,7 @@ export async function renderToHTML(
         )
       }
 
-      if (reactRoot) {
+      if (hasConcurrentFeatures) {
         bodyResult = async (suffix: string) => {
           // this must be called inside bodyResult so appWrappers is
           // up to date when getWrappedApp is called
