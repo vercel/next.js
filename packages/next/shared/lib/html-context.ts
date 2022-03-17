@@ -38,7 +38,6 @@ export type HtmlProps = {
   optimizeFonts?: boolean
   nextScriptWorkers?: boolean
   runtime?: 'edge' | 'nodejs'
-  hasConcurrentFeatures?: boolean
 }
 
 export const HtmlContext = createContext<HtmlProps>(null as any)
