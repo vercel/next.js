@@ -20,7 +20,7 @@ import {
 } from './utils'
 
 import css from './css'
-import rsc from './rsc'
+import rsc, { testInitialStreaming } from './rsc'
 import streaming from './streaming'
 import basic from './basic'
 import runtime from './runtime'
@@ -146,6 +146,7 @@ describe('Edge runtime - prod', () => {
   })
 
   const options = { runtime: 'edge', env: 'prod' }
+  testInitialStreaming(context, options)
   basic(context, options)
   streaming(context, options)
   rsc(context, options)
@@ -172,6 +173,7 @@ describe('Edge runtime - dev', () => {
   })
 
   const options = { runtime: 'edge', env: 'dev' }
+  testInitialStreaming(context, options)
   basic(context, options)
   streaming(context, options)
   rsc(context, options)
@@ -181,6 +183,7 @@ describe('Edge runtime - dev', () => {
 const nodejsRuntimeBasicSuite = {
   runTests: (context, env) => {
     const options = { runtime: 'nodejs', env }
+    testInitialStreaming(context, options)
     basic(context, options)
     streaming(context, options)
     rsc(context, options)

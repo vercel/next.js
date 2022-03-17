@@ -710,6 +710,7 @@ if (process.env.__NEXT_RSC) {
       if (initialServerDataWriter && !initialServerDataWriter.closed) {
         initialServerDataWriter.close()
       }
+      initialServerDataBuffer = undefined
     },
     false
   )
@@ -771,9 +772,6 @@ if (process.env.__NEXT_RSC) {
     React.useEffect(() => {
       rscCache.delete(cacheKey)
     })
-    React.useEffect(() => {
-      initialServerDataBuffer = undefined
-    }, [])
     const response = useServerResponse(cacheKey, serialized)
     const root = response.readRoot()
     return root

@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
-import { renderViaHTTP, check } from 'next-test-utils'
+import { renderViaHTTP, check, hasRedbox } from 'next-test-utils'
 import { join } from 'path'
 import fs from 'fs-extra'
 import { distDir, getNodeBySelector } from './utils'
@@ -224,4 +224,18 @@ export default function (context, { runtime, env }) {
     expect(getNodeBySelector(page404HTML, id).text()).toBe(content)
     expect(getNodeBySelector(pageUnknownHTML, id).text()).toBe(content)
   })
+}
+
+// should be always the initial call of streaming rendering
+export function testInitialStreaming(context, { env }) {
+  if (env === 'dev') {
+    it('should handle correctly if initial render is streaming rsc', async () => {
+      const browser = await webdriver(context.appPort, '/streaming-rsc')
+      const content = await browser.eval(
+        `document.querySelector('#content').innerText`
+      )
+      expect(await hasRedbox(browser, false)).toBe(false)
+      expect(content).toMatchInlineSnapshot('"next_streaming_data"')
+    })
+  }
 }
