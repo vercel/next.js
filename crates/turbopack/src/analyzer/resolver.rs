@@ -9,7 +9,11 @@ pub(crate) struct ResolveResult {
     pub replaced_circular_references: HashSet<Id>,
 }
 
-pub(crate) fn resolve(graph: &VarGraph, val: JsValue, circle_stack: &mut Vec<Id>) -> ResolveResult {
+pub(crate) fn resolve(
+    graph: &VarGraph,
+    val: JsValue,
+    circle_stack: &mut HashSet<Id>,
+) -> ResolveResult {
     let mut replaced_circular_references = HashSet::default();
 
     let val = match val {
@@ -20,7 +24,7 @@ pub(crate) fn resolve(graph: &VarGraph, val: JsValue, circle_stack: &mut Vec<Id>
                 replaced_circular_references.insert(var);
                 JsValue::Unknown
             } else {
-                circle_stack.push(var.clone());
+                circle_stack.insert(var.clone());
                 let val = graph
                     .values
                     .get(&var)
@@ -29,7 +33,10 @@ pub(crate) fn resolve(graph: &VarGraph, val: JsValue, circle_stack: &mut Vec<Id>
                 let res = resolve(graph, val, circle_stack);
                 replaced_circular_references.extend(res.replaced_circular_references);
 
-                circle_stack.pop();
+                // Skip current var as it's internal to this resolution
+                replaced_circular_references.remove(&var);
+
+                circle_stack.remove(&var);
                 res.value
             }
         }
@@ -55,6 +62,8 @@ pub(crate) fn resolve(graph: &VarGraph, val: JsValue, circle_stack: &mut Vec<Id>
                 .collect(),
         ),
     };
+
+    // TODO: The result can be cached when replaced_circular_references.is_empty()
 
     ResolveResult {
         value: val,
