@@ -180,9 +180,10 @@ pub fn modularize_imports(config: Config) -> impl Fold {
         if !k.starts_with('^') && !k.ends_with('$') {
             k = format!("^{}$", k);
         }
-        folder
-            .packages
-            .push((CachedRegex::new(&k).expect("transform-imports: invalid regex"), v));
+        folder.packages.push((
+            CachedRegex::new(&k).expect("transform-imports: invalid regex"),
+            v,
+        ));
     }
     folder
 }
