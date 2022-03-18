@@ -724,18 +724,20 @@ if (process.env.__NEXT_RSC) {
   }
 
   // When `DOMContentLoaded`, we can close all pending writers to finish hydration.
-  document.addEventListener(
-    'DOMContentLoaded',
-    function () {
-      if (initialServerDataWriter && !initialServerDataFlushed) {
-        initialServerDataWriter.close()
-        initialServerDataFlushed = true
-        initialServerDataBuffer = undefined
-      }
-      initialServerDataLoaded = true
-    },
-    false
-  )
+  const DOMContentLoaded = function () {
+    if (initialServerDataWriter && !initialServerDataFlushed) {
+      initialServerDataWriter.close()
+      initialServerDataFlushed = true
+      initialServerDataBuffer = undefined
+    }
+    initialServerDataLoaded = true
+  }
+  // It's possible that the DOM is already loaded.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', DOMContentLoaded, false)
+  } else {
+    DOMContentLoaded()
+  }
 
   const nextServerDataLoadingGlobal = ((self as any).__next_s =
     (self as any).__next_s || [])
