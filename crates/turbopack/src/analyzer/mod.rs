@@ -9,8 +9,8 @@ mod imports;
 pub mod resolver;
 
 /// TODO: Use `Arc`
-#[derive(Debug, Clone)]
-pub(crate) enum JsValue {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum JsValue {
     /// Denotes a single string literal, which does not have any unknown value.
     Constant(Lit),
     Alternatives(Vec<JsValue>),
@@ -115,7 +115,7 @@ impl JsValue {
 }
 
 /// TODO(kdy1): Support more? I'm not sure if we need to support arbitrary constants.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FreeVarKind {
     /// `__dirname`
     Dirname,

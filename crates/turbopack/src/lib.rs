@@ -19,6 +19,7 @@ use module_options::{
 use reference::all_referenced_assets;
 use turbo_tasks::CompletionRef;
 
+// TODO move into ecmascript?
 mod analyzer;
 pub mod asset;
 pub mod ecmascript;

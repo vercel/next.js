@@ -1,5 +1,7 @@
 mod parse;
 mod references;
+mod resolve;
+pub mod webpack;
 
 use crate::{
     asset::{Asset, AssetRef},

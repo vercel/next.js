@@ -22,7 +22,7 @@ use json::{parse, JsonValue};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use threadpool::ThreadPool;
 use turbo_tasks::{CompletionRef, Task};
-use util::normalize_path;
+use util::{join_path, normalize_path};
 
 #[turbo_tasks::value_trait]
 pub trait FileSystem {
@@ -334,6 +334,19 @@ impl FileSystemPathRef {
 
     pub fn new_normalized(fs: FileSystemRef, path: String) -> Self {
         Self::slot(FileSystemPath { fs, path })
+    }
+
+    pub async fn join(self, path: &str) -> Result<Self> {
+        let this = self.await?;
+        if let Some(path) = join_path(&this.path, path) {
+            Ok(Self::new_normalized(this.fs.clone(), path))
+        } else {
+            bail!(
+                "FileSystemPathRef(\"{}\").join(\"{}\") leaves the filesystem root",
+                this.path,
+                path
+            );
+        }
     }
 }
 

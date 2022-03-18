@@ -6,7 +6,7 @@ use swc_ecmascript::{
     visit::{Visit, VisitWith},
 };
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub(crate) struct ImportMap {
     /// Map from module name to (module path, exported symbol)
     imports: AHashMap<Id, (JsWord, JsWord)>,

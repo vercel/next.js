@@ -1,6 +1,7 @@
 use std::{collections::HashMap, iter, sync::Arc};
 
-use swc_common::{collections::AHashSet, Mark};
+use swc_atoms::{js_word, JsWord};
+use swc_common::{collections::AHashSet, Mark, DUMMY_SP};
 use swc_ecmascript::{
     ast::*,
     utils::ident::IdentLike,
@@ -17,6 +18,7 @@ pub struct VarGraph {
     pub(crate) values: HashMap<Id, JsValue>,
 }
 
+#[derive(Default)]
 pub struct ModuleInfo {
     pub(crate) all_bindings: Arc<AHashSet<Id>>,
     pub(crate) imports: Arc<ImportMap>,
@@ -36,6 +38,16 @@ pub fn create_graph(m: &Module, top_level_mark: Mark, module_info: &ModuleInfo) 
     });
 
     graph
+}
+
+pub(crate) fn expr_to_js_value(e: &Expr) -> JsValue {
+    // TODO Implement helper to convert an expr to a JsValue without any context info
+    JsValue::Constant(Lit::Str(Str {
+        span: DUMMY_SP,
+        value: js_word!(""),
+        has_escape: Default::default(),
+        kind: Default::default(),
+    }))
 }
 
 struct Analyzer<'a> {

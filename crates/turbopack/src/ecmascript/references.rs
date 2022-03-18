@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use crate::{
     asset::AssetRef,
-    errors, module,
+    errors,
     reference::{AssetReference, AssetReferenceRef, AssetReferencesSet, AssetReferencesSetRef},
     resolve::{
-        find_package_json, options::ResolveOptionsRef, parse::RequestRef, resolve, resolve_options,
-        FindPackageJsonResult, ResolveResult, ResolveResultRef,
+        find_package_json, parse::RequestRef, resolve, resolve_options, FindPackageJsonResult,
+        ResolveResult, ResolveResultRef,
     },
     source_asset::SourceAssetRef,
 };
@@ -18,13 +18,21 @@ use swc_common::{
 use swc_ecmascript::{
     ast::{
         CallExpr, Callee, ComputedPropName, ExportAll, Expr, ExprOrSpread, ImportDecl,
-        ImportSpecifier, Lit, MemberProp, ModuleExportName, NamedExport,
+        ImportSpecifier, Lit, MemberProp, ModuleExportName, NamedExport, VarDeclarator,
     },
     visit::{self, Visit, VisitWith},
 };
 use turbo_tasks_fs::FileSystemPathRef;
 
-use super::parse::{parse, Buffer, ParseResult};
+use super::{
+    parse::{parse, Buffer, ParseResult},
+    resolve::{apply_cjs_specific_options, esm_resolve},
+    webpack::{
+        parse::{is_webpack_runtime, WebpackRuntime, WebpackRuntimeRef},
+        PotentialWebpackRuntimeAssetReference, WebpackChunkAssetReference,
+        WebpackEntryAssetReference,
+    },
+};
 
 #[turbo_tasks::function]
 pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef> {
@@ -122,6 +130,7 @@ struct AssetReferencesVisitor<'a> {
     source: AssetRef,
     analyser: StaticAnalyser,
     references: &'a mut Vec<AssetReferenceRef>,
+    webpack_runtime: Option<WebpackRuntimeRef>,
 }
 impl<'a> AssetReferencesVisitor<'a> {
     fn new(source: AssetRef, references: &'a mut Vec<AssetReferenceRef>) -> Self {
@@ -129,6 +138,7 @@ impl<'a> AssetReferencesVisitor<'a> {
             source,
             analyser: StaticAnalyser::default(),
             references,
+            webpack_runtime: None,
         }
     }
 }
@@ -186,6 +196,43 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
                 }
             }
         }
+    }
+
+    fn visit_var_declarator(&mut self, decl: &VarDeclarator) {
+        if let Some(ident) = decl.name.as_ident() {
+            if &*ident.id.sym == "__webpack_require__" {
+                if let Some(init) = &decl.init {
+                    if let Some(call) = init.as_call() {
+                        if let Some(expr) = call.callee.as_expr() {
+                            if let Some(ident) = expr.as_ident() {
+                                if &*ident.sym == "require" {
+                                    if let [ExprOrSpread { spread: None, expr }] = &call.args[..] {
+                                        if let Some(lit) = expr.as_lit() {
+                                            if let Lit::Str(str) = lit {
+                                                self.webpack_runtime =
+                                                    Some(resolve_as_webpack_runtime(
+                                                        self.source.path().parent(),
+                                                        &*str.value,
+                                                    ));
+                                                self.references.push(
+                                                    PotentialWebpackRuntimeAssetReference {
+                                                        source: self.source.clone(),
+                                                        request: str.value.to_string(),
+                                                    }
+                                                    .into(),
+                                                );
+                                                return;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        visit::visit_var_declarator(self, decl);
     }
 
     fn visit_call_expr(&mut self, call: &CallExpr) {
@@ -261,6 +308,46 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
                             });
                         }
                     },
+                    [webpack_require, property]
+                        if webpack_require == "__webpack_require__" && property == "C" =>
+                    {
+                        if let Some(runtime) = self.webpack_runtime.as_ref() {
+                            self.references.push(
+                                WebpackEntryAssetReference {
+                                    source: self.source.clone(),
+                                    runtime: runtime.clone(),
+                                }
+                                .into(),
+                            );
+                        }
+                    }
+                    [webpack_require, property]
+                        if webpack_require == "__webpack_require__" && property == "X" =>
+                    {
+                        if let Some(runtime) = self.webpack_runtime.as_ref() {
+                            if let [_, ExprOrSpread {
+                                spread: None,
+                                expr: chunk_ids,
+                            }, _] = &call.args[..]
+                            {
+                                if let Some(array) = chunk_ids.as_array() {
+                                    for elem in array.elems.iter() {
+                                        if let Some(ExprOrSpread { spread: None, expr }) = elem {
+                                            if let Some(lit) = expr.as_lit() {
+                                                self.references.push(
+                                                    WebpackChunkAssetReference {
+                                                        chunk_id: lit.clone(),
+                                                        runtime: runtime.clone(),
+                                                    }
+                                                    .into(),
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                     [module, fn_name] if module == "fs" && fn_name == "readFileSync" => {
                         match &call.args[..] {
                             [ExprOrSpread { expr, spread: None }, ..] => {
@@ -312,6 +399,28 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
     }
 }
 
+#[turbo_tasks::function]
+async fn resolve_as_webpack_runtime(
+    context: FileSystemPathRef,
+    request: &str,
+) -> Result<WebpackRuntimeRef> {
+    let input_request = request.to_string();
+
+    let request = RequestRef::parse(input_request);
+
+    let options = resolve_options(context.clone());
+
+    let options = apply_cjs_specific_options(options);
+
+    let resolved = resolve(context.clone(), request.clone(), options);
+
+    if let ResolveResult::Single(source, _) = &*resolved.await? {
+        Ok(is_webpack_runtime(source.clone()))
+    } else {
+        Ok(WebpackRuntime::None.into())
+    }
+}
+
 #[turbo_tasks::value(AssetReference)]
 #[derive(Hash, Clone, Debug, PartialEq, Eq)]
 pub struct PackageJsonReference {
@@ -357,55 +466,4 @@ impl AssetReference for EsmAssetReference {
 
         esm_resolve(request, context)
     }
-}
-
-#[turbo_tasks::function]
-async fn apply_esm_specific_options(options: ResolveOptionsRef) -> ResolveOptionsRef {
-    // TODO magic
-    options
-}
-
-#[turbo_tasks::function]
-async fn esm_resolve(request: RequestRef, context: FileSystemPathRef) -> Result<ResolveResultRef> {
-    let options = resolve_options(context.clone());
-
-    let options = apply_esm_specific_options(options);
-
-    let result = resolve(context.clone(), request.clone(), options);
-
-    Ok(match result.await {
-        Ok(result) => {
-            let result = result
-                .map(
-                    |a| module(a.clone()).resolve(),
-                    |i| {
-                        let i = i.clone();
-                        async { Ok(i) }
-                    },
-                )
-                .await?;
-            match &result {
-                ResolveResult::Unresolveable(_) => {
-                    // TODO report this to stream
-                    println!(
-                        "unable to resolve esm request {} in {}",
-                        request.get().await?,
-                        context.get().await?
-                    );
-                }
-                _ => {}
-            }
-            result.into()
-        }
-        Err(err) => {
-            // TODO report this to stream
-            println!(
-                "fatal error during resolving esm request {} in {}: {}",
-                request.get().await?,
-                context.get().await?,
-                err
-            );
-            ResolveResult::Unresolveable(None).into()
-        }
-    })
 }
