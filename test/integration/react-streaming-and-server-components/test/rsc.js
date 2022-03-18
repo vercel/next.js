@@ -224,4 +224,32 @@ export default function (context, { runtime, env }) {
     expect(getNodeBySelector(page404HTML, id).text()).toBe(content)
     expect(getNodeBySelector(pageUnknownHTML, id).text()).toBe(content)
   })
+
+  if (env === 'prod') {
+    it('should generate the flight manifest with correct files', async () => {
+      const flightManifestJson = await fs.readJSON(
+        join(distDir, 'server', 'middleware-flight-manifest.json')
+      )
+
+      const clientComponents = Object.keys(flightManifestJson)
+
+      // Should include next/link, static image, and directly imported client components.
+      for (const componentPath of [
+        'next.js/packages/next/link.js',
+        'app/public/test.jpg',
+        'app/components/foo.client.js',
+      ]) {
+        expect(
+          clientComponents.some((key) => key.includes(componentPath))
+        ).toBeTruthy()
+      }
+
+      // Should not include client components that are not directly imported by server components.
+      expect(
+        clientComponents.some((key) =>
+          key.includes('app/components/noop.client.js')
+        )
+      ).toBeFalsy()
+    })
+  }
 }

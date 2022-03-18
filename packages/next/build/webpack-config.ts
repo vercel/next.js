@@ -463,10 +463,6 @@ export default async function getBaseWebpackConfig(
   const serverComponentsRegex = new RegExp(
     `\\.server\\.(${rawPageExtensions.join('|')})$`
   )
-  const clientComponentsRegex = new RegExp(
-    `\\.client\\.(${rawPageExtensions.join('|')})$`
-  )
-
   const babelIncludeRegexes: RegExp[] = [
     /next[\\/]dist[\\/]shared[\\/]lib/,
     /next[\\/]dist[\\/]client/,
@@ -1487,8 +1483,8 @@ export default async function getBaseWebpackConfig(
           },
         }),
       hasServerComponents &&
-        !isServer &&
-        new FlightManifestPlugin({ dev, clientComponentsRegex }),
+        isServer &&
+        new FlightManifestPlugin({ dev, isEdgeRuntime }),
       !dev &&
         !isServer &&
         new TelemetryPlugin(

@@ -17,20 +17,24 @@ import { MIDDLEWARE_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 
 type Options = {
   dev: boolean
-  clientComponentsRegex: RegExp
+  isEdgeRuntime: boolean
 }
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
+const SC_CLIENT = /\?__sc_client__$/
+
+let edgeServerModules = {}
+let nodeServerModules = {}
 
 export class FlightManifestPlugin {
   dev: boolean = false
-  clientComponentsRegex: RegExp
+  isEdgeRuntime: boolean
 
   constructor(options: Options) {
     if (typeof options.dev === 'boolean') {
       this.dev = options.dev
     }
-    this.clientComponentsRegex = options.clientComponentsRegex
+    this.isEdgeRuntime = options.isEdgeRuntime
   }
 
   apply(compiler: any) {
@@ -62,20 +66,17 @@ export class FlightManifestPlugin {
   }
 
   createAsset(assets: any, compilation: any) {
-    const manifest: any = {}
-    const { clientComponentsRegex } = this
+    const manifest: any = this.isEdgeRuntime
+      ? edgeServerModules
+      : nodeServerModules
     compilation.chunkGroups.forEach((chunkGroup: any) => {
       function recordModule(id: string, _chunk: any, mod: any) {
-        const resource = mod.resource?.replace(/\?__sc_client__$/, '')
-
-        // TODO: Hook into deps instead of the target module.
-        // That way we know by the type of dep whether to include.
-        // It also resolves conflicts when the same module is in multiple chunks.
-        const isNextClientComponent = /next[\\/](link|image)/.test(resource)
-        if (!clientComponentsRegex.test(resource) && !isNextClientComponent) {
+        // It must be a client component when this query parameter is present.
+        if (!mod.resource || !SC_CLIENT.test(mod.resource)) {
           return
         }
 
+        const resource = mod.resource.replace(SC_CLIENT, '')
         const moduleExports: any = manifest[resource] || {}
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
@@ -123,10 +124,21 @@ export class FlightManifestPlugin {
       })
     })
 
+    // This plugin is used by both the Node server and Edge server compilers,
+    // we need to merge both manifests to generate the full manifest.
+    if (this.isEdgeRuntime) {
+      edgeServerModules = manifest
+    } else {
+      nodeServerModules = manifest
+    }
+
     // With switchable runtime, we need to emit the manifest files for both
     // runtimes.
-    const file = `server/${MIDDLEWARE_FLIGHT_MANIFEST}`
-    const json = JSON.stringify(manifest)
+    const file = MIDDLEWARE_FLIGHT_MANIFEST
+    const json = JSON.stringify({
+      ...edgeServerModules,
+      ...nodeServerModules,
+    })
 
     assets[file + '.js'] = new sources.RawSource('self.__RSC_MANIFEST=' + json)
     assets[file + '.json'] = new sources.RawSource(json)
