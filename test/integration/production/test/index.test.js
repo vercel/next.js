@@ -234,6 +234,28 @@ describe('Production Usage', () => {
           /!/,
         ],
       },
+      {
+        page: '/api/readfile-dirname',
+        tests: [/webpack-api-runtime\.js/, /static\/data\/item\.txt/],
+        notTests: [
+          /next\/dist\/server\/next\.js/,
+          /next\/dist\/bin/,
+          /\0/,
+          /\?/,
+          /!/,
+        ],
+      },
+      {
+        page: '/api/readfile-processcwd',
+        tests: [/webpack-api-runtime\.js/, /static\/data\/item\.txt/],
+        notTests: [
+          /next\/dist\/server\/next\.js/,
+          /next\/dist\/bin/,
+          /\0/,
+          /\?/,
+          /!/,
+        ],
+      },
     ]
 
     for (const check of checks) {
@@ -598,6 +620,22 @@ describe('Production Usage', () => {
       const res = await fetchViaHTTP(url, `/api/hello`)
       const body = await res.text()
       expect(body).toEqual('API hello works')
+    })
+
+    // Today, `__dirname` usage fails because Next.js moves the source file
+    // to .next/server/pages/api but it doesn't move the asset file.
+    // In the future, it would be nice to make `__dirname` work too.
+    it('does not work with pages/api/readfile-dirname.js', async () => {
+      const url = `http://localhost:${appPort}`
+      const res = await fetchViaHTTP(url, `/api/readfile-dirname`)
+      expect(res.status).toBe(500)
+    })
+
+    it('should work with pages/api/readfile-processcwd.js', async () => {
+      const url = `http://localhost:${appPort}`
+      const res = await fetchViaHTTP(url, `/api/readfile-processcwd`)
+      const body = await res.text()
+      expect(body).toBe('item')
     })
 
     it('should work with dynamic params and search string', async () => {
