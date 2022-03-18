@@ -221,7 +221,9 @@ pub async fn resolve_options(context: FileSystemPathRef) -> Result<ResolveOption
         into_package: vec![
             ResolveIntoPackage::ExportsField {
                 field: "exports".to_string(),
-                conditions: BTreeMap::new(),
+                conditions: [("types".to_string(), ConditionValue::Unset)]
+                    .into_iter()
+                    .collect(),
                 unspecified_conditions: ConditionValue::Unknown,
             },
             ResolveIntoPackage::MainField("main".to_string()),
@@ -284,6 +286,28 @@ async fn exports_field(
     } else {
         Ok(ExportsFieldResult::None.into())
     }
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(PartialEq, Eq)]
+pub enum FindPackageJsonResult {
+    Found(FileSystemPathRef),
+    NotFound,
+}
+
+#[turbo_tasks::function]
+pub async fn find_package_json(context: FileSystemPathRef) -> Result<FindPackageJsonResultRef> {
+    let context_value = context.get().await?;
+    if let Some(new_path) = join_path(&context_value.path, "package.json") {
+        let fs_path = FileSystemPathRef::new_normalized(context_value.fs.clone(), new_path);
+        if exists(fs_path.clone()).await? {
+            return Ok(FindPackageJsonResult::Found(fs_path).into());
+        }
+    }
+    if context_value.is_root() {
+        return Ok(FindPackageJsonResult::NotFound.into());
+    }
+    Ok(find_package_json(context.parent()))
 }
 
 #[turbo_tasks::value(shared)]

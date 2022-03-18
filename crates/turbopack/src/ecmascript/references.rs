@@ -5,9 +5,10 @@ use crate::{
     errors, module,
     reference::{AssetReference, AssetReferenceRef, AssetReferencesSet, AssetReferencesSetRef},
     resolve::{
-        options::ResolveOptionsRef, parse::RequestRef, resolve, resolve_options, ResolveResult,
-        ResolveResultRef,
+        find_package_json, options::ResolveOptionsRef, parse::RequestRef, resolve, resolve_options,
+        FindPackageJsonResult, ResolveResult, ResolveResultRef,
     },
+    source_asset::SourceAssetRef,
 };
 use anyhow::Result;
 use swc_common::{
@@ -27,10 +28,19 @@ use super::parse::{parse, Buffer, ParseResult};
 
 #[turbo_tasks::function]
 pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef> {
+    let mut references = Vec::new();
+
+    match &*find_package_json(source.path().parent()).await? {
+        FindPackageJsonResult::Found(package_json) => {
+            references.push(PackageJsonReferenceRef::new(package_json.clone()).into());
+        }
+        FindPackageJsonResult::NotFound => {}
+    };
+
     let parsed = parse(source.clone()).await?;
-    Ok(match &*parsed {
+    match &*parsed {
         ParseResult::Ok { module, source_map } => {
-            let mut visitor = AssetReferencesVisitor::new(source);
+            let mut visitor = AssetReferencesVisitor::new(source, &mut references);
             let buf = Buffer::new();
             let handler =
                 Handler::with_emitter_writer(Box::new(buf.clone()), Some(source_map.clone()));
@@ -41,13 +51,10 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                 // TODO report them in a stream
                 println!("{}", buf);
             }
-            AssetReferencesSet {
-                references: visitor.references,
-            }
-            .into()
         }
-        ParseResult::Unparseable | ParseResult::NotFound => AssetReferencesSetRef::empty(),
-    })
+        ParseResult::Unparseable | ParseResult::NotFound => {}
+    };
+    Ok(AssetReferencesSet { references }.into())
 }
 
 #[derive(Debug)]
@@ -111,22 +118,22 @@ impl StaticAnalyser {
     }
 }
 
-struct AssetReferencesVisitor {
+struct AssetReferencesVisitor<'a> {
     source: AssetRef,
     analyser: StaticAnalyser,
-    references: Vec<AssetReferenceRef>,
+    references: &'a mut Vec<AssetReferenceRef>,
 }
-impl AssetReferencesVisitor {
-    fn new(source: AssetRef) -> Self {
+impl<'a> AssetReferencesVisitor<'a> {
+    fn new(source: AssetRef, references: &'a mut Vec<AssetReferenceRef>) -> Self {
         Self {
             source,
             analyser: StaticAnalyser::default(),
-            references: Vec::new(),
+            references,
         }
     }
 }
 
-impl Visit for AssetReferencesVisitor {
+impl<'a> Visit for AssetReferencesVisitor<'a> {
     fn visit_export_all(&mut self, export: &ExportAll) {
         let src = export.src.value.to_string();
         self.references
@@ -302,6 +309,26 @@ impl Visit for AssetReferencesVisitor {
             },
         }
         visit::visit_call_expr(self, call);
+    }
+}
+
+#[turbo_tasks::value(AssetReference)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq)]
+pub struct PackageJsonReference {
+    pub package_json: FileSystemPathRef,
+}
+
+#[turbo_tasks::value_impl]
+impl PackageJsonReferenceRef {
+    pub fn new(package_json: FileSystemPathRef) -> Self {
+        Self::slot(PackageJsonReference { package_json })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl AssetReference for PackageJsonReference {
+    fn resolve_reference(&self) -> ResolveResultRef {
+        ResolveResult::Single(SourceAssetRef::new(self.package_json.clone()).into(), None).into()
     }
 }
 

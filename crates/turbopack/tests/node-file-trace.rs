@@ -155,7 +155,7 @@ fn integration_test(input: PathBuf) {
     }))
     .unwrap();
 
-    assert!(output.is_empty(), "{output}");
+    assert!(output.is_empty(), "emitted files behave differently when executed via node.js\n{output}");
 }
 
 #[turbo_tasks::value]
@@ -216,7 +216,7 @@ fn diff(expected: &str, actual: &str) -> String {
         match diff {
             Difference::Same(line) => {
                 if need_context > 0 {
-                    result.push(line);
+                    result.push(format!("  {line}"));
                     need_context -= 1;
                 } else {
                     if context.len() == CONTEXT_LINES {
@@ -232,9 +232,9 @@ fn diff(expected: &str, actual: &str) -> String {
                     has_spacing = false;
                 }
                 while let Some(line) = context.pop_front() {
-                    result.push(format!(" {line}"));
+                    result.push(format!("  {line}"));
                 }
-                result.push(format!("+{line}"));
+                result.push(format!("+ {line}"));
                 need_context = CONTEXT_LINES;
             }
             Difference::Rem(line) => {
@@ -243,9 +243,9 @@ fn diff(expected: &str, actual: &str) -> String {
                     has_spacing = false;
                 }
                 while let Some(line) = context.pop_front() {
-                    result.push(format!(" {line}"));
+                    result.push(format!("  {line}"));
                 }
-                result.push(format!("-{line}"));
+                result.push(format!("- {line}"));
                 need_context = CONTEXT_LINES;
             }
         }

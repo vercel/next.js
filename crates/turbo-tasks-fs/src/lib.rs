@@ -313,6 +313,10 @@ impl FileSystemPath {
     pub fn is_inside(&self, context: &FileSystemPath) -> bool {
         self.fs == context.fs && self.path.starts_with(&context.path)
     }
+
+    pub fn is_root(&self) -> bool {
+        self.path.is_empty()
+    }
 }
 
 #[turbo_tasks::value_impl]
