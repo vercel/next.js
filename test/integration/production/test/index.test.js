@@ -234,6 +234,17 @@ describe('Production Usage', () => {
           /!/,
         ],
       },
+      {
+        page: '/api/readfile-processcwd',
+        tests: [/webpack-api-runtime\.js/, /static\/data\/item\.txt/],
+        notTests: [
+          /next\/dist\/server\/next\.js/,
+          /next\/dist\/bin/,
+          /\0/,
+          /\?/,
+          /!/,
+        ],
+      },
     ]
 
     for (const check of checks) {
