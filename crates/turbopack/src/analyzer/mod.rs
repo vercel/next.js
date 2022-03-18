@@ -15,10 +15,15 @@ pub(crate) enum JsValue {
     Constant(Lit),
     Alternatives(Vec<JsValue>),
 
+    FreeVar(FreeVarKind),
+
     Variable(Id),
 
     /// `foo.${unknownVar}.js` => 'foo' + Unknown + '.js'
     Concat(Vec<JsValue>),
+
+    /// This can be converted to [JsValue::Concat] if the type of the variable is string.
+    Add(Vec<JsValue>),
 
     /// Not analyzable.
     Unknown,
@@ -31,6 +36,22 @@ impl Default for JsValue {
 }
 
 impl JsValue {
+    pub fn is_string(&self) -> bool {
+        match self {
+            JsValue::Constant(Lit::Str(..)) | JsValue::Concat(_) => true,
+
+            JsValue::Constant(..) => false,
+
+            JsValue::FreeVar(FreeVarKind::Dirname | FreeVarKind::ProcessEnvNode) => true,
+
+            JsValue::Add(v) => v.first().map_or(false, |v| v.is_string()),
+
+            JsValue::Alternatives(v) => v.iter().all(|v| v.is_string()),
+
+            JsValue::Variable(_) | JsValue::Unknown => false,
+        }
+    }
+
     fn add_alt(&mut self, v: Self) {
         // TODO(kdy1): We don't need nested unknowns
 
@@ -42,7 +63,10 @@ impl JsValue {
     pub fn normalize(&mut self) {
         // Handle nested
         match self {
-            JsValue::Constant(_) | JsValue::Unknown | JsValue::Variable(_) => return,
+            JsValue::Constant(_)
+            | JsValue::Unknown
+            | JsValue::Variable(_)
+            | JsValue::FreeVar(_) => return,
 
             JsValue::Alternatives(v) => {
                 v.iter_mut().for_each(|v| {
@@ -72,8 +96,31 @@ impl JsValue {
                 }
                 *v = new;
             }
+            JsValue::Add(v) => {
+                v.iter_mut().for_each(|v| {
+                    v.normalize();
+                });
+
+                let mut new = vec![];
+                for v in take(v) {
+                    match v {
+                        JsValue::Add(v) => new.extend(v),
+                        v => new.push(v),
+                    }
+                }
+                *v = new;
+            }
         }
     }
+}
+
+/// TODO(kdy1): Support more? I'm not sure if we need to support arbitrary constants.
+#[derive(Debug, Clone)]
+pub enum FreeVarKind {
+    /// `__dirname`
+    Dirname,
+    /// `process.env.NODE_ENV`
+    ProcessEnvNode,
 }
 
 #[derive(Debug)]
@@ -144,8 +191,6 @@ mod tests {
                 &ModuleInfo {
                     all_bindings: Arc::new(bindings),
                     imports: imports,
-                    dirname: "test-dir".into(),
-                    process_env_node: "development".into(),
                 },
             );
 

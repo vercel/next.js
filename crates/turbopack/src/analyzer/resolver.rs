@@ -17,7 +17,7 @@ pub(crate) fn resolve(
     let mut replaced_circular_references = HashSet::default();
 
     let val = match val {
-        JsValue::Constant(_) | JsValue::Unknown => val,
+        JsValue::Constant(_) | JsValue::FreeVar(_) | JsValue::Unknown => val,
         JsValue::Variable(var) => {
             // Replace with unknown for now
             if circle_stack.contains(&var) {
@@ -52,6 +52,17 @@ pub(crate) fn resolve(
                 .collect(),
         ),
         JsValue::Concat(values) => JsValue::Concat(
+            values
+                .into_iter()
+                .map(|val| {
+                    let res = resolve(graph, val, circle_stack);
+                    replaced_circular_references.extend(res.replaced_circular_references);
+                    res.value
+                })
+                .collect(),
+        ),
+
+        JsValue::Add(values) => JsValue::Add(
             values
                 .into_iter()
                 .map(|val| {

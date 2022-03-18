@@ -1,14 +1,13 @@
 use std::{collections::HashMap, iter, sync::Arc};
 
-use swc_atoms::JsWord;
-use swc_common::{collections::AHashSet, Mark, SyntaxContext};
+use swc_common::{collections::AHashSet, Mark};
 use swc_ecmascript::{
     ast::*,
     utils::ident::IdentLike,
     visit::{Visit, VisitWith},
 };
 
-use crate::analyzer::is_unresolved;
+use crate::analyzer::{is_unresolved, FreeVarKind};
 
 use super::{ImportMap, JsValue};
 
@@ -21,8 +20,6 @@ pub struct VarGraph {
 pub struct ModuleInfo {
     pub(crate) all_bindings: Arc<AHashSet<Id>>,
     pub(crate) imports: Arc<ImportMap>,
-    pub dirname: JsWord,
-    pub process_env_node: JsWord,
 }
 
 /// You should use same [Mark] for this function and [swc_ecma_transforms_base::resolver::resolver_with_mark]
@@ -62,12 +59,7 @@ impl Analyzer<'_> {
                 // TODO(kdy1): Consider using Arc
                 if &*i.sym == "__dirname" && self.is_unresolved(&i) {
                     // This is __dirname injected by node.js
-                    return JsValue::Constant(Lit::Str(Str {
-                        span: i.span.with_ctxt(SyntaxContext::empty()),
-                        value: self.module_info.dirname.clone(),
-                        has_escape: false,
-                        kind: Default::default(),
-                    }));
+                    return JsValue::FreeVar(FreeVarKind::Dirname);
                 } else {
                     return JsValue::Variable(i.to_id());
                 }
@@ -84,14 +76,14 @@ impl Analyzer<'_> {
 
                 return match (l, r) {
                     (JsValue::Unknown, JsValue::Unknown) => JsValue::Unknown,
-                    (JsValue::Concat(l), JsValue::Concat(r)) => {
-                        JsValue::Concat(l.into_iter().chain(r).collect())
+                    (JsValue::Add(l), JsValue::Add(r)) => {
+                        JsValue::Add(l.into_iter().chain(r).collect())
                     }
-                    (JsValue::Concat(l), r) => {
-                        JsValue::Concat(l.into_iter().chain(iter::once(r)).collect())
+                    (JsValue::Add(l), r) => {
+                        JsValue::Add(l.into_iter().chain(iter::once(r)).collect())
                     }
-                    (l, JsValue::Concat(r)) => JsValue::Concat(iter::once(l).chain(r).collect()),
-                    (l, r) => JsValue::Concat(vec![l, r]),
+                    (l, JsValue::Add(r)) => JsValue::Add(iter::once(l).chain(r).collect()),
+                    (l, r) => JsValue::Add(vec![l, r]),
                 };
             }
 
@@ -154,12 +146,7 @@ impl Analyzer<'_> {
                     match prop {
                         MemberProp::Ident(p) => {
                             if &*p.sym == "NODE_ENV" {
-                                return JsValue::Constant(Lit::Str(Str {
-                                    span: *span,
-                                    value: self.module_info.process_env_node.clone(),
-                                    has_escape: Default::default(),
-                                    kind: Default::default(),
-                                }));
+                                return JsValue::FreeVar(FreeVarKind::ProcessEnvNode);
                             }
                         }
                         _ => {}
