@@ -3,7 +3,7 @@ export default class {
     render() {
         return <div className={_JSXStyle.dynamic([
             [
-                "8c1103276226be14",
+                "e359801ddd3b3cb6",
                 [
                     inputSize ? "height: calc(2 * var(--a)) !important;" : ""
                 ]
@@ -12,16 +12,16 @@ export default class {
 
           <p className={_JSXStyle.dynamic([
             [
-                "8c1103276226be14",
+                "e359801ddd3b3cb6",
                 [
                     inputSize ? "height: calc(2 * var(--a)) !important;" : ""
                 ]
             ]
         ])}>test</p>
 
-          <_JSXStyle id={"8c1103276226be14"} dynamic={[
+          <_JSXStyle id={"e359801ddd3b3cb6"} dynamic={[
             inputSize ? "height: calc(2 * var(--a)) !important;" : ""
-        ]}>{`@media only screen {a.__jsx-style-dynamic-selector{${inputSize ? "height: calc(2 * var(--a)) !important;" : ""}
+        ]}>{`@media only screen{a.__jsx-style-dynamic-selector{${inputSize ? "height: calc(2 * var(--a)) !important;" : ""}
                 }}`}</_JSXStyle>
 
         </div>;

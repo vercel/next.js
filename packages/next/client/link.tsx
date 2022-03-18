@@ -86,17 +86,15 @@ function linkClicked(
 ): void {
   const { nodeName } = e.currentTarget
 
-  if (nodeName === 'A' && (isModifiedEvent(e) || !isLocalURL(href))) {
+  // anchors inside an svg have a lowercase nodeName
+  const isAnchorNodeName = nodeName.toUpperCase() === 'A'
+
+  if (isAnchorNodeName && (isModifiedEvent(e) || !isLocalURL(href))) {
     // ignore click for browser’s default behavior
     return
   }
 
   e.preventDefault()
-
-  //  avoid scroll for urls with anchor refs
-  if (scroll == null && as.indexOf('#') >= 0) {
-    scroll = false
-  }
 
   // replace state instead of push if prop is present
   router[replace ? 'replace' : 'push'](href, as, {
@@ -281,6 +279,13 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   } = {
     ref: setRef,
     onClick: (e: React.MouseEvent) => {
+      if (process.env.NODE_ENV !== 'production') {
+        if (!e) {
+          throw new Error(
+            `Component rendered inside next/link has to pass click event to "onClick" prop.`
+          )
+        }
+      }
       if (child.props && typeof child.props.onClick === 'function') {
         child.props.onClick(e)
       }

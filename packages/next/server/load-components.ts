@@ -1,3 +1,8 @@
+import type {
+  AppType,
+  DocumentType,
+  NextComponentType,
+} from '../shared/lib/utils'
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
@@ -5,7 +10,6 @@ import {
 import { join } from 'path'
 import { requirePage } from './require'
 import { BuildManifest } from './get-page-files'
-import { AppType, DocumentType } from '../shared/lib/utils'
 import { interopDefault } from '../lib/interop-default'
 import {
   PageConfig,
@@ -19,10 +23,10 @@ export type ManifestItem = {
   files: string[]
 }
 
-type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
+export type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 
 export type LoadComponentsReturnType = {
-  Component: React.ComponentType
+  Component: NextComponentType
   pageConfig: PageConfig
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
@@ -32,11 +36,13 @@ export type LoadComponentsReturnType = {
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
   ComponentMod: any
+  AppMod: any
 }
 
 export async function loadDefaultErrorComponents(distDir: string) {
   const Document = interopDefault(require('next/dist/pages/_document'))
-  const App = interopDefault(require('next/dist/pages/_app'))
+  const AppMod = require('next/dist/pages/_app')
+  const App = interopDefault(AppMod)
   const ComponentMod = require('next/dist/pages/_error')
   const Component = interopDefault(ComponentMod)
 
@@ -48,6 +54,7 @@ export async function loadDefaultErrorComponents(distDir: string) {
     buildManifest: require(join(distDir, `fallback-${BUILD_MANIFEST}`)),
     reactLoadableManifest: {},
     ComponentMod,
+    AppMod,
   }
 }
 
@@ -114,6 +121,7 @@ export async function loadComponents(
     reactLoadableManifest,
     pageConfig: ComponentMod.config || {},
     ComponentMod,
+    AppMod,
     getServerSideProps,
     getStaticProps,
     getStaticPaths,

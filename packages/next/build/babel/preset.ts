@@ -158,6 +158,7 @@ export default (
         },
       ],
       require('next/dist/compiled/babel/plugin-syntax-dynamic-import'),
+      require('next/dist/compiled/babel/plugin-syntax-import-assertions'),
       require('./plugins/react-loadable-plugin'),
       [
         require('next/dist/compiled/babel/plugin-proposal-class-properties'),
@@ -177,7 +178,11 @@ export default (
           regenerator: true,
           useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
           absoluteRuntime: isBabelLoader
-            ? dirname(require.resolve('@babel/runtime/package.json'))
+            ? dirname(
+                require.resolve(
+                  'next/dist/compiled/@babel/runtime/package.json'
+                )
+              )
             : undefined,
           ...options['transform-runtime'],
         },

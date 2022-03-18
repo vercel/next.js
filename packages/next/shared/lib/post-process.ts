@@ -1,14 +1,10 @@
-import escapeRegexp from 'next/dist/compiled/escape-string-regexp'
-import { parse, HTMLElement } from 'node-html-parser'
+import { parse, HTMLElement } from 'next/dist/compiled/node-html-parser'
 import { OPTIMIZED_FONT_PROVIDERS } from './constants'
 
 // const MIDDLEWARE_TIME_BUDGET = parseInt(process.env.__POST_PROCESS_MIDDLEWARE_TIME_BUDGET || '', 10) || 10
-const MAXIMUM_IMAGE_PRELOADS = 2
-const IMAGE_PRELOAD_SIZE_THRESHOLD = 2500
 
 type postProcessOptions = {
   optimizeFonts: boolean
-  optimizeImages: boolean
 }
 
 type renderOptions = {
@@ -169,103 +165,6 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
   }
 }
 
-class ImageOptimizerMiddleware implements PostProcessMiddleware {
-  inspect(originalDom: HTMLElement) {
-    const imgPreloads = []
-    const imgElements = originalDom.querySelectorAll('img')
-    let eligibleImages: Array<HTMLElement> = []
-    for (let i = 0; i < imgElements.length; i++) {
-      if (isImgEligible(imgElements[i])) {
-        eligibleImages.push(imgElements[i])
-      }
-      if (eligibleImages.length >= MAXIMUM_IMAGE_PRELOADS) {
-        break
-      }
-    }
-
-    for (const imgEl of eligibleImages) {
-      const src = imgEl.getAttribute('src')
-      if (src) {
-        imgPreloads.push(src)
-      }
-    }
-
-    return imgPreloads
-  }
-  mutate = async (markup: string, imgPreloads: string[]) => {
-    let result = markup
-    let imagePreloadTags = imgPreloads
-      .filter((imgHref) => !preloadTagAlreadyExists(markup, imgHref))
-      .reduce(
-        (acc, imgHref) =>
-          acc + `<link rel="preload" href="${imgHref}" as="image"/>`,
-        ''
-      )
-    return result.replace('<meta name="next-image-preload"/>', imagePreloadTags)
-  }
-}
-
-function isImgEligible(imgElement: HTMLElement): boolean {
-  let imgSrc = imgElement.getAttribute('src')
-  return (
-    !!imgSrc &&
-    sourceIsSupportedType(imgSrc) &&
-    imageIsNotTooSmall(imgElement) &&
-    imageIsNotHidden(imgElement)
-  )
-}
-
-function preloadTagAlreadyExists(html: string, href: string) {
-  const escapedHref = escapeRegexp(href)
-  const regex = new RegExp(`<link[^>]*href[^>]*${escapedHref}`)
-  return html.match(regex)
-}
-
-function imageIsNotTooSmall(imgElement: HTMLElement): boolean {
-  // Skip images without both height and width--we don't know enough to say if
-  // they are too small
-  if (
-    !(imgElement.hasAttribute('height') && imgElement.hasAttribute('width'))
-  ) {
-    return true
-  }
-  try {
-    const heightAttr = imgElement.getAttribute('height')
-    const widthAttr = imgElement.getAttribute('width')
-    if (!heightAttr || !widthAttr) {
-      return true
-    }
-
-    if (
-      parseInt(heightAttr) * parseInt(widthAttr) <=
-      IMAGE_PRELOAD_SIZE_THRESHOLD
-    ) {
-      return false
-    }
-  } catch (err) {
-    return true
-  }
-  return true
-}
-
-// Traverse up the dom from each image to see if it or any of it's
-// ancestors have the hidden attribute.
-function imageIsNotHidden(imgElement: HTMLElement): boolean {
-  let activeElement = imgElement
-  while (activeElement.parentNode) {
-    if (activeElement.hasAttribute('hidden')) {
-      return false
-    }
-    activeElement = activeElement.parentNode as HTMLElement
-  }
-  return true
-}
-
-// Currently only filters out svg images--could be made more specific in the future.
-function sourceIsSupportedType(imgSrc: string): boolean {
-  return !imgSrc.includes('.svg')
-}
-
 // Initialization
 registerPostProcessor(
   'Inline-Fonts',
@@ -273,13 +172,6 @@ registerPostProcessor(
   // Using process.env because passing Experimental flag through loader is not possible.
   // @ts-ignore
   (options) => options.optimizeFonts || process.env.__NEXT_OPTIMIZE_FONTS
-)
-
-registerPostProcessor(
-  'Preload Images',
-  new ImageOptimizerMiddleware(),
-  // @ts-ignore
-  (options) => options.optimizeImages || process.env.__NEXT_OPTIMIZE_IMAGES
 )
 
 export default processHTML

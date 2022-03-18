@@ -37,10 +37,6 @@ const isSupportEsm = 'Module' in vm
 module.exports = {
   createTransformer: (inputOptions) => ({
     process(src, filename, jestOptions) {
-      if (!/\.[jt]sx?$/.test(filename)) {
-        return src
-      }
-
       const jestConfig = getJestConfig(jestOptions)
 
       let swcTransformOpts = getJestSWCOptions({

@@ -60,7 +60,7 @@ cache:
 
 #### Netlify CI
 
-Use [Netlify Plugins](https://www.netlify.com/products/build/plugins/) with [`netlify-plugin-cache-nextjs`](https://www.npmjs.com/package/netlify-plugin-cache-nextjs).
+Use [Netlify Plugins](https://www.netlify.com/products/build/plugins/) with [`@netlify/plugin-nextjs`](https://www.npmjs.com/package/@netlify/plugin-nextjs).
 
 #### AWS CodeBuild
 
@@ -80,7 +80,10 @@ Using GitHub's [actions/cache](https://github.com/actions/cache), add the follow
 ```yaml
 uses: actions/cache@v2
 with:
-  path: ${{ github.workspace }}/.next/cache
+  # See here for caching with `yarn` https://github.com/actions/cache/blob/main/examples.md#node---yarn or you can leverage caching with actions/setup-node https://github.com/actions/setup-node
+  path: |
+    ~/.npm
+    ${{ github.workspace }}/.next/cache
   # Generate a new cache whenever packages or source files change.
   key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx') }}
   # If source files changed but packages didn't, rebuild from a prior cache.

@@ -20,7 +20,7 @@ fn tpl_element(value: &str) -> TplElement {
 }
 
 pub fn compute_class_names(
-    styles: &Vec<JSXStyle>,
+    styles: &[JSXStyle],
     style_import_name: &str,
 ) -> (Option<String>, Option<Expr>) {
     let mut static_class_name = None;
@@ -45,7 +45,7 @@ pub fn compute_class_names(
         }
     }
 
-    if external_styles.len() > 0 {
+    if !external_styles.is_empty() {
         let mut quasis = vec![tpl_element("jsx-")];
         for _i in 1..external_styles.len() {
             quasis.push(tpl_element(" jsx-"))
@@ -61,26 +61,25 @@ pub fn compute_class_names(
         }));
     }
 
-    if static_hashes.len() > 0 {
+    if !static_hashes.is_empty() {
         static_class_name = Some(format!("jsx-{}", hash_string(&static_hashes.join(","))));
     }
 
     let dynamic_class_name = match dynamic_styles.len() {
         0 => None,
         _ => Some(Expr::Call(CallExpr {
-            callee: ExprOrSuper::Expr(Box::new(Expr::Member(MemberExpr {
-                obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident {
+            callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+                obj: Box::new(Expr::Ident(Ident {
                     sym: style_import_name.into(),
                     span: DUMMY_SP,
                     optional: false,
-                }))),
-                prop: Box::new(Expr::Ident(Ident {
+                })),
+                prop: MemberProp::Ident(Ident {
                     sym: "dynamic".into(),
                     span: DUMMY_SP,
                     optional: false,
-                })),
+                }),
                 span: DUMMY_SP,
-                computed: false,
             }))),
             args: vec![ExprOrSpread {
                 expr: Box::new(Expr::Array(ArrayLit {
@@ -296,7 +295,7 @@ pub fn make_local_styled_jsx_el(
     }
 }
 
-pub fn get_usable_import_specifier(_items: &Vec<ModuleItem>) -> String {
+pub fn get_usable_import_specifier(_items: &[ModuleItem]) -> String {
     // TODO
     String::from("_JSXStyle")
 }
@@ -324,7 +323,7 @@ pub fn styled_jsx_import_decl(style_import_name: &str) -> ModuleItem {
 }
 
 // TODO: maybe use DJBHasher (need to implement)
-pub fn hash_string(str: &String) -> String {
+pub fn hash_string(str: &str) -> String {
     let mut hasher = DefaultHasher::new();
     hasher.write(str.as_bytes());
     let hash_result = hasher.finish();

@@ -6,8 +6,8 @@ description: Learn how to transition an existing Create React App project to Nex
 
 This guide will help you understand how to transition from an existing non-ejected Create React App project to Next.js. Migrating to Next.js will allow you to:
 
-- Choose which [data fetching](/docs/basic-features/data-fetching.md) strategy you want on a per-page basis.
-- Use [Incremental Static Regeneration](/docs/basic-features/data-fetching.md#incremental-static-regeneration) to update _existing_ pages by re-rendering them in the background as traffic comes in.
+- Choose which [data fetching](/docs/basic-features/data-fetching/overview.md) strategy you want on a per-page basis.
+- Use [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md) to update _existing_ pages by re-rendering them in the background as traffic comes in.
 - Use [API Routes](/docs/api-routes/introduction.md).
 
 And more! Let’s walk through a series of steps to complete the migration.
@@ -51,7 +51,7 @@ Create React App uses the `public` directory for the [entry HTML file](https://c
 With Create React App, you're likely using React Router. Instead of using a third-party library, Next.js includes its own [file-system based routing](/docs/routing/introduction.md).
 
 - Convert all `Route` components to new files in the `pages` directory.
-- For routes that require dynamic content (e.g. `/blog/:slug`), you can use [Dynamic Routes](/docs/routing/dynamic-routes.md) with Next.js (e.g. `pages/blog/[slug].js`). The value of `slug` is accessible through a [query parameter](/docs/routing/dynamic-routes.md). For example, the route `/blog/first-post` would forward the query object `{ 'slug': 'first-post' }` to `pages/blog/[slug].js` ([learn more here](/docs/basic-features/data-fetching.md#getstaticpaths-static-generation)).
+- For routes that require dynamic content (e.g. `/blog/:slug`), you can use [Dynamic Routes](/docs/routing/dynamic-routes.md) with Next.js (e.g. `pages/blog/[slug].js`). The value of `slug` is accessible through a [query parameter](/docs/routing/dynamic-routes.md). For example, the route `/blog/first-post` would forward the query object `{ 'slug': 'first-post' }` to `pages/blog/[slug].js` ([learn more here](/docs/basic-features/data-fetching/get-static-paths.md)).
 
 For more information, see [Migrating from React Router](/docs/migrating/from-react-router.md).
 

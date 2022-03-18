@@ -37,19 +37,19 @@ extern crate swc_node_base;
 use backtrace::Backtrace;
 use napi::{CallContext, Env, JsObject, JsUndefined};
 use std::{env, panic::set_hook, sync::Arc};
-use swc::{ Compiler, TransformOutput};
+use swc::{Compiler, TransformOutput};
 use swc_common::{self, sync::Lazy, FilePathMapping, SourceMap};
 
 mod bundle;
 mod minify;
+mod parse;
 mod transform;
 mod util;
-
 
 static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
 
-    Arc::new(Compiler::new(cm.clone()))
+    Arc::new(Compiler::new(cm))
 });
 
 #[module_exports]
@@ -68,6 +68,8 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
 
     exports.create_named_method("minify", minify::minify)?;
     exports.create_named_method("minifySync", minify::minify_sync)?;
+
+    exports.create_named_method("parse", parse::parse)?;
 
     Ok(())
 }

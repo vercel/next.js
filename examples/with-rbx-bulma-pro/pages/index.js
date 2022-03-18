@@ -20,7 +20,7 @@ const Home = () => (
       <Card>
         <Card.Content>
           <Content>
-            <Link href="https://github.com/vercel/next.js/tree/master/examples">
+            <Link href="https://github.com/vercel/next.js/tree/canary/examples">
               <a>
                 <Title as="h3">Examples &rarr;</Title>
                 <p>

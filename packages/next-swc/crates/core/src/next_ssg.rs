@@ -11,7 +11,7 @@ use swc_ecmascript::{
     visit::{noop_fold_type, Fold},
 };
 
-/// Note: This paths requires runnning `resolver` **before** running this.
+/// Note: This paths requires running `resolver` **before** running this.
 pub fn next_ssg() -> impl Fold {
     Repeat::new(NextSsg {
         state: Default::default(),
@@ -19,7 +19,7 @@ pub fn next_ssg() -> impl Fold {
     })
 }
 
-/// State of the transforms. Shared by the anayzer and the tranform.
+/// State of the transforms. Shared by the analyzer and the transform.
 #[derive(Debug, Default)]
 struct State {
     /// Identifiers referenced by non-data function codes.
@@ -44,12 +44,9 @@ struct State {
 }
 
 impl State {
+    #[allow(clippy::wrong_self_convention)]
     fn is_data_identifier(&mut self, i: &Ident) -> Result<bool, Error> {
-        let ssg_exports = &[
-            "getStaticProps",
-            "getStaticPaths",
-            "getServerSideProps",
-        ];
+        let ssg_exports = &["getStaticProps", "getStaticPaths", "getServerSideProps"];
 
         if ssg_exports.contains(&&*i.sym) {
             if &*i.sym == "getServerSideProps" {
@@ -125,7 +122,9 @@ impl Fold for Analyzer<'_> {
     }
 
     fn fold_export_named_specifier(&mut self, s: ExportNamedSpecifier) -> ExportNamedSpecifier {
-        self.add_ref(s.orig.to_id());
+        if let ModuleExportName::Ident(id) = &s.orig {
+            self.add_ref(id.to_id());
+        }
 
         s
     }
@@ -133,14 +132,32 @@ impl Fold for Analyzer<'_> {
     fn fold_expr(&mut self, e: Expr) -> Expr {
         let e = e.fold_children_with(self);
 
-        match &e {
-            Expr::Ident(i) => {
+        if let Expr::Ident(i) = &e {
+            self.add_ref(i.to_id());
+        }
+
+        e
+    }
+
+    fn fold_jsx_element(&mut self, jsx: JSXElement) -> JSXElement {
+        fn get_leftmost_id_member_expr(e: &JSXMemberExpr) -> Id {
+            match &e.obj {
+                JSXObject::Ident(i) => i.to_id(),
+                JSXObject::JSXMemberExpr(e) => get_leftmost_id_member_expr(e),
+            }
+        }
+
+        match &jsx.opening.name {
+            JSXElementName::Ident(i) => {
                 self.add_ref(i.to_id());
+            }
+            JSXElementName::JSXMemberExpr(e) => {
+                self.add_ref(get_leftmost_id_member_expr(e));
             }
             _ => {}
         }
 
-        e
+        jsx.fold_children_with(self)
     }
 
     fn fold_fn_decl(&mut self, f: FnDecl) -> FnDecl {
@@ -179,17 +196,7 @@ impl Fold for Analyzer<'_> {
         f
     }
 
-    fn fold_member_expr(&mut self, mut e: MemberExpr) -> MemberExpr {
-        e.obj = e.obj.fold_with(self);
-
-        if e.computed {
-            e.prop = e.prop.fold_with(self);
-        }
-
-        e
-    }
-
-    /// Drops [ExportDecl] if all speicifers are removed.
+    /// Drops [ExportDecl] if all specifiers are removed.
     fn fold_module_item(&mut self, s: ModuleItem) -> ModuleItem {
         match s {
             ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(e)) if !e.specifiers.is_empty() => {
@@ -207,12 +214,11 @@ impl Fold for Analyzer<'_> {
         // Visit children to ensure that all references is added to the scope.
         let s = s.fold_children_with(self);
 
-        match &s {
-            ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(e)) => match &e.decl {
+        if let ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(e)) = &s {
+            match &e.decl {
                 Decl::Fn(f) => {
                     // Drop getStaticProps.
-                    if let Ok(is_data_identifier) = self.state.is_data_identifier(&f.ident)
-                    {
+                    if let Ok(is_data_identifier) = self.state.is_data_identifier(&f.ident) {
                         if is_data_identifier {
                             return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
                         }
@@ -227,9 +233,7 @@ impl Fold for Analyzer<'_> {
                     }
                 }
                 _ => {}
-            },
-
-            _ => {}
+            }
         }
 
         s
@@ -246,11 +250,8 @@ impl Fold for Analyzer<'_> {
     fn fold_prop(&mut self, p: Prop) -> Prop {
         let p = p.fold_children_with(self);
 
-        match &p {
-            Prop::Shorthand(i) => {
-                self.add_ref(i.to_id());
-            }
-            _ => {}
+        if let Prop::Shorthand(i) = &p {
+            self.add_ref(i.to_id());
         }
 
         p
@@ -259,17 +260,14 @@ impl Fold for Analyzer<'_> {
     fn fold_var_declarator(&mut self, mut v: VarDeclarator) -> VarDeclarator {
         let old_in_data = self.in_data_fn;
 
-        match &v.name {
-            Pat::Ident(name) => {
-                if let Ok(is_data_identifier) = self.state.is_data_identifier(&name.id) {
-                    if is_data_identifier {
-                        self.in_data_fn = true;
-                    }
-                } else {
-                    return v;
+        if let Pat::Ident(name) = &v.name {
+            if let Ok(is_data_identifier) = self.state.is_data_identifier(&name.id) {
+                if is_data_identifier {
+                    self.in_data_fn = true;
                 }
+            } else {
+                return v;
             }
-            _ => {}
         }
 
         let old_in_lhs_of_var = self.in_lhs_of_var;
@@ -389,18 +387,15 @@ impl Fold for NextSsg {
     }
 
     fn fold_module_item(&mut self, i: ModuleItem) -> ModuleItem {
-        match i {
-            ModuleItem::ModuleDecl(ModuleDecl::Import(i)) => {
-                let is_for_side_effect = i.specifiers.is_empty();
-                let i = i.fold_with(self);
+        if let ModuleItem::ModuleDecl(ModuleDecl::Import(i)) = i {
+            let is_for_side_effect = i.specifiers.is_empty();
+            let i = i.fold_with(self);
 
-                if !is_for_side_effect && i.specifiers.is_empty() {
-                    return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
-                }
-
-                return ModuleItem::ModuleDecl(ModuleDecl::Import(i));
+            if !is_for_side_effect && i.specifiers.is_empty() {
+                return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
             }
-            _ => {}
+
+            return ModuleItem::ModuleDecl(ModuleDecl::Import(i));
         }
 
         let i = i.fold_children_with(self);
@@ -419,10 +414,7 @@ impl Fold for NextSsg {
         items = items.fold_children_with(self);
 
         // Drop nodes.
-        items.retain(|s| match s {
-            ModuleItem::Stmt(Stmt::Empty(..)) => false,
-            _ => true,
-        });
+        items.retain(|s| !matches!(s, ModuleItem::Stmt(Stmt::Empty(..))));
 
         if !self.state.done
             && !self.state.should_run_again
@@ -453,29 +445,24 @@ impl Fold for NextSsg {
 
                 let mut new = Vec::with_capacity(items.len() + 1);
                 for item in take(&mut items) {
-                    match &item {
-                        ModuleItem::ModuleDecl(
-                            ModuleDecl::ExportNamed(..)
-                            | ModuleDecl::ExportDecl(..)
-                            | ModuleDecl::ExportDefaultDecl(..)
-                            | ModuleDecl::ExportDefaultExpr(..),
-                        ) => {
-                            if let Some(var) = var.take() {
-                                new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(
-                                    ExportDecl {
-                                        span: DUMMY_SP,
-                                        decl: Decl::Var(VarDecl {
-                                            span: DUMMY_SP,
-                                            kind: VarDeclKind::Var,
-                                            declare: Default::default(),
-                                            decls: vec![var],
-                                        }),
-                                    },
-                                )))
-                            }
+                    if let ModuleItem::ModuleDecl(
+                        ModuleDecl::ExportNamed(..)
+                        | ModuleDecl::ExportDecl(..)
+                        | ModuleDecl::ExportDefaultDecl(..)
+                        | ModuleDecl::ExportDefaultExpr(..),
+                    ) = &item
+                    {
+                        if let Some(var) = var.take() {
+                            new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                                span: DUMMY_SP,
+                                decl: Decl::Var(VarDecl {
+                                    span: DUMMY_SP,
+                                    kind: VarDeclKind::Var,
+                                    declare: Default::default(),
+                                    decls: vec![var],
+                                }),
+                            })))
                         }
-
-                        _ => {}
                     }
 
                     new.push(item);
@@ -493,33 +480,40 @@ impl Fold for NextSsg {
 
         n.specifiers.retain(|s| {
             let preserve = match s {
-                ExportSpecifier::Namespace(ExportNamespaceSpecifier { name: exported, .. })
+                ExportSpecifier::Namespace(ExportNamespaceSpecifier {
+                    name: ModuleExportName::Ident(exported),
+                    ..
+                })
                 | ExportSpecifier::Default(ExportDefaultSpecifier { exported, .. })
                 | ExportSpecifier::Named(ExportNamedSpecifier {
-                    exported: Some(exported),
+                    exported: Some(ModuleExportName::Ident(exported)),
                     ..
                 }) => self
                     .state
-                    .is_data_identifier(&exported)
+                    .is_data_identifier(exported)
                     .map(|is_data_identifier| !is_data_identifier),
-                ExportSpecifier::Named(s) => self
+                ExportSpecifier::Named(ExportNamedSpecifier {
+                    orig: ModuleExportName::Ident(orig),
+                    ..
+                }) => self
                     .state
-                    .is_data_identifier(&s.orig)
+                    .is_data_identifier(orig)
                     .map(|is_data_identifier| !is_data_identifier),
+
+                _ => Ok(true),
             };
 
             match preserve {
                 Ok(false) => {
-                    tracing::trace!(
-                        "Dropping a export specifier because it's a data identifier"
-                    );
+                    tracing::trace!("Dropping a export specifier because it's a data identifier");
 
-                    match s {
-                        ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) => {
-                            self.state.should_run_again = true;
-                            self.state.refs_from_data_fn.insert(orig.to_id());
-                        }
-                        _ => {}
+                    if let ExportSpecifier::Named(ExportNamedSpecifier {
+                        orig: ModuleExportName::Ident(orig),
+                        ..
+                    }) = s
+                    {
+                        self.state.should_run_again = true;
+                        self.state.refs_from_data_fn.insert(orig.to_id());
                     }
 
                     false
@@ -552,10 +546,7 @@ impl Fold for NextSsg {
                 }
                 Pat::Array(arr) => {
                     if !arr.elems.is_empty() {
-                        arr.elems.retain(|e| match e {
-                            Some(Pat::Invalid(..)) => return false,
-                            _ => true,
-                        });
+                        arr.elems.retain(|e| !matches!(e, Some(Pat::Invalid(..))));
 
                         if arr.elems.is_empty() {
                             return Pat::Invalid(Invalid { span: DUMMY_SP });
@@ -610,6 +601,7 @@ impl Fold for NextSsg {
         p
     }
 
+    #[allow(clippy::single_match)]
     fn fold_stmt(&mut self, mut s: Stmt) -> Stmt {
         match s {
             Stmt::Decl(Decl::Fn(f)) => {

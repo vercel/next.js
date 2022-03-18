@@ -14,14 +14,17 @@ description: Enable Image Optimization with the built-in Image component.
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                                                                           |
-| --------- | ------------------------------------------------------------------------------------------------- |
-| `v12.0.0` | `formats` configuration added.<br/>AVIF support added.<br/>Wrapper `<div>` changed to `<span>`.   |
-| `v11.1.0` | `onLoadingComplete` and `lazyBoundary` props added.                                               |
-| `v11.0.0` | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added. |
-| `v10.0.5` | `loader` prop added.                                                                              |
-| `v10.0.1` | `layout` prop added.                                                                              |
-| `v10.0.0` | `next/image` introduced.                                                                          |
+| Version   | Changes                                                                                               |
+| --------- | ----------------------------------------------------------------------------------------------------- |
+| `v12.1.1` | `style` prop added. Experimental[\*](#experimental-raw-layout-mode) support for `layout="raw"` added. |
+| `v12.1.0` | `dangerouslyAllowSVG` and `contentSecurityPolicy` configuration added.                                |
+| `v12.0.9` | `lazyRoot` prop added.                                                                                |
+| `v12.0.0` | `formats` configuration added.<br/>AVIF support added.<br/>Wrapper `<div>` changed to `<span>`.       |
+| `v11.1.0` | `onLoadingComplete` and `lazyBoundary` props added.                                                   |
+| `v11.0.0` | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added.     |
+| `v10.0.5` | `loader` prop added.                                                                                  |
+| `v10.0.1` | `layout` prop added.                                                                                  |
+| `v10.0.0` | `next/image` introduced.                                                                              |
 
 </details>
 
@@ -45,15 +48,23 @@ When using an external URL, you must add it to
 
 ### width
 
-The width of the image, in pixels. Must be an integer without a unit.
+The `width` property can represent either the _rendered_ width or _original_ width in pixels, depending on the [`layout`](#layout) and [`sizes`](#sizes) properties.
 
-Required, except for statically imported images, or those with [`layout="fill"`](#layout).
+When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"` without `sizes`, the `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
+
+When using `layout="responsive"`, `layout="fill"`, or `layout="raw"` with `sizes`, the `width` property represents the _original_ width in pixels, so it will only affect the aspect ratio.
+
+The `width` property is required, except for [statically imported images](#local-images), or those with `layout="fill"`.
 
 ### height
 
-The height of the image, in pixels. Must be an integer without a unit.
+The `height` property can represent either the _rendered_ height or _original_ height in pixels, depending on the [`layout`](#layout) and [`sizes`](#sizes) properties.
 
-Required, except for statically imported images, or those with [`layout="fill"`](#layout).
+When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"` without `sizes`, the `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
+
+When using `layout="responsive"`, `layout="fill"`, or `layout="raw"` with `sizes`, the `height` property represents the _original_ height in pixels, so it will only affect the aspect ratio.
+
+The `height` property is required, except for [statically imported images](#local-images), or those with `layout="fill"`.
 
 ## Optional Props
 
@@ -63,12 +74,13 @@ The `<Image />` component accepts a number of additional properties beyond those
 
 The layout behavior of the image as the viewport changes size.
 
-| `layout`              | Behavior                                                 | `srcSet`                                                                                                    | `sizes` |
-| --------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------- |
-| `intrinsic` (default) | Scale *down* to fit width of container, up to image size | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A     |
-| `fixed`               | Sized to `width` and `height` exactly                    | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A     |
-| `responsive`          | Scale to fit width of container                          | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` |
-| `fill`                | Grow in both X and Y axes to fill container              | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` |
+| `layout`                                 | Behavior                                                   | `srcSet`                                                                                                    | `sizes`  | Has wrapper and sizer |
+| ---------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | -------- | --------------------- |
+| `intrinsic` (default)                    | Scale *down* to fit width of container, up to image size   | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A      | yes                   |
+| `fixed`                                  | Sized to `width` and `height` exactly                      | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A      | yes                   |
+| `responsive`                             | Scale to fit width of container                            | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw`  | yes                   |
+| `fill`                                   | Grow in both X and Y axes to fill container                | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw`  | yes                   |
+| `raw`[\*](#experimental-raw-layout-mode) | Insert the image element with no automatic layout behavior | Behaves like `responsive` if the image has the `sizes` prop, and like `fixed` if it does not                | optional | no                    |
 
 - [Demo the `intrinsic` layout (default)](https://image-component.nextjs.gallery/layout-intrinsic)
   - When `intrinsic`, the image will scale the dimensions down for smaller viewports, but maintain the original dimensions for larger viewports.
@@ -81,6 +93,9 @@ The layout behavior of the image as the viewport changes size.
   - When `fill`, the image will stretch both width and height to the dimensions of the parent element, provided the parent element is relative.
   - This is usually paired with the [`objectFit`](#objectFit) property.
   - Ensure the parent element has `position: relative` in their stylesheet.
+- When `raw`[\*](#experimental-raw-layout-mode), the image will be rendered as a single image element with no wrappers, sizers or other responsive behavior.
+  - If your image styling will change the size of a `raw` image, you should include the `sizes` property for proper image serving. Otherwise your image will receive a fixed height and width.
+  - The other layout modes are optimized for performance and should cover nearly all use cases. It is recommended to try to use those modes before using `raw`.
 - [Demo background image](https://image-component.nextjs.gallery/background)
 
 ### loader
@@ -119,7 +134,7 @@ const MyImage = (props) => {
 
 A string that provides information about how wide the image will be at different breakpoints. Defaults to `100vw` (the full width of the screen) when using `layout="responsive"` or `layout="fill"`.
 
-If you are using `layout="fill"` or `layout="responsive"`, it's important to assign `sizes` for any image that takes up less than the full viewport width.
+If you are using `layout="fill"`, `layout="responsive"`, or `layout="raw"`[\*](#experimental-raw-layout-mode) it's important to assign `sizes` for any image that takes up less than the full viewport width.
 
 For example, when the parent element will constrain the image to always be less than half the viewport width, use `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
 
@@ -159,6 +174,12 @@ Try it out:
 ## Advanced Props
 
 In some cases, you may need more advanced usage. The `<Image />` component optionally accepts the following advanced properties.
+
+### style
+
+Allows [passing CSS styles](https://reactjs.org/docs/dom-elements.html#style) to the underlying image element.
+
+Note that all `layout` modes other than `"raw"`[\*](#experimental-raw-layout-mode) apply their own styles to the image element, and these automatic styles take precedence over the `style` prop.
 
 ### objectFit
 
@@ -219,7 +240,59 @@ You can also [generate a solid color Data URL](https://png-pixel.com) to match t
 
 A string (with similar syntax to the margin property) that acts as the bounding box used to detect the intersection of the viewport with the image and trigger lazy [loading](#loading). Defaults to `"200px"`.
 
+If the image is nested in a scrollable parent element other than the root document, you will also need to assign the [lazyRoot](#lazyroot) prop.
+
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/rootMargin)
+
+### lazyRoot
+
+A React [Ref](https://reactjs.org/docs/refs-and-the-dom.html) pointing to the scrollable parent element. Defaults to `null` (the document viewport).
+
+The Ref must point to a DOM element or a React component that [forwards the Ref](https://reactjs.org/docs/forwarding-refs.html) to the underlying DOM element.
+
+**Example pointing to a DOM element**
+
+```jsx
+import Image from 'next/image'
+import React from 'react'
+
+const lazyRoot = React.useRef(null)
+
+const Example = () => (
+  <div ref={lazyRoot} style={{ overflowX: 'scroll', width: '500px' }}>
+    <Image lazyRoot={lazyRoot} src="/one.jpg" width="500" height="500" />
+    <Image lazyRoot={lazyRoot} src="/two.jpg" width="500" height="500" />
+  </div>
+)
+```
+
+**Example pointing to a React component**
+
+```jsx
+import Image from 'next/image'
+import React from 'react'
+
+const Container = React.forwardRef((props, ref) => {
+  return (
+    <div ref={ref} style={{ overflowX: 'scroll', width: '500px' }}>
+      {props.children}
+    </div>
+  )
+})
+
+const Example = () => {
+  const lazyRoot = React.useRef(null)
+
+  return (
+    <Container ref={lazyRoot}>
+      <Image lazyRoot={lazyRoot} src="/one.jpg" width="500" height="500" />
+      <Image lazyRoot={lazyRoot} src="/two.jpg" width="500" height="500" />
+    </Container>
+  )
+}
+```
+
+[Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/root)
 
 ### unoptimized
 
@@ -231,7 +304,6 @@ size, or format. Defaults to `false`.
 Other properties on the `<Image />` component will be passed to the underlying
 `img` element with the exception of the following:
 
-- `style`. Use `className` instead.
 - `srcSet`. Use
   [Device Sizes](#device-sizes)
   instead.
@@ -270,7 +342,7 @@ module.exports = {
 The following Image Optimization cloud providers are included:
 
 - Default: Works automatically with `next dev`, `next start`, or a custom server
-- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary. [Learn more](https://vercel.com/docs/next.js/image-optimization)
+- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary. [Learn more](https://vercel.com/docs/concepts/image-optimization)
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
@@ -278,7 +350,7 @@ The following Image Optimization cloud providers are included:
 
 If you need a different provider, you can use the [`loader`](#loader) prop with `next/image`.
 
-> The `next/image` component's default loader is not supported when using [`next export`](/docs/advanced-features/static-html-export.md). However, other loader options will work.
+> Images can not be optimized at build time using [`next export`](/docs/advanced-features/static-html-export.md), only on-demand. To use `next/image` with `next export`, you will need to use a different loader than the default. [Read more in the discussion.](https://github.com/vercel/next.js/discussions/19065)
 
 > The `next/image` component's default loader uses [`squoosh`](https://www.npmjs.com/package/@squoosh/lib) because it is quick to install and suitable for a development environment. When using `next start` in your production environment, it is strongly recommended that you install [`sharp`](https://www.npmjs.com/package/sharp) by running `yarn add sharp` in your project directory. This is not necessary for Vercel deployments, as `sharp` is installed automatically.
 
@@ -320,7 +392,7 @@ module.exports = {
 
 The default [Image Optimization API](#loader-configuration) will automatically detect the browser's supported image formats via the request's `Accept` header.
 
-If the `Accept` head matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match, the Image Optimization API will fallback to the original image's format.
+If the `Accept` head matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match (or the source image is [animated](#animated-images)), the Image Optimization API will fallback to the original image's format.
 
 If no configuration is provided, the default below is used.
 
@@ -348,13 +420,13 @@ module.exports = {
 
 The following describes the caching algorithm for the default [loader](#loader). For all other loaders, please refer to your cloud provider's documentation.
 
-Images are optimized dynamically upon request and stored in the `<distDir>/cache/images` directory. The optimized image file will be served for subsequent requests until the expiration is reached. When a request is made that matches a cached but expired file, the cached file is deleted before generating a new optimized image and caching the new file.
+Images are optimized dynamically upon request and stored in the `<distDir>/cache/images` directory. The optimized image file will be served for subsequent requests until the expiration is reached. When a request is made that matches a cached but expired file, the expired image is served stale immediately. Then the image is optimized again in the background (also called revalidation) and saved to the cache with the new expiration date.
 
 The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](#minimum-cache-ttl) configuration or the upstream server's `Cache-Control` header, whichever is larger. Specifically, the `max-age` value of the `Cache-Control` header is used. If both `s-maxage` and `max-age` are found, then `s-maxage` is preferred.
 
 - You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `Cache-Control` header or the value is very low.
 - You can configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
-- You can configure [formats](/docs/basic-features/image-optimization.md#acceptable-formats) to disable multiple formats in favor of a single image format.
+- You can configure [formats](#acceptable-formats) to disable multiple formats in favor of a single image format.
 
 ### Minimum Cache TTL
 
@@ -385,6 +457,45 @@ module.exports = {
   },
 }
 ```
+
+### Dangerously Allow SVG
+
+The default [loader](#loader) does not optimize SVG images for a few reasons. First, SVG is a vector format meaning it can be resized losslessly. Second, SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without proper [Content Security Policy (CSP) headers](/docs/advanced-features/security-headers.md).
+
+If you need to serve SVG images with the default Image Optimization API, you can set `dangerouslyAllowSVG` and `contentSecurityPolicy` inside your `next.config.js`:
+
+```js
+module.exports = {
+  images: {
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+  },
+}
+```
+
+### Experimental "raw" layout mode
+
+The image component currently supports an additional `layout="raw"` mode, which renders the image without wrappers or styling. This layout mode is currently an experimental feature, while user feedback is gathered. As there is the possibility of breaking changes to the `layout="raw"` interface, the feature is locked behind an experimental feature flag. If you would like to use the `raw` layout mode, you must add the following to your `next.config.js`:
+
+```js
+module.exports = {
+  experimental: {
+    images: {
+      layoutRaw: true,
+    },
+  },
+}
+```
+
+> Note on CLS with `layout="raw"`:
+> It is possible to cause [layout shift](https://web.dev/cls/) with the image component in `raw` mode. If you include a `sizes` property, the image component will not pass `height` and `width` attributes to the image, to allow you to apply your own responsive sizing.
+> An [aspect-ratio](https://developer.mozilla.org/en-US/docs/Web/CSS/aspect-ratio) style property is automatically applied to prevent layout shift, but this won't apply on [older browsers](https://caniuse.com/mdn-css_properties_aspect-ratio).
+
+### Animated Images
+
+The default [loader](#loader) will automatically bypass Image Optimization for animated images and serve the image as-is.
+
+Auto-detection for animated files is best-effort and supports GIF, APNG, and WebP. If you want to explicitly bypass Image Optimization for a given animated image, use the [unoptimized](#unoptimized) prop.
 
 ## Related
 

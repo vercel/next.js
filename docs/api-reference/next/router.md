@@ -42,18 +42,18 @@ export default ActiveLink
 The following is the definition of the `router` object returned by both [`useRouter`](#useRouter) and [`withRouter`](#withRouter):
 
 - `pathname`: `String` - Current route. That is the path of the page in `/pages`, the configured `basePath` or `locale` is not included.
-- `query`: `Object` - The query string parsed to an object. It will be an empty object during prerendering if the page doesn't have [data fetching requirements](/docs/basic-features/data-fetching.md). Defaults to `{}`
+- `query`: `Object` - The query string parsed to an object. It will be an empty object during prerendering if the page doesn't have [data fetching requirements](/docs/basic-features/data-fetching/overview.md). Defaults to `{}`
 - `asPath`: `String` - The path (including the query) shown in the browser without the configured `basePath` or `locale`.
-- `isFallback`: `boolean` - Whether the current page is in [fallback mode](/docs/basic-features/data-fetching.md#fallback-pages).
+- `isFallback`: `boolean` - Whether the current page is in [fallback mode](/docs/api-reference/data-fetching/get-static-paths.md#fallback-pages).
 - `basePath`: `String` - The active [basePath](/docs/api-reference/next.config.js/basepath.md) (if enabled).
 - `locale`: `String` - The active locale (if enabled).
 - `locales`: `String[]` - All supported locales (if enabled).
 - `defaultLocale`: `String` - The current default locale (if enabled).
 - `domainLocales`: `Array<{domain, defaultLocale, locales}>` - Any configured domain locales.
-- `isReady`: `boolean` - Whether the router fields are updated client-side and ready for use. Should only be used inside of `useEffect` methods and not for conditionally rendering on the server.
+- `isReady`: `boolean` - Whether the router fields are updated client-side and ready for use. Should only be used inside of `useEffect` methods and not for conditionally rendering on the server. See related docs for use case with [automatically statically optimized pages](/docs/advanced-features/automatic-static-optimization.md)
 - `isPreview`: `boolean` - Whether the application is currently in [preview mode](/docs/advanced-features/preview-mode.md).
 
-Additionally, the following methods are also included inside `router`:
+The following methods are included inside `router`:
 
 ### router.push
 
@@ -74,7 +74,7 @@ router.push(url, as, options)
 - `as`: `UrlObject | String` - Optional decorator for the path that will be shown in the browser URL bar. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked. Note: when this path differs from the one provided in `href` the previous `href`/`as` behavior is used as shown in the [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes)
 - `options` - Optional object with the following configuration options:
   - `scroll` - Optional boolean, controls scrolling to the top of the page after navigation. Defaults to `true`
-  - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation), [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) or [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md). Defaults to `false`
+  - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md), [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md) or [`getInitialProps`](/docs/api-reference/data-fetching/get-initial-props.md). Defaults to `false`
   - `locale` - Optional string, indicates locale of the new page
 
 > You don't need to use `router.push` for external URLs. [window.location](https://developer.mozilla.org/en-US/docs/Web/API/Window/location) is better suited for those cases.
@@ -411,6 +411,53 @@ export default function MyApp({ Component, pageProps }) {
   }, [])
 
   return <Component {...pageProps} />
+}
+```
+
+## Potential ESLint errors
+
+Certain methods accessible on the `router` object return a Promise. If you have the ESLint rule, [no-floating-promises](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-floating-promises.md) enabled, consider disabling it either globally, or for the affected line.
+
+If your application needs this rule, you should either `void` the promise – or use an `async` function, `await` the Promise, then void the function call. **This is not applicable when the method is called from inside an `onClick` handler**.
+
+The affected methods are:
+
+- `router.push`
+- `router.replace`
+- `router.prefetch`
+
+### Potential solutions
+
+```jsx
+import { useEffect } from 'react'
+import { useRouter } from 'next/router'
+
+// Here you would fetch and return the user
+const useUser = () => ({ user: null, loading: false })
+
+export default function Page() {
+  const { user, loading } = useUser()
+  const router = useRouter()
+
+  useEffect(() => {
+    // disable the linting on the next line - This is the cleanest solution
+    // eslint-disable-next-line no-floating-promises
+    router.push('/login')
+
+    // void the Promise returned by router.push
+    if (!(user || loading)) {
+      void router.push('/login')
+    }
+    // or use an async function, await the Promise, then void the function call
+    async function handleRouteChange() {
+      if (!(user || loading)) {
+        await router.push('/login')
+      }
+    }
+    void handleRouteChange()
+  }, [user, loading])
+
+  return <p>Redirecting...</p>
 }
 ```
 

@@ -11,6 +11,7 @@ import {
   initNextServerScript,
   killApp,
   renderViaHTTP,
+  waitFor,
 } from 'next-test-utils'
 
 describe('should set-up next', () => {
@@ -21,12 +22,22 @@ describe('should set-up next', () => {
   let requiredFilesManifest
 
   beforeAll(async () => {
+    // test build against environment with next support
+    process.env.NOW_BUILDER = '1'
+
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'required-server-files/pages')),
         lib: new FileRef(join(__dirname, 'required-server-files/lib')),
         'data.txt': new FileRef(
           join(__dirname, 'required-server-files/data.txt')
+        ),
+        '.env': new FileRef(join(__dirname, 'required-server-files/.env')),
+        '.env.local': new FileRef(
+          join(__dirname, 'required-server-files/.env.local')
+        ),
+        '.env.production': new FileRef(
+          join(__dirname, 'required-server-files/.env.production')
         ),
       },
       nextConfig: {
@@ -107,6 +118,33 @@ describe('should set-up next', () => {
     if (server) await killApp(server)
   })
 
+  it('`compress` should be `true` by default', async () => {
+    expect(
+      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
+    ).toContain('"compress":true')
+  })
+
+  it('should output middleware correctly', async () => {
+    expect(
+      await fs.pathExists(
+        join(next.testDir, 'standalone/.next/server/middleware-runtime.js')
+      )
+    ).toBe(true)
+    expect(
+      await fs.pathExists(
+        join(
+          next.testDir,
+          'standalone/.next/server/pages/middleware/_middleware.js'
+        )
+      )
+    ).toBe(true)
+    expect(
+      await fs.pathExists(
+        join(next.testDir, 'standalone/.next/server/pages/_middleware.js')
+      )
+    ).toBe(true)
+  })
+
   it('should output required-server-files manifest correctly', async () => {
     expect(requiredFilesManifest.version).toBe(1)
     expect(Array.isArray(requiredFilesManifest.files)).toBe(true)
@@ -118,7 +156,30 @@ describe('should set-up next', () => {
     expect(typeof requiredFilesManifest.appDir).toBe('string')
   })
 
+  it('should de-dupe HTML/data requests', async () => {
+    const res = await fetchViaHTTP(appPort, '/gsp', undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+    const props = JSON.parse($('#props').text())
+    expect(props.gspCalls).toBeDefined()
+
+    const res2 = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/gsp.json`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res2.status).toBe(200)
+    const { pageProps: props2 } = await res2.json()
+    expect(props2.gspCalls).toBe(props.gspCalls)
+  })
+
   it('should set correct SWR headers with notFound gsp', async () => {
+    await waitFor(2000)
     await next.patchFile('standalone/data.txt', 'show')
 
     const res = await fetchViaHTTP(appPort, '/gsp', undefined, {
@@ -129,6 +190,7 @@ describe('should set-up next', () => {
       's-maxage=1, stale-while-revalidate'
     )
 
+    await waitFor(2000)
     await next.patchFile('standalone/data.txt', 'hide')
 
     const res2 = await fetchViaHTTP(appPort, '/gsp', undefined, {
@@ -207,6 +269,7 @@ describe('should set-up next', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
+    await waitFor(2000)
     const html2 = await renderViaHTTP(appPort, '/fallback/first')
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
@@ -650,6 +713,23 @@ describe('should set-up next', () => {
     expect(json.url).toBe('/api/optional?another=value')
   })
 
+  it('should normalize index optional values correctly for API page', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/api/optional/index',
+      { rest: 'index', another: 'value' },
+      {
+        headers: {
+          'x-matched-path': '/api/optional/[[...rest]]',
+        },
+      }
+    )
+
+    const json = await res.json()
+    expect(json.query).toEqual({ another: 'value', rest: ['index'] })
+    expect(json.url).toBe('/api/optional/index?another=value')
+  })
+
   it('should match the index page correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/', undefined, {
       headers: {
@@ -674,5 +754,15 @@ describe('should set-up next', () => {
     const html = await res.text()
     const $ = cheerio.load(html)
     expect($('#slug-page').text()).toBe('[slug] page')
+  })
+
+  it('should copy and read .env file', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/env')
+
+    const envVariables = await res.json()
+
+    expect(envVariables.env).not.toBeUndefined()
+    expect(envVariables.envProd).not.toBeUndefined()
+    expect(envVariables.envLocal).toBeUndefined()
   })
 })
