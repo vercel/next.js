@@ -548,7 +548,7 @@ export async function renderToHTML(
     App.getInitialProps === (App as any).origGetInitialProps
 
   const hasPageGetInitialProps = !!(Component as any)?.getInitialProps
-  const hasPageScripts = (Component as any).scriptLoader
+  const hasPageScripts = !!(Component as any)?.scriptLoader
 
   const pageIsDynamic = isDynamicRoute(pathname)
 
