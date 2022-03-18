@@ -1,95 +1,82 @@
-import type { value IncomingMessage, value ServerResponse } from 'http'
-import type { value NextRouter } from '../shared/lib/router/router'
-import type { value HtmlProps } from '../shared/lib/html-context'
-import type { value DomainLocale } from './config'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { NextRouter } from '../shared/lib/router/router'
+import type { HtmlProps } from '../shared/lib/html-context'
+import type { DomainLocale } from './config'
 import type {
-  value AppType,
-  value DocumentInitialProps,
-  value DocumentProps,
-  value DocumentContext,
-  value NextComponentType,
-  value RenderPage,
-  value RenderPageResult,
+  AppType,
+  DocumentInitialProps,
+  DocumentProps,
+  DocumentContext,
+  NextComponentType,
+  RenderPage,
+  RenderPageResult,
 } from '../shared/lib/utils'
-import type { value ImageConfigComplete } from '../shared/lib/image-config'
-import type { value Redirect } from '../lib/load-custom-routes'
-import type {
-  value NextApiRequestCookies,
-  value __ApiPreviewProps,
-} from './api-utils'
-import type { value FontManifest } from './font-utils'
-import type {
-  value LoadComponentsReturnType,
-  value ManifestItem,
-} from './load-components'
-import type {
-  value GetServerSideProps,
-  value GetStaticProps,
-  value PreviewData,
-} from '../types'
-import type { value UnwrapPromise } from '../lib/coalesced-function'
+import type { ImageConfigComplete } from '../shared/lib/image-config'
+import type { Redirect } from '../lib/load-custom-routes'
+import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
+import type { FontManifest } from './font-utils'
+import type { LoadComponentsReturnType, ManifestItem } from './load-components'
+import type { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
+import type { UnwrapPromise } from '../lib/coalesced-function'
 
 import React from 'react'
+import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
+import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
+import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
+import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import {
-  value ParsedUrlQuery,
-  value stringify as stringifyQuery,
-} from 'querystring'
-import { value createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
-import { value renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
-import { value StyleRegistry, value createStyleRegistry } from 'styled-jsx'
-import {
-  value GSP_NO_RETURNED_VALUE,
-  value GSSP_COMPONENT_MEMBER_ERROR,
-  value GSSP_NO_RETURNED_VALUE,
-  value STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
-  value SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
-  value SERVER_PROPS_SSG_CONFLICT,
-  value SSG_GET_INITIAL_PROPS_CONFLICT,
-  value UNSTABLE_REVALIDATE_RENAME_ERROR,
+  GSP_NO_RETURNED_VALUE,
+  GSSP_COMPONENT_MEMBER_ERROR,
+  GSSP_NO_RETURNED_VALUE,
+  STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
+  SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
+  SERVER_PROPS_SSG_CONFLICT,
+  SSG_GET_INITIAL_PROPS_CONFLICT,
+  UNSTABLE_REVALIDATE_RENAME_ERROR,
 } from '../lib/constants'
 import {
-  value SERVER_PROPS_ID,
-  value STATIC_PROPS_ID,
-  value STATIC_STATUS_PAGES,
+  SERVER_PROPS_ID,
+  STATIC_PROPS_ID,
+  STATIC_STATUS_PAGES,
 } from '../shared/lib/constants'
-import { value isSerializableProps } from '../lib/is-serializable-props'
-import { value isInAmpMode } from '../shared/lib/amp'
-import { value AmpStateContext } from '../shared/lib/amp-context'
-import { value defaultHead } from '../shared/lib/head'
-import { value HeadManagerContext } from '../shared/lib/head-manager-context'
+import { isSerializableProps } from '../lib/is-serializable-props'
+import { isInAmpMode } from '../shared/lib/amp'
+import { AmpStateContext } from '../shared/lib/amp-context'
+import { defaultHead } from '../shared/lib/head'
+import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import Loadable from '../shared/lib/loadable'
-import { value LoadableContext } from '../shared/lib/loadable-context'
-import { value RouterContext } from '../shared/lib/router-context'
-import { value isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
+import { LoadableContext } from '../shared/lib/loadable-context'
+import { RouterContext } from '../shared/lib/router-context'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
-  value ComponentsEnhancer,
-  value getDisplayName,
-  value isResSent,
-  value loadGetInitialProps,
+  ComponentsEnhancer,
+  getDisplayName,
+  isResSent,
+  loadGetInitialProps,
 } from '../shared/lib/utils'
-import { value HtmlContext } from '../shared/lib/html-context'
-import { value denormalizePagePath } from './denormalize-page-path'
-import { value normalizePagePath } from './normalize-page-path'
-import { value getRequestMeta, value NextParsedUrlQuery } from './request-meta'
+import { HtmlContext } from '../shared/lib/html-context'
+import { denormalizePagePath } from './denormalize-page-path'
+import { normalizePagePath } from './normalize-page-path'
+import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
 import {
-  value allowedStatusCodes,
-  value getRedirectStatus,
+  allowedStatusCodes,
+  getRedirectStatus,
 } from '../lib/load-custom-routes'
 import RenderResult from './render-result'
 import isError from '../lib/is-error'
 import {
-  value readableStreamTee,
-  value encodeText,
-  value decodeText,
-  value pipeThrough,
-  value streamFromArray,
-  value streamToString,
-  value chainStreams,
-  value createBufferedTransformStream,
-  value renderToStream,
+  readableStreamTee,
+  encodeText,
+  decodeText,
+  pipeThrough,
+  streamFromArray,
+  streamToString,
+  chainStreams,
+  createBufferedTransformStream,
+  renderToStream,
 } from './node-web-streams-helper'
-import { value ImageConfigContext } from '../shared/lib/image-config-context'
-import { value FlushEffectsContext } from '../shared/lib/flush-effects'
+import { ImageConfigContext } from '../shared/lib/image-config-context'
+import { FlushEffectsContext } from '../shared/lib/flush-effects'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
@@ -561,7 +548,7 @@ export async function renderToHTML(
     App.getInitialProps === (App as any).origGetInitialProps
 
   const hasPageGetInitialProps = !!(Component as any)?.getInitialProps
-  const hasPageScripts = !!(Component as any)?.scriptLoader
+  const hasPageScripts = (Component as any).scriptLoader
 
   const pageIsDynamic = isDynamicRoute(pathname)
 
