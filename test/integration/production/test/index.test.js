@@ -611,9 +611,9 @@ describe('Production Usage', () => {
       expect(body).toEqual('API hello works')
     })
 
-    // __dirname is going to be different after build since the file
-    // is located in .next/server/pages/api instead of the src location
-    // so this is not currently expected to work
+    // Today, `__dirname` usage fails because Next.js moves the source file
+    // to .next/server/pages/api but it doesn't move the asset file.
+    // In the future, it would be nice to make `__dirname` work too.
     it('does not work with pages/api/readfile-dirname.js', async () => {
       const url = `http://localhost:${appPort}`
       const res = await fetchViaHTTP(url, `/api/readfile-dirname`)
