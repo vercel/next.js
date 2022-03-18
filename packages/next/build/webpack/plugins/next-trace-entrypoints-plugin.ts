@@ -68,11 +68,13 @@ function getFilesMapFromReasons(
 
   for (const file of fileList!) {
     const reason = reasons!.get(file)
+    const isInitial =
+      reason?.type.length === 1 && reason.type.includes('initial')
 
     if (
       !reason ||
       !reason.parents ||
-      (reason.type === 'initial' && reason.parents.size === 0)
+      (isInitial && reason.parents.size === 0)
     ) {
       continue
     }
@@ -363,8 +365,10 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
                     // static image imports, CSS imports
                     file = nodePath.join(this.tracingRoot, file)
                     const depMod = depModMap.get(file)
+                    const isAsset = reasons.get(file)?.type.includes('asset')
 
                     return (
+                      !isAsset &&
                       Array.isArray(depMod?.loaders) &&
                       depMod.loaders.length > 0
                     )

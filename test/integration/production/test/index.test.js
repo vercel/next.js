@@ -223,6 +223,17 @@ describe('Production Usage', () => {
           /!/,
         ],
       },
+      {
+        page: '/api',
+        tests: [/webpack-runtime\.js/, /static\/hello\.json/],
+        notTests: [
+          /next\/dist\/server\/next\.js/,
+          /next\/dist\/bin/,
+          /\0/,
+          /\?/,
+          /!/,
+        ],
+      },
     ]
 
     for (const check of checks) {
