@@ -1,5 +1,4 @@
 {
-  "name": "nextjs-starter-buttercms",
   "private": true,
   "scripts": {
     "dev": "next dev",
