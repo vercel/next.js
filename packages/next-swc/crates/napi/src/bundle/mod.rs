@@ -54,8 +54,8 @@ impl Task for BundleTask {
 
         try_with_handler(self.c.cm.clone(), true, |handler| {
             let builtins = NODE_BUILTINS
-                .to_vec()
-                .into_iter()
+                .iter()
+                .copied()
                 .map(JsWord::from)
                 .collect::<Vec<_>>();
 

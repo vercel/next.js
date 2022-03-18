@@ -57,5 +57,5 @@ var Foo = function Foo() {
 };
 export var __N_SSG = true;
 export default function Home() {
-    return(/*#__PURE__*/ React.createElement("div", null));
+    return /*#__PURE__*/ React.createElement("div", null);
 };

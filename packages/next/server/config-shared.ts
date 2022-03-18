@@ -109,6 +109,13 @@ export interface ExperimentalConfig {
   }
   middlewareSourceMaps?: boolean
   rootDir?: boolean
+  emotion?:
+    | boolean
+    | {
+        sourceMap?: boolean
+        autoLabel?: 'dev-only' | 'always' | 'never'
+        labelFormat?: string
+      }
 }
 
 /**
