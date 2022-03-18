@@ -19,7 +19,7 @@ export { DocumentContext, DocumentInitialProps, DocumentProps }
 export type OriginProps = {
   nonce?: string
   crossOrigin?: string
-  children?: React.ReactElement
+  children?: React.ReactNode
 }
 
 type DocumentFiles = {
@@ -72,6 +72,10 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
     ))
 }
 
+function hasComponentProps(child: any): child is React.ReactElement {
+  return !!child && !!child.props
+}
+
 function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
   const { assetPrefix, scriptLoader, crossOrigin, nextScriptWorkers } = context
 
@@ -88,7 +92,8 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
 
     // Check to see if the user has defined their own Partytown configuration
     const userDefinedConfig = children.find(
-      (child: React.ReactElement) =>
+      (child) =>
+        hasComponentProps(child) &&
         child?.props?.dangerouslySetInnerHTML?.__html.length &&
         'data-partytown-config' in child.props
     )
