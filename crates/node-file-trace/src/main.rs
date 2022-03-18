@@ -119,6 +119,7 @@ fn main() {
             input,
             context_directory,
         } => {
+            let start = Instant::now();
             let dir = current_dir().unwrap();
             let context = process_context(&dir, context_directory).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
@@ -139,6 +140,7 @@ fn main() {
                 Ok(NothingRef::new().into())
             });
             block_on(tt.wait_done());
+            println!("done in {} ms", start.elapsed().as_millis());
         }
         Args::Annotate {
             input,
