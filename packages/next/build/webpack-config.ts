@@ -645,7 +645,9 @@ export default async function getBaseWebpackConfig(
           },
         }
       : undefined),
-    mainFields: !targetWeb ? ['main', 'module'] : ['browser', 'module', 'main'],
+    mainFields: targetWeb
+      ? (isEdgeRuntime ? [] : ['browser']).concat(['module', 'main'])
+      : ['main', 'module'],
     plugins: [],
   }
 
@@ -1505,6 +1507,7 @@ export default async function getBaseWebpackConfig(
             ],
             ['swcRemoveConsole', !!config.compiler?.removeConsole],
             ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
+            ['swcEmotion', !!config.experimental.emotion],
           ])
         ),
     ].filter(Boolean as any as ExcludesFalse),
@@ -1633,6 +1636,7 @@ export default async function getBaseWebpackConfig(
     reactRemoveProperties: config.compiler?.reactRemoveProperties,
     styledComponents: config.compiler?.styledComponents,
     relay: config.compiler?.relay,
+    emotion: config.experimental?.emotion,
   })
 
   const cache: any = {
