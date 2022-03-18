@@ -358,6 +358,9 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
                   fileList,
                   reasons,
                   (file) => {
+                    // if a file was imported and a loader handled it
+                    // we don't include it in the trace e.g.
+                    // static image imports, CSS imports
                     file = nodePath.join(this.tracingRoot, file)
                     const depMod = depModMap.get(file)
 

@@ -51,7 +51,7 @@ describe('Production Usage', () => {
 
     appPort = await findPort()
     context.appPort = appPort
-    app = await nextStart(appDir, appPort)
+    app = await nextStart(appDir, appPort, { cwd: appDir })
     output = (result.stderr || '') + (result.stdout || '')
     console.log(output)
 
@@ -589,11 +589,13 @@ describe('Production Usage', () => {
       expect(body).toEqual('API hello works')
     })
 
-    it('should work with pages/api/readfile-dirname.js', async () => {
+    // __dirname is going to be different after build since the file
+    // is located in .next/server/pages/api instead of the src location
+    // so this is not currently expected to work
+    it('does not work with pages/api/readfile-dirname.js', async () => {
       const url = `http://localhost:${appPort}`
       const res = await fetchViaHTTP(url, `/api/readfile-dirname`)
-      const body = await res.text()
-      expect(body).toBe('item')
+      expect(res.status).toBe(500)
     })
 
     it('should work with pages/api/readfile-processcwd.js', async () => {
