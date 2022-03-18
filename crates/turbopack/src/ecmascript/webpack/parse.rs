@@ -193,7 +193,7 @@ pub async fn is_webpack_runtime(asset: AssetRef) -> Result<WebpackRuntimeRef> {
 
                         return Ok(WebpackRuntime::Webpack5 {
                             chunk_request_expr: value,
-                            context_path: asset.path().resolve().await?,
+                            context_path: asset.path().parent().resolve().await?,
                         }
                         .into());
                     }
