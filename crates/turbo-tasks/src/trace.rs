@@ -67,6 +67,27 @@ ignore!(
 );
 ignore!(String, Duration);
 
+impl<A: TraceSlotRefs> TraceSlotRefs for (A,) {
+    fn trace_node_refs(&self, context: &mut TraceSlotRefsContext) {
+        TraceSlotRefs::trace_node_refs(&self.0, context);
+    }
+}
+
+impl<A: TraceSlotRefs, B: TraceSlotRefs> TraceSlotRefs for (A, B) {
+    fn trace_node_refs(&self, context: &mut TraceSlotRefsContext) {
+        TraceSlotRefs::trace_node_refs(&self.0, context);
+        TraceSlotRefs::trace_node_refs(&self.1, context);
+    }
+}
+
+impl<A: TraceSlotRefs, B: TraceSlotRefs, C: TraceSlotRefs> TraceSlotRefs for (A, B, C) {
+    fn trace_node_refs(&self, context: &mut TraceSlotRefsContext) {
+        TraceSlotRefs::trace_node_refs(&self.0, context);
+        TraceSlotRefs::trace_node_refs(&self.1, context);
+        TraceSlotRefs::trace_node_refs(&self.2, context);
+    }
+}
+
 impl<T: TraceSlotRefs> TraceSlotRefs for Option<T> {
     fn trace_node_refs(&self, context: &mut TraceSlotRefsContext) {
         if let Some(item) = self {

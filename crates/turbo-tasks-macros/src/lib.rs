@@ -1350,10 +1350,10 @@ pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
 
     let item = parse_macro_input!(input as Item);
 
-    let (ident, trace_items) = match &item {
+    let (ident, generics, trace_items) = match &item {
         Item::Enum(ItemEnum {
-            ident, variants, ..
-        }) => (ident, {
+            ident, generics, variants, ..
+        }) => (ident, generics, {
             let variants_code: Vec<_> = variants.iter().map(|variant| {
                 let variant_ident = &variant.ident;
                 match &variant.fields {
@@ -1411,8 +1411,9 @@ pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
                 }
             }
         }),
-        Item::Struct(ItemStruct { ident, fields, .. }) => (
+        Item::Struct(ItemStruct { ident, generics, fields, .. }) => (
             ident,
+            generics,
             match fields {
                 Fields::Named(FieldsNamed { named, .. }) => {
                     let idents: Vec<_> = named
@@ -1448,8 +1449,9 @@ pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
             return quote! {}.into();
         }
     };
+    let generics_params = &generics.params.iter().collect::<Vec<_>>();
     quote! {
-        impl turbo_tasks::trace::TraceSlotRefs for #ident {
+        impl #generics turbo_tasks::trace::TraceSlotRefs for #ident #generics #(where #generics_params: turbo_tasks::trace::TraceSlotRefs)* {
             fn trace_node_refs(&self, context: &mut turbo_tasks::trace::TraceSlotRefsContext) {
                 #trace_items
             }
