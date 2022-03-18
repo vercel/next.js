@@ -678,9 +678,13 @@ if (process.env.__NEXT_RSC) {
   } = require('next/dist/compiled/react-server-dom-webpack')
 
   const encoder = new TextEncoder()
+
   let initialServerDataBuffer: string[] | undefined = undefined
   let initialServerDataWriter: WritableStreamDefaultWriter | undefined =
     undefined
+  let initialServerDataLoaded = false
+  let initialServerDataFlushed = false
+
   function nextServerDataCallback(seg: [number, string, string]) {
     if (seg[0] === 0) {
       initialServerDataBuffer = []
@@ -695,24 +699,45 @@ if (process.env.__NEXT_RSC) {
       }
     }
   }
+
+  // There might be race conditions between `nextServerDataRegisterWriter` and
+  // `DOMContentLoaded`. The former will be called when React starts to hydrate
+  // the root, the latter will be called when the DOM is fully loaded.
+  // For streaming, the former is called first due to partial hydration.
+  // For non-streaming, the latter can be called first.
+  // Hence, we use two variables `initialServerDataLoaded` and
+  // `initialServerDataFlushed` to make sure the writer will be closed and
+  // `initialServerDataBuffer` will be cleared in the right time.
   function nextServerDataRegisterWriter(writer: WritableStreamDefaultWriter) {
     if (initialServerDataBuffer) {
       initialServerDataBuffer.forEach((val) => {
         writer.write(encoder.encode(val))
       })
+      if (initialServerDataLoaded && !initialServerDataFlushed) {
+        writer.close()
+        initialServerDataFlushed = true
+        initialServerDataBuffer = undefined
+      }
     }
+
     initialServerDataWriter = writer
   }
+
   // When `DOMContentLoaded`, we can close all pending writers to finish hydration.
-  document.addEventListener(
-    'DOMContentLoaded',
-    function () {
-      if (initialServerDataWriter && !initialServerDataWriter.closed) {
-        initialServerDataWriter.close()
-      }
-    },
-    false
-  )
+  const DOMContentLoaded = function () {
+    if (initialServerDataWriter && !initialServerDataFlushed) {
+      initialServerDataWriter.close()
+      initialServerDataFlushed = true
+      initialServerDataBuffer = undefined
+    }
+    initialServerDataLoaded = true
+  }
+  // It's possible that the DOM is already loaded.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', DOMContentLoaded, false)
+  } else {
+    DOMContentLoaded()
+  }
 
   const nextServerDataLoadingGlobal = ((self as any).__next_s =
     (self as any).__next_s || [])
@@ -771,9 +796,6 @@ if (process.env.__NEXT_RSC) {
     React.useEffect(() => {
       rscCache.delete(cacheKey)
     })
-    React.useEffect(() => {
-      initialServerDataBuffer = undefined
-    }, [])
     const response = useServerResponse(cacheKey, serialized)
     const root = response.readRoot()
     return root
