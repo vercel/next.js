@@ -6,36 +6,29 @@ use regex::Regex;
 #[turbo_tasks::value]
 #[derive(Hash, PartialEq, Eq, Clone, Debug)]
 pub enum Request {
-    Relative {
-        path: String,
-    },
-    Module {
-        module: String,
-        path: String,
-    },
-    ServerRelative {
-        path: String,
-    },
-    Windows {
-        path: String,
-    },
+    Relative { path: String },
+    Module { module: String, path: String },
+    ServerRelative { path: String },
+    Windows { path: String },
     Empty,
-    PackageInternal {
-        path: String,
-    },
-    DataUri {
-        mimetype: String,
-        attributes: String,
-        base64: bool,
-        encoded: String,
-    },
-    Uri {
-        protocol: String,
-        remainer: String,
-    },
-    Unknown {
-        path: String,
-    },
+    PackageInternal { path: String },
+    Uri { protocol: String, remainer: String },
+    Unknown { path: String },
+}
+
+impl Request {
+    pub fn request(&self) -> String {
+        match self {
+            Request::Relative { path } => format!("{path}"),
+            Request::Module { module, path } => format!("{module}{path}"),
+            Request::ServerRelative { path } => format!("{path}"),
+            Request::Windows { path } => format!("{path}"),
+            Request::Empty => format!(""),
+            Request::PackageInternal { path } => format!("{path}"),
+            Request::Uri { protocol, remainer } => format!("{protocol}{remainer}"),
+            Request::Unknown { path } => format!("{path}"),
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -95,16 +88,6 @@ impl Display for Request {
             Request::Windows { path } => write!(f, "windows '{}'", path),
             Request::Empty => write!(f, "empty"),
             Request::PackageInternal { path } => write!(f, "package internal '{}'", path),
-            Request::DataUri {
-                mimetype,
-                attributes,
-                base64,
-                encoded,
-            } => write!(
-                f,
-                "data uri 'data://{}' '{}' '{}' '{}'",
-                mimetype, attributes, base64, encoded,
-            ),
             Request::Uri { protocol, remainer } => write!(f, "uri '{}' '{}'", protocol, remainer),
             Request::Unknown { path } => write!(f, "unknown '{}'", path),
         }

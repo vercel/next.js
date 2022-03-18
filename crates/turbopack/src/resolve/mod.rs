@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use json::JsonValue;
-use turbo_tasks::util::try_join_all;
+use turbo_tasks::{trace::TraceSlotRefs, util::try_join_all};
 use turbo_tasks_fs::{
     util::{join_path, normalize_path, normalize_request},
     DirectoryContent, FileContent, FileJsonContent, FileJsonContentRef, FileSystemPathRef,
@@ -23,15 +23,24 @@ use crate::{
 use self::{
     exports::{ExportsField, ExportsValue},
     options::{
-        resolve_modules_options, ResolveIntoPackage, ResolveModules, ResolveModulesOptionsRef,
-        ResolveOptions, ResolveOptionsRef,
+        resolve_modules_options, ImportMapping, ResolveIntoPackage, ResolveModules,
+        ResolveModulesOptionsRef, ResolveOptions, ResolveOptionsRef,
     },
     parse::{Request, RequestRef},
+    prefix_tree::PrefixTree,
 };
 
 mod exports;
 pub mod options;
 pub mod parse;
+mod prefix_tree;
+
+#[derive(PartialEq, Eq, Clone, Debug, TraceSlotRefs)]
+pub enum ExternalType {
+    OriginalReference,
+    OriginalRefernceType(String),
+    Custom(u8),
+}
 
 #[turbo_tasks::value(shared)]
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -40,6 +49,7 @@ pub enum ResolveResult {
     Single(AssetRef, Option<Vec<AssetReferenceRef>>),
     Keyed(HashMap<String, AssetRef>, Option<Vec<AssetReferenceRef>>),
     Alternatives(HashSet<AssetRef>, Option<Vec<AssetReferenceRef>>),
+    External(ExternalType, Option<Vec<AssetReferenceRef>>),
     Unresolveable(Option<Vec<AssetReferenceRef>>),
 }
 
@@ -50,6 +60,7 @@ impl ResolveResult {
             ResolveResult::Single(_, list)
             | ResolveResult::Keyed(_, list)
             | ResolveResult::Alternatives(_, list)
+            | ResolveResult::External(_, list)
             | ResolveResult::Unresolveable(list) => match list {
                 Some(list) => list.push(reference),
                 None => *list = Some(vec![reference]),
@@ -63,6 +74,7 @@ impl ResolveResult {
             ResolveResult::Single(_, list)
             | ResolveResult::Keyed(_, list)
             | ResolveResult::Alternatives(_, list)
+            | ResolveResult::External(_, list)
             | ResolveResult::Unresolveable(list) => list.as_ref(),
         }
     }
@@ -84,7 +96,7 @@ impl ResolveResult {
             ResolveResult::Single(asset, list) => {
                 *self = ResolveResult::Alternatives(HashSet::from([asset.clone()]), list.take())
             }
-            ResolveResult::Keyed(_, list) => {
+            ResolveResult::Keyed(_, list) | ResolveResult::External(_, list) => {
                 *self = ResolveResult::Unresolveable(list.take());
             }
             ResolveResult::Alternatives(_, _) | ResolveResult::Unresolveable(_) => {
@@ -92,7 +104,10 @@ impl ResolveResult {
             }
         }
         match self {
-            ResolveResult::Nested(_) | ResolveResult::Single(_, _) | ResolveResult::Keyed(_, _) => {
+            ResolveResult::Nested(_)
+            | ResolveResult::Single(_, _)
+            | ResolveResult::Keyed(_, _)
+            | ResolveResult::External(_, _) => {
                 unreachable!()
             }
             ResolveResult::Alternatives(assets, list) => match other {
@@ -106,6 +121,7 @@ impl ResolveResult {
                 }
                 ResolveResult::Nested(_)
                 | ResolveResult::Keyed(_, _)
+                | ResolveResult::External(_, _)
                 | ResolveResult::Unresolveable(_) => {
                     let mut list = list.take();
                     extend_option_list(&mut list, other.get_references());
@@ -171,6 +187,14 @@ impl ResolveResult {
                 };
                 ResolveResult::Alternatives(new_assets, refs)
             }
+            ResolveResult::External(ty, refs) => {
+                let refs = if let Some(refs) = refs {
+                    Some(try_join_all(refs.iter().map(reference_fn)).await?)
+                } else {
+                    None
+                };
+                ResolveResult::External(ty.clone(), refs)
+            }
             ResolveResult::Unresolveable(refs) => {
                 let refs = if let Some(refs) = refs {
                     Some(try_join_all(refs.iter().map(reference_fn)).await?)
@@ -212,6 +236,63 @@ impl ResolveResultRef {
 pub async fn resolve_options(context: FileSystemPathRef) -> Result<ResolveOptionsRef> {
     let context = context.await?;
     let root = FileSystemPathRef::new(context.fs.clone(), "");
+    let mut import_map = PrefixTree::new();
+    for req in [
+        "assert",
+        "async_hooks",
+        "buffer",
+        "child_process",
+        "cluster",
+        "console",
+        "constants",
+        "crypto",
+        "dgram",
+        "diagnostics_channel",
+        "dns",
+        "dns/promises",
+        "domain",
+        "events",
+        "fs",
+        "fs/promises",
+        "http",
+        "http2",
+        "https",
+        "inspector",
+        "module",
+        "net",
+        "os",
+        "path",
+        "path/posix",
+        "path/win32",
+        "perf_hooks",
+        "process",
+        "punycode",
+        "querystring",
+        "readline",
+        "repl",
+        "stream",
+        "stream/promises",
+        "stream/web",
+        "string_decoder",
+        "sys",
+        "timers",
+        "timers/promises",
+        "tls",
+        "trace_events",
+        "tty",
+        "url",
+        "util",
+        "util/types",
+        "v8",
+        "vm",
+        "wasi",
+        "worker_threads",
+        "zlib",
+        "pnpapi",
+    ] {
+        import_map.insert(req, ImportMapping::External(None))?;
+        import_map.insert(&format!("node:{req}"), ImportMapping::External(None))?;
+    }
     Ok(ResolveOptions {
         extensions: vec![".jsx".to_string(), ".js".to_string()],
         modules: vec![ResolveModules::Nested(
@@ -229,6 +310,8 @@ pub async fn resolve_options(context: FileSystemPathRef) -> Result<ResolveOption
             ResolveIntoPackage::MainField("main".to_string()),
             ResolveIntoPackage::Default("index".to_string()),
         ],
+        import_map,
+        ..Default::default()
     }
     .into())
 }
@@ -481,12 +564,37 @@ pub async fn resolve(
         Ok(ResolveResult::Unresolveable(None).into())
     }
 
-    Ok(match &*request.get().await? {
+    let options_value = options.get().await?;
+
+    let request_value = request.get().await?;
+    {
+        let request_string = request_value.request();
+        for result in options_value.import_map.lookup(&request_string) {
+            match result?.as_ref() {
+                ImportMapping::External(name) => {
+                    return Ok(ResolveResult::External(
+                        name.as_ref().map_or_else(
+                            || ExternalType::OriginalReference,
+                            |req| ExternalType::OriginalRefernceType(req.to_string()),
+                        ),
+                        None,
+                    )
+                    .into());
+                }
+                ImportMapping::Alias(name) => {
+                    let request = RequestRef::parse(name.to_string());
+
+                    return Ok(resolve(context, request, options));
+                }
+            }
+        }
+    }
+    Ok(match &*request_value {
         Request::Relative { path } => {
             let context = context.await?;
             let mut possible_requests = Vec::new();
             possible_requests.push(path.to_string());
-            for ext in options.get().await?.extensions.iter() {
+            for ext in options_value.extensions.iter() {
                 possible_requests.push(path.to_string() + ext);
             }
 
@@ -546,7 +654,6 @@ pub async fn resolve(
                     if path.is_empty() {
                         return resolve_into_folder(&package_path, &package_json, &options).await;
                     } else {
-                        let options_value = options.get().await?;
                         for resolve_into_package in options_value.into_package.iter() {
                             match resolve_into_package {
                                 ResolveIntoPackage::Default(_)
@@ -593,12 +700,6 @@ pub async fn resolve(
         Request::Windows { path: _ } => ResolveResult::Unresolveable(None).into(),
         Request::Empty => ResolveResult::Unresolveable(None).into(),
         Request::PackageInternal { path: _ } => ResolveResult::Unresolveable(None).into(),
-        Request::DataUri {
-            mimetype: _,
-            attributes: _,
-            base64: _,
-            encoded: _,
-        } => ResolveResult::Unresolveable(None).into(),
         Request::Uri {
             protocol: _,
             remainer: _,

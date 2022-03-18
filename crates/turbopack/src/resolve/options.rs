@@ -4,6 +4,8 @@ use anyhow::Result;
 use turbo_tasks::trace::TraceSlotRefs;
 use turbo_tasks_fs::FileSystemPathRef;
 
+use super::prefix_tree::{PrefixTree, WildcardReplacable};
+
 #[turbo_tasks::value(shared)]
 #[derive(Hash, PartialEq, Eq, Debug)]
 pub struct LockedVersions {}
@@ -49,12 +51,58 @@ pub enum ResolveIntoPackage {
     Default(String),
 }
 
+#[derive(TraceSlotRefs, Hash, PartialEq, Eq, Clone, Debug)]
+pub enum ImportMapping {
+    External(Option<String>),
+    Alias(String),
+}
+
+impl WildcardReplacable for ImportMapping {
+    fn replace_wildcard(&self, value: &str) -> Result<Self> {
+        match self {
+            ImportMapping::External(name) => {
+                if let Some(name) = name {
+                    Ok(ImportMapping::External(Some(
+                        name.clone().replace("*", value),
+                    )))
+                } else {
+                    Ok(ImportMapping::External(None))
+                }
+            }
+            ImportMapping::Alias(name) => {
+                Ok(ImportMapping::Alias(name.clone().replace("*", value)))
+            }
+        }
+    }
+
+    fn append_to_folder(&self, value: &str) -> Result<Self> {
+        fn add(name: &str, value: &str) -> String {
+            if !name.ends_with("/") {
+                format!("{name}{value}")
+            } else {
+                name.to_string()
+            }
+        }
+        match self {
+            ImportMapping::External(name) => {
+                if let Some(name) = name {
+                    Ok(ImportMapping::External(Some(add(name, value))))
+                } else {
+                    Ok(ImportMapping::External(None))
+                }
+            }
+            ImportMapping::Alias(name) => Ok(ImportMapping::Alias(add(name, value))),
+        }
+    }
+}
+
 #[turbo_tasks::value(shared)]
-#[derive(Hash, PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug, Default)]
 pub struct ResolveOptions {
     pub extensions: Vec<String>,
     pub modules: Vec<ResolveModules>,
     pub into_package: Vec<ResolveIntoPackage>,
+    pub import_map: PrefixTree<ImportMapping>,
 }
 
 #[turbo_tasks::value_impl]
