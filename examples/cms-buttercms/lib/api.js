@@ -100,7 +100,7 @@ export async function getMainMenu() {
     const response = await butter.content.retrieve(['navigation_menu'])
 
     const mainMenu = response?.data?.data?.navigation_menu.find(
-      (menu) => menu.name == 'Main menu'
+      (menu) => menu.name === 'Main menu'
     )
 
     return mainMenu ? mainMenu.menu_items : []
