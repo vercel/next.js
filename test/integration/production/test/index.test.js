@@ -51,7 +51,7 @@ describe('Production Usage', () => {
 
     appPort = await findPort()
     context.appPort = appPort
-    app = await nextStart(appDir, appPort)
+    app = await nextStart(appDir, appPort, { cwd: appDir })
     output = (result.stderr || '') + (result.stdout || '')
     console.log(output)
 
@@ -215,6 +215,17 @@ describe('Production Usage', () => {
           /next\/link\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
         ],
+        notTests: [
+          /next\/dist\/server\/next\.js/,
+          /next\/dist\/bin/,
+          /\0/,
+          /\?/,
+          /!/,
+        ],
+      },
+      {
+        page: '/api',
+        tests: [/webpack-runtime\.js/, /static\/hello\.json/],
         notTests: [
           /next\/dist\/server\/next\.js/,
           /next\/dist\/bin/,
