@@ -45,7 +45,7 @@ module.exports = {
 - `destination` is the path you want to route to.
 - `permanent` `true` or `false` - if `true` will use the 308 status code which instructs clients/search engines to cache the redirect forever, if `false` will use the 307 status code which is temporary and is not cached.
 
-> **Why does Next.js use 307 and 308?** Traditionally a 302 was used for a temporary redirect, and a 301 for a permanent redirect, but many browsers changed the request method of the redirect, from a `POST` to a `GET` request, regardless of the method used by the origin. For example, a `POST` request to `/users` to create a new user, and while using a temporary 302, would change the request method to `GET`. Next.js uses the 307 temporary redirect, and 308 permanent redirect status codes, and will preserve the request methods used.
+> **Why does Next.js use 307 and 308?** Traditionally a 302 was used for a temporary redirect, and a 301 for a permanent redirect, but many browsers changed the request method of the redirect to `GET`, regardless of the original method. For example, if the browser made a request to `POST /v1/users` which returned status code `302` with location `/v2/users`, the subsequent request might be `GET /v2/users` instead of the expected `POST /v2/users`. Next.js uses the 307 temporary redirect, and 308 permanent redirect status codes to explicitly preserve the request method used.
 
 - `basePath`: `false` or `undefined` - if false the basePath won't be included when matching, can be used for external rewrites only.
 - `locale`: `false` or `undefined` - whether the locale should not be included when matching.
