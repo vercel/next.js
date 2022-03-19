@@ -231,6 +231,11 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     try {
       child = React.Children.only(children)
     } catch (err) {
+      if (!children) {
+        throw new Error(
+          `No children were pass to <Link> with \`href\` of \`${props.href}\` but one child is required https://nextjs.org/docs/messages/link-no-children`
+        )
+      }
       throw new Error(
         `Multiple children were passed to <Link> with \`href\` of \`${props.href}\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children` +
           (typeof window !== 'undefined'
