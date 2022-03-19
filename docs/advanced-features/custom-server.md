@@ -92,20 +92,34 @@ The above `next` import is a function that receives an object with the following
 
 The returned `app` can then be used to let Next.js handle requests as required.
 
-## Rendering Error Pages with Custom Servers
+## Rendering Error Pages
 
-When using custom servers, users should use `app.renderError` to render error pages in an error handler. This is in case of an [unhandled server exception](https://nextjs.org/docs/advanced-features/error-handling#handling-server-errors) where a 404 error page will be loaded rather than a [custom error page](https://nextjs.org/docs/advanced-features/custom-error-page#more-advanced-error-page-customizing).
+When using custom servers, users could use `app.renderError` to render error pages in an error handler. This is in case of an unhandled server exception, where a 404 error page will be loaded rather than a [custom error page](https://nextjs.org/docs/advanced-features/custom-error-page#more-advanced-error-page-customizing).
+
+This method will render the proper error page based on the `response status code` - pathname does not affect the page rendering. The pages render by this method include:
+
+- /pages/\_error.js
+- /pages/404.js
+- /pages/500.js
+
+Below is the source code for `app.renderError`.
 
 ```js
-app.renderError(err, req, res, pathname, query, setHeaders)
+public async renderError(
+    err: Error | null,
+    req: IncomingMessage,
+    res: ServerResponse,
+    pathname: string,
+    query: NextParsedUrlQuery = {},
+    setHeaders = true
+  ): Promise<void> {
+    if (setHeaders) {
+      res.setHeader(
+        'Cache-Control',
+        'no-cache, no-store, max-age=0, must-revalidate'
+      )
+    }
 ```
-
-The above is an example of using the `renderError` function with its parameters.<br>
-Source code for app.renderError can be found as following:
-
-- [app.renderError](https://github.com/vercel/next.js/blob/dda0afd3a45a50cbcb418903f7a0ab56eae51b33/packages/next/server/base-server.ts#L2336) (public)
-- [app.renderErrorToResponse](https://github.com/vercel/next.js/blob/dda0afd3a45a50cbcb418903f7a0ab56eae51b33/packages/next/server/base-server.ts#L2369) (private)<br>
-  NOTE: `app.renderErrorToResponse` is not available to the public API and therefore should be referenced to understand how it works under the hood.
 
 ## Disabling file-system routing
 
