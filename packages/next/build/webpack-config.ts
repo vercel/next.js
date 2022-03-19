@@ -645,7 +645,9 @@ export default async function getBaseWebpackConfig(
           },
         }
       : undefined),
-    mainFields: !targetWeb ? ['main', 'module'] : ['browser', 'module', 'main'],
+    mainFields: targetWeb
+      ? (isEdgeRuntime ? [] : ['browser']).concat(['module', 'main'])
+      : ['main', 'module'],
     plugins: [],
   }
 

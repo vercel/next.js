@@ -5,11 +5,11 @@ The example shows how you can use [TypeScript](https://typescriptlang.com) on bo
 Server entry point is `server/index.ts` in development and `dist/index.js` in production.
 The second directory should be added to `.gitignore`.
 
-## Preview
+## Deploy your own
 
-Preview the example live on [StackBlitz](http://stackblitz.com/):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/custom-server-typescript)
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/custom-server-typescript)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/custom-server-typescript)
 
 ## How to use
 
