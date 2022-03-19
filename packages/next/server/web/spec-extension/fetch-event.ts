@@ -11,7 +11,7 @@ export class NextFetchEvent extends FetchEvent {
   }
 
   /**
-   * @deprecated The first parameter is now the request and the API is now async
+   * @deprecated The `request` is now the first parameter and the API is now async
    * with the form:
    *
    * ```ts
