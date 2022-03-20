@@ -64,7 +64,7 @@ describe('Client Navigation', () => {
       const browser = await webdriver(context.appPort, '/link-no-child')
       expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
-        'No children were pass to <Link> with `href` of `/about` but one child is required'
+        'No children were passed to <Link> with `href` of `/about` but one child is required'
       )
     })
 

@@ -233,7 +233,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     } catch (err) {
       if (!children) {
         throw new Error(
-          `No children were pass to <Link> with \`href\` of \`${props.href}\` but one child is required https://nextjs.org/docs/messages/link-no-children`
+          `No children were passed to <Link> with \`href\` of \`${props.href}\` but one child is required https://nextjs.org/docs/messages/link-no-children`
         )
       }
       throw new Error(
