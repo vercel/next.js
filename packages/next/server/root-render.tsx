@@ -243,39 +243,6 @@ export async function renderToHTML(
     </FlushEffectContainer>
   )
 
-  // The `useId` API uses the path indexes to generate an ID for each node.
-  // To guarantee the match of hydration, we need to ensure that the structure
-  // of wrapper nodes is isomorphic in server and client.
-  // TODO: With `enhanceApp` and `enhanceComponents` options, this approach may
-  // not be useful.
-  // https://github.com/facebook/react/pull/22644
-  const Noop = () => null
-  const AppContainerWithIsomorphicFiberStructure: React.FC<{
-    children: JSX.Element
-  }> = ({ children }) => {
-    return (
-      <>
-        {/* <Head/> */}
-        <Noop />
-        <AppContainer>
-          <>
-            {/* <ReactDevOverlay/> */}
-            {dev ? (
-              <>
-                {children}
-                <Noop />
-              </>
-            ) : (
-              children
-            )}
-            {/* <RouteAnnouncer/> */}
-            <Noop />
-          </>
-        </AppContainer>
-      </>
-    )
-  }
-
   if (renderServerComponentData) {
     const stream: ReadableStream<Uint8Array> = renderToReadableStream(
       <OriginalComponent
@@ -314,9 +281,9 @@ export async function renderToHTML(
   const bodyResult = async () => {
     const content = (
       <Body>
-        <AppContainerWithIsomorphicFiberStructure>
+        <AppContainer>
           <Component />
-        </AppContainerWithIsomorphicFiberStructure>
+        </AppContainer>
       </Body>
     )
     const flushEffectHandler = async () => {
