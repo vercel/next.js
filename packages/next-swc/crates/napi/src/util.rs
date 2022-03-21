@@ -27,9 +27,16 @@ DEALINGS IN THE SOFTWARE.
 */
 
 use anyhow::{Context, Error};
-use napi::{CallContext, JsBuffer, Status};
+use napi::{CallContext, Env, JsBuffer, JsString, Status};
 use serde::de::DeserializeOwned;
 use std::any::type_name;
+
+static TARGET_TRIPLE: &str = include_str!(concat!(env!("OUT_DIR"), "/triple.txt"));
+
+#[contextless_function]
+pub fn get_target_triple(env: Env) -> napi::ContextlessResult<JsString> {
+    env.create_string(TARGET_TRIPLE).map(Some)
+}
 
 pub trait MapErr<T>: Into<Result<T, anyhow::Error>> {
     fn convert_err(self) -> napi::Result<T> {
