@@ -662,16 +662,18 @@ function renderApp(App: AppComponent, appProps: AppProps) {
 }
 
 const wrapApp =
-  (App: AppComponent, router: NextRouter) =>
+  (App: AppComponent, pageRouter: NextRouter) =>
   (wrappedAppProps: Record<string, any>): JSX.Element => {
     const appProps: AppProps = {
       ...wrappedAppProps,
       Component: CachedComponent,
       err: initialData.err,
-      router,
+      router: pageRouter,
     }
     return (
-      <AppContainer router={router}>{renderApp(App, appProps)}</AppContainer>
+      <AppContainer router={pageRouter}>
+        {renderApp(App, appProps)}
+      </AppContainer>
     )
   }
 
@@ -839,7 +841,14 @@ if (process.env.__NEXT_RSC) {
 
 let lastAppProps: AppProps
 function doRender(input: RenderRouteInfo): Promise<any> {
-  let { App, Component, props, err, __N_RSC, router }: RenderRouteInfo = input
+  let {
+    App,
+    Component,
+    props,
+    err,
+    __N_RSC,
+    router: pageRouter,
+  }: RenderRouteInfo = input
   let styleSheets: StyleSheetTuple[] | undefined =
     'initial' in input ? undefined : input.styleSheets
   Component = Component || lastAppProps.Component
@@ -852,7 +861,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     ...props,
     Component: isRSC ? RSCComponent : Component,
     err,
-    router,
+    router: pageRouter,
   }
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
@@ -995,7 +1004,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
   const elem: JSX.Element = (
     <>
       <Head callback={onHeadCommit} />
-      <AppContainer router={router}>
+      <AppContainer router={pageRouter}>
         {renderApp(App, appProps)}
         <Portal type="next-route-announcer">
           <RouteAnnouncer />
