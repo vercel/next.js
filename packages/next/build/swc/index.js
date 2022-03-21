@@ -233,3 +233,10 @@ export async function parse(src, options) {
   let parserOptions = getParserOptions(options)
   return bindings.parse(src, parserOptions).then((astStr) => JSON.parse(astStr))
 }
+
+export function getBinaryMetadata() {
+  let bindings = loadBindingsSync()
+  return {
+    target: bindings.getTargetTriple(),
+  }
+}
