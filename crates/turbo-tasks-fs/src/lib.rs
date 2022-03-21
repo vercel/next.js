@@ -234,9 +234,14 @@ impl FileSystem for DiskFileSystem {
                             let path = e.path();
                             let filename = path.file_name()?.to_str()?.to_string();
                             let path_to_root = path.strip_prefix(&self.root).ok()?.to_str()?;
+                            let path_to_root = if MAIN_SEPARATOR != '/' {
+                                path_to_root.replace(MAIN_SEPARATOR, "/")
+                            } else {
+                                path_to_root.to_string()
+                            };
                             Some(Ok((filename, {
                                 let fs_path =
-                                    FileSystemPathRef::new(fs_path.fs.clone(), path_to_root);
+                                    FileSystemPathRef::new(fs_path.fs.clone(), &path_to_root);
                                 let file_type = match e.file_type() {
                                     Err(e) => {
                                         return Some(Err(e.into()));
