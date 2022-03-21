@@ -631,6 +631,7 @@ describe('Telemetry CLI', () => {
     regex.exec(stderr).pop() // swcReactRemoveProperties
     regex.exec(stderr).pop() // swcRemoveConsole
     regex.exec(stderr).pop() // swcImportSource
+    regex.exec(stderr).pop() // swcEmotion
     const image = regex.exec(stderr).pop()
     expect(image).toContain(`"featureName": "next/image"`)
     expect(image).toContain(`"invocationCount": 1`)
