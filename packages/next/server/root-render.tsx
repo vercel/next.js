@@ -240,10 +240,6 @@ export async function renderToHTML(
     )
   }
 
-  const NextId = ({ children }: { children: JSX.Element }) => {
-    return <div id="__next">{children}</div>
-  }
-
   /**
    * Rules of Static & Dynamic HTML:
    *
@@ -267,11 +263,9 @@ export async function renderToHTML(
           ))}
         </head>
         <body>
-          <NextId>
-            <AppContainer>
-              <Component />
-            </AppContainer>
-          </NextId>
+          <AppContainer>
+            <Component />
+          </AppContainer>
         </body>
       </html>
     )

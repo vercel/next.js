@@ -11,7 +11,7 @@ import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
 
 export const version = process.env.__NEXT_VERSION
 
-const appElement: HTMLElement | null = document.getElementById('__next')
+const appElement: HTMLElement | null = document.documentElement
 
 let reactRoot: any = null
 
