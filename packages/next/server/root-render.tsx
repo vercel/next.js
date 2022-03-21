@@ -130,25 +130,7 @@ function createServerComponentRenderer(
     return root
   }
 
-  const Component = (props: any) => {
-    return <ServerComponentWrapper {...props} />
-  }
-
-  // Although it's not allowed to attach some static methods to Component,
-  // we still re-assign all the component APIs to keep the behavior unchanged.
-  for (const methodName of [
-    'getInitialProps',
-    'getStaticProps',
-    'getServerSideProps',
-    'getStaticPaths',
-  ]) {
-    const method = (OriginalComponent as any)[methodName]
-    if (method) {
-      ;(Component as any)[methodName] = method
-    }
-  }
-
-  return Component
+  return ServerComponentWrapper
 }
 
 export async function renderToHTML(
@@ -281,16 +263,17 @@ export async function renderToHTML(
   const bodyResult = async () => {
     const content = (
       <html>
-        <head></head>
+        <head>
+          {buildManifest.rootMainFiles.map((src) => (
+            <script src={'/_next/' + src} defer />
+          ))}
+        </head>
         <body>
           <NextId>
             <AppContainer>
               <Component />
             </AppContainer>
           </NextId>
-          {buildManifest.rootMainFiles.map((src) => (
-            <script src={'/_next/' + src} defer />
-          ))}
         </body>
       </html>
     )
