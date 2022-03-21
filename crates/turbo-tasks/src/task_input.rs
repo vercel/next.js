@@ -159,6 +159,7 @@ impl PartialEq for TaskInput {
             }
             (Self::List(l0), Self::List(r0)) => l0 == r0,
             (Self::String(l0), Self::String(r0)) => l0 == r0,
+            (Self::Bool(l0), Self::Bool(r0)) => l0 == r0,
             (Self::Usize(l0), Self::Usize(r0)) => l0 == r0,
             (Self::I32(l0), Self::I32(r0)) => l0 == r0,
             (Self::SharedValue(l0), Self::SharedValue(r0)) => AnyHash::eq(l0, r0),
