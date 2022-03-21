@@ -11,7 +11,8 @@ export class NextFetchEvent extends FetchEvent {
   }
 
   /**
-   * @deprecated The `request` is now the first parameter and the API is now async
+   * @deprecated The `request` is now the first parameter and the API is now async.
+   *
    * Read more: https://nextjs.org/docs/messages/middleware-new-signature
    */
   get request() {
