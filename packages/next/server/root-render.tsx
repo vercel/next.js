@@ -130,8 +130,8 @@ function createServerComponentRenderer(
 }
 
 export async function renderToHTML(
-  req: IncomingMessage,
-  res: ServerResponse,
+  _req: IncomingMessage,
+  _res: ServerResponse,
   pathname: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
