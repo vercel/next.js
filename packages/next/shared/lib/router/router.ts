@@ -485,7 +485,7 @@ export type CompletePrivateRouteInfo = {
 }
 
 export type AppProps = Pick<CompletePrivateRouteInfo, 'Component' | 'err'> & {
-  router: Router
+  router: NextRouter
 } & Record<string, any>
 export type AppComponent = ComponentType<AppProps>
 
@@ -614,7 +614,7 @@ export default class Router implements BaseRouter {
   pageLoader: PageLoader
   _bps: BeforePopStateCallback | undefined
   events: MittEmitter<RouterEvent>
-  _wrapApp: (App: AppComponent) => any
+  _wrapApp: (App: AppComponent, router: NextRouter) => any
   isSsr: boolean
   _inFlightRoute?: string
   _shallow?: boolean
@@ -663,7 +663,7 @@ export default class Router implements BaseRouter {
       pageLoader: any
       Component: ComponentType
       App: AppComponent
-      wrapApp: (WrapAppComponent: AppComponent) => any
+      wrapApp: (WrapAppComponent: AppComponent, router: NextRouter) => any
       err?: Error
       isFallback: boolean
       locale?: string
@@ -2036,7 +2036,7 @@ export default class Router implements BaseRouter {
     ctx: NextPageContext
   ): Promise<any> {
     const { Component: App } = this.components['/_app']
-    const AppTree = this._wrapApp(App as AppComponent)
+    const AppTree = this._wrapApp(App as AppComponent, this)
     ctx.AppTree = AppTree
     return loadGetInitialProps<AppContextType<Router>>(App, {
       AppTree,

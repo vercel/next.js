@@ -5,7 +5,7 @@ import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
-import type Router from '../shared/lib/router/router'
+import type { NextRouter, default as Router } from '../shared/lib/router/router'
 import {
   AppComponent,
   AppProps,
@@ -61,6 +61,7 @@ declare global {
 type RenderRouteInfo = PrivateRouteInfo & {
   App: AppComponent
   scroll?: { x: number; y: number } | null
+  router: NextRouter
 }
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
 type RegisterFn = (input: [string, () => void]) => void
@@ -405,11 +406,12 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
       render(
         Object.assign<
           {},
-          Omit<RenderRouteInfo, 'App' | 'scroll'>,
-          Pick<RenderRouteInfo, 'App' | 'scroll'>
+          Omit<RenderRouteInfo, 'App' | 'scroll' | 'router'>,
+          Pick<RenderRouteInfo, 'App' | 'scroll' | 'router'>
         >({}, info, {
           App,
           scroll,
+          router: makePublicRouterInstance(router),
         }) as RenderRouteInfo
       ),
     locale: initialData.locale,
@@ -426,6 +428,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     Component: CachedComponent,
     props: initialData.props,
     err: initialErr,
+    router: makePublicRouterInstance(router),
   }
 
   if (opts?.beforeRender) {
@@ -480,6 +483,7 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
       props: {},
       Component: () => null,
       styleSheets: [],
+      router,
     })
   }
 
@@ -503,7 +507,7 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
       // In production we do a normal render with the `ErrorComponent` as component.
       // If we've gotten here upon initial render, we can use the props from the server.
       // Otherwise, we need to call `getInitialProps` on `App` before mounting.
-      const AppTree = wrapApp(App)
+      const AppTree = wrapApp(App, router)
       const appCtx = {
         Component: ErrorComponent,
         AppTree,
@@ -623,16 +627,19 @@ function clearMarks(): void {
 
 function AppContainer({
   children,
-}: React.PropsWithChildren<{}>): React.ReactElement {
+  router: pageRouter,
+}: React.PropsWithChildren<{
+  router: NextRouter
+}>): React.ReactElement {
   return (
     <Container
       fn={(error) =>
-        renderError({ App: CachedApp, err: error }).catch((err) =>
+        renderError({ App: CachedApp, err: error, router }).catch((err) =>
           console.error('Error rendering page: ', err)
         )
       }
     >
-      <RouterContext.Provider value={makePublicRouterInstance(router)}>
+      <RouterContext.Provider value={pageRouter}>
         <HeadManagerContext.Provider value={headManager}>
           <ImageConfigContext.Provider
             value={process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete}
@@ -655,7 +662,7 @@ function renderApp(App: AppComponent, appProps: AppProps) {
 }
 
 const wrapApp =
-  (App: AppComponent) =>
+  (App: AppComponent, router: NextRouter) =>
   (wrappedAppProps: Record<string, any>): JSX.Element => {
     const appProps: AppProps = {
       ...wrappedAppProps,
@@ -663,7 +670,9 @@ const wrapApp =
       err: initialData.err,
       router,
     }
-    return <AppContainer>{renderApp(App, appProps)}</AppContainer>
+    return (
+      <AppContainer router={router}>{renderApp(App, appProps)}</AppContainer>
+    )
   }
 
 let RSCComponent: (props: any) => JSX.Element
@@ -830,7 +839,7 @@ if (process.env.__NEXT_RSC) {
 
 let lastAppProps: AppProps
 function doRender(input: RenderRouteInfo): Promise<any> {
-  let { App, Component, props, err, __N_RSC }: RenderRouteInfo = input
+  let { App, Component, props, err, __N_RSC, router }: RenderRouteInfo = input
   let styleSheets: StyleSheetTuple[] | undefined =
     'initial' in input ? undefined : input.styleSheets
   Component = Component || lastAppProps.Component
@@ -986,7 +995,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
   const elem: JSX.Element = (
     <>
       <Head callback={onHeadCommit} />
-      <AppContainer>
+      <AppContainer router={router}>
         {renderApp(App, appProps)}
         <Portal type="next-route-announcer">
           <RouteAnnouncer />
