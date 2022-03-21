@@ -21,8 +21,6 @@ import { FlushEffectsContext } from '../shared/lib/flush-effects'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMServer from 'react-dom/server.browser'
 
-// const DOCTYPE = '<!DOCTYPE html>'
-
 export type RenderOptsPartial = {
   err?: Error | null
   dev?: boolean
