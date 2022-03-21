@@ -384,8 +384,8 @@ export default async function exportApp(
       runtime: nextConfig.experimental.runtime,
       crossOrigin: nextConfig.crossOrigin,
       optimizeCss: nextConfig.experimental.optimizeCss,
+      nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts,
-      optimizeImages: nextConfig.experimental.optimizeImages,
       reactRoot: nextConfig.experimental.reactRoot || false,
     }
 
@@ -583,7 +583,6 @@ export default async function exportApp(
             buildExport: options.buildExport,
             serverless: isTargetLikeServerless(nextConfig.target),
             optimizeFonts: nextConfig.optimizeFonts,
-            optimizeImages: nextConfig.experimental.optimizeImages,
             optimizeCss: nextConfig.experimental.optimizeCss,
             disableOptimizedLoading:
               nextConfig.experimental.disableOptimizedLoading,

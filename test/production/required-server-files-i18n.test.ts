@@ -11,6 +11,7 @@ import {
   initNextServerScript,
   killApp,
   renderViaHTTP,
+  waitFor,
 } from 'next-test-utils'
 
 describe('should set-up next', () => {
@@ -133,6 +134,7 @@ describe('should set-up next', () => {
       's-maxage=1, stale-while-revalidate'
     )
 
+    await waitFor(2000)
     await next.patchFile('standalone/data.txt', 'hide')
 
     const res2 = await fetchViaHTTP(appPort, '/gsp', undefined, {
@@ -211,6 +213,7 @@ describe('should set-up next', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
+    await waitFor(2000)
     const html2 = await renderViaHTTP(appPort, '/fallback/first')
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())

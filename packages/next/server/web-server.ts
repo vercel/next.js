@@ -31,7 +31,8 @@ export default class NextWebServer extends BaseServer {
     }
   }
   protected handleCompression() {
-    // @TODO
+    // For the web server layer, compression is automatically handled by the
+    // upstream proxy (edge runtime or node server) and we can simply skip here.
   }
   protected getRoutesManifest() {
     return {
@@ -49,14 +50,15 @@ export default class NextWebServer extends BaseServer {
     return ''
   }
   protected getPublicDir() {
-    // @TODO
+    // Public files are not handled by the web server.
     return ''
   }
   protected getBuildId() {
     return (globalThis as any).__server_context.buildId
   }
   protected loadEnvConfig() {
-    // @TODO
+    // The web server does not need to load the env config. This is done by the
+    // runtime already.
   }
   protected getHasStaticDir() {
     return false
@@ -131,7 +133,6 @@ export default class NextWebServer extends BaseServer {
       query,
       {
         ...renderOpts,
-        supportsDynamicHTML: true,
         disableOptimizedLoading: true,
         runtime: 'edge',
       }
@@ -148,6 +149,20 @@ export default class NextWebServer extends BaseServer {
       options?: PayloadOptions | undefined
     }
   ): Promise<void> {
+    // Add necessary headers.
+    // @TODO: Share the isomorphic logic with server/send-payload.ts.
+    if (options.poweredByHeader && options.type === 'html') {
+      res.setHeader('X-Powered-By', 'Next.js')
+    }
+    if (!res.getHeader('Content-Type')) {
+      res.setHeader(
+        'Content-Type',
+        options.type === 'json'
+          ? 'application/json'
+          : 'text/html; charset=utf-8'
+      )
+    }
+
     // @TODO
     const writer = res.transformStream.writable.getWriter()
 
@@ -161,7 +176,9 @@ export default class NextWebServer extends BaseServer {
         // Not implemented: on/removeListener
       } as any)
     } else {
-      res.body(await options.result.toUnchunkedString())
+      // TODO: generate Etag
+      const payload = await options.result.toUnchunkedString()
+      res.body(payload)
     }
 
     res.send()

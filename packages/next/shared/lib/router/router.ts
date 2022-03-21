@@ -22,7 +22,6 @@ import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt from '../mitt'
 import {
   AppContextType,
-  formatWithValidation,
   getLocationOrigin,
   getURL,
   loadGetInitialProps,
@@ -38,6 +37,7 @@ import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 import { getMiddlewareRegex } from './utils/get-middleware-regex'
+import { formatWithValidation } from './utils/format-url'
 
 declare global {
   interface Window {
@@ -656,6 +656,7 @@ export default class Router implements BaseRouter {
       defaultLocale,
       domainLocales,
       isPreview,
+      isRsc,
     }: {
       subscription: Subscription
       initialProps: any
@@ -670,6 +671,7 @@ export default class Router implements BaseRouter {
       defaultLocale?: string
       domainLocales?: DomainLocale[]
       isPreview?: boolean
+      isRsc?: boolean
     }
   ) {
     // represents the current component key
@@ -688,7 +690,7 @@ export default class Router implements BaseRouter {
         err,
         __N_SSG: initialProps && initialProps.__N_SSG,
         __N_SSP: initialProps && initialProps.__N_SSP,
-        __N_RSC: !!(Component as any)?.__next_rsc__,
+        __N_RSC: !!isRsc,
       }
     }
 
@@ -1163,8 +1165,9 @@ export default class Router implements BaseRouter {
      * request as it is not necessary.
      */
     if (
-      (options as any)._h !== 1 ||
-      isDynamicRoute(removePathTrailingSlash(pathname))
+      (!options.shallow || (options as any)._h === 1) &&
+      ((options as any)._h !== 1 ||
+        isDynamicRoute(removePathTrailingSlash(pathname)))
     ) {
       const effect = await this._preflightRequest({
         as,
@@ -1527,7 +1530,7 @@ export default class Router implements BaseRouter {
           styleSheets: res.styleSheets,
           __N_SSG: res.mod.__N_SSG,
           __N_SSP: res.mod.__N_SSP,
-          __N_RSC: !!(res.page as any).__next_rsc__,
+          __N_RSC: !!res.mod.__next_rsc__,
         })))
 
       const { Component, __N_SSG, __N_SSP, __N_RSC } = routeInfo
@@ -1862,8 +1865,9 @@ export default class Router implements BaseRouter {
     locale: string | undefined
     isPreview: boolean
   }): Promise<PreflightEffect> {
+    const asPathname = pathNoQueryHash(options.as)
     const cleanedAs = delLocale(
-      hasBasePath(options.as) ? delBasePath(options.as) : options.as,
+      hasBasePath(asPathname) ? delBasePath(asPathname) : asPathname,
       options.locale
     )
 
@@ -1876,11 +1880,20 @@ export default class Router implements BaseRouter {
       return { type: 'next' }
     }
 
-    const preflight = await this._getPreflightData({
-      preflightHref: options.as,
-      shouldCache: options.cache,
-      isPreview: options.isPreview,
-    })
+    let preflight: PreflightData | undefined
+    try {
+      preflight = await this._getPreflightData({
+        preflightHref: options.as,
+        shouldCache: options.cache,
+        isPreview: options.isPreview,
+      })
+    } catch (err) {
+      // If preflight request fails, we need to do a hard-navigation.
+      return {
+        type: 'redirect',
+        destination: options.as,
+      }
+    }
 
     if (preflight.rewrite) {
       // for external rewrites we need to do a hard navigation

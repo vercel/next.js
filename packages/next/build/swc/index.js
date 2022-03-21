@@ -1,6 +1,7 @@
 import { platform, arch } from 'os'
 import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
 import * as Log from '../output/log'
+import { getParserOptions } from './options'
 
 const ArchName = arch()
 const PlatformName = platform()
@@ -228,6 +229,14 @@ export async function bundle(options) {
 }
 
 export async function parse(src, options) {
+  let bindings = await loadBindings()
+  let parserOptions = getParserOptions(options)
+  return bindings.parse(src, parserOptions).then((astStr) => JSON.parse(astStr))
+}
+
+export function getBinaryMetadata() {
   let bindings = loadBindingsSync()
-  return bindings.parse(src, options).then((astStr) => JSON.parse(astStr))
+  return {
+    target: bindings.getTargetTriple(),
+  }
 }

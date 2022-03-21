@@ -224,6 +224,56 @@ describe('Image Optimizer', () => {
         `Specified images.loader property (imgix) also requires images.path property to be assigned to a URL prefix.`
       )
     })
+
+    it('should error when images.dangerouslyAllowSVG is not a boolean', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            dangerouslyAllowSVG: 'foo',
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `Specified images.dangerouslyAllowSVG should be a boolean`
+      )
+    })
+
+    it('should error when images.contentSecurityPolicy is not a string', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            contentSecurityPolicy: 1,
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `Specified images.contentSecurityPolicy should be a string`
+      )
+    })
   })
 
   // domains for testing
@@ -240,11 +290,13 @@ describe('Image Optimizer', () => {
 
   describe('Server support for minimumCacheTTL in next.config.js', () => {
     const size = 96 // defaults defined in server/config.ts
+    const dangerouslyAllowSVG = true
     const ctx = {
       w: size,
       isDev: false,
       domains,
       minimumCacheTTL,
+      dangerouslyAllowSVG,
       imagesDir,
       appDir,
     }
@@ -253,6 +305,7 @@ describe('Image Optimizer', () => {
         images: {
           domains,
           minimumCacheTTL,
+          dangerouslyAllowSVG,
         },
       })
       ctx.nextOutput = ''
@@ -272,6 +325,32 @@ describe('Image Optimizer', () => {
     })
 
     runTests(ctx)
+  })
+
+  describe('Server support for trailingSlash in next.config.js', () => {
+    let app
+    let appPort
+    beforeAll(async () => {
+      nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          trailingSlash: true,
+        })
+      )
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      nextConfig.restore()
+    })
+
+    it('should return successful response for original loader', async () => {
+      let res
+      const query = { url: '/test.png', w: 8, q: 70 }
+      res = await fetchViaHTTP(appPort, '/_next/image/', query)
+      expect(res.status).toBe(200)
+    })
   })
 
   describe('Server support for headers in next.config.js', () => {

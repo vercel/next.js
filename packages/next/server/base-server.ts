@@ -16,6 +16,7 @@ import type { CacheFs } from '../shared/lib/utils'
 import type { PreviewData } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
+import type { PayloadOptions } from './send-payload'
 
 import { join, resolve } from 'path'
 import { parse as parseQs } from 'querystring'
@@ -42,7 +43,7 @@ import * as envConfig from '../shared/lib/runtime-config'
 import { DecodeError, normalizeRepeatedSlashes } from '../shared/lib/utils'
 import { isTargetLikeServerless } from './utils'
 import Router, { replaceBasePath, route } from './router'
-import { PayloadOptions, setRevalidateHeaders } from './send-payload'
+import { setRevalidateHeaders } from './send-payload/revalidate-headers'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage, isBot } from './utils'
@@ -62,7 +63,7 @@ import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
-import { ImageConfigComplete } from './image-config'
+import { ImageConfigComplete } from '../shared/lib/image-config'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -152,9 +153,9 @@ export default abstract class Server {
     optimizeFonts: boolean
     images: ImageConfigComplete
     fontManifest?: FontManifest
-    optimizeImages: boolean
     disableOptimizedLoading?: boolean
     optimizeCss: any
+    nextScriptWorkers: any
     locale?: string
     locales?: string[]
     defaultLocale?: string
@@ -314,8 +315,8 @@ export default abstract class Server {
         this.nextConfig.optimizeFonts && !dev
           ? this.getFontManifest()
           : undefined,
-      optimizeImages: !!this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
+      nextScriptWorkers: this.nextConfig.experimental.nextScriptWorkers,
       disableOptimizedLoading: this.nextConfig.experimental.runtime
         ? true
         : this.nextConfig.experimental.disableOptimizedLoading,
@@ -374,7 +375,10 @@ export default abstract class Server {
         }
       },
     })
-    this.responseCache = new ResponseCache(this.incrementalCache)
+    this.responseCache = new ResponseCache(
+      this.incrementalCache,
+      this.minimalMode
+    )
   }
 
   public logError(err: Error): void {
@@ -561,9 +565,6 @@ export default abstract class Server {
       if (url.locale?.path.detectedLocale) {
         req.url = formatUrl(url)
         addRequestMeta(req, '__nextStrippedLocale', true)
-        if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
-          return this.render404(req, res, parsedUrl)
-        }
       }
 
       if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
@@ -981,12 +982,12 @@ export default abstract class Server {
       query: NextParsedUrlQuery
     }
   ): Promise<void> {
-    const userAgent = partialContext.req.headers['user-agent']
+    const isBotRequest = isBot(partialContext.req.headers['user-agent'] || '')
     const ctx = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        supportsDynamicHTML: userAgent ? !isBot(userAgent) : false,
+        supportsDynamicHTML: !isBotRequest,
       },
     } as const
     const payload = await fn(ctx)
@@ -1124,7 +1125,7 @@ export default abstract class Server {
     const isSSG = !!components.getStaticProps
     const hasServerProps = !!components.getServerSideProps
     const hasStaticPaths = !!components.getStaticPaths
-    const hasGetInitialProps = !!(components.Component as any).getInitialProps
+    const hasGetInitialProps = !!components.Component?.getInitialProps
 
     // Toggle whether or not this is a Data request
     const isDataReq = !!query._nextDataReq && (isSSG || hasServerProps)
@@ -1145,6 +1146,23 @@ export default abstract class Server {
       res.statusCode = parseInt(pathname.substr(1), 10)
     }
 
+    // static pages can only respond to GET/HEAD
+    // requests so ensure we respond with 405 for
+    // invalid requests
+    if (
+      !is404Page &&
+      !is500Page &&
+      pathname !== '/_error' &&
+      req.method !== 'HEAD' &&
+      req.method !== 'GET' &&
+      (typeof components.Component === 'string' || isSSG)
+    ) {
+      res.statusCode = 405
+      res.setHeader('Allow', ['GET', 'HEAD'])
+      await this.renderError(null, req, res, pathname)
+      return null
+    }
+
     // handle static page
     if (typeof components.Component === 'string') {
       return {
@@ -1159,13 +1177,22 @@ export default abstract class Server {
     }
 
     if (opts.supportsDynamicHTML === true) {
+      const isBotRequest = isBot(req.headers['user-agent'] || '')
+      const isSupportedDocument =
+        typeof components.Document?.getInitialProps !== 'function' ||
+        // When concurrent features is enabled, the built-in `Document`
+        // component also supports dynamic HTML.
+        (this.renderOpts.reactRoot &&
+          !!(components.Document as any)?.__next_internal_document)
+
       // Disable dynamic HTML in cases that we know it won't be generated,
       // so that we can continue generating a cache key when possible.
       opts.supportsDynamicHTML =
         !isSSG &&
         !isLikeServerless &&
+        !isBotRequest &&
         !query.amp &&
-        typeof components.Document?.getInitialProps !== 'function'
+        isSupportedDocument
     }
 
     const defaultLocale = isSSG
@@ -1261,7 +1288,7 @@ export default abstract class Server {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG || this.minimalMode || opts.supportsDynamicHTML
+      isPreviewMode || !isSSG || opts.supportsDynamicHTML
         ? null // Preview mode and manual revalidate bypasses the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
@@ -1313,6 +1340,7 @@ export default abstract class Server {
           locales,
           defaultLocale,
           optimizeCss: this.renderOpts.optimizeCss,
+          nextScriptWorkers: this.renderOpts.nextScriptWorkers,
           distDir: this.distDir,
           fontManifest: this.renderOpts.fontManifest,
           domainLocales: this.renderOpts.domainLocales,
@@ -1512,6 +1540,21 @@ export default abstract class Server {
       return null
     }
 
+    if (isSSG) {
+      // set x-nextjs-cache header to match the header
+      // we set for the image-optimizer
+      res.setHeader(
+        'x-nextjs-cache',
+        isManualRevalidate
+          ? 'REVALIDATED'
+          : cacheEntry.isMiss
+          ? 'MISS'
+          : cacheEntry.isStale
+          ? 'STALE'
+          : 'HIT'
+      )
+    }
+
     const { revalidate, value: cachedData } = cacheEntry
     const revalidateOptions: any =
       typeof revalidate !== 'undefined' &&
@@ -1535,6 +1578,9 @@ export default abstract class Server {
         res.body('{"notFound":true}').send()
         return null
       } else {
+        if (this.renderOpts.dev) {
+          query.__nextNotFoundSrcPage = pathname
+        }
         await this.render404(
           req,
           res,
