@@ -257,7 +257,7 @@ export async function renderToHTML(
       <html>
         <head>
           {buildManifest.rootMainFiles.map((src) => (
-            <script src={'/_next/' + src} defer />
+            <script src={'/_next/' + src} async />
           ))}
         </head>
         <body>
