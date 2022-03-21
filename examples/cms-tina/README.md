@@ -5,6 +5,10 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 > This boilerplate demonstrates a basic usage and best practices. If you are looking for a more feature rich Tina experience with contextual editing.
 > check out [tina-cloud-starter](https://github.com/tinacms/tina-cloud-start/git).
 
+## Demo
+
+### [https://cms-tina-example.vercel.app/](https://cms-tina-example.vercel.app/)
+
 ### Related examples
 
 - [WordPress](/examples/cms-wordpress)
@@ -74,4 +78,4 @@ Then [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medi
 
 **Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set NEXT_PUBLIC_TINA_CLIENT_ID to the client ID above.
 
-Once you have successfully deployed to Vercel, go back to your Tina dashboard and under the project configuration enter the url in the Site URL(s) for example: https://tina-cms.vercel.app.
+Once you have successfully deployed to Vercel, go back to your Tina dashboard and under the project configuration enter the url in the Site URL(s) for example: https://cms-tina-example.vercel.app/
