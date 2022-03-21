@@ -13,9 +13,7 @@ import {
   encodeText,
   decodeText,
   pipeThrough,
-  streamFromArray,
   streamToString,
-  chainStreams,
   createBufferedTransformStream,
   renderToStream,
 } from './node-web-streams-helper'
@@ -23,7 +21,7 @@ import { FlushEffectsContext } from '../shared/lib/flush-effects'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMServer from 'react-dom/server.browser'
 
-const DOCTYPE = '<!DOCTYPE html>'
+// const DOCTYPE = '<!DOCTYPE html>'
 
 export type RenderOptsPartial = {
   err?: Error | null
@@ -304,10 +302,5 @@ export async function renderToHTML(
     })
   }
 
-  const prefix: Array<string> = []
-  prefix.push(DOCTYPE)
-
-  let streams = [streamFromArray(prefix), await bodyResult()]
-
-  return new RenderResult(chainStreams(streams))
+  return new RenderResult(await bodyResult())
 }
