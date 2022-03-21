@@ -20,6 +20,8 @@ import {
   renderToStream,
 } from './node-web-streams-helper'
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
+// @ts-ignore react-dom/client exists when using React 18
+import ReactDOMServer from 'react-dom/server.browser'
 
 const DOCTYPE = '<!DOCTYPE html>'
 
@@ -160,7 +162,7 @@ export async function renderToHTML(
   query = Object.assign({}, query)
 
   const {
-    dev = false,
+    buildManifest,
     serverComponentManifest,
     serverComponentProps,
     supportsDynamicHTML,
@@ -258,11 +260,9 @@ export async function renderToHTML(
     )
   }
 
-  const Body = ({ children }: { children: JSX.Element }) => {
+  const NextId = ({ children }: { children: JSX.Element }) => {
     return <div id="__next">{children}</div>
   }
-
-  const ReactDOMServer = require('react-dom/server.browser')
 
   /**
    * Rules of Static & Dynamic HTML:
@@ -280,11 +280,19 @@ export async function renderToHTML(
   const generateStaticHTML = supportsDynamicHTML !== true
   const bodyResult = async () => {
     const content = (
-      <Body>
-        <AppContainer>
-          <Component />
-        </AppContainer>
-      </Body>
+      <html>
+        <head></head>
+        <body>
+          <NextId>
+            <AppContainer>
+              <Component />
+            </AppContainer>
+          </NextId>
+          {buildManifest.rootMainFiles.map((src) => (
+            <script src={'/_next/' + src} defer />
+          ))}
+        </body>
+      </html>
     )
     const flushEffectHandler = async () => {
       const allFlushEffects = [styledJsxFlushEffect, ...(flushEffects || [])]
