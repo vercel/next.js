@@ -2,7 +2,8 @@
 import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
-import React, { useState } from 'react'
+// @ts-ignore startTransition exists when using React 18
+import React, { useState, startTransition } from 'react'
 import { RefreshContext } from './streaming/refresh'
 import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
 
@@ -156,7 +157,6 @@ const RSCComponent = (props: any) => {
   const cacheKey = getCacheKey()
   const { __flight_serialized__ } = props
   const [, dispatch] = useState({})
-  const startTransition = (React as any).startTransition
   const rerender = () => dispatch({})
   // If there is no cache, or there is serialized data already
   function refreshCache(nextProps: any) {
