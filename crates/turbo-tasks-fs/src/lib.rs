@@ -118,11 +118,11 @@ impl DiskFileSystemRef {
                     Ok(DebouncedEvent::Rename(source, destination)) => {
                         invalidate_path_and_children(&mut invalidators, source.as_path());
                         if let Some(parent) = source.parent() {
-                            invalidate_path_and_children(&mut dir_invalidators, parent);
+                            invalidate_path(&mut dir_invalidators, parent);
                         }
                         invalidate_path_and_children(&mut invalidators, destination.as_path());
                         if let Some(parent) = destination.parent() {
-                            invalidate_path_and_children(&mut dir_invalidators, parent);
+                            invalidate_path(&mut dir_invalidators, parent);
                         }
                     }
                     Ok(DebouncedEvent::Rescan) => {
