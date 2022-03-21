@@ -185,6 +185,7 @@ export default class BuildManifestPlugin {
 
       const systemEntrypoints = new Set([
         CLIENT_STATIC_FILES_RUNTIME_MAIN,
+        CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
         CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
         CLIENT_STATIC_FILES_RUNTIME_AMP,
       ])
