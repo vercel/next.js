@@ -208,12 +208,16 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [16, 17]
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          node-version: 14
+          node-version: ${{ matrix.node }}
 
       - run: echo ${{needs.build.outputs.docsChange}}
 
@@ -258,12 +262,16 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [16, 17]
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          node-version: 14
+          node-version: ${{ matrix.node }}
 
       - run: echo ${{needs.build.outputs.docsChange}}
 
@@ -308,12 +316,16 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [16, 17]
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          node-version: 14
+          node-version: ${{ matrix.node }}
 
       - run: echo ${{needs.build.outputs.docsChange}}
 
@@ -348,12 +360,16 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [16, 17]
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          node-version: 14
+          node-version: ${{ matrix.node }}
 
       - run: echo ${{needs.build.outputs.docsChange}}
 
