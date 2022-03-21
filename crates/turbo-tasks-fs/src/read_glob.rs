@@ -8,29 +8,7 @@ use crate::{glob::GlobRef, DirectoryContent, DirectoryEntry, FileSystemPathRef};
 #[derive(PartialEq, Eq, Default, Debug)]
 pub struct ReadGlobResult {
     pub results: HashMap<String, DirectoryEntry>,
-    pub expandable: HashMap<String, GlobContinuationRef>,
-}
-
-#[turbo_tasks::value]
-#[derive(PartialEq, Eq)]
-pub struct GlobContinuation {
-    prefix: String,
-    directory: FileSystemPathRef,
-    glob: GlobRef,
-    include_dot_files: bool,
-}
-
-#[turbo_tasks::value_impl]
-impl GlobContinuationRef {
-    pub async fn read_glob(self) -> Result<ReadGlobResultRef> {
-        let GlobContinuation {
-            prefix,
-            directory,
-            glob,
-            include_dot_files,
-        } = &*self.await?;
-        read_glob_internal(prefix, directory.clone(), glob.clone(), *include_dot_files).await
-    }
+    pub inner: HashMap<String, ReadGlobResultRef>,
 }
 
 #[turbo_tasks::function]
@@ -40,6 +18,16 @@ pub async fn read_glob(
     include_dot_files: bool,
 ) -> Result<ReadGlobResultRef> {
     read_glob_internal("", directory, glob, include_dot_files).await
+}
+
+#[turbo_tasks::function]
+pub async fn read_glob_inner(
+    prefix: String,
+    directory: FileSystemPathRef,
+    glob: GlobRef,
+    include_dot_files: bool,
+) -> Result<ReadGlobResultRef> {
+    read_glob_internal(&prefix, directory, glob, include_dot_files).await
 }
 
 async fn read_glob_internal(
@@ -64,14 +52,14 @@ async fn read_glob_internal(
                                 .insert(full_path.clone(), DirectoryEntry::Directory(path.clone()));
                         }
                         if glob_value.execute(&full_path_prefix) {
-                            result.expandable.insert(
+                            result.inner.insert(
                                 full_path,
-                                GlobContinuationRef::slot(GlobContinuation {
-                                    prefix: full_path_prefix,
-                                    directory: path.clone(),
-                                    glob: glob.clone(),
+                                read_glob_inner(
+                                    full_path_prefix,
+                                    path.clone(),
+                                    glob.clone(),
                                     include_dot_files,
-                                }),
+                                ),
                             );
                         }
                     }

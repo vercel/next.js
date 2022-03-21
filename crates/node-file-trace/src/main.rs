@@ -70,10 +70,6 @@ fn create_fs(context: &str) -> FileSystemRef {
 
 async fn add_glob_results(result: ReadGlobResultRef, list: &mut Vec<AssetRef>) -> Result<()> {
     let result = result.await?;
-    let more = result
-        .expandable
-        .values()
-        .map(|cont| cont.clone().read_glob());
     for entry in result.results.values() {
         match entry {
             DirectoryEntry::File(path) => {
@@ -83,7 +79,7 @@ async fn add_glob_results(result: ReadGlobResultRef, list: &mut Vec<AssetRef>) -
             _ => {}
         }
     }
-    for result in more {
+    for result in result.inner.values() {
         fn recurse<'a>(
             result: ReadGlobResultRef,
             list: &'a mut Vec<AssetRef>,
@@ -91,7 +87,7 @@ async fn add_glob_results(result: ReadGlobResultRef, list: &mut Vec<AssetRef>) -
             Box::pin(add_glob_results(result, list))
         }
         // Boxing for async recursion
-        recurse(result, list).await?;
+        recurse(result.clone(), list).await?;
     }
     Ok(())
 }

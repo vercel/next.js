@@ -9,7 +9,7 @@ mod read_glob;
 pub mod util;
 
 use read_glob::read_glob;
-pub use read_glob::{GlobContinuation, GlobContinuationRef, ReadGlobResult, ReadGlobResultRef};
+pub use read_glob::{ReadGlobResult, ReadGlobResultRef};
 
 use std::{
     collections::HashMap,
