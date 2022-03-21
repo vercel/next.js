@@ -21,8 +21,6 @@ import { FlushEffectsContext } from '../shared/lib/flush-effects'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMServer from 'react-dom/server.browser'
 
-// const DOCTYPE = '<!DOCTYPE html>'
-
 export type RenderOptsPartial = {
   err?: Error | null
   dev?: boolean
@@ -259,7 +257,7 @@ export async function renderToHTML(
       <html>
         <head>
           {buildManifest.rootMainFiles.map((src) => (
-            <script src={'/_next/' + src} defer />
+            <script src={'/_next/' + src} async />
           ))}
         </head>
         <body>

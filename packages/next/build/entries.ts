@@ -14,8 +14,12 @@ import { isCustomErrorPage, isFlightPage, isReservedPage } from './utils'
 import { ssrEntries } from './webpack/plugins/middleware-plugin'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import {
+  CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
+  CLIENT_STATIC_FILES_RUNTIME_AMP,
   MIDDLEWARE_RUNTIME_WEBPACK,
   MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
 } from '../shared/lib/constants'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
@@ -372,9 +376,10 @@ export function finalizeEntrypoint({
 
   if (
     name !== 'polyfills' &&
-    name !== 'main' &&
-    name !== 'amp' &&
-    name !== 'react-refresh'
+    name !== CLIENT_STATIC_FILES_RUNTIME_MAIN &&
+    name !== CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT &&
+    name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&
+    name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
   ) {
     return {
       dependOn:
