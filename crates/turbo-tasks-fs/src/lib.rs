@@ -359,6 +359,32 @@ impl FileSystemPath {
             None
         }
     }
+
+    pub fn get_relative_path_to(&self, other: &FileSystemPath) -> Option<String> {
+        if self.fs != other.fs {
+            return None;
+        }
+        let mut self_segments = self.path.split('/').peekable();
+        let mut other_segments = other.path.split('/').peekable();
+        while self_segments.peek() == other_segments.peek() {
+            self_segments.next();
+            if other_segments.next().is_none() {
+                return Some(".".to_string());
+            }
+        }
+        let mut result = Vec::new();
+        if self_segments.peek().is_none() {
+            result.push(".");
+        } else {
+            while self_segments.next().is_some() {
+                result.push("..");
+            }
+        }
+        while let Some(segment) = other_segments.next() {
+            result.push(segment);
+        }
+        Some(result.join("/"))
+    }
 }
 
 #[turbo_tasks::value_impl]

@@ -21,6 +21,7 @@ pub mod viz;
 
 pub use anyhow::{Error, Result};
 pub use completion::{Completion, CompletionRef};
+pub use lazy_static::lazy_static;
 pub use manager::{dynamic_call, trait_call, TurboTasks};
 pub use native_function::{NativeFunction, NativeFunctionRef};
 pub use nothing::{Nothing, NothingRef};

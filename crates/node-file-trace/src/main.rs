@@ -1,3 +1,5 @@
+mod nft_json;
+
 use anyhow::{anyhow, Context, Result};
 use async_std::task::{block_on, spawn};
 use clap::Parser;
@@ -6,13 +8,15 @@ use std::{
 };
 use turbo_tasks::{NothingRef, TurboTasks};
 use turbo_tasks_fs::{
-    glob::GlobRef, DirectoryContent, DirectoryEntry, DiskFileSystemRef, FileSystemPathRef,
-    FileSystemRef, ReadGlobResultRef,
+    glob::GlobRef, DirectoryEntry, DiskFileSystemRef, FileSystemPathRef, FileSystemRef,
+    ReadGlobResultRef,
 };
 use turbopack::{
     all_assets, asset::AssetRef, emit, module, rebase::RebasedAssetRef,
     source_asset::SourceAssetRef,
 };
+
+use crate::nft_json::NftJsonAssetRef;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -177,7 +181,23 @@ fn main() {
         Args::Annotate {
             input,
             context_directory,
-        } => todo!(),
+        } => {
+            let start = Instant::now();
+            let dir = current_dir().unwrap();
+            let context = process_context(&dir, context_directory).unwrap();
+            let input = process_input(&dir, &context, input).unwrap();
+            let tt = TurboTasks::new();
+            tt.spawn_once_task(async move {
+                let fs = create_fs(&context);
+                for module in input_to_modules(&fs, &input).await? {
+                    let nft_asset = NftJsonAssetRef::new(module).into();
+                    emit(nft_asset)
+                }
+                Ok(NothingRef::new().into())
+            });
+            block_on(tt.wait_done());
+            println!("done in {} ms", start.elapsed().as_millis());
+        }
         Args::Build {
             input,
             context_directory,

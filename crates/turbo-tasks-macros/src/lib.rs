@@ -354,7 +354,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         #[derive(turbo_tasks::trace::TraceSlotRefs)]
         #item
 
-        lazy_static::lazy_static! {
+        turbo_tasks::lazy_static! {
             static ref #slot_value_type_ident: turbo_tasks::SlotValueType = {
                 let mut slot_value_type = turbo_tasks::SlotValueType::new(std::any::type_name::<#ident>().to_string());
                 #(#trait_registrations)*
@@ -630,7 +630,7 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
     let expanded = quote! {
         #item
 
-        lazy_static::lazy_static! {
+        turbo_tasks::lazy_static! {
             pub static ref #trait_type_ident: turbo_tasks::TraitType = turbo_tasks::TraitType::new(std::any::type_name::<dyn #ident>().to_string());
         }
 
@@ -1312,7 +1312,7 @@ fn gen_native_function_code(
     };
     (
         quote! {
-            lazy_static::lazy_static! {
+            turbo_tasks::lazy_static! {
                 static ref #function_ident: turbo_tasks::NativeFunction = turbo_tasks::NativeFunction::new(#name_code.to_string(), vec![#(#task_argument_options),*], |inputs| {
                     let mut __iter = inputs.iter();
                     #(#input_extraction)*

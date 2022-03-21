@@ -12,3 +12,4 @@ edition = "2021"
 "turbo-tasks-fs" = { path = "../turbo-tasks-fs" }
 anyhow = "1.0.47"
 async-std = "1.10.0"
+json = "0.12.4"
