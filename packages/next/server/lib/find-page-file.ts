@@ -23,23 +23,28 @@ export async function findPageFile(
   pageExtensions: string[]
 ): Promise<string | null> {
   const foundPagePaths: string[] = []
-
+  const isRootPaths = rootDir.replace(/\\/g, '/').endsWith('/root')
   const page = denormalizePagePath(normalizedPagePath)
 
   for (const extension of pageExtensions) {
-    if (!normalizedPagePath.endsWith('/index')) {
-      const relativePagePath = `${page}.${extension}`
-      const pagePath = join(rootDir, relativePagePath)
+    const pathsToCheck: string[] = []
 
-      if (await fileExists(pagePath)) {
-        foundPagePaths.push(relativePagePath)
-      }
+    if (!normalizedPagePath.endsWith('/index')) {
+      pathsToCheck.push(`${page}.${extension}`)
     }
 
-    const relativePagePathWithIndex = join(page, `index.${extension}`)
-    const pagePathWithIndex = join(rootDir, relativePagePathWithIndex)
-    if (await fileExists(pagePathWithIndex)) {
-      foundPagePaths.push(relativePagePathWithIndex)
+    if (isRootPaths) {
+      pathsToCheck.unshift(join(page, `index.${extension}`))
+    } else {
+      pathsToCheck.push(join(page, `index.${extension}`))
+    }
+
+    for (const pathToCheck of pathsToCheck) {
+      const pagePathWithIndex = join(rootDir, pathToCheck)
+
+      if (await fileExists(pagePathWithIndex)) {
+        foundPagePaths.push(pathToCheck)
+      }
     }
   }
 

@@ -62,6 +62,7 @@ import { addRequestMeta, getRequestMeta } from './request-meta'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
 import { ImageConfigComplete } from '../shared/lib/image-config'
+import { normalizeRootPath } from '../shared/lib/router/utils/root-paths'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -174,6 +175,7 @@ export default abstract class Server {
   private responseCache: ResponseCache
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
+  protected rootPathRoutes?: Record<string, string>
   protected customRoutes: CustomRoutes
   protected middlewareManifest?: MiddlewareManifest
   protected middleware?: RoutingItem[]
@@ -839,6 +841,7 @@ export default abstract class Server {
     const { useFileSystemPublicRoutes } = this.nextConfig
 
     if (useFileSystemPublicRoutes) {
+      this.rootPathRoutes = this.getRootPathRoutes()
       this.dynamicRoutes = this.getDynamicRoutes()
       if (!this.minimalMode) {
         this.middleware = this.getMiddleware()
@@ -932,7 +935,10 @@ export default abstract class Server {
     const addedPages = new Set<string>()
 
     return getSortedRoutes(
-      Object.keys(this.pagesManifest!).map(
+      [
+        ...Object.keys(this.rootPathRoutes || {}),
+        ...Object.keys(this.pagesManifest || {}),
+      ].map(
         (page) =>
           normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
       )
@@ -946,6 +952,15 @@ export default abstract class Server {
         }
       })
       .filter((item): item is RoutingItem => Boolean(item))
+  }
+
+  protected getRootPathRoutes(): Record<string, string> {
+    const rootPathRoutes: Record<string, string> = {}
+
+    Object.keys(this.rootPathsManifest || {}).forEach((entry) => {
+      rootPathRoutes[normalizeRootPath(entry)] = entry
+    })
+    return rootPathRoutes
   }
 
   protected async run(
@@ -1054,6 +1069,14 @@ export default abstract class Server {
       // maintain backwards compatibility for custom server
       // (see custom-server integration tests)
       pathname = '/'
+    }
+
+    if (this.nextConfig.experimental.rootDir) {
+      const originalRootPath = this.rootPathRoutes?.[pathname]
+
+      if (originalRootPath) {
+        pathname = originalRootPath
+      }
     }
 
     // we allow custom servers to call render for all URLs

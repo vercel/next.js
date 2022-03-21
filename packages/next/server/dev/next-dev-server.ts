@@ -62,6 +62,7 @@ import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware
 import { isCustomErrorPage, isReservedPage } from '../../build/utils'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { getPageRuntime, invalidatePageRuntimeCache } from '../../build/entries'
+import { normalizeRootPath } from '../../shared/lib/router/utils/root-paths'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -260,13 +261,19 @@ export default class DevServer extends Server {
       })
 
       let wp = (this.webpackWatcher = new Watchpack())
-      wp.watch([], [pagesDir!], 0)
+      const toWatch = [pagesDir!]
+
+      if (this.rootDir) {
+        toWatch.push(this.rootDir)
+      }
+      wp.watch([], toWatch, 0)
 
       wp.on('aggregated', async () => {
         const routedMiddleware = []
-        const routedPages = []
+        const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
         const ssrMiddleware = new Set<string>()
+        const rootPaths: Record<string, string> = {}
 
         for (const [fileName, { accuracy, safeTime }] of knownFiles) {
           if (accuracy === undefined || !regexPageExtension.test(fileName)) {
@@ -281,11 +288,35 @@ export default class DevServer extends Server {
             )
             continue
           }
+          let pageName: string = ''
+          let isRootPath = false
 
-          let pageName =
-            '/' + relative(pagesDir!, fileName).replace(/\\+/g, '/')
+          if (
+            this.rootDir &&
+            fileName
+              .replace(/\\/g, '/')
+              .startsWith(this.rootDir.replace(/\\/g, '/'))
+          ) {
+            isRootPath = true
+            pageName =
+              '/' + relative(this.rootDir!, fileName).replace(/\\+/g, '/')
+          } else {
+            pageName = '/' + relative(pagesDir!, fileName).replace(/\\+/g, '/')
+          }
+
           pageName = pageName.replace(regexPageExtension, '')
           pageName = pageName.replace(/\/index$/, '') || '/'
+
+          if (isRootPath) {
+            // TODO: should only routes ending in /index.js be route-able?
+            const originalPageName = pageName
+            pageName = normalizeRootPath(pageName)
+            rootPaths[pageName] = originalPageName
+
+            if (routedPages.includes(pageName)) {
+              continue
+            }
+          }
 
           invalidatePageRuntimeCache(fileName, safeTime)
           const pageRuntimeConfig = await getPageRuntime(
@@ -304,6 +335,8 @@ export default class DevServer extends Server {
 
           routedPages.push(pageName)
         }
+
+        this.rootPathRoutes = rootPaths
 
         this.middleware = getSortedRoutes(routedMiddleware).map((page) => ({
           match: getRouteMatcher(
