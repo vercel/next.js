@@ -58,7 +58,7 @@ pub async fn all_referenced_assets(asset: AssetRef) -> Result<AssetsSetRef> {
                     }
                 }
             }
-            ResolveResult::External(_, references) => {
+            ResolveResult::Special(_, references) => {
                 if let Some(references) = references {
                     for reference in references {
                         queue.push_back(reference.clone().resolve_reference());

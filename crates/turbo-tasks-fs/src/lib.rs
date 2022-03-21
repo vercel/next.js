@@ -1,11 +1,18 @@
 #![feature(trivial_bounds)]
 #![feature(hash_drain_filter)]
 #![feature(into_future)]
+#![feature(iter_advance_by)]
 
+pub mod glob;
 mod invalidator_map;
+mod read_glob;
 pub mod util;
 
+use read_glob::read_glob;
+pub use read_glob::{GlobContinuation, GlobContinuationRef, ReadGlobResult, ReadGlobResultRef};
+
 use std::{
+    collections::HashMap,
     fmt::{self, Debug, Display},
     fs::{self, create_dir_all},
     io::ErrorKind,
@@ -17,11 +24,12 @@ use std::{
 
 use anyhow::{anyhow, bail, Context, Result};
 use async_std::task::block_on;
+use glob::GlobRef;
 use invalidator_map::InvalidatorMap;
 use json::{parse, JsonValue};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use threadpool::ThreadPool;
-use turbo_tasks::{CompletionRef, Task};
+use turbo_tasks::{trace::TraceSlotRefs, CompletionRef, Task};
 use util::{join_path, normalize_path};
 
 #[turbo_tasks::value_trait]
@@ -212,33 +220,45 @@ impl FileSystem for DiskFileSystem {
             self.dir_invalidators
                 .insert(path_to_key(full_path.as_path()), invalidator);
         }
-        let result = self.execute(move || fs::read_dir(&full_path)).await;
+        let result = self
+            .execute({
+                let full_path = full_path.clone();
+                move || fs::read_dir(&full_path)
+            })
+            .await;
         Ok(match result {
             Ok(res) => DirectoryContentRef::new(
-                res.filter_map(|e| -> Option<Result<DirectoryEntryRef>> {
+                res.filter_map(|e| -> Option<Result<(String, DirectoryEntry)>> {
                     match e {
-                        Ok(e) => e
-                            .path()
-                            .strip_prefix(&self.root)
-                            .unwrap()
-                            .to_str()
-                            .map(|path| {
-                                Ok({
-                                    let fs_path = FileSystemPathRef::new(fs_path.fs.clone(), path);
-                                    let file_type = e.file_type()?;
-                                    if file_type.is_file() {
-                                        DirectoryEntry::File(fs_path).into()
-                                    } else if file_type.is_dir() {
-                                        DirectoryEntry::Directory(fs_path).into()
-                                    } else {
-                                        DirectoryEntry::Other(fs_path).into()
+                        Ok(e) => {
+                            let path = e.path();
+                            let filename = path.file_name()?.to_str()?.to_string();
+                            let path_to_root = path.strip_prefix(&self.root).ok()?.to_str()?;
+                            Some(Ok((filename, {
+                                let fs_path =
+                                    FileSystemPathRef::new(fs_path.fs.clone(), path_to_root);
+                                let file_type = match e.file_type() {
+                                    Err(e) => {
+                                        return Some(Err(e.into()));
                                     }
-                                })
-                            }),
-                        Err(_) => Some(Ok(DirectoryEntry::Error.into())),
+                                    Ok(t) => t,
+                                };
+                                if file_type.is_file() {
+                                    DirectoryEntry::File(fs_path).into()
+                                } else if file_type.is_dir() {
+                                    DirectoryEntry::Directory(fs_path).into()
+                                } else {
+                                    DirectoryEntry::Other(fs_path).into()
+                                }
+                            })))
+                        }
+                        Err(err) => Some(Err::<_, anyhow::Error>(err.into()).context(anyhow!(
+                            "Error reading directory item in {}",
+                            full_path.display()
+                        ))),
                     }
                 })
-                .collect::<Result<Vec<_>>>()?,
+                .collect::<Result<HashMap<String, _>>>()?,
             ),
             Err(_) => DirectoryContentRef::not_found(),
         })
@@ -292,13 +312,16 @@ impl FileSystem for DiskFileSystem {
         Ok(CompletionRef::new())
     }
     async fn parent_path(&self, fs_path: FileSystemPathRef) -> Result<FileSystemPathRef> {
-        let fs_path = fs_path.await?;
-        let mut p: String = fs_path.path.clone();
+        let fs_path_value = fs_path.get().await?;
+        if fs_path_value.path.is_empty() {
+            return Ok(fs_path.clone());
+        }
+        let mut p: String = fs_path_value.path.clone();
         match str::rfind(&p, '/') {
             Some(index) => p.replace_range(index.., ""),
             None => p.clear(),
         }
-        Ok(FileSystemPathRef::new(fs_path.fs.clone(), &p))
+        Ok(FileSystemPathRef::new(fs_path_value.fs.clone(), &p))
     }
 }
 
@@ -316,6 +339,20 @@ impl FileSystemPath {
 
     pub fn is_root(&self) -> bool {
         self.path.is_empty()
+    }
+
+    pub fn get_path_to<'a>(&self, inner: &'a FileSystemPath) -> Option<&'a str> {
+        if self.fs != inner.fs {
+            return None;
+        }
+        let path = inner.path.strip_prefix(&self.path)?;
+        if self.path.is_empty() {
+            Some(path)
+        } else if path.starts_with('/') {
+            Some(&path[1..])
+        } else {
+            None
+        }
     }
 }
 
@@ -347,6 +384,10 @@ impl FileSystemPathRef {
                 path
             );
         }
+    }
+
+    pub async fn read_glob(self, glob: GlobRef, include_dot_files: bool) -> ReadGlobResultRef {
+        read_glob(self, glob, include_dot_files)
     }
 }
 
@@ -467,8 +508,7 @@ pub enum FileJsonContent {
     NotFound,
 }
 
-#[derive(Hash, Clone, Debug, PartialEq, Eq)]
-#[turbo_tasks::value(shared)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceSlotRefs)]
 pub enum DirectoryEntry {
     File(FileSystemPathRef),
     Directory(FileSystemPathRef),
@@ -476,22 +516,19 @@ pub enum DirectoryEntry {
     Error,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 #[turbo_tasks::value]
 pub enum DirectoryContent {
-    Entries(Vec<DirectoryEntryRef>),
+    Entries(HashMap<String, DirectoryEntry>),
     NotFound,
 }
 
-#[turbo_tasks::value_impl]
-impl DirectoryContent {
-    #[turbo_tasks::constructor(compare_enum: Entries)]
-    pub fn new(entries: Vec<DirectoryEntryRef>) -> Self {
-        DirectoryContent::Entries(entries)
+impl DirectoryContentRef {
+    pub fn new(entries: HashMap<String, DirectoryEntry>) -> Self {
+        Self::slot(DirectoryContent::Entries(entries))
     }
 
-    #[turbo_tasks::constructor(compare_enum: NotFound)]
     pub fn not_found() -> Self {
-        DirectoryContent::NotFound
+        Self::slot(DirectoryContent::NotFound)
     }
 }

@@ -52,7 +52,7 @@ macro_rules! ignore {
   }
 }
 
-ignore!(i8, u8, i16, u16, i32, u32, i64, u64, bool, usize);
+ignore!(i8, u8, i16, u16, i32, u32, i64, u64, char, bool, usize);
 ignore!(
     AtomicI8,
     AtomicU8,

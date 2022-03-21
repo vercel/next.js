@@ -1,9 +1,14 @@
 use anyhow::{anyhow, Context, Result};
 use async_std::task::{block_on, spawn};
 use clap::Parser;
-use std::{collections::BTreeSet, env::current_dir, path::PathBuf, time::Instant};
+use std::{
+    collections::BTreeSet, env::current_dir, future::Future, path::PathBuf, pin::Pin, time::Instant,
+};
 use turbo_tasks::{NothingRef, TurboTasks};
-use turbo_tasks_fs::{DiskFileSystemRef, FileSystemPathRef, FileSystemRef};
+use turbo_tasks_fs::{
+    glob::GlobRef, DirectoryContent, DirectoryEntry, DiskFileSystemRef, FileSystemPathRef,
+    FileSystemRef, ReadGlobResultRef,
+};
 use turbopack::{
     all_assets, asset::AssetRef, emit, module, rebase::RebasedAssetRef,
     source_asset::SourceAssetRef,
@@ -63,15 +68,45 @@ fn create_fs(context: &str) -> FileSystemRef {
     DiskFileSystemRef::new("context directory".to_string(), context.to_string()).into()
 }
 
-fn input_to_modules<'a>(
+async fn add_glob_results(result: ReadGlobResultRef, list: &mut Vec<AssetRef>) -> Result<()> {
+    let result = result.await?;
+    let more = result
+        .expandable
+        .values()
+        .map(|cont| cont.clone().read_glob());
+    for entry in result.results.values() {
+        match entry {
+            DirectoryEntry::File(path) => {
+                let source = SourceAssetRef::new(path.clone()).into();
+                list.push(module(source));
+            }
+            _ => {}
+        }
+    }
+    for result in more {
+        fn recurse<'a>(
+            result: ReadGlobResultRef,
+            list: &'a mut Vec<AssetRef>,
+        ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
+            Box::pin(add_glob_results(result, list))
+        }
+        // Boxing for async recursion
+        recurse(result, list).await?;
+    }
+    Ok(())
+}
+
+async fn input_to_modules<'a>(
     fs: &'a FileSystemRef,
     input: &'a Vec<String>,
-) -> impl Iterator<Item = AssetRef> + 'a {
-    input.iter().map(move |input| {
-        let input = FileSystemPathRef::new(fs.clone(), input);
-        let source = SourceAssetRef::new(input).into();
-        module(source)
-    })
+) -> Result<Vec<AssetRef>> {
+    let root = FileSystemPathRef::new(fs.clone(), "");
+    let mut list = Vec::new();
+    for input in input.iter() {
+        let glob = GlobRef::new(input);
+        add_glob_results(root.clone().read_glob(glob, false), &mut list).await?;
+    }
+    Ok(list)
 }
 
 fn process_context(dir: &PathBuf, context_directory: Option<String>) -> Result<String> {
@@ -127,7 +162,8 @@ fn main() {
             tt.spawn_once_task(async move {
                 let mut result = BTreeSet::new();
                 let fs = create_fs(&context);
-                for module in input_to_modules(&fs, &input) {
+                let modules = input_to_modules(&fs, &input).await?;
+                for module in modules {
                     let set = all_assets(module);
                     for asset in set.await?.assets.iter() {
                         let path = asset.path().await?;
@@ -185,7 +221,7 @@ fn main() {
                 let out_fs = create_fs(&output);
                 let input_dir = FileSystemPathRef::new(fs.clone(), "");
                 let output_dir = FileSystemPathRef::new(out_fs, "");
-                for module in input_to_modules(&fs, &input) {
+                for module in input_to_modules(&fs, &input).await? {
                     let rebased =
                         RebasedAssetRef::new(module, input_dir.clone(), output_dir.clone()).into();
                     emit(rebased);

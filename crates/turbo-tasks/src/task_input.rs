@@ -32,6 +32,7 @@ pub enum TaskInput {
     TaskCreated(Arc<Task>, usize),
     List(Vec<TaskInput>),
     String(String),
+    Bool(bool),
     Usize(usize),
     I32(i32),
     Nothing,
@@ -194,6 +195,7 @@ impl Display for TaskInput {
                     .join(", ")
             ),
             TaskInput::String(s) => write!(f, "string {:?}", s),
+            TaskInput::Bool(b) => write!(f, "bool {:?}", b),
             TaskInput::Usize(v) => write!(f, "usize {}", v),
             TaskInput::I32(v) => write!(f, "i32 {}", v),
             TaskInput::Nothing => write!(f, "nothing"),
@@ -213,6 +215,12 @@ impl From<String> for TaskInput {
 impl From<&str> for TaskInput {
     fn from(s: &str) -> Self {
         TaskInput::String(s.to_string())
+    }
+}
+
+impl From<bool> for TaskInput {
+    fn from(b: bool) -> Self {
+        TaskInput::Bool(b)
     }
 }
 
@@ -246,6 +254,17 @@ impl<'a> TryFrom<&'a TaskInput> for &'a str {
         match value {
             TaskInput::String(str) => Ok(&str),
             _ => Err(anyhow!("invalid task input type, expected string")),
+        }
+    }
+}
+
+impl TryFrom<&TaskInput> for bool {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
+        match value {
+            TaskInput::Bool(b) => Ok(*b),
+            _ => Err(anyhow!("invalid task input type, expected bool")),
         }
     }
 }

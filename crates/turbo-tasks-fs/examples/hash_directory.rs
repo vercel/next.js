@@ -92,8 +92,8 @@ async fn hash_directory(directory: FileSystemPathRef) -> Result<ContentHashRef> 
     let mut hashes = BTreeMap::new();
     match &*content.await? {
         DirectoryContent::Entries(entries) => {
-            for entry in entries.iter() {
-                match &*entry.get().await? {
+            for entry in entries.values() {
+                match entry {
                     DirectoryEntry::File(path) => {
                         let name = filename(path).await?;
                         hashes.insert(name, hash_file(path.clone()).await?.value.clone());

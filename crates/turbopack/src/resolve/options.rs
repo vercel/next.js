@@ -2,9 +2,14 @@ use std::collections::BTreeMap;
 
 use anyhow::Result;
 use turbo_tasks::trace::TraceSlotRefs;
-use turbo_tasks_fs::FileSystemPathRef;
+use turbo_tasks_fs::{glob::Glob, FileSystemPathRef};
 
-use super::prefix_tree::{PrefixTree, WildcardReplacable};
+use crate::resolve::parse::RequestRef;
+
+use super::{
+    prefix_tree::{PrefixTree, WildcardReplacable},
+    ResolveResult, ResolveResultRef, SpecialType,
+};
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, PartialEq, Eq, Debug)]
@@ -55,6 +60,8 @@ pub enum ResolveIntoPackage {
 pub enum ImportMapping {
     External(Option<String>),
     Alias(String),
+    Ignore,
+    Empty,
 }
 
 impl WildcardReplacable for ImportMapping {
@@ -72,6 +79,7 @@ impl WildcardReplacable for ImportMapping {
             ImportMapping::Alias(name) => {
                 Ok(ImportMapping::Alias(name.clone().replace("*", value)))
             }
+            ImportMapping::Ignore | ImportMapping::Empty => Ok(self.clone()),
         }
     }
 
@@ -92,7 +100,95 @@ impl WildcardReplacable for ImportMapping {
                 }
             }
             ImportMapping::Alias(name) => Ok(ImportMapping::Alias(add(name, value))),
+            ImportMapping::Ignore | ImportMapping::Empty => Ok(self.clone()),
         }
+    }
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(PartialEq, Eq, Clone, Debug, Default)]
+pub struct ImportMap {
+    pub direct: PrefixTree<ImportMapping>,
+    pub by_glob: Vec<(Glob, ImportMapping)>,
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(PartialEq, Eq, Clone, Debug, Default)]
+pub struct ResolvedMap {
+    pub by_glob: Vec<(FileSystemPathRef, Glob, ImportMapping)>,
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub enum ImportMapResult {
+    Result(ResolveResultRef),
+    Alias(RequestRef),
+    NoEntry,
+}
+
+fn import_mapping_to_result(mapping: &ImportMapping) -> ImportMapResultRef {
+    match mapping {
+        ImportMapping::External(name) => ImportMapResult::Result(
+            ResolveResult::Special(
+                name.as_ref().map_or_else(
+                    || SpecialType::OriginalReferenceExternal,
+                    |req| SpecialType::OriginalRefernceTypeExternal(req.to_string()),
+                ),
+                None,
+            )
+            .into(),
+        )
+        .into(),
+        ImportMapping::Ignore => {
+            ImportMapResult::Result(ResolveResult::Special(SpecialType::Ignore, None).into()).into()
+        }
+        ImportMapping::Empty => {
+            ImportMapResult::Result(ResolveResult::Special(SpecialType::Empty, None).into()).into()
+        }
+        ImportMapping::Alias(name) => {
+            let request = RequestRef::parse(name.to_string());
+
+            ImportMapResult::Alias(request).into()
+        }
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ImportMapRef {
+    pub async fn lookup(self, request: RequestRef) -> Result<ImportMapResultRef> {
+        let this = self.await?;
+        let request_string = request.await?.request();
+        for result in this.direct.lookup(&request_string) {
+            return Ok(import_mapping_to_result(result?.as_ref()));
+        }
+        let request_string_without_slash = if request_string.ends_with('/') {
+            &request_string[..request_string.len() - 1]
+        } else {
+            &request_string
+        };
+        for (glob, mapping) in this.by_glob.iter() {
+            if glob.execute(request_string_without_slash) {
+                return Ok(import_mapping_to_result(&mapping));
+            }
+        }
+        Ok(ImportMapResult::NoEntry.into())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ResolvedMapRef {
+    pub async fn lookup(self, resolved: FileSystemPathRef) -> Result<ImportMapResultRef> {
+        let this = self.await?;
+        let resolved = resolved.await?;
+        for (root, glob, mapping) in this.by_glob.iter() {
+            let root = root.get().await?;
+            if let Some(path) = root.get_path_to(&resolved) {
+                if glob.execute(path) {
+                    return Ok(import_mapping_to_result(&mapping));
+                }
+            }
+        }
+        Ok(ImportMapResult::NoEntry.into())
     }
 }
 
@@ -102,7 +198,8 @@ pub struct ResolveOptions {
     pub extensions: Vec<String>,
     pub modules: Vec<ResolveModules>,
     pub into_package: Vec<ResolveIntoPackage>,
-    pub import_map: PrefixTree<ImportMapping>,
+    pub import_map: Option<ImportMapRef>,
+    pub resolved_map: Option<ResolvedMapRef>,
 }
 
 #[turbo_tasks::value_impl]
