@@ -43,11 +43,16 @@ import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
-import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
+import {
+  Feature,
+  SWC_TARGET_TRIPLE,
+  TelemetryPlugin,
+} from './webpack/plugins/telemetry-plugin'
 import type { Span } from '../trace'
 import { getRawPageExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
+import { shouldUseReactRoot } from '../server/config'
 import { getMiddlewareSourceMapPlugins } from './webpack/plugins/middleware-source-maps-plugin'
 
 const watchOptions = Object.freeze({
@@ -309,7 +314,6 @@ export default async function getBaseWebpackConfig(
     rewrites,
     isDevFallback = false,
     runWebpackSpan,
-    hasReactRoot,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -323,7 +327,6 @@ export default async function getBaseWebpackConfig(
     rewrites: CustomRoutes['rewrites']
     isDevFallback?: boolean
     runWebpackSpan: Span
-    hasReactRoot: boolean
   }
 ): Promise<webpack.Configuration> {
   const { useTypeScript, jsConfig, resolvedBaseUrl } = await loadJsConfig(
@@ -336,10 +339,10 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
   const hasReactRefresh: boolean = dev && !isServer
-
+  const hasReactRoot = shouldUseReactRoot()
   const runtime = config.experimental.runtime
 
-  // Make sure `reactRoot` is enabled when React 18 or experimental is detected.
+  // Make sure reactRoot is enabled when react 18 is detected
   if (hasReactRoot) {
     config.experimental.reactRoot = true
   }
@@ -354,14 +357,14 @@ export default async function getBaseWebpackConfig(
       '`experimental.runtime` requires `experimental.reactRoot` to be enabled along with React 18.'
     )
   }
-  if (config.experimental.serverComponents && !hasReactRoot) {
+  if (config.experimental.serverComponents && !runtime) {
     throw new Error(
-      '`experimental.serverComponents` requires React 18 to be installed.'
+      '`experimental.runtime` is required to be set along with `experimental.serverComponents`.'
     )
   }
 
   const targetWeb = isEdgeRuntime || !isServer
-  const hasConcurrentFeatures = hasReactRoot
+  const hasConcurrentFeatures = !!runtime && hasReactRoot
   const hasServerComponents =
     hasConcurrentFeatures && !!config.experimental.serverComponents
   const disableOptimizedLoading = hasConcurrentFeatures
@@ -407,6 +410,15 @@ export default async function getBaseWebpackConfig(
   const distDir = path.join(dir, config.distDir)
 
   let useSWCLoader = !babelConfigFile
+  let SWCBinaryTarget: [Feature, boolean] | undefined = undefined
+  if (useSWCLoader) {
+    // TODO: we do not collect wasm target yet
+    const binaryTarget = require('./swc')?.getBinaryMetadata?.()
+      ?.target as SWC_TARGET_TRIPLE
+    SWCBinaryTarget = binaryTarget
+      ? [`swc/target/${binaryTarget}` as const, true]
+      : undefined
+  }
 
   if (!loggedSwcDisabled && !useSWCLoader && babelConfigFile) {
     Log.info(
@@ -420,7 +432,7 @@ export default async function getBaseWebpackConfig(
 
   if (!loggedIgnoredCompilerOptions && !useSWCLoader && config.compiler) {
     Log.info(
-      '`compiler` options in `next.config.js` will be ignored while using Babel https://next.js.org/docs/messages/ignored-compiler-options'
+      '`compiler` options in `next.config.js` will be ignored while using Babel https://nextjs.org/docs/messages/ignored-compiler-options'
     )
     loggedIgnoredCompilerOptions = true
   }
@@ -1493,23 +1505,26 @@ export default async function getBaseWebpackConfig(
       !dev &&
         !isServer &&
         new TelemetryPlugin(
-          new Map([
-            ['swcLoader', useSWCLoader],
-            ['swcMinify', config.swcMinify],
-            ['swcRelay', !!config.compiler?.relay],
-            ['swcStyledComponents', !!config.compiler?.styledComponents],
+          new Map(
             [
-              'swcReactRemoveProperties',
-              !!config.compiler?.reactRemoveProperties,
-            ],
-            [
-              'swcExperimentalDecorators',
-              !!jsConfig?.compilerOptions?.experimentalDecorators,
-            ],
-            ['swcRemoveConsole', !!config.compiler?.removeConsole],
-            ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
-            ['swcEmotion', !!config.experimental.emotion],
-          ])
+              ['swcLoader', useSWCLoader],
+              ['swcMinify', config.swcMinify],
+              ['swcRelay', !!config.compiler?.relay],
+              ['swcStyledComponents', !!config.compiler?.styledComponents],
+              [
+                'swcReactRemoveProperties',
+                !!config.compiler?.reactRemoveProperties,
+              ],
+              [
+                'swcExperimentalDecorators',
+                !!jsConfig?.compilerOptions?.experimentalDecorators,
+              ],
+              ['swcRemoveConsole', !!config.compiler?.removeConsole],
+              ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
+              ['swcEmotion', !!config.experimental.emotion],
+              SWCBinaryTarget,
+            ].filter<[Feature, boolean]>(Boolean as any)
+          )
         ),
     ].filter(Boolean as any as ExcludesFalse),
   }

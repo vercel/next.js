@@ -76,11 +76,7 @@ import {
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { CompilerResult, runCompiler } from './compiler'
-import {
-  createEntrypoints,
-  createPagesMapping,
-  getPageRuntime,
-} from './entries'
+import { createEntrypoints, createPagesMapping } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
@@ -157,10 +153,11 @@ export default async function build(
     setGlobal('phase', PHASE_PRODUCTION_BUILD)
     setGlobal('distDir', distDir)
 
-    // We enable concurrent features (Fizz-related rendering architecture) when
-    // using React 18 or experimental.
+    // Currently, when the runtime option is set (either `nodejs` or `edge`),
+    // we enable concurrent features (Fizz-related rendering architecture).
+    const runtime = config.experimental.runtime
     const hasReactRoot = shouldUseReactRoot()
-    const hasConcurrentFeatures = hasReactRoot
+    const hasConcurrentFeatures = !!runtime
 
     const hasServerComponents =
       hasReactRoot && !!config.experimental.serverComponents
@@ -625,7 +622,6 @@ export default async function build(
               entrypoints: entrypoints.client,
               rewrites,
               runWebpackSpan,
-              hasReactRoot,
             }),
             getBaseWebpackConfig(dir, {
               buildId,
@@ -637,7 +633,6 @@ export default async function build(
               entrypoints: entrypoints.server,
               rewrites,
               runWebpackSpan,
-              hasReactRoot,
             }),
             hasReactRoot
               ? getBaseWebpackConfig(dir, {
@@ -651,7 +646,6 @@ export default async function build(
                   entrypoints: entrypoints.edgeServer,
                   rewrites,
                   runWebpackSpan,
-                  hasReactRoot,
                 })
               : null,
           ])
@@ -960,22 +954,10 @@ export default async function build(
             let ssgPageRoutes: string[] | null = null
             let isMiddlewareRoute = !!page.match(MIDDLEWARE_ROUTE)
 
-            const pagePath = pagePaths.find((_path) =>
-              _path.startsWith(actualPage + '.')
-            )
-            const pageRuntime =
-              hasConcurrentFeatures && pagePath
-                ? await getPageRuntime(
-                    join(pagesDir, pagePath),
-                    config.experimental.runtime
-                  )
-                : null
-
             if (
               !isMiddlewareRoute &&
               !isReservedPage(page) &&
-              // We currently don't support staic optimization in the Edge runtime.
-              pageRuntime !== 'edge'
+              !hasConcurrentFeatures
             ) {
               try {
                 let isPageStaticSpan =
@@ -1501,7 +1483,10 @@ export default async function build(
 
     const combinedPages = [...staticPages, ...ssgPages]
 
-    if (combinedPages.length > 0 || useStatic404 || useDefaultStatic500) {
+    if (
+      !hasConcurrentFeatures &&
+      (combinedPages.length > 0 || useStatic404 || useDefaultStatic500)
+    ) {
       const staticGenerationSpan = nextBuildSpan.traceChild('static-generation')
       await staticGenerationSpan.traceAsyncFn(async () => {
         detectConflictingPaths(
