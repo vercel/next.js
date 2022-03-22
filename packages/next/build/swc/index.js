@@ -76,6 +76,9 @@ async function loadWasm() {
         parse(src, options) {
           return Promise.resolve(bindings.parse(src.toString(), options))
         },
+        getTargetTriple() {
+          return undefined
+        },
       }
       return wasmBindings
     } catch (e) {
@@ -187,6 +190,8 @@ function loadNative() {
       parse(src, options) {
         return bindings.parse(src, toBuffer(options ?? {}))
       },
+
+      getTargetTriple: bindings.getTargetTriple,
     }
     return nativeBindings
   }
@@ -235,8 +240,14 @@ export async function parse(src, options) {
 }
 
 export function getBinaryMetadata() {
-  let bindings = loadBindingsSync()
+  let bindings
+  try {
+    bindings = loadNative()
+  } catch (e) {
+    // Suppress exceptions, this fn allows to fail to load native bindings
+  }
+
   return {
-    target: bindings.getTargetTriple(),
+    target: bindings?.getTargetTriple?.(),
   }
 }
