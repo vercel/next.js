@@ -146,18 +146,11 @@ export async function renderToHTML(
     supportsDynamicHTML,
     runtime,
     ComponentMod,
-    isRootPath,
   } = renderOpts
 
   const hasConcurrentFeatures = !!runtime
 
   const OriginalComponent = renderOpts.Component
-
-  // We don't need to opt-into the flight inlining logic if the page isn't a RSC.
-  const isServerComponent =
-    !!serverComponentManifest &&
-    hasConcurrentFeatures &&
-    (ComponentMod.__next_rsc__ || isRootPath)
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
@@ -166,18 +159,16 @@ export async function renderToHTML(
     Uint8Array
   > | null = null
 
-  if (isServerComponent) {
-    serverComponentsInlinedTransformStream = new TransformStream()
-    const search = stringifyQuery(query)
-    Component = createServerComponentRenderer(OriginalComponent, ComponentMod, {
-      cachePrefix: pathname + (search ? `?${search}` : ''),
-      transformStream: serverComponentsInlinedTransformStream,
-      serverComponentManifest,
-    })
-  }
+  serverComponentsInlinedTransformStream = new TransformStream()
+  const search = stringifyQuery(query)
+  Component = createServerComponentRenderer(OriginalComponent, ComponentMod, {
+    cachePrefix: pathname + (search ? `?${search}` : ''),
+    transformStream: serverComponentsInlinedTransformStream,
+    serverComponentManifest,
+  })
 
   let { renderServerComponentData } = renderOpts
-  if (isServerComponent && query.__flight__) {
+  if (query.__flight__) {
     renderServerComponentData = true
     delete query.__flight__
   }
