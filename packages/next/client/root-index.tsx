@@ -11,11 +11,14 @@ import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
 
 export const version = process.env.__NEXT_VERSION
 
-const appElement: HTMLElement | null = document.documentElement
+const appElement: HTMLElement | Document | null = document
 
 let reactRoot: any = null
 
-function renderReactElement(domEl: HTMLElement, fn: () => JSX.Element): void {
+function renderReactElement(
+  domEl: HTMLElement | Document,
+  fn: () => JSX.Element
+): void {
   const reactEl = fn()
   if (!reactRoot) {
     // Unlike with createRoot, you don't need a separate root.render() call here
