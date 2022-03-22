@@ -16,16 +16,30 @@ pub trait Values {
     fn dirname(&self) -> Option<JsWord>;
 }
 
-pub(crate) fn into_requests(
+pub struct LinkCache {
+    // TODO
+}
+
+impl LinkCache {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+pub(crate) fn link(graph: &VarGraph, val: &JsValue, _cache: &mut LinkCache) -> JsValue {
+    link_internal(graph, val, &mut HashSet::new()).value
+}
+
+pub(crate) fn link_internal(
     graph: &VarGraph,
-    val: JsValue,
+    val: &JsValue,
     circle_stack: &mut HashSet<Id>,
 ) -> LinkResult {
     let mut replaced_circular_references = HashSet::default();
 
     macro_rules! handle {
         ($e:expr) => {{
-            let res = into_requests(graph, $e, circle_stack);
+            let res = link_internal(graph, $e, circle_stack);
             replaced_circular_references.extend(res.replaced_circular_references);
             res.value
         }};
@@ -34,27 +48,24 @@ pub(crate) fn into_requests(
     let val = (|| {
         match val {
             JsValue::Constant(_) | JsValue::FreeVar(_) | JsValue::Module(..) | JsValue::Unknown => {
-                val
+                val.clone()
             }
             JsValue::Variable(var) => {
                 // Replace with unknown for now
-                if circle_stack.contains(&var) {
-                    replaced_circular_references.insert(var);
+                if circle_stack.contains(var) {
+                    replaced_circular_references.insert(var.clone());
                     JsValue::Unknown
                 } else {
                     circle_stack.insert(var.clone());
-                    let val = graph
-                        .values
-                        .get(&var)
-                        .cloned()
-                        .unwrap_or_else(|| panic!("should have var {:#?}", var));
-                    let res = into_requests(graph, val, circle_stack);
+                    const UNKNOWN: JsValue = JsValue::Unknown;
+                    let val = graph.values.get(&var).unwrap_or_else(|| &UNKNOWN);
+                    let res = link_internal(graph, val, circle_stack);
                     replaced_circular_references.extend(res.replaced_circular_references);
 
                     // Skip current var as it's internal to this resolution
-                    replaced_circular_references.remove(&var);
+                    replaced_circular_references.remove(var);
 
-                    circle_stack.remove(&var);
+                    circle_stack.remove(var);
                     res.value
                 }
             }
@@ -79,7 +90,8 @@ pub(crate) fn into_requests(
             }
 
             JsValue::Call(f, args) => {
-                let f = handle!(*f);
+                let f = handle!(&*f);
+                let args: Vec<_> = args.into_iter().map(|val| handle!(val)).collect();
 
                 match &f {
                     JsValue::Member(box JsValue::Module(module), prop) => {
@@ -92,7 +104,7 @@ pub(crate) fn into_requests(
 
                             let mut str_args = vec![];
 
-                            for arg in &args {
+                            for arg in args.iter() {
                                 match arg {
                                     JsValue::Constant(v) => match v {
                                         Lit::Str(v) => {
@@ -136,17 +148,17 @@ pub(crate) fn into_requests(
                     _ => {}
                 }
 
-                todo!("resolve(call: {:?}, {:?})", f, args)
+                JsValue::Call(box f, args)
             }
 
             JsValue::Member(obj, prop) => {
-                let obj = box handle!(*obj);
+                let obj = box handle!(&*obj);
 
-                match (*obj, &*prop) {
+                match (*obj, &**prop) {
                     (JsValue::FreeVar(FreeVarKind::Require), "resolve") => {
                         JsValue::FreeVar(FreeVarKind::RequireResolve)
                     }
-                    (obj, _) => JsValue::Member(box obj, prop),
+                    (obj, _) => JsValue::Member(box obj, prop.clone()),
                 }
             }
         }

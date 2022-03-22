@@ -4,6 +4,7 @@
 #![feature(into_future)]
 #![feature(map_try_insert)]
 #![feature(option_get_or_insert_default)]
+#![feature(once_cell)]
 
 use std::{
     collections::{HashMap, HashSet, VecDeque},

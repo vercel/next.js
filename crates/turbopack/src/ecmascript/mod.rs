@@ -1,4 +1,5 @@
 mod parse;
+mod pattern;
 mod references;
 mod resolve;
 pub mod webpack;

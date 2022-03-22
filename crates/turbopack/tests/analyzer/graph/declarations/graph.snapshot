@@ -1,0 +1,142 @@
+[
+    (
+        (
+            Atom('a' type=inline),
+            #1,
+        ),
+        Unknown,
+    ),
+    (
+        (
+            Atom('aa' type=inline),
+            #1,
+        ),
+        Variable(
+            (
+                Atom('a' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('b' type=inline),
+            #1,
+        ),
+        Unknown,
+    ),
+    (
+        (
+            Atom('bb' type=inline),
+            #1,
+        ),
+        Variable(
+            (
+                Atom('b' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('c' type=inline),
+            #1,
+        ),
+        Constant(
+            Num(
+                Number {
+                    span: Span {
+                        lo: BytePos(
+                            48,
+                        ),
+                        hi: BytePos(
+                            51,
+                        ),
+                        ctxt: #0,
+                    },
+                    value: 123.0,
+                },
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('cc' type=inline),
+            #1,
+        ),
+        Variable(
+            (
+                Atom('c' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('d' type=inline),
+            #1,
+        ),
+        Constant(
+            Str(
+                Str {
+                    span: Span {
+                        lo: BytePos(
+                            63,
+                        ),
+                        hi: BytePos(
+                            70,
+                        ),
+                        ctxt: #0,
+                    },
+                    value: Atom('hello' type=inline),
+                    has_escape: false,
+                    kind: Normal {
+                        contains_quote: true,
+                    },
+                },
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('dd' type=inline),
+            #1,
+        ),
+        Variable(
+            (
+                Atom('d' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('e' type=inline),
+            #1,
+        ),
+        Unknown,
+    ),
+    (
+        (
+            Atom('ee' type=inline),
+            #1,
+        ),
+        Variable(
+            (
+                Atom('e' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('ff' type=inline),
+            #1,
+        ),
+        FreeVar(
+            Other(
+                Atom('f' type=inline),
+            ),
+        ),
+    ),
+]

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, mem::take};
+use std::mem::take;
 
 pub(crate) use self::imports::ImportMap;
 use swc_atoms::JsWord;
@@ -18,6 +18,7 @@ pub enum JsValue {
     Constant(Lit),
     Alternatives(Vec<JsValue>),
 
+    // TODO no predefined kinds, only JsWord
     FreeVar(FreeVarKind),
 
     Variable(Id),
@@ -32,6 +33,7 @@ pub enum JsValue {
     /// `(callee, args)`
     Call(Box<JsValue>, Vec<JsValue>),
 
+    // TODO prop should be a JsValue to support dynamic expressions
     /// `(obj, prop)`
     Member(Box<JsValue>, JsWord),
 
@@ -80,7 +82,10 @@ impl JsValue {
             JsValue::Constant(..) | JsValue::Module(..) => false,
 
             JsValue::FreeVar(FreeVarKind::Dirname | FreeVarKind::ProcessEnv(..)) => true,
-            JsValue::FreeVar(FreeVarKind::Require | FreeVarKind::RequireResolve) => false,
+            JsValue::FreeVar(
+                FreeVarKind::Require | FreeVarKind::Import | FreeVarKind::RequireResolve,
+            ) => false,
+            JsValue::FreeVar(FreeVarKind::Other(_)) => false,
 
             JsValue::Add(v) => v.iter().any(|v| v.is_string()),
 
@@ -194,14 +199,14 @@ pub enum FreeVarKind {
     /// A reference to global `require`
     Require,
 
+    /// A reference to `import`
+    Import,
+
     /// A reference to global `require.resolve`
     RequireResolve,
-}
 
-#[derive(Debug)]
-pub(crate) struct ModuleData {
-    pub values: HashMap<Id, JsValue>,
-    pub imports: ImportMap,
+    /// `abc` `some_global`
+    Other(JsWord),
 }
 
 /// TODO(kdy1): Remove this once resolver distinguish between top-level bindings
@@ -222,20 +227,16 @@ fn is_unresolved(i: &Ident, bindings: &AHashSet<Id>, top_level_mark: Mark) -> bo
 
 #[cfg(test)]
 mod tests {
-    use std::{path::PathBuf, sync::Arc};
+    use std::path::PathBuf;
 
     use swc_common::Mark;
     use swc_ecma_transforms_base::resolver::resolver_with_mark;
-    use swc_ecmascript::{
-        ast::EsVersion, parser::parse_file_as_module, utils::collect_decls, visit::VisitMutWith,
-    };
+    use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_module, visit::VisitMutWith};
     use testing::NormalizedOutput;
 
-    use crate::analyzer::ImportMap;
-
     use super::{
-        graph::{create_graph, ModuleInfo},
-        linker::into_requests,
+        graph::{create_graph, EvalContext},
+        linker::{link, LinkCache},
     };
 
     #[testing::fixture("tests/analyzer/graph/**/input.js")]
@@ -258,20 +259,15 @@ mod tests {
             let top_level_mark = Mark::fresh(Mark::root());
             m.visit_mut_with(&mut resolver_with_mark(top_level_mark));
 
-            let bindings = collect_decls(&m);
+            let eval_context = EvalContext::new(&m, top_level_mark);
 
-            let var_graph = create_graph(
-                &m,
-                top_level_mark,
-                &ModuleInfo {
-                    all_bindings: Arc::new(bindings),
-                },
-            );
+            let var_graph = create_graph(&m, &eval_context);
 
             {
                 // Dump snapshot of graph
 
                 let mut dump = var_graph.values.clone().into_iter().collect::<Vec<_>>();
+                dump.sort_by(|a, b| a.0 .1.cmp(&b.0 .1));
                 dump.sort_by(|a, b| a.0 .0.cmp(&b.0 .0));
 
                 NormalizedOutput::from(format!("{:#?}", dump))
@@ -283,11 +279,17 @@ mod tests {
                 // Dump snapshot of resolved
 
                 let mut resolved = vec![];
-                for (id, val) in var_graph.values.clone() {
-                    let mut res = into_requests(&var_graph, val, &mut Default::default());
-                    res.value.normalize();
 
-                    resolved.push((id.0.to_string(), res.value));
+                for ((id, ctx), val) in var_graph.values.iter() {
+                    let mut res = link(&var_graph, val, &mut LinkCache::new());
+                    res.normalize();
+
+                    let unique = var_graph.values.keys().filter(|(i, _)| id == i).count() == 1;
+                    if unique {
+                        resolved.push((id.to_string(), res));
+                    } else {
+                        resolved.push((format!("{id}{ctx:?}"), res));
+                    }
                 }
                 resolved.sort_by(|a, b| a.0.cmp(&b.0));
 

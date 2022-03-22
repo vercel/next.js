@@ -1,10 +1,9 @@
-use std::{collections::HashMap, iter, sync::Arc};
+use std::{collections::HashMap, iter};
 
-use swc_atoms::{js_word, JsWord};
-use swc_common::{collections::AHashSet, Mark, DUMMY_SP};
+use swc_common::{collections::AHashSet, Mark, Span, Spanned};
 use swc_ecmascript::{
     ast::*,
-    utils::ident::IdentLike,
+    utils::{collect_decls, ident::IdentLike},
     visit::{Visit, VisitWith},
 };
 
@@ -13,59 +12,52 @@ use crate::analyzer::{is_unresolved, FreeVarKind};
 use super::{ImportMap, JsValue};
 
 #[derive(Debug)]
-pub struct VarGraph {
-    top_level_mark: Mark,
-    pub(crate) values: HashMap<Id, JsValue>,
-    imports: ImportMap,
-
-    deps_except_esm: Vec<JsValue>,
+pub enum Effect {
+    Call {
+        func: JsValue,
+        this: JsValue,
+        args: Vec<JsValue>,
+        span: Span,
+    },
 }
 
-#[derive(Default)]
-pub struct ModuleInfo {
-    pub(crate) all_bindings: Arc<AHashSet<Id>>,
+#[derive(Debug)]
+pub struct VarGraph {
+    pub(crate) values: HashMap<Id, JsValue>,
+
+    pub effects: Vec<Effect>,
 }
 
 /// You should use same [Mark] for this function and
 /// [swc_ecma_transforms_base::resolver::resolver_with_mark]
-pub fn create_graph(m: &Module, top_level_mark: Mark, module_info: &ModuleInfo) -> VarGraph {
+pub fn create_graph(m: &Module, eval_context: &EvalContext) -> VarGraph {
     let mut graph = VarGraph {
-        top_level_mark,
         values: Default::default(),
-        imports: ImportMap::analyze(m),
-        deps_except_esm: Default::default(),
+        effects: Default::default(),
     };
 
     m.visit_with(&mut Analyzer {
         data: &mut graph,
-        module_info,
+        eval_context,
         var_decl_kind: Default::default(),
     });
 
     graph
 }
 
-pub(crate) fn expr_to_js_value(e: &Expr) -> JsValue {
-    // TODO Implement helper to convert an expr to a JsValue without any context info
-    JsValue::Constant(Lit::Str(Str {
-        span: DUMMY_SP,
-        value: js_word!(""),
-        has_escape: Default::default(),
-        kind: Default::default(),
-    }))
+pub struct EvalContext {
+    bindings: AHashSet<Id>,
+    top_level_mark: Mark,
+    imports: ImportMap,
 }
 
-struct Analyzer<'a> {
-    data: &'a mut VarGraph,
-
-    module_info: &'a ModuleInfo,
-
-    var_decl_kind: Option<VarDeclKind>,
-}
-
-impl Analyzer<'_> {
-    fn is_unresolved(&self, id: &Ident) -> bool {
-        is_unresolved(id, &self.module_info.all_bindings, self.data.top_level_mark)
+impl EvalContext {
+    pub fn new(module: &Module, top_level_mark: Mark) -> Self {
+        Self {
+            top_level_mark,
+            bindings: collect_decls(module),
+            imports: ImportMap::analyze(module),
+        }
     }
 
     fn eval_tpl(&self, e: &Tpl, raw: bool) -> JsValue {
@@ -104,22 +96,30 @@ impl Analyzer<'_> {
         return JsValue::Concat(values);
     }
 
-    fn eval(&self, e: &Expr) -> JsValue {
+    pub fn eval(&self, e: &Expr) -> JsValue {
         match e {
             Expr::Lit(e @ Lit::Str(..) | e @ Lit::Num(..) | e @ Lit::Bool(..)) => {
                 return JsValue::Constant(e.clone())
             }
             Expr::Ident(i) => {
-                if self.is_require(i) {
-                    return JsValue::FreeVar(FreeVarKind::Require);
+                let id = i.to_id();
+                if let Some(imported) = self.imports.get_import(&id) {
+                    return imported;
                 }
+                if is_unresolved(&i, &self.bindings, self.top_level_mark) {
+                    if &*i.sym == "require" {
+                        return JsValue::FreeVar(FreeVarKind::Require);
+                    }
 
-                // TODO(kdy1): Consider using Arc
-                if &*i.sym == "__dirname" && self.is_unresolved(&i) {
-                    // This is __dirname injected by node.js
-                    return JsValue::FreeVar(FreeVarKind::Dirname);
+                    // TODO(kdy1): Consider using Arc
+                    if &*i.sym == "__dirname" {
+                        // This is __dirname injected by node.js
+                        return JsValue::FreeVar(FreeVarKind::Dirname);
+                    } else {
+                        return JsValue::FreeVar(FreeVarKind::Other(i.sym.clone()));
+                    }
                 } else {
-                    return JsValue::Variable(i.to_id());
+                    return JsValue::Variable(id);
                 }
             }
 
@@ -159,7 +159,7 @@ impl Analyzer<'_> {
             }) => {
                 if &*tag_obj.sym == "String"
                     && &*tag_prop.sym == "raw"
-                    && self.is_unresolved(&tag_obj)
+                    && is_unresolved(&tag_obj, &self.bindings, self.top_level_mark)
                 {
                     return self.eval_tpl(tpl, true);
                 }
@@ -184,7 +184,7 @@ impl Analyzer<'_> {
                 ..
             }) => {
                 if &*e_obj_obj.sym == "process"
-                    && self.is_unresolved(&e_obj_obj)
+                    && is_unresolved(&e_obj_obj, &self.bindings, self.top_level_mark)
                     && &*e_obj_prop.sym == "env"
                 {
                     // TODO: Handle process.env['NODE_ENV']
@@ -236,9 +236,19 @@ impl Analyzer<'_> {
 
         JsValue::Unknown
     }
+}
 
+struct Analyzer<'a> {
+    data: &'a mut VarGraph,
+
+    eval_context: &'a EvalContext,
+
+    var_decl_kind: Option<VarDeclKind>,
+}
+
+impl Analyzer<'_> {
     fn add_value(&mut self, id: Id, value: &Expr) {
-        let value = self.eval(value);
+        let value = self.eval_context.eval(value);
 
         if let Some(prev) = self.data.values.get_mut(&id) {
             prev.add_alt(value);
@@ -250,61 +260,91 @@ impl Analyzer<'_> {
         // value does not seem like a good idea.
     }
 
-    /// Before visiting children, we check for `require` in arguments to iife.
-    /// We then register a corresponding parameter as an alias of `require`.
-    ///
-    /// To be correct, this is not enough because the parameter can escape
-    /// from a function, but we don't have a good way to detect this without
-    /// looping. And more importantly, this is enough I think.
-    fn add_require_alias_for_iife(&mut self, n: &CallExpr) {
-        if n.args.iter().any(|a| a.spread.is_some()) {
-            return;
+    fn check_iife(&mut self, n: &CallExpr) -> bool {
+        fn unparen(expr: &Expr) -> &Expr {
+            if let Some(expr) = expr.as_paren() {
+                return unparen(&expr.expr);
+            }
+            expr
         }
 
-        match &n.callee {
-            Callee::Expr(box Expr::Fn(f)) => {
-                for (idx, arg) in n.args.iter().enumerate() {
-                    if let Some(arg) = arg.expr.as_ident() {
-                        if &*arg.sym == "require" && self.is_unresolved(&arg) {
-                            if let Some(Param {
-                                pat: Pat::Ident(param),
-                                ..
-                            }) = f.function.params.get(idx)
-                            {
-                                self.data.imports.add_require_alias(param.to_id());
-                            }
-                        }
+        if n.args.iter().any(|arg| arg.spread.is_some()) {
+            return false;
+        }
+        if let Some(expr) = n.callee.as_expr() {
+            match unparen(&expr) {
+                Expr::Fn(FnExpr { function, .. }) => {
+                    let params = &function.params;
+                    if !params.iter().all(|param| param.pat.is_ident()) {
+                        return false;
                     }
+                    let mut iter = params.iter();
+                    for (id, arg) in n.args.iter().map_while(|arg| {
+                        iter.next()
+                            .map(|param| (param.pat.as_ident().unwrap().to_id(), arg))
+                    }) {
+                        self.add_value(id, &arg.expr);
+                    }
+                    true
                 }
+                Expr::Arrow(ArrowExpr { params, .. }) => {
+                    if !params.iter().all(|param| param.is_ident()) {
+                        return false;
+                    }
+                    let mut iter = params.iter();
+                    for (id, arg) in n.args.iter().map_while(|arg| {
+                        iter.next()
+                            .map(|param| (param.as_ident().unwrap().to_id(), arg))
+                    }) {
+                        self.add_value(id, &arg.expr);
+                    }
+                    true
+                }
+                _ => false,
             }
-            _ => {}
+        } else {
+            false
         }
     }
 
-    fn is_require(&self, i: &Ident) -> bool {
-        if &*i.sym == "require" && self.is_unresolved(i) {
-            return true;
-        }
-        self.data.imports.aliases_of_require.contains(&i.to_id())
-    }
-
-    /// Checks for dynamic imports and `require` calls, including alias.
-    fn check_call_expr_for_imports(&mut self, n: &CallExpr) {
+    fn check_call_expr_for_effects(&mut self, n: &CallExpr) {
+        let args = if n.args.iter().any(|arg| arg.spread.is_some()) {
+            vec![JsValue::Unknown]
+        } else {
+            n.args
+                .iter()
+                .map(|arg| self.eval_context.eval(&arg.expr))
+                .collect()
+        };
         match &n.callee {
-            Callee::Import(i) => {
-                if let Some(first) = n.args.first() {
-                    let v = self.eval(&first.expr);
-                    self.data.deps_except_esm.push(v);
-                }
+            Callee::Import(_) => {
+                self.data.effects.push(Effect::Call {
+                    func: JsValue::FreeVar(FreeVarKind::Import),
+                    // TODO should be undefined instead
+                    this: JsValue::Unknown,
+                    args,
+                    span: n.span(),
+                });
             }
-            Callee::Expr(box Expr::Ident(i)) => {
-                // This is enough for checking aliased require calls.
-                if self.is_require(i) {
-                    if let Some(first) = n.args.first() {
-                        let v = self.eval(&first.expr);
-                        self.data.deps_except_esm.push(v);
-                    }
-                }
+            Callee::Expr(box expr @ Expr::Member(MemberExpr { obj, .. })) => {
+                let this_value = self.eval_context.eval(obj);
+                let fn_value = self.eval_context.eval(expr);
+                self.data.effects.push(Effect::Call {
+                    func: fn_value,
+                    this: this_value,
+                    args,
+                    span: n.span(),
+                });
+            }
+            Callee::Expr(box expr) => {
+                let fn_value = self.eval_context.eval(expr);
+                self.data.effects.push(Effect::Call {
+                    func: fn_value,
+                    // TODO should be undefined instead
+                    this: JsValue::Unknown,
+                    args,
+                    span: n.span(),
+                });
             }
             _ => {}
         }
@@ -321,9 +361,10 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_call_expr(&mut self, n: &CallExpr) {
-        self.add_require_alias_for_iife(n);
-
-        self.check_call_expr_for_imports(n);
+        // special behavior of IIFEs
+        if !self.check_iife(n) {
+            self.check_call_expr_for_effects(n);
+        }
 
         n.visit_children_with(self);
     }
@@ -340,6 +381,38 @@ impl Visit for Analyzer<'_> {
         self.var_decl_kind = None;
         n.visit_children_with(self);
         self.var_decl_kind = old;
+    }
+
+    fn visit_fn_decl(&mut self, decl: &FnDecl) {
+        self.add_value(
+            decl.ident.to_id(),
+            // TODO avoid clone
+            &Expr::Fn(FnExpr {
+                ident: Some(decl.ident.clone()),
+                function: decl.function.clone(),
+            }),
+        );
+        decl.visit_children_with(self);
+    }
+
+    fn visit_fn_expr(&mut self, expr: &FnExpr) {
+        if let Some(ident) = &expr.ident {
+            // TODO avoid clone
+            self.add_value(ident.to_id(), &Expr::Fn(expr.clone()));
+        }
+        expr.visit_children_with(self);
+    }
+
+    fn visit_class_decl(&mut self, decl: &ClassDecl) {
+        self.add_value(
+            decl.ident.to_id(),
+            // TODO avoid clone
+            &Expr::Class(ClassExpr {
+                ident: Some(decl.ident.clone()),
+                class: decl.class.clone(),
+            }),
+        );
+        decl.visit_children_with(self);
     }
 
     fn visit_var_decl(&mut self, n: &VarDecl) {

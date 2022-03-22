@@ -1,0 +1,35 @@
+[
+    (
+        (
+            Atom('aa' type=inline),
+            #1,
+        ),
+        Member(
+            Module(
+                Atom('x2' type=inline),
+            ),
+            Atom('a' type=inline),
+        ),
+    ),
+    (
+        (
+            Atom('xx' type=inline),
+            #1,
+        ),
+        Member(
+            Module(
+                Atom('x1' type=inline),
+            ),
+            Atom('default' type=static),
+        ),
+    ),
+    (
+        (
+            Atom('yy' type=inline),
+            #1,
+        ),
+        Module(
+            Atom('x3' type=inline),
+        ),
+    ),
+]

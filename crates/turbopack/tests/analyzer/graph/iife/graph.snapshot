@@ -1,0 +1,83 @@
+[
+    (
+        (
+            Atom('a' type=inline),
+            #1,
+        ),
+        FreeVar(
+            Require,
+        ),
+    ),
+    (
+        (
+            Atom('b' type=inline),
+            #2,
+        ),
+        Variable(
+            (
+                Atom('a' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('c' type=inline),
+            #2,
+        ),
+        Variable(
+            (
+                Atom('b' type=inline),
+                #2,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('d' type=inline),
+            #3,
+        ),
+        Variable(
+            (
+                Atom('a' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('e' type=inline),
+            #3,
+        ),
+        Variable(
+            (
+                Atom('d' type=inline),
+                #3,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('f' type=inline),
+            #4,
+        ),
+        Variable(
+            (
+                Atom('a' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('g' type=inline),
+            #4,
+        ),
+        Variable(
+            (
+                Atom('f' type=inline),
+                #4,
+            ),
+        ),
+    ),
+]

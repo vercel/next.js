@@ -1,10 +1,12 @@
 use swc_atoms::JsWord;
-use swc_common::collections::{AHashMap, AHashSet};
+use swc_common::collections::AHashMap;
 use swc_ecmascript::{
     ast::*,
     utils::ident::IdentLike,
     visit::{Visit, VisitWith},
 };
+
+use super::JsValue;
 
 /// The storage for all kinds of imports.
 ///
@@ -16,62 +18,29 @@ pub(crate) struct ImportMap {
     imports: AHashMap<Id, (JsWord, JsWord)>,
 
     namespace_imports: AHashMap<Id, JsWord>,
-
-    /// TODO(kdy1): Reduce visibility
-    pub(super) aliases_of_require: AHashSet<Id>,
 }
 
 impl ImportMap {
-    /// Returns true if `e` is an import of `orig_name` from `module`.
-    pub fn is_import(&self, e: &Expr, module: &str, orig_name: &str) -> bool {
-        match e {
-            Expr::Ident(i) => {
-                if let Some((i_src, i_sym)) = self.imports.get(&i.to_id()) {
-                    i_src == module && i_sym == orig_name
-                } else {
-                    false
-                }
-            }
-
-            Expr::Member(MemberExpr {
-                obj: box Expr::Ident(obj),
-                prop: MemberProp::Ident(prop),
-                ..
-            }) => {
-                if let Some(obj_src) = self.namespace_imports.get(&obj.to_id()) {
-                    obj_src == module && prop.sym == *orig_name
-                } else {
-                    false
-                }
-            }
-
-            Expr::Seq(e) => {
-                if let Some(e) = e.exprs.last() {
-                    return self.is_import(e, module, orig_name);
-                }
-
-                false
-            }
-
-            _ => false,
+    pub fn get_import(&self, id: &Id) -> Option<JsValue> {
+        if let Some((i_src, i_sym)) = self.imports.get(id) {
+            return Some(JsValue::Member(
+                box JsValue::Module(i_src.clone()),
+                i_sym.clone(),
+            ));
         }
+        if let Some(i_src) = self.namespace_imports.get(id) {
+            return Some(JsValue::Module(i_src.clone()));
+        }
+        None
     }
 
     /// Analyze ES import
     pub(super) fn analyze(m: &Module) -> Self {
-        let mut data = ImportMap {
-            imports: Default::default(),
-            namespace_imports: Default::default(),
-            aliases_of_require: Default::default(),
-        };
+        let mut data = ImportMap::default();
 
         m.visit_with(&mut Analyzer { data: &mut data });
 
         data
-    }
-
-    pub(super) fn add_require_alias(&mut self, id: Id) {
-        self.aliases_of_require.insert(id);
     }
 }
 

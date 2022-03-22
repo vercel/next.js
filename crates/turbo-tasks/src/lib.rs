@@ -17,6 +17,7 @@ mod task;
 mod task_input;
 pub mod trace;
 pub mod util;
+mod value;
 pub mod viz;
 
 pub use anyhow::{Error, Result};
@@ -30,3 +31,4 @@ pub use slot_value_type::{SlotValueType, TraitMethod, TraitType};
 pub use task::{Invalidator, Task, TaskArgumentOptions};
 pub use task_input::TaskInput;
 pub use turbo_tasks_macros::{constructor, function, value, value_impl, value_trait};
+pub use value::Value;

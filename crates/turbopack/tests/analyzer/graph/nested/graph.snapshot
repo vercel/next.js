@@ -1,0 +1,308 @@
+[
+    (
+        (
+            Atom('a' type=inline),
+            #1,
+        ),
+        Unknown,
+    ),
+    (
+        (
+            Atom('b' type=inline),
+            #1,
+        ),
+        Unknown,
+    ),
+    (
+        (
+            Atom('c' type=inline),
+            #1,
+        ),
+        Unknown,
+    ),
+    (
+        (
+            Atom('d' type=inline),
+            #1,
+        ),
+        Unknown,
+    ),
+    (
+        (
+            Atom('e' type=inline),
+            #7,
+        ),
+        Unknown,
+    ),
+    (
+        (
+            Atom('f' type=inline),
+            #1,
+        ),
+        Unknown,
+    ),
+    (
+        (
+            Atom('x' type=inline),
+            #2,
+        ),
+        Constant(
+            Num(
+                Number {
+                    span: Span {
+                        lo: BytePos(
+                            25,
+                        ),
+                        hi: BytePos(
+                            26,
+                        ),
+                        ctxt: #0,
+                    },
+                    value: 1.0,
+                },
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('x' type=inline),
+            #3,
+        ),
+        Constant(
+            Num(
+                Number {
+                    span: Span {
+                        lo: BytePos(
+                            89,
+                        ),
+                        hi: BytePos(
+                            90,
+                        ),
+                        ctxt: #0,
+                    },
+                    value: 1.0,
+                },
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('x' type=inline),
+            #4,
+        ),
+        Constant(
+            Num(
+                Number {
+                    span: Span {
+                        lo: BytePos(
+                            135,
+                        ),
+                        hi: BytePos(
+                            136,
+                        ),
+                        ctxt: #0,
+                    },
+                    value: 1.0,
+                },
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('x' type=inline),
+            #5,
+        ),
+        Constant(
+            Num(
+                Number {
+                    span: Span {
+                        lo: BytePos(
+                            185,
+                        ),
+                        hi: BytePos(
+                            186,
+                        ),
+                        ctxt: #0,
+                    },
+                    value: 1.0,
+                },
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('x' type=inline),
+            #6,
+        ),
+        Constant(
+            Num(
+                Number {
+                    span: Span {
+                        lo: BytePos(
+                            248,
+                        ),
+                        hi: BytePos(
+                            249,
+                        ),
+                        ctxt: #0,
+                    },
+                    value: 1.0,
+                },
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('x' type=inline),
+            #7,
+        ),
+        Constant(
+            Num(
+                Number {
+                    span: Span {
+                        lo: BytePos(
+                            322,
+                        ),
+                        hi: BytePos(
+                            323,
+                        ),
+                        ctxt: #0,
+                    },
+                    value: 1.0,
+                },
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('y' type=inline),
+            #2,
+        ),
+        Variable(
+            (
+                Atom('x' type=inline),
+                #2,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('y' type=inline),
+            #3,
+        ),
+        Variable(
+            (
+                Atom('x' type=inline),
+                #3,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('y' type=inline),
+            #4,
+        ),
+        Variable(
+            (
+                Atom('x' type=inline),
+                #4,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('y' type=inline),
+            #5,
+        ),
+        Variable(
+            (
+                Atom('x' type=inline),
+                #5,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('y' type=inline),
+            #6,
+        ),
+        Variable(
+            (
+                Atom('x' type=inline),
+                #6,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('y' type=inline),
+            #7,
+        ),
+        Variable(
+            (
+                Atom('x' type=inline),
+                #7,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('z' type=inline),
+            #2,
+        ),
+        Variable(
+            (
+                Atom('a' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('z' type=inline),
+            #5,
+        ),
+        Variable(
+            (
+                Atom('d' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('z' type=inline),
+            #6,
+        ),
+        Variable(
+            (
+                Atom('d' type=inline),
+                #1,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('z' type=inline),
+            #7,
+        ),
+        Variable(
+            (
+                Atom('e' type=inline),
+                #7,
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('z2' type=inline),
+            #7,
+        ),
+        Variable(
+            (
+                Atom('f' type=inline),
+                #1,
+            ),
+        ),
+    ),
+]

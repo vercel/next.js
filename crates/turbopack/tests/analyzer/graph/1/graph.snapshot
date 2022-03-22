@@ -1,6 +1,27 @@
 [
     (
         (
+            Atom('a' type=inline),
+            #1,
+        ),
+        Unknown,
+    ),
+    (
+        (
+            Atom('b' type=inline),
+            #1,
+        ),
+        Unknown,
+    ),
+    (
+        (
+            Atom('c' type=inline),
+            #1,
+        ),
+        Unknown,
+    ),
+    (
+        (
             Atom('x' type=inline),
             #1,
         ),

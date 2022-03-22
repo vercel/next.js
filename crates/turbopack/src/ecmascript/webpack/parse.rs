@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use anyhow::Result;
+use swc_common::GLOBALS;
 use swc_ecmascript::{
     ast::{
         ArrowExpr, AssignOp, BinExpr, BinaryOp, CallExpr, Callee, Expr, ExprOrSpread, ExprStmt,
@@ -11,7 +12,7 @@ use swc_ecmascript::{
 use turbo_tasks_fs::FileSystemPathRef;
 
 use crate::{
-    analyzer::{graph::expr_to_js_value, JsValue},
+    analyzer::{graph::EvalContext, JsValue},
     asset::AssetRef,
 };
 
@@ -21,7 +22,8 @@ use crate::ecmascript::parse::{parse, ParseResult};
 #[derive(PartialEq, Eq, Debug)]
 pub enum WebpackRuntime {
     Webpack5 {
-        /// There is a [JsValue]::FreeVar("chunkId") that need to be replaced before converting to string
+        /// There is a [JsValue]::FreeVar("chunkId") that need to be replaced
+        /// before converting to string
         #[trace_ignore]
         chunk_request_expr: JsValue,
         context_path: FileSystemPathRef,
@@ -125,12 +127,12 @@ fn get_fn_body(expr: &Expr) -> Option<&Vec<Stmt>> {
     None
 }
 
-fn get_javascript_chunk_filename(stmts: &Vec<Stmt>) -> Option<JsValue> {
+fn get_javascript_chunk_filename(stmts: &Vec<Stmt>, eval_context: &EvalContext) -> Option<JsValue> {
     if let Some(expr) = get_assignment(stmts, "__webpack_require__.u") {
         if let Some(stmts) = get_fn_body(expr) {
             if let Some(ret) = stmts.iter().find_map(|stmt| stmt.as_return_stmt()) {
                 if let Some(expr) = &ret.arg {
-                    return Some(expr_to_js_value(&expr));
+                    return Some(eval_context.eval(&expr));
                 }
             }
         }
@@ -178,11 +180,18 @@ fn get_require_prefix(stmts: &Vec<Stmt>) -> Option<Lit> {
 pub async fn is_webpack_runtime(asset: AssetRef) -> Result<WebpackRuntimeRef> {
     let parsed = parse(asset.clone()).await?;
     match &*parsed {
-        ParseResult::Ok { module, .. } => {
+        ParseResult::Ok {
+            module,
+            eval_context,
+            globals,
+            ..
+        } => {
             if let Some(stmts) = module_iife(module) {
                 if stmts.iter().any(is_webpack_require_decl) {
                     // extract webpack/runtime/get javascript chunk filename
-                    let chunk_filename = get_javascript_chunk_filename(stmts);
+                    let chunk_filename = GLOBALS.set(globals, || {
+                        get_javascript_chunk_filename(stmts, eval_context)
+                    });
 
                     let prefix_path = get_require_prefix(stmts);
 

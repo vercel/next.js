@@ -1,0 +1,61 @@
+[
+    (
+        (
+            Atom('O' type=inline),
+            #1,
+        ),
+        FreeVar(
+            Other(
+                Atom('Object' type=static),
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('a' type=inline),
+            #1,
+        ),
+        Call(
+            Member(
+                FreeVar(
+                    Other(
+                        Atom('Object' type=static),
+                    ),
+                ),
+                Atom('keys' type=inline),
+            ),
+            [
+                Variable(
+                    (
+                        Atom('O' type=inline),
+                        #1,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        (
+            Atom('b' type=inline),
+            #1,
+        ),
+        Call(
+            Member(
+                Variable(
+                    (
+                        Atom('O' type=inline),
+                        #1,
+                    ),
+                ),
+                Atom('keys' type=inline),
+            ),
+            [
+                FreeVar(
+                    Other(
+                        Atom('Object' type=static),
+                    ),
+                ),
+            ],
+        ),
+    ),
+]

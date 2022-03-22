@@ -3,15 +3,18 @@ use std::io::Write;
 use std::sync::{Arc, RwLock};
 
 use anyhow::{anyhow, Result};
-use swc_common::errors::Handler;
+use swc_common::errors::{Handler, HANDLER};
 use swc_common::input::StringInput;
 use swc_common::sync::Lrc;
-use swc_common::{FileName, SourceMap};
+use swc_common::{FileName, Globals, Mark, SourceMap, GLOBALS};
+use swc_ecma_transforms_base::resolver::resolver_with_mark;
 use swc_ecmascript::ast::Module;
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, Parser, Syntax};
+use swc_ecmascript::visit::VisitMutWith;
 use turbo_tasks_fs::FileContent;
 
+use crate::analyzer::graph::EvalContext;
 use crate::asset::AssetRef;
 
 #[turbo_tasks::value(shared)]
@@ -19,6 +22,10 @@ pub enum ParseResult {
     Ok {
         #[trace_ignore]
         module: Module,
+        #[trace_ignore]
+        eval_context: EvalContext,
+        #[trace_ignore]
+        globals: Globals,
         #[trace_ignore]
         source_map: Arc<SourceMap>,
     },
@@ -150,11 +157,32 @@ pub async fn parse(source: AssetRef) -> Result<ParseResultRef> {
                             return Err(anyhow!("{}", buf));
                             // ParseResult::Unparseable.into()
                         }
-                        Ok(parsed_module) => ParseResult::Ok {
-                            module: parsed_module,
-                            source_map: cm.clone(),
+                        Ok(mut parsed_module) => {
+                            let globals = Globals::new();
+                            let eval_context = GLOBALS.set(&globals, || {
+                                let top_level_mark = Mark::fresh(Mark::root());
+                                HANDLER.set(&handler, || {
+                                    parsed_module
+                                        .visit_mut_with(&mut resolver_with_mark(top_level_mark));
+                                });
+
+                                EvalContext::new(&parsed_module, top_level_mark)
+                            });
+
+                            if !buf.is_empty() {
+                                // TODO report in in a stream
+                                println!("{}", buf);
+                                return Err(anyhow!("{}", buf));
+                            }
+
+                            ParseResult::Ok {
+                                module: parsed_module,
+                                eval_context,
+                                globals,
+                                source_map: cm.clone(),
+                            }
+                            .into()
                         }
-                        .into(),
                     }
                 }
             }

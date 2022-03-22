@@ -1,11 +1,18 @@
-use std::{any::Any, fmt::Display, future::Future, hash::Hash, pin::Pin, sync::Arc};
+use std::{
+    any::{type_name, Any},
+    fmt::Display,
+    future::Future,
+    hash::Hash,
+    pin::Pin,
+    sync::Arc,
+};
 
 use any_key::AnyHash;
 use anyhow::{anyhow, Result};
 
 use crate::{
-    slot::CloneableData, util::try_join_all, NativeFunction, SlotRef, SlotValueType, Task,
-    TraitType,
+    slot::CloneableData, util::try_join_all, value::Value, NativeFunction, SlotRef, SlotValueType,
+    Task, TraitType,
 };
 
 #[derive(Clone)]
@@ -231,6 +238,12 @@ impl From<usize> for TaskInput {
     }
 }
 
+impl<T: Any + Clone + Hash + Eq + Send + Sync + 'static> From<Value<T>> for TaskInput {
+    fn from(v: Value<T>) -> Self {
+        TaskInput::SharedValue(Arc::new(v))
+    }
+}
+
 impl<T: Into<TaskInput>> From<Vec<T>> for TaskInput {
     fn from(s: Vec<T>) -> Self {
         TaskInput::List(s.into_iter().map(|i| i.into()).collect())
@@ -291,6 +304,30 @@ impl TryFrom<&TaskInput> for usize {
         match value {
             TaskInput::Usize(value) => Ok(*value),
             _ => Err(anyhow!("invalid task input type, expected usize")),
+        }
+    }
+}
+
+impl<T: Any + Clone + Hash + Eq + Send + Sync + 'static> TryFrom<&TaskInput> for Value<T> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
+        match value {
+            TaskInput::SharedValue(value) => {
+                let value: Arc<dyn AnyHash> = value.clone();
+
+                let v = value.downcast_ref::<Value<T>>().ok_or_else(|| {
+                    anyhow!(
+                        "invalid task input type, expected Value<{}>",
+                        type_name::<T>()
+                    )
+                })?;
+                Ok(v.clone())
+            }
+            _ => Err(anyhow!(
+                "invalid task input type, expected Value<{}>",
+                type_name::<T>()
+            )),
         }
     }
 }

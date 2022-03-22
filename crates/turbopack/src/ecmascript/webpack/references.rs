@@ -20,7 +20,9 @@ pub async fn module_references(
 ) -> Result<AssetReferencesSetRef> {
     let parsed = parse(source).await?;
     match &*parsed {
-        ParseResult::Ok { module, source_map } => {
+        ParseResult::Ok {
+            module, source_map, ..
+        } => {
             let mut references = Vec::new();
             let mut visitor = AssetReferencesVisitor {
                 references: &mut references,
