@@ -140,6 +140,53 @@ describe('pnpm support', () => {
     })
   })
 
+  it('pnpm works with outputStandalone', async () => {
+    await usingPnpmCreateNextApp(APP_DIRS['app'], async (appDir) => {
+      await runPnpm(appDir, 'run', 'build')
+
+      const symlinksOutsideRoot = []
+      const invalidSymlinks = []
+      const reactCopies = []
+      const standaloneDir = path.resolve(appDir, '.next/standalone')
+      for await (const p of walk(standaloneDir)) {
+        const symlink = await fs.readlink(p).catch(() => null)
+        if (p.endsWith('react/cjs/react.production.min.js') && !symlink) {
+          reactCopies.push(p)
+        }
+        if (symlink && path.relative(standaloneDir, p).startsWith('..')) {
+          symlinksOutsideRoot.push([p, symlink])
+        }
+        if (symlink && !fs.existsSync(path.resolve(path.dirname(p), symlink))) {
+          invalidSymlinks.push([p, symlink])
+        }
+      }
+      if (symlinksOutsideRoot.length) {
+        console.log(
+          symlinksOutsideRoot
+            .map(([from, to]) => `${path.relative(appDir, from)} -> ${to}`)
+            .join('\n')
+        )
+      }
+      expect(symlinksOutsideRoot).toHaveLength(
+        0,
+        'there are no symlinks pointing outside standalone directory'
+      )
+      if (reactCopies.length) {
+        console.log(reactCopies.map((p) => path.relative(appDir, p)).join('\n'))
+      }
+      expect(reactCopies).toHaveLength(1, 'there is only one copy of react')
+      if (invalidSymlinks.length) {
+        console.log(
+          invalidSymlinks
+            .map(([from, to]) => `${path.relative(appDir, from)} -> ${to}`)
+            .join('\n')
+        )
+      }
+
+      expect(invalidSymlinks).toHaveLength(0, 'there are no invalid symlinks')
+    })
+  })
+
   it('should execute client-side JS on each page', async () => {
     await usingPnpmCreateNextApp(APP_DIRS['app-multi-page'], async (appDir) => {
       const { stdout, stderr } = await runPnpm(appDir, 'run', 'build')
@@ -174,3 +221,11 @@ describe('pnpm support', () => {
     })
   })
 })
+
+async function* walk(dir) {
+  for await (const d of await fs.promises.opendir(dir)) {
+    const entry = path.join(dir, d.name)
+    if (d.isDirectory()) yield* walk(entry)
+    else if (d.isFile() || d.isSymbolicLink()) yield entry
+  }
+}
