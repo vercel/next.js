@@ -1162,7 +1162,10 @@ async function copy({
     } else {
       await fs.mkdir(path.dirname(dest), { recursive: true })
     }
-    const symlink = await fs.readlink(src).catch(() => null)
+
+    const symlink = stat.isSymbolicLink()
+      ? await fs.readlink(src).catch(() => null)
+      : null
 
     // normal copy of file or directory
     if (!symlink) {
