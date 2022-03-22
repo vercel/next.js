@@ -1,17 +1,24 @@
 use swc_atoms::JsWord;
-use swc_common::collections::AHashMap;
+use swc_common::collections::{AHashMap, AHashSet};
 use swc_ecmascript::{
     ast::*,
     utils::ident::IdentLike,
     visit::{Visit, VisitWith},
 };
 
+/// The storage for all kinds of imports.
+///
+/// Note that wHen it's initialized by calling `analyze`, it only contains ESM
+/// import/exports.
 #[derive(Default, Debug)]
 pub(crate) struct ImportMap {
     /// Map from module name to (module path, exported symbol)
     imports: AHashMap<Id, (JsWord, JsWord)>,
 
     namespace_imports: AHashMap<Id, JsWord>,
+
+    /// TODO(kdy1): Reduce visibility
+    pub(super) aliases_of_require: AHashSet<Id>,
 }
 
 impl ImportMap {
@@ -50,15 +57,21 @@ impl ImportMap {
         }
     }
 
+    /// Analyze ES import
     pub(super) fn analyze(m: &Module) -> Self {
         let mut data = ImportMap {
             imports: Default::default(),
             namespace_imports: Default::default(),
+            aliases_of_require: Default::default(),
         };
 
         m.visit_with(&mut Analyzer { data: &mut data });
 
         data
+    }
+
+    pub(super) fn add_require_alias(&mut self, id: Id) {
+        self.aliases_of_require.insert(id);
     }
 }
 

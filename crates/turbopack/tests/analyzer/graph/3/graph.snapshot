@@ -1,0 +1,127 @@
+[
+    (
+        (
+            Atom('a' type=inline),
+            #1,
+        ),
+        Call(
+            FreeVar(
+                Require,
+            ),
+            [
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    20,
+                                ),
+                                hi: BytePos(
+                                    25,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('foo' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        (
+            Atom('path' type=inline),
+            #1,
+        ),
+        Call(
+            FreeVar(
+                Require,
+            ),
+            [
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    88,
+                                ),
+                                hi: BytePos(
+                                    94,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('path' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        (
+            Atom('z_joined' type=dynamic),
+            #1,
+        ),
+        Call(
+            Member(
+                Variable(
+                    (
+                        Atom('path' type=inline),
+                        #1,
+                    ),
+                ),
+                Atom('join' type=inline),
+            ),
+            [
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    126,
+                                ),
+                                hi: BytePos(
+                                    131,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('foo' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    133,
+                                ),
+                                hi: BytePos(
+                                    138,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('bar' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+            ],
+        ),
+    ),
+]

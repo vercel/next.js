@@ -1,0 +1,35 @@
+[
+    (
+        "a",
+        Module(
+            Atom('foo' type=inline),
+        ),
+    ),
+    (
+        "path",
+        Module(
+            Atom('path' type=inline),
+        ),
+    ),
+    (
+        "z_joined",
+        Constant(
+            Str(
+                Str {
+                    span: Span {
+                        lo: BytePos(
+                            0,
+                        ),
+                        hi: BytePos(
+                            0,
+                        ),
+                        ctxt: #0,
+                    },
+                    value: Atom('foo/bar' type=inline),
+                    has_escape: false,
+                    kind: Synthesized,
+                },
+            ),
+        ),
+    ),
+]
