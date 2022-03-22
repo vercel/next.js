@@ -2,6 +2,7 @@ mod parse;
 mod pattern;
 mod references;
 mod resolve;
+pub mod utils;
 pub mod webpack;
 
 use crate::{

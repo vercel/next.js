@@ -7,7 +7,7 @@ use crate::{
         FreeVarKind, JsValue,
     },
     asset::AssetRef,
-    ecmascript::pattern::Pattern,
+    ecmascript::{pattern::Pattern, utils::CommaSeparated},
     errors,
     reference::{AssetReference, AssetReferenceRef, AssetReferencesSet, AssetReferencesSetRef},
     resolve::{
@@ -17,6 +17,7 @@ use crate::{
     source_asset::SourceAssetRef,
 };
 use anyhow::Result;
+use swc_atoms::JsWord;
 use swc_common::{
     errors::{DiagnosticId, Handler, HANDLER},
     Span, Spanned, GLOBALS,
@@ -97,7 +98,10 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                                 }
                                 handler.span_warn_with_code(
                                     *span,
-                                    &format!("import({:?}) is not statically analyse-able", **args),
+                                    &format!(
+                                        "import({}) is not statically analyse-able",
+                                        CommaSeparated(&args)
+                                    ),
                                     DiagnosticId::Error(
                                         errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT
                                             .to_string(),
@@ -117,8 +121,8 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                                 handler.span_warn_with_code(
                                     *span,
                                     &format!(
-                                        "require({:?}) is not statically analyse-able",
-                                        **args
+                                        "require({}) is not statically analyse-able",
+                                        CommaSeparated(&args)
                                     ),
                                     DiagnosticId::Error(
                                         errors::failed_to_analyse::ecmascript::REQUIRE.to_string(),
@@ -130,8 +134,8 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                                     "resolve" => handler.span_warn_with_code(
                                         *span,
                                         &format!(
-                                            "require.resolve({:?}) is not statically analyse-able",
-                                            **args
+                                            "require.resolve({}) is not statically analyse-able",
+                                            CommaSeparated(&args)
                                         ),
                                         DiagnosticId::Error(
                                             errors::failed_to_analyse::ecmascript::REQUIRE
@@ -141,14 +145,59 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                                     _ => handler.span_warn_with_code(
                                         *span,
                                         &format!(
-                                            "require.{prop}({:?}) is not statically analyse-able",
-                                            **args
+                                            "require.{prop}({}) is not statically analyse-able",
+                                            CommaSeparated(&args)
                                         ),
                                         DiagnosticId::Error(
                                             errors::failed_to_analyse::ecmascript::REQUIRE
                                                 .to_string(),
                                         ),
                                     ),
+                                }
+                            }
+                            JsValue::Member(box JsValue::Module(module), prop)
+                                if &*module == "fs" || &*module == "fs/promises" =>
+                            {
+                                match &*prop {
+                                    "realpath" | "realpathSync" | "stat" | "statSync"
+                                    | "existsSync" | "createReadStream" | "exists" | "open"
+                                    | "openSync" | "readFile" | "readFileSync" => {
+                                        if args.len() >= 1 {
+                                            let pat = Pattern::from(&args[0]);
+                                            if let Some(str) = pat.into_string() {
+                                                references.push(
+                                                    EsmAssetReferenceRef::new(source.clone(), str)
+                                                        .into(),
+                                                );
+                                                return;
+                                            }
+                                        }
+                                        handler.span_warn_with_code(
+                                            *span,
+                                            &format!(
+                                                "fs.{prop}({}) is not statically analyse-able",
+                                                CommaSeparated(&args)
+                                            ),
+                                            DiagnosticId::Error(
+                                                errors::failed_to_analyse::ecmascript::FS_METHOD
+                                                    .to_string(),
+                                            ),
+                                        )
+                                    }
+                                    "opendir" | "readdir" | "opendirSync" | "readdirSync" => {
+                                        handler.span_warn_with_code(
+                                            *span,
+                                            &format!(
+                                                "fs.{prop}({}) is not statically analyse-able",
+                                                CommaSeparated(&args)
+                                            ),
+                                            DiagnosticId::Error(
+                                                errors::failed_to_analyse::ecmascript::FS_METHOD
+                                                    .to_string(),
+                                            ),
+                                        )
+                                    }
+                                    _ => {}
                                 }
                             }
                             _ => {}
@@ -408,51 +457,6 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
                                         }
                                     }
                                 }
-                            }
-                        }
-                    }
-                    [module, fn_name] if module == "fs" && fn_name == "readFileSync" => {
-                        match &call.args[..] {
-                            [ExprOrSpread { expr, spread: None }, ..] => {
-                                let evaled_expr = self.old_analyser.evaluate_expr(&*expr);
-                                match evaled_expr {
-                                    StaticExpr::String(str) => {
-                                        self.references.push(
-                                            EsmAssetReferenceRef::new(self.source.clone(), str)
-                                                .into(),
-                                        );
-                                        return;
-                                    }
-                                    _ => {
-                                        HANDLER.with(|handler| {
-                                        handler.span_warn_with_code(
-                                            expr.span(),
-                                            &format!(
-                                                "fs.{}({:?}) is not statically analyse-able",
-                                                fn_name, evaled_expr
-                                            ),
-                                            DiagnosticId::Error(errors::failed_to_analyse::ecmascript::FS_METHOD
-                                                .to_string()),
-                                        )
-                                    });
-                                    }
-                                }
-                            }
-                            _ => {
-                                HANDLER.with(|handler| {
-                                    handler.span_warn_with_code(
-                                        expr.span(),
-                                        &format!(
-                                            "fs.{}() has unexpected arguments and is not \
-                                             statically analyse-able",
-                                            fn_name
-                                        ),
-                                        DiagnosticId::Error(
-                                            errors::failed_to_analyse::ecmascript::FS_METHOD
-                                                .to_string(),
-                                        ),
-                                    )
-                                });
                             }
                         }
                     }

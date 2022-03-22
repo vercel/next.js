@@ -1,4 +1,6 @@
-use std::mem::take;
+use std::{fmt::Display, mem::take};
+
+use crate::ecmascript::utils::lit_to_string;
 
 pub(crate) use self::imports::ImportMap;
 use swc_atoms::JsWord;
@@ -71,6 +73,55 @@ impl From<Lit> for JsValue {
 impl Default for JsValue {
     fn default() -> Self {
         JsValue::Unknown
+    }
+}
+
+impl Display for JsValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            JsValue::Constant(lit) => write!(f, "{}", lit_to_string(lit)),
+            JsValue::Alternatives(list) => write!(
+                f,
+                "({})",
+                list.iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" | ")
+            ),
+            JsValue::FreeVar(name) => write!(f, "FreeVar({:?})", name),
+            JsValue::Variable(name) => write!(f, "Variable({:?})", name),
+            JsValue::Concat(list) => write!(
+                f,
+                "`{}`",
+                list.iter()
+                    .map(|v| match v {
+                        JsValue::Constant(Lit::Str(str)) => str.value.to_string(),
+                        _ => format!("${{{}}}", v),
+                    })
+                    .collect::<Vec<_>>()
+                    .join("")
+            ),
+            JsValue::Add(list) => write!(
+                f,
+                "({})",
+                list.iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" + ")
+            ),
+            JsValue::Call(callee, list) => write!(
+                f,
+                "{}({})",
+                callee,
+                list.iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            JsValue::Member(obj, prop) => write!(f, "{}.{}", obj, prop),
+            JsValue::Module(name) => write!(f, "Module({})", name),
+            JsValue::Unknown => write!(f, "???"),
+        }
     }
 }
 
