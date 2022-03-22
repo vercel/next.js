@@ -152,8 +152,6 @@ export async function renderToHTML(
 
   const OriginalComponent = renderOpts.Component
 
-  let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
-    renderOpts.Component
   let serverComponentsInlinedTransformStream: TransformStream<
     Uint8Array,
     Uint8Array
@@ -161,11 +159,28 @@ export async function renderToHTML(
 
   serverComponentsInlinedTransformStream = new TransformStream()
   const search = stringifyQuery(query)
-  Component = createServerComponentRenderer(OriginalComponent, ComponentMod, {
-    cachePrefix: pathname + (search ? `?${search}` : ''),
-    transformStream: serverComponentsInlinedTransformStream,
-    serverComponentManifest,
-  })
+  const Component = createServerComponentRenderer(
+    () => {
+      return (
+        <html>
+          <head>
+            {buildManifest.rootMainFiles.map((src) => (
+              <script src={'/_next/' + src} async />
+            ))}
+          </head>
+          <body>
+            <OriginalComponent />
+          </body>
+        </html>
+      )
+    },
+    ComponentMod,
+    {
+      cachePrefix: pathname + (search ? `?${search}` : ''),
+      transformStream: serverComponentsInlinedTransformStream,
+      serverComponentManifest,
+    }
+  )
 
   let { renderServerComponentData } = renderOpts
   if (query.__flight__) {
@@ -245,18 +260,9 @@ export async function renderToHTML(
   const generateStaticHTML = supportsDynamicHTML !== true
   const bodyResult = async () => {
     const content = (
-      <html>
-        <head>
-          {buildManifest.rootMainFiles.map((src) => (
-            <script src={'/_next/' + src} async />
-          ))}
-        </head>
-        <body>
-          <AppContainer>
-            <Component />
-          </AppContainer>
-        </body>
-      </html>
+      <AppContainer>
+        <Component />
+      </AppContainer>
     )
     const flushEffectHandler = async () => {
       const allFlushEffects = [styledJsxFlushEffect, ...(flushEffects || [])]
