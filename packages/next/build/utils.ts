@@ -1156,6 +1156,7 @@ async function copy({
     copiedFiles.add(dest)
     const stat = await fs.lstat(src)
     const isDirectory = stat.isDirectory()
+    // create parent directories
     if (isDirectory) {
       await fs.mkdir(dest, { recursive: true })
     } else {
@@ -1163,55 +1164,58 @@ async function copy({
     }
     const symlink = await fs.readlink(src).catch(() => null)
 
+    // normal copy of file or directory
     if (!symlink) {
-      if (isDirectory) {
-        const files = await fs.readdir(src)
-        for (const file of files) {
-          await copy({
-            dest: path.join(dest, file),
-            src: path.join(src, file),
-            copiedFiles,
-            copiedSymlinks,
-            root: root,
-          })
-        }
-      } else {
-        await fs.copyFile(src, dest)
+      if (!isDirectory) {
+        return await fs.copyFile(src, dest)
       }
-    } else {
-      const absLink = path.resolve(path.dirname(src), symlink)
-      // keep the symlink if it is inside the tracingRoot
-      if (!path.relative(root, absLink).startsWith('..')) {
+      const files = await fs.readdir(src)
+      for (const file of files) {
         await copy({
-          src: absLink,
-          dest: path.resolve(path.dirname(dest), symlink),
+          dest: path.join(dest, file),
+          src: path.join(src, file),
           copiedFiles,
-          root: root,
           copiedSymlinks,
+          root: root,
         })
-        await fs.symlink(
-          symlink, // symlink is always a relative path
-          dest
-        )
-      } else {
-        // copy symlink to previously created, this prevents creating duplicates
-        if (copiedSymlinks[absLink]) {
-          await fs.symlink(
-            path.relative(path.dirname(dest), copiedSymlinks[absLink]), // symlink is always a relative path
-            dest
-          )
-        } else {
-          await copy({
-            src: absLink,
-            dest: dest,
-            copiedFiles,
-            root: root,
-            copiedSymlinks,
-          })
-          copiedSymlinks[absLink] = dest
-        }
       }
+      return
     }
+
+    const absLink = path.resolve(path.dirname(src), symlink)
+    const outsideRoot = path.relative(root, absLink).startsWith('..')
+
+    if (!outsideRoot) {
+      // copy symlinked file inside root
+      await copy({
+        src: absLink,
+        dest: path.resolve(path.dirname(dest), symlink),
+        copiedFiles,
+        root: root,
+        copiedSymlinks,
+      })
+      // keep the symlink if it is inside the tracingRoot
+      return await fs.symlink(
+        symlink, // symlink is always a relative path
+        dest
+      )
+    }
+    // create symlink to previously copied one, this prevents creating duplicates
+    if (copiedSymlinks[absLink]) {
+      return await fs.symlink(
+        path.relative(path.dirname(dest), copiedSymlinks[absLink]),
+        dest
+      )
+    }
+    // copy the symlinks that are outside root
+    await copy({
+      src: absLink,
+      dest: dest,
+      copiedFiles,
+      root: root,
+      copiedSymlinks,
+    })
+    copiedSymlinks[absLink] = dest
   }
 }
 
@@ -1238,10 +1242,13 @@ export async function copyTracedFiles(
     await Promise.all(
       traceData.files.map(async (relativeFile) => {
         const tracedFilePath = path.join(traceFileDir, relativeFile)
-        const fileOutputPath = path.join(
-          outputPath,
-          path.relative(tracingRoot, tracedFilePath)
-        )
+        const relative = path.relative(tracingRoot, tracedFilePath)
+        if (relative.startsWith('..')) {
+          console.log(`File outside tracingRoot: ${relativeFile}`)
+          // do not copy files outside `tracingRoot`, they would be copied out of `standalone` directory and could even pollute user project
+          return
+        }
+        const fileOutputPath = path.join(outputPath, relative)
         await copySema.acquire()
         await copy({
           copiedFiles,
