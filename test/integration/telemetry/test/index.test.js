@@ -632,6 +632,19 @@ describe('Telemetry CLI', () => {
     regex.exec(stderr).pop() // swcRemoveConsole
     regex.exec(stderr).pop() // swcImportSource
     regex.exec(stderr).pop() // swcEmotion
+    regex.exec(stderr).pop() // swc/targets/*
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
     const image = regex.exec(stderr).pop()
     expect(image).toContain(`"featureName": "next/image"`)
     expect(image).toContain(`"invocationCount": 1`)

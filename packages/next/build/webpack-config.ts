@@ -43,7 +43,11 @@ import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
-import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
+import {
+  Feature,
+  SWC_TARGET_TRIPLE,
+  TelemetryPlugin,
+} from './webpack/plugins/telemetry-plugin'
 import type { Span } from '../trace'
 import { getRawPageExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
@@ -406,6 +410,15 @@ export default async function getBaseWebpackConfig(
   const distDir = path.join(dir, config.distDir)
 
   let useSWCLoader = !babelConfigFile
+  let SWCBinaryTarget: [Feature, boolean] | undefined = undefined
+  if (useSWCLoader) {
+    // TODO: we do not collect wasm target yet
+    const binaryTarget = require('./swc')?.getBinaryMetadata?.()
+      ?.target as SWC_TARGET_TRIPLE
+    SWCBinaryTarget = binaryTarget
+      ? [`swc/target/${binaryTarget}` as const, true]
+      : undefined
+  }
 
   if (!loggedSwcDisabled && !useSWCLoader && babelConfigFile) {
     Log.info(
@@ -419,7 +432,7 @@ export default async function getBaseWebpackConfig(
 
   if (!loggedIgnoredCompilerOptions && !useSWCLoader && config.compiler) {
     Log.info(
-      '`compiler` options in `next.config.js` will be ignored while using Babel https://next.js.org/docs/messages/ignored-compiler-options'
+      '`compiler` options in `next.config.js` will be ignored while using Babel https://nextjs.org/docs/messages/ignored-compiler-options'
     )
     loggedIgnoredCompilerOptions = true
   }
@@ -1492,23 +1505,26 @@ export default async function getBaseWebpackConfig(
       !dev &&
         !isServer &&
         new TelemetryPlugin(
-          new Map([
-            ['swcLoader', useSWCLoader],
-            ['swcMinify', config.swcMinify],
-            ['swcRelay', !!config.compiler?.relay],
-            ['swcStyledComponents', !!config.compiler?.styledComponents],
+          new Map(
             [
-              'swcReactRemoveProperties',
-              !!config.compiler?.reactRemoveProperties,
-            ],
-            [
-              'swcExperimentalDecorators',
-              !!jsConfig?.compilerOptions?.experimentalDecorators,
-            ],
-            ['swcRemoveConsole', !!config.compiler?.removeConsole],
-            ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
-            ['swcEmotion', !!config.experimental.emotion],
-          ])
+              ['swcLoader', useSWCLoader],
+              ['swcMinify', config.swcMinify],
+              ['swcRelay', !!config.compiler?.relay],
+              ['swcStyledComponents', !!config.compiler?.styledComponents],
+              [
+                'swcReactRemoveProperties',
+                !!config.compiler?.reactRemoveProperties,
+              ],
+              [
+                'swcExperimentalDecorators',
+                !!jsConfig?.compilerOptions?.experimentalDecorators,
+              ],
+              ['swcRemoveConsole', !!config.compiler?.removeConsole],
+              ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
+              ['swcEmotion', !!config.experimental.emotion],
+              SWCBinaryTarget,
+            ].filter<[Feature, boolean]>(Boolean as any)
+          )
         ),
     ].filter(Boolean as any as ExcludesFalse),
   }
@@ -1637,6 +1653,7 @@ export default async function getBaseWebpackConfig(
     styledComponents: config.compiler?.styledComponents,
     relay: config.compiler?.relay,
     emotion: config.experimental?.emotion,
+    modularizeImports: config.experimental?.modularizeImports,
   })
 
   const cache: any = {

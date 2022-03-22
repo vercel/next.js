@@ -62,6 +62,7 @@ fn test(input: &Path, minify: bool) {
                 relay: None,
                 shake_exports: None,
                 emotion: Some(assert_json("{}")),
+                modularize_imports: None,
             };
 
             let options = options.patch(&fm);
