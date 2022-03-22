@@ -79,6 +79,7 @@ import {
 } from './node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
+import { interopDefault } from '../lib/interop-default'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
@@ -195,10 +196,13 @@ function enhanceComponents(
   }
 }
 
-function renderFlight(AppMod: any, Component: React.ComponentType, props: any) {
-  const AppServer = AppMod.__next_rsc__
-    ? (AppMod.default as React.ComponentType)
+function renderFlight(AppMod: any, ComponentMod: any, props: any) {
+  const App = interopDefault(AppMod)
+  const Component = interopDefault(ComponentMod)
+  const AppServer = !!ComponentMod.__next_rsc__
+    ? (App as React.ComponentType)
     : React.Fragment
+
   return (
     <AppServer>
       <Component {...props} />
@@ -380,8 +384,9 @@ const useFlightResponse = createFlightHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
-  OriginalComponent: React.ComponentType,
+  // OriginalComponent: React.ComponentType,
   AppMod: any,
+  // App: any,
   ComponentMod: any,
   {
     cachePrefix,
@@ -399,11 +404,12 @@ function createServerComponentRenderer(
   // react-server-dom-webpack. This is a hack until we find a better way.
   // @ts-ignore
   globalThis.__webpack_require__ = ComponentMod.__next_rsc__.__webpack_require__
+  const Component = interopDefault(ComponentMod)
 
-  const ServerComponentWrapper = (props: any) => {
+  function ServerComponentWrapper(props: any) {
     const id = (React as any).useId()
     const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
-      renderFlight(AppMod, OriginalComponent, props),
+      renderFlight(AppMod, ComponentMod, props),
       serverComponentManifest
     )
 
@@ -422,10 +428,6 @@ function createServerComponentRenderer(
     return root
   }
 
-  const Component = (props: any) => {
-    return <ServerComponentWrapper {...props} />
-  }
-
   // Although it's not allowed to attach some static methods to Component,
   // we still re-assign all the component APIs to keep the behavior unchanged.
   for (const methodName of [
@@ -434,13 +436,13 @@ function createServerComponentRenderer(
     'getServerSideProps',
     'getStaticPaths',
   ]) {
-    const method = (OriginalComponent as any)[methodName]
+    const method = (Component as any)[methodName]
     if (method) {
-      ;(Component as any)[methodName] = method
+      ;(ServerComponentWrapper as any)[methodName] = method
     }
   }
 
-  return Component
+  return ServerComponentWrapper
 }
 
 export async function renderToHTML(
@@ -464,7 +466,6 @@ export async function renderToHTML(
     err,
     dev = false,
     ampPath = '',
-    App,
     pageConfig = {},
     buildManifest,
     fontManifest,
@@ -484,13 +485,13 @@ export async function renderToHTML(
     reactRoot,
     runtime: globalRuntime,
     ComponentMod,
-    AppMod,
+    AppMod: AppClientMod,
+    AppServerMod,
   } = renderOpts
 
   const hasConcurrentFeatures = reactRoot
 
   let Document = renderOpts.Document
-  const OriginalComponent = renderOpts.Component
 
   // We don't need to opt-into the flight inlining logic if the page isn't a RSC.
   const isServerComponent =
@@ -500,6 +501,10 @@ export async function renderToHTML(
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
+
+  const AppMod = isServerComponent ? AppServerMod : AppClientMod
+  const App = interopDefault(AppMod)
+
   let serverComponentsInlinedTransformStream: TransformStream<
     Uint8Array,
     Uint8Array
@@ -514,7 +519,6 @@ export async function renderToHTML(
     serverComponentsInlinedTransformStream = new TransformStream()
     const search = stringifyQuery(query)
     Component = createServerComponentRenderer(
-      OriginalComponent,
       AppMod,
       ComponentMod,
       {
@@ -738,7 +742,8 @@ export async function renderToHTML(
     AppTree: (props: any) => {
       return (
         <AppContainerWithIsomorphicFiberStructure>
-          <App {...props} Component={Component} router={router} />
+          {/* <App {...props} Component={Component} router={router} /> */}
+          {renderFlight(AppMod, ComponentMod, { ...props, router })}
         </AppContainerWithIsomorphicFiberStructure>
       )
     },
@@ -1223,7 +1228,7 @@ export async function renderToHTML(
     return new RenderResult(
       pipeThrough(
         renderToReadableStream(
-          renderFlight(AppMod, OriginalComponent, {
+          renderFlight(AppMod, ComponentMod, {
             ...props.pageProps,
             ...serverComponentProps,
           }),
@@ -1373,7 +1378,7 @@ export async function renderToHTML(
       ) : (
         <Body>
           <AppContainerWithIsomorphicFiberStructure>
-            {isServerComponent && AppMod.__next_rsc__ ? (
+            {isServerComponent && AppServerMod.__next_rsc__ ? (
               // _app.server.js is used.
               <Component {...props.pageProps} router={router} />
             ) : (
@@ -1625,7 +1630,6 @@ export async function renderToHTML(
     optimizeFonts: renderOpts.optimizeFonts,
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
-    hasConcurrentFeatures,
   }
 
   const document = (

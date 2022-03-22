@@ -7,6 +7,7 @@ export default async function middlewareSSRLoader(this: any) {
     buildId,
     absolutePagePath,
     absoluteAppPath,
+    absoluteAppServerPath,
     absoluteDocumentPath,
     absolute500Path,
     absoluteErrorPath,
@@ -16,6 +17,8 @@ export default async function middlewareSSRLoader(this: any) {
 
   const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
   const stringifiedAppPath = stringifyRequest(this, absoluteAppPath)
+  const stringifiedAppServerPath = stringifyRequest(this, absoluteAppServerPath)
+
   const stringifiedErrorPath = stringifyRequest(this, absoluteErrorPath)
   const stringifiedDocumentPath = stringifyRequest(this, absoluteDocumentPath)
   const stringified500Path = absolute500Path
@@ -31,6 +34,7 @@ export default async function middlewareSSRLoader(this: any) {
     import Document from ${stringifiedDocumentPath}
 
     const appMod = require(${stringifiedAppPath})
+    const appServerMod = require(${stringifiedAppServerPath})
     const pageMod = require(${stringifiedPagePath})
     const errorMod = require(${stringifiedErrorPath})
     const error500Mod = ${stringified500Path} ? require(${stringified500Path}) : null
@@ -56,6 +60,8 @@ export default async function middlewareSSRLoader(this: any) {
       buildManifest,
       reactLoadableManifest,
       serverComponentManifest: ${isServerComponent} ? rscManifest : null,
+      appServerMod: appServerMod,
+      isServerComponent: ${isServerComponent},
       config: ${stringifiedConfig},
       buildId: ${JSON.stringify(buildId)},
     })

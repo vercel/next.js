@@ -680,6 +680,7 @@ export default class DevServer extends Server {
       }
     }
 
+    console.error(err)
     if (!usedOriginalStack) {
       if (type === 'warning') {
         Log.warn(err + '')
@@ -937,9 +938,11 @@ export default class DevServer extends Server {
     try {
       await this.hotReloader!.ensurePage(pathname)
 
+      const serverComponents = this.nextConfig.experimental.serverComponents
+
       // When the new page is compiled, we need to reload the server component
       // manifest.
-      if (this.nextConfig.experimental.serverComponents) {
+      if (serverComponents) {
         this.serverComponentManifest = super.getServerComponentManifest()
       }
 

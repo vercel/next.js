@@ -19,7 +19,12 @@ import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-lo
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
 import { parse } from '../build/swc'
-import { isCustomErrorPage, isFlightPage, isReservedPage } from './utils'
+import {
+  getRawPageExtensions,
+  isCustomErrorPage,
+  isFlightPage,
+  isReservedPage,
+} from './utils'
 import { ssrEntries } from './webpack/plugins/middleware-plugin'
 import {
   MIDDLEWARE_RUNTIME_WEBPACK,
@@ -32,7 +37,14 @@ export type PagesMapping = {
 }
 
 export function getPageFromPath(pagePath: string, extensions: string[]) {
-  let page = pagePath.replace(new RegExp(`\\.+(${extensions.join('|')})$`), '')
+  const rawExtensions = getRawPageExtensions(extensions)
+  const pickedExtensions = pagePath.includes('/_app.server.')
+    ? rawExtensions
+    : extensions
+  let page = pagePath.replace(
+    new RegExp(`\\.+(${pickedExtensions.join('|')})$`),
+    ''
+  )
   page = page.replace(/\\/g, '/').replace(/\/index$/, '')
   return page === '' ? '/' : page
 }
@@ -89,10 +101,17 @@ export function createPagesMapping(
     pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
     pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
     pages['/_document'] = `${PAGES_DIR_ALIAS}/_document`
+    if (hasServerComponents) {
+      pages['/_app.server'] = `${PAGES_DIR_ALIAS}/_app.server`
+    }
   } else {
     pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
     pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
     pages['/_document'] = pages['/_document'] || `next/dist/pages/_document`
+    if (hasServerComponents) {
+      pages['/_app.server'] =
+        pages['/_app.server'] || 'next/dist/pages/_app.server'
+    }
   }
   return pages
 }
@@ -229,6 +248,7 @@ export async function createEntrypoints(
 
   const defaultServerlessOptions = {
     absoluteAppPath: pages['/_app'],
+    absoluteAppServerPath: pages['/_app.server'],
     absoluteDocumentPath: pages['/_document'],
     absoluteErrorPath: pages['/_error'],
     absolute404Path: pages['/404'] || '',
@@ -320,6 +340,7 @@ export async function createEntrypoints(
       } else if (
         isLikeServerless &&
         page !== '/_app' &&
+        page !== '/_app.server' &&
         page !== '/_document' &&
         !isEdgeRuntime
       ) {
@@ -333,7 +354,7 @@ export async function createEntrypoints(
         )}!`
       }
 
-      if (page === '/_document') {
+      if (page === '/_document' || page === '/_app.server') {
         return
       }
 

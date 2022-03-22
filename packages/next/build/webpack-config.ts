@@ -554,11 +554,18 @@ export default async function getBaseWebpackConfig(
 
   if (dev) {
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
-      ...config.pageExtensions.reduce((prev, ext) => {
+      ...rawPageExtensions.reduce((prev, ext) => {
         prev.push(path.join(pagesDir, `_app.${ext}`))
         return prev
       }, [] as string[]),
       'next/dist/pages/_app.js',
+    ]
+    customAppAliases[`${PAGES_DIR_ALIAS}/_app.server`] = [
+      ...rawPageExtensions.reduce((prev, ext) => {
+        prev.push(path.join(pagesDir, `_app.server.${ext}`))
+        return prev
+      }, [] as string[]),
+      'next/dist/pages/_app.server.js',
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
       ...config.pageExtensions.reduce((prev, ext) => {

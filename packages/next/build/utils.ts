@@ -170,6 +170,7 @@ export async function printTreeView(
         !(
           e === '/_document' ||
           e === '/_error' ||
+          e === '/_app.server' ||
           (!hasCustomApp && e === '/_app')
         )
     )
