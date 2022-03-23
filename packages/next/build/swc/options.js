@@ -102,6 +102,7 @@ function getBaseSWCOptions({
       : null,
     removeConsole: nextConfig?.compiler?.removeConsole,
     reactRemoveProperties: nextConfig?.compiler?.reactRemoveProperties,
+    modularizeImports: nextConfig?.experimental?.modularizeImports,
     relay: nextConfig?.compiler?.relay,
     emotion: getEmotionOptions(nextConfig, development),
   }
