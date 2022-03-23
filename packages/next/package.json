@@ -240,7 +240,7 @@
     "raw-body": "2.4.1",
     "react-is": "17.0.2",
     "react-refresh": "0.8.3",
-    "react-server-dom-webpack": "0.0.0-experimental-13455d26d-20211104",
+    "react-server-dom-webpack": "0.0.0-experimental-577f2de46-20220320",
     "regenerator-runtime": "0.13.4",
     "sass-loader": "12.4.0",
     "schema-utils2": "npm:schema-utils@2.7.1",
