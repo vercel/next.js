@@ -159,21 +159,24 @@ export async function renderToHTML(
 
   serverComponentsInlinedTransformStream = new TransformStream()
   const search = stringifyQuery(query)
+
+  const WrappedComponent = () => {
+    return (
+      <html>
+        <head>
+          {buildManifest.rootMainFiles.map((src) => (
+            <script src={'/_next/' + src} async />
+          ))}
+        </head>
+        <body>
+          <OriginalComponent />
+        </body>
+      </html>
+    )
+  }
+
   const Component = createServerComponentRenderer(
-    () => {
-      return (
-        <html>
-          <head>
-            {buildManifest.rootMainFiles.map((src) => (
-              <script src={'/_next/' + src} async />
-            ))}
-          </head>
-          <body>
-            <OriginalComponent />
-          </body>
-        </html>
-      )
-    },
+    WrappedComponent,
     ComponentMod,
     {
       cachePrefix: pathname + (search ? `?${search}` : ''),
@@ -231,11 +234,7 @@ export async function renderToHTML(
 
   if (renderServerComponentData) {
     const stream: ReadableStream<Uint8Array> = renderToReadableStream(
-      <OriginalComponent
-        {...{
-          ...serverComponentProps,
-        }}
-      />,
+      <WrappedComponent />,
       serverComponentManifest
     )
 
