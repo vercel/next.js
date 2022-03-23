@@ -153,7 +153,12 @@ describe('pnpm support', () => {
         if (p.endsWith('react/cjs/react.production.min.js') && !symlink) {
           reactCopies.push(p)
         }
-        if (symlink && path.relative(standaloneDir, p).startsWith('..')) {
+        if (
+          symlink &&
+          path
+            .relative(standaloneDir, path.resolve(path.dirname(p), symlink))
+            .startsWith('..')
+        ) {
           symlinksOutsideRoot.push([p, symlink])
         }
         if (symlink && !fs.existsSync(path.resolve(path.dirname(p), symlink))) {
