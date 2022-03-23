@@ -1149,8 +1149,8 @@ async function copy({
   src: string
   dest: string
   root: string
-  copiedFiles: any
-  copiedSymlinks: any
+  copiedFiles: Set<string>
+  copiedSymlinks: Record<string, string>
 }) {
   if (!copiedFiles.has(dest)) {
     copiedFiles.add(dest)
@@ -1231,7 +1231,7 @@ export async function copyTracedFiles(
   middlewareManifest: MiddlewareManifest
 ) {
   const outputPath = path.join(distDir, 'standalone')
-  const copiedFiles = new Set()
+  const copiedFiles = new Set<string>()
   const copiedSymlinks: Record<string, string> = {}
   await recursiveDelete(outputPath)
 
