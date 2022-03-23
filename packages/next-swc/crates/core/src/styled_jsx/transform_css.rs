@@ -12,7 +12,7 @@ use swc_css::codegen::{
 use swc_css::parser::parser::input::ParserInput;
 use swc_css::parser::{parse_str, parse_tokens, parser::ParserConfig};
 use swc_css::visit::{VisitMut, VisitMutWith};
-use swc_ecmascript::ast::{Expr, Str, StrKind, Tpl, TplElement};
+use swc_ecmascript::ast::{Expr, Tpl, TplElement};
 use swc_ecmascript::parser::StringInput;
 use swc_ecmascript::utils::HANDLER;
 use swc_stylis::prefixer::prefixer;
@@ -97,12 +97,7 @@ pub fn transform_css(
             .map(|quasi| {
                 TplElement {
                     cooked: None, // ? Do we need cooked as well
-                    raw: Str {
-                        value: (*quasi).into(),
-                        span: DUMMY_SP,
-                        has_escape: false,
-                        kind: StrKind::Synthesized {},
-                    },
+                    raw: (*quasi).into(),
                     span: DUMMY_SP,
                     tail: false,
                 }
