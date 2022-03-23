@@ -208,8 +208,4 @@ export default class NextWebServer extends BaseServer {
       components: result,
     }
   }
-
-  public updateRenderOpts(renderOpts: Partial<BaseServer['renderOpts']>) {
-    Object.assign(this.renderOpts, renderOpts)
-  }
 }

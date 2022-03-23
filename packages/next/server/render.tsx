@@ -231,8 +231,6 @@ export type RenderOptsPartial = {
   resolvedUrl?: string
   resolvedAsPath?: string
   serverComponentManifest?: any
-  renderServerComponentData?: boolean
-  serverComponentProps?: any
   distDir?: string
   locale?: string
   locales?: string[]
@@ -451,7 +449,6 @@ export async function renderToHTML(
     getStaticPaths,
     getServerSideProps,
     serverComponentManifest,
-    serverComponentProps,
     isDataReq,
     params,
     previewProps,
@@ -506,11 +503,17 @@ export async function renderToHTML(
     return ''
   }
 
-  let { renderServerComponentData } = renderOpts
-  if (isServerComponent && query.__flight__) {
-    renderServerComponentData = true
-    delete query.__flight__
-  }
+  let renderServerComponentData = isServerComponent
+    ? query.__flight__ !== undefined
+    : false
+
+  const serverComponentProps =
+    isServerComponent && query.__props__
+      ? JSON.parse(query.__props__ as string)
+      : undefined
+
+  delete query.__flight__
+  delete query.__props__
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []

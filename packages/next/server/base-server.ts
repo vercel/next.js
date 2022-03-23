@@ -1337,6 +1337,10 @@ export default abstract class Server {
           return seg
         })
         .join('/')
+
+      // ensure /index and / is normalized to one key
+      ssgCacheKey =
+        ssgCacheKey === '/index' && pathname === '/' ? '/' : ssgCacheKey
     }
 
     const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
