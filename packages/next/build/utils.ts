@@ -1247,7 +1247,6 @@ export async function copyTracedFiles(
         const tracedFilePath = path.join(traceFileDir, relativeFile)
         const relative = path.relative(tracingRoot, tracedFilePath)
         if (relative.startsWith('..')) {
-          console.log(`File outside tracingRoot: ${relativeFile}`)
           // do not copy files outside `tracingRoot`, they would be copied out of `standalone` directory and could even pollute user project
           return
         }
