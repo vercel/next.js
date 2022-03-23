@@ -25,8 +25,6 @@ export type RenderOptsPartial = {
   err?: Error | null
   dev?: boolean
   serverComponentManifest?: any
-  renderServerComponentData?: boolean
-  serverComponentProps?: any
   supportsDynamicHTML?: boolean
   runtime?: 'nodejs' | 'edge'
   serverComponents?: boolean
@@ -142,7 +140,6 @@ export async function renderToHTML(
   const {
     buildManifest,
     serverComponentManifest,
-    serverComponentProps,
     supportsDynamicHTML,
     runtime,
     ComponentMod,
@@ -185,11 +182,11 @@ export async function renderToHTML(
     }
   )
 
-  let { renderServerComponentData } = renderOpts
-  if (query.__flight__) {
-    renderServerComponentData = true
-    delete query.__flight__
-  }
+  let renderServerComponentData = query.__flight__ !== undefined
+
+  // const serverComponentProps = query.__props__
+  //   ? JSON.parse(query.__props__ as string)
+  //   : undefined
 
   const jsxStyleRegistry = createStyleRegistry()
 
