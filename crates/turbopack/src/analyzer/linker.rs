@@ -1,20 +1,8 @@
-use std::collections::HashSet;
+use anyhow::Result;
+use std::{collections::HashSet, future::Future, mem::take, pin::Pin, sync::Mutex};
+use swc_ecmascript::utils::Id;
 
-use swc_atoms::JsWord;
-use swc_ecmascript::ast::*;
-
-use super::{graph::VarGraph, FreeVarKind, JsValue};
-
-pub(crate) struct LinkResult {
-    pub value: JsValue,
-    pub replaced_circular_references: HashSet<Id>,
-}
-
-/// TODO(kdy1): Use this
-pub trait Values {
-    /// Get the value of `__dirname`
-    fn dirname(&self) -> Option<JsWord>;
-}
+use super::{graph::VarGraph, JsValue};
 
 pub struct LinkCache {
     // TODO
@@ -26,148 +14,120 @@ impl LinkCache {
     }
 }
 
-pub(crate) fn link(graph: &VarGraph, val: &JsValue, _cache: &mut LinkCache) -> JsValue {
-    link_internal(graph, val, &mut HashSet::new()).value
+pub(crate) async fn link<'a, F, R>(
+    graph: &VarGraph,
+    val: JsValue,
+    visitor: &F,
+    _cache: &Mutex<LinkCache>,
+) -> Result<JsValue>
+where
+    R: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
+    F: 'a + Fn(JsValue) -> R + Sync,
+{
+    let (val, _) = link_internal(graph, val, visitor, &mut HashSet::new()).await?;
+    Ok(val)
 }
 
-pub(crate) fn link_internal(
-    graph: &VarGraph,
-    val: &JsValue,
-    circle_stack: &mut HashSet<Id>,
-) -> LinkResult {
-    let mut replaced_circular_references = HashSet::default();
+fn link_internal_boxed<'b, 'a: 'b, F, R>(
+    graph: &'b VarGraph,
+    val: JsValue,
+    visitor: &'b F,
+    circle_stack: &'b mut HashSet<Id>,
+) -> Pin<Box<dyn Future<Output = Result<(JsValue, Option<HashSet<Id>>)>> + Send + 'b>>
+where
+    R: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
+    F: 'a + Fn(JsValue) -> R + Sync,
+{
+    Box::pin(link_internal(graph, val, visitor, circle_stack))
+}
 
-    macro_rules! handle {
-        ($e:expr) => {{
-            let res = link_internal(graph, $e, circle_stack);
-            replaced_circular_references.extend(res.replaced_circular_references);
-            res.value
-        }};
-    }
-
-    let val = (|| {
-        match val {
-            JsValue::Constant(_) | JsValue::FreeVar(_) | JsValue::Module(..) | JsValue::Unknown => {
-                val.clone()
-            }
-            JsValue::Variable(var) => {
-                // Replace with unknown for now
-                if circle_stack.contains(var) {
-                    replaced_circular_references.insert(var.clone());
-                    JsValue::Unknown
-                } else {
-                    circle_stack.insert(var.clone());
-                    const UNKNOWN: JsValue = JsValue::Unknown;
-                    let val = graph.values.get(&var).unwrap_or_else(|| &UNKNOWN);
-                    let res = link_internal(graph, val, circle_stack);
-                    replaced_circular_references.extend(res.replaced_circular_references);
-
+pub(crate) async fn link_internal<'a, F, R>(
+    graph: &'a VarGraph,
+    val: JsValue,
+    visitor: &'a F,
+    circle_stack: &'a mut HashSet<Id>,
+) -> Result<(JsValue, Option<HashSet<Id>>)>
+where
+    R: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
+    F: 'a + Fn(JsValue) -> R + Sync,
+{
+    match &val {
+        JsValue::Variable(var) => {
+            // Replace with unknown for now
+            if circle_stack.contains(var) {
+                Ok((JsValue::Unknown, Some(HashSet::from([var.clone()]))))
+            } else {
+                circle_stack.insert(var.clone());
+                const UNKNOWN: JsValue = JsValue::Unknown;
+                let val = graph.values.get(&var).unwrap_or_else(|| &UNKNOWN).clone();
+                let mut res = link_internal_boxed(graph, val, visitor, circle_stack).await?;
+                if let Some(replaced_circular_references) = res.1.as_mut() {
                     // Skip current var as it's internal to this resolution
                     replaced_circular_references.remove(var);
-
-                    circle_stack.remove(var);
-                    res.value
-                }
-            }
-
-            JsValue::Alternatives(values) => {
-                JsValue::Alternatives(values.into_iter().map(|val| handle!(val)).collect())
-            }
-            JsValue::Concat(values) => {
-                JsValue::Concat(values.into_iter().map(|val| handle!(val)).collect())
-            }
-
-            JsValue::Add(values) => {
-                JsValue::Add(values.into_iter().map(|val| handle!(val)).collect())
-            }
-
-            // `require` returns an object
-            JsValue::Call(box JsValue::FreeVar(FreeVarKind::Require), args) if args.len() == 1 => {
-                match &args[0] {
-                    JsValue::Constant(Lit::Str(s)) => JsValue::Module(s.value.clone()),
-                    _ => JsValue::Unknown,
-                }
-            }
-
-            JsValue::Call(f, args) => {
-                let f = handle!(&*f);
-                let args: Vec<_> = args.into_iter().map(|val| handle!(val)).collect();
-
-                match &f {
-                    JsValue::Member(box JsValue::Module(module), prop) => {
-                        // path.join
-                        if &**module == "path" && &**prop == "join" {
-                            // Currently we only support constants.
-                            if args.iter().any(|arg| !matches!(arg, JsValue::Constant(..))) {
-                                return JsValue::Unknown;
-                            }
-
-                            let mut str_args = vec![];
-
-                            for arg in args.iter() {
-                                match arg {
-                                    JsValue::Constant(v) => match v {
-                                        Lit::Str(v) => {
-                                            str_args.push(&*v.value);
-                                        }
-                                        _ => {
-                                            todo!()
-                                        }
-                                    },
-                                    _ => {}
-                                }
-                            }
-
-                            let joined = str_args.join("/");
-
-                            let mut res: Vec<&str> = vec![];
-
-                            for comp in joined.split("/") {
-                                match comp {
-                                    "." => {}
-                                    ".." => {
-                                        if let Some(last) = res.last() {
-                                            if &**last != ".." {
-                                                res.pop();
-                                                continue;
-                                            }
-                                        }
-
-                                        // leftmost `..`
-                                        res.push("..");
-                                    }
-                                    _ => {
-                                        res.push(comp);
-                                    }
-                                }
-                            }
-
-                            return res.join("/").into();
-                        }
-                    }
-                    _ => {}
-                }
-
-                JsValue::Call(box f, args)
-            }
-
-            JsValue::Member(obj, prop) => {
-                let obj = box handle!(&*obj);
-
-                match (*obj, &**prop) {
-                    (JsValue::FreeVar(FreeVarKind::Require), "resolve") => {
-                        JsValue::FreeVar(FreeVarKind::RequireResolve)
-                    }
-                    (obj, _) => JsValue::Member(box obj, prop.clone()),
-                }
+                };
+                circle_stack.remove(var);
+                // TODO: The result can be cached when
+                // res == None || replaced_circular_references.is_empty()
+                Ok(res)
             }
         }
-    })();
+        _ => {
+            async fn child_visitor<'b, 'a: 'b, F, R>(
+                child: JsValue,
+                graph: &'b VarGraph,
+                visitor: &'b F,
+                circle_stack: &'b Mutex<HashSet<Id>>,
+                replaced_circular_references: &'b Mutex<HashSet<Id>>,
+            ) -> Result<(JsValue, bool)>
+            where
+                R: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
+                F: 'a + Fn(JsValue) -> R + Sync,
+            {
+                let mut my_circle_stack = take(&mut *circle_stack.lock().unwrap());
+                let (value, res) =
+                    link_internal_boxed(graph, child, visitor, &mut my_circle_stack).await?;
+                *circle_stack.lock().unwrap() = my_circle_stack;
+                Ok((
+                    value,
+                    if let Some(res) = res {
+                        replaced_circular_references.lock().unwrap().extend(res);
+                        true
+                    } else {
+                        false
+                    },
+                ))
+            }
+            let replaced_circular_references = Mutex::new(HashSet::default());
+            let circle_stack_mutex = Mutex::new(take(circle_stack));
+            let (val, mut modified) = val
+                .for_each_children_async(&mut |child| {
+                    Box::pin(child_visitor(
+                        child,
+                        graph,
+                        visitor,
+                        &circle_stack_mutex,
+                        &replaced_circular_references,
+                    ))
+                        as Pin<Box<dyn Future<Output = Result<(JsValue, bool)>> + Send>>
+                })
+                .await?;
+            *circle_stack = circle_stack_mutex.into_inner().unwrap();
 
-    // TODO: The result can be cached when replaced_circular_references.is_empty()
+            let (val, m) = visitor(val).await?;
+            if m {
+                modified = true
+            }
 
-    LinkResult {
-        value: val,
-        replaced_circular_references,
+            // TODO: The result can be cached when
+            // !modified || replaced_circular_references.is_empty()
+            if modified {
+                Ok((
+                    val,
+                    Some(replaced_circular_references.into_inner().unwrap()),
+                ))
+            } else {
+                Ok((val, None))
+            }
+        }
     }
 }

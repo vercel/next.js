@@ -213,7 +213,6 @@ impl EvalContext {
             _ => {}
         }
 
-        // Evaluate path.join()
         match e {
             Expr::Call(CallExpr {
                 callee: Callee::Expr(callee),

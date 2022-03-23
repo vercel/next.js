@@ -1,4 +1,4 @@
-use std::{fmt::Display, mem::take};
+use std::{fmt::Display, future::Future, mem::take};
 
 use crate::ecmascript::utils::lit_to_string;
 
@@ -10,6 +10,7 @@ use swc_ecmascript::{ast::*, utils::ident::IdentLike};
 pub mod graph;
 mod imports;
 pub mod linker;
+pub mod well_known;
 
 /// TODO: Use `Arc`
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,8 +40,14 @@ pub enum JsValue {
     /// `(obj, prop)`
     Member(Box<JsValue>, JsWord),
 
-    /// This is required to handle `path.join`
+    /// This is a reference to a imported module
     Module(JsWord),
+
+    /// Some kind of well known object
+    WellKnownObject(WellKnownObjectKind),
+
+    /// Some kind of well known function
+    WellKnownFunction(WellKnownFunctionKind),
 
     /// Not analyzable.
     Unknown,
@@ -121,11 +128,148 @@ impl Display for JsValue {
             JsValue::Member(obj, prop) => write!(f, "{}.{}", obj, prop),
             JsValue::Module(name) => write!(f, "Module({})", name),
             JsValue::Unknown => write!(f, "???"),
+            JsValue::WellKnownObject(obj) => write!(f, "WellKnownObject({:?})", obj),
+            JsValue::WellKnownFunction(func) => write!(f, "WellKnownFunction({:?})", func),
         }
     }
 }
 
 impl JsValue {
+    pub async fn visit_async<'a, F, R, E>(self, visitor: &mut F) -> Result<(Self, bool), E>
+    where
+        R: 'a + Future<Output = Result<(Self, bool), E>>,
+        F: 'a + FnMut(JsValue) -> R,
+    {
+        let (v, modified) = self.for_each_children_async(visitor).await?;
+        let (v, m) = visitor(v).await?;
+        if m {
+            Ok((v, true))
+        } else {
+            Ok((v, modified))
+        }
+    }
+
+    pub async fn for_each_children_async<'a, F, R, E>(
+        mut self,
+        visitor: &mut F,
+    ) -> Result<(Self, bool), E>
+    where
+        R: 'a + Future<Output = Result<(Self, bool), E>>,
+        F: 'a + FnMut(JsValue) -> R,
+    {
+        Ok(match &mut self {
+            JsValue::Alternatives(list) | JsValue::Concat(list) | JsValue::Add(list) => {
+                let mut modified = false;
+                for item in list.iter_mut() {
+                    let (v, m) = visitor(take(item)).await?;
+                    *item = v;
+                    if m {
+                        modified = true
+                    }
+                }
+                (self, modified)
+            }
+            JsValue::Call(box callee, list) => {
+                let (new_callee, mut modified) = visitor(take(callee)).await?;
+                *callee = new_callee;
+                for item in list.iter_mut() {
+                    let (v, m) = visitor(take(item)).await?;
+                    *item = v;
+                    if m {
+                        modified = true
+                    }
+                }
+                (self, modified)
+            }
+            JsValue::Member(box obj, _) => {
+                let (v, m) = visitor(take(obj)).await?;
+                *obj = v;
+                (self, m)
+            }
+            JsValue::Constant(_)
+            | JsValue::FreeVar(_)
+            | JsValue::Variable(_)
+            | JsValue::Module(_)
+            | JsValue::WellKnownObject(_)
+            | JsValue::WellKnownFunction(_)
+            | JsValue::Unknown => (self, false),
+        })
+    }
+
+    pub fn visit_mut(&mut self, visitor: &mut impl FnMut(&mut JsValue) -> bool) -> bool {
+        let modified = self.for_each_children_mut(visitor);
+        if visitor(self) {
+            true
+        } else {
+            modified
+        }
+    }
+
+    pub fn for_each_children_mut(
+        &mut self,
+        visitor: &mut impl FnMut(&mut JsValue) -> bool,
+    ) -> bool {
+        match self {
+            JsValue::Alternatives(list) | JsValue::Concat(list) | JsValue::Add(list) => {
+                let mut modified = false;
+                for item in list.iter_mut() {
+                    if visitor(item) {
+                        modified = true
+                    }
+                }
+                modified
+            }
+            JsValue::Call(callee, list) => {
+                let mut modified = visitor(callee);
+                for item in list.iter_mut() {
+                    if visitor(item) {
+                        modified = true
+                    }
+                }
+                modified
+            }
+            JsValue::Member(obj, _) => visitor(obj),
+            JsValue::Constant(_)
+            | JsValue::FreeVar(_)
+            | JsValue::Variable(_)
+            | JsValue::Module(_)
+            | JsValue::WellKnownObject(_)
+            | JsValue::WellKnownFunction(_)
+            | JsValue::Unknown => false,
+        }
+    }
+
+    pub fn visit(&mut self, visitor: &mut impl FnMut(&JsValue)) {
+        self.for_each_children(visitor);
+        visitor(self);
+    }
+
+    pub fn for_each_children(&self, visitor: &mut impl FnMut(&JsValue)) {
+        match self {
+            JsValue::Alternatives(list) | JsValue::Concat(list) | JsValue::Add(list) => {
+                for item in list.iter() {
+                    visitor(item);
+                }
+            }
+            JsValue::Call(callee, list) => {
+                visitor(callee);
+                for item in list.iter() {
+                    visitor(item);
+                }
+            }
+            JsValue::Member(obj, _) => {
+                visitor(obj);
+            }
+            JsValue::Constant(_)
+            | JsValue::FreeVar(_)
+            | JsValue::Variable(_)
+            | JsValue::Module(_)
+            | JsValue::WellKnownObject(_)
+            | JsValue::WellKnownFunction(_)
+            | JsValue::Unknown => {}
+        }
+    }
+
     pub fn is_string(&self) -> bool {
         match self {
             JsValue::Constant(Lit::Str(..)) | JsValue::Concat(_) => true,
@@ -146,6 +290,7 @@ impl JsValue {
 
             JsValue::Call(box JsValue::FreeVar(FreeVarKind::RequireResolve), _) => true,
             JsValue::Call(..) | JsValue::Member(..) => false,
+            JsValue::WellKnownObject(_) | JsValue::WellKnownFunction(_) => false,
         }
     }
 
@@ -158,29 +303,13 @@ impl JsValue {
     }
 
     pub fn normalize(&mut self) {
+        self.for_each_children_mut(&mut |child| {
+            child.normalize();
+            true
+        });
         // Handle nested
         match self {
-            JsValue::Constant(_)
-            | JsValue::Unknown
-            | JsValue::Variable(_)
-            | JsValue::FreeVar(_)
-            | JsValue::Module(_) => return,
-
-            JsValue::Call(_, v) => {
-                v.iter_mut().for_each(|v| {
-                    v.normalize();
-                });
-            }
-
-            JsValue::Member(obj, ..) => {
-                obj.normalize();
-            }
-
             JsValue::Alternatives(v) => {
-                v.iter_mut().for_each(|v| {
-                    v.normalize();
-                });
-
                 let mut new = vec![];
                 for v in take(v) {
                     match v {
@@ -191,27 +320,17 @@ impl JsValue {
                 *v = new;
             }
             JsValue::Concat(v) => {
-                v.iter_mut().for_each(|v| {
-                    v.normalize();
-                });
-
                 // TODO(kdy1): Remove duplicate
                 let mut new = vec![];
                 for v in take(v) {
                     match v {
                         JsValue::Concat(v) => new.extend(v),
-                        // As concat is always string, we can convert it to string
-                        JsValue::Add(v) => new.extend(v),
                         v => new.push(v),
                     }
                 }
                 *v = new;
             }
             JsValue::Add(v) => {
-                v.iter_mut().for_each(|v| {
-                    v.normalize();
-                });
-
                 if v.first().map_or(false, |v| v.is_string()) {
                     // TODO(kdy1): Support non-first addition.
                     let mut new = vec![];
@@ -236,6 +355,7 @@ impl JsValue {
                 }
                 *v = new;
             }
+            _ => {}
         }
     }
 }
@@ -260,6 +380,21 @@ pub enum FreeVarKind {
     Other(JsWord),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WellKnownObjectKind {
+    PathModule,
+    FsModule,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WellKnownFunctionKind {
+    PathJoin,
+    Import,
+    Require,
+    RequireResolve,
+    FsReadMethod(JsWord),
+}
+
 /// TODO(kdy1): Remove this once resolver distinguish between top-level bindings
 /// and unresolved references https://github.com/swc-project/swc/issues/2956
 ///
@@ -278,8 +413,10 @@ fn is_unresolved(i: &Ident, bindings: &AHashSet<Id>, top_level_mark: Mark) -> bo
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{path::PathBuf, sync::Mutex};
 
+    use anyhow::Result;
+    use async_std::task::block_on;
     use swc_common::Mark;
     use swc_ecma_transforms_base::resolver::resolver_with_mark;
     use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_module, visit::VisitMutWith};
@@ -288,6 +425,8 @@ mod tests {
     use super::{
         graph::{create_graph, EvalContext},
         linker::{link, LinkCache},
+        well_known::replace_well_known,
+        FreeVarKind, JsValue, WellKnownFunctionKind, WellKnownObjectKind,
     };
 
     #[testing::fixture("tests/analyzer/graph/**/input.js")]
@@ -331,8 +470,34 @@ mod tests {
 
                 let mut resolved = vec![];
 
+                async fn visitor(v: JsValue) -> Result<(JsValue, bool)> {
+                    let (v, mut modified) = replace_well_known(v);
+                    let v = match v {
+                        JsValue::FreeVar(FreeVarKind::Require) => {
+                            modified = true;
+                            JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
+                        }
+                        JsValue::Module(ref name) => match &**name {
+                            "path" => {
+                                modified = true;
+                                JsValue::WellKnownObject(WellKnownObjectKind::PathModule)
+                            }
+                            _ => v,
+                        },
+                        _ => v,
+                    };
+                    Ok((v, modified))
+                }
+
                 for ((id, ctx), val) in var_graph.values.iter() {
-                    let mut res = link(&var_graph, val, &mut LinkCache::new());
+                    let val = val.clone();
+                    let mut res = block_on(link(
+                        &var_graph,
+                        val,
+                        &(|val| Box::pin(visitor(val))),
+                        &Mutex::new(LinkCache::new()),
+                    ))
+                    .unwrap();
                     res.normalize();
 
                     let unique = var_graph.values.keys().filter(|(i, _)| id == i).count() == 1;

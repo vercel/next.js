@@ -1,10 +1,9 @@
-use std::{cell::RefCell, collections::HashMap, lazy::Lazy};
-
 use crate::{
     analyzer::{
         graph::{create_graph, Effect},
         linker::{link, LinkCache},
-        FreeVarKind, JsValue,
+        well_known::replace_well_known,
+        FreeVarKind, JsValue, WellKnownFunctionKind, WellKnownObjectKind,
     },
     asset::AssetRef,
     ecmascript::{pattern::Pattern, utils::CommaSeparated},
@@ -17,18 +16,20 @@ use crate::{
     source_asset::SourceAssetRef,
 };
 use anyhow::Result;
+use std::{collections::HashMap, future::Future, pin::Pin, sync::Mutex};
 use swc_atoms::JsWord;
 use swc_common::{
     errors::{DiagnosticId, Handler, HANDLER},
-    Span, Spanned, GLOBALS,
+    Span, GLOBALS,
 };
 use swc_ecmascript::{
     ast::{
         CallExpr, Callee, ComputedPropName, ExportAll, Expr, ExprOrSpread, ImportDecl,
-        ImportSpecifier, Lit, MemberProp, ModuleExportName, NamedExport, VarDeclarator,
+        ImportSpecifier, Lit, MemberProp, ModuleExportName, NamedExport, Str, VarDeclarator,
     },
     visit::{self, Visit, VisitWith},
 };
+use turbo_tasks::util::try_join_all;
 use turbo_tasks_fs::FileSystemPathRef;
 
 use super::{
@@ -63,7 +64,7 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
             let buf = Buffer::new();
             let handler =
                 Handler::with_emitter_writer(Box::new(buf.clone()), Some(source_map.clone()));
-            HANDLER.set(&handler, || {
+            let var_graph = HANDLER.set(&handler, || {
                 GLOBALS.set(globals, || {
                     let var_graph = create_graph(&module, eval_context);
 
@@ -71,171 +72,164 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                     let mut visitor = AssetReferencesVisitor::new(&source, &mut references);
                     module.visit_with(&mut visitor);
 
-                    fn handle_call<T: Fn() -> JsValue, F: Fn() -> Vec<JsValue>>(
-                        handler: &Handler,
-                        source: &AssetRef,
-                        span: &Span,
-                        func: JsValue,
-                        this: &Lazy<JsValue, T>,
-                        args: &Lazy<Vec<JsValue>, F>,
-                        references: &mut Vec<AssetReferenceRef>,
-                    ) {
-                        match func {
-                            JsValue::Alternatives(alts) => {
-                                for alt in alts {
-                                    handle_call(handler, source, span, alt, this, args, references);
-                                }
-                            }
-                            JsValue::FreeVar(FreeVarKind::Import) => {
-                                if args.len() == 1 {
-                                    let pat = Pattern::from(&args[0]);
-                                    if let Some(str) = pat.into_string() {
-                                        references.push(
-                                            EsmAssetReferenceRef::new(source.clone(), str).into(),
-                                        );
-                                        return;
-                                    }
-                                }
-                                handler.span_warn_with_code(
-                                    *span,
-                                    &format!(
-                                        "import({}) is not statically analyse-able",
-                                        CommaSeparated(&args)
-                                    ),
-                                    DiagnosticId::Error(
-                                        errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT
-                                            .to_string(),
-                                    ),
-                                )
-                            }
-                            JsValue::FreeVar(FreeVarKind::Require) => {
-                                if args.len() == 1 {
-                                    let pat = Pattern::from(&args[0]);
-                                    if let Some(str) = pat.into_string() {
-                                        references.push(
-                                            EsmAssetReferenceRef::new(source.clone(), str).into(),
-                                        );
-                                        return;
-                                    }
-                                }
-                                handler.span_warn_with_code(
-                                    *span,
-                                    &format!(
-                                        "require({}) is not statically analyse-able",
-                                        CommaSeparated(&args)
-                                    ),
-                                    DiagnosticId::Error(
-                                        errors::failed_to_analyse::ecmascript::REQUIRE.to_string(),
-                                    ),
-                                )
-                            }
-                            JsValue::Member(box JsValue::FreeVar(FreeVarKind::Require), prop) => {
-                                match &*prop {
-                                    "resolve" => handler.span_warn_with_code(
-                                        *span,
-                                        &format!(
-                                            "require.resolve({}) is not statically analyse-able",
-                                            CommaSeparated(&args)
-                                        ),
-                                        DiagnosticId::Error(
-                                            errors::failed_to_analyse::ecmascript::REQUIRE
-                                                .to_string(),
-                                        ),
-                                    ),
-                                    _ => handler.span_warn_with_code(
-                                        *span,
-                                        &format!(
-                                            "require.{prop}({}) is not statically analyse-able",
-                                            CommaSeparated(&args)
-                                        ),
-                                        DiagnosticId::Error(
-                                            errors::failed_to_analyse::ecmascript::REQUIRE
-                                                .to_string(),
-                                        ),
-                                    ),
-                                }
-                            }
-                            JsValue::Member(box JsValue::Module(module), prop)
-                                if &*module == "fs" || &*module == "fs/promises" =>
-                            {
-                                match &*prop {
-                                    "realpath" | "realpathSync" | "stat" | "statSync"
-                                    | "existsSync" | "createReadStream" | "exists" | "open"
-                                    | "openSync" | "readFile" | "readFileSync" => {
-                                        if args.len() >= 1 {
-                                            let pat = Pattern::from(&args[0]);
-                                            if let Some(str) = pat.into_string() {
-                                                references.push(
-                                                    EsmAssetReferenceRef::new(source.clone(), str)
-                                                        .into(),
-                                                );
-                                                return;
-                                            }
-                                        }
-                                        handler.span_warn_with_code(
-                                            *span,
-                                            &format!(
-                                                "fs.{prop}({}) is not statically analyse-able",
-                                                CommaSeparated(&args)
-                                            ),
-                                            DiagnosticId::Error(
-                                                errors::failed_to_analyse::ecmascript::FS_METHOD
-                                                    .to_string(),
-                                            ),
-                                        )
-                                    }
-                                    "opendir" | "readdir" | "opendirSync" | "readdirSync" => {
-                                        handler.span_warn_with_code(
-                                            *span,
-                                            &format!(
-                                                "fs.{prop}({}) is not statically analyse-able",
-                                                CommaSeparated(&args)
-                                            ),
-                                            DiagnosticId::Error(
-                                                errors::failed_to_analyse::ecmascript::FS_METHOD
-                                                    .to_string(),
-                                            ),
-                                        )
-                                    }
-                                    _ => {}
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-
-                    let cache = RefCell::new(LinkCache::new());
-                    for effect in var_graph.effects.iter() {
-                        match effect {
-                            Effect::Call {
-                                func,
-                                this,
-                                args,
-                                span,
-                            } => {
-                                let func = link(&var_graph, func, &mut cache.borrow_mut());
-                                let this =
-                                    Lazy::new(|| link(&var_graph, this, &mut cache.borrow_mut()));
-                                let args = Lazy::new(|| {
-                                    args.iter()
-                                        .map(|arg| link(&var_graph, arg, &mut cache.borrow_mut()))
-                                        .collect()
-                                });
-
-                                handle_call(
-                                    &handler,
-                                    &source,
-                                    &span,
-                                    func,
-                                    &this,
-                                    &args,
-                                    &mut references,
-                                );
-                            }
-                        }
-                    }
+                    var_graph
                 })
             });
+            fn handle_call_boxed<
+                'a,
+                TF: Future<Output = Result<JsValue>> + Send + 'a,
+                T: Fn() -> TF + Sync,
+                FF: Future<Output = Result<Vec<JsValue>>> + Send + 'a,
+                F: Fn() -> FF + Sync,
+            >(
+                handler: &'a Handler,
+                source: &'a AssetRef,
+                span: &'a Span,
+                func: JsValue,
+                this: &'a T,
+                args: &'a F,
+                references: &'a mut Vec<AssetReferenceRef>,
+            ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
+                Box::pin(handle_call(
+                    handler, source, span, func, this, args, references,
+                ))
+            }
+
+            async fn handle_call<
+                TF: Future<Output = Result<JsValue>> + Send,
+                T: Fn() -> TF + Sync,
+                FF: Future<Output = Result<Vec<JsValue>>> + Send,
+                F: Fn() -> FF + Sync,
+            >(
+                handler: &Handler,
+                source: &AssetRef,
+                span: &Span,
+                func: JsValue,
+                this: &T,
+                args: &F,
+                references: &mut Vec<AssetReferenceRef>,
+            ) -> Result<()> {
+                match func {
+                    JsValue::Alternatives(alts) => {
+                        for alt in alts {
+                            handle_call_boxed(handler, source, span, alt, this, args, references)
+                                .await?;
+                        }
+                    }
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::Import) => {
+                        let args = args().await?;
+                        if args.len() == 1 {
+                            let pat = Pattern::from(&args[0]);
+                            if let Some(str) = pat.into_string() {
+                                references
+                                    .push(EsmAssetReferenceRef::new(source.clone(), str).into());
+                                return Ok(());
+                            }
+                        }
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "import({}) is not statically analyse-able",
+                                CommaSeparated(&args)
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT.to_string(),
+                            ),
+                        )
+                    }
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::Require) => {
+                        let args = args().await?;
+                        if args.len() == 1 {
+                            let pat = Pattern::from(&args[0]);
+                            if let Some(str) = pat.into_string() {
+                                references
+                                    .push(EsmAssetReferenceRef::new(source.clone(), str).into());
+                                return Ok(());
+                            }
+                        }
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "require({}) is not statically analyse-able",
+                                CommaSeparated(&args)
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::REQUIRE.to_string(),
+                            ),
+                        )
+                    }
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve) => {
+                        let args = args().await?;
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "require.resolve({}) is not statically analyse-able",
+                                CommaSeparated(&args)
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::REQUIRE.to_string(),
+                            ),
+                        )
+                    }
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(name)) => {
+                        let args = args().await?;
+                        if args.len() >= 1 {
+                            let pat = Pattern::from(&args[0]);
+                            if let Some(str) = pat.into_string() {
+                                references
+                                    .push(EsmAssetReferenceRef::new(source.clone(), str).into());
+                                return Ok(());
+                            }
+                        }
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "fs.{name}({}) is not statically analyse-able",
+                                CommaSeparated(&args)
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::FS_METHOD.to_string(),
+                            ),
+                        )
+                    }
+                    _ => {}
+                }
+                Ok(())
+            }
+
+            let linker = |value| value_visitor(&source, value);
+
+            let cache = Mutex::new(LinkCache::new());
+            for effect in var_graph.effects.iter() {
+                match effect {
+                    Effect::Call {
+                        func,
+                        this,
+                        args,
+                        span,
+                    } => {
+                        let func = link(&var_graph, func.clone(), &linker, &cache).await?;
+                        let this = || link(&var_graph, this.clone(), &linker, &cache);
+                        let args = || {
+                            try_join_all(
+                                args.iter()
+                                    .map(|arg| link(&var_graph, arg.clone(), &linker, &cache)),
+                            )
+                        };
+
+                        handle_call(
+                            &handler,
+                            &source,
+                            &span,
+                            func,
+                            &this,
+                            &args,
+                            &mut references,
+                        )
+                        .await?;
+                    }
+                }
+            }
             if !buf.is_empty() {
                 // TODO report them in a stream
                 println!("{}", buf);
@@ -245,6 +239,56 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
     };
     Ok(AssetReferencesSet { references }.into())
 }
+
+async fn value_visitor(source: &AssetRef, v: JsValue) -> Result<(JsValue, bool)> {
+    let (v, modified) = replace_well_known(v);
+    Ok((
+        match v {
+            JsValue::FreeVar(FreeVarKind::Dirname) => JsValue::Constant(Lit::Str(Str::from(
+                JsWord::from(source.path().await?.path.as_str()),
+            ))),
+            JsValue::FreeVar(FreeVarKind::Require) => {
+                JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
+            }
+            JsValue::FreeVar(FreeVarKind::Import) => {
+                JsValue::WellKnownFunction(WellKnownFunctionKind::Import)
+            }
+            JsValue::Module(ref name) => match &**name {
+                // TODO check externals
+                "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
+                "fs/promises" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
+                "fs" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
+                _ => return Ok((v, modified)),
+            },
+            _ => return Ok((v, modified)),
+        },
+        true,
+    ))
+}
+
+// #[async_trait]
+// impl<'a> VisitLink for Linker<'a> {
+//     async fn free_var(&self, kind: &FreeVarKind) -> Result<Option<JsValue>> {
+//         Ok(match kind {
+//             FreeVarKind::Dirname =>
+// Some(JsValue::Constant(Lit::Str(Str::from(JsWord::from(
+// self.source.path().await?.path.as_str(),             ))))),
+//             FreeVarKind::Require => {
+//
+// Some(JsValue::WellKnownFunction(WellKnownFunctionKind::Require))
+// }             FreeVarKind::Import =>
+// Some(JsValue::WellKnownFunction(WellKnownFunctionKind::Import)),
+// _ => None,         })
+//     }
+
+//     async fn module(&self, name: &JsWord) -> Result<Option<JsValue>> {
+//         Ok(None)
+//     }
+
+//     async fn call(&self, func: &JsValue, args: &Vec<JsValue>) ->
+// Result<Option<JsValue>> {         Ok(None)
+//     }
+// }
 
 #[derive(Debug)]
 enum StaticExpr {

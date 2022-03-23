@@ -7,8 +7,8 @@
     ),
     (
         "path",
-        Module(
-            Atom('path' type=inline),
+        WellKnownObject(
+            PathModule,
         ),
     ),
     (

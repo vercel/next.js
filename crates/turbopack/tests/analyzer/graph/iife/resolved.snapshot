@@ -1,43 +1,43 @@
 [
     (
         "a",
-        FreeVar(
+        WellKnownFunction(
             Require,
         ),
     ),
     (
         "b",
-        FreeVar(
+        WellKnownFunction(
             Require,
         ),
     ),
     (
         "c",
-        FreeVar(
+        WellKnownFunction(
             Require,
         ),
     ),
     (
         "d",
-        FreeVar(
+        WellKnownFunction(
             Require,
         ),
     ),
     (
         "e",
-        FreeVar(
+        WellKnownFunction(
             Require,
         ),
     ),
     (
         "f",
-        FreeVar(
+        WellKnownFunction(
             Require,
         ),
     ),
     (
         "g",
-        FreeVar(
+        WellKnownFunction(
             Require,
         ),
     ),
