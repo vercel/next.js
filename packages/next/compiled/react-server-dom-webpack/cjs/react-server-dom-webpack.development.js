@@ -1,4 +1,5 @@
-/** @license React vundefined
+/**
+ * @license React
  * react-server-dom-webpack.development.js
  *
  * Copyright (c) Facebook, Inc. and its affiliates.
@@ -12,6 +13,8 @@
 if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
+
+var React = require('react');
 
 function createStringDecoder() {
   return new TextDecoder();
@@ -95,45 +98,20 @@ function requireModule(moduleData) {
 // ATTENTION
 // When adding new symbols to this file,
 // Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
-// The Symbol used to tag the ReactElement-like types. If there is no native Symbol
-// nor polyfill, then a plain number is used for performance.
-var REACT_ELEMENT_TYPE = 0xeac7;
-var REACT_PORTAL_TYPE = 0xeaca;
-var REACT_FRAGMENT_TYPE = 0xeacb;
-var REACT_STRICT_MODE_TYPE = 0xeacc;
-var REACT_PROFILER_TYPE = 0xead2;
-var REACT_PROVIDER_TYPE = 0xeacd;
-var REACT_CONTEXT_TYPE = 0xeace;
-var REACT_FORWARD_REF_TYPE = 0xead0;
-var REACT_SUSPENSE_TYPE = 0xead1;
-var REACT_SUSPENSE_LIST_TYPE = 0xead8;
-var REACT_MEMO_TYPE = 0xead3;
-var REACT_LAZY_TYPE = 0xead4;
-var REACT_SCOPE_TYPE = 0xead7;
-var REACT_DEBUG_TRACING_MODE_TYPE = 0xeae1;
-var REACT_OFFSCREEN_TYPE = 0xeae2;
-var REACT_LEGACY_HIDDEN_TYPE = 0xeae3;
-var REACT_CACHE_TYPE = 0xeae4;
+// The Symbol used to tag the ReactElement-like types.
+var REACT_ELEMENT_TYPE = Symbol.for('react.element');
+var REACT_LAZY_TYPE = Symbol.for('react.lazy');
+var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 
-if (typeof Symbol === 'function' && Symbol.for) {
-  var symbolFor = Symbol.for;
-  REACT_ELEMENT_TYPE = symbolFor('react.element');
-  REACT_PORTAL_TYPE = symbolFor('react.portal');
-  REACT_FRAGMENT_TYPE = symbolFor('react.fragment');
-  REACT_STRICT_MODE_TYPE = symbolFor('react.strict_mode');
-  REACT_PROFILER_TYPE = symbolFor('react.profiler');
-  REACT_PROVIDER_TYPE = symbolFor('react.provider');
-  REACT_CONTEXT_TYPE = symbolFor('react.context');
-  REACT_FORWARD_REF_TYPE = symbolFor('react.forward_ref');
-  REACT_SUSPENSE_TYPE = symbolFor('react.suspense');
-  REACT_SUSPENSE_LIST_TYPE = symbolFor('react.suspense_list');
-  REACT_MEMO_TYPE = symbolFor('react.memo');
-  REACT_LAZY_TYPE = symbolFor('react.lazy');
-  REACT_SCOPE_TYPE = symbolFor('react.scope');
-  REACT_DEBUG_TRACING_MODE_TYPE = symbolFor('react.debug_trace_mode');
-  REACT_OFFSCREEN_TYPE = symbolFor('react.offscreen');
-  REACT_LEGACY_HIDDEN_TYPE = symbolFor('react.legacy_hidden');
-  REACT_CACHE_TYPE = symbolFor('react.cache');
+var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+
+var ContextRegistry = ReactSharedInternals.ContextRegistry;
+function getOrCreateServerContext(globalName) {
+  if (!ContextRegistry[globalName]) {
+    ContextRegistry[globalName] = React.createServerContext(globalName, REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED);
+  }
+
+  return ContextRegistry[globalName];
 }
 
 var PENDING = 0;
@@ -405,6 +383,10 @@ function resolveModel(response, id, model) {
     resolveModelChunk(chunk, model);
   }
 }
+function resolveProvider(response, id, contextName) {
+  var chunks = response._chunks;
+  chunks.set(id, createInitializedChunk(response, getOrCreateServerContext(contextName).Provider));
+}
 function resolveModule(response, id, model) {
   var chunks = response._chunks;
   var chunk = chunks.get(id);
@@ -472,6 +454,12 @@ function processFullRow(response, row) {
     case 'M':
       {
         resolveModule(response, id, text);
+        return;
+      }
+
+    case 'P':
+      {
+        resolveProvider(response, id, text);
         return;
       }
 
