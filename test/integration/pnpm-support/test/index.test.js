@@ -160,30 +160,20 @@ describe('pnpm support', () => {
           invalidSymlinks.push([p, symlink])
         }
       }
-      if (symlinksOutsideRoot.length) {
-        console.log(
-          symlinksOutsideRoot
-            .map(([from, to]) => `${path.relative(appDir, from)} -> ${to}`)
-            .join('\n')
-        )
-      }
       expect(symlinksOutsideRoot).toHaveLength(
         0,
-        'there are no symlinks pointing outside standalone directory'
+        'there must be no symlinks pointing outside standalone directory'
       )
-      if (reactCopies.length) {
-        console.log(reactCopies.map((p) => path.relative(appDir, p)).join('\n'))
-      }
-      expect(reactCopies).toHaveLength(1, 'there is only one copy of react')
-      if (invalidSymlinks.length) {
-        console.log(
-          invalidSymlinks
-            .map(([from, to]) => `${path.relative(appDir, from)} -> ${to}`)
-            .join('\n')
-        )
-      }
 
-      expect(invalidSymlinks).toHaveLength(0, 'there are no invalid symlinks')
+      expect(reactCopies).toHaveLength(
+        1,
+        'there must be only one copy of react'
+      )
+
+      expect(invalidSymlinks).toHaveLength(
+        0,
+        'all symlinks must point to existing files'
+      )
     })
   })
 
