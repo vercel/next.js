@@ -107,10 +107,6 @@ export function getRender({
   const requestHandler = server.getRequestHandler()
 
   return async function render(request: NextRequest) {
-    const { nextUrl: url } = request
-    const { searchParams } = url
-    const query = Object.fromEntries(searchParams)
-
     // Preflight request
     if (request.method === 'HEAD') {
       // Hint the client that the matched route is a SSR page.

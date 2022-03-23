@@ -511,6 +511,9 @@ export async function renderToHTML(
       ? JSON.parse(query.__props__ as string)
       : undefined
 
+  delete query.__flight__
+  delete query.__props__
+
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []
 
