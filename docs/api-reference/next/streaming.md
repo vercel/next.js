@@ -88,7 +88,7 @@ export default function Search() {
     <SearchUI
       onChange={() => {
         refresh()
-        // Or if you want to update props of that server component page, you can do:
+        // Or refresh with updated props:
         // refresh(nextProps)
       }}
     />
