@@ -25,7 +25,6 @@ export function getRender({
   buildManifest,
   reactLoadableManifest,
   serverComponentManifest,
-  isServerComponent,
   config,
   buildId,
 }: {
@@ -39,7 +38,6 @@ export function getRender({
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   serverComponentManifest: any | null
-  isServerComponent: boolean
   config: NextConfig
   buildId: string
 }) {
@@ -122,21 +120,6 @@ export function getRender({
         },
       })
     }
-
-    const renderServerComponentData = isServerComponent
-      ? query.__flight__ !== undefined
-      : false
-
-    const serverComponentProps =
-      isServerComponent && query.__props__
-        ? JSON.parse(query.__props__)
-        : undefined
-
-    // Extend the render options.
-    server.updateRenderOpts({
-      renderServerComponentData,
-      serverComponentProps,
-    })
 
     const extendedReq = new WebNextRequest(request)
     const extendedRes = new WebNextResponse()
