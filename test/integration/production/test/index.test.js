@@ -225,7 +225,7 @@ describe('Production Usage', () => {
       },
       {
         page: '/api',
-        tests: [/webpack-runtime\.js/, /static\/hello\.json/],
+        tests: [/webpack-runtime\.js/, /\/logo\.module\.css/],
         notTests: [
           /next\/dist\/server\/next\.js/,
           /next\/dist\/bin/,

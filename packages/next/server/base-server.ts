@@ -40,7 +40,7 @@ import {
 } from './api-utils'
 import * as envConfig from '../shared/lib/runtime-config'
 import { DecodeError, normalizeRepeatedSlashes } from '../shared/lib/utils'
-import Router, { replaceBasePath, route } from './router'
+import Router, { route } from './router'
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
@@ -63,6 +63,7 @@ import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { normalizeRootPath } from '../shared/lib/router/utils/root-paths'
+import { replaceBasePath } from './router-utils'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
