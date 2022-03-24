@@ -207,7 +207,7 @@
       "warn",
       "WithStatement",
       {
-        "message": "substr is deprecated, use slice or substring instead",
+        "message": "substr() is deprecated, use slice() or substring() instead",
         "selector": "MemberExpression > Identifier[name='substr']"
       }
     ],
