@@ -4,21 +4,40 @@ use turbo_tasks_fs::FileSystemPathRef;
 use crate::{
     module,
     resolve::{
-        options::ResolveOptionsRef, parse::RequestRef, resolve, resolve_options, ResolveResult,
-        ResolveResultRef,
+        options::{ConditionValue, ResolveIntoPackage, ResolveOptions, ResolveOptionsRef},
+        parse::RequestRef,
+        resolve, resolve_options, ResolveResult, ResolveResultRef,
     },
 };
 
 #[turbo_tasks::function]
-pub async fn apply_esm_specific_options(options: ResolveOptionsRef) -> ResolveOptionsRef {
-    // TODO magic
-    options
+pub async fn apply_esm_specific_options(options: ResolveOptionsRef) -> Result<ResolveOptionsRef> {
+    let mut options: ResolveOptions = options.await?.clone();
+    for item in options.into_package.iter_mut() {
+        match item {
+            ResolveIntoPackage::ExportsField { conditions, .. } => {
+                conditions.insert("import".to_string(), ConditionValue::Set);
+                conditions.insert("require".to_string(), ConditionValue::Unset);
+            }
+            ResolveIntoPackage::MainField(_) | ResolveIntoPackage::Default(_) => {}
+        }
+    }
+    Ok(options.into())
 }
 
 #[turbo_tasks::function]
-pub async fn apply_cjs_specific_options(options: ResolveOptionsRef) -> ResolveOptionsRef {
-    // TODO magic
-    options
+pub async fn apply_cjs_specific_options(options: ResolveOptionsRef) -> Result<ResolveOptionsRef> {
+    let mut options: ResolveOptions = options.await?.clone();
+    for item in options.into_package.iter_mut() {
+        match item {
+            ResolveIntoPackage::ExportsField { conditions, .. } => {
+                conditions.insert("import".to_string(), ConditionValue::Unset);
+                conditions.insert("require".to_string(), ConditionValue::Set);
+            }
+            ResolveIntoPackage::MainField(_) | ResolveIntoPackage::Default(_) => {}
+        }
+    }
+    Ok(options.into())
 }
 
 #[turbo_tasks::function]

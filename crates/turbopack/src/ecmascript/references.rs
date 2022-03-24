@@ -142,7 +142,7 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                             let pat = Pattern::from(&args[0]);
                             if let Some(str) = pat.into_string() {
                                 references
-                                    .push(EsmAssetReferenceRef::new(source.clone(), str).into());
+                                    .push(CjsAssetReferenceRef::new(source.clone(), str).into());
                                 return Ok(());
                             }
                         }
@@ -159,6 +159,14 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                     }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve) => {
                         let args = args().await?;
+                        if args.len() == 1 {
+                            let pat = Pattern::from(&args[0]);
+                            if let Some(str) = pat.into_string() {
+                                references
+                                    .push(CjsAssetReferenceRef::new(source.clone(), str).into());
+                                return Ok(());
+                            }
+                        }
                         handler.span_warn_with_code(
                             *span,
                             &format!(
@@ -176,7 +184,7 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                             let pat = Pattern::from(&args[0]);
                             if let Some(str) = pat.into_string() {
                                 references
-                                    .push(EsmAssetReferenceRef::new(source.clone(), str).into());
+                                    .push(FileAssetReferenceRef::new(source.clone(), str).into());
                                 return Ok(());
                             }
                         }
@@ -576,5 +584,57 @@ impl AssetReference for EsmAssetReference {
         let context = self.source.path().parent();
 
         esm_resolve(request, context)
+    }
+}
+
+#[turbo_tasks::value(AssetReference)]
+#[derive(Hash, Debug, PartialEq, Eq)]
+pub struct CjsAssetReference {
+    pub source: AssetRef,
+    pub request: String,
+}
+
+#[turbo_tasks::value_impl]
+impl CjsAssetReferenceRef {
+    pub fn new(source: AssetRef, request: String) -> Self {
+        Self::slot(CjsAssetReference { source, request })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl AssetReference for CjsAssetReference {
+    fn resolve_reference(&self) -> ResolveResultRef {
+        let input_request = self.request.clone();
+
+        let request = RequestRef::parse(input_request);
+
+        let context = self.source.path().parent();
+
+        cjs_resolve(request, context)
+    }
+}
+
+#[turbo_tasks::value(AssetReference)]
+#[derive(Hash, Debug, PartialEq, Eq)]
+pub struct FileAssetReference {
+    pub source: AssetRef,
+    pub request: String,
+}
+
+#[turbo_tasks::value_impl]
+impl FileAssetReferenceRef {
+    pub fn new(source: AssetRef, request: String) -> Self {
+        Self::slot(FileAssetReference { source, request })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl AssetReference for FileAssetReference {
+    fn resolve_reference(&self) -> ResolveResultRef {
+        let context = self.source.path().parent();
+
+        let path = context.join(&self.request);
+
+        ResolveResult::Single(SourceAssetRef::new(path).into(), None).into()
     }
 }

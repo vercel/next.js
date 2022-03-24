@@ -330,10 +330,17 @@ pub async fn resolve_options(context: FileSystemPathRef) -> Result<ResolveOption
         into_package: vec![
             ResolveIntoPackage::ExportsField {
                 field: "exports".to_string(),
-                conditions: [("types".to_string(), ConditionValue::Unset)]
-                    .into_iter()
-                    .collect(),
-                unspecified_conditions: ConditionValue::Unknown,
+                conditions: [
+                    ("types".to_string(), ConditionValue::Unset),
+                    ("react-server".to_string(), ConditionValue::Unset),
+                    ("production".to_string(), ConditionValue::Unknown),
+                    ("development".to_string(), ConditionValue::Unknown),
+                    ("import".to_string(), ConditionValue::Unknown),
+                    ("require".to_string(), ConditionValue::Unknown),
+                ]
+                .into_iter()
+                .collect(),
+                unspecified_conditions: ConditionValue::Unset,
             },
             ResolveIntoPackage::MainField("main".to_string()),
             ResolveIntoPackage::Default("index".to_string()),
@@ -538,7 +545,13 @@ pub async fn resolve(
             match resolve_into_package {
                 ResolveIntoPackage::Default(req) => {
                     let request = RequestRef::parse(
-                        "./".to_string() + &normalize_path(&req).ok_or_else(|| anyhow!("ResolveIntoPackage::Default can't be used with a request that escapes the current directory"))?,
+                        "./".to_string()
+                            + &normalize_path(&req).ok_or_else(|| {
+                                anyhow!(
+                                    "ResolveIntoPackage::Default can't be used with a request \
+                                     that escapes the current directory"
+                                )
+                            })?,
                     );
                     return Ok(resolve(package_path.clone(), request, options.clone()));
                 }
@@ -706,7 +719,8 @@ pub async fn resolve(
                                         if let ExportsFieldResult::Some(exports_field) =
                                             &*exports_field(package_json.clone(), field).await?
                                         {
-                                            // other options do not apply anymore when an exports field exist
+                                            // other options do not apply anymore when an exports
+                                            // field exist
                                             return handle_exports_field(
                                                 package_path,
                                                 &package_json_path,

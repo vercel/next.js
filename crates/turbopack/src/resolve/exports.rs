@@ -1,9 +1,12 @@
-use std::{collections::{HashMap, BTreeMap}};
+use std::collections::{BTreeMap, HashMap};
 
-use anyhow::{anyhow, bail, Result, Context};
-use json::{JsonValue};
+use anyhow::{anyhow, bail, Context, Result};
+use json::JsonValue;
 
-use super::{options::ConditionValue, prefix_tree::{WildcardReplacable, PrefixTree, PrefixTreeIterator}};
+use super::{
+    options::ConditionValue,
+    prefix_tree::{PrefixTree, PrefixTreeIterator, WildcardReplacable},
+};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ExportsValue {
@@ -28,7 +31,10 @@ impl WildcardReplacable for ExportsValue {
             ),
             ExportsValue::Result(v) => {
                 if !v.contains("*") {
-                    bail!("exports field value need to contain a wildcard (*) when the key contains one");
+                    bail!(
+                        "exports field value need to contain a wildcard (*) when the key contains \
+                         one"
+                    );
                 }
                 ExportsValue::Result(v.replace("*", value))
             }
@@ -60,47 +66,73 @@ impl WildcardReplacable for ExportsValue {
 }
 
 impl ExportsValue {
-    pub fn add_results<'a>(&'a self, conditions: &BTreeMap<String, ConditionValue>, unspecified_condition: &ConditionValue, condition_overrides: &mut HashMap<&'a str, ConditionValue>, target: &mut Vec<&'a str>) -> bool {
+    pub fn add_results<'a>(
+        &'a self,
+        conditions: &BTreeMap<String, ConditionValue>,
+        unspecified_condition: &ConditionValue,
+        condition_overrides: &mut HashMap<&'a str, ConditionValue>,
+        target: &mut Vec<&'a str>,
+    ) -> bool {
         match self {
             ExportsValue::Alternatives(list) => {
                 for value in list {
-                    if value.add_results(conditions, unspecified_condition, condition_overrides, target) {
+                    if value.add_results(
+                        conditions,
+                        unspecified_condition,
+                        condition_overrides,
+                        target,
+                    ) {
                         return true;
                     }
                 }
                 return false;
-            },
+            }
             ExportsValue::Conditional(list) => {
                 for (condition, value) in list {
-                    let condition_value = condition_overrides.get(condition.as_str())
-                        .or_else(|| conditions.get(condition))
-                        .unwrap_or_else(|| unspecified_condition);
+                    let condition_value = if condition == "default" {
+                        &ConditionValue::Set
+                    } else {
+                        condition_overrides
+                            .get(condition.as_str())
+                            .or_else(|| conditions.get(condition))
+                            .unwrap_or_else(|| unspecified_condition)
+                    };
                     match condition_value {
                         ConditionValue::Set => {
-                            if value.add_results(conditions, unspecified_condition, condition_overrides, target) {
+                            if value.add_results(
+                                conditions,
+                                unspecified_condition,
+                                condition_overrides,
+                                target,
+                            ) {
                                 return true;
                             }
-                        },
-                        ConditionValue::Unset => {},
+                        }
+                        ConditionValue::Unset => {}
                         ConditionValue::Unknown => {
                             condition_overrides.insert(condition, ConditionValue::Set);
-                            if value.add_results(conditions, unspecified_condition, condition_overrides, target) {
+                            if value.add_results(
+                                conditions,
+                                unspecified_condition,
+                                condition_overrides,
+                                target,
+                            ) {
                                 condition_overrides.insert(condition, ConditionValue::Unset);
                             } else {
                                 condition_overrides.remove(condition.as_str());
                             }
-                        },
+                        }
                     }
                 }
                 return false;
-            },
+            }
             ExportsValue::Result(r) => {
                 target.push(r);
                 return true;
-            },
+            }
             ExportsValue::Excluded => {
                 return true;
-            },
+            }
         }
     }
 }
@@ -122,12 +154,21 @@ impl TryFrom<&JsonValue> for ExportsValue {
                 o.iter()
                     .map(|(key, value)| {
                         if key.starts_with(".") || key.starts_with("#") {
-                            bail!("invalid key \"{}\" in an conditions object (Did you want to place this request on higher level?)", key);
-                        } 
-                        Ok((key.to_string(), value.try_into()?))})
+                            bail!(
+                                "invalid key \"{}\" in an conditions object (Did you want to \
+                                 place this request on higher level?)",
+                                key
+                            );
+                        }
+                        Ok((key.to_string(), value.try_into()?))
+                    })
                     .collect::<Result<Vec<_>>>()?,
             )),
-            JsonValue::Array(a) => Ok(ExportsValue::Alternatives(a.iter().map(|value| Ok(value.try_into()?)).collect::<Result<Vec<_>>>()?)),
+            JsonValue::Array(a) => Ok(ExportsValue::Alternatives(
+                a.iter()
+                    .map(|value| Ok(value.try_into()?))
+                    .collect::<Result<Vec<_>>>()?,
+            )),
         }
     }
 }
@@ -142,7 +183,14 @@ impl TryFrom<&JsonValue> for ExportsField {
     type Error = anyhow::Error;
 
     fn try_from(value: &JsonValue) -> Result<Self> {
-        Ok(Self(PrefixTree::from_json(value, |request| request == "." || request.starts_with("./"), Some(".")).with_context(|| anyhow!("failed to parse 'exports' field value"))?))
+        Ok(Self(
+            PrefixTree::from_json(
+                value,
+                |request| request == "." || request.starts_with("./"),
+                Some("."),
+            )
+            .with_context(|| anyhow!("failed to parse 'exports' field value"))?,
+        ))
     }
 }
 
@@ -150,7 +198,14 @@ impl TryFrom<&JsonValue> for ImportsField {
     type Error = anyhow::Error;
 
     fn try_from(value: &JsonValue) -> Result<Self> {
-        Ok(Self(PrefixTree::from_json(value, |request| request == "." || request.starts_with("./"), Some(".")).with_context(|| anyhow!("failed to parse 'exports' field value"))?))
+        Ok(Self(
+            PrefixTree::from_json(
+                value,
+                |request| request == "." || request.starts_with("./"),
+                Some("."),
+            )
+            .with_context(|| anyhow!("failed to parse 'exports' field value"))?,
+        ))
     }
 }
 
