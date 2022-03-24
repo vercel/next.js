@@ -76,77 +76,6 @@ export function decodeText(input?: Uint8Array) {
   return new TextDecoder().decode(input)
 }
 
-export function createTransformStream<Input, Output>({
-  flush,
-  transform,
-}: {
-  flush?: (
-    controller: TransformStreamDefaultController<Output>
-  ) => Promise<void> | void
-  transform?: (
-    chunk: Input,
-    controller: TransformStreamDefaultController<Output>
-  ) => Promise<void> | void
-}): TransformStream<Input, Output> {
-  const source = new TransformStream()
-  const sink = new TransformStream()
-  const reader = source.readable.getReader()
-  const writer = sink.writable.getWriter()
-
-  const controller = {
-    enqueue(chunk: Output) {
-      writer.write(chunk)
-    },
-
-    error(reason: Error) {
-      writer.abort(reason)
-      reader.cancel()
-    },
-
-    terminate() {
-      writer.close()
-      reader.cancel()
-    },
-
-    get desiredSize() {
-      return writer.desiredSize
-    },
-  }
-
-  ;(async () => {
-    try {
-      while (true) {
-        const { done, value } = await reader.read()
-
-        if (done) {
-          const maybePromise = flush?.(controller)
-          if (maybePromise) {
-            await maybePromise
-          }
-          writer.close()
-          return
-        }
-
-        if (transform) {
-          const maybePromise = transform(value, controller)
-          if (maybePromise) {
-            await maybePromise
-          }
-        } else {
-          controller.enqueue(value)
-        }
-      }
-    } catch (err) {
-      writer.abort(err)
-    }
-  })()
-
-  return {
-    readable: sink.readable,
-    writable: source.writable,
-  }
-}
-
 export function createBufferedTransformStream(): TransformStream<
   Uint8Array,
   Uint8Array
@@ -168,7 +97,7 @@ export function createBufferedTransformStream(): TransformStream<
     return pendingFlush
   }
 
-  return createTransformStream({
+  return new TransformStream({
     transform(chunk, controller) {
       bufferedString += decodeText(chunk)
       flushBuffer(controller)
@@ -185,7 +114,7 @@ export function createBufferedTransformStream(): TransformStream<
 export function createFlushEffectStream(
   handleFlushEffect: () => Promise<string>
 ): TransformStream<Uint8Array, Uint8Array> {
-  return createTransformStream({
+  return new TransformStream({
     async transform(chunk, controller) {
       const extraChunk = await handleFlushEffect()
       // those should flush together at once
@@ -236,7 +165,7 @@ export async function renderToStream({
 export function createSuffixStream(
   suffix: string
 ): TransformStream<Uint8Array, Uint8Array> {
-  return createTransformStream({
+  return new TransformStream({
     flush(controller) {
       if (suffix) {
         controller.enqueue(encodeText(suffix))
@@ -250,7 +179,7 @@ export function createPrefixStream(
 ): TransformStream<Uint8Array, Uint8Array> {
   let prefixFlushed = false
   let prefixPrefixFlushFinished: Promise<void> | null = null
-  return createTransformStream({
+  return new TransformStream({
     transform(chunk, controller) {
       controller.enqueue(chunk)
       if (!prefixFlushed && prefix) {
@@ -280,7 +209,7 @@ export function createInlineDataStream(
   dataStream: ReadableStream<Uint8Array>
 ): TransformStream<Uint8Array, Uint8Array> {
   let dataStreamFinished: Promise<void> | null = null
-  return createTransformStream({
+  return new TransformStream({
     transform(chunk, controller) {
       controller.enqueue(chunk)
 
