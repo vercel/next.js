@@ -2,7 +2,12 @@ import fs from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
-import { API_ROUTE, PAGES_DIR_ALIAS, ROOT_DIR_ALIAS } from '../lib/constants'
+import {
+  API_ROUTE,
+  PAGES_DIR_ALIAS,
+  ROOT_ALIAS,
+  ROOT_DIR_ALIAS,
+} from '../lib/constants'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { normalizePagePath } from '../server/normalize-page-path'
 import { warn } from './output/log'
@@ -12,6 +17,7 @@ import { NextConfigComplete } from '../server/config-shared'
 import { parse } from '../build/swc'
 import { isCustomErrorPage, isFlightPage, isReservedPage } from './utils'
 import { ssrEntries } from './webpack/plugins/middleware-plugin'
+import { findPageFile } from '../server/lib/find-page-file'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -83,7 +89,12 @@ export function createPagesMapping(
       } else {
         previousPages[pageKey] = pagePath
       }
-      result[pageKey] = join(pathAlias, pagePath).replace(/\\/g, '/')
+
+      if (pageKey === 'root') {
+        result['root'] = join(ROOT_ALIAS, pagePath).replace(/\\/g, '/')
+      } else {
+        result[pageKey] = join(pathAlias, pagePath).replace(/\\/g, '/')
+      }
       return result
     },
     {}
@@ -92,7 +103,13 @@ export function createPagesMapping(
   // we alias these in development and allow webpack to
   // allow falling back to the correct source file so
   // that HMR can work properly when a file is added/removed
-  if (!isRoot) {
+  if (isRoot) {
+    if (isDev) {
+      pages['root'] = `${ROOT_ALIAS}/root`
+    } else {
+      pages['root'] = pages['root'] || 'next/dist/pages/root'
+    }
+  } else {
     if (isDev) {
       pages['/_app'] = `${pathAlias}/_app`
       pages['/_error'] = `${pathAlias}/_error`
@@ -241,7 +258,10 @@ export async function createEntrypoints(
       const isApiRoute = page.match(API_ROUTE)
 
       const clientBundlePath = posix.join('pages', bundleFile)
-      const serverBundlePath = posix.join(isRoot ? 'root' : 'pages', bundleFile)
+      const serverBundlePath = posix.join(
+        isRoot ? (bundleFile === '/root' ? './' : 'root') : 'pages',
+        bundleFile
+      )
 
       const isReserved = isReservedPage(page)
       const isCustomError = isCustomErrorPage(page)

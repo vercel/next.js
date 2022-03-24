@@ -1829,6 +1829,13 @@ export async function pages_app(task, opts) {
     .target('dist/pages')
 }
 
+export async function pages_root(task, opts) {
+  await task
+    .source('pages/root.tsx')
+    .swc('server', { dev: opts.dev, keepImportAssertions: true })
+    .target('dist/pages')
+}
+
 export async function pages_error(task, opts) {
   await task
     .source('pages/_error.tsx')
@@ -1852,7 +1859,13 @@ export async function pages_document_server(task, opts) {
 
 export async function pages(task, opts) {
   await task.parallel(
-    ['pages_app', 'pages_error', 'pages_document', 'pages_document_server'],
+    [
+      'pages_app',
+      'pages_error',
+      'pages_document',
+      'pages_document_server',
+      'pages_root',
+    ],
     opts
   )
 }

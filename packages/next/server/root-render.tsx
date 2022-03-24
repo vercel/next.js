@@ -168,9 +168,15 @@ export async function renderToHTML(
   const isPreview = previewData !== false
 
   let WrappedComponent: any
+  let RootLayout: any
 
   for (let i = layouts.length - 1; i >= 0; i--) {
     const layout = layouts[i]
+
+    if (layout.isRoot) {
+      RootLayout = layout.Component
+      continue
+    }
     let props = {}
 
     // TODO: pass a shared cache from previous getStaticProps/
@@ -223,6 +229,15 @@ export async function renderToHTML(
       )
   }
 
+  if (!RootLayout) {
+    // TODO: fallback to our own root layout?
+    throw new Error('invariant RootLayout not loaded')
+  }
+
+  const headChildren = buildManifest.rootMainFiles.map((src) => (
+    <script src={'/_next/' + src} async key={src} />
+  ))
+
   let serverComponentsInlinedTransformStream: TransformStream<
     Uint8Array,
     Uint8Array
@@ -230,22 +245,6 @@ export async function renderToHTML(
 
   serverComponentsInlinedTransformStream = new TransformStream()
   const search = stringifyQuery(query)
-
-  // TODO: replace this with root.js when present
-  const RootLayout = () => {
-    return (
-      <html>
-        <head>
-          {buildManifest.rootMainFiles.map((src) => (
-            <script src={'/_next/' + src} async key={src} />
-          ))}
-        </head>
-        <body>
-          <WrappedComponent />
-        </body>
-      </html>
-    )
-  }
 
   const Component = createServerComponentRenderer(RootLayout, ComponentMod, {
     cachePrefix: pathname + (search ? `?${search}` : ''),
@@ -302,7 +301,10 @@ export async function renderToHTML(
 
   if (renderServerComponentData) {
     const stream: ReadableStream<Uint8Array> = renderToReadableStream(
-      <RootLayout />,
+      <RootLayout
+        headChildren={headChildren}
+        bodyChildren={<WrappedComponent />}
+      />,
       serverComponentManifest
     )
 
@@ -328,7 +330,10 @@ export async function renderToHTML(
   const bodyResult = async () => {
     const content = (
       <AppContainer>
-        <Component />
+        <Component
+          headChildren={headChildren}
+          bodyChildren={<WrappedComponent />}
+        />
       </AppContainer>
     )
     const flushEffectHandler = async () => {

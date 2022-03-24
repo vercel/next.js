@@ -39,6 +39,7 @@ export type LoadComponentsReturnType = {
   AppMod: any
   isRootPath?: boolean
   rootLayouts?: Array<{
+    isRoot?: boolean
     Component: NextComponentType
     getStaticProps?: GetStaticProps
     getServerSideProps?: GetServerSideProps

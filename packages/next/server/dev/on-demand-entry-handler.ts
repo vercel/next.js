@@ -68,6 +68,8 @@ export default function onDemandEntryHandler(
       const page = getRouteFromEntrypoint(entrypoint.name, root)
       if (page) {
         pagePaths.push(`${type}${page}`)
+      } else if (root && entrypoint.name === 'root') {
+        pagePaths.push(`${type}/${entrypoint.name}`)
       }
     }
 
@@ -172,12 +174,13 @@ export default function onDemandEntryHandler(
       }
       let pagePath: string | null = null
       let isRoot = false
+      const isRootFile = rootDir && normalizedPagePath === '/_root'
 
       // check rootDir first
       if (rootDir) {
         pagePath = await findPageFile(
-          rootDir,
-          normalizedPagePath,
+          join(rootDir, isRootFile ? '..' : ''),
+          isRootFile ? 'root' : normalizedPagePath,
           nextConfig.pageExtensions
         )
 
@@ -223,8 +226,14 @@ export default function onDemandEntryHandler(
 
         pageUrl = pageUrl === '' ? '/' : pageUrl
         const bundleFile = normalizePagePath(pageUrl)
-        bundlePath = posix.join(isRoot ? 'root' : 'pages', bundleFile)
-        absolutePagePath = join(isRoot ? rootDir! : pagesDir, pagePath)
+
+        if (isRootFile) {
+          bundlePath = 'root'
+          absolutePagePath = join(rootDir!, '..', pagePath)
+        } else {
+          bundlePath = posix.join(isRoot ? 'root' : 'pages', bundleFile)
+          absolutePagePath = join(isRoot ? rootDir! : pagesDir, pagePath)
+        }
         page = posix.normalize(pageUrl)
       }
 

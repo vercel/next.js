@@ -1004,6 +1004,8 @@ export default abstract class Server {
           layoutPaths.push(parentPath)
         }
       }
+      // TODO: when should we bail on adding the root.js wrapper
+      layoutPaths.unshift('/_root')
     }
     return layoutPaths
   }
@@ -1687,6 +1689,7 @@ export default abstract class Server {
         layoutPaths.map(async (path) => {
           const layoutRes = await this.findPageComponents(path)
           return {
+            isRoot: path === '/_root',
             Component: layoutRes?.components.Component!,
             getStaticProps: layoutRes?.components.getStaticProps,
             getServerSideProps: layoutRes?.components.getServerSideProps,

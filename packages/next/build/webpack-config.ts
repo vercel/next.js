@@ -11,6 +11,7 @@ import {
   PAGES_DIR_ALIAS,
   MIDDLEWARE_ROUTE,
   ROOT_DIR_ALIAS,
+  ROOT_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -557,6 +558,7 @@ export default async function getBaseWebpackConfig(
   const customAppAliases: { [key: string]: string[] } = {}
   const customErrorAlias: { [key: string]: string[] } = {}
   const customDocumentAliases: { [key: string]: string[] } = {}
+  const customRootAliases: { [key: string]: string[] } = {}
 
   if (dev) {
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
@@ -580,6 +582,16 @@ export default async function getBaseWebpackConfig(
       }, [] as string[]),
       `next/dist/pages/_document.js`,
     ]
+
+    if (config.experimental.rootDir && rootDir) {
+      customRootAliases[`${ROOT_ALIAS}/root`] = [
+        ...config.pageExtensions.reduce((prev, ext) => {
+          prev.push(path.join(rootDir, `root.${ext}`))
+          return prev
+        }, [] as string[]),
+        'next/dist/pages/root.js',
+      ]
+    }
   }
 
   const resolveConfig = {
@@ -611,9 +623,15 @@ export default async function getBaseWebpackConfig(
       ...customAppAliases,
       ...customErrorAlias,
       ...customDocumentAliases,
+      ...customRootAliases,
 
       [PAGES_DIR_ALIAS]: pagesDir,
-      ...(rootDir ? { [ROOT_DIR_ALIAS]: rootDir } : {}),
+      ...(rootDir
+        ? {
+            [ROOT_DIR_ALIAS]: rootDir,
+            [ROOT_ALIAS]: path.join(rootDir, '..'),
+          }
+        : {}),
       ...(targetWeb ? getOptimizedAliases() : {}),
       ...getReactProfilingInProduction(),
 

@@ -18,6 +18,7 @@ import {
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
+import { findPageFile } from '../server/lib/find-page-file'
 import loadCustomRoutes, {
   CustomRoutes,
   getRedirectStatus,
@@ -287,6 +288,13 @@ export default async function build(
       rootPaths = await nextBuildSpan
         .traceChild('collect-root-paths')
         .traceAsyncFn(() => collectPages(rootDir, config.pageExtensions))
+
+      const rootFile = await findPageFile(
+        path.join(rootDir, '..'),
+        'root',
+        config.pageExtensions
+      )
+      if (rootFile) rootPaths.push(rootFile)
     }
 
     // needed for static exporting since we want to replace with HTML
@@ -335,6 +343,7 @@ export default async function build(
           mappedRootPaths
         )
       )
+
     const pageKeys = Object.keys(mappedPages)
     const hasMiddleware = pageKeys.some((page) => MIDDLEWARE_ROUTE.test(page))
     const conflictingPublicFiles: string[] = []

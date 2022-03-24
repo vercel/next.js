@@ -29,6 +29,9 @@ export function getPagePath(
   let rootPathsManifest: undefined | PagesManifest
 
   if (rootDirEnabled) {
+    if (page === '/_root') {
+      return join(serverBuildPath, 'root.js')
+    }
     rootPathsManifest = require(join(serverBuildPath, ROOT_PATHS_MANIFEST))
   }
 
