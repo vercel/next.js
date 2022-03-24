@@ -59,7 +59,7 @@ async function parseModuleInfo(
       case 'ExportDefaultExpression':
       case 'ExportDefaultDeclaration':
         names.push('default')
-        continue
+        break
       case 'ExportNamedDeclaration':
         if (node.declaration) {
           if (node.declaration.type === 'VariableDeclaration') {
@@ -77,12 +77,12 @@ async function parseModuleInfo(
             addExportNames(names, specificers[j].exported)
           }
         }
-        continue
+        break
       case 'ExportDeclaration':
         if (node.declaration?.identifier) {
           addExportNames(names, node.declaration.identifier)
         }
-        continue
+        break
       case 'ExpressionStatement': {
         const {
           expression: { left },
@@ -95,6 +95,7 @@ async function parseModuleInfo(
         ) {
           addExportNames(names, left.property)
         }
+        break
       }
       default:
         break
