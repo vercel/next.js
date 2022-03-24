@@ -18,4 +18,4 @@ const esmNodeTypes = [
   'ExportDefaultExpression',
   'ExportDefaultDeclaration',
 ]
-export const isEsmNode = (node: any) => esmNodeTypes.includes(node.type)
+export const isEsmNodeType = (type: string) => esmNodeTypes.includes(type)

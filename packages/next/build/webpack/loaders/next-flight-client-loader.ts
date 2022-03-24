@@ -6,7 +6,7 @@
  */
 
 import { parse } from '../../swc'
-import { buildExports, isEsmNode } from './utils'
+import { buildExports } from './utils'
 
 function addExportNames(names: string[], node: any) {
   switch (node.type) {
@@ -44,15 +44,13 @@ async function parseModuleInfo(
   resourcePath: string,
   transformedSource: string,
   names: Array<string>
-): Promise<{ isEsm: boolean }> {
+): Promise<void> {
   const { body } = await parse(transformedSource, {
     filename: resourcePath,
     isModule: true,
   })
-  let isEsm = false
   for (let i = 0; i < body.length; i++) {
     const node = body[i]
-    isEsm = isEsm || isEsmNode(node)
     switch (node.type) {
       // TODO: support export * from module path
       // case 'ExportAllDeclaration':
@@ -101,7 +99,6 @@ async function parseModuleInfo(
         break
     }
   }
-  return { isEsm }
 }
 
 export default async function transformSource(
@@ -116,11 +113,7 @@ export default async function transformSource(
   }
 
   const names: string[] = []
-  const { isEsm } = await parseModuleInfo(
-    resourcePath,
-    transformedSource,
-    names
-  )
+  await parseModuleInfo(resourcePath, transformedSource, names)
 
   // next.js/packages/next/<component>.js
   if (/[\\/]next[\\/](link|image)\.js$/.test(resourcePath)) {
@@ -136,11 +129,12 @@ export default async function transformSource(
       JSON.stringify(resourcePath) +
       ', name: ' +
       JSON.stringify(name) +
-      '};\n'
+      ' };\n'
     res[name] = moduleRef
     return res
   }, {})
 
-  const output = moduleRefDef + buildExports(clientRefsExports, isEsm)
+  // still generate module references in ESM
+  const output = moduleRefDef + buildExports(clientRefsExports, true)
   return output
 }

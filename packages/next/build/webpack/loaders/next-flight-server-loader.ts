@@ -1,6 +1,6 @@
 import { parse } from '../../swc'
 import { getRawPageExtensions } from '../../utils'
-import { buildExports, isEsmNode } from './utils'
+import { buildExports, isEsmNodeType } from './utils'
 
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
 
@@ -51,7 +51,7 @@ async function parseModuleInfo({
 
   for (let i = 0; i < body.length; i++) {
     const node = body[i]
-    isEsm = isEsm || isEsmNode(node)
+    isEsm = isEsm || isEsmNodeType(node.type)
     switch (node.type) {
       case 'ImportDeclaration': {
         const importSource = node.source.value
@@ -182,7 +182,7 @@ export default async function transformSource(
   const rscExports: any = {
     __next_rsc__: `{
       __webpack_require__,
-      _: () => {${imports}}
+      _: () => {\n${imports}\n}
     }`,
   }
 
