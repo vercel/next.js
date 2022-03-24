@@ -24,43 +24,6 @@ export function readableStreamTee<T = any>(
   return [transformStream.readable, transformStream2.readable]
 }
 
-export function pipeTo<T>(
-  readable: ReadableStream<T>,
-  writable: WritableStream<T>,
-  options?: { preventClose: boolean }
-) {
-  let resolver: () => void
-  const promise = new Promise<void>((resolve) => (resolver = resolve))
-
-  const reader = readable.getReader()
-  const writer = writable.getWriter()
-  function process() {
-    reader.read().then(({ done, value }) => {
-      if (done) {
-        if (options?.preventClose) {
-          writer.releaseLock()
-        } else {
-          writer.close()
-        }
-        resolver()
-      } else {
-        writer.write(value)
-        process()
-      }
-    })
-  }
-  process()
-  return promise
-}
-
-export function pipeThrough<Input, Output>(
-  readable: ReadableStream<Input>,
-  transformStream: TransformStream<Input, Output>
-) {
-  pipeTo(readable, transformStream.writable)
-  return transformStream.readable
-}
-
 export function chainStreams<T>(
   streams: ReadableStream<T>[]
 ): ReadableStream<T> {
@@ -69,9 +32,7 @@ export function chainStreams<T>(
   let promise = Promise.resolve()
   for (let i = 0; i < streams.length; ++i) {
     promise = promise.then(() =>
-      pipeTo(streams[i], writable, {
-        preventClose: i + 1 < streams.length,
-      })
+      streams[i].pipeTo(writable, { preventClose: i + 1 < streams.length })
     )
   }
 
@@ -267,7 +228,7 @@ export async function renderToStream({
   ].filter(Boolean) as any
 
   return transforms.reduce(
-    (readable, transform) => pipeThrough(readable, transform),
+    (readable, transform) => readable.pipeThrough(transform),
     renderStream
   )
 }

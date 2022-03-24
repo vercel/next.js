@@ -1,4 +1,4 @@
-class ReadableStream<T> {
+class ReadableStreamPolyfill<T> {
   constructor(opts: UnderlyingSource = {}) {
     let closed = false
     let pullPromise: any
@@ -74,8 +74,50 @@ class ReadableStream<T> {
       registerPull()
     }
 
+    readable.pipeTo = (
+      writable: WritableStream,
+      options: { preventClose: boolean }
+    ) => {
+      return pipeTo(readable, writable, options)
+    }
+
+    readable.pipeThrough = (transform: TransformStream) => {
+      pipeTo(readable, transform.writable)
+      return transform.readable
+    }
+
     return readable
   }
 }
 
-export { ReadableStream }
+function pipeTo<T>(
+  readable: ReadableStream<T>,
+  writable: WritableStream<T>,
+  options?: { preventClose: boolean }
+) {
+  let resolver: () => void
+  const promise = new Promise<void>((resolve) => (resolver = resolve))
+
+  const reader = readable.getReader()
+  const writer = writable.getWriter()
+
+  function process() {
+    reader.read().then(({ done, value }) => {
+      if (done) {
+        if (options?.preventClose) {
+          writer.releaseLock()
+        } else {
+          writer.close()
+        }
+        resolver()
+      } else {
+        writer.write(value)
+        process()
+      }
+    })
+  }
+  process()
+  return promise
+}
+
+export { ReadableStreamPolyfill as ReadableStream }

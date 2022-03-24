@@ -68,7 +68,6 @@ import {
   readableStreamTee,
   encodeText,
   decodeText,
-  pipeThrough,
   streamFromArray,
   streamToString,
   chainStreams,
@@ -1190,9 +1189,7 @@ export async function renderToHTML(
       serverComponentManifest
     )
 
-    return new RenderResult(
-      pipeThrough(stream, createBufferedTransformStream())
-    )
+    return new RenderResult(stream.pipeThrough(createBufferedTransformStream()))
   }
 
   // we preload the buildManifest for auto-export dynamic pages
