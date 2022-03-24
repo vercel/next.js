@@ -162,7 +162,7 @@ export async function renderToHTML(
       <html>
         <head>
           {buildManifest.rootMainFiles.map((src) => (
-            <script src={'/_next/' + src} async />
+            <script src={'/_next/' + src} async key={src} />
           ))}
         </head>
         <body>

@@ -306,7 +306,6 @@ export default class DevServer extends Server {
           }
 
           pageName = pageName.replace(regexPageExtension, '')
-          pageName = pageName.replace(/\/index$/, '') || '/'
 
           if (isRootPath) {
             // TODO: should only routes ending in /index.js be route-able?
@@ -317,6 +316,9 @@ export default class DevServer extends Server {
             if (routedPages.includes(pageName)) {
               continue
             }
+          } else {
+            // /index is preserved for root folder
+            pageName = pageName.replace(/\/index$/, '') || '/'
           }
 
           invalidatePageRuntimeCache(fileName, safeTime)

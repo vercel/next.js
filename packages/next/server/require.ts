@@ -46,7 +46,7 @@ export function getPagePath(
   const checkManifest = (manifest: PagesManifest) => {
     let curPath = manifest[page]
 
-    if (!pagesManifest[page] && locales) {
+    if (!manifest[page] && locales) {
       const manifestNoLocales: PagesManifest = {}
 
       for (const key of Object.keys(manifest)) {

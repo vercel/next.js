@@ -29,7 +29,7 @@ export async function findPageFile(
   for (const extension of pageExtensions) {
     const pathsToCheck: string[] = []
 
-    if (!normalizedPagePath.endsWith('/index')) {
+    if (!normalizedPagePath.endsWith('/index') || isRootPaths) {
       pathsToCheck.push(`${page}.${extension}`)
     }
 
@@ -44,6 +44,8 @@ export async function findPageFile(
 
       if (await fileExists(pagePathWithIndex)) {
         foundPagePaths.push(pathToCheck)
+        // page.js and page/index.js is not a duplicate in root folder
+        if (isRootPaths) break
       }
     }
   }

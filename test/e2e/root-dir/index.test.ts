@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
 
@@ -111,5 +111,11 @@ describe('root dir', () => {
 
     expect($('html').hasClass('this-is-the-document-html')).toBeTruthy()
     expect($('body').hasClass('this-is-the-document-body')).toBeTruthy()
+  })
+
+  it('should not serve when layout is provided but no folder index', async () => {
+    const res = await fetchViaHTTP(next.url, '/dashboard/deployments')
+    expect(res.status).toBe(404)
+    expect(await res.text()).toContain('This page could not be found')
   })
 })

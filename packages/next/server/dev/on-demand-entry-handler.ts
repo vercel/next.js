@@ -60,11 +60,12 @@ export default function onDemandEntryHandler(
 
   function getPagePathsFromEntrypoints(
     type: string,
-    entrypoints: any
+    entrypoints: any,
+    root?: boolean
   ): string[] {
     const pagePaths = []
     for (const entrypoint of entrypoints.values()) {
-      const page = getRouteFromEntrypoint(entrypoint.name)
+      const page = getRouteFromEntrypoint(entrypoint.name, root)
       if (page) {
         pagePaths.push(`${type}${page}`)
       }
@@ -78,19 +79,23 @@ export default function onDemandEntryHandler(
       return invalidator.doneBuilding()
     }
     const [clientStats, serverStats, edgeServerStats] = multiStats.stats
+    const root = !!rootDir
     const pagePaths = [
       ...getPagePathsFromEntrypoints(
         'client',
-        clientStats.compilation.entrypoints
+        clientStats.compilation.entrypoints,
+        root
       ),
       ...getPagePathsFromEntrypoints(
         'server',
-        serverStats.compilation.entrypoints
+        serverStats.compilation.entrypoints,
+        root
       ),
       ...(edgeServerStats
         ? getPagePathsFromEntrypoints(
             'edge-server',
-            edgeServerStats.compilation.entrypoints
+            edgeServerStats.compilation.entrypoints,
+            root
           )
         : []),
     ]
@@ -206,16 +211,19 @@ export default function onDemandEntryHandler(
       } else {
         let pageUrl = pagePath.replace(/\\/g, '/')
 
-        pageUrl = `${pageUrl[0] !== '/' ? '/' : ''}${pageUrl
-          .replace(
-            new RegExp(`\\.+(?:${nextConfig.pageExtensions.join('|')})$`),
-            ''
-          )
-          .replace(/\/index$/, '')}`
+        pageUrl = `${pageUrl[0] !== '/' ? '/' : ''}${pageUrl.replace(
+          new RegExp(`\\.+(?:${nextConfig.pageExtensions.join('|')})$`),
+          ''
+        )}`
+
+        // preserve the /index inside of root folder
+        if (!isRoot) {
+          pageUrl = pageUrl.replace(/\/index$/, '')
+        }
 
         pageUrl = pageUrl === '' ? '/' : pageUrl
         const bundleFile = normalizePagePath(pageUrl)
-        bundlePath = posix.join('pages', bundleFile)
+        bundlePath = posix.join(isRoot ? 'root' : 'pages', bundleFile)
         absolutePagePath = join(isRoot ? rootDir! : pagesDir, pagePath)
         page = posix.normalize(pageUrl)
       }

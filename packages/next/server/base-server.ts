@@ -864,6 +864,30 @@ export default abstract class Server {
     }
   }
 
+  protected isRoutableRootPath(pathname: string): boolean {
+    if (this.rootPathRoutes) {
+      const paths = Object.keys(this.rootPathRoutes)
+
+      /**
+       * a root path is only routable if
+       * 1. has root/hello.js and no root/hello/ folder
+       * 2. has root/hello.js and a root/hello/index.js
+       */
+      const hasFolderIndex = this.rootPathRoutes[`${pathname}/index`]
+      const hasFolder = paths.some((path) => {
+        return path.startsWith(`${pathname}/`)
+      })
+
+      if (hasFolder && hasFolderIndex) {
+        return true
+      }
+      if (!hasFolder && this.rootPathRoutes[pathname]) {
+        return true
+      }
+    }
+    return false
+  }
+
   protected async hasPage(pathname: string): Promise<boolean> {
     let found = false
     try {
@@ -937,7 +961,9 @@ export default abstract class Server {
 
     return getSortedRoutes(
       [
-        ...Object.keys(this.rootPathRoutes || {}),
+        ...Object.keys(this.rootPathRoutes || {}).filter((r) =>
+          this.isRoutableRootPath(r)
+        ),
         ...Object.keys(this.pagesManifest || {}),
       ].map(
         (page) =>
@@ -1070,14 +1096,6 @@ export default abstract class Server {
       // maintain backwards compatibility for custom server
       // (see custom-server integration tests)
       pathname = '/'
-    }
-
-    if (this.nextConfig.experimental.rootDir) {
-      const originalRootPath = this.rootPathRoutes?.[pathname]
-
-      if (originalRootPath) {
-        pathname = originalRootPath
-      }
     }
 
     // we allow custom servers to call render for all URLs
@@ -1618,11 +1636,40 @@ export default abstract class Server {
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
 
+    // map the route to the actual bundle name e.g.
+    // `/dashboard/rootonly/hello` -> `/dashboard+rootonly/hello`
+    const getOriginalRootPath = (rootPath: string) => {
+      if (this.nextConfig.experimental.rootDir) {
+        const originalRootPath =
+          this.rootPathRoutes?.[`${pathname}/index`] ||
+          this.rootPathRoutes?.[pathname]
+
+        if (!originalRootPath) {
+          return null
+        }
+        const isRoutable = this.isRoutableRootPath(rootPath)
+
+        // 404 when layout is hit and this isn't a routable path
+        // e.g. root/hello.js with root/hello/another.js but
+        // no root/hello/index.js
+        if (!isRoutable) {
+          return ''
+        }
+        return originalRootPath
+      }
+      return null
+    }
+
     try {
       // Ensure a request to the URL /accounts/[id] will be treated as a dynamic
       // route correctly and not loaded immediately without parsing params.
       if (!isDynamicRoute(pathname)) {
-        const result = await this.findPageComponents(pathname, query)
+        const rootPath = getOriginalRootPath(pathname)
+
+        if (typeof rootPath === 'string') {
+          page = rootPath
+        }
+        const result = await this.findPageComponents(page, query)
         if (result) {
           try {
             return await this.renderToResponseWithComponents(ctx, result)
@@ -1642,19 +1689,24 @@ export default abstract class Server {
           if (!params) {
             continue
           }
+          page = dynamicRoute.page
+          const rootPath = getOriginalRootPath(page)
+
+          if (typeof rootPath === 'string') {
+            page = rootPath
+          }
 
           const dynamicRouteResult = await this.findPageComponents(
-            dynamicRoute.page,
+            page,
             query,
             params
           )
           if (dynamicRouteResult) {
             try {
-              page = dynamicRoute.page
               return await this.renderToResponseWithComponents(
                 {
                   ...ctx,
-                  pathname: dynamicRoute.page,
+                  pathname: page,
                   renderOpts: {
                     ...ctx.renderOpts,
                     params,
