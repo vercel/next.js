@@ -1,7 +1,10 @@
 use std::collections::HashSet;
 
 use swc_atoms::JsWord;
+use swc_common::FileName;
+use swc_ecma_loader::{resolve::Resolve, resolvers::node::NodeModulesResolver, TargetEnv};
 use swc_ecmascript::ast::*;
+use url::Url;
 
 use super::{graph::VarGraph, FreeVarKind, JsValue};
 
@@ -10,10 +13,26 @@ pub(crate) struct LinkResult {
     pub replaced_circular_references: HashSet<Id>,
 }
 
-/// TODO(kdy1): Use this
-pub trait Values {
+pub trait VisitLink {
     /// Get the value of `__dirname`
     fn dirname(&self) -> Option<JsWord>;
+
+    fn cur_file(&self) -> Option<&FileName>;
+}
+
+pub struct ConstantVisitLink {
+    pub dirname: Option<JsWord>,
+    pub cur_file: Option<FileName>,
+}
+
+impl VisitLink for ConstantVisitLink {
+    fn dirname(&self) -> Option<JsWord> {
+        self.dirname.clone()
+    }
+
+    fn cur_file(&self) -> Option<&FileName> {
+        self.cur_file.as_ref()
+    }
 }
 
 pub struct LinkCache {
@@ -26,12 +45,18 @@ impl LinkCache {
     }
 }
 
-pub(crate) fn link(graph: &VarGraph, val: &JsValue, _cache: &mut LinkCache) -> JsValue {
-    link_internal(graph, val, &mut HashSet::new()).value
+pub(crate) fn link(
+    graph: &VarGraph,
+    values: &impl VisitLink,
+    val: &JsValue,
+    _cache: &mut LinkCache,
+) -> JsValue {
+    link_internal(graph, values, val, &mut HashSet::new()).value
 }
 
 pub(crate) fn link_internal(
     graph: &VarGraph,
+    values: &impl VisitLink,
     val: &JsValue,
     circle_stack: &mut HashSet<Id>,
 ) -> LinkResult {
@@ -39,7 +64,7 @@ pub(crate) fn link_internal(
 
     macro_rules! handle {
         ($e:expr) => {{
-            let res = link_internal(graph, $e, circle_stack);
+            let res = link_internal(graph, values, $e, circle_stack);
             replaced_circular_references.extend(res.replaced_circular_references);
             res.value
         }};
@@ -47,9 +72,11 @@ pub(crate) fn link_internal(
 
     let val = (|| {
         match val {
-            JsValue::Constant(_) | JsValue::FreeVar(_) | JsValue::Module(..) | JsValue::Unknown => {
-                val.clone()
-            }
+            JsValue::Constant(_)
+            | JsValue::Url(..)
+            | JsValue::FreeVar(_)
+            | JsValue::Module(..)
+            | JsValue::Unknown => val.clone(),
             JsValue::Variable(var) => {
                 // Replace with unknown for now
                 if circle_stack.contains(var) {
@@ -59,7 +86,7 @@ pub(crate) fn link_internal(
                     circle_stack.insert(var.clone());
                     const UNKNOWN: JsValue = JsValue::Unknown;
                     let val = graph.values.get(&var).unwrap_or_else(|| &UNKNOWN);
-                    let res = link_internal(graph, val, circle_stack);
+                    let res = link_internal(graph, values, val, circle_stack);
                     replaced_circular_references.extend(res.replaced_circular_references);
 
                     // Skip current var as it's internal to this resolution
@@ -86,6 +113,30 @@ pub(crate) fn link_internal(
                 match &args[0] {
                     JsValue::Constant(Lit::Str(s)) => JsValue::Module(s.value.clone()),
                     _ => JsValue::Unknown,
+                }
+            }
+
+            JsValue::Call(box JsValue::FreeVar(FreeVarKind::RequireResolve), args)
+                if args.len() == 1 =>
+            {
+                // swc_ecma_loader has `NodeResolver`, which knows how does
+                // require.resolve works
+
+                let target = match &args[0] {
+                    JsValue::Constant(Lit::Str(s)) => s.value.clone(),
+                    _ => return JsValue::Unknown,
+                };
+                let base = match values.cur_file() {
+                    Some(v) => v,
+                    None => return val.clone(),
+                };
+
+                let resolver = NodeModulesResolver::new(TargetEnv::Node, Default::default(), false);
+
+                match resolver.resolve(&base, &target) {
+                    Ok(v) => v.to_string().into(),
+                    // TODO: Report error
+                    Err(_) => JsValue::Unknown,
                 }
             }
 
@@ -143,6 +194,18 @@ pub(crate) fn link_internal(
                             }
 
                             return res.join("/").into();
+                        }
+
+                        if &**module == "url" && &**prop == "pathToFileURL" {
+                            //
+                            match &args[0] {
+                                JsValue::Constant(Lit::Str(path)) => {
+                                    return Url::from_file_path(&*path.value)
+                                        .map(JsValue::Url)
+                                        .unwrap_or(JsValue::Unknown)
+                                }
+                                _ => return JsValue::Unknown,
+                            }
                         }
                     }
                     _ => {}

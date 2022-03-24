@@ -6,6 +6,7 @@ pub(crate) use self::imports::ImportMap;
 use swc_atoms::JsWord;
 use swc_common::{collections::AHashSet, Mark};
 use swc_ecmascript::{ast::*, utils::ident::IdentLike};
+use url::Url;
 
 pub mod graph;
 mod imports;
@@ -18,6 +19,9 @@ pub enum JsValue {
     ///
     /// TODO: Use a type without span
     Constant(Lit),
+
+    Url(Url),
+
     Alternatives(Vec<JsValue>),
 
     // TODO no predefined kinds, only JsWord
@@ -80,6 +84,7 @@ impl Display for JsValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             JsValue::Constant(lit) => write!(f, "{}", lit_to_string(lit)),
+            JsValue::Url(url) => write!(f, "{}", url),
             JsValue::Alternatives(list) => write!(
                 f,
                 "({})",
@@ -130,7 +135,7 @@ impl JsValue {
         match self {
             JsValue::Constant(Lit::Str(..)) | JsValue::Concat(_) => true,
 
-            JsValue::Constant(..) | JsValue::Module(..) => false,
+            JsValue::Constant(..) | JsValue::Url(..) | JsValue::Module(..) => false,
 
             JsValue::FreeVar(FreeVarKind::Dirname | FreeVarKind::ProcessEnv(..)) => true,
             JsValue::FreeVar(
@@ -164,7 +169,8 @@ impl JsValue {
             | JsValue::Unknown
             | JsValue::Variable(_)
             | JsValue::FreeVar(_)
-            | JsValue::Module(_) => return,
+            | JsValue::Module(_)
+            | JsValue::Url(_) => return,
 
             JsValue::Call(_, v) => {
                 v.iter_mut().for_each(|v| {
@@ -280,14 +286,14 @@ fn is_unresolved(i: &Ident, bindings: &AHashSet<Id>, top_level_mark: Mark) -> bo
 mod tests {
     use std::path::PathBuf;
 
-    use swc_common::Mark;
+    use swc_common::{FileName, Mark};
     use swc_ecma_transforms_base::resolver::resolver_with_mark;
     use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_module, visit::VisitMutWith};
     use testing::NormalizedOutput;
 
     use super::{
         graph::{create_graph, EvalContext},
-        linker::{link, LinkCache},
+        linker::{link, ConstantVisitLink, LinkCache},
     };
 
     #[testing::fixture("tests/analyzer/graph/**/input.js")]
@@ -331,8 +337,13 @@ mod tests {
 
                 let mut resolved = vec![];
 
+                let visit_link = ConstantVisitLink {
+                    dirname: Some("__dirname".into()),
+                    cur_file: Some(FileName::Real("test.js".into())),
+                };
+
                 for ((id, ctx), val) in var_graph.values.iter() {
-                    let mut res = link(&var_graph, val, &mut LinkCache::new());
+                    let mut res = link(&var_graph, &visit_link, val, &mut LinkCache::new());
                     res.normalize();
 
                     let unique = var_graph.values.keys().filter(|(i, _)| id == i).count() == 1;

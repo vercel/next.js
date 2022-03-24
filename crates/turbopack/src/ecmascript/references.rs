@@ -3,7 +3,7 @@ use std::{cell::RefCell, collections::HashMap, lazy::Lazy};
 use crate::{
     analyzer::{
         graph::{create_graph, Effect},
-        linker::{link, LinkCache},
+        linker::{link, ConstantVisitLink, LinkCache},
         FreeVarKind, JsValue,
     },
     asset::AssetRef,
@@ -205,6 +205,11 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                     }
 
                     let cache = RefCell::new(LinkCache::new());
+                    let visit_link = ConstantVisitLink {
+                        // TODO: Fill these fields
+                        dirname: None,
+                        cur_file: None,
+                    };
                     for effect in var_graph.effects.iter() {
                         match effect {
                             Effect::Call {
@@ -213,12 +218,21 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                                 args,
                                 span,
                             } => {
-                                let func = link(&var_graph, func, &mut cache.borrow_mut());
-                                let this =
-                                    Lazy::new(|| link(&var_graph, this, &mut cache.borrow_mut()));
+                                let func =
+                                    link(&var_graph, &visit_link, func, &mut cache.borrow_mut());
+                                let this = Lazy::new(|| {
+                                    link(&var_graph, &visit_link, this, &mut cache.borrow_mut())
+                                });
                                 let args = Lazy::new(|| {
                                     args.iter()
-                                        .map(|arg| link(&var_graph, arg, &mut cache.borrow_mut()))
+                                        .map(|arg| {
+                                            link(
+                                                &var_graph,
+                                                &visit_link,
+                                                arg,
+                                                &mut cache.borrow_mut(),
+                                            )
+                                        })
                                         .collect()
                                 });
 
