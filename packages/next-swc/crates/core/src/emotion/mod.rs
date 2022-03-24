@@ -442,7 +442,7 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                                         )));
                                     }
                                     if let Some(cm) = self.create_sourcemap(expr.span.lo()) {
-                                        c.args.push(cm.as_arg());
+                                        expr.args.push(cm.as_arg());
                                     }
                                     c.args.push(
                                         Expr::Object(ObjectLit {
@@ -489,7 +489,7 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                                             );
                                             if let Some(cm) = self.create_sourcemap(expr.span.lo())
                                             {
-                                                args.push(cm.as_arg());
+                                                expr.args.push(cm.as_arg());
                                             }
                                         }
                                         return CallExpr {
@@ -556,9 +556,7 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                                         }),
                                     )));
                                 }
-                                if let Some(cm) = self.create_sourcemap(call.span.lo()) {
-                                    callee.args.push(cm.as_arg());
-                                }
+
                                 callee.args.push(
                                     Expr::Object(ObjectLit {
                                         span: DUMMY_SP,
@@ -569,11 +567,19 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                                 return Expr::Call(CallExpr {
                                     span: DUMMY_SP,
                                     callee: callee.as_callee(),
-                                    args: self
-                                        .create_args_from_tagged_tpl(&mut tagged_tpl.tpl)
-                                        .into_iter()
-                                        .map(|exp| exp.fold_children_with(self))
-                                        .collect(),
+                                    args: {
+                                        let mut args: Vec<ExprOrSpread> = self
+                                            .create_args_from_tagged_tpl(&mut tagged_tpl.tpl)
+                                            .into_iter()
+                                            .map(|exp| exp.fold_children_with(self))
+                                            .collect();
+                                        if let Some(cm) =
+                                            self.create_sourcemap(tagged_tpl.span.lo())
+                                        {
+                                            args.push(cm.as_arg());
+                                        }
+                                        args
+                                    },
                                     type_args: None,
                                 });
                             }
@@ -626,11 +632,13 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                                         }
                                         let mut args =
                                             self.create_args_from_tagged_tpl(&mut tagged_tpl.tpl);
+
                                         if let Some(cm) =
-                                            self.create_sourcemap(member_expr.span.lo())
+                                            self.create_sourcemap(tagged_tpl.span.lo())
                                         {
                                             args.push(cm.as_arg());
                                         }
+
                                         self.comments.add_pure_comment(member_expr.span.lo());
                                         return Expr::Call(CallExpr {
                                             span: DUMMY_SP,
