@@ -1965,9 +1965,9 @@ dependencies = [
 
 [[package]]
 name = "swc_atoms"
-version = "0.2.9"
+version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f5229fe227ff0060e13baa386d6e368797700eab909523f730008d191ee53ae"
+checksum = "66c47429cf5863efa95e9e4004ebb89396c3edec6569d2c41ab3aec509bcc716"
 dependencies = [
  "string_cache",
  "string_cache_codegen",
