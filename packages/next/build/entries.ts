@@ -17,7 +17,6 @@ import { NextConfigComplete } from '../server/config-shared'
 import { parse } from '../build/swc'
 import { isCustomErrorPage, isFlightPage, isReservedPage } from './utils'
 import { ssrEntries } from './webpack/plugins/middleware-plugin'
-import { findPageFile } from '../server/lib/find-page-file'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
