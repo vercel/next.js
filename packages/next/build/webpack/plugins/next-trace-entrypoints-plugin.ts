@@ -365,7 +365,9 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
                     // static image imports, CSS imports
                     file = nodePath.join(this.tracingRoot, file)
                     const depMod = depModMap.get(file)
-                    const isAsset = reasons.get(file)?.type.includes('asset')
+                    const isAsset = reasons
+                      .get(nodePath.relative(this.tracingRoot, file))
+                      ?.type.includes('asset')
 
                     return (
                       !isAsset &&

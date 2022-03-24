@@ -7,7 +7,7 @@ Server Components allow us to render React components on the server. This is fun
 To use React Server Components, ensure you have React 18 installed:
 
 ```jsx
-npm install next@latest react@rc react-dom@rc
+npm install next@canary react@rc react-dom@rc
 ```
 
 Then, update your `next.config.js`:
