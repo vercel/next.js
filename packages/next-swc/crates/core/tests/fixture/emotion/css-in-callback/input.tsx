@@ -32,6 +32,9 @@ const SpanContainer = styled('span')({
   background: 'yellow',
 })
 
+export const DivContainerExtended = styled(DivContainer)``
+export const DivContainerExtended2 = styled(DivContainer)({})
+
 const Container = styled('button')`
   background: red;
   ${stylesInCallback}
