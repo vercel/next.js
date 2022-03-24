@@ -322,7 +322,7 @@ pub async fn resolve_options(context: FileSystemPathRef) -> Result<ResolveOption
     }
     .into();
     Ok(ResolveOptions {
-        extensions: vec![".jsx".to_string(), ".js".to_string()],
+        extensions: vec![".js".to_string(), ".node".to_string(), ".json".to_string()],
         modules: vec![ResolveModules::Nested(
             root,
             vec!["node_modules".to_string()],
