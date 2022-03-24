@@ -6,6 +6,7 @@ pub(crate) use self::imports::ImportMap;
 use swc_atoms::JsWord;
 use swc_common::{collections::AHashSet, Mark};
 use swc_ecmascript::{ast::*, utils::ident::IdentLike};
+use url::Url;
 
 pub mod graph;
 mod imports;
@@ -19,6 +20,9 @@ pub enum JsValue {
     ///
     /// TODO: Use a type without span
     Constant(Lit),
+
+    Url(Url),
+
     Alternatives(Vec<JsValue>),
 
     // TODO no predefined kinds, only JsWord
@@ -87,6 +91,7 @@ impl Display for JsValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             JsValue::Constant(lit) => write!(f, "{}", lit_to_string(lit)),
+            JsValue::Url(url) => write!(f, "{}", url),
             JsValue::Alternatives(list) => write!(
                 f,
                 "({})",
@@ -190,6 +195,7 @@ impl JsValue {
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
             | JsValue::Module(_)
+            | JsValue::Url(_)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
             | JsValue::Unknown => (self, false),
@@ -233,6 +239,7 @@ impl JsValue {
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
             | JsValue::Module(_)
+            | JsValue::Url(_)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
             | JsValue::Unknown => false,
@@ -264,6 +271,7 @@ impl JsValue {
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
             | JsValue::Module(_)
+            | JsValue::Url(_)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
             | JsValue::Unknown => {}
@@ -274,7 +282,7 @@ impl JsValue {
         match self {
             JsValue::Constant(Lit::Str(..)) | JsValue::Concat(_) => true,
 
-            JsValue::Constant(..) | JsValue::Module(..) => false,
+            JsValue::Constant(..) | JsValue::Url(..) | JsValue::Module(..) => false,
 
             JsValue::FreeVar(FreeVarKind::Dirname | FreeVarKind::ProcessEnv(..)) => true,
             JsValue::FreeVar(
@@ -384,6 +392,7 @@ pub enum FreeVarKind {
 pub enum WellKnownObjectKind {
     PathModule,
     FsModule,
+    UrlModule,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -393,6 +402,7 @@ pub enum WellKnownFunctionKind {
     Require,
     RequireResolve,
     FsReadMethod(JsWord),
+    PathToFileUrl,
 }
 
 /// TODO(kdy1): Remove this once resolver distinguish between top-level bindings
@@ -421,6 +431,8 @@ mod tests {
     use swc_ecma_transforms_base::resolver::resolver_with_mark;
     use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_module, visit::VisitMutWith};
     use testing::NormalizedOutput;
+
+    use crate::ecmascript::utils::lit_to_string;
 
     use super::{
         graph::{create_graph, EvalContext},
@@ -471,22 +483,33 @@ mod tests {
                 let mut resolved = vec![];
 
                 async fn visitor(v: JsValue) -> Result<(JsValue, bool)> {
-                    let (v, mut modified) = replace_well_known(v);
-                    let v = match v {
-                        JsValue::FreeVar(FreeVarKind::Require) => {
-                            modified = true;
-                            JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
-                        }
-                        JsValue::Module(ref name) => match &**name {
-                            "path" => {
-                                modified = true;
-                                JsValue::WellKnownObject(WellKnownObjectKind::PathModule)
+                    Ok((
+                        match v {
+                            JsValue::Call(
+                                box JsValue::WellKnownFunction(
+                                    WellKnownFunctionKind::RequireResolve,
+                                ),
+                                args,
+                            ) => match &args[0] {
+                                JsValue::Constant(lit) => {
+                                    JsValue::Constant((lit_to_string(&lit) + " (resolved)").into())
+                                }
+                                _ => JsValue::Unknown,
+                            },
+                            JsValue::FreeVar(FreeVarKind::Require) => {
+                                JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
                             }
-                            _ => v,
+                            JsValue::FreeVar(FreeVarKind::Dirname) => {
+                                JsValue::Constant("__dirname".into())
+                            }
+                            JsValue::Module(ref name) => match &**name {
+                                "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
+                                _ => return Ok((v, false)),
+                            },
+                            _ => return Ok(replace_well_known(v)),
                         },
-                        _ => v,
-                    };
-                    Ok((v, modified))
+                        true,
+                    ))
                 }
 
                 for ((id, ctx), val) in var_graph.values.iter() {

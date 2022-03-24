@@ -1,5 +1,6 @@
 use swc_atoms::JsWord;
 use swc_ecmascript::ast::Lit;
+use url::Url;
 
 use super::{JsValue, WellKnownFunctionKind, WellKnownObjectKind};
 
@@ -25,6 +26,7 @@ pub fn well_known_function_call(
         WellKnownFunctionKind::Import => JsValue::Unknown,
         WellKnownFunctionKind::Require => require(args),
         WellKnownFunctionKind::RequireResolve => JsValue::Unknown,
+        WellKnownFunctionKind::PathToFileUrl => path_to_file_url(args),
         _ => JsValue::Unknown,
     }
 }
@@ -89,10 +91,24 @@ pub fn require(args: Vec<JsValue>) -> JsValue {
     }
 }
 
+pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
+    if args.len() == 1 {
+        match &args[0] {
+            JsValue::Constant(Lit::Str(path)) => Url::from_file_path(&*path.value)
+                .map(JsValue::Url)
+                .unwrap_or(JsValue::Unknown),
+            _ => JsValue::Unknown,
+        }
+    } else {
+        JsValue::Unknown
+    }
+}
+
 pub fn well_known_object_member(kind: WellKnownObjectKind, prop: JsWord) -> JsValue {
     match kind {
         WellKnownObjectKind::PathModule => path_module_member(prop),
         WellKnownObjectKind::FsModule => fs_module_member(prop),
+        WellKnownObjectKind::UrlModule => url_module_member(prop),
         _ => JsValue::Unknown,
     }
 }
@@ -111,6 +127,13 @@ pub fn fs_module_member(prop: JsWord) -> JsValue {
             JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(prop))
         }
         "promises" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
+        _ => JsValue::Unknown,
+    }
+}
+
+pub fn url_module_member(prop: JsWord) -> JsValue {
+    match &*prop {
+        "pathToFileURL" => JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
         _ => JsValue::Unknown,
     }
 }

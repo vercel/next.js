@@ -113,9 +113,15 @@ where
                 .await?;
             *circle_stack = circle_stack_mutex.into_inner().unwrap();
 
-            let (val, m) = visitor(val).await?;
-            if m {
-                modified = true
+            let mut val = val;
+            loop {
+                let m;
+                (val, m) = visitor(val).await?;
+                if m {
+                    modified = true
+                } else {
+                    break;
+                }
             }
 
             // TODO: The result can be cached when

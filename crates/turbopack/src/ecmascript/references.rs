@@ -17,7 +17,6 @@ use crate::{
 };
 use anyhow::Result;
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Mutex};
-use swc_atoms::JsWord;
 use swc_common::{
     errors::{DiagnosticId, Handler, HANDLER},
     Span, GLOBALS,
@@ -25,7 +24,7 @@ use swc_common::{
 use swc_ecmascript::{
     ast::{
         CallExpr, Callee, ComputedPropName, ExportAll, Expr, ExprOrSpread, ImportDecl,
-        ImportSpecifier, Lit, MemberProp, ModuleExportName, NamedExport, Str, VarDeclarator,
+        ImportSpecifier, Lit, MemberProp, ModuleExportName, NamedExport, VarDeclarator,
     },
     visit::{self, Visit, VisitWith},
 };
@@ -34,7 +33,7 @@ use turbo_tasks_fs::FileSystemPathRef;
 
 use super::{
     parse::{parse, Buffer, ParseResult},
-    resolve::{apply_cjs_specific_options, esm_resolve},
+    resolve::{apply_cjs_specific_options, cjs_resolve, esm_resolve},
     webpack::{
         parse::{is_webpack_runtime, WebpackRuntime, WebpackRuntimeRef},
         PotentialWebpackRuntimeAssetReference, WebpackChunkAssetReference,
@@ -240,13 +239,34 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
     Ok(AssetReferencesSet { references }.into())
 }
 
+async fn as_abs_path(path: FileSystemPathRef) -> Result<JsValue> {
+    Ok(path.await?.path.as_str().into())
+}
+
 async fn value_visitor(source: &AssetRef, v: JsValue) -> Result<(JsValue, bool)> {
-    let (v, modified) = replace_well_known(v);
     Ok((
         match v {
-            JsValue::FreeVar(FreeVarKind::Dirname) => JsValue::Constant(Lit::Str(Str::from(
-                JsWord::from(source.path().await?.path.as_str()),
-            ))),
+            JsValue::Call(
+                box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
+                args,
+            ) => {
+                if args.len() == 1 {
+                    let pat = Pattern::from(&args[0]);
+                    if let Some(str) = pat.into_string() {
+                        let request = RequestRef::parse(str);
+                        let resolved = cjs_resolve(request, source.path().parent()).await?;
+                        match &*resolved {
+                            ResolveResult::Single(asset, _) => as_abs_path(asset.path()).await?,
+                            _ => JsValue::Unknown,
+                        }
+                    } else {
+                        JsValue::Unknown
+                    }
+                } else {
+                    JsValue::Unknown
+                }
+            }
+            JsValue::FreeVar(FreeVarKind::Dirname) => as_abs_path(source.path().parent()).await?,
             JsValue::FreeVar(FreeVarKind::Require) => {
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
             }
@@ -258,37 +278,13 @@ async fn value_visitor(source: &AssetRef, v: JsValue) -> Result<(JsValue, bool)>
                 "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
                 "fs/promises" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
                 "fs" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
-                _ => return Ok((v, modified)),
+                _ => return Ok((v, false)),
             },
-            _ => return Ok((v, modified)),
+            _ => return Ok(replace_well_known(v)),
         },
         true,
     ))
 }
-
-// #[async_trait]
-// impl<'a> VisitLink for Linker<'a> {
-//     async fn free_var(&self, kind: &FreeVarKind) -> Result<Option<JsValue>> {
-//         Ok(match kind {
-//             FreeVarKind::Dirname =>
-// Some(JsValue::Constant(Lit::Str(Str::from(JsWord::from(
-// self.source.path().await?.path.as_str(),             ))))),
-//             FreeVarKind::Require => {
-//
-// Some(JsValue::WellKnownFunction(WellKnownFunctionKind::Require))
-// }             FreeVarKind::Import =>
-// Some(JsValue::WellKnownFunction(WellKnownFunctionKind::Import)),
-// _ => None,         })
-//     }
-
-//     async fn module(&self, name: &JsWord) -> Result<Option<JsValue>> {
-//         Ok(None)
-//     }
-
-//     async fn call(&self, func: &JsValue, args: &Vec<JsValue>) ->
-// Result<Option<JsValue>> {         Ok(None)
-//     }
-// }
 
 #[derive(Debug)]
 enum StaticExpr {
