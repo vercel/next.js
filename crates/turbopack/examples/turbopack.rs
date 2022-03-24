@@ -24,6 +24,7 @@ fn main() {
             Box::pin(async {
                 let root = current_dir().unwrap().to_str().unwrap().to_string();
                 let disk_fs = DiskFileSystemRef::new("project".to_string(), root);
+                disk_fs.get().await?.start_watching()?;
 
                 // Smart Pointer cast
                 let fs: FileSystemRef = disk_fs.into();

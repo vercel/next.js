@@ -48,7 +48,8 @@ enum Args {
         output_directory: String,
     },
 
-    // Copy input files and all referenced files to the output directory as long as the process is running
+    // Copy input files and all referenced files to the output directory as long as the process is
+    // running
     Watch {
         input: Vec<String>,
 
@@ -68,8 +69,14 @@ enum Args {
     },
 }
 
-fn create_fs(context: &str) -> FileSystemRef {
-    DiskFileSystemRef::new("context directory".to_string(), context.to_string()).into()
+fn create_fs(name: &str, context: &str) -> FileSystemRef {
+    DiskFileSystemRef::new(name.to_string(), context.to_string()).into()
+}
+
+async fn create_watched_fs(name: &str, context: &str) -> Result<FileSystemRef> {
+    let fs = DiskFileSystemRef::new(name.to_string(), context.to_string());
+    fs.get().await?.start_watching()?;
+    Ok(fs.into())
 }
 
 async fn add_glob_results(result: ReadGlobResultRef, list: &mut Vec<AssetRef>) -> Result<()> {
@@ -161,7 +168,7 @@ fn main() {
             let tt = TurboTasks::new();
             tt.spawn_once_task(async move {
                 let mut result = BTreeSet::new();
-                let fs = create_fs(&context);
+                let fs = create_fs("context directory", &context);
                 let modules = input_to_modules(&fs, &input).await?;
                 for module in modules {
                     let set = all_assets(module);
@@ -188,7 +195,7 @@ fn main() {
             let input = process_input(&dir, &context, input).unwrap();
             let tt = TurboTasks::new();
             tt.spawn_once_task(async move {
-                let fs = create_fs(&context);
+                let fs = create_fs("context directory", &context);
                 for module in input_to_modules(&fs, &input).await? {
                     let nft_asset = NftJsonAssetRef::new(module).into();
                     emit(nft_asset)
@@ -233,8 +240,8 @@ fn main() {
             let output = process_context(&dir, Some(output_directory)).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
             tt.spawn_once_task(async move {
-                let fs = create_fs(&context);
-                let out_fs = create_fs(&output);
+                let fs = create_watched_fs("context directory", &context).await?;
+                let out_fs = create_watched_fs("output directory", &output).await?;
                 let input_dir = FileSystemPathRef::new(fs.clone(), "");
                 let output_dir = FileSystemPathRef::new(out_fs, "");
                 for module in input_to_modules(&fs, &input).await? {

@@ -16,6 +16,7 @@ use std::{
     fmt::{self, Debug, Display},
     fs::{self, create_dir_all},
     io::ErrorKind,
+    mem::take,
     path::{Path, PathBuf, MAIN_SEPARATOR},
     sync::{mpsc::channel, Arc, Mutex},
     thread,
@@ -50,25 +51,23 @@ pub struct DiskFileSystem {
     dir_invalidators: Arc<InvalidatorMap>,
     #[trace_ignore]
     #[allow(dead_code)] // it's never read, but reference is kept for Drop
-    watcher: RecommendedWatcher,
+    watcher: Mutex<Option<RecommendedWatcher>>,
     #[trace_ignore]
     pool: Mutex<ThreadPool>,
 }
 
-fn path_to_key(path: &Path) -> String {
-    path.to_string_lossy().to_lowercase()
-}
-
-#[turbo_tasks::value_impl]
-impl DiskFileSystemRef {
-    pub fn new(name: String, root: String) -> Result<Self> {
-        let pool = Mutex::new(ThreadPool::new(30));
-        let mut invalidators = Arc::new(InvalidatorMap::new());
-        let mut dir_invalidators = Arc::new(InvalidatorMap::new());
-        // create the directory for the filesystem on disk, if it doesn't exist
-        create_dir_all(&root)?;
+impl DiskFileSystem {
+    pub fn start_watching(&self) -> Result<()> {
+        let mut watcher_guard = self.watcher.lock().unwrap();
+        if watcher_guard.is_some() {
+            return Ok(());
+        }
+        let mut invalidators = self.invalidators.clone();
+        let mut dir_invalidators = self.dir_invalidators.clone();
+        let root = self.root.clone();
         // Create a channel to receive the events.
         let (tx, rx) = channel();
+        println!("start watcher {}...", root);
         // Create a watcher object, delivering debounced events.
         // The notification back-end is selected based on the platform.
         let mut watcher = watcher(tx, Duration::from_millis(20))?;
@@ -78,14 +77,17 @@ impl DiskFileSystemRef {
 
         println!("watching {}...", root);
 
-        let instance = DiskFileSystem {
-            name,
-            root: root.clone(),
-            invalidators: invalidators.clone(),
-            dir_invalidators: dir_invalidators.clone(),
-            watcher,
-            pool,
-        };
+        // We need to invalidate all reads that happened before watching
+        // Best is to start_watching before starting to read
+        for (_, invalidator) in take(&mut *invalidators.lock().unwrap()).into_iter() {
+            invalidator.invalidate();
+        }
+        for (_, invalidator) in take(&mut *dir_invalidators.lock().unwrap()).into_iter() {
+            invalidator.invalidate();
+        }
+
+        watcher_guard.replace(watcher);
+
         thread::spawn(move || {
             fn invalidate_path(invalidators: &mut Arc<InvalidatorMap>, path: &Path) {
                 if let Some(invalidator) = invalidators.lock().unwrap().remove(&path_to_key(path)) {
@@ -168,6 +170,38 @@ impl DiskFileSystemRef {
                 }
             }
         });
+        Ok(())
+    }
+
+    pub fn stop_watching(&self) {
+        if let Some(watcher) = self.watcher.lock().unwrap().take() {
+            drop(watcher);
+            // thread will detect the stop because the channel is disconnected
+        }
+    }
+}
+
+fn path_to_key(path: &Path) -> String {
+    path.to_string_lossy().to_lowercase()
+}
+
+#[turbo_tasks::value_impl]
+impl DiskFileSystemRef {
+    pub fn new(name: String, root: String) -> Result<Self> {
+        let pool = Mutex::new(ThreadPool::new(30));
+        println!("creating {}...", root);
+        // create the directory for the filesystem on disk, if it doesn't exist
+        create_dir_all(&root)?;
+
+        let instance = DiskFileSystem {
+            name,
+            root,
+            invalidators: Arc::new(InvalidatorMap::new()),
+            dir_invalidators: Arc::new(InvalidatorMap::new()),
+            watcher: Mutex::new(None),
+            pool,
+        };
+
         Ok(Self::slot(instance))
     }
 }
