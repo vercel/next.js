@@ -252,8 +252,6 @@ export async function renderToHTML(
     serverComponentManifest,
   })
 
-  let renderServerComponentData = query.__flight__ !== undefined
-
   // const serverComponentProps = query.__props__
   //   ? JSON.parse(query.__props__ as string)
   //   : undefined
@@ -299,6 +297,7 @@ export async function renderToHTML(
     </FlushEffectContainer>
   )
 
+  const renderServerComponentData = query.__flight__ !== undefined
   if (renderServerComponentData) {
     const stream: ReadableStream<Uint8Array> = renderToReadableStream(
       <RootLayout
