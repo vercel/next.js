@@ -101,7 +101,7 @@ impl Display for JsValue {
                     .join(" | ")
             ),
             JsValue::FreeVar(name) => write!(f, "FreeVar({:?})", name),
-            JsValue::Variable(name) => write!(f, "Variable({:?})", name),
+            JsValue::Variable(name) => write!(f, "Variable({}#{:?})", name.0, name.1),
             JsValue::Concat(list) => write!(
                 f,
                 "`{}`",
