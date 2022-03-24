@@ -1,7 +1,15 @@
-export default function Page({ children }) {
+export function getServerSideProps({ params }) {
+  return {
+    props: {
+      id: params?.id || null,
+    },
+  }
+}
+
+export default function DeploymentsLayout({ id, children }) {
   return (
     <>
-      <h2>Deployments</h2>
+      <h2>Deployments{id ? ` (${id})` : null}</h2>
       {children}
     </>
   )

@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
 
 import React from 'react'
-import { stringify as stringifyQuery } from 'querystring'
+import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
@@ -20,6 +20,8 @@ import {
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMServer from 'react-dom/server.browser'
+import { isDynamicRoute } from '../shared/lib/router/utils'
+import { tryGetPreviewData } from './api-utils/node'
 
 export type RenderOptsPartial = {
   err?: Error | null
@@ -128,8 +130,8 @@ function createServerComponentRenderer(
 }
 
 export async function renderToHTML(
-  _req: IncomingMessage,
-  _res: ServerResponse,
+  req: IncomingMessage,
+  res: ServerResponse,
   pathname: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
@@ -146,8 +148,80 @@ export async function renderToHTML(
   } = renderOpts
 
   const hasConcurrentFeatures = !!runtime
+  const pageIsDynamic = isDynamicRoute(pathname)
+  const layouts = renderOpts.rootLayouts || []
 
-  const OriginalComponent = renderOpts.Component
+  layouts.push({
+    Component: renderOpts.Component,
+    getStaticProps: renderOpts.getStaticProps,
+    getServerSideProps: renderOpts.getServerSideProps,
+  })
+
+  // Reads of this are cached on the `req` object, so this should resolve
+  // instantly. There's no need to pass this data down from a previous
+  // invoke, where we'd have to consider server & serverless.
+  const previewData = tryGetPreviewData(
+    req,
+    res,
+    (renderOpts as any).previewProps
+  )
+  const isPreview = previewData !== false
+
+  let WrappedComponent: any
+
+  for (let i = layouts.length - 1; i >= 0; i--) {
+    const layout = layouts[i]
+    let props = {}
+
+    // TODO: pass a shared cache from previous getStaticProps/
+    // getServerSideProps calls?
+    if (layout.getServerSideProps) {
+      const gsspRes = await layout.getServerSideProps({
+        req: req as any,
+        res: res,
+        query,
+        resolvedUrl: (renderOpts as any).resolvedUrl as string,
+        ...(pageIsDynamic
+          ? { params: (renderOpts as any).params as ParsedUrlQuery }
+          : undefined),
+        ...(isPreview
+          ? { preview: true, previewData: previewData }
+          : undefined),
+        locales: (renderOpts as any).locales,
+        locale: (renderOpts as any).locale,
+        defaultLocale: (renderOpts as any).defaultLocale,
+      })
+
+      if ((gsspRes as any).props) {
+        props = (gsspRes as any).props
+      }
+    }
+    // TODO: implement layout specific caching for getStaticProps
+    if (layout.getStaticProps) {
+      const gspRes = await layout.getStaticProps({
+        ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
+        ...(isPreview
+          ? { preview: true, previewData: previewData }
+          : undefined),
+        locales: (renderOpts as any).locales,
+        locale: (renderOpts as any).locale,
+        defaultLocale: (renderOpts as any).defaultLocale,
+      })
+
+      if ((gspRes as any).props) {
+        props = (gspRes as any).props
+      }
+    }
+
+    // eslint-disable-next-line no-loop-func
+    const lastComponent = WrappedComponent
+    WrappedComponent = () =>
+      React.createElement(
+        layout.Component,
+        props,
+        React.createElement(lastComponent || React.Fragment, {}, null)
+      )
+  }
 
   let serverComponentsInlinedTransformStream: TransformStream<
     Uint8Array,
@@ -157,7 +231,8 @@ export async function renderToHTML(
   serverComponentsInlinedTransformStream = new TransformStream()
   const search = stringifyQuery(query)
 
-  const WrappedComponent = () => {
+  // TODO: replace this with root.js when present
+  const RootLayout = () => {
     return (
       <html>
         <head>
@@ -166,21 +241,17 @@ export async function renderToHTML(
           ))}
         </head>
         <body>
-          <OriginalComponent />
+          <WrappedComponent />
         </body>
       </html>
     )
   }
 
-  const Component = createServerComponentRenderer(
-    WrappedComponent,
-    ComponentMod,
-    {
-      cachePrefix: pathname + (search ? `?${search}` : ''),
-      transformStream: serverComponentsInlinedTransformStream,
-      serverComponentManifest,
-    }
-  )
+  const Component = createServerComponentRenderer(RootLayout, ComponentMod, {
+    cachePrefix: pathname + (search ? `?${search}` : ''),
+    transformStream: serverComponentsInlinedTransformStream,
+    serverComponentManifest,
+  })
 
   let renderServerComponentData = query.__flight__ !== undefined
 
@@ -231,7 +302,7 @@ export async function renderToHTML(
 
   if (renderServerComponentData) {
     const stream: ReadableStream<Uint8Array> = renderToReadableStream(
-      <WrappedComponent />,
+      <RootLayout />,
       serverComponentManifest
     )
 

@@ -1,4 +1,4 @@
-export default function Page({ children }) {
+export default function DashboardLayout({ children }) {
   return (
     <>
       <h1>Dashboard</h1>

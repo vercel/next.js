@@ -45,7 +45,9 @@ describe('root dir', () => {
     expect(html).toContain('hello from root/dashboard')
   })
 
-  it('should not include parent when new root', async () => {
+  // TODO: is integrations a new root if it doesn't use the
+  // dashboard+integrations syntax?
+  it.skip('should not include parent when new root', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard/integrations')
     const $ = cheerio.load(html)
     // Should not be nested in dashboard
@@ -93,7 +95,7 @@ describe('root dir', () => {
     // Should be nested in dashboard
     expect($('h1').text()).toBe('Dashboard')
     // Should be nested in deployments
-    expect($('h2').text()).toBe('Deployments')
+    expect($('h2').text()).toBe('Deployments (123)')
   })
 
   it('should serve dynamic parameter', async () => {
