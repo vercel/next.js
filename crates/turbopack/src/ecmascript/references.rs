@@ -29,7 +29,7 @@ use swc_ecmascript::{
     visit::{self, Visit, VisitWith},
 };
 use turbo_tasks::util::try_join_all;
-use turbo_tasks_fs::FileSystemPathRef;
+use turbo_tasks_fs::{FileContent, FileSystemPathRef};
 
 use super::{
     parse::{parse, Buffer, ParseResult},
@@ -184,7 +184,7 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                             let pat = Pattern::from(&args[0]);
                             if let Some(str) = pat.into_string() {
                                 references
-                                    .push(FileAssetReferenceRef::new(source.clone(), str).into());
+                                    .push(SourceAssetReferenceRef::new(source.clone(), str).into());
                                 return Ok(());
                             }
                         }
@@ -248,7 +248,7 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
 }
 
 async fn as_abs_path(path: FileSystemPathRef) -> Result<JsValue> {
-    Ok(path.await?.path.as_str().into())
+    Ok(format!("/{}", path.await?.path.as_str()).into())
 }
 
 async fn value_visitor(source: &AssetRef, v: JsValue) -> Result<(JsValue, bool)> {
@@ -616,25 +616,33 @@ impl AssetReference for CjsAssetReference {
 
 #[turbo_tasks::value(AssetReference)]
 #[derive(Hash, Debug, PartialEq, Eq)]
-pub struct FileAssetReference {
+pub struct SourceAssetReference {
     pub source: AssetRef,
     pub request: String,
 }
 
 #[turbo_tasks::value_impl]
-impl FileAssetReferenceRef {
+impl SourceAssetReferenceRef {
     pub fn new(source: AssetRef, request: String) -> Self {
-        Self::slot(FileAssetReference { source, request })
+        Self::slot(SourceAssetReference { source, request })
     }
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for FileAssetReference {
-    fn resolve_reference(&self) -> ResolveResultRef {
+impl AssetReference for SourceAssetReference {
+    async fn resolve_reference(&self) -> Result<ResolveResultRef> {
         let context = self.source.path().parent();
 
-        let path = context.join(&self.request);
+        let path = if self.request.starts_with("/") {
+            FileSystemPathRef::new(context.await?.fs.clone(), &self.request[1..])
+        } else {
+            context.join(&self.request)
+        };
 
-        ResolveResult::Single(SourceAssetRef::new(path).into(), None).into()
+        if let FileContent::Content(_) = &*path.clone().read().await? {
+            Ok(ResolveResult::Single(SourceAssetRef::new(path).into(), None).into())
+        } else {
+            Ok(ResolveResult::Unresolveable(None).into())
+        }
     }
 }
