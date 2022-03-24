@@ -990,6 +990,24 @@ export default abstract class Server {
     return rootPathRoutes
   }
 
+  protected getRootPathLayouts(pathname: string): string[] {
+    const layoutPaths: string[] = []
+
+    if (this.rootPathRoutes) {
+      const paths = Object.values(this.rootPathRoutes)
+      const parts = pathname.split('/').filter(Boolean)
+
+      for (let i = 1; i < parts.length; i++) {
+        const parentPath = `/${parts.slice(0, i).join('/')}`
+
+        if (paths.includes(parentPath)) {
+          layoutPaths.push(parentPath)
+        }
+      }
+    }
+    return layoutPaths
+  }
+
   protected async run(
     req: BaseNextRequest,
     res: BaseNextResponse,
@@ -1660,6 +1678,23 @@ export default abstract class Server {
       return null
     }
 
+    const gatherRootLayouts = async (
+      rootPath: string,
+      result: FindComponentsResult
+    ): Promise<void> => {
+      const layoutPaths = this.getRootPathLayouts(rootPath)
+      result.components.rootLayouts = await Promise.all(
+        layoutPaths.map(async (path) => {
+          const layoutRes = await this.findPageComponents(path)
+          return {
+            Component: layoutRes?.components.Component!,
+            getStaticProps: layoutRes?.components.getStaticProps,
+            getServerSideProps: layoutRes?.components.getServerSideProps,
+          }
+        })
+      )
+    }
+
     try {
       // Ensure a request to the URL /accounts/[id] will be treated as a dynamic
       // route correctly and not loaded immediately without parsing params.
@@ -1672,6 +1707,9 @@ export default abstract class Server {
         const result = await this.findPageComponents(page, query)
         if (result) {
           try {
+            if (result.components.isRootPath) {
+              await gatherRootLayouts(page, result)
+            }
             return await this.renderToResponseWithComponents(ctx, result)
           } catch (err) {
             const isNoFallbackError = err instanceof NoFallbackError
@@ -1703,6 +1741,9 @@ export default abstract class Server {
           )
           if (dynamicRouteResult) {
             try {
+              if (dynamicRouteResult.components.isRootPath) {
+                await gatherRootLayouts(page, dynamicRouteResult)
+              }
               return await this.renderToResponseWithComponents(
                 {
                   ...ctx,

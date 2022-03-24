@@ -6,7 +6,7 @@ export async function getServerSideProps({ params }) {
   }
 }
 
-export default function Page(props) {
+export default function DeploymentsPage(props) {
   return (
     <>
       <p>hello from root/dashboard/deployments/[id]. ID is: {props.id}</p>
