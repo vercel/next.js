@@ -2,7 +2,7 @@ use anyhow::Result;
 use swc_common::errors::{Handler, HANDLER};
 use swc_ecmascript::{
     ast::{CallExpr, Expr, ExprOrSpread},
-    visit::{Visit, VisitWith},
+    visit::{self, Visit, VisitWith},
 };
 
 use crate::{
@@ -68,5 +68,6 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
                 }
             }
         }
+        visit::visit_call_expr(self, call);
     }
 }
