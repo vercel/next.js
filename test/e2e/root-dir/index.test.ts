@@ -170,4 +170,50 @@ describe('root dir', () => {
       })
     })
   })
+
+  describe('server components', () => {
+    it('should not serve .server.js as a path', async () => {
+      // Without .server.js should serve
+      const html = await renderViaHTTP(next.url, '/should-not-serve-server')
+      expect(html).toContain('hello from root/should-not-serve-server')
+
+      // Should not serve `.server`
+      const res = await fetchViaHTTP(
+        next.url,
+        '/should-not-serve-server.server'
+      )
+      expect(res.status).toBe(404)
+      expect(await res.text()).toContain('This page could not be found')
+
+      // Should not serve `.server.js`
+      const res2 = await fetchViaHTTP(
+        next.url,
+        '/should-not-serve-server.server.js'
+      )
+      expect(res2.status).toBe(404)
+      expect(await res2.text()).toContain('This page could not be found')
+    })
+
+    it('should not serve .client.js as a path', async () => {
+      // Without .client.js should serve
+      const html = await renderViaHTTP(next.url, '/should-not-serve-client')
+      expect(html).toContain('hello from root/should-not-serve-client')
+
+      // Should not serve `.client`
+      const res = await fetchViaHTTP(
+        next.url,
+        '/should-not-serve-client.client'
+      )
+      expect(res.status).toBe(404)
+      expect(await res.text()).toContain('This page could not be found')
+
+      // Should not serve `.client.js`
+      const res2 = await fetchViaHTTP(
+        next.url,
+        '/should-not-serve-client.client.js'
+      )
+      expect(res2.status).toBe(404)
+      expect(await res2.text()).toContain('This page could not be found')
+    })
+  })
 })
