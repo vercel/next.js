@@ -215,5 +215,11 @@ describe('root dir', () => {
       expect(res2.status).toBe(404)
       expect(await res2.text()).toContain('This page could not be found')
     })
+
+    it('should serve shared component', async () => {
+      // Without .client.js should serve
+      const html = await renderViaHTTP(next.url, '/shared-component-route')
+      expect(html).toContain('hello from root/shared-component-route')
+    })
   })
 })
