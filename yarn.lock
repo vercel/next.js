@@ -5624,10 +5624,10 @@
   resolved "https://registry.yarnpkg.com/@vercel/ncc/-/ncc-0.33.1.tgz#b240080a3c1ded9446a30955a06a79851bb38f71"
   integrity sha512-Mlsps/P0PLZwsCFtSol23FGqT3FhBGb4B1AuGQ52JTAtXhak+b0Fh/4T55r0/SVQPeRiX9pNItOEHwakGPmZYA==
 
-"@vercel/nft@0.17.5":
-  version "0.17.5"
-  resolved "https://registry.yarnpkg.com/@vercel/nft/-/nft-0.17.5.tgz#eab288a3786b8bd6fc08c0ef0b70d162984d1643"
-  integrity sha512-6n4uXmfkcHAmkI4rJlwFJb8yvWuH6uDOi5qme0yGC1B/KmWJ66dERupdAj9uj7eEmgM7N3bKNY5zOYE7cKZE1g==
+"@vercel/nft@0.18.0":
+  version "0.18.0"
+  resolved "https://registry.yarnpkg.com/@vercel/nft/-/nft-0.18.0.tgz#3a489036e53af529f8c1247a9910e92a696ebb8e"
+  integrity sha512-FFzpmYC4hu/nnh3bm+dVWRYq59jN7ogW8hcuzKeWnXjDqtWDawn9oGnOgMFsKdqtI40RJuscPko/kzFh62ukOw==
   dependencies:
     "@mapbox/node-pre-gyp" "^1.0.5"
     acorn "^8.6.0"
@@ -17826,15 +17826,14 @@ react-refresh@0.8.3:
   resolved "https://registry.yarnpkg.com/react-refresh/-/react-refresh-0.8.3.tgz#721d4657672d400c5e3c75d063c4a85fb2d5d68f"
   integrity sha512-X8jZHc7nCMjaCqoU+V2I0cOhNW+QMBwSUkeXnTi8IPe6zaRWfn60ZzvFDZqWPfmSJfjub7dDW1SP0jaHWLu/hg==
 
-react-server-dom-webpack@0.0.0-experimental-13455d26d-20211104:
-  version "0.0.0-experimental-13455d26d-20211104"
-  resolved "https://registry.yarnpkg.com/react-server-dom-webpack/-/react-server-dom-webpack-0.0.0-experimental-13455d26d-20211104.tgz#ba4ca0c3adcc4dd0ec1ef93ce6a45c6fc043aa71"
-  integrity sha512-ry5xxuF1th6/seRCXnhD8i5r/8e3EvWxIHIwTjN+MIhTVwc8tscMMhq2vqsTRn7Znd0LbrhCPRd4v1V6L+oMig==
+react-server-dom-webpack@0.0.0-experimental-577f2de46-20220320:
+  version "0.0.0-experimental-577f2de46-20220320"
+  resolved "https://registry.yarnpkg.com/react-server-dom-webpack/-/react-server-dom-webpack-0.0.0-experimental-577f2de46-20220320.tgz#4c06e0d86a30a006f93f22ed5723af120def3b98"
+  integrity sha512-n8pAJOqCaJHG/Xz0/SqiX4lOnXx7hnZm2iY/vDGmtzQn3bPqbgUljQHgPDIfDeUt8KINhKPFD9j/Dbn6t0yTuw==
   dependencies:
     acorn "^6.2.1"
     loose-envify "^1.1.0"
     neo-async "^2.6.1"
-    object-assign "^4.1.1"
 
 react-ssr-prepass@1.0.8:
   version "1.0.8"

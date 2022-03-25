@@ -74,8 +74,7 @@ module.exports = async function collectStats(
           const responseText = (await res.text()).trim()
 
           let fileName = pathname === '/' ? '/index' : pathname
-          if (fileName.endsWith('/'))
-            fileName = fileName.substr(0, fileName.length - 1)
+          if (fileName.endsWith('/')) fileName = fileName.slice(0, -1)
           logger(
             `Writing file to ${path.join(fetchedPagesDir, `${fileName}.html`)}`
           )

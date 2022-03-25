@@ -1,5 +1,13 @@
 import { css } from '@emotion/react'
-import { Animated, Basic, bounce, Combined, Pink } from '../shared/styles'
+import {
+  Animated,
+  Basic,
+  bounce,
+  Combined,
+  Pink,
+  BasicExtended,
+  ComponentSelectorsExtended,
+} from '../shared/styles'
 
 const Home = () => (
   <div
@@ -14,6 +22,9 @@ const Home = () => (
       With <code>:hover</code>.
     </Combined>
     <Animated animation={bounce}>Let's bounce.</Animated>
+    <ComponentSelectorsExtended>
+      <BasicExtended>Nested</BasicExtended>
+    </ComponentSelectorsExtended>
   </div>
 )
 
