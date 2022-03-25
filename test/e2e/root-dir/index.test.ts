@@ -122,6 +122,11 @@ describe('root dir', () => {
     expect(await res.text()).toContain('This page could not be found')
   })
 
+  it('should match partial parameters', async () => {
+    const html = await renderViaHTTP(next.url, '/partial-match-123')
+    expect(html).toContain('hello from root/partial-match-[id]. ID is: 123')
+  })
+
   describe('conditional routes', () => {
     it('should serve user page', async () => {
       const html = await renderViaHTTP(next.url, '/conditional/tim')
