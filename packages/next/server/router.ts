@@ -56,7 +56,7 @@ export function replaceBasePath(pathname: string, basePath: string): string {
   // and doesn't contain extra chars e.g. basePath /docs
   // should replace for /docs, /docs/, /docs/a but not /docsss
   if (hasBasePath(pathname, basePath)) {
-    pathname = pathname.substr(basePath.length)
+    pathname = pathname.slice(basePath.length)
     if (!pathname.startsWith('/')) pathname = `/${pathname}`
   }
   return pathname

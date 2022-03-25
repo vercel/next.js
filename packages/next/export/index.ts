@@ -647,7 +647,7 @@ export default async function exportApp(
             // strip leading / and then recurse number of nested dirs
             // to place from base folder
             pageName
-              .substr(1)
+              .slice(1)
               .split('/')
               .map(() => '..')
               .join('/')

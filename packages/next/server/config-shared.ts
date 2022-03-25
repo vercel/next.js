@@ -120,6 +120,14 @@ export interface ExperimentalConfig {
         autoLabel?: 'dev-only' | 'always' | 'never'
         labelFormat?: string
       }
+  modularizeImports?: Record<
+    string,
+    {
+      transform: string
+      preventFullImport?: boolean
+      skipDefaultConversion?: boolean
+    }
+  >
 }
 
 /**

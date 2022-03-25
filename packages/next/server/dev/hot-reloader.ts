@@ -738,7 +738,7 @@ export default class HotReloader {
         this.send({
           event: 'serverOnlyChanges',
           pages: serverOnlyChanges.map((pg) =>
-            denormalizePagePath(pg.substr('pages'.length))
+            denormalizePagePath(pg.slice('pages'.length))
           ),
         })
       }
