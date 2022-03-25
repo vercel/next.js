@@ -55,7 +55,7 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
     i18n,
     reactRoot,
   }: ServerlessLoaderQuery =
-    typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
+    typeof this.query === 'string' ? parse(this.query.slice(1)) : this.query
 
   const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
   const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST).replace(
