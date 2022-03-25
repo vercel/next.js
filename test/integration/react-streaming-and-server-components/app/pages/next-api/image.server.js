@@ -7,3 +7,7 @@ const Page = () => {
 }
 
 export default Page
+
+export const config = {
+  runtime: 'edge',
+}
