@@ -100,7 +100,7 @@ describe('root dir', () => {
     // Should be nested in dashboard
     expect($('h1').text()).toBe('Dashboard')
     // Should be nested in deployments
-    expect($('h2').text()).toBe('Deployments (123)')
+    expect($('h2').text()).toBe('Deployments (hello)')
   })
 
   it('should serve dynamic parameter', async () => {
