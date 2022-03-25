@@ -1,4 +1,9 @@
 export async function getServerSideProps({ params }) {
+  if (params.slug === 'nonexistent') {
+    return {
+      notFound: true,
+    }
+  }
   return {
     props: {
       isUser: params.slug === 'tim',

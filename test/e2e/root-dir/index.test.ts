@@ -158,5 +158,11 @@ describe('root dir', () => {
       expect(html).toContain('hello from team homepage')
       expect(html).toContain('hello from user homepage')
     })
+
+    it('should 404 based on getServerSideProps', async () => {
+      const res = await fetchViaHTTP(next.url, '/conditional/nonexistent')
+      expect(res.status).toBe(404)
+      expect(await res.text()).toContain('This page could not be found')
+    })
   })
 })
