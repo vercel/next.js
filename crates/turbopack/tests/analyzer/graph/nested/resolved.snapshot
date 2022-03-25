@@ -1,27 +1,45 @@
 [
     (
         "a",
-        Unknown,
+        Unknown(
+            None,
+            "function expressions are not yet supported",
+        ),
     ),
     (
         "b",
-        Unknown,
+        Unknown(
+            None,
+            "function expressions are not yet supported",
+        ),
     ),
     (
         "c",
-        Unknown,
+        Unknown(
+            None,
+            "function expressions are not yet supported",
+        ),
     ),
     (
         "d",
-        Unknown,
+        Unknown(
+            None,
+            "unsupported expression",
+        ),
     ),
     (
         "e",
-        Unknown,
+        Unknown(
+            None,
+            "function expressions are not yet supported",
+        ),
     ),
     (
         "f",
-        Unknown,
+        Unknown(
+            None,
+            "function expressions are not yet supported",
+        ),
     ),
     (
         "x#2",
@@ -253,22 +271,37 @@
     ),
     (
         "z#2",
-        Unknown,
+        Unknown(
+            None,
+            "function expressions are not yet supported",
+        ),
     ),
     (
         "z#5",
-        Unknown,
+        Unknown(
+            None,
+            "unsupported expression",
+        ),
     ),
     (
         "z#6",
-        Unknown,
+        Unknown(
+            None,
+            "unsupported expression",
+        ),
     ),
     (
         "z#7",
-        Unknown,
+        Unknown(
+            None,
+            "function expressions are not yet supported",
+        ),
     ),
     (
         "z2",
-        Unknown,
+        Unknown(
+            None,
+            "function expressions are not yet supported",
+        ),
     ),
 ]

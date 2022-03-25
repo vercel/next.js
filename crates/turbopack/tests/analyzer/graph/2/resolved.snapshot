@@ -35,7 +35,17 @@
                         },
                     ),
                 ),
-                Unknown,
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('y' type=inline),
+                                #1,
+                            ),
+                        ),
+                    ),
+                    "circular variable reference",
+                ),
             ],
         ),
     ),
@@ -59,7 +69,17 @@
                         },
                     ),
                 ),
-                Unknown,
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('x' type=inline),
+                                #1,
+                            ),
+                        ),
+                    ),
+                    "circular variable reference",
+                ),
             ],
         ),
     ),
@@ -83,7 +103,17 @@
                         },
                     ),
                 ),
-                Unknown,
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('x' type=inline),
+                                #1,
+                            ),
+                        ),
+                    ),
+                    "circular variable reference",
+                ),
             ],
         ),
     ),

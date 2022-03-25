@@ -4,21 +4,30 @@
             Atom('a' type=inline),
             #1,
         ),
-        Unknown,
+        Unknown(
+            None,
+            "function expressions are not yet supported",
+        ),
     ),
     (
         (
             Atom('b' type=inline),
             #1,
         ),
-        Unknown,
+        Unknown(
+            None,
+            "function expressions are not yet supported",
+        ),
     ),
     (
         (
             Atom('c' type=inline),
             #1,
         ),
-        Unknown,
+        Unknown(
+            None,
+            "function expressions are not yet supported",
+        ),
     ),
     (
         (

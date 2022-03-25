@@ -54,7 +54,7 @@ pub enum JsValue {
     WellKnownFunction(WellKnownFunctionKind),
 
     /// Not analyzable.
-    Unknown,
+    Unknown(Option<Box<JsValue>>, &'static str),
 }
 
 impl From<&'_ str> for JsValue {
@@ -83,7 +83,7 @@ impl From<Lit> for JsValue {
 
 impl Default for JsValue {
     fn default() -> Self {
-        JsValue::Unknown
+        JsValue::Unknown(None, "")
     }
 }
 
@@ -132,7 +132,7 @@ impl Display for JsValue {
             ),
             JsValue::Member(obj, prop) => write!(f, "{}.{}", obj, prop),
             JsValue::Module(name) => write!(f, "Module({})", name),
-            JsValue::Unknown => write!(f, "???"),
+            JsValue::Unknown(..) => write!(f, "???"),
             JsValue::WellKnownObject(obj) => write!(f, "WellKnownObject({:?})", obj),
             JsValue::WellKnownFunction(func) => write!(f, "WellKnownFunction({:?})", func),
         }
@@ -140,6 +140,155 @@ impl Display for JsValue {
 }
 
 impl JsValue {
+    pub fn explain_args(args: &Vec<JsValue>, depth: usize) -> (String, String) {
+        let mut hints = Vec::new();
+        let explainer = args
+            .iter()
+            .map(|arg| arg.explain_internal(&mut hints, depth))
+            .collect::<Vec<_>>()
+            .join(", ");
+        (
+            explainer,
+            hints
+                .into_iter()
+                .map(|h| format!("\n{h}"))
+                .collect::<String>(),
+        )
+    }
+
+    pub fn explain(&self, depth: usize) -> (String, String) {
+        let mut hints = Vec::new();
+        let explainer = self.explain_internal(&mut hints, depth);
+        (
+            explainer,
+            hints
+                .into_iter()
+                .map(|h| format!("\n{h}"))
+                .collect::<String>(),
+        )
+    }
+
+    fn explain_internal(&self, hints: &mut Vec<String>, depth: usize) -> String {
+        match self {
+            JsValue::Constant(lit) => format!("{}", lit_to_string(lit)),
+            JsValue::Url(url) => format!("{}", url),
+            JsValue::Alternatives(list) => format!(
+                "({})",
+                list.iter()
+                    .map(|v| v.explain_internal(hints, depth))
+                    .collect::<Vec<_>>()
+                    .join(" | ")
+            ),
+            JsValue::FreeVar(name) => format!("FreeVar({:?})", name),
+            JsValue::Variable(name) => {
+                format!("{}", name.0)
+            }
+            JsValue::Concat(list) => format!(
+                "`{}`",
+                list.iter()
+                    .map(|v| match v {
+                        JsValue::Constant(Lit::Str(str)) => str.value.to_string(),
+                        _ => format!("${{{}}}", v.explain_internal(hints, depth)),
+                    })
+                    .collect::<Vec<_>>()
+                    .join("")
+            ),
+            JsValue::Add(list) => format!(
+                "({})",
+                list.iter()
+                    .map(|v| v.explain_internal(hints, depth))
+                    .collect::<Vec<_>>()
+                    .join(" + ")
+            ),
+            JsValue::Call(callee, list) => format!(
+                "{}({})",
+                callee.explain_internal(hints, depth),
+                list.iter()
+                    .map(|v| v.explain_internal(hints, depth))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            JsValue::Member(obj, prop) => {
+                format!("{}.{}", obj.explain_internal(hints, depth), prop)
+            }
+            JsValue::Module(name) => {
+                format!("module<{}>", name)
+            }
+            JsValue::Unknown(inner, explainer) => {
+                if depth == 0 || explainer.is_empty() {
+                    format!("???")
+                } else if let Some(inner) = inner {
+                    let i = hints.len();
+                    hints.push(String::new());
+                    hints[i] = format!(
+                        "- [{}] {}\n  ⚠️  {}",
+                        i,
+                        inner.explain_internal(hints, depth - 1),
+                        explainer,
+                    );
+                    format!("[{}]", i)
+                } else {
+                    let i = hints.len();
+                    hints.push(String::new());
+                    hints[i] = format!("- [{}] {}", i, explainer);
+                    format!("[{}]", i)
+                }
+            }
+            JsValue::WellKnownObject(obj) => {
+                let (name, explainer) = match obj {
+                    WellKnownObjectKind::PathModule => (
+                        "path",
+                        "The Node.js path module: https://nodejs.org/api/path.html",
+                    ),
+                    WellKnownObjectKind::FsModule => (
+                        "fs",
+                        "The Node.js fs module: https://nodejs.org/api/fs.html",
+                    ),
+                    WellKnownObjectKind::UrlModule => (
+                        "url",
+                        "The Node.js url module: https://nodejs.org/api/url.html",
+                    ),
+                };
+                if depth > 0 {
+                    let i = hints.len();
+                    hints.push(format!("- [{i}] {name}: {explainer}"));
+                    format!("{name}[{i}]")
+                } else {
+                    name.to_string()
+                }
+            }
+            JsValue::WellKnownFunction(func) => {
+                let (name, explainer) = match func {
+                    WellKnownFunctionKind::PathJoin => (
+                        format!("path.join"),
+                        "The Node.js path.join method: https://nodejs.org/api/path.html#pathjoinpaths",
+                    ),
+                    WellKnownFunctionKind::Import => (
+                        format!("import"),
+                        "The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports"
+                    ),
+                    WellKnownFunctionKind::Require => (format!("require"), "The require method from CommonJS"),
+                    WellKnownFunctionKind::RequireResolve => (format!("require.resolve"), "The require.resolve method from CommonJS"),
+                    WellKnownFunctionKind::FsReadMethod(name) => (
+                        format!("fs.{name}"),
+                        "A file reading method from the Node.js fs module: https://nodejs.org/api/fs.html",
+                    ),
+                    WellKnownFunctionKind::PathToFileUrl => (
+                        format!("url.pathToFileURL"),
+                        "The Node.js url.pathToFileURL method: https://nodejs.org/api/url.html#urlpathtofileurlpath",
+                    ),
+                };
+                if depth > 0 {
+                    let i = hints.len();
+                    hints.push(format!("- [{i}] {name}: {explainer}"));
+                    format!("{name}[{i}]")
+                } else {
+                    name
+                }
+            }
+        }
+    }
+
     pub async fn visit_async<'a, F, R, E>(self, visitor: &mut F) -> Result<(Self, bool), E>
     where
         R: 'a + Future<Output = Result<(Self, bool), E>>,
@@ -198,7 +347,7 @@ impl JsValue {
             | JsValue::Url(_)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
-            | JsValue::Unknown => (self, false),
+            | JsValue::Unknown(..) => (self, false),
         })
     }
 
@@ -242,7 +391,7 @@ impl JsValue {
             | JsValue::Url(_)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
-            | JsValue::Unknown => false,
+            | JsValue::Unknown(..) => false,
         }
     }
 
@@ -274,7 +423,7 @@ impl JsValue {
             | JsValue::Url(_)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
-            | JsValue::Unknown => {}
+            | JsValue::Unknown(..) => {}
         }
     }
 
@@ -294,7 +443,7 @@ impl JsValue {
 
             JsValue::Alternatives(v) => v.iter().all(|v| v.is_string()),
 
-            JsValue::Variable(_) | JsValue::Unknown => false,
+            JsValue::Variable(_) | JsValue::Unknown(..) => false,
 
             JsValue::Call(box JsValue::FreeVar(FreeVarKind::RequireResolve), _) => true,
             JsValue::Call(..) | JsValue::Member(..) => false,
@@ -303,11 +452,18 @@ impl JsValue {
     }
 
     fn add_alt(&mut self, v: Self) {
-        // TODO(kdy1): We don't need nested unknowns
+        if self == &v {
+            return;
+        }
 
-        let l = take(self);
-
-        *self = JsValue::Alternatives(vec![l, v]);
+        if let JsValue::Alternatives(list) = self {
+            if !list.contains(&v) {
+                list.push(v)
+            }
+        } else {
+            let l = take(self);
+            *self = JsValue::Alternatives(vec![l, v]);
+        }
     }
 
     pub fn normalize(&mut self) {
@@ -489,12 +645,12 @@ mod tests {
                                 box JsValue::WellKnownFunction(
                                     WellKnownFunctionKind::RequireResolve,
                                 ),
-                                args,
+                                ref args,
                             ) => match &args[0] {
                                 JsValue::Constant(lit) => {
                                     JsValue::Constant((lit_to_string(&lit) + " (resolved)").into())
                                 }
-                                _ => JsValue::Unknown,
+                                _ => JsValue::Unknown(Some(box v), "resolve.resolve non constant"),
                             },
                             JsValue::FreeVar(FreeVarKind::Require) => {
                                 JsValue::WellKnownFunction(WellKnownFunctionKind::Require)

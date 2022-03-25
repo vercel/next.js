@@ -6,7 +6,7 @@ use crate::{
         FreeVarKind, JsValue, WellKnownFunctionKind, WellKnownObjectKind,
     },
     asset::AssetRef,
-    ecmascript::{pattern::Pattern, utils::CommaSeparated},
+    ecmascript::pattern::Pattern,
     errors,
     reference::{AssetReference, AssetReferenceRef, AssetReferencesSet, AssetReferencesSetRef},
     resolve::{
@@ -125,12 +125,10 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                                 return Ok(());
                             }
                         }
+                        let (args, hints) = JsValue::explain_args(&args, 2);
                         handler.span_warn_with_code(
                             *span,
-                            &format!(
-                                "import({}) is not statically analyse-able",
-                                CommaSeparated(&args)
-                            ),
+                            &format!("import({args}) is not statically analyse-able{hints}",),
                             DiagnosticId::Error(
                                 errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT.to_string(),
                             ),
@@ -146,12 +144,10 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                                 return Ok(());
                             }
                         }
+                        let (args, hints) = JsValue::explain_args(&args, 2);
                         handler.span_warn_with_code(
                             *span,
-                            &format!(
-                                "require({}) is not statically analyse-able",
-                                CommaSeparated(&args)
-                            ),
+                            &format!("require({args}) is not statically analyse-able{hints}",),
                             DiagnosticId::Error(
                                 errors::failed_to_analyse::ecmascript::REQUIRE.to_string(),
                             ),
@@ -167,11 +163,11 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                                 return Ok(());
                             }
                         }
+                        let (args, hints) = JsValue::explain_args(&args, 2);
                         handler.span_warn_with_code(
                             *span,
                             &format!(
-                                "require.resolve({}) is not statically analyse-able",
-                                CommaSeparated(&args)
+                                "require.resolve({args}) is not statically analyse-able{hints}",
                             ),
                             DiagnosticId::Error(
                                 errors::failed_to_analyse::ecmascript::REQUIRE.to_string(),
@@ -188,12 +184,10 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                                 return Ok(());
                             }
                         }
+                        let (args, hints) = JsValue::explain_args(&args, 2);
                         handler.span_warn_with_code(
                             *span,
-                            &format!(
-                                "fs.{name}({}) is not statically analyse-able",
-                                CommaSeparated(&args)
-                            ),
+                            &format!("fs.{name}({args}) is not statically analyse-able{hints}",),
                             DiagnosticId::Error(
                                 errors::failed_to_analyse::ecmascript::FS_METHOD.to_string(),
                             ),
@@ -265,13 +259,35 @@ async fn value_visitor(source: &AssetRef, v: JsValue) -> Result<(JsValue, bool)>
                         let resolved = cjs_resolve(request, source.path().parent()).await?;
                         match &*resolved {
                             ResolveResult::Single(asset, _) => as_abs_path(asset.path()).await?,
-                            _ => JsValue::Unknown,
+                            _ => JsValue::Unknown(
+                                Some(box JsValue::Call(
+                                    box JsValue::WellKnownFunction(
+                                        WellKnownFunctionKind::RequireResolve,
+                                    ),
+                                    args,
+                                )),
+                                "unresolveable request",
+                            ),
                         }
                     } else {
-                        JsValue::Unknown
+                        JsValue::Unknown(
+                            Some(box JsValue::Call(
+                                box JsValue::WellKnownFunction(
+                                    WellKnownFunctionKind::RequireResolve,
+                                ),
+                                args,
+                            )),
+                            "request pattern doesn't make it into a string",
+                        )
                     }
                 } else {
-                    JsValue::Unknown
+                    JsValue::Unknown(
+                        Some(box JsValue::Call(
+                            box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
+                            args,
+                        )),
+                        "only a single argument is supported",
+                    )
                 }
             }
             JsValue::FreeVar(FreeVarKind::Dirname) => as_abs_path(source.path().parent()).await?,

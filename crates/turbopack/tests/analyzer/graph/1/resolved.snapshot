@@ -1,15 +1,24 @@
 [
     (
         "a",
-        Unknown,
+        Unknown(
+            None,
+            "function expressions are not yet supported",
+        ),
     ),
     (
         "b",
-        Unknown,
+        Unknown(
+            None,
+            "function expressions are not yet supported",
+        ),
     ),
     (
         "c",
-        Unknown,
+        Unknown(
+            None,
+            "function expressions are not yet supported",
+        ),
     ),
     (
         "x",

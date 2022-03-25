@@ -40,6 +40,7 @@ pub fn create_graph(m: &Module, eval_context: &EvalContext) -> VarGraph {
         data: &mut graph,
         eval_context,
         var_decl_kind: Default::default(),
+        current_value: None,
     });
 
     graph
@@ -78,7 +79,7 @@ impl EvalContext {
                             values.push(JsValue::from(v.clone()));
                         }
                         // This is actually unreachable
-                        None => return JsValue::Unknown,
+                        None => return JsValue::Unknown(None, ""),
                     }
                 }
             } else {
@@ -133,14 +134,9 @@ impl EvalContext {
                 let r = self.eval(right);
 
                 return match (l, r) {
-                    (JsValue::Unknown, JsValue::Unknown) => JsValue::Unknown,
-                    (JsValue::Add(l), JsValue::Add(r)) => {
-                        JsValue::Add(l.into_iter().chain(r).collect())
-                    }
                     (JsValue::Add(l), r) => {
                         JsValue::Add(l.into_iter().chain(iter::once(r)).collect())
                     }
-                    (l, JsValue::Add(r)) => JsValue::Add(iter::once(l).chain(r).collect()),
                     (l, r) => JsValue::Add(vec![l, r]),
                 };
             }
@@ -162,58 +158,48 @@ impl EvalContext {
                     && is_unresolved(&tag_obj, &self.bindings, self.top_level_mark)
                 {
                     return self.eval_tpl(tpl, true);
+                } else {
+                    return JsValue::Unknown(None, "tagged template literal is not supported yet");
                 }
             }
 
-            Expr::Fn(..) | Expr::Arrow(..) | Expr::New(..) => return JsValue::Unknown,
+            Expr::Fn(..) | Expr::Arrow(..) => {
+                return JsValue::Unknown(None, "function expressions are not yet supported")
+            }
+            Expr::New(..) => return JsValue::Unknown(None, "new expression are not supported"),
 
             Expr::Seq(e) => {
                 if let Some(e) = e.exprs.last() {
                     return self.eval(e);
+                } else {
+                    unreachable!()
                 }
             }
 
-            Expr::Member(MemberExpr {
-                obj:
-                    box Expr::Member(MemberExpr {
-                        obj: box Expr::Ident(e_obj_obj),
-                        prop: MemberProp::Ident(e_obj_prop),
-                        ..
-                    }),
-                prop,
-                ..
-            }) => {
-                if &*e_obj_obj.sym == "process"
-                    && is_unresolved(&e_obj_obj, &self.bindings, self.top_level_mark)
-                    && &*e_obj_prop.sym == "env"
-                {
-                    // TODO: Handle process.env['NODE_ENV']
-                    match prop {
-                        MemberProp::Ident(p) => {
-                            return JsValue::FreeVar(FreeVarKind::ProcessEnv(p.sym.clone()));
-                        }
-                        _ => {}
-                    }
-                }
-            }
-
-            _ => {}
-        }
-
-        match e {
             Expr::Member(MemberExpr {
                 obj,
                 prop: MemberProp::Ident(prop),
                 ..
             }) => {
+                // TODO avoid this special case here
+                if let box Expr::Member(MemberExpr {
+                    obj: box Expr::Ident(e_obj_obj),
+                    prop: MemberProp::Ident(e_obj_prop),
+                    ..
+                }) = obj
+                {
+                    if &*e_obj_obj.sym == "process"
+                        && is_unresolved(&e_obj_obj, &self.bindings, self.top_level_mark)
+                        && &*e_obj_prop.sym == "env"
+                    {
+                        // TODO: Handle process.env['NODE_ENV']
+                        return JsValue::FreeVar(FreeVarKind::ProcessEnv(prop.sym.clone()));
+                    }
+                }
                 let obj = self.eval(&obj);
                 return JsValue::Member(box obj, prop.sym.clone());
             }
 
-            _ => {}
-        }
-
-        match e {
             Expr::Call(CallExpr {
                 callee: Callee::Expr(callee),
                 args,
@@ -221,7 +207,7 @@ impl EvalContext {
             }) => {
                 // We currently do not handle spreads.
                 if args.iter().any(|arg| arg.spread.is_some()) {
-                    return JsValue::Unknown;
+                    return JsValue::Unknown(None, "spread in function calls is not supported");
                 }
                 let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
 
@@ -230,10 +216,24 @@ impl EvalContext {
                 return JsValue::Call(callee, args);
             }
 
-            _ => {}
-        }
+            Expr::Call(CallExpr {
+                callee: Callee::Import(_),
+                args,
+                ..
+            }) => {
+                // We currently do not handle spreads.
+                if args.iter().any(|arg| arg.spread.is_some()) {
+                    return JsValue::Unknown(None, "spread in import() is not supported");
+                }
+                let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
 
-        JsValue::Unknown
+                let callee = box JsValue::FreeVar(FreeVarKind::Import);
+
+                return JsValue::Call(callee, args);
+            }
+
+            _ => JsValue::Unknown(None, "unsupported expression"),
+        }
     }
 }
 
@@ -243,12 +243,20 @@ struct Analyzer<'a> {
     eval_context: &'a EvalContext,
 
     var_decl_kind: Option<VarDeclKind>,
+
+    current_value: Option<JsValue>,
 }
 
 impl Analyzer<'_> {
-    fn add_value(&mut self, id: Id, value: &Expr) {
-        let value = self.eval_context.eval(value);
+    fn add_value_or_unknown(&mut self, id: Id, value: Option<JsValue>) {
+        if let Some(value) = value {
+            self.add_value(id, value);
+        } else {
+            self.add_value(id, JsValue::Unknown(None, ""));
+        }
+    }
 
+    fn add_value(&mut self, id: Id, value: JsValue) {
         if let Some(prev) = self.data.values.get_mut(&id) {
             prev.add_alt(value);
         } else {
@@ -257,6 +265,12 @@ impl Analyzer<'_> {
         // TODO(kdy1): We may need to report an error for this.
         // Variables declared with `var` are hoisted, but using undefined as its
         // value does not seem like a good idea.
+    }
+
+    fn add_value_from_expr(&mut self, id: Id, value: &Expr) {
+        let value = self.eval_context.eval(value);
+
+        self.add_value(id, value);
     }
 
     fn check_iife(&mut self, n: &CallExpr) -> bool {
@@ -272,31 +286,64 @@ impl Analyzer<'_> {
         }
         if let Some(expr) = n.callee.as_expr() {
             match unparen(&expr) {
-                Expr::Fn(FnExpr { function, .. }) => {
-                    let params = &function.params;
-                    if !params.iter().all(|param| param.pat.is_ident()) {
-                        return false;
+                Expr::Fn(FnExpr {
+                    function:
+                        Function {
+                            body,
+                            decorators,
+                            is_async: _,
+                            is_generator: _,
+                            params,
+                            return_type,
+                            span: _,
+                            type_params,
+                        },
+                    ident,
+                }) => {
+                    let mut iter = n.args.iter();
+                    for param in params {
+                        if let Some(arg) = iter.next() {
+                            self.current_value = Some(self.eval_context.eval(&arg.expr));
+                            self.visit_param(param);
+                            self.current_value = None;
+                        } else {
+                            self.visit_param(param);
+                        }
                     }
-                    let mut iter = params.iter();
-                    for (id, arg) in n.args.iter().map_while(|arg| {
-                        iter.next()
-                            .map(|param| (param.pat.as_ident().unwrap().to_id(), arg))
-                    }) {
-                        self.add_value(id, &arg.expr);
+                    if let Some(ident) = ident {
+                        self.visit_ident(ident);
                     }
+
+                    self.visit_opt_block_stmt(body.as_ref());
+                    self.visit_decorators(decorators);
+                    self.visit_opt_ts_type_ann(return_type.as_ref());
+                    self.visit_opt_ts_type_param_decl(type_params.as_ref());
+                    self.visit_expr_or_spreads(&n.args);
                     true
                 }
-                Expr::Arrow(ArrowExpr { params, .. }) => {
-                    if !params.iter().all(|param| param.is_ident()) {
-                        return false;
+                Expr::Arrow(ArrowExpr {
+                    params,
+                    body,
+                    is_async: _,
+                    is_generator: _,
+                    return_type,
+                    span: _,
+                    type_params,
+                }) => {
+                    let mut iter = n.args.iter();
+                    for param in params {
+                        if let Some(arg) = iter.next() {
+                            self.current_value = Some(self.eval_context.eval(&arg.expr));
+                            self.visit_pat(param);
+                            self.current_value = None;
+                        } else {
+                            self.visit_pat(param);
+                        }
                     }
-                    let mut iter = params.iter();
-                    for (id, arg) in n.args.iter().map_while(|arg| {
-                        iter.next()
-                            .map(|param| (param.as_ident().unwrap().to_id(), arg))
-                    }) {
-                        self.add_value(id, &arg.expr);
-                    }
+                    self.visit_block_stmt_or_expr(body);
+                    self.visit_opt_ts_type_ann(return_type.as_ref());
+                    self.visit_opt_ts_type_param_decl(type_params.as_ref());
+                    self.visit_expr_or_spreads(&n.args);
                     true
                 }
                 _ => false,
@@ -308,7 +355,10 @@ impl Analyzer<'_> {
 
     fn check_call_expr_for_effects(&mut self, n: &CallExpr) {
         let args = if n.args.iter().any(|arg| arg.spread.is_some()) {
-            vec![JsValue::Unknown]
+            vec![JsValue::Unknown(
+                None,
+                "spread in calls is not supported yet",
+            )]
         } else {
             n.args
                 .iter()
@@ -320,7 +370,7 @@ impl Analyzer<'_> {
                 self.data.effects.push(Effect::Call {
                     func: JsValue::FreeVar(FreeVarKind::Import),
                     // TODO should be undefined instead
-                    this: JsValue::Unknown,
+                    this: JsValue::Unknown(None, "this is not analysed yet"),
                     args,
                     span: n.span(),
                 });
@@ -340,7 +390,7 @@ impl Analyzer<'_> {
                 self.data.effects.push(Effect::Call {
                     func: fn_value,
                     // TODO should be undefined instead
-                    this: JsValue::Unknown,
+                    this: JsValue::Unknown(None, "this is not analysed yet"),
                     args,
                     span: n.span(),
                 });
@@ -352,20 +402,25 @@ impl Analyzer<'_> {
 
 impl Visit for Analyzer<'_> {
     fn visit_assign_expr(&mut self, n: &AssignExpr) {
-        n.visit_children_with(self);
-
-        if let Some(left) = n.left.as_ident() {
-            self.add_value(left.to_id(), &n.right);
+        match &n.left {
+            PatOrExpr::Expr(expr) => {
+                self.visit_expr(expr);
+            }
+            PatOrExpr::Pat(pat) => {
+                self.current_value = Some(self.eval_context.eval(&n.right));
+                self.visit_pat(pat);
+                self.current_value = None;
+            }
         }
+        self.visit_expr(&n.right);
     }
 
     fn visit_call_expr(&mut self, n: &CallExpr) {
         // special behavior of IIFEs
         if !self.check_iife(n) {
             self.check_call_expr_for_effects(n);
+            n.visit_children_with(self);
         }
-
-        n.visit_children_with(self);
     }
 
     fn visit_expr(&mut self, n: &Expr) {
@@ -377,13 +432,22 @@ impl Visit for Analyzer<'_> {
 
     fn visit_param(&mut self, n: &Param) {
         let old = self.var_decl_kind;
+        let Param {
+            decorators,
+            pat,
+            span: _,
+        } = n;
         self.var_decl_kind = None;
-        n.visit_children_with(self);
+        let value = self.current_value.take();
+        self.visit_decorators(decorators);
+        self.current_value = value;
+        self.visit_pat(pat);
+        self.current_value = None;
         self.var_decl_kind = old;
     }
 
     fn visit_fn_decl(&mut self, decl: &FnDecl) {
-        self.add_value(
+        self.add_value_from_expr(
             decl.ident.to_id(),
             // TODO avoid clone
             &Expr::Fn(FnExpr {
@@ -397,13 +461,13 @@ impl Visit for Analyzer<'_> {
     fn visit_fn_expr(&mut self, expr: &FnExpr) {
         if let Some(ident) = &expr.ident {
             // TODO avoid clone
-            self.add_value(ident.to_id(), &Expr::Fn(expr.clone()));
+            self.add_value_from_expr(ident.to_id(), &Expr::Fn(expr.clone()));
         }
         expr.visit_children_with(self);
     }
 
     fn visit_class_decl(&mut self, decl: &ClassDecl) {
-        self.add_value(
+        self.add_value_from_expr(
             decl.ident.to_id(),
             // TODO avoid clone
             &Expr::Class(ClassExpr {
@@ -422,17 +486,34 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_var_declarator(&mut self, n: &VarDeclarator) {
-        n.visit_children_with(self);
-
         if self.var_decl_kind.is_some() {
             if let Some(init) = &n.init {
-                match &n.name {
-                    Pat::Ident(i) => {
-                        self.add_value(i.to_id(), init);
-                    }
-                    _ => {}
-                }
+                self.current_value = Some(self.eval_context.eval(init));
             }
         }
+        self.visit_pat(&n.name);
+        self.current_value = None;
+        if let Some(init) = &n.init {
+            self.visit_expr(init);
+        }
+    }
+
+    fn visit_pat(&mut self, pat: &Pat) {
+        let value = self.current_value.take();
+        match pat {
+            Pat::Ident(i) => {
+                self.add_value(
+                    i.to_id(),
+                    value.unwrap_or_else(|| {
+                        JsValue::Unknown(
+                            Some(box JsValue::Variable(i.to_id())),
+                            "pattern without value",
+                        )
+                    }),
+                );
+            }
+            _ => {}
+        }
+        pat.visit_children_with(self);
     }
 }

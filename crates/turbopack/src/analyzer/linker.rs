@@ -51,21 +51,33 @@ where
     R: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
     F: 'a + Fn(JsValue) -> R + Sync,
 {
-    match &val {
+    match val {
         JsValue::Variable(var) => {
             // Replace with unknown for now
-            if circle_stack.contains(var) {
-                Ok((JsValue::Unknown, Some(HashSet::from([var.clone()]))))
+            if circle_stack.contains(&var) {
+                Ok((
+                    JsValue::Unknown(
+                        Some(box JsValue::Variable(var.clone())),
+                        "circular variable reference",
+                    ),
+                    Some(HashSet::from([var])),
+                ))
             } else {
                 circle_stack.insert(var.clone());
-                const UNKNOWN: JsValue = JsValue::Unknown;
-                let val = graph.values.get(&var).unwrap_or_else(|| &UNKNOWN).clone();
+                let val = if let Some(val) = graph.values.get(&var) {
+                    val.clone()
+                } else {
+                    JsValue::Unknown(
+                        Some(box JsValue::Variable(var.clone())),
+                        "no value of this variable analysed",
+                    )
+                };
                 let mut res = link_internal_boxed(graph, val, visitor, circle_stack).await?;
                 if let Some(replaced_circular_references) = res.1.as_mut() {
                     // Skip current var as it's internal to this resolution
-                    replaced_circular_references.remove(var);
+                    replaced_circular_references.remove(&var);
                 };
-                circle_stack.remove(var);
+                circle_stack.remove(&var);
                 // TODO: The result can be cached when
                 // res == None || replaced_circular_references.is_empty()
                 Ok(res)
