@@ -1,12 +1,12 @@
 import fs from 'fs'
 import path from 'path'
-import data from '../../static/hello.json'
+import css from '../../components/logo/logo.module.css'
 
 export default (req, res) => {
   console.log({
-    importedData: data,
+    importedData: css,
     fsLoadedData: fs.readFileSync(
-      path.join(process.cwd(), 'static', 'hello.json'),
+      path.join(process.cwd(), 'components', 'logo', 'logo.module.css'),
       'utf8'
     ),
   })

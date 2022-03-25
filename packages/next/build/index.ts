@@ -1674,7 +1674,7 @@ export default async function build(
                       // strip leading / and then recurse number of nested dirs
                       // to place from base folder
                       originPage
-                        .substr(1)
+                        .slice(1)
                         .split('/')
                         .map(() => '..')
                         .join('/')
@@ -1724,7 +1724,7 @@ export default async function build(
                 for (const locale of i18n.locales) {
                   const curPath = `/${locale}${page === '/' ? '' : page}`
                   const localeExt = page === '/' ? path.extname(file) : ''
-                  const relativeDestNoPages = relativeDest.substr(
+                  const relativeDestNoPages = relativeDest.slice(
                     'pages/'.length
                   )
 
