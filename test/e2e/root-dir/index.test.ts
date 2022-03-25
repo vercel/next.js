@@ -121,4 +121,37 @@ describe('root dir', () => {
     expect(res.status).toBe(404)
     expect(await res.text()).toContain('This page could not be found')
   })
+
+  describe('conditional routes', () => {
+    it('should serve user page', async () => {
+      const html = await renderViaHTTP(next.url, '/conditional/tim')
+      expect(html).toContain('hello from user homepage')
+    })
+
+    it('should serve user teams page', async () => {
+      const html = await renderViaHTTP(next.url, '/conditional/tim/teams')
+      expect(html).toContain('hello from user/teams')
+    })
+
+    it('should not serve teams page to user', async () => {
+      const html = await renderViaHTTP(next.url, '/conditional/tim/members')
+      expect(html).not.toContain('hello from team/members')
+    })
+
+    it('should serve team page', async () => {
+      const html = await renderViaHTTP(next.url, '/conditional/vercel')
+      expect(html).toContain('hello from team homepage')
+    })
+
+    it('should serve team members page', async () => {
+      const html = await renderViaHTTP(next.url, '/conditional/vercel/members')
+      expect(html).toContain('hello from team/members')
+    })
+
+    it('should provide both matches if both paths match', async () => {
+      const html = await renderViaHTTP(next.url, '/conditional/both')
+      expect(html).toContain('hello from team homepage')
+      expect(html).toContain('hello from user homepage')
+    })
+  })
 })
