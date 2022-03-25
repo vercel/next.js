@@ -722,7 +722,7 @@ export async function buildStaticPaths(
       let cleanedEntry = entry
 
       if (localePathResult.detectedLocale) {
-        cleanedEntry = entry.substr(localePathResult.detectedLocale.length + 1)
+        cleanedEntry = entry.slice(localePathResult.detectedLocale.length + 1)
       } else if (defaultLocale) {
         entry = `/${defaultLocale}${entry}`
       }
