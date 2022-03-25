@@ -122,7 +122,7 @@ function addPathPrefix(path: string, prefix?: string) {
 
   return (
     normalizePathTrailingSlash(`${prefix}${pathname}`) +
-    path.substr(pathname.length)
+    path.slice(pathname.length)
   )
 }
 
@@ -178,7 +178,7 @@ export function delLocale(path: string, locale?: string) {
       (pathLower.startsWith('/' + localeLower + '/') ||
         pathLower === '/' + localeLower)
       ? (pathname.length === locale.length + 1 ? '/' : '') +
-          path.substr(locale.length + 1)
+          path.slice(locale.length + 1)
       : path
   }
   return path
@@ -321,7 +321,7 @@ export function resolveHref(
   // invalid and will never match a Next.js page/file
   const urlProtoMatch = urlAsString.match(/^[a-zA-Z]{1,}:\/\//)
   const urlAsStringNoProto = urlProtoMatch
-    ? urlAsString.substr(urlProtoMatch[0].length)
+    ? urlAsString.slice(urlProtoMatch[0].length)
     : urlAsString
 
   const urlParts = urlAsStringNoProto.split('?')
@@ -752,7 +752,7 @@ export default class Router implements BaseRouter {
     if (typeof window !== 'undefined') {
       // make sure "as" doesn't start with double slashes or else it can
       // throw an error as it's considered invalid
-      if (as.substr(0, 2) !== '//') {
+      if (!as.startsWith('//')) {
         // in order for `e.state` to work on the `onpopstate` event
         // we have to register the initial route upon initialization
         const options: TransitionOptions = { locale }

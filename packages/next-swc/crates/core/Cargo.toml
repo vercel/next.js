@@ -28,7 +28,9 @@ swc_ecma_loader = {version = "0.29.0", features = ["node", "lru"]}
 swc_ecmascript = {version = "0.132.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"]}
 swc_node_base = "0.5.1"
 swc_stylis = "0.96.1"
+swc_cached = "0.1.1"
 tracing = {version = "0.1.28", features = ["release_max_level_off"]}
+handlebars = "4.2.1"
 
 [dev-dependencies]
 swc_ecma_transforms_testing = "0.69.0"
