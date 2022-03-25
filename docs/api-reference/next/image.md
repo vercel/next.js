@@ -497,6 +497,18 @@ The default [loader](#loader) will automatically bypass Image Optimization for a
 
 Auto-detection for animated files is best-effort and supports GIF, APNG, and WebP. If you want to explicitly bypass Image Optimization for a given animated image, use the [unoptimized](#unoptimized) prop.
 
+### Remote Cache Control
+
+By default, when an image came from a remote server the `Cache-Control` header is set as `public, max-age=0, must-revalidate`. To disable cache revalidation and change this behavior you can rewrite the header value by configuring `remoteCacheControl` option.
+
+```js
+module.exports = {
+  images: {
+    remoteCacheControl: 'public, max-age=315360000',
+  },
+}
+```
+
 ## Related
 
 For an overview of the Image component features and usage guidelines, see:
