@@ -274,9 +274,9 @@ export function getUtils({
         }
 
         pathname =
-          pathname.substr(0, paramIdx) +
+          pathname.slice(0, paramIdx) +
           (paramValue || '') +
-          pathname.substr(paramIdx + builtParam.length)
+          pathname.slice(paramIdx + builtParam.length)
       }
     }
 

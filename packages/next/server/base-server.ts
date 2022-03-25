@@ -1144,7 +1144,7 @@ export default abstract class Server {
     // ensure correct status is set when visiting a status page
     // directly e.g. /500
     if (STATIC_STATUS_PAGES.includes(pathname)) {
-      res.statusCode = parseInt(pathname.substr(1), 10)
+      res.statusCode = parseInt(pathname.slice(1), 10)
     }
 
     // static pages can only respond to GET/HEAD
@@ -1323,6 +1323,10 @@ export default abstract class Server {
           return seg
         })
         .join('/')
+
+      // ensure /index and / is normalized to one key
+      ssgCacheKey =
+        ssgCacheKey === '/index' && pathname === '/' ? '/' : ssgCacheKey
     }
 
     const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
