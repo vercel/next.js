@@ -263,7 +263,8 @@ export default class NextNodeServer extends BaseServer {
               cacheEntry.value.buffer,
               paramsResult.isStatic,
               cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT',
-              imagesConfig.contentSecurityPolicy
+              imagesConfig.contentSecurityPolicy,
+              imagesConfig.remoteCacheControl
             )
           } catch (err) {
             if (err instanceof ImageError) {

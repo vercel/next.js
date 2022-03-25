@@ -45,6 +45,9 @@ export type ImageConfigComplete = {
 
   /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-svg) */
   contentSecurityPolicy: string
+
+  /** @see [Remote Cache Control](https://nextjs.org/docs/api-reference/next/image#remote-cache-control) */
+  remoteCacheControl: string
 }
 
 export type ImageConfig = Partial<ImageConfigComplete>
@@ -60,4 +63,5 @@ export const imageConfigDefault: ImageConfigComplete = {
   formats: ['image/webp'],
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,
+  remoteCacheControl: `public, max-age=0, must-revalidate`,
 }

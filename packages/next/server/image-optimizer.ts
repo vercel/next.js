@@ -565,14 +565,13 @@ function setResponseHeaders(
   contentType: string | null,
   isStatic: boolean,
   xCache: XCacheHeader,
-  contentSecurityPolicy: string
+  contentSecurityPolicy: string,
+  remoteCacheControl: string
 ) {
   res.setHeader('Vary', 'Accept')
   res.setHeader(
     'Cache-Control',
-    isStatic
-      ? 'public, max-age=315360000, immutable'
-      : `public, max-age=0, must-revalidate`
+    isStatic ? 'public, max-age=315360000, immutable' : remoteCacheControl
   )
   if (sendEtagResponse(req, res, etag)) {
     // already called res.end() so we're finished
@@ -606,7 +605,8 @@ export function sendResponse(
   buffer: Buffer,
   isStatic: boolean,
   xCache: XCacheHeader,
-  contentSecurityPolicy: string
+  contentSecurityPolicy: string,
+  remoteCacheControl: string
 ) {
   const contentType = getContentType(extension)
   const etag = getHash([buffer])
@@ -618,7 +618,8 @@ export function sendResponse(
     contentType,
     isStatic,
     xCache,
-    contentSecurityPolicy
+    contentSecurityPolicy,
+    remoteCacheControl
   )
   if (!result.finished) {
     res.end(buffer)
