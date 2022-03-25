@@ -48,9 +48,7 @@ describe('root dir', () => {
     expect(html).toContain('hello from root/dashboard')
   })
 
-  // TODO: is integrations a new root if it doesn't use the
-  // dashboard+integrations syntax?
-  it.skip('should not include parent when new root', async () => {
+  it('should not include parent when new root', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard/integrations')
     const $ = cheerio.load(html)
     // Should not be nested in dashboard
