@@ -72,9 +72,7 @@ describe('root dir', () => {
     expect($('p').text()).toBe('hello from root/dashboard/rootonly/hello')
   })
 
-  // TODO: why is /dashboard/integrations a new root if it doesn't use the
-  // dashboard+integrations syntax?
-  it.skip('should not include parent document when new root', async () => {
+  it('should not include parent document when new root', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard/integrations')
     const $ = cheerio.load(html)
 
