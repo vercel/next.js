@@ -6,6 +6,7 @@ import { File, nextBuild } from 'next-test-utils'
 
 const appDir = __dirname
 const nextConfig = new File(join(appDir, 'next.config.js'))
+const reactDomPackagePah = join(appDir, 'node_modules/react-dom')
 
 function writeNextConfig(config) {
   const content = `module.exports = { experimental: ${JSON.stringify(config)} }`
@@ -27,8 +28,7 @@ describe('Invalid react 18 webpack config', () => {
 })
 
 describe('React 17 with React 18 config', () => {
-  beforeAll(() => {
-    const reactDomPackagePah = join(appDir, 'node_modules/react-dom')
+  beforeAll(async () => {
     await fs.mkdirp(reactDomPackagePah)
     await fs.writeFile(
       join(reactDomPackagePah, 'package.json'),
@@ -36,7 +36,7 @@ describe('React 17 with React 18 config', () => {
     )
     writeNextConfig({ reactRoot: true })
   })
-  afterAll(() => {
+  afterAll(async () => {
     await fs.remove(reactDomPackagePah)
     nextConfig.restore()
   })
