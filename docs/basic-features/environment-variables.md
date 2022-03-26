@@ -112,7 +112,7 @@ Next.js allows you to set defaults in `.env` (all environments), `.env.developme
 
 `.env.local` always overrides the defaults set.
 
-> **Note**: `.env`, `.env.development`, and `.env.production` files should be included in your repository as they define defaults. **`.env*.local` should be added to `.gitignore`**, as those files are intended to be ignored. `.env.local` is where secrets can be stored.
+> **Note**: `.env`, `.env.development`, and `.env.production` files should be included in your repository as they define defaults. **`.env.local` should be added to `.gitignore`**, as those files are intended to be ignored. `.env.local` is where secrets can be stored.
 
 ## Environment Variables on Vercel
 
@@ -136,7 +136,7 @@ This one is useful when running tests with tools like `jest` or `cypress` where 
 
 There is a small difference between `test` environment, and both `development` and `production` that you need to bear in mind: `.env.local` won't be loaded, as you expect tests to produce the same results for everyone. This way every test execution will use the same env defaults across different executions by ignoring your `.env.local` (which is intended to override the default set).
 
-> **Note**: similar to Default Environment Variables, `.env.test` file should be included in your repository, but `.env.test.local` shouldn't, as `.env*.local` are intended to be ignored through `.gitignore`.
+> **Note**: similar to Default Environment Variables, `.env.test` file should be included in your repository, but `.env.test.local` shouldn't, as `.env.local` are intended to be ignored through `.gitignore`.
 
 While running unit tests you can make sure to load your environment variables the same way Next.js does by leveraging the `loadEnvConfig` function from the `@next/env` package.
 
