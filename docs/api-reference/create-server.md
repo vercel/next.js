@@ -4,7 +4,7 @@ description: Create a custom server for your Next.js app programatically.
 
 # Create Server
 
-The main export from the `next` package is a function which returns a new Next.js server instance. This can be used in your existing server backend to implement the same behaviour as the `next start` and `next dev` CLI commands.
+The `next` package provides a function to create a new Next.js server instance. This can be used in your existing server backend to implement the same behaviour as the `next start` and `next dev` CLI commands.
 
 > **Note: This is API documentation for the Next.js server. For a feature overview and usage information for custom server implementations, please see [Custom Server](/docs/advanced-features/custom-server.md).**
 
@@ -34,7 +34,7 @@ The Next.js server accepts these options:
 - `dev`: Enable dev mode. Defaults to `false`
 - `dir`: Optional path to the directory of the Next.js application. If no directory is provided, the current directory will be used.
 - `quiet`: Hide error messages containing server information. Defaults to `false`
-- `conf`: Optional object containing the app configuration By default, [next.config.js](/docs/api-reference/next.config.js/introduction) will be used.
+- `conf`: Optional object containing the app configuration. By default, [next.config.js](/docs/api-reference/next.config.js/introduction) will be used.
 
 The `hostname` and `port` options must be provided when using [middleware](/docs/middleware):
 
