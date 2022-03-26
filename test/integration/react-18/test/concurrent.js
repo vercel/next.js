@@ -62,15 +62,6 @@ export default (context, _render) => {
     })
   })
 
-  it('should drain the entire response', async () => {
-    await withBrowser('/suspense/backpressure', async (browser) => {
-      await check(
-        () => browser.eval('document.querySelectorAll(".item").length'),
-        /2000/
-      )
-    })
-  })
-
   it('throws if useFlushEffects is used more than once', async () => {
     await renderViaHTTP(context.appPort, '/use-flush-effect/multiple-calls')
     expect(context.stderr).toContain(

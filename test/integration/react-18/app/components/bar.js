@@ -1,22 +1,20 @@
 import { Suspense } from 'react'
 import dynamic from 'next/dynamic'
-import { useCachedPromise } from './promise-cache'
+import { createStreamingData } from '../../test/streaming-data'
 
 const Foo = dynamic(() => import('./foo'), {
   suspense: true,
 })
 
-export default function Bar() {
-  useCachedPromise(
-    'bar',
-    () => new Promise((resolve) => setTimeout(resolve, 300)),
-    true
-  )
+const Data = createStreamingData('bar')
 
+export default function Bar() {
   return (
     <div>
-      bar
-      <Suspense fallback={'oof'}>
+      <Suspense>
+        <Data />
+      </Suspense>
+      <Suspense fallback={'fallback'}>
         <Foo />
       </Suspense>
     </div>
