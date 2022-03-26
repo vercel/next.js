@@ -58,7 +58,7 @@ The `prepare` function returns a promise which should be awaited before handling
 
 ## app.render
 
-The `render` function handles an incoming request and serves a page to the client.
+The `render` function handles an incoming request and serves a specific page to the client.
 
 ```js
 const pathname = '/a'
