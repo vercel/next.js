@@ -206,6 +206,8 @@ export default function (context, { runtime, env }) {
     expect(hydratedContent).toContain('abcde')
     expect(hydratedContent).toContain('default-export-arrow.client')
     expect(hydratedContent).toContain('named.client')
+    expect(hydratedContent).toContain('cjs-shared')
+    expect(hydratedContent).toContain('cjs-client')
   })
 
   it('should handle 404 requests and missing routes correctly', async () => {
