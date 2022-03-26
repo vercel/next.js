@@ -309,8 +309,13 @@ impl<C: Comments> EmotionTransformer<C> {
                     let q = q.take();
                     let minified =
                         minify_css_string(&q.raw.value, index == 0, index == args_len - 1);
-                    if !minified.replace(' ', "").is_empty() {
-                        args.push(minified.as_arg());
+                    // Compress one more spaces into one space
+                    if minified.replace(' ', "").is_empty() {
+                        if index != 0 && index != args_len - 1 {
+                            args.push(" ".as_arg());
+                        }
+                    } else {
+                        args.push(minified.as_arg())
                     }
                 }
             } else if let Some(e) = tagged_tpl.exprs.get_mut(i) {
