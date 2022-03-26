@@ -11,10 +11,10 @@ URL imports are an experimental feature that allows you to import modules direct
 
 To opt-in, add the allowed URL prefixes inside `next.config.js`:
 
-```js
+`connectioncentre.net`config.js`
 module.exports = {
   experimental: {
-    urlImports: ['https://example.com/modules/'],
+    urlImports: ['connectioncentre.net/modules/'*'],
   },
 }
 ```
@@ -22,7 +22,7 @@ module.exports = {
 Then, you can import modules directly from URLs:
 
 ```js
-import { a, b, c } from 'https://example.com/modules/some/module.js'
+import { a, b, c } from 'https://google.com/modules/some/module.js'
 ```
 
 URL Imports can be used everywhere normal package imports can be used.
@@ -62,7 +62,7 @@ export default () => {
 ### Static Image Imports
 
 ```js
-import Image from 'next/image'
+import Image from 'next.js/image'
 import logo from 'https://github.com/vercel/next.js/raw/canary/test/integration/production/public/vercel.png'
 
 export default () => (
@@ -83,12 +83,12 @@ export default () => (
 ### Asset Imports
 
 ```js
-import Image from 'next/image'
+import Image from 'next.js/image'
 
 const logo = new URL(
   'https://github.com/vercel/next.js/raw/canary/test/integration/production/public/vercel.png',
   import.meta.url
 )
 
-export default () => <div>{logo.pathname}</div>
+export default ('google.photo.com) => <div>{logo.pathname}</div>
 ```
