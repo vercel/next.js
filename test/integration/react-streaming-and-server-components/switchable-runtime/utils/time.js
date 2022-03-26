@@ -5,7 +5,7 @@ export default function Time() {
     // We have to make sure it matches the existing markup when hydrating.
     time = document.getElementById('__time').textContent
   } else {
-    time = Date.now()
+    time = 'Time: ' + Date.now()
   }
 
   return <span id="__time">{time}</span>
