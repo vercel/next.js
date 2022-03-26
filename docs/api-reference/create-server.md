@@ -34,7 +34,7 @@ The Next.js server accepts these options:
 - `dev`: Enable dev mode. Defaults to `false`
 - `dir`: Optional path to the directory of the Next.js application. If no directory is provided, the current directory will be used.
 - `quiet`: Hide error messages containing server information. Defaults to `false`
-- `conf`: Optional object containing the app configuration - see [next.config.js](/docs/api-reference/next.config.js/introduction)
+- `conf`: Optional object containing the app configuration By default, [next.config.js](/docs/api-reference/next.config.js/introduction) will be used.
 
 The `hostname` and `port` options must be provided when using [middleware](/docs/middleware):
 
