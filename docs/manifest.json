@@ -409,6 +409,10 @@
           "path": "/docs/api-reference/edge-runtime.md"
         },
         {
+          "title": "Create Server",
+          "path": "/docs/api-reference/create-server.md"
+        },
+        {
           "title": "Data Fetching",
           "routes": [
             {
