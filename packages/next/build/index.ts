@@ -969,7 +969,7 @@ export default async function build(
                     join(pagesDir, pagePath),
                     config.experimental.runtime
                   )
-                : null
+                : undefined
 
             if (
               !isMiddlewareRoute &&
@@ -1084,14 +1084,13 @@ export default async function build(
               totalSize: allSize,
               static: isStatic,
               isSsg,
-              isWebSsr:
-                hasConcurrentFeatures &&
-                !isMiddlewareRoute &&
-                !isReservedPage(page) &&
-                !isCustomErrorPage(page),
               isHybridAmp,
               ssgPageRoutes,
               initialRevalidateSeconds: false,
+              runtime:
+                !isReservedPage(page) && !isCustomErrorPage(page)
+                  ? pageRuntime
+                  : undefined,
               pageDuration: undefined,
               ssgPageDurations: undefined,
             })
