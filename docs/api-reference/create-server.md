@@ -1,14 +1,14 @@
 ---
-description: Create a custom server for your Next.js app using the constructor.
+description: Create a custom server for your Next.js app programatically.
 ---
 
 # Create Server
 
 The main export from the `next` package is a function which returns a new Next.js server instance. This can be used in your existing server backend to implement the same behaviour as the `next start` and `next dev` CLI commands.
 
-> **Note: This is API documentation for the server constructor. For a feature overview and usage information for server implementations, please see [Custom Server](/docs/advanced-features/custom-server.md).**
+> **Note: This is API documentation for the Next.js server. For a feature overview and usage information for custom server implementations, please see [Custom Server](/docs/advanced-features/custom-server.md).**
 
-> Note: The server instance is responsible for sending responses to the client and will call [response.end](https://nodejs.org/api/http.html#responseenddata-encoding-callback) when a response is sent.
+> Note: The Next.js server instance is responsible for sending responses to the client and will call [response.end](https://nodejs.org/api/http.html#responseenddata-encoding-callback) when a response is sent.
 
 ```js
 const { createServer } = require('http')
@@ -29,7 +29,7 @@ app.prepare().then(() => {
 
 ## Options
 
-The server constructor accepts these options:
+The Next.js server accepts these options:
 
 - `dev`: Enable dev mode. Defaults to `false`
 - `dir`: Optional path to the directory of the Next.js application. If no directory is provided, the current directory will be used.
@@ -79,4 +79,6 @@ res.statusCode = 404
 await app.renderError(err, req, res, pathname)
 ```
 
-The page served to the client is based on the status code of the given server response. To serve custom error pages, see [Custom Error Page](/docs/advanced-features/custom-error-page).
+The page served to the client is based on the status code of the given server response.
+
+To render custom error pages for different status codes, see [Custom Error Page](/docs/advanced-features/custom-error-page).
