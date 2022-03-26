@@ -1564,7 +1564,7 @@ export default class Router implements BaseRouter {
       }
 
       const props = await this._getData<CompletePrivateRouteInfo>(() =>
-        __N_SSG || __N_SSP || (__N_RSC && !useStreamedFlightData)
+        (__N_SSG || __N_SSP || __N_RSC) && !useStreamedFlightData
           ? fetchNextData(
               dataHref!,
               this.isSsr,
@@ -1596,8 +1596,6 @@ export default class Router implements BaseRouter {
           })
         } else {
           const { __flight__ } = props as any
-          delete (props as any).__N_SSG
-          delete (props as any).__N_SSP
           ;(props as any).pageProps = Object.assign(
             {},
             (props as any).pageProps,

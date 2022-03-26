@@ -41,7 +41,6 @@ async function parseModuleInfo({
   source: string
   imports: string
   isEsm: boolean
-  __N_SSG: boolean
   __N_SSP: boolean
 }> {
   const ast = await parse(source, { filename: resourcePath, isModule: true })
@@ -50,7 +49,6 @@ async function parseModuleInfo({
   let lastIndex = 0
   let imports = ''
   let isEsm = false
-  let __N_SSG = false
   let __N_SSP = false
 
   for (let i = 0; i < body.length; i++) {
@@ -125,8 +123,6 @@ async function parseModuleInfo({
                   const value = declaration.id.value
                   if (value === '__N_SSP') {
                     __N_SSP = true
-                  } else if (value === '__N_SSG') {
-                    __N_SSG = true
                   }
                 }
               }
@@ -144,7 +140,7 @@ async function parseModuleInfo({
     transformedSource += source.substring(lastIndex)
   }
 
-  return { source: transformedSource, imports, isEsm, __N_SSG, __N_SSP }
+  return { source: transformedSource, imports, isEsm, __N_SSP }
 }
 
 export default async function transformSource(
@@ -183,7 +179,6 @@ export default async function transformSource(
     source: transformedSource,
     imports,
     isEsm,
-    __N_SSG,
     __N_SSP,
   } = await parseModuleInfo({
     resourcePath,
@@ -214,8 +209,13 @@ export default async function transformSource(
 
   if (isClientCompilation) {
     rscExports.default = 'function RSC() {}'
-    if (__N_SSG) rscExports.__N_SSG = 'true'
-    if (__N_SSP) rscExports.__N_SSP = 'true'
+    if (__N_SSP) {
+      rscExports.__N_SSP = 'true'
+    } else {
+      // Server component pages are always considered as SSG by default because
+      // the flight data is needed for client navigation.
+      rscExports.__N_SSG = 'true'
+    }
   }
 
   const output = transformedSource + '\n' + buildExports(rscExports, isEsm)

@@ -547,14 +547,17 @@ function renderReactElement(
 
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
   if (process.env.__NEXT_REACT_ROOT) {
-    const ReactDOMClient = require('react-dom/client')
     if (!reactRoot) {
       // Unlike with createRoot, you don't need a separate root.render() call here
-      reactRoot = (ReactDOMClient as any).hydrateRoot(domEl, reactEl)
+      const ReactDOMClient = require('react-dom/client')
+      reactRoot = ReactDOMClient.hydrateRoot(domEl, reactEl)
       // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
       shouldHydrate = false
     } else {
-      reactRoot.render(reactEl)
+      const startTransition = (React as any).startTransition
+      startTransition(() => {
+        reactRoot.render(reactEl)
+      })
     }
   } else {
     // The check for `.hydrate` is there to support React alternatives like preact
@@ -675,6 +678,7 @@ if (process.env.__NEXT_RSC) {
 
   const {
     createFromFetch,
+    createFromReadableStream,
   } = require('next/dist/compiled/react-server-dom-webpack')
 
   const encoder = new TextEncoder()
@@ -764,22 +768,19 @@ if (process.env.__NEXT_RSC) {
     if (response) return response
 
     if (initialServerDataBuffer) {
-      const t = new TransformStream()
-      const writer = t.writable.getWriter()
-      response = createFromFetch(Promise.resolve({ body: t.readable }))
-      nextServerDataRegisterWriter(writer)
+      const { readable, writable } = new TransformStream()
+      response = createFromReadableStream(readable)
+      nextServerDataRegisterWriter(writable.getWriter())
     } else {
-      const fetchPromise = serialized
-        ? (() => {
-            const t = new TransformStream()
-            const writer = t.writable.getWriter()
-            writer.ready.then(() => {
-              writer.write(new TextEncoder().encode(serialized))
-            })
-            return Promise.resolve({ body: t.readable })
-          })()
-        : fetchFlight(getCacheKey())
-      response = createFromFetch(fetchPromise)
+      if (serialized) {
+        const { readable, writable } = new TransformStream()
+        const writer = writable.getWriter()
+        writer.write(new TextEncoder().encode(serialized))
+        writer.close()
+        response = createFromReadableStream(readable)
+      } else {
+        response = createFromFetch(fetchFlight(getCacheKey()))
+      }
     }
 
     rscCache.set(cacheKey, response)
