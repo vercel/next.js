@@ -98,6 +98,7 @@ import {
   copyTracedFiles,
   isReservedPage,
   isCustomErrorPage,
+  isFlightPage,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -161,7 +162,6 @@ export default async function build(
     // using React 18 or experimental.
     const hasReactRoot = shouldUseReactRoot()
     const hasConcurrentFeatures = hasReactRoot
-
     const hasServerComponents =
       hasReactRoot && !!config.experimental.serverComponents
 
@@ -287,6 +287,7 @@ export default async function build(
       .traceAsyncFn(() => collectPages(pagesDir, config.pageExtensions))
     // needed for static exporting since we want to replace with HTML
     // files
+
     const allStaticPages = new Set<string>()
     let allPageInfos = new Map<string, PageInfo>()
 
@@ -956,6 +957,7 @@ export default async function build(
 
             let isSsg = false
             let isStatic = false
+            let isServerComponent = false
             let isHybridAmp = false
             let ssgPageRoutes: string[] | null = null
             let isMiddlewareRoute = !!page.match(MIDDLEWARE_ROUTE)
@@ -972,6 +974,12 @@ export default async function build(
                     config.experimental.runtime
                   )
                 : undefined
+
+            if (hasServerComponents && pagePath) {
+              if (isFlightPage(config, pagePath)) {
+                isServerComponent = true
+              }
+            }
 
             if (
               !isMiddlewareRoute &&
@@ -1042,11 +1050,16 @@ export default async function build(
                   serverPropsPages.add(page)
                 } else if (
                   workerResult.isStatic &&
-                  !workerResult.hasFlightData &&
+                  !isServerComponent &&
                   (await customAppGetInitialPropsPromise) === false
                 ) {
                   staticPages.add(page)
                   isStatic = true
+                } else if (isServerComponent) {
+                  // This is a static server component page that doesn't have
+                  // gSP or gSSP. We still treat it as a SSG page.
+                  ssgPages.add(page)
+                  isSsg = true
                 }
 
                 if (hasPages404 && page === '/404') {

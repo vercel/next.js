@@ -1127,9 +1127,12 @@ export default abstract class Server {
     const hasServerProps = !!components.getServerSideProps
     const hasStaticPaths = !!components.getStaticPaths
     const hasGetInitialProps = !!components.Component?.getInitialProps
+    const isServerComponent = !!components.ComponentMod?.__next_rsc__
 
     // Toggle whether or not this is a Data request
-    const isDataReq = !!query._nextDataReq && (isSSG || hasServerProps)
+    const isDataReq =
+      !!query._nextDataReq && (isSSG || hasServerProps || isServerComponent)
+
     delete query._nextDataReq
     // Don't delete query.__flight__ yet, it still needs to be used in renderToHTML later
     const isFlightRequest = Boolean(
@@ -1601,7 +1604,10 @@ export default abstract class Server {
       if (isDataReq) {
         return {
           type: 'json',
-          body: RenderResult.fromStatic(JSON.stringify(cachedData.props)),
+          body: RenderResult.fromStatic(
+            // @TODO: Handle flight data.
+            JSON.stringify(cachedData.props)
+          ),
           revalidateOptions,
         }
       } else {
