@@ -960,8 +960,10 @@ export default async function build(
             let ssgPageRoutes: string[] | null = null
             let isMiddlewareRoute = !!page.match(MIDDLEWARE_ROUTE)
 
-            const pagePath = pagePaths.find((_path) =>
-              _path.startsWith(actualPage + '.')
+            const pagePath = pagePaths.find(
+              (p) =>
+                p.startsWith(actualPage + '.') ||
+                p.startsWith(actualPage + '/index.')
             )
             const pageRuntime =
               hasConcurrentFeatures && pagePath
@@ -974,7 +976,7 @@ export default async function build(
             if (
               !isMiddlewareRoute &&
               !isReservedPage(page) &&
-              // We currently don't support staic optimization in the Edge runtime.
+              // We currently don't support static optimization in the Edge runtime.
               pageRuntime !== 'edge'
             ) {
               try {
