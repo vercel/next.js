@@ -22,7 +22,6 @@ import webdriver from 'next-webdriver'
 const nodeArgs = ['-r', join(__dirname, 'require-hook.js')]
 const appDir = join(__dirname, '../app')
 const nextConfig = new File(join(appDir, 'next.config.js'))
-const dynamicHello = new File(join(appDir, 'components/dynamic-hello.js'))
 const invalidPage = new File(join(appDir, 'pages/invalid.js'))
 
 describe('Basics', () => {
@@ -72,16 +71,12 @@ function runTestsAgainstRuntime(runtime) {
           invalidPage.write(`export const value = 1`)
         }
         nextConfig.replace("// runtime: 'edge'", `runtime: '${runtime}'`)
-        dynamicHello.replace('suspense = false', `suspense = true`)
-        // `noSSR` mode will be ignored by suspense
-        dynamicHello.replace('let ssr', `let ssr = false`)
       },
       afterAll: (env) => {
         if (env === 'dev') {
           invalidPage.delete()
         }
         nextConfig.restore()
-        dynamicHello.restore()
       },
     }
   )

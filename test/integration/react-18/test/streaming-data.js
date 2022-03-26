@@ -1,14 +1,14 @@
-export function createStreamingData(value) {
+export function createStreamingData() {
   let result
   let promise
-  function Data() {
+  function Data({ children, duration = 500 }) {
     if (result) return result
     if (!promise)
       promise = new Promise((res) => {
         setTimeout(() => {
-          result = value
+          result = children
           res()
-        }, 500)
+        }, duration)
       })
     throw promise
   }

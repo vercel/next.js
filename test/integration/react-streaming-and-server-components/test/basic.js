@@ -61,6 +61,8 @@ export default async function basic(context, { env }) {
 
     const browser = await webdriver(context.appPort, '/dynamic-imports')
     const content = await browser.eval(`window.document.body.innerText`)
-    expect(content).toMatchInlineSnapshot('"foo.client"')
+    const dynamicIds = await browser.eval(`__NEXT_DATA__.dynamicIds`)
+    expect(content).toMatchInlineSnapshot('"foo.clientbar.client"')
+    expect(dynamicIds).toBe(undefined)
   })
 }
