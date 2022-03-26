@@ -50,7 +50,7 @@ await handle(req, res)
 
 The `getRequestHandler` function returns a request handler.
 
-The handler should be called with an [http.IncomingMessage](https://nodejs.org/api/http.html#class-httpincomingmessage)(https://nodejs.org/api/http.html#class-httpserver) and [http.ServerResponse](https://nodejs.org/api/http.html#class-httpserverresponse) originating from your existing server. The handler will serve resources to the client like pages, scripts, static files and API routes.
+The handler should be called with an [http.IncomingMessage](https://nodejs.org/api/http.html#class-httpincomingmessage) and [http.ServerResponse](https://nodejs.org/api/http.html#class-httpserverresponse) originating from your existing server. The handler will serve resources to the client like pages, scripts, static files and API routes.
 
 ## app.prepare
 
