@@ -696,7 +696,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getServerComponentManifest() {
-    if (!this.nextConfig.experimental.runtime) return undefined
+    if (!this.nextConfig.experimental.serverComponents) return undefined
     return require(join(
       this.distDir,
       'server',

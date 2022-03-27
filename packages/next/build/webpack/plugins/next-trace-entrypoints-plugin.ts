@@ -365,7 +365,9 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
                     // static image imports, CSS imports
                     file = nodePath.join(this.tracingRoot, file)
                     const depMod = depModMap.get(file)
-                    const isAsset = reasons.get(file)?.type.includes('asset')
+                    const isAsset = reasons
+                      .get(nodePath.relative(this.tracingRoot, file))
+                      ?.type.includes('asset')
 
                     return (
                       !isAsset &&
@@ -539,7 +541,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
                       ) {
                         requestPath = (
                           resContext.descriptionFileRoot +
-                          request.substr(getPkgName(request)?.length || 0) +
+                          request.slice(getPkgName(request)?.length || 0) +
                           nodePath.sep +
                           'package.json'
                         )
@@ -553,7 +555,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
                         (separatorIndex = requestPath.lastIndexOf('/')) >
                         rootSeparatorIndex
                       ) {
-                        requestPath = requestPath.substr(0, separatorIndex)
+                        requestPath = requestPath.slice(0, separatorIndex)
                         const curPackageJsonPath = `${requestPath}/package.json`
                         if (await job.isFile(curPackageJsonPath)) {
                           await job.emitFile(

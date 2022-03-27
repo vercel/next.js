@@ -59,6 +59,7 @@ interface ExportPageInput {
   disableOptimizedLoading: any
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
+  serverComponents?: boolean
 }
 
 interface ExportPageResults {
@@ -106,6 +107,7 @@ export default async function exportPage({
   optimizeCss,
   disableOptimizedLoading,
   httpAgentOptions,
+  serverComponents,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpAgentOptions(httpAgentOptions)
   const exportPageSpan = trace('export-page-worker', parentSpanId)
@@ -260,7 +262,7 @@ export default async function exportPage({
           getServerSideProps,
           getStaticProps,
           pageConfig,
-        } = await loadComponents(distDir, page, serverless)
+        } = await loadComponents(distDir, page, serverless, serverComponents)
         const ampState = {
           ampFirst: pageConfig?.amp === true,
           hasQuery: Boolean(query.amp),
@@ -321,7 +323,12 @@ export default async function exportPage({
           throw new Error(`Failed to render serverless page`)
         }
       } else {
-        const components = await loadComponents(distDir, page, serverless)
+        const components = await loadComponents(
+          distDir,
+          page,
+          serverless,
+          serverComponents
+        )
         const ampState = {
           ampFirst: components.pageConfig?.amp === true,
           hasQuery: Boolean(query.amp),
