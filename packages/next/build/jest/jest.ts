@@ -88,14 +88,11 @@ export default function nextJest(options: { dir?: string } = {}) {
           // Custom config will be able to override the default mappings
           ...(resolvedJestConfig.moduleNameMapper || {}),
         },
-        testPathIgnorePatterns: [
+        testPathIgnorePatterns: resolvedJestConfig.testPathIgnorePatterns || [
           // Don't look for tests in node_modules
           '/node_modules/',
           // Don't look for tests in the Next.js build output
           '/.next/',
-          // Custom config can append to testPathIgnorePatterns but not modify it
-          // This is to ensure `.next` and `node_modules` are always excluded
-          ...(resolvedJestConfig.testPathIgnorePatterns || []),
         ],
 
         transform: {
