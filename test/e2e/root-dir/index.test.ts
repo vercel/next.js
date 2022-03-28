@@ -227,7 +227,7 @@ describe('root dir', () => {
       const html = await renderViaHTTP(next.url, '/client-component-route')
       expect(html).toContain('hello from root/client-component-route. count: 0')
 
-      const browser = await webdriver(next.url, '/')
+      const browser = await webdriver(next.url, '/client-component-route')
       // After hydration count should be 1
       expect(await browser.elementByCss('p').text()).toBe(
         'hello from root/client-component-route. count: 1'
@@ -241,6 +241,17 @@ describe('root dir', () => {
       expect($('h1').text()).toBe('Client Nested. Count: 0')
       // Should include the page text
       expect($('p').text()).toBe('hello from root/client-nested')
+
+      const browser = await webdriver(next.url, '/client-nested')
+      // After hydration count should be 1
+      expect(await browser.elementByCss('h1').text()).toBe(
+        'Client Nested. Count: 0'
+      )
+
+      // After hydration count should be 1
+      expect(await browser.elementByCss('h1').text()).toBe(
+        'hello from root/client-nested'
+      )
     })
   })
 })
