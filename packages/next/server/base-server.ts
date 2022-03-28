@@ -1123,11 +1123,13 @@ export default abstract class Server {
     const isLikeServerless =
       typeof components.ComponentMod === 'object' &&
       typeof (components.ComponentMod as any).renderReqToHTML === 'function'
-    const isSSG = !!components.getStaticProps
     const hasServerProps = !!components.getServerSideProps
     const hasStaticPaths = !!components.getStaticPaths
     const hasGetInitialProps = !!components.Component?.getInitialProps
     const isServerComponent = !!components.ComponentMod?.__next_rsc__
+    const isSSG =
+      !!components.getStaticProps ||
+      (isServerComponent && !hasServerProps && !hasGetInitialProps)
 
     // Toggle whether or not this is a Data request
     const isDataReq =
