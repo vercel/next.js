@@ -1,3 +1,5 @@
+import type { PageRuntime, NextConfigComplete } from '../server/config-shared'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import fs from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
@@ -13,11 +15,9 @@ import { normalizePagePath } from '../server/normalize-page-path'
 import { warn } from './output/log'
 import { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
-import { NextConfigComplete } from '../server/config-shared'
 import { parse } from '../build/swc'
 import { isCustomErrorPage, isFlightPage, isReservedPage } from './utils'
 import { ssrEntries } from './webpack/plugins/middleware-plugin'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
@@ -128,17 +128,14 @@ type Entrypoints = {
   edgeServer: webpack5.EntryObject
 }
 
-const cachedPageRuntimeConfig = new Map<
-  string,
-  [number, 'nodejs' | 'edge' | undefined]
->()
+const cachedPageRuntimeConfig = new Map<string, [number, PageRuntime]>()
 
 // @TODO: We should limit the maximum concurrency of this function as there
 // could be thousands of pages existing.
 export async function getPageRuntime(
   pageFilePath: string,
   globalRuntimeFallback?: 'nodejs' | 'edge'
-): Promise<'nodejs' | 'edge' | undefined> {
+): Promise<PageRuntime> {
   const cached = cachedPageRuntimeConfig.get(pageFilePath)
   if (cached) {
     return cached[1]
@@ -158,7 +155,7 @@ export async function getPageRuntime(
   // discussion:
   // https://github.com/vercel/next.js/discussions/34179
   let isRuntimeRequired: boolean = false
-  let pageRuntime: 'nodejs' | 'edge' | undefined = undefined
+  let pageRuntime: PageRuntime = undefined
 
   // Since these configurations should always be static analyzable, we can
   // skip these cases that "runtime" and "gSP", "gSSP" are not included in the
@@ -215,9 +212,6 @@ export async function getPageRuntime(
 
   if (!pageRuntime) {
     if (isRuntimeRequired) {
-      pageRuntime = globalRuntimeFallback
-    } else {
-      // @TODO: Remove this branch to fully implement the RFC.
       pageRuntime = globalRuntimeFallback
     }
   }

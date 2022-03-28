@@ -55,6 +55,7 @@ interface ExportPageInput {
   disableOptimizedLoading: any
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
+  serverComponents?: boolean
 }
 
 interface ExportPageResults {
@@ -96,6 +97,7 @@ export default async function exportPage({
   optimizeCss,
   disableOptimizedLoading,
   httpAgentOptions,
+  serverComponents,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpAgentOptions(httpAgentOptions)
   const exportPageSpan = trace('export-page-worker', parentSpanId)
@@ -231,7 +233,12 @@ export default async function exportPage({
         return !buildExport && getStaticProps && !isDynamicRoute(path)
       }
 
-      const components = await loadComponents(distDir, page)
+      const components = await loadComponents(
+        distDir,
+        page,
+        undefined,
+        serverComponents
+      )
       const ampState = {
         ampFirst: components.pageConfig?.amp === true,
         hasQuery: Boolean(query.amp),
