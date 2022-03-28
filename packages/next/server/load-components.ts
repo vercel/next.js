@@ -58,7 +58,7 @@ export async function loadDefaultErrorComponents(distDir: string) {
     reactLoadableManifest: {},
     ComponentMod,
     AppMod,
-    // TODO detect server components
+    // Use App for fallback
     AppServerMod: AppMod,
   }
 }

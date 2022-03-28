@@ -384,9 +384,7 @@ const useFlightResponse = createFlightHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
-  // OriginalComponent: React.ComponentType,
   AppMod: any,
-  // App: any,
   ComponentMod: any,
   {
     cachePrefix,
@@ -497,7 +495,7 @@ export async function renderToHTML(
   const isServerComponent =
     hasConcurrentFeatures &&
     !!serverComponentManifest &&
-    !!ComponentMod.__next_rsc_server__
+    !!ComponentMod.__next_rsc__?.server
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component

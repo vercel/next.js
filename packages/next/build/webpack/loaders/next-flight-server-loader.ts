@@ -206,19 +206,19 @@ export default async function transformSource(
    *
    * Server compilation output:
    *   (The content of the Server Component module will be kept.)
-   *   export const __next_rsc__ = { __webpack_require__, _: () => { ... } }
+   *   export const __next_rsc__ = { __webpack_require__, _: () => { ... }, server: true }
    *
    * Client compilation output:
    *   (The content of the Server Component module will be removed.)
-   *   export const __next_rsc__ = { __webpack_require__, _: () => { ... } }
+   *   export const __next_rsc__ = { __webpack_require__, _: () => { ... }, server: false }
    */
 
   const rscExports: any = {
     __next_rsc__: `{
       __webpack_require__,
-      _: () => {\n${imports}\n}
+      _: () => {\n${imports}\n},
+      server: ${isServerComponent(resourcePath) ? 'true' : 'false'}
     }`,
-    __next_rsc_server__: isServerComponent(resourcePath) ? 'true' : 'false',
   }
 
   if (isClientCompilation) {

@@ -651,7 +651,6 @@ function AppContainer({
 }
 
 function renderApp(App: AppComponent, appProps: AppProps) {
-  console.log('isRSCPage', isRSCPage)
   if (process.env.__NEXT_RSC && isRSCPage) {
     const { Component, err: _, router: __, ...props } = appProps
     return <Component {...props} />
