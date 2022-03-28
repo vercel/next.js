@@ -307,7 +307,7 @@ function checkRedirectValues(
 
 const rscCache = new Map()
 
-function createRSCHook() {
+function createFlightHook() {
   return ({
     id,
     req,
@@ -374,7 +374,7 @@ function createRSCHook() {
   }
 }
 
-const useRSCResponse = createRSCHook()
+const useFlightResponse = createFlightHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
@@ -405,7 +405,7 @@ function createServerComponentRenderer(
       serverComponentManifest
     )
 
-    const response = useRSCResponse({
+    const response = useFlightResponse({
       id: cachePrefix + ',' + id,
       req: reqStream,
       inlinedDataWritable: inlinedTransformStream.writable,
@@ -492,9 +492,9 @@ export async function renderToHTML(
 
   // We don't need to opt-into the flight inlining logic if the page isn't a RSC.
   const isServerComponent =
-    !!serverComponentManifest &&
     hasConcurrentFeatures &&
-    !!ComponentMod.__next_rsc__
+    !!serverComponentManifest &&
+    !!ComponentMod.__next_rsc_server__
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component

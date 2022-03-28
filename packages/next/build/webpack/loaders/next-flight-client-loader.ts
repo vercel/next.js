@@ -47,7 +47,7 @@ async function parseModuleInfo(
 ): Promise<void> {
   const { body } = await parse(transformedSource, {
     filename: resourcePath,
-    isModule: true,
+    isModule: 'unknown',
   })
   for (let i = 0; i < body.length; i++) {
     const node = body[i]
