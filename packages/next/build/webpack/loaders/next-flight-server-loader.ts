@@ -55,7 +55,7 @@ async function parseModuleInfo({
     const node = body[i]
     isEsm = isEsm || isEsmNodeType(node.type)
     switch (node.type) {
-      case 'ImportDeclaration': {
+      case 'ImportDeclaration':
         const importSource = node.source.value
         if (!isClientCompilation) {
           // Server compilation for .server.js.
@@ -112,8 +112,7 @@ async function parseModuleInfo({
 
         lastIndex = node.source.span.end
         break
-      }
-      case 'ExportDeclaration': {
+      case 'ExportDeclaration':
         if (isClientCompilation) {
           // Keep `__N_SSG` and `__N_SSP` exports.
           if (node.declaration?.type === 'VariableDeclaration') {
@@ -128,9 +127,8 @@ async function parseModuleInfo({
               }
             }
           }
-          break
         }
-      }
+        break
       default:
         break
     }

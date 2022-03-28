@@ -117,7 +117,7 @@ describe('Without global runtime configuration', () => {
   ├ ℇ /edge
   ├ ℇ /edge-rsc
   ├ ○ /node
-  ├ ○ /node-rsc
+  ├ ● /node-rsc
   ├ ● /node-rsc-ssg
   ├ λ /node-rsc-ssr
   ├ ● /node-ssg
