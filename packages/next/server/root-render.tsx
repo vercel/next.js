@@ -37,7 +37,7 @@ export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
 const rscCache = new Map()
 
-function createRSCHook() {
+function createFlightHook() {
   return (
     writable: WritableStream<Uint8Array>,
     id: string,
@@ -86,7 +86,7 @@ function createRSCHook() {
   }
 }
 
-const useRSCResponse = createRSCHook()
+const useFlightResponse = createFlightHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
@@ -104,8 +104,11 @@ function createServerComponentRenderer(
 ) {
   // We need to expose the `__webpack_require__` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
-  // @ts-ignore
-  globalThis.__webpack_require__ = ComponentMod.__next_rsc__.__webpack_require__
+  if (ComponentMod.__next_rsc__) {
+    // @ts-ignore
+    globalThis.__webpack_require__ =
+      ComponentMod.__next_rsc__.__webpack_require__
+  }
 
   const writable = transformStream.writable
   const ServerComponentWrapper = (props: any) => {
@@ -115,7 +118,7 @@ function createServerComponentRenderer(
       serverComponentManifest
     )
 
-    const response = useRSCResponse(
+    const response = useFlightResponse(
       writable,
       cachePrefix + ',' + id,
       reqStream,
@@ -246,6 +249,14 @@ export async function renderToHTML(
   serverComponentsInlinedTransformStream = new TransformStream()
   const search = stringifyQuery(query)
 
+  /*
+RootLayout -> root.js
+ClientComponentRoute -> root/client-component-route.client.js
+    
+    <RootLayout>
+      <ClientComponentRoute />
+    </RootLayout>
+  */
   const Component = createServerComponentRenderer(RootLayout, ComponentMod, {
     cachePrefix: pathname + (search ? `?${search}` : ''),
     transformStream: serverComponentsInlinedTransformStream,

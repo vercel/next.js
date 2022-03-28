@@ -307,7 +307,7 @@ function checkRedirectValues(
 
 const rscCache = new Map()
 
-function createRSCHook() {
+function createFlightHook() {
   return (
     writable: WritableStream<Uint8Array>,
     id: string,
@@ -356,7 +356,7 @@ function createRSCHook() {
   }
 }
 
-const useRSCResponse = createRSCHook()
+const useFlightResponse = createFlightHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
@@ -386,7 +386,7 @@ function createServerComponentRenderer(
       serverComponentManifest
     )
 
-    const response = useRSCResponse(
+    const response = useFlightResponse(
       writable,
       cachePrefix + ',' + id,
       reqStream,
@@ -456,14 +456,13 @@ export async function renderToHTML(
     devOnlyCacheBusterQueryString,
     supportsDynamicHTML,
     images,
-    // reactRoot,
-    runtime,
+    reactRoot,
+    runtime: globalRuntime,
     ComponentMod,
     AppMod,
-    isRootPath,
   } = renderOpts
 
-  const hasConcurrentFeatures = !!runtime
+  const hasConcurrentFeatures = reactRoot
 
   let Document = renderOpts.Document
   const OriginalComponent = renderOpts.Component
@@ -472,7 +471,7 @@ export async function renderToHTML(
   const isServerComponent =
     !!serverComponentManifest &&
     hasConcurrentFeatures &&
-    (ComponentMod.__next_rsc__ || isRootPath)
+    !!ComponentMod.__next_rsc__
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
@@ -1257,7 +1256,7 @@ export async function renderToHTML(
       | typeof Document
       | undefined
 
-    if (runtime === 'edge' && Document.getInitialProps) {
+    if (process.browser && Document.getInitialProps) {
       // In the Edge runtime, `Document.getInitialProps` isn't supported.
       // We throw an error here if it's customized.
       if (!builtinDocument) {
@@ -1343,7 +1342,8 @@ export async function renderToHTML(
         ) : (
           <Body>
             <AppContainerWithIsomorphicFiberStructure>
-              {renderOpts.serverComponents && AppMod.__next_rsc__ ? (
+              {isServerComponent && AppMod.__next_rsc__ ? (
+                // _app.server.js is used.
                 <Component {...props.pageProps} router={router} />
               ) : (
                 <App {...props} Component={Component} router={router} />
@@ -1375,7 +1375,6 @@ export async function renderToHTML(
               ),
               generateStaticHTML: true,
             })
-
             const flushed = await streamToString(flushEffectStream)
             return flushed
           }
@@ -1503,7 +1502,8 @@ export async function renderToHTML(
     optimizeCss: renderOpts.optimizeCss,
     optimizeFonts: renderOpts.optimizeFonts,
     nextScriptWorkers: renderOpts.nextScriptWorkers,
-    runtime,
+    runtime: globalRuntime,
+    hasConcurrentFeatures,
   }
 
   const document = (

@@ -3,6 +3,7 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
+import webdriver from 'next-webdriver'
 
 describe('root dir', () => {
   let next: NextInstance
@@ -96,7 +97,7 @@ describe('root dir', () => {
     // Should be nested in dashboard
     expect($('h1').text()).toBe('Dashboard')
     // Should be nested in deployments
-    expect($('h2').text()).toBe('Deployments (hello)')
+    expect($('h2').text()).toBe('Deployments hello')
   })
 
   it('should serve dynamic parameter', async () => {
@@ -220,6 +221,37 @@ describe('root dir', () => {
       // Without .client.js should serve
       const html = await renderViaHTTP(next.url, '/shared-component-route')
       expect(html).toContain('hello from root/shared-component-route')
+    })
+
+    it('should serve client component', async () => {
+      const html = await renderViaHTTP(next.url, '/client-component-route')
+      expect(html).toContain('hello from root/client-component-route. count: 0')
+
+      const browser = await webdriver(next.url, '/client-component-route')
+      // After hydration count should be 1
+      expect(await browser.elementByCss('p').text()).toBe(
+        'hello from root/client-component-route. count: 1'
+      )
+    })
+
+    it('should include client component layout with server component route', async () => {
+      const html = await renderViaHTTP(next.url, '/client-nested')
+      const $ = cheerio.load(html)
+      // Should not be nested in dashboard
+      expect($('h1').text()).toBe('Client Nested. Count: 0')
+      // Should include the page text
+      expect($('p').text()).toBe('hello from root/client-nested')
+
+      const browser = await webdriver(next.url, '/client-nested')
+      // After hydration count should be 1
+      expect(await browser.elementByCss('h1').text()).toBe(
+        'Client Nested. Count: 0'
+      )
+
+      // After hydration count should be 1
+      expect(await browser.elementByCss('h1').text()).toBe(
+        'hello from root/client-nested'
+      )
     })
   })
 })

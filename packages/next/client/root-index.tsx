@@ -156,6 +156,21 @@ const ServerRoot = ({
   return root
 }
 
+function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
+  if (process.env.__NEXT_TEST_MODE) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    React.useEffect(() => {
+      window.__NEXT_HYDRATED = true
+
+      if (window.__NEXT_HYDRATED_CB) {
+        window.__NEXT_HYDRATED_CB()
+      }
+    }, [])
+  }
+
+  return children as React.ReactElement
+}
+
 const RSCComponent = (props: any) => {
   const cacheKey = getCacheKey()
   const { __flight_serialized__ } = props
@@ -182,7 +197,9 @@ const RSCComponent = (props: any) => {
 export function hydrate() {
   renderReactElement(appElement!, () => (
     <React.StrictMode>
-      <RSCComponent />
+      <Root>
+        <RSCComponent />
+      </Root>
     </React.StrictMode>
   ))
 }
