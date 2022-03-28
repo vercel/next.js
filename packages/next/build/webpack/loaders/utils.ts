@@ -11,11 +11,3 @@ export function buildExports(moduleExports: any, isESM: boolean) {
   })
   return ret
 }
-
-const esmNodeTypes = [
-  'ImportDeclaration',
-  'ExportNamedDeclaration',
-  'ExportDefaultExpression',
-  'ExportDefaultDeclaration',
-]
-export const isEsmNodeType = (type: string) => esmNodeTypes.includes(type)

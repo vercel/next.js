@@ -981,6 +981,7 @@ export default async function getBaseWebpackConfig(
           ...(isEdgeRuntime
             ? [
                 {
+                  '@builder.io/partytown': '{}',
                   'next/dist/compiled/etag': '{}',
                   'next/dist/compiled/chalk': '{}',
                   'react-dom': '{}',

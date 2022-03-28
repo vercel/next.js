@@ -447,12 +447,18 @@ export default async function build(
         namedRegex?: string
         routeKeys?: { [key: string]: string }
       }>
-      dynamicRoutes: Array<{
-        page: string
-        regex: string
-        namedRegex?: string
-        routeKeys?: { [key: string]: string }
-      }>
+      dynamicRoutes: Array<
+        | {
+            page: string
+            regex: string
+            namedRegex?: string
+            routeKeys?: { [key: string]: string }
+          }
+        | {
+            page: string
+            isMiddleware: true
+          }
+      >
       dataRoutes: Array<{
         page: string
         routeKeys?: { [key: string]: string }
@@ -471,14 +477,14 @@ export default async function build(
         localeDetection?: false
       }
     } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => ({
-      version: 3,
+      version: 4,
       pages404: true,
       basePath: config.basePath,
       redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
       headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
       dynamicRoutes: getSortedRoutes(pageKeys)
-        .filter((page) => isDynamicRoute(page) && !page.match(MIDDLEWARE_ROUTE))
-        .map(pageToRoute),
+        .filter((page) => isDynamicRoute(page))
+        .map(pageToRouteOrMiddleware),
       staticRoutes: getSortedRoutes(pageKeys)
         .filter(
           (page) =>
@@ -960,8 +966,10 @@ export default async function build(
             let ssgPageRoutes: string[] | null = null
             let isMiddlewareRoute = !!page.match(MIDDLEWARE_ROUTE)
 
-            const pagePath = pagePaths.find((_path) =>
-              _path.startsWith(actualPage + '.')
+            const pagePath = pagePaths.find(
+              (p) =>
+                p.startsWith(actualPage + '.') ||
+                p.startsWith(actualPage + '/index.')
             )
             const pageRuntime =
               hasConcurrentFeatures && pagePath
@@ -974,7 +982,7 @@ export default async function build(
             if (
               !isMiddlewareRoute &&
               !isReservedPage(page) &&
-              // We currently don't support staic optimization in the Edge runtime.
+              // We currently don't support static optimization in the Edge runtime.
               pageRuntime !== 'edge'
             ) {
               try {
@@ -2187,4 +2195,15 @@ function pageToRoute(page: string) {
     routeKeys: routeRegex.routeKeys,
     namedRegex: routeRegex.namedRegex,
   }
+}
+
+function pageToRouteOrMiddleware(page: string) {
+  if (page.match(MIDDLEWARE_ROUTE)) {
+    return {
+      page: page.replace(/\/_middleware$/, '') || '/',
+      isMiddleware: true as const,
+    }
+  }
+
+  return pageToRoute(page)
 }
