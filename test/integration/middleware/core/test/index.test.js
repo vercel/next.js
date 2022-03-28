@@ -139,6 +139,20 @@ describe('Middleware base tests', () => {
 })
 
 function urlTests(_log, locale = '') {
+  it('should set fetch user agent correctly', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/interface/fetchUserAgentDefault`
+    )
+    expect((await res.json()).headers['user-agent']).toBe('Next.js Middleware')
+
+    const res2 = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/interface/fetchUserAgentCustom`
+    )
+    expect((await res2.json()).headers['user-agent']).toBe('custom-agent')
+  })
+
   it('rewrites by default to a target location', async () => {
     const res = await fetchViaHTTP(context.appPort, `${locale}/urls`)
     const html = await res.text()

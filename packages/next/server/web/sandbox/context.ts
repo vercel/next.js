@@ -154,7 +154,10 @@ async function createModuleContext(options: {
     const prevs = init.headers.get(`x-middleware-subrequest`)?.split(':') || []
     const value = prevs.concat(options.module).join(':')
     init.headers.set('x-middleware-subrequest', value)
-    init.headers.set(`user-agent`, `Next.js Middleware`)
+
+    if (!init.headers.has('user-agent')) {
+      init.headers.set(`user-agent`, `Next.js Middleware`)
+    }
 
     if (typeof input === 'object' && 'url' in input) {
       return fetch(input.url, {
