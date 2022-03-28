@@ -48,7 +48,7 @@ describe('React 17 with React 18 config', () => {
     )
   })
 
-  test('suspense is not allowed in blocking rendering mode', async () => {
+  it('suspense is not allowed in blocking rendering mode', async () => {
     const { stderr, code } = await nextBuild(appDir, [], {
       stderr: true,
     })
