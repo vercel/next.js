@@ -7,6 +7,8 @@ import {
   imageConfigDefault,
 } from '../shared/lib/image-config'
 
+export type PageRuntime = 'nodejs' | 'edge' | undefined
+
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
   typescript: Required<TypeScriptConfig>
@@ -101,7 +103,7 @@ export interface ExperimentalConfig {
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
-  runtime?: 'nodejs' | 'edge'
+  runtime?: Exclude<PageRuntime, undefined>
   serverComponents?: boolean
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
@@ -118,6 +120,14 @@ export interface ExperimentalConfig {
         autoLabel?: 'dev-only' | 'always' | 'never'
         labelFormat?: string
       }
+  modularizeImports?: Record<
+    string,
+    {
+      transform: string
+      preventFullImport?: boolean
+      skipDefaultConversion?: boolean
+    }
+  >
 }
 
 /**

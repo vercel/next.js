@@ -99,7 +99,10 @@ function getPackageVersion(packageName: string) {
 
 function getBinaryVersion(binaryName: string) {
   try {
-    return childProcess.execSync(`${binaryName} --version`).toString().trim()
+    return childProcess
+      .execFileSync(binaryName, ['--version'])
+      .toString()
+      .trim()
   } catch {
     return 'N/A'
   }
