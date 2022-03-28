@@ -1,3 +1,5 @@
+// use tsx to cover typescript usage of next/dynamic + suspense: true
+
 import React from 'react'
 import dynamic from 'next/dynamic'
 

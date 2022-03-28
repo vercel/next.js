@@ -7,7 +7,7 @@ export default (context, _render) => {
   async function withBrowser(path, cb) {
     let browser
     try {
-      browser = await webdriver(context.appPort, path, false)
+      browser = await webdriver(context.appPort, path)
       await cb(browser)
     } finally {
       if (browser) {
@@ -15,61 +15,6 @@ export default (context, _render) => {
       }
     }
   }
-
-  it('should resolve suspense modules on server side if suspense', async () => {
-    await withBrowser('/suspense/no-preload', async (browser) => {
-      await check(() => browser.waitForElementByCss('#__next').text(), /barfoo/)
-      await check(
-        () => browser.eval('typeof __NEXT_DATA__.dynamicIds'),
-        /undefined/
-      )
-    })
-  })
-
-  it('should resolve suspense on server side if not suspended on server', async () => {
-    await withBrowser('/suspense/no-thrown', async (browser) => {
-      await check(
-        () => browser.waitForElementByCss('#server-rendered').text(),
-        /true/
-      )
-      await check(
-        () => browser.eval('typeof __NEXT_DATA__.dynamicIds'),
-        /undefined/
-      )
-    })
-  })
-
-  it('should resolve suspense on server side if suspended on server', async () => {
-    await withBrowser('/suspense/thrown', async (browser) => {
-      await check(
-        () => browser.waitForElementByCss('#server-rendered').text(),
-        /true/
-      )
-      await check(
-        () => browser.eval('typeof __NEXT_DATA__.dynamicIds'),
-        /undefined/
-      )
-    })
-  })
-
-  it('should hydrate suspenses on client side if suspended on server', async () => {
-    await withBrowser('/suspense/thrown', async (browser) => {
-      await check(() => browser.waitForElementByCss('#hydrated').text(), /true/)
-      await check(
-        () => browser.eval('typeof __NEXT_DATA__.dynamicIds'),
-        /undefined/
-      )
-    })
-  })
-
-  it('should drain the entire response', async () => {
-    await withBrowser('/suspense/backpressure', async (browser) => {
-      await check(
-        () => browser.eval('document.querySelectorAll(".item").length'),
-        /2000/
-      )
-    })
-  })
 
   it('throws if useFlushEffects is used more than once', async () => {
     await renderViaHTTP(context.appPort, '/use-flush-effect/multiple-calls')
@@ -94,7 +39,7 @@ export default (context, _render) => {
         /blue/
       )
       await check(
-        () => browser.waitForElementByCss('#__jsx-c74678abd3b78a').text(),
+        () => browser.waitForElementByCss('#__jsx-8b0811664c4e575e').text(),
         /red/
       )
     })
