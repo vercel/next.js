@@ -97,7 +97,7 @@ pub fn transform_css(
             .map(|quasi| {
                 TplElement {
                     cooked: None, // ? Do we need cooked as well
-                    raw: quasi.replace("`", "\\`").into(),
+                    raw: quasi.replace('`', "\\`").into(),
                     span: DUMMY_SP,
                     tail: false,
                 }
