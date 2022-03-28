@@ -307,7 +307,7 @@ function checkRedirectValues(
 
 const rscCache = new Map()
 
-function createRSCHook() {
+function createFlightHook() {
   return (
     writable: WritableStream<Uint8Array>,
     id: string,

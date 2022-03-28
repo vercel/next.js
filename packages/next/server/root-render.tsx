@@ -37,7 +37,7 @@ export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
 const rscCache = new Map()
 
-function createRSCHook() {
+function createFlightHook() {
   return (
     writable: WritableStream<Uint8Array>,
     id: string,
@@ -86,7 +86,7 @@ function createRSCHook() {
   }
 }
 
-const useRSCResponse = createRSCHook()
+const useFlightResponse = createFlightHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
@@ -118,7 +118,7 @@ function createServerComponentRenderer(
       serverComponentManifest
     )
 
-    const response = useRSCResponse(
+    const response = useFlightResponse(
       writable,
       cachePrefix + ',' + id,
       reqStream,
@@ -249,6 +249,14 @@ export async function renderToHTML(
   serverComponentsInlinedTransformStream = new TransformStream()
   const search = stringifyQuery(query)
 
+  /*
+RootLayout -> root.js
+ClientComponentRoute -> root/client-component-route.client.js
+    
+    <RootLayout>
+      <ClientComponentRoute />
+    </RootLayout>
+  */
   const Component = createServerComponentRenderer(RootLayout, ComponentMod, {
     cachePrefix: pathname + (search ? `?${search}` : ''),
     transformStream: serverComponentsInlinedTransformStream,
