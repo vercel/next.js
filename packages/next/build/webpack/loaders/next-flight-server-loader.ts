@@ -184,6 +184,7 @@ export default async function transformSource(
       __webpack_require__,
       _: () => {\n${imports}\n}
     }`,
+    __next_rsc_server__: isServerComponent(resourcePath) ? 'true' : 'false',
   }
 
   if (isClientCompilation) {
