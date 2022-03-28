@@ -24,6 +24,10 @@ export default function Page() {
         <a>to /node-rsc-ssr</a>
       </Link>
       <br />
+      <Link href="/node-rsc-isr">
+        <a>to /node-rsc-isr</a>
+      </Link>
+      <br />
       <Link href="/node-ssg">
         <a>to /node-ssg</a>
       </Link>
