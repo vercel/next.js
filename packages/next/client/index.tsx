@@ -808,7 +808,7 @@ if (process.env.__NEXT_RSC) {
     const startTransition = (React as any).startTransition
     const rerender = () => dispatch({})
     // If there is no cache, or there is serialized data already
-    function refreshCache(nextProps: any) {
+    function refreshCache(nextProps?: any) {
       startTransition(() => {
         const currentCacheKey = getCacheKey()
         const response = createFromFetch(
