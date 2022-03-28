@@ -135,7 +135,7 @@ export async function getPageRuntime(
     try {
       const { body } = await parse(pageContent, {
         filename: pageFilePath,
-        isModule: true,
+        isModule: 'unknown',
       })
 
       for (const node of body) {
