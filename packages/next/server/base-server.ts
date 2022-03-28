@@ -1129,7 +1129,12 @@ export default abstract class Server {
     const isServerComponent = !!components.ComponentMod?.__next_rsc__
     const isSSG =
       !!components.getStaticProps ||
-      (isServerComponent && !hasServerProps && !hasGetInitialProps)
+      // For static server component pages, we currently always consider them
+      // as SSG since we also need to handle the next data.
+      (isServerComponent &&
+        !hasServerProps &&
+        !hasGetInitialProps &&
+        !process.browser)
 
     // Toggle whether or not this is a Data request
     const isDataReq =
