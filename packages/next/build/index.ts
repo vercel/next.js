@@ -76,7 +76,11 @@ import {
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { CompilerResult, runCompiler } from './compiler'
-import { createEntrypoints, createPagesMapping } from './entries'
+import {
+  createEntrypoints,
+  createPagesMapping,
+  getPageRuntime,
+} from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
@@ -153,11 +157,10 @@ export default async function build(
     setGlobal('phase', PHASE_PRODUCTION_BUILD)
     setGlobal('distDir', distDir)
 
-    // Currently, when the runtime option is set (either `nodejs` or `edge`),
-    // we enable concurrent features (Fizz-related rendering architecture).
-    const runtime = config.experimental.runtime
+    // We enable concurrent features (Fizz-related rendering architecture) when
+    // using React 18 or experimental.
     const hasReactRoot = shouldUseReactRoot()
-    const hasConcurrentFeatures = !!runtime
+    const hasConcurrentFeatures = hasReactRoot
 
     const hasServerComponents =
       hasReactRoot && !!config.experimental.serverComponents
@@ -622,6 +625,7 @@ export default async function build(
               entrypoints: entrypoints.client,
               rewrites,
               runWebpackSpan,
+              hasReactRoot,
             }),
             getBaseWebpackConfig(dir, {
               buildId,
@@ -633,6 +637,7 @@ export default async function build(
               entrypoints: entrypoints.server,
               rewrites,
               runWebpackSpan,
+              hasReactRoot,
             }),
             hasReactRoot
               ? getBaseWebpackConfig(dir, {
@@ -646,6 +651,7 @@ export default async function build(
                   entrypoints: entrypoints.edgeServer,
                   rewrites,
                   runWebpackSpan,
+                  hasReactRoot,
                 })
               : null,
           ])
@@ -954,10 +960,24 @@ export default async function build(
             let ssgPageRoutes: string[] | null = null
             let isMiddlewareRoute = !!page.match(MIDDLEWARE_ROUTE)
 
+            const pagePath = pagePaths.find(
+              (p) =>
+                p.startsWith(actualPage + '.') ||
+                p.startsWith(actualPage + '/index.')
+            )
+            const pageRuntime =
+              hasConcurrentFeatures && pagePath
+                ? await getPageRuntime(
+                    join(pagesDir, pagePath),
+                    config.experimental.runtime
+                  )
+                : undefined
+
             if (
               !isMiddlewareRoute &&
               !isReservedPage(page) &&
-              !hasConcurrentFeatures
+              // We currently don't support static optimization in the Edge runtime.
+              pageRuntime !== 'edge'
             ) {
               try {
                 let isPageStaticSpan =
@@ -1066,14 +1086,13 @@ export default async function build(
               totalSize: allSize,
               static: isStatic,
               isSsg,
-              isWebSsr:
-                hasConcurrentFeatures &&
-                !isMiddlewareRoute &&
-                !isReservedPage(page) &&
-                !isCustomErrorPage(page),
               isHybridAmp,
               ssgPageRoutes,
               initialRevalidateSeconds: false,
+              runtime:
+                !isReservedPage(page) && !isCustomErrorPage(page)
+                  ? pageRuntime
+                  : undefined,
               pageDuration: undefined,
               ssgPageDurations: undefined,
             })
@@ -1483,10 +1502,7 @@ export default async function build(
 
     const combinedPages = [...staticPages, ...ssgPages]
 
-    if (
-      !hasConcurrentFeatures &&
-      (combinedPages.length > 0 || useStatic404 || useDefaultStatic500)
-    ) {
+    if (combinedPages.length > 0 || useStatic404 || useDefaultStatic500) {
       const staticGenerationSpan = nextBuildSpan.traceChild('static-generation')
       await staticGenerationSpan.traceAsyncFn(async () => {
         detectConflictingPaths(
@@ -1659,7 +1675,7 @@ export default async function build(
                       // strip leading / and then recurse number of nested dirs
                       // to place from base folder
                       originPage
-                        .substr(1)
+                        .slice(1)
                         .split('/')
                         .map(() => '..')
                         .join('/')
@@ -1709,7 +1725,7 @@ export default async function build(
                 for (const locale of i18n.locales) {
                   const curPath = `/${locale}${page === '/' ? '' : page}`
                   const localeExt = page === '/' ? path.extname(file) : ''
-                  const relativeDestNoPages = relativeDest.substr(
+                  const relativeDestNoPages = relativeDest.slice(
                     'pages/'.length
                   )
 

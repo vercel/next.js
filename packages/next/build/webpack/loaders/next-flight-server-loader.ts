@@ -1,5 +1,6 @@
 import { parse } from '../../swc'
 import { getRawPageExtensions } from '../../utils'
+import { buildExports } from './utils'
 
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
 
@@ -24,7 +25,7 @@ const createServerComponentFilter = (pageExtensions: string[]) => {
   return (importSource: string) => regex.test(importSource)
 }
 
-async function parseImportsInfo({
+async function parseModuleInfo({
   resourcePath,
   source,
   isClientCompilation,
@@ -39,13 +40,17 @@ async function parseImportsInfo({
 }): Promise<{
   source: string
   imports: string
+  isEsm: boolean
 }> {
-  const ast = await parse(source, { filename: resourcePath, isModule: true })
-  const { body } = ast
-
+  const ast = await parse(source, {
+    filename: resourcePath,
+    isModule: 'unknown',
+  })
+  const { type, body } = ast
   let transformedSource = ''
   let lastIndex = 0
   let imports = ''
+  const isEsm = type === 'Module'
 
   for (let i = 0; i < body.length; i++) {
     const node = body[i]
@@ -117,7 +122,7 @@ async function parseImportsInfo({
     transformedSource += source.substring(lastIndex)
   }
 
-  return { source: transformedSource, imports }
+  return { source: transformedSource, imports, isEsm }
 }
 
 export default async function transformSource(
@@ -152,7 +157,11 @@ export default async function transformSource(
     }
   }
 
-  const { source: transformedSource, imports } = await parseImportsInfo({
+  const {
+    source: transformedSource,
+    imports,
+    isEsm,
+  } = await parseModuleInfo({
     resourcePath,
     source,
     isClientCompilation,
@@ -172,14 +181,17 @@ export default async function transformSource(
    *   export const __next_rsc__ = { __webpack_require__, _: () => { ... } }
    */
 
-  let rscExports = `export const __next_rsc__={
-    __webpack_require__,
-    _: () => {${imports}}
-  }`
-
-  if (isClientCompilation) {
-    rscExports += '\nexport default function RSC () {}'
+  const rscExports: any = {
+    __next_rsc__: `{
+      __webpack_require__,
+      _: () => {\n${imports}\n}
+    }`,
   }
 
-  return transformedSource + '\n' + rscExports
+  if (isClientCompilation) {
+    rscExports['default'] = 'function RSC() {}'
+  }
+
+  const output = transformedSource + '\n' + buildExports(rscExports, isEsm)
+  return output
 }

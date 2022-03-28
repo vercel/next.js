@@ -79,7 +79,8 @@ function hasComponentProps(child: any): child is React.ReactElement {
 function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
   const { assetPrefix, scriptLoader, crossOrigin, nextScriptWorkers } = context
 
-  if (!nextScriptWorkers) return null
+  // disable `nextScriptWorkers` in edge runtime
+  if (!nextScriptWorkers || process.browser) return null
 
   try {
     let {

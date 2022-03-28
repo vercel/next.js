@@ -142,7 +142,7 @@ export class NextStartInstance extends NextInstance {
         this.childProcess = undefined
         resolve({
           exitCode: signal || code,
-          cliOutput: this.cliOutput.substr(curOutput),
+          cliOutput: this.cliOutput.slice(curOutput),
         })
       })
     })
