@@ -51,7 +51,11 @@ async function createNextInstall(
 
   const pkgPaths = await linkPackages(tmpRepoDir)
   const combinedDependencies = {
-    ...dependencies,
+    ...Object.keys(dependencies).reduce((prev, pkg) => {
+      const pkgPath = pkgPaths.get(pkg)
+      prev[pkg] = pkgPath || dependencies[pkg]
+      return prev
+    }, {}),
     next: pkgPaths.get('next'),
   }
 
