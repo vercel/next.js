@@ -96,7 +96,7 @@ describe('root dir', () => {
     // Should be nested in dashboard
     expect($('h1').text()).toBe('Dashboard')
     // Should be nested in deployments
-    expect($('h2').text()).toBe('Deployments (hello)')
+    expect($('h2').text()).toBe('Deployments hello')
   })
 
   it('should serve dynamic parameter', async () => {
@@ -220,6 +220,11 @@ describe('root dir', () => {
       // Without .client.js should serve
       const html = await renderViaHTTP(next.url, '/shared-component-route')
       expect(html).toContain('hello from root/shared-component-route')
+    })
+
+    it('should serve client component', async () => {
+      const html = await renderViaHTTP(next.url, '/client-component-route')
+      expect(html).toContain('hello from root/client-component-route')
     })
   })
 })
