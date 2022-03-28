@@ -225,11 +225,12 @@ describe('root dir', () => {
 
     it('should serve client component', async () => {
       const html = await renderViaHTTP(next.url, '/client-component-route')
-      expect(html).toContain('hello from root/client-component-route')
+      expect(html).toContain('hello from root/client-component-route. count: 0')
 
       const browser = await webdriver(next.url, '/')
+      // After hydration count should be 1
       expect(await browser.elementByCss('p').text()).toBe(
-        'hello from root/client-component-route'
+        'hello from root/client-component-route. count: 1'
       )
     })
 
