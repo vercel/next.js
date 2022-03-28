@@ -1200,7 +1200,7 @@ const runTests = (isDev = false) => {
       }
 
       expect(manifest).toEqual({
-        version: 3,
+        version: 4,
         pages404: true,
         basePath: '',
         dataRoutes: [
