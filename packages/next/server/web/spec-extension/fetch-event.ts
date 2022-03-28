@@ -13,7 +13,7 @@ export class NextFetchEvent extends FetchEvent {
   /**
    * @deprecated The `request` is now the first parameter and the API is now async.
    *
-   * Read more: https://nextjs.org/docs/messages/middleware-new-signature.
+   * Read more: https://nextjs.org/docs/messages/middleware-new-signature
    */
   get request() {
     throw new DeprecationError({
@@ -24,7 +24,7 @@ export class NextFetchEvent extends FetchEvent {
   /**
    * @deprecated Using `respondWith` is no longer needed.
    *
-   * Read more: https://nextjs.org/docs/messages/middleware-new-signature.
+   * Read more: https://nextjs.org/docs/messages/middleware-new-signature
    */
   respondWith() {
     throw new DeprecationError({
