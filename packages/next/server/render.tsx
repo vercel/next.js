@@ -740,7 +740,6 @@ export async function renderToHTML(
     AppTree: (props: any) => {
       return (
         <AppContainerWithIsomorphicFiberStructure>
-          {/* <App {...props} Component={Component} router={router} /> */}
           {renderFlight(AppMod, ComponentMod, { ...props, router })}
         </AppContainerWithIsomorphicFiberStructure>
       )

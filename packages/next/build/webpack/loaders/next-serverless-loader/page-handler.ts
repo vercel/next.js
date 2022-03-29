@@ -105,6 +105,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
     const options = {
       AppMod,
       Document,
+      ComponentMod: { default: Component },
       buildManifest,
       getStaticProps,
       getServerSideProps,
