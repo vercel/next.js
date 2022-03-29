@@ -56,5 +56,58 @@ ruleTester.run('no-img-element', rule, {
         },
       ],
     },
+    {
+      code: `
+      import styled from 'styled-components'
+      const StyledImage = styled.img\`\`
+      export class MyComponent {
+        render() {
+          return (
+            <div>
+              <StyledImage
+                src="/test.png"
+                alt="Test picture"
+                width={500}
+                height={500}
+              />
+            </div>
+          );
+        }
+      }`,
+      errors: [
+        {
+          message:
+            "Do not use <img>. Use Image from 'next/image' instead. See: https://nextjs.org/docs/messages/no-img-element",
+          type: 'MemberExpression',
+        },
+      ],
+    },
+    {
+      code: `
+      import styled from 'styled-components'
+      const StyledImage = styled.img.attrs({
+        width: 500,
+        height: 500,
+      })\`\`
+      export class MyComponent {
+        render() {
+          return (
+            <div>
+              <StyledImage
+                src="/test.png"
+                alt="Test picture"
+              />
+            </div>
+          );
+        }
+      }`,
+      errors: [
+        {
+          message:
+            "Do not use <img>. Use Image from 'next/image' instead. See: https://nextjs.org/docs/messages/no-img-element",
+          type: 'MemberExpression',
+        },
+      ],
+    },
   ],
 })
