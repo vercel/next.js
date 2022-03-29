@@ -971,13 +971,9 @@ export default async function build(
                 p.startsWith(actualPage + '.') ||
                 p.startsWith(actualPage + '/index.')
             )
-            const pageRuntime =
-              hasConcurrentFeatures && pagePath
-                ? await getPageRuntime(
-                    join(pagesDir, pagePath),
-                    config.experimental.runtime
-                  )
-                : undefined
+            const pageRuntime = pagePath
+              ? await getPageRuntime(join(pagesDir, pagePath), config)
+              : undefined
 
             if (
               !isMiddlewareRoute &&

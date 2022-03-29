@@ -507,9 +507,10 @@ export default class HotReloader {
               this.hasServerComponents &&
               isFlightPage(this.config, absolutePagePath)
 
-            const pageRuntimeConfig = this.hasReactRoot
-              ? await getPageRuntime(absolutePagePath, this.runtime)
-              : undefined
+            const pageRuntimeConfig = await getPageRuntime(
+              absolutePagePath,
+              this.config
+            )
             const isEdgeSSRPage = pageRuntimeConfig === 'edge' && !isApiRoute
 
             if (isNodeServerCompilation && isEdgeSSRPage && !isCustomError) {

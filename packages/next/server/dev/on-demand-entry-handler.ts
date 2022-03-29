@@ -206,12 +206,10 @@ export default function onDemandEntryHandler(
 
       const isMiddleware = normalizedPage.match(MIDDLEWARE_ROUTE)
       const isApiRoute = normalizedPage.match(API_ROUTE) && !isMiddleware
-      const pageRuntimeConfig = hasReactRoot
-        ? await getPageRuntime(
-            absolutePagePath,
-            nextConfig.experimental.runtime
-          )
-        : undefined
+      const pageRuntimeConfig = await getPageRuntime(
+        absolutePagePath,
+        nextConfig
+      )
       const isEdgeServer = pageRuntimeConfig === 'edge'
 
       const isCustomError = isCustomErrorPage(page)

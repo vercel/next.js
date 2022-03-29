@@ -283,12 +283,10 @@ export default class DevServer extends Server {
           pageName = pageName.replace(/\/index$/, '') || '/'
 
           invalidatePageRuntimeCache(fileName, safeTime)
-          const pageRuntimeConfig = this.renderOpts.reactRoot
-            ? await getPageRuntime(
-                fileName,
-                this.nextConfig.experimental.runtime
-              )
-            : undefined
+          const pageRuntimeConfig = await getPageRuntime(
+            fileName,
+            this.nextConfig
+          )
           const isEdgeRuntime = pageRuntimeConfig === 'edge'
 
           if (

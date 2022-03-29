@@ -1,4 +1,8 @@
-import type { PageRuntime, NextConfigComplete } from '../server/config-shared'
+import type {
+  PageRuntime,
+  NextConfigComplete,
+  NextConfig,
+} from '../server/config-shared'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import fs from 'fs'
 import chalk from 'next/dist/compiled/chalk'
@@ -105,16 +109,25 @@ const cachedPageRuntimeConfig = new Map<string, [number, PageRuntime]>()
 // could be thousands of pages existing.
 export async function getPageRuntime(
   pageFilePath: string,
-  globalRuntimeFallback?: 'nodejs' | 'edge'
+  nextConfig: NextConfig
 ): Promise<PageRuntime> {
+  if (!nextConfig.experimental?.reactRoot) return undefined
+
+  const globalRuntime = nextConfig.experimental?.runtime
   const cached = cachedPageRuntimeConfig.get(pageFilePath)
   if (cached) {
     return cached[1]
   }
 
-  const pageContent = await fs.promises.readFile(pageFilePath, {
-    encoding: 'utf8',
-  })
+  let pageContent: string
+  try {
+    pageContent = await fs.promises.readFile(pageFilePath, {
+      encoding: 'utf8',
+    })
+  } catch (err) {
+    if (process.env.NODE_ENV === 'production') throw err
+    return undefined
+  }
 
   // When gSSP or gSP is used, this page requires an execution runtime. If the
   // page config is not present, we fallback to the global runtime. Related
@@ -178,7 +191,7 @@ export async function getPageRuntime(
 
   if (!pageRuntime) {
     if (isRuntimeRequired) {
-      pageRuntime = globalRuntimeFallback
+      pageRuntime = globalRuntime
     }
   }
 
@@ -241,8 +254,6 @@ export async function createEntrypoints(
     reactRoot: hasReactRoot ? 'true' : '',
   }
 
-  const globalRuntime = config.experimental.runtime
-
   await Promise.all(
     Object.keys(pages).map(async (page) => {
       const absolutePagePath = pages[page]
@@ -256,13 +267,11 @@ export async function createEntrypoints(
       const isReserved = isReservedPage(page)
       const isCustomError = isCustomErrorPage(page)
       const isFlight = isFlightPage(config, absolutePagePath)
-      const isInternalPages = !absolutePagePath.includes(PAGES_DIR_ALIAS)
+      const isInternalPages = !absolutePagePath.startsWith(PAGES_DIR_ALIAS)
       const pageFilePath = isInternalPages
         ? require.resolve(absolutePagePath)
         : join(pagesDir, absolutePagePath.replace(PAGES_DIR_ALIAS, ''))
-      const pageRuntime = hasReactRoot
-        ? await getPageRuntime(pageFilePath, globalRuntime)
-        : undefined
+      const pageRuntime = await getPageRuntime(pageFilePath, config)
       const isEdgeRuntime = pageRuntime === 'edge'
 
       if (page.match(MIDDLEWARE_ROUTE)) {
