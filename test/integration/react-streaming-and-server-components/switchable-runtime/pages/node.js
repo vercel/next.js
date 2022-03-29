@@ -13,27 +13,27 @@ export default function Page() {
       <Time />
       <br />
       <Link href="/node-rsc">
-        <a>to /node-rsc</a>
+        <a id="link-node-rsc">to /node-rsc</a>
       </Link>
       <br />
       <Link href="/node-rsc-ssg">
-        <a>to /node-rsc-ssg</a>
+        <a id="link-node-rsc-ssg">to /node-rsc-ssg</a>
       </Link>
       <br />
       <Link href="/node-rsc-ssr">
-        <a>to /node-rsc-ssr</a>
+        <a id="link-node-rsc-ssr">to /node-rsc-ssr</a>
       </Link>
       <br />
       <Link href="/node-rsc-isr">
-        <a>to /node-rsc-isr</a>
+        <a id="link-node-rsc-isr">to /node-rsc-isr</a>
       </Link>
       <br />
       <Link href="/node-ssg">
-        <a>to /node-ssg</a>
+        <a id="link-node-ssg">to /node-ssg</a>
       </Link>
       <br />
       <Link href="/node-ssr">
-        <a>to /node-ssr</a>
+        <a id="link-node-ssr">to /node-ssr</a>
       </Link>
     </div>
   )
