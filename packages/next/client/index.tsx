@@ -87,7 +87,6 @@ let webpackHMR: any
 
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 let CachedComponent: React.ComponentType
-let isAppRSC: boolean
 let isRSCPage: boolean
 
 class Container extends React.Component<{
@@ -289,7 +288,6 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
     const { component: app, exports: mod } = appEntrypoint
     CachedApp = app as AppComponent
-    isAppRSC = !!mod.__next_rsc__
     const exportedReportWebVitals = mod && mod.reportWebVitals
     onPerfEntry = ({
       id,

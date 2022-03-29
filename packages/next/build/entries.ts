@@ -102,15 +102,14 @@ export function createPagesMapping(
     pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
     pages['/_document'] = `${PAGES_DIR_ALIAS}/_document`
     if (hasServerComponents) {
-      pages['/_app.server'] = `${PAGES_DIR_ALIAS}/_app.server`
+      pages['/_app.server'] = `${PAGES_DIR_ALIAS}/_app.server` || pages['/_app']
     }
   } else {
     pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
     pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
     pages['/_document'] = pages['/_document'] || `next/dist/pages/_document`
     if (hasServerComponents) {
-      pages['/_app.server'] =
-        pages['/_app.server'] || 'next/dist/pages/_app.server'
+      pages['/_app.server'] = pages['/_app.server'] || pages['/_app'] // 'next/dist/pages/_app.server'
     }
   }
   return pages
