@@ -98,20 +98,20 @@ export function createPagesMapping(
   // allow falling back to the correct source file so
   // that HMR can work properly when a file is added/removed
   if (isDev) {
-    pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
-    pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
-    pages['/_document'] = `${PAGES_DIR_ALIAS}/_document`
     if (hasServerComponents) {
       pages['/_app.server'] = `${PAGES_DIR_ALIAS}/_app.server`
     }
+    pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
+    pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
+    pages['/_document'] = `${PAGES_DIR_ALIAS}/_document`
   } else {
-    pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
-    pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
-    pages['/_document'] = pages['/_document'] || 'next/dist/pages/_document'
     if (hasServerComponents) {
       pages['/_app.server'] =
         pages['/_app.server'] || 'next/dist/pages/_app.server'
     }
+    pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
+    pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
+    pages['/_document'] = pages['/_document'] || 'next/dist/pages/_document'
   }
   return pages
 }

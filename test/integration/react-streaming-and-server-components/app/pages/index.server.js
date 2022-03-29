@@ -14,7 +14,7 @@ export default function Index({ header, router }) {
     </div>
   )
 }
-
+/*
 export function getServerSideProps({ req }) {
   const { headers } = req
   const header = headers[headerKey] || ''
@@ -25,3 +25,4 @@ export function getServerSideProps({ req }) {
     },
   }
 }
+*/

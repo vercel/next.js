@@ -166,12 +166,6 @@ export default async function transformSource(
     throw new Error('Expected source to have been transformed to a string.')
   }
 
-  // We currently assume that all components are shared components (unsuffixed)
-  // from node_modules.
-  if (resourcePath.includes('/node_modules/')) {
-    return source
-  }
-
   const rawRawPageExtensions = getRawPageExtensions(pageExtensions)
   const isServerComponent = createServerComponentFilter(rawRawPageExtensions)
   const isClientComponent = createClientComponentFilter(rawRawPageExtensions)

@@ -977,6 +977,14 @@ export default async function getBaseWebpackConfig(
     },
   }
 
+  const rscCodeCondition = {
+    test: codeCondition.test,
+    include: codeCondition.include
+      ? [...codeCondition.include, /node_modules/]
+      : /node_modules/,
+    exclude: () => false,
+  }
+
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     externals: targetWeb
@@ -1199,7 +1207,7 @@ export default async function getBaseWebpackConfig(
             ? [
                 // RSC server compilation loaders
                 {
-                  ...codeCondition,
+                  ...rscCodeCondition,
                   use: {
                     loader: 'next-flight-server-loader',
                     options: {
@@ -1208,7 +1216,7 @@ export default async function getBaseWebpackConfig(
                   },
                 },
                 {
-                  test: codeCondition.test,
+                  ...rscCodeCondition,
                   resourceQuery: /__sc_client__/,
                   use: {
                     loader: 'next-flight-client-loader',
@@ -1218,7 +1226,7 @@ export default async function getBaseWebpackConfig(
             : [
                 // RSC client compilation loaders
                 {
-                  ...codeCondition,
+                  ...rscCodeCondition,
                   test: serverComponentsRegex,
                   use: {
                     loader: 'next-flight-server-loader',

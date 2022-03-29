@@ -1376,7 +1376,7 @@ export async function renderToHTML(
       ) : (
         <Body>
           <AppContainerWithIsomorphicFiberStructure>
-            {isServerComponent && AppServerMod.__next_rsc__ ? (
+            {isServerComponent && !!AppMod.__next_rsc__ ? (
               // _app.server.js is used.
               <Component {...props.pageProps} router={router} />
             ) : (
