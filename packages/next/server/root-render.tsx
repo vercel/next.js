@@ -47,10 +47,9 @@ const enum RecordStatus {
 
 type Record = {
   status: RecordStatus
-  value: Promise<any>
+  value: any
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function createRecordFromThenable(thenable: Promise<any>) {
   const record: Record = {
     status: RecordStatus.Pending,
@@ -75,13 +74,28 @@ function createRecordFromThenable(thenable: Promise<any>) {
   return record
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function readRecordValue(record: Record) {
   if (record.status === RecordStatus.Resolved) {
     return record.value
   } else {
     throw record.value
   }
+}
+
+function preloadDataFetchingRecord(
+  map: Map<string, Record>,
+  key: string,
+  fetcher: () => Promise<any> | any
+) {
+  let record = map.get(key)
+
+  if (!record) {
+    const thenable = fetcher()
+    record = createRecordFromThenable(thenable)
+    map.set(key, record)
+  }
+
+  return record
 }
 
 function createFlightHook() {
@@ -220,63 +234,96 @@ export async function renderToHTML(
   let WrappedComponent: any
   let RootLayout: any
 
+  const dataCache = new Map<string, Record>()
+
   for (let i = layouts.length - 1; i >= 0; i--) {
+    const dataCacheKey = i.toString()
     const layout = layouts[i]
 
     if (layout.isRoot) {
       RootLayout = layout.Component
       continue
     }
-    let props = {}
+    let fetcher: any
 
     // TODO: pass a shared cache from previous getStaticProps/
     // getServerSideProps calls?
     if (layout.getServerSideProps) {
-      const gsspRes = await layout.getServerSideProps({
-        req: req as any,
-        res: res,
-        query,
-        resolvedUrl: (renderOpts as any).resolvedUrl as string,
-        ...(pageIsDynamic
-          ? { params: (renderOpts as any).params as ParsedUrlQuery }
-          : undefined),
-        ...(isPreview
-          ? { preview: true, previewData: previewData }
-          : undefined),
-        locales: (renderOpts as any).locales,
-        locale: (renderOpts as any).locale,
-        defaultLocale: (renderOpts as any).defaultLocale,
-      })
-
-      if ((gsspRes as any).props) {
-        props = (gsspRes as any).props
-      }
+      fetcher = () =>
+        Promise.resolve(
+          layout.getServerSideProps!({
+            req: req as any,
+            res: res,
+            query,
+            resolvedUrl: (renderOpts as any).resolvedUrl as string,
+            ...(pageIsDynamic
+              ? { params: (renderOpts as any).params as ParsedUrlQuery }
+              : undefined),
+            ...(isPreview
+              ? { preview: true, previewData: previewData }
+              : undefined),
+            locales: (renderOpts as any).locales,
+            locale: (renderOpts as any).locale,
+            defaultLocale: (renderOpts as any).defaultLocale,
+          })
+        )
     }
     // TODO: implement layout specific caching for getStaticProps
     if (layout.getStaticProps) {
-      const gspRes = await layout.getStaticProps({
-        ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
-        ...(isPreview
-          ? { preview: true, previewData: previewData }
-          : undefined),
-        locales: (renderOpts as any).locales,
-        locale: (renderOpts as any).locale,
-        defaultLocale: (renderOpts as any).defaultLocale,
-      })
+      fetcher = () =>
+        Promise.resolve(
+          layout.getStaticProps!({
+            ...(pageIsDynamic
+              ? { params: query as ParsedUrlQuery }
+              : undefined),
+            ...(isPreview
+              ? { preview: true, previewData: previewData }
+              : undefined),
+            locales: (renderOpts as any).locales,
+            locale: (renderOpts as any).locale,
+            defaultLocale: (renderOpts as any).defaultLocale,
+          })
+        )
+    }
 
-      if ((gspRes as any).props) {
-        props = (gspRes as any).props
-      }
+    if (fetcher) {
+      // Kick off data fetching before rendering, this ensures there is no waterfall for layouts as
+      // all data fetching required to render the page is kicked off simultaneously
+      preloadDataFetchingRecord(dataCache, dataCacheKey, fetcher)
     }
 
     // eslint-disable-next-line no-loop-func
     const lastComponent = WrappedComponent
-    WrappedComponent = () =>
-      React.createElement(
+    WrappedComponent = () => {
+      let props: any
+      if (fetcher) {
+        // The data fetching was kicked off before rendering (see above)
+        // if the data was not resolved yet the layout rendering will be suspended
+        const record = preloadDataFetchingRecord(
+          dataCache,
+          dataCacheKey,
+          fetcher
+        )
+        // Result of calling getStaticProps or getServerSideProps. If promise is not resolve yet it will suspend.
+        const recordValue = readRecordValue(record)
+        props = recordValue.props
+      }
+
+      return React.createElement(
         layout.Component,
         props,
         React.createElement(lastComponent || React.Fragment, {}, null)
       )
+    }
+    // TODO: loading state
+    // const AfterWrap = WrappedComponent
+    // WrappedComponent = () => {
+    //   return (
+    //     <Suspense fallback={<>Loading...</>}>
+    //       <AfterWrap />
+    //     </Suspense>
+    //   )
+    // }
   }
 
   if (!RootLayout) {
