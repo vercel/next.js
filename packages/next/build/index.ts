@@ -448,12 +448,18 @@ export default async function build(
         namedRegex?: string
         routeKeys?: { [key: string]: string }
       }>
-      dynamicRoutes: Array<{
-        page: string
-        regex: string
-        namedRegex?: string
-        routeKeys?: { [key: string]: string }
-      }>
+      dynamicRoutes: Array<
+        | {
+            page: string
+            regex: string
+            namedRegex?: string
+            routeKeys?: { [key: string]: string }
+          }
+        | {
+            page: string
+            isMiddleware: true
+          }
+      >
       dataRoutes: Array<{
         page: string
         routeKeys?: { [key: string]: string }
@@ -472,14 +478,14 @@ export default async function build(
         localeDetection?: false
       }
     } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => ({
-      version: 3,
+      version: 4,
       pages404: true,
       basePath: config.basePath,
       redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
       headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
       dynamicRoutes: getSortedRoutes(pageKeys)
-        .filter((page) => isDynamicRoute(page) && !page.match(MIDDLEWARE_ROUTE))
-        .map(pageToRoute),
+        .filter((page) => isDynamicRoute(page))
+        .map(pageToRouteOrMiddleware),
       staticRoutes: getSortedRoutes(pageKeys)
         .filter(
           (page) =>
@@ -2202,4 +2208,15 @@ function pageToRoute(page: string) {
     routeKeys: routeRegex.routeKeys,
     namedRegex: routeRegex.namedRegex,
   }
+}
+
+function pageToRouteOrMiddleware(page: string) {
+  if (page.match(MIDDLEWARE_ROUTE)) {
+    return {
+      page: page.replace(/\/_middleware$/, '') || '/',
+      isMiddleware: true as const,
+    }
+  }
+
+  return pageToRoute(page)
 }
