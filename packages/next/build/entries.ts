@@ -112,14 +112,9 @@ export async function getPageRuntime(
     return cached[1]
   }
 
-  let pageContent: string
-  try {
-    pageContent = await fs.promises.readFile(pageFilePath, {
-      encoding: 'utf8',
-    })
-  } catch (err) {
-    return undefined
-  }
+  const pageContent = await fs.promises.readFile(pageFilePath, {
+    encoding: 'utf8',
+  })
 
   // When gSSP or gSP is used, this page requires an execution runtime. If the
   // page config is not present, we fallback to the global runtime. Related
@@ -217,6 +212,7 @@ export async function createEntrypoints(
   const hasRuntimeConfig =
     Object.keys(config.publicRuntimeConfig).length > 0 ||
     Object.keys(config.serverRuntimeConfig).length > 0
+  const hasReactRoot = !!config.experimental.reactRoot
 
   const defaultServerlessOptions = {
     absoluteAppPath: pages['/_app'],
@@ -242,7 +238,7 @@ export async function createEntrypoints(
       'base64'
     ),
     i18n: config.i18n ? JSON.stringify(config.i18n) : '',
-    reactRoot: config.experimental.reactRoot ? 'true' : '',
+    reactRoot: hasReactRoot ? 'true' : '',
   }
 
   const globalRuntime = config.experimental.runtime
@@ -260,11 +256,14 @@ export async function createEntrypoints(
       const isReserved = isReservedPage(page)
       const isCustomError = isCustomErrorPage(page)
       const isFlight = isFlightPage(config, absolutePagePath)
-      const isEdgeRuntime =
-        (await getPageRuntime(
-          join(pagesDir, absolutePagePath.slice(PAGES_DIR_ALIAS.length + 1)),
-          globalRuntime
-        )) === 'edge'
+      const isInternalPages = !absolutePagePath.includes(PAGES_DIR_ALIAS)
+      const pageFilePath = isInternalPages
+        ? require.resolve(absolutePagePath)
+        : join(pagesDir, absolutePagePath.replace(PAGES_DIR_ALIAS, ''))
+      const pageRuntime = hasReactRoot
+        ? await getPageRuntime(pageFilePath, globalRuntime)
+        : undefined
+      const isEdgeRuntime = pageRuntime === 'edge'
 
       if (page.match(MIDDLEWARE_ROUTE)) {
         const loaderOpts: MiddlewareLoaderOptions = {

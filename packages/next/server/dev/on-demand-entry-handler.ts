@@ -43,6 +43,7 @@ export default function onDemandEntryHandler(
 ) {
   const { compilers } = multiCompiler
   const invalidator = new Invalidator(watcher, multiCompiler)
+  const hasReactRoot = !!nextConfig.experimental.reactRoot
 
   let lastClientAccessPages = ['']
   let doneCallbacks: EventEmitter | null = new EventEmitter()
@@ -205,10 +206,12 @@ export default function onDemandEntryHandler(
 
       const isMiddleware = normalizedPage.match(MIDDLEWARE_ROUTE)
       const isApiRoute = normalizedPage.match(API_ROUTE) && !isMiddleware
-      const pageRuntimeConfig = await getPageRuntime(
-        absolutePagePath,
-        nextConfig.experimental.runtime
-      )
+      const pageRuntimeConfig = hasReactRoot
+        ? await getPageRuntime(
+            absolutePagePath,
+            nextConfig.experimental.runtime
+          )
+        : undefined
       const isEdgeServer = pageRuntimeConfig === 'edge'
 
       const isCustomError = isCustomErrorPage(page)
