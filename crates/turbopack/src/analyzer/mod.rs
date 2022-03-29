@@ -21,6 +21,8 @@ pub enum JsValue {
     /// TODO: Use a type without span
     Constant(Lit),
 
+    Array(Vec<JsValue>),
+
     Url(Url),
 
     Alternatives(Vec<JsValue>),
@@ -92,6 +94,15 @@ impl Display for JsValue {
         match self {
             JsValue::Constant(lit) => write!(f, "{}", lit_to_string(lit)),
             JsValue::Url(url) => write!(f, "{}", url),
+            JsValue::Array(elems) => write!(
+                f,
+                "[{}]",
+                elems
+                    .iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join(". ")
+            ),
             JsValue::Alternatives(list) => write!(
                 f,
                 "({})",
@@ -171,6 +182,14 @@ impl JsValue {
     fn explain_internal(&self, hints: &mut Vec<String>, depth: usize) -> String {
         match self {
             JsValue::Constant(lit) => format!("{}", lit_to_string(lit)),
+            JsValue::Array(elems) => format!(
+                "[{}]",
+                elems
+                    .iter()
+                    .map(|v| v.explain_internal(hints, depth))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
             JsValue::Url(url) => format!("{}", url),
             JsValue::Alternatives(list) => format!(
                 "({})",
@@ -248,6 +267,10 @@ impl JsValue {
                         "url",
                         "The Node.js url module: https://nodejs.org/api/url.html",
                     ),
+                    WellKnownObjectKind::ChildProcess => (
+                        "child_process",
+                        "The Node.js child_process module: https://nodejs.org/api/child_process.html",
+                    ),
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -276,6 +299,10 @@ impl JsValue {
                     WellKnownFunctionKind::PathToFileUrl => (
                         format!("url.pathToFileURL"),
                         "The Node.js url.pathToFileURL method: https://nodejs.org/api/url.html#urlpathtofileurlpath",
+                    ),
+                    WellKnownFunctionKind::ChildProcessSpawn => (
+                        format!("child_process.spawn"),
+                        "The Node.js child_process.spawn method: https://nodejs.org/api/child_process.html#child_processspawncommand-args-options",
                     ),
                 };
                 if depth > 0 {
@@ -312,7 +339,10 @@ impl JsValue {
         F: 'a + FnMut(JsValue) -> R,
     {
         Ok(match &mut self {
-            JsValue::Alternatives(list) | JsValue::Concat(list) | JsValue::Add(list) => {
+            JsValue::Alternatives(list)
+            | JsValue::Concat(list)
+            | JsValue::Add(list)
+            | JsValue::Array(list) => {
                 let mut modified = false;
                 for item in list.iter_mut() {
                     let (v, m) = visitor(take(item)).await?;
@@ -365,7 +395,10 @@ impl JsValue {
         visitor: &mut impl FnMut(&mut JsValue) -> bool,
     ) -> bool {
         match self {
-            JsValue::Alternatives(list) | JsValue::Concat(list) | JsValue::Add(list) => {
+            JsValue::Alternatives(list)
+            | JsValue::Concat(list)
+            | JsValue::Add(list)
+            | JsValue::Array(list) => {
                 let mut modified = false;
                 for item in list.iter_mut() {
                     if visitor(item) {
@@ -402,7 +435,10 @@ impl JsValue {
 
     pub fn for_each_children(&self, visitor: &mut impl FnMut(&JsValue)) {
         match self {
-            JsValue::Alternatives(list) | JsValue::Concat(list) | JsValue::Add(list) => {
+            JsValue::Alternatives(list)
+            | JsValue::Concat(list)
+            | JsValue::Add(list)
+            | JsValue::Array(list) => {
                 for item in list.iter() {
                     visitor(item);
                 }
@@ -431,7 +467,9 @@ impl JsValue {
         match self {
             JsValue::Constant(Lit::Str(..)) | JsValue::Concat(_) => true,
 
-            JsValue::Constant(..) | JsValue::Url(..) | JsValue::Module(..) => false,
+            JsValue::Constant(..) | JsValue::Array(..) | JsValue::Url(..) | JsValue::Module(..) => {
+                false
+            }
 
             JsValue::FreeVar(FreeVarKind::Dirname | FreeVarKind::ProcessEnv(..)) => true,
             JsValue::FreeVar(
@@ -549,6 +587,7 @@ pub enum WellKnownObjectKind {
     PathModule,
     FsModule,
     UrlModule,
+    ChildProcess,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -559,6 +598,7 @@ pub enum WellKnownFunctionKind {
     RequireResolve,
     FsReadMethod(JsWord),
     PathToFileUrl,
+    ChildProcessSpawn,
 }
 
 /// TODO(kdy1): Remove this once resolver distinguish between top-level bindings

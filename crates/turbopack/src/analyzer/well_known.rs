@@ -188,6 +188,7 @@ pub fn well_known_object_member(kind: WellKnownObjectKind, prop: JsWord) -> JsVa
         WellKnownObjectKind::PathModule => path_module_member(prop),
         WellKnownObjectKind::FsModule => fs_module_member(prop),
         WellKnownObjectKind::UrlModule => url_module_member(prop),
+        WellKnownObjectKind::ChildProcess => child_process_module_member(prop),
         _ => JsValue::Unknown(
             Some(box JsValue::Member(
                 box JsValue::WellKnownObject(kind),
@@ -237,6 +238,19 @@ pub fn url_module_member(prop: JsWord) -> JsValue {
                 prop,
             )),
             "unsupported property on Node.js url module",
+        ),
+    }
+}
+
+pub fn child_process_module_member(prop: JsWord) -> JsValue {
+    match &*prop {
+        "spawn" => JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawn),
+        _ => JsValue::Unknown(
+            Some(box JsValue::Member(
+                box JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess),
+                prop,
+            )),
+            "unsupported property on Node.js child_process module",
         ),
     }
 }

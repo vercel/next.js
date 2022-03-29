@@ -1,0 +1,50 @@
+[
+    (
+        (
+            Atom('a' type=inline),
+            #1,
+        ),
+        Constant(
+            Num(
+                Number {
+                    span: Span {
+                        lo: BytePos(
+                            18,
+                        ),
+                        hi: BytePos(
+                            19,
+                        ),
+                        ctxt: #0,
+                    },
+                    value: 1.0,
+                },
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('b' type=inline),
+            #1,
+        ),
+        Constant(
+            Str(
+                Str {
+                    span: Span {
+                        lo: BytePos(
+                            21,
+                        ),
+                        hi: BytePos(
+                            26,
+                        ),
+                        ctxt: #0,
+                    },
+                    value: Atom('foo' type=inline),
+                    has_escape: false,
+                    kind: Normal {
+                        contains_quote: true,
+                    },
+                },
+            ),
+        ),
+    ),
+]

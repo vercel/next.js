@@ -1,5 +1,6 @@
 use std::{collections::HashMap, iter};
 
+use swc_atoms::js_word;
 use swc_common::{collections::AHashSet, Mark, Span, Spanned};
 use swc_ecmascript::{
     ast::*,
@@ -230,6 +231,22 @@ impl EvalContext {
                 let callee = box JsValue::FreeVar(FreeVarKind::Import);
 
                 return JsValue::Call(callee, args);
+            }
+
+            Expr::Array(arr) => {
+                if arr.elems.iter().flatten().any(|v| v.spread.is_some()) {
+                    return JsValue::Unknown(None, "spread is not supported");
+                }
+
+                let arr = arr
+                    .elems
+                    .iter()
+                    .map(|e| match e {
+                        Some(e) => self.eval(&e.expr),
+                        _ => JsValue::FreeVar(FreeVarKind::Other(js_word!("undefined"))),
+                    })
+                    .collect();
+                return JsValue::Array(arr);
             }
 
             _ => JsValue::Unknown(None, "unsupported expression"),
@@ -512,6 +529,26 @@ impl Visit for Analyzer<'_> {
                     }),
                 );
             }
+
+            Pat::Array(arr) => {
+                //
+
+                match &value {
+                    Some(JsValue::Array(value)) => {
+                        //
+                        for (idx, elem) in arr.elems.iter().enumerate() {
+                            self.current_value = value.get(idx).cloned();
+                            elem.visit_with(self);
+                        }
+
+                        // We should not call visit_children_with
+                        return;
+                    }
+
+                    _ => {}
+                }
+            }
+
             _ => {}
         }
         pat.visit_children_with(self);
