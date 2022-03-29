@@ -698,7 +698,7 @@ function responseTests(locale = '') {
 }
 
 function interfaceTests(locale = '') {
-  it(`${locale} \`globalThis\` is accesible`, async () => {
+  it(`${locale} \`globalThis\` is accessible`, async () => {
     const res = await fetchViaHTTP(context.appPort, '/interface/globalthis')
     const globals = await res.json()
     expect(globals.length > 0).toBe(true)
