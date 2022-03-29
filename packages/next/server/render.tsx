@@ -197,9 +197,10 @@ function enhanceComponents(
 }
 
 function renderFlight(AppMod: any, ComponentMod: any, props: any) {
+  const isServerComponent = !!ComponentMod.__next_rsc__
   const App = interopDefault(AppMod)
   const Component = interopDefault(ComponentMod)
-  const AppServer = !!ComponentMod.__next_rsc__
+  const AppServer = isServerComponent
     ? (App as React.ComponentType)
     : React.Fragment
 

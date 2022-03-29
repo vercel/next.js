@@ -13,7 +13,7 @@ function splitLines(text) {
     .filter(Boolean)
 }
 
-async function testRoute(appPort, url, { isStatic, isEdge }) {
+async function testRoute(appPort, url, { isStatic, isEdge, isRSC }) {
   const html1 = await renderViaHTTP(appPort, url)
   const renderedAt1 = +html1.match(/Time: (\d+)/)[1]
   expect(html1).toContain(`Runtime: ${isEdge ? 'Edge' : 'Node.js'}`)
@@ -28,6 +28,12 @@ async function testRoute(appPort, url, { isStatic, isEdge }) {
   } else {
     // Should be re-rendered.
     expect(renderedAt1).toBeLessThan(renderedAt2)
+  }
+  const customAppServerHtml = '<div class="app-server-root">'
+  if (isRSC) {
+    expect(html1).toContain(customAppServerHtml)
+  } else {
+    expect(html1).not.toContain(customAppServerHtml)
   }
 }
 
@@ -49,6 +55,7 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/static', {
       isStatic: true,
       isEdge: false,
+      isRSC: false,
     })
   })
 
@@ -56,6 +63,7 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node', {
       isStatic: true,
       isEdge: false,
+      isRSC: false,
     })
   })
 
@@ -63,6 +71,7 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-ssr', {
       isStatic: false,
       isEdge: false,
+      isRSC: false,
     })
   })
 
@@ -70,6 +79,7 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-ssg', {
       isStatic: true,
       isEdge: false,
+      isRSC: false,
     })
   })
 
@@ -77,6 +87,7 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-rsc', {
       isStatic: true,
       isEdge: false,
+      isRSC: true,
     })
   })
 
@@ -84,6 +95,7 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-rsc-ssr', {
       isStatic: false,
       isEdge: false,
+      isRSC: true,
     })
   })
 
@@ -91,6 +103,7 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-rsc-ssg', {
       isStatic: true,
       isEdge: false,
+      isRSC: true,
     })
   })
 
@@ -120,6 +133,7 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/edge', {
       isStatic: false,
       isEdge: true,
+      isRSC: false,
     })
   })
 
@@ -127,6 +141,7 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/edge-rsc', {
       isStatic: false,
       isEdge: true,
+      isRSC: true,
     })
   })
 
@@ -135,7 +150,9 @@ describe('Switchable runtime (prod)', () => {
       /^[┌├└/]/.test(line)
     )
     const expectedOutputLines = splitLines(`
-  ┌ ○ /404
+  ┌   /_app
+  ├ λ /_app.server
+  ├ ○ /404
   ├ ℇ /edge
   ├ ℇ /edge-rsc
   ├ ○ /node
@@ -147,9 +164,11 @@ describe('Switchable runtime (prod)', () => {
   ├ λ /node-ssr
   └ ○ /static
   `)
-    const isMatched = expectedOutputLines.every((line, index) =>
-      stdoutLines[index].startsWith(line)
-    )
+    const isMatched = expectedOutputLines.every((line, index) => {
+      const matched = stdoutLines[index].startsWith(line)
+      return matched
+    })
+
     expect(isMatched).toBe(true)
   })
 
