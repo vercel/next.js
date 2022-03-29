@@ -2,13 +2,12 @@ import type { Context } from 'vm'
 import { Blob, File, FormData } from 'next/dist/compiled/formdata-node'
 import { readFileSync, promises as fs } from 'fs'
 import { requireDependencies } from './require'
-import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
+import {
+  TransformStream,
+  ReadableStream,
+} from 'next/dist/compiled/web-streams-polyfill'
 import cookie from 'next/dist/compiled/cookie'
 import * as polyfills from './polyfills'
-import {
-  AbortController,
-  AbortSignal,
-} from 'next/dist/compiled/abort-controller'
 import vm from 'vm'
 import type { WasmBinding } from '../../../build/webpack/loaders/next-middleware-wasm-loader'
 
@@ -210,7 +209,7 @@ function createContext(options: {
       ...polyfills.process,
       env: buildEnvironmentVariablesFrom(options.env),
     },
-    ReadableStream: polyfills.ReadableStream,
+    ReadableStream,
     setInterval,
     setTimeout,
     TextDecoder,
