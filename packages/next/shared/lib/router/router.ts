@@ -623,6 +623,7 @@ export default class Router implements BaseRouter {
   domainLocales?: DomainLocale[]
   isReady: boolean
   isLocaleDomain: boolean
+  idx: number
 
   private state: Readonly<{
     route: string
@@ -633,8 +634,6 @@ export default class Router implements BaseRouter {
     isFallback: boolean
     isPreview: boolean
   }>
-
-  private _idx: number = 0
 
   static events: MittEmitter<RouterEvent> = mitt()
 
@@ -719,6 +718,7 @@ export default class Router implements BaseRouter {
     // back from external site
     this.isSsr = true
     this.isLocaleDomain = false
+    this.idx = 0
     this.isReady = !!(
       self.__NEXT_DATA__.gssp ||
       self.__NEXT_DATA__.gip ||
@@ -807,11 +807,11 @@ export default class Router implements BaseRouter {
     const { url, as, options, idx } = state
     if (process.env.__NEXT_SCROLL_RESTORATION) {
       if (manualScrollRestoration) {
-        if (this._idx !== idx) {
+        if (this.idx !== idx) {
           // Snapshot current scroll position:
           try {
             sessionStorage.setItem(
-              '__next_scroll_' + this._idx,
+              '__next_scroll_' + this.idx,
               JSON.stringify({ x: self.pageXOffset, y: self.pageYOffset })
             )
           } catch {}
@@ -826,7 +826,7 @@ export default class Router implements BaseRouter {
         }
       }
     }
-    this._idx = idx
+    this.idx = idx
 
     const { pathname } = parseRelativeUrl(url)
 
@@ -883,7 +883,7 @@ export default class Router implements BaseRouter {
         try {
           // Snapshot scroll position right before navigating to a new page:
           sessionStorage.setItem(
-            '__next_scroll_' + this._idx,
+            '__next_scroll_' + this.idx,
             JSON.stringify({ x: self.pageXOffset, y: self.pageYOffset })
           )
         } catch {}
@@ -1408,7 +1408,7 @@ export default class Router implements BaseRouter {
           as,
           options,
           __N: true,
-          idx: (this._idx = method !== 'pushState' ? this._idx : this._idx + 1),
+          idx: (this.idx = method !== 'pushState' ? this.idx : this.idx + 1),
         } as HistoryState,
         // Most browsers currently ignores this parameter, although they may use it in the future.
         // Passing the empty string here should be safe against future changes to the method.
