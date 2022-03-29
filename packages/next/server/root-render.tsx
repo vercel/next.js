@@ -37,6 +37,53 @@ export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
 const rscCache = new Map()
 
+// Shadowing check does not work with TypeScript enums
+// eslint-disable-next-line no-shadow
+const enum RecordStatus {
+  Pending,
+  Resolved,
+  Rejected,
+}
+
+type Record = {
+  status: RecordStatus
+  value: Promise<any>
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function createRecordFromThenable(thenable: Promise<any>) {
+  const record: Record = {
+    status: RecordStatus.Pending,
+    value: thenable,
+  }
+  thenable.then(
+    function (value) {
+      if (record.status === RecordStatus.Pending) {
+        const resolvedRecord = record
+        resolvedRecord.status = RecordStatus.Resolved
+        resolvedRecord.value = value
+      }
+    },
+    function (err) {
+      if (record.status === RecordStatus.Pending) {
+        const rejectedRecord = record
+        rejectedRecord.status = RecordStatus.Rejected
+        rejectedRecord.value = err
+      }
+    }
+  )
+  return record
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function readRecordValue(record: Record) {
+  if (record.status === RecordStatus.Resolved) {
+    return record.value
+  } else {
+    throw record.value
+  }
+}
+
 function createFlightHook() {
   return (
     writable: WritableStream<Uint8Array>,
@@ -90,7 +137,7 @@ const useFlightResponse = createFlightHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
-  OriginalComponent: React.ComponentType,
+  ComponentToRender: React.ComponentType,
   ComponentMod: any,
   {
     cachePrefix,
@@ -114,7 +161,7 @@ function createServerComponentRenderer(
   const ServerComponentWrapper = (props: any) => {
     const id = (React as any).useId()
     const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
-      <OriginalComponent {...props} />,
+      <ComponentToRender {...props} />,
       serverComponentManifest
     )
 
@@ -249,14 +296,6 @@ export async function renderToHTML(
   serverComponentsInlinedTransformStream = new TransformStream()
   const search = stringifyQuery(query)
 
-  /*
-RootLayout -> root.js
-ClientComponentRoute -> root/client-component-route.client.js
-    
-    <RootLayout>
-      <ClientComponentRoute />
-    </RootLayout>
-  */
   const Component = createServerComponentRenderer(RootLayout, ComponentMod, {
     cachePrefix: pathname + (search ? `?${search}` : ''),
     transformStream: serverComponentsInlinedTransformStream,
