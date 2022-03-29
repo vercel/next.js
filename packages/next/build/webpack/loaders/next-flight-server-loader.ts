@@ -42,6 +42,7 @@ async function parseModuleInfo({
   imports: string
   isEsm: boolean
   __N_SSP: boolean
+  pageRuntime: 'edge' | 'nodejs' | null
 }> {
   const ast = await parse(source, {
     filename: resourcePath,
@@ -52,6 +53,7 @@ async function parseModuleInfo({
   let lastIndex = 0
   let imports = ''
   let __N_SSP = false
+  let pageRuntime = null
 
   const isEsm = type === 'Module'
 
@@ -125,6 +127,15 @@ async function parseModuleInfo({
                   const value = declaration.id.value
                   if (value === '__N_SSP') {
                     __N_SSP = true
+                  } else if (value === 'config') {
+                    const props = declaration.init.properties
+                    const runtimeKeyValue = props.find(
+                      (prop: any) => prop.key.value === 'runtime'
+                    )
+                    const runtime = runtimeKeyValue?.value?.value
+                    if (runtime === 'nodejs' || runtime === 'edge') {
+                      pageRuntime = runtime
+                    }
                   }
                 }
               }
@@ -141,7 +152,7 @@ async function parseModuleInfo({
     transformedSource += source.substring(lastIndex)
   }
 
-  return { source: transformedSource, imports, isEsm, __N_SSP }
+  return { source: transformedSource, imports, isEsm, __N_SSP, pageRuntime }
 }
 
 export default async function transformSource(
@@ -181,6 +192,7 @@ export default async function transformSource(
     imports,
     isEsm,
     __N_SSP,
+    pageRuntime,
   } = await parseModuleInfo({
     resourcePath,
     source,
@@ -211,12 +223,18 @@ export default async function transformSource(
 
   if (isClientCompilation) {
     rscExports.default = 'function RSC() {}'
-    if (__N_SSP) {
+
+    if (pageRuntime === 'edge') {
+      // Currently for the Edge runtime, we treat all RSC pages as SSR pages.
       rscExports.__N_SSP = 'true'
     } else {
-      // Server component pages are always considered as SSG by default because
-      // the flight data is needed for client navigation.
-      rscExports.__N_SSG = 'true'
+      if (__N_SSP) {
+        rscExports.__N_SSP = 'true'
+      } else {
+        // Server component pages are always considered as SSG by default because
+        // the flight data is needed for client navigation.
+        rscExports.__N_SSG = 'true'
+      }
     }
   }
 
