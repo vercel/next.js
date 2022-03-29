@@ -31,9 +31,11 @@ enum GlobPart {
 // - file*.js = File(file), AnyFile, File(.js)
 // - dir/file.js = File(dir), PathSeparator, File(file.js)
 // - **/*.js = AnyDirectories, PathSeparator, AnyFile, File(.js)
-// - {a/**,*}/file = Alternatives([File(a), PathSeparator, AnyDirectories], [AnyFile]), PathSeparator, File(file)
+// - {a/**,*}/file = Alternatives([File(a), PathSeparator, AnyDirectories],
+//   [AnyFile]), PathSeparator, File(file)
 
-// Note: a/**/b does match a/b, so we need some special logic about path separators
+// Note: a/**/b does match a/b, so we need some special logic about path
+// separators
 
 #[turbo_tasks::value]
 #[derive(PartialEq, Eq, Debug, Clone)]

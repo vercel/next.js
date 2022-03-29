@@ -2,12 +2,12 @@ use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap, HashSet},
     future::Future,
-    mem,
+    mem::{self, take},
 };
 
 use anyhow::{anyhow, Result};
 use json::JsonValue;
-use turbo_tasks::{trace::TraceSlotRefs, util::try_join_all};
+use turbo_tasks::{trace::TraceSlotRefs, util::try_join_all, Value};
 use turbo_tasks_fs::{
     glob::GlobRef,
     util::{join_path, normalize_path, normalize_request},
@@ -17,7 +17,10 @@ use turbo_tasks_fs::{
 use crate::{
     asset::AssetRef,
     reference::{AssetReference, AssetReferenceRef},
-    resolve::options::ConditionValue,
+    resolve::{
+        options::{ConditionValue, ResolvedMapRef},
+        pattern::{read_matches, Pattern, PatternMatch, PatternRef},
+    },
     source_asset::SourceAssetRef,
 };
 
@@ -34,6 +37,7 @@ use self::{
 mod exports;
 pub mod options;
 pub mod parse;
+pub mod pattern;
 mod prefix_tree;
 
 #[derive(PartialEq, Eq, Clone, Debug, TraceSlotRefs)]
@@ -128,12 +132,28 @@ impl ResolveResult {
                 | ResolveResult::Unresolveable(_) => {
                     let mut list = list.take();
                     extend_option_list(&mut list, other.get_references());
-                    *self = ResolveResult::Unresolveable(list);
                 }
             },
-            ResolveResult::Unresolveable(list) => {
-                extend_option_list(list, other.get_references());
-            }
+            ResolveResult::Unresolveable(list) => match other {
+                ResolveResult::Single(asset, list2) => {
+                    extend_option_list(list, list2.as_ref());
+                    *self = ResolveResult::Alternatives(
+                        [asset.clone()].into_iter().collect(),
+                        take(list),
+                    );
+                }
+                ResolveResult::Alternatives(assets, list2) => {
+                    extend_option_list(list, list2.as_ref());
+                    *self = ResolveResult::Alternatives(assets.clone(), take(list));
+                }
+                ResolveResult::Nested(_)
+                | ResolveResult::Keyed(_, _)
+                | ResolveResult::Special(_, _)
+                | ResolveResult::Unresolveable(_) => {
+                    let mut list = list.take();
+                    extend_option_list(&mut list, other.get_references());
+                }
+            },
         }
     }
 
@@ -483,12 +503,74 @@ async fn find_package(
     Ok(FindPackageResult::NotFound.into())
 }
 
+fn merge_results(results: Vec<ResolveResultRef>) -> ResolveResultRef {
+    match results.len() {
+        0 => ResolveResult::Unresolveable(None).into(),
+        1 => results.into_iter().next().unwrap(),
+        _ => ResolveResultRef::alternatives(results),
+    }
+}
+
+#[turbo_tasks::function]
+pub async fn resolve_raw(
+    context: FileSystemPathRef,
+    path: PatternRef,
+    force_in_context: bool,
+) -> Result<ResolveResultRef> {
+    fn to_result(path: &FileSystemPathRef) -> ResolveResultRef {
+        ResolveResult::Single(SourceAssetRef::new(path.clone()).into(), None).into()
+    }
+    let mut results = Vec::new();
+    let pat = path.get().await?;
+    if pat.could_match("/") {
+        let matches =
+            read_matches(context.clone().root(), "/".to_string(), true, path.clone()).await?;
+        for m in matches.iter() {
+            if let PatternMatch::File(_, path) = m {
+                results.push(to_result(&path));
+            }
+        }
+    }
+    {
+        let matches = read_matches(context, "".to_string(), force_in_context, path).await?;
+        for m in matches.iter() {
+            if let PatternMatch::File(_, path) = m {
+                results.push(to_result(&path));
+            }
+        }
+    }
+    Ok(merge_results(results))
+}
+
 #[turbo_tasks::function]
 pub async fn resolve(
     context: FileSystemPathRef,
     request: RequestRef,
     options: ResolveOptionsRef,
 ) -> Result<ResolveResultRef> {
+    async fn resolved(
+        fs_path: FileSystemPathRef,
+        resolved_map: &Option<ResolvedMapRef>,
+        options: &ResolveOptionsRef,
+    ) -> Result<ResolveResultRef> {
+        if let Some(resolved_map) = resolved_map {
+            match &*resolved_map.clone().lookup(fs_path.clone()).await? {
+                ImportMapResult::Result(result) => {
+                    return Ok(result.clone());
+                }
+                ImportMapResult::Alias(request) => {
+                    return Ok(resolve(
+                        fs_path.clone().parent(),
+                        request.clone(),
+                        options.clone(),
+                    ));
+                }
+                ImportMapResult::NoEntry => {}
+            }
+        }
+        return Ok(ResolveResult::Single(SourceAssetRef::new(fs_path).into(), None).into());
+    }
+
     fn handle_exports_field(
         package_path: &FileSystemPathRef,
         package_json: &FileSystemPathRef,
@@ -520,16 +602,12 @@ pub async fn resolve(
         let mut resolved_results = Vec::new();
         for path in results {
             if let Some(path) = normalize_path(path) {
-                let request = RequestRef::parse(format!("./{}", path));
+                let request = RequestRef::parse(Value::new(format!("./{}", path).into()));
                 resolved_results.push(resolve(package_path.clone(), request, options.clone()));
             }
         }
         // other options do not apply anymore when an exports field exist
-        let resolved = match resolved_results.len() {
-            0 => ResolveResult::Unresolveable(None).into(),
-            1 => resolved_results.into_iter().next().unwrap(),
-            _ => ResolveResultRef::alternatives(resolved_results),
-        };
+        let resolved = merge_results(resolved_results);
         let resolved = resolved
             .add_reference(AffectingResolvingAssetReferenceRef::new(package_json.clone()).into());
         return Ok(resolved);
@@ -544,15 +622,14 @@ pub async fn resolve(
         for resolve_into_package in options_value.into_package.iter() {
             match resolve_into_package {
                 ResolveIntoPackage::Default(req) => {
-                    let request = RequestRef::parse(
-                        "./".to_string()
-                            + &normalize_path(&req).ok_or_else(|| {
-                                anyhow!(
-                                    "ResolveIntoPackage::Default can't be used with a request \
-                                     that escapes the current directory"
-                                )
-                            })?,
-                    );
+                    let str = "./".to_string()
+                        + &normalize_path(&req).ok_or_else(|| {
+                            anyhow!(
+                                "ResolveIntoPackage::Default can't be used with a request that \
+                                 escapes the current directory"
+                            )
+                        })?;
+                    let request = RequestRef::parse(Value::new(str.into()));
                     return Ok(resolve(package_path.clone(), request, options.clone()));
                 }
                 ResolveIntoPackage::MainField(name) => {
@@ -560,7 +637,9 @@ pub async fn resolve(
                         if let FileJsonContent::Content(package_json) = &*package_json.get().await?
                         {
                             if let Some(field_value) = package_json[name].as_str() {
-                                let request = RequestRef::parse(normalize_request(&field_value));
+                                let request = RequestRef::parse(Value::new(
+                                    normalize_request(&field_value).into(),
+                                ));
                                 let result =
                                     resolve(package_path.clone(), request, options.clone()).await?;
                                 // we are not that strict when a main field fails to resolve
@@ -623,60 +702,71 @@ pub async fn resolve(
 
     let request_value = request.get().await?;
     Ok(match &*request_value {
-        Request::Relative { path } => {
-            let context = context.await?;
-            let mut possible_requests = Vec::new();
-            possible_requests.push(path.to_string());
-            for ext in options_value.extensions.iter() {
-                possible_requests.push(path.to_string() + ext);
-            }
-
-            for req in possible_requests {
-                if let Some(new_path) = join_path(&context.path, &req) {
-                    let fs_path = FileSystemPathRef::new_normalized(context.fs.clone(), new_path);
-                    if exists(fs_path.clone()).await? {
-                        if let Some(resolved_map) = &options_value.resolved_map {
-                            match &*resolved_map.clone().lookup(fs_path.clone()).await? {
-                                ImportMapResult::Result(result) => {
-                                    return Ok(result.clone());
-                                }
-                                ImportMapResult::Alias(request) => {
-                                    return Ok(resolve(
-                                        fs_path.clone().parent(),
-                                        request.clone(),
-                                        options,
-                                    ));
-                                }
-                                ImportMapResult::NoEntry => {}
+        Request::Dynamic => ResolveResult::Unresolveable(None).into(),
+        Request::Alternatives { requests } => {
+            let results = requests
+                .iter()
+                .map(|req| resolve(context.clone(), req.clone(), options.clone()))
+                .collect();
+            merge_results(results)
+        }
+        Request::Raw {
+            path,
+            force_in_context,
+        } => {
+            let mut results = Vec::new();
+            let matches = read_matches(
+                context,
+                "".to_string(),
+                *force_in_context,
+                PatternRef::new(path.clone()),
+            )
+            .get()
+            .await?;
+            for m in matches.iter() {
+                match m {
+                    PatternMatch::File(_, path) => {
+                        results.push(
+                            resolved(path.clone(), &options_value.resolved_map, &options).await?,
+                        );
+                    }
+                    PatternMatch::Directory(_, path) => {
+                        let path_value = path.get().await?;
+                        let package_json = {
+                            if let Some(new_path) = join_path(&path_value.path, "package.json") {
+                                let fs_path = FileSystemPathRef::new_normalized(
+                                    path_value.fs.clone(),
+                                    new_path,
+                                );
+                                Some((fs_path.clone().read_json(), fs_path))
+                            } else {
+                                None
                             }
-                        }
-                        return Ok(ResolveResult::Single(
-                            SourceAssetRef::new(fs_path).into(),
-                            None,
-                        )
-                        .into());
+                        };
+                        results.push(resolve_into_folder(&path, &package_json, &options).await?);
                     }
                 }
             }
-
-            if let Some(dir_path) = join_path(&context.path, &path) {
-                let fs_path =
-                    FileSystemPathRef::new_normalized(context.fs.clone(), dir_path.clone());
-                if dir_exists(fs_path.clone()).await? {
-                    let package_json = {
-                        if let Some(new_path) = join_path(&dir_path, "package.json") {
-                            let fs_path =
-                                FileSystemPathRef::new_normalized(context.fs.clone(), new_path);
-                            Some((fs_path.clone().read_json(), fs_path))
-                        } else {
-                            None
-                        }
-                    };
-                    return resolve_into_folder(&fs_path, &package_json, &options).await;
-                }
+            merge_results(results)
+        }
+        Request::Relative {
+            path,
+            force_in_context,
+        } => {
+            let mut patterns = Vec::new();
+            patterns.push(path.clone());
+            for ext in options_value.extensions.iter() {
+                let mut path = path.clone();
+                path.push(ext.clone().into());
+                patterns.push(path);
             }
+            let new_pat = Pattern::alternatives(patterns);
 
-            ResolveResult::Unresolveable(None).into()
+            resolve(
+                context,
+                RequestRef::raw(Value::new(new_pat), *force_in_context),
+                options,
+            )
         }
         Request::Module { module, path } => {
             let package = find_package(
@@ -699,9 +789,13 @@ pub async fn resolve(
                             None
                         }
                     };
-                    if path.is_empty() {
-                        return resolve_into_folder(&package_path, &package_json, &options).await;
-                    } else {
+                    let mut results = Vec::new();
+                    if path.is_match("") {
+                        results.push(
+                            resolve_into_folder(&package_path, &package_json, &options).await?,
+                        );
+                    }
+                    if path.could_match_others("") {
                         for resolve_into_package in options_value.into_package.iter() {
                             match resolve_into_package {
                                 ResolveIntoPackage::Default(_)
@@ -719,28 +813,36 @@ pub async fn resolve(
                                         if let ExportsFieldResult::Some(exports_field) =
                                             &*exports_field(package_json.clone(), field).await?
                                         {
+                                            if let Some(path) = path.clone().into_string() {
+                                                results.push(handle_exports_field(
+                                                    package_path,
+                                                    &package_json_path,
+                                                    &options,
+                                                    exports_field,
+                                                    &format!(".{path}"),
+                                                    conditions,
+                                                    unspecified_conditions,
+                                                )?);
+                                            } else {
+                                                todo!(
+                                                    "pattern into an exports field is not \
+                                                     implemented yet"
+                                                );
+                                            }
                                             // other options do not apply anymore when an exports
                                             // field exist
-                                            return handle_exports_field(
-                                                package_path,
-                                                &package_json_path,
-                                                &options,
-                                                exports_field,
-                                                &format!(".{path}"),
-                                                conditions,
-                                                unspecified_conditions,
-                                            );
+                                            break;
                                         }
                                     }
                                 }
                             }
                         }
-                        if let Some(path) = normalize_path(&path) {
-                            let request = RequestRef::parse(format!("./{}", path));
-                            return Ok(resolve(package_path.clone(), request, options.clone()));
-                        }
-                        ResolveResult::Unresolveable(None).into()
+                        let mut new_pat = path.clone();
+                        new_pat.push_front(".".to_string().into());
+                        let relative = RequestRef::relative(Value::new(new_pat), true);
+                        results.push(resolve(package_path.clone(), relative, options.clone()));
                     }
+                    merge_results(results)
                 }
                 FindPackageResult::NotFound => ResolveResult::Unresolveable(None).into(),
             }

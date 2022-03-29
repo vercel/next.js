@@ -1,95 +1,254 @@
-use std::fmt::Display;
+use std::future::IntoFuture;
 
+use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
+use turbo_tasks::{util::try_join_all, Promise, Value, ValueToString, ValueToStringRef};
 
-#[turbo_tasks::value]
+use super::pattern::Pattern;
+
+#[turbo_tasks::value(ValueToString)]
 #[derive(Hash, PartialEq, Eq, Clone, Debug)]
 pub enum Request {
-    Relative { path: String },
-    Module { module: String, path: String },
-    ServerRelative { path: String },
-    Windows { path: String },
+    Raw {
+        path: Pattern,
+        force_in_context: bool,
+    },
+    Relative {
+        path: Pattern,
+        force_in_context: bool,
+    },
+    Module {
+        module: String,
+        path: Pattern,
+    },
+    ServerRelative {
+        path: Pattern,
+    },
+    Windows {
+        path: Pattern,
+    },
     Empty,
-    PackageInternal { path: String },
-    Uri { protocol: String, remainer: String },
-    Unknown { path: String },
+    PackageInternal {
+        path: Pattern,
+    },
+    Uri {
+        protocol: String,
+        remainer: String,
+    },
+    Unknown {
+        path: Pattern,
+    },
+    Dynamic,
+    Alternatives {
+        requests: Vec<RequestRef>,
+    },
 }
 
 impl Request {
-    pub fn request(&self) -> String {
-        match self {
-            Request::Relative { path } => format!("{path}"),
-            Request::Module { module, path } => format!("{module}{path}"),
-            Request::ServerRelative { path } => format!("{path}"),
-            Request::Windows { path } => format!("{path}"),
+    pub fn request(&self) -> Option<String> {
+        Some(match self {
+            Request::Raw {
+                path: Pattern::Constant(path),
+                ..
+            } => format!("{path}"),
+            Request::Relative {
+                path: Pattern::Constant(path),
+                ..
+            } => {
+                format!("{path}")
+            }
+            Request::Module {
+                module,
+                path: Pattern::Constant(path),
+            } => format!("{module}{path}"),
+            Request::ServerRelative {
+                path: Pattern::Constant(path),
+            } => format!("{path}"),
+            Request::Windows {
+                path: Pattern::Constant(path),
+            } => format!("{path}"),
             Request::Empty => format!(""),
-            Request::PackageInternal { path } => format!("{path}"),
+            Request::PackageInternal {
+                path: Pattern::Constant(path),
+            } => format!("{path}"),
             Request::Uri { protocol, remainer } => format!("{protocol}{remainer}"),
-            Request::Unknown { path } => format!("{path}"),
+            Request::Unknown {
+                path: Pattern::Constant(path),
+            } => format!("{path}"),
+            _ => return None,
+        })
+    }
+
+    pub fn parse(mut request: Pattern) -> Self {
+        request.normalize();
+        match request {
+            Pattern::Dynamic => Request::Dynamic,
+            Pattern::Constant(ref r) => {
+                if r.is_empty() {
+                    Request::Empty
+                } else if r.starts_with("/") {
+                    Request::ServerRelative { path: request }
+                } else if r.starts_with("#") {
+                    Request::PackageInternal { path: request }
+                } else if r.starts_with("./") || r.starts_with("../") || r == "." || r == ".." {
+                    Request::Relative {
+                        path: request,
+                        force_in_context: false,
+                    }
+                } else {
+                    lazy_static! {
+                        static ref WINDOWS_PATH: Regex =
+                            Regex::new(r"^([A-Za-z]:\\|\\\\)").unwrap();
+                        static ref URI_PATH: Regex = Regex::new(r"^([^/\\]+:)(/.+)").unwrap();
+                        static ref MODULE_PATH: Regex =
+                            Regex::new(r"^((?:@[^/]+/)?[^/]+)(.*)").unwrap();
+                    }
+                    if WINDOWS_PATH.is_match(&r) {
+                        return Request::Windows { path: request };
+                    }
+                    if let Some(caps) = URI_PATH.captures(&r) {
+                        if let (Some(protocol), Some(remainer)) = (caps.get(1), caps.get(2)) {
+                            // TODO data uri
+                            return Request::Uri {
+                                protocol: protocol.as_str().to_string(),
+                                remainer: remainer.as_str().to_string(),
+                            };
+                        }
+                    }
+                    if let Some(caps) = MODULE_PATH.captures(&r) {
+                        if let (Some(module), Some(path)) = (caps.get(1), caps.get(2)) {
+                            return Request::Module {
+                                module: module.as_str().to_string(),
+                                path: path.as_str().to_string().into(),
+                            };
+                        }
+                    }
+                    Request::Unknown { path: request }
+                }
+            }
+            Pattern::Concatenation(list) => {
+                let mut iter = list.into_iter();
+                if let Some(first) = iter.next() {
+                    let mut result = Self::parse(first);
+                    match &mut result {
+                        Request::Raw { path, .. } => {
+                            path.extend(iter);
+                        }
+                        Request::Relative { path, .. } => {
+                            path.extend(iter);
+                        }
+                        Request::Module { module, path } => {
+                            path.extend(iter);
+                        }
+                        Request::ServerRelative { path } => {
+                            path.extend(iter);
+                        }
+                        Request::Windows { path } => {
+                            path.extend(iter);
+                        }
+                        Request::Empty => {
+                            result = Request::parse(Pattern::Concatenation(iter.collect()))
+                        }
+                        Request::PackageInternal { path } => {
+                            path.extend(iter);
+                        }
+                        Request::Uri { protocol, remainer } => {
+                            result = Request::Dynamic;
+                        }
+                        Request::Unknown { path } => {
+                            path.extend(iter);
+                        }
+                        Request::Dynamic => {}
+                        Request::Alternatives { .. } => unreachable!(),
+                    };
+                    result
+                } else {
+                    Request::Empty
+                }
+            }
+            Pattern::Alternatives(list) => Request::Alternatives {
+                requests: list
+                    .into_iter()
+                    .map(|p| RequestRef::parse(Value::new(p)))
+                    .collect(),
+            },
         }
     }
 }
 
 #[turbo_tasks::value_impl]
 impl RequestRef {
-    pub fn parse(request: String) -> Self {
-        Self::slot(if request.is_empty() {
-            Request::Empty
-        } else if request.starts_with("/") {
-            Request::ServerRelative { path: request }
-        } else if request.starts_with("#") {
-            Request::PackageInternal { path: request }
-        } else if request.starts_with("./") || request.starts_with("../") {
-            Request::Relative { path: request }
-        } else {
-            lazy_static! {
-                static ref WINDOWS_PATH: Regex = Regex::new(r"^([A-Za-z]:\\|\\\\)").unwrap();
-                static ref URI_PATH: Regex = Regex::new(r"^([^/\\]+:)(/.+)").unwrap();
-                static ref MODULE_PATH: Regex = Regex::new(r"^((?:@[^/]+/)?[^/]+)(.*)").unwrap();
-            }
-            if WINDOWS_PATH.is_match(&request) {
-                return Self::slot(Request::Windows { path: request });
-            }
-            if let Some(caps) = URI_PATH.captures(&request) {
-                if let (Some(protocol), Some(remainer)) = (caps.get(1), caps.get(2)) {
-                    // TODO data uri
-                    return Self::slot(Request::Uri {
-                        protocol: protocol.as_str().to_string(),
-                        remainer: remainer.as_str().to_string(),
-                    });
-                }
-            }
-            if let Some(caps) = MODULE_PATH.captures(&request) {
-                if let (Some(module), Some(path)) = (caps.get(1), caps.get(2)) {
-                    return Self::slot(Request::Module {
-                        module: module.as_str().to_string(),
-                        path: path.as_str().to_string(),
-                    });
-                }
-            }
-            Request::Unknown { path: request }
+    pub fn parse(request: Value<Pattern>) -> Self {
+        Self::slot(Request::parse(request.into_value()))
+    }
+
+    pub fn parse_string(request: String) -> Self {
+        Self::slot(Request::parse(request.into()))
+    }
+
+    pub fn raw(request: Value<Pattern>, force_in_context: bool) -> Self {
+        Self::slot(Request::Raw {
+            path: request.into_value(),
+            force_in_context,
+        })
+    }
+
+    pub fn relative(request: Value<Pattern>, force_in_context: bool) -> Self {
+        Self::slot(Request::Relative {
+            path: request.into_value(),
+            force_in_context,
         })
     }
 }
 
-impl Display for Request {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Request::Relative { path } => write!(f, "relative '{}'", path),
-            Request::Module { module, path } => {
-                if path.is_empty() {
-                    write!(f, "module '{}'", module)
+#[turbo_tasks::value_impl]
+impl ValueToString for Request {
+    async fn to_string(&self) -> Result<Promise<String>> {
+        Ok(Promise::slot(match self {
+            Request::Raw {
+                path,
+                force_in_context,
+            } => {
+                if *force_in_context {
+                    format!("in-context {path}")
                 } else {
-                    write!(f, "module '{}' with subpath '{}'", module, path)
+                    format!("{path}")
                 }
             }
-            Request::ServerRelative { path } => write!(f, "server relative '{}'", path),
-            Request::Windows { path } => write!(f, "windows '{}'", path),
-            Request::Empty => write!(f, "empty"),
-            Request::PackageInternal { path } => write!(f, "package internal '{}'", path),
-            Request::Uri { protocol, remainer } => write!(f, "uri '{}' '{}'", protocol, remainer),
-            Request::Unknown { path } => write!(f, "unknown '{}'", path),
-        }
+            Request::Relative {
+                path,
+                force_in_context,
+            } => {
+                if *force_in_context {
+                    format!("relative-in-context {path}")
+                } else {
+                    format!("relative {path}")
+                }
+            }
+            Request::Module { module, path } => {
+                if path.could_match_others("") {
+                    format!("module \"{module}\" with subpath {path}")
+                } else {
+                    format!("module \"{module}\"")
+                }
+            }
+            Request::ServerRelative { path } => format!("server relative {path}"),
+            Request::Windows { path } => format!("windows {path}"),
+            Request::Empty => format!("empty"),
+            Request::PackageInternal { path } => format!("package internal {path}"),
+            Request::Uri { protocol, remainer } => format!("uri \"{protocol}\" \"{remainer}\""),
+            Request::Unknown { path } => format!("unknown {path}"),
+            Request::Dynamic => format!("dynamic"),
+            Request::Alternatives { requests } => format!(
+                "{}",
+                try_join_all(requests.iter().map(|i| i.to_string().into_future()))
+                    .await?
+                    .into_iter()
+                    .map(|r| r.clone())
+                    .collect::<Vec<_>>()
+                    .join(" or ")
+            ),
+        }))
     }
 }

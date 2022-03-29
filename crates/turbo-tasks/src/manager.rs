@@ -125,7 +125,8 @@ impl TurboTasks {
             let task = cached.clone();
             drop(cached);
             Task::with_current(|parent| task.connect_parent(parent));
-            // TODO maybe force (background) scheduling to avoid inactive tasks hanging in "in progress" until they become active
+            // TODO maybe force (background) scheduling to avoid inactive tasks hanging in
+            // "in progress" until they become active
             SlotRef::TaskOutput(task)
         } else {
             // slow pass with key lock
@@ -162,7 +163,8 @@ impl TurboTasks {
         })
     }
 
-    /// Calls a native function with arguments. Resolves arguments when needed with a wrapper [Task].
+    /// Calls a native function with arguments. Resolves arguments when needed
+    /// with a wrapper [Task].
     pub fn dynamic_call(
         self: &Arc<Self>,
         func: &'static NativeFunction,
@@ -271,7 +273,8 @@ impl TurboTasks {
             .unwrap();
     }
 
-    /// Eagerly notifies all tasks that were scheduled for notifications via `schedule_notify_tasks()`
+    /// Eagerly notifies all tasks that were scheduled for notifications via
+    /// `schedule_notify_tasks()`
     pub(crate) fn notify_scheduled_tasks() {
         TASKS_TO_NOTIFY.with(|tasks| {
             let tasks = tasks.take();
@@ -286,7 +289,8 @@ impl TurboTasks {
         });
     }
 
-    /// Eagerly notifies all tasks that were scheduled for notifications via `schedule_notify_tasks()`
+    /// Eagerly notifies all tasks that were scheduled for notifications via
+    /// `schedule_notify_tasks()`
     pub(crate) fn notify_scheduled_tasks_with_turbo_tasks(self: &Arc<TurboTasks>) {
         TASKS_TO_NOTIFY.with(|tasks| {
             for task in tasks.take().into_iter() {
@@ -295,7 +299,8 @@ impl TurboTasks {
         });
     }
 
-    /// Enqueues tasks for notification of changed dependencies. This will eventually call `dependent_slot_updated()` on all tasks.
+    /// Enqueues tasks for notification of changed dependencies. This will
+    /// eventually call `dependent_slot_updated()` on all tasks.
     pub(crate) fn schedule_notify_tasks(tasks_iter: impl Iterator<Item = Arc<Task>>) {
         TASKS_TO_NOTIFY.with(|tasks| {
             let mut list = tasks.borrow_mut();
@@ -303,7 +308,8 @@ impl TurboTasks {
         });
     }
 
-    /// Schedules a background job that will deactive a list of tasks, when their active_parents count is still zero.
+    /// Schedules a background job that will deactive a list of tasks, when
+    /// their active_parents count is still zero.
     pub(crate) fn schedule_deactivate_tasks(self: &Arc<Self>, tasks: Vec<Arc<Task>>) {
         let tt = self.clone();
         self.clone().schedule_background_job(async move {
@@ -311,7 +317,8 @@ impl TurboTasks {
         });
     }
 
-    /// Schedules a background job that will decrease the active_parents count from each task by one and might deactive them after that.
+    /// Schedules a background job that will decrease the active_parents count
+    /// from each task by one and might deactive them after that.
     pub(crate) fn schedule_remove_tasks(self: &Arc<Self>, tasks: HashSet<Arc<Task>>) {
         let tt = self.clone();
         self.clone().schedule_background_job(async move {

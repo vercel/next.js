@@ -42,6 +42,7 @@ pub enum TaskInput {
     Bool(bool),
     Usize(usize),
     I32(i32),
+    U32(u32),
     Nothing,
     SharedValue(Arc<dyn AnyHash + Send + Sync>),
     SharedReference(&'static SlotValueType, SharedReference),
@@ -169,6 +170,7 @@ impl PartialEq for TaskInput {
             (Self::Bool(l0), Self::Bool(r0)) => l0 == r0,
             (Self::Usize(l0), Self::Usize(r0)) => l0 == r0,
             (Self::I32(l0), Self::I32(r0)) => l0 == r0,
+            (Self::U32(l0), Self::U32(r0)) => l0 == r0,
             (Self::SharedValue(l0), Self::SharedValue(r0)) => AnyHash::eq(l0, r0),
             (Self::SharedReference(l0, l1), Self::SharedReference(r0, r1)) => l0 == r0 && l1 == r1,
             (Self::CloneableData(l0, l1), Self::CloneableData(r0, r1)) => l0 == r0 && l1 == r1,
@@ -206,6 +208,7 @@ impl Display for TaskInput {
             TaskInput::Bool(b) => write!(f, "bool {:?}", b),
             TaskInput::Usize(v) => write!(f, "usize {}", v),
             TaskInput::I32(v) => write!(f, "i32 {}", v),
+            TaskInput::U32(v) => write!(f, "u32 {}", v),
             TaskInput::Nothing => write!(f, "nothing"),
             TaskInput::SharedValue(_) => write!(f, "any value"),
             TaskInput::SharedReference(ty, _) => write!(f, "shared reference {}", ty.name),
@@ -229,6 +232,18 @@ impl From<&str> for TaskInput {
 impl From<bool> for TaskInput {
     fn from(b: bool) -> Self {
         TaskInput::Bool(b)
+    }
+}
+
+impl From<i32> for TaskInput {
+    fn from(v: i32) -> Self {
+        TaskInput::I32(v)
+    }
+}
+
+impl From<u32> for TaskInput {
+    fn from(v: u32) -> Self {
+        TaskInput::U32(v)
     }
 }
 
@@ -293,6 +308,28 @@ impl<'a, T: TryFrom<&'a TaskInput, Error = anyhow::Error>> TryFrom<&'a TaskInput
                 .map(|i| i.try_into())
                 .collect::<Result<Vec<_>, _>>()?),
             _ => Err(anyhow!("invalid task input type, expected list")),
+        }
+    }
+}
+
+impl TryFrom<&TaskInput> for u32 {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
+        match value {
+            TaskInput::U32(value) => Ok(*value),
+            _ => Err(anyhow!("invalid task input type, expected u32")),
+        }
+    }
+}
+
+impl TryFrom<&TaskInput> for i32 {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
+        match value {
+            TaskInput::I32(value) => Ok(*value),
+            _ => Err(anyhow!("invalid task input type, expected i32")),
         }
     }
 }

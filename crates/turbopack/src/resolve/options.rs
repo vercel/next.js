@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use anyhow::Result;
-use turbo_tasks::trace::TraceSlotRefs;
+use turbo_tasks::{trace::TraceSlotRefs, Value};
 use turbo_tasks_fs::{glob::Glob, FileSystemPathRef};
 
 use crate::resolve::parse::RequestRef;
@@ -146,7 +146,7 @@ fn import_mapping_to_result(mapping: &ImportMapping) -> ImportMapResultRef {
             ImportMapResult::Result(ResolveResult::Special(SpecialType::Empty, None).into()).into()
         }
         ImportMapping::Alias(name) => {
-            let request = RequestRef::parse(name.to_string());
+            let request = RequestRef::parse(Value::new(name.to_string().into()));
 
             ImportMapResult::Alias(request).into()
         }
@@ -157,18 +157,20 @@ fn import_mapping_to_result(mapping: &ImportMapping) -> ImportMapResultRef {
 impl ImportMapRef {
     pub async fn lookup(self, request: RequestRef) -> Result<ImportMapResultRef> {
         let this = self.await?;
-        let request_string = request.await?.request();
-        for result in this.direct.lookup(&request_string) {
-            return Ok(import_mapping_to_result(result?.as_ref()));
-        }
-        let request_string_without_slash = if request_string.ends_with('/') {
-            &request_string[..request_string.len() - 1]
-        } else {
-            &request_string
-        };
-        for (glob, mapping) in this.by_glob.iter() {
-            if glob.execute(request_string_without_slash) {
-                return Ok(import_mapping_to_result(&mapping));
+        // TODO lookup pattern
+        if let Some(request_string) = request.await?.request() {
+            for result in this.direct.lookup(&request_string) {
+                return Ok(import_mapping_to_result(result?.as_ref()));
+            }
+            let request_string_without_slash = if request_string.ends_with('/') {
+                &request_string[..request_string.len() - 1]
+            } else {
+                &request_string
+            };
+            for (glob, mapping) in this.by_glob.iter() {
+                if glob.execute(request_string_without_slash) {
+                    return Ok(import_mapping_to_result(&mapping));
+                }
             }
         }
         Ok(ImportMapResult::NoEntry.into())

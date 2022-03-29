@@ -97,8 +97,7 @@ impl GraphViz {
         let mut slots = Vec::new();
         for input in snapshot.inputs.iter() {
             let slot_id = self.get_slot_id(input);
-            self.edges
-            .insert((id.clone(), slot_id, EdgeType::Input));
+            self.edges.insert((id.clone(), slot_id, EdgeType::Input));
         }
         for slot in snapshot.slots.iter() {
             let snapshot = slot.get_snapshot_for_visualization();
@@ -131,7 +130,7 @@ impl GraphViz {
                 .insert((id.clone(), dep_id, EdgeType::Dependency));
         }
     }
-    
+
     pub fn drop_unchanged_slots(&mut self) {
         let mut dropped_ids = HashSet::new();
         for (id, node) in self.nodes.drain().collect::<Vec<_>>() {
@@ -144,13 +143,15 @@ impl GraphViz {
                             slots.push(slot);
                         }
                     }
-                    self.nodes.insert((id, NodeType::Task(name, state, executions, slots)));
-                },
+                    self.nodes
+                        .insert((id, NodeType::Task(name, state, executions, slots)));
+                }
             }
         }
-        self.edges.retain(|(from, to, _)| !dropped_ids.contains(from) && !dropped_ids.contains(to));
+        self.edges
+            .retain(|(from, to, _)| !dropped_ids.contains(from) && !dropped_ids.contains(to));
     }
-  
+
     pub fn drop_inactive_tasks(&mut self) {
         let mut nodes_with_edges = HashSet::new();
         for (from, to, ty) in self.edges.iter() {
@@ -161,19 +162,25 @@ impl GraphViz {
         }
         let mut dropped_ids = HashSet::new();
         self.nodes.retain(|(id, node)| {
-            if nodes_with_edges.contains(id) { return true; }
+            if nodes_with_edges.contains(id) {
+                return true;
+            }
             match node {
                 NodeType::Task(_name, state, executions, slots) => {
-                    if *executions <= 1 && (state == "done" || state == "1 children dirty (scheduled)") && slots.len() == 0 {
+                    if *executions <= 1
+                        && (state == "done" || state == "1 children dirty (scheduled)")
+                        && slots.len() == 0
+                    {
                         dropped_ids.insert(id.clone());
                         false
                     } else {
                         true
                     }
-                },
+                }
             }
         });
-        self.edges.retain(|(from, to, _)| !dropped_ids.contains(from) && !dropped_ids.contains(to));
+        self.edges
+            .retain(|(from, to, _)| !dropped_ids.contains(from) && !dropped_ids.contains(to));
     }
 
     pub fn merge_edges(&mut self) {
@@ -207,15 +214,19 @@ impl GraphViz {
     }
 
     fn skip_loney(&mut self, prefix: &str) {
-        let mut map = self.nodes.iter().filter_map(|(id, node)| match node {
-            NodeType::Task(name, _, _, slots) => {
-                if name.starts_with(prefix) && slots.len() == 0 {
-                    Some((id.clone(), (Vec::new(), Vec::new())))
-                } else {
-                    None
+        let mut map = self
+            .nodes
+            .iter()
+            .filter_map(|(id, node)| match node {
+                NodeType::Task(name, _, _, slots) => {
+                    if name.starts_with(prefix) && slots.len() == 0 {
+                        Some((id.clone(), (Vec::new(), Vec::new())))
+                    } else {
+                        None
+                    }
                 }
-            },
-        }).collect::<HashMap<_, _>>();
+            })
+            .collect::<HashMap<_, _>>();
         for (from, to, edge) in self.edges.iter() {
             if let Some(entry) = map.get_mut(from) {
                 entry.1.push((to.clone(), edge.clone()));
@@ -224,36 +235,66 @@ impl GraphViz {
                 entry.0.push((from.clone(), edge.clone()));
             }
         }
-        let skipped_nodes = map.drain().filter_map(|(id, (a, b))| {
-            if a.len() == 1 && b.len() == 1 && a[0].1 == b[0].1 {
-                self.edges.insert((a[0].0.clone(), b[0].0.clone(), a[0].1.clone()));
-                Some(id)
-            } else {
-                None
-            }
-        }).collect::<HashSet<_>>();
+        let skipped_nodes = map
+            .drain()
+            .filter_map(|(id, (a, b))| {
+                if a.len() == 1 && b.len() == 1 && a[0].1 == b[0].1 {
+                    self.edges
+                        .insert((a[0].0.clone(), b[0].0.clone(), a[0].1.clone()));
+                    Some(id)
+                } else {
+                    None
+                }
+            })
+            .collect::<HashSet<_>>();
         self.nodes.retain(|(id, _)| !skipped_nodes.contains(id));
-        self.edges.retain(|(from, to, _)| !skipped_nodes.contains(from) && !skipped_nodes.contains(to));
+        self.edges
+            .retain(|(from, to, _)| !skipped_nodes.contains(from) && !skipped_nodes.contains(to));
     }
 
     pub fn get_graph(&self) -> String {
-        let nodes_info = self.nodes
+        let nodes_info = self
+            .nodes
             .iter()
             .map(|(id, node)| match node {
-                NodeType::Task(name, state, executions, slots) => { 
-                    let slots_info = slots.iter().map(|Slot{ id, name, content, updates }| if *updates > 1 {
-                        format!(
-                            "{} [style=filled, fillcolor=\"#77c199\", label=\"{}\\n{}\\n{} updates\"]\n",
-                            id, escape(name), escape(content), updates
+                NodeType::Task(name, state, executions, slots) => {
+                    let slots_info = slots
+                        .iter()
+                        .map(
+                            |Slot {
+                                 id,
+                                 name,
+                                 content,
+                                 updates,
+                             }| {
+                                if *updates > 1 {
+                                    format!(
+                                        "{} [style=filled, fillcolor=\"#77c199\", \
+                                         label=\"{}\\n{}\\n{} updates\"]\n",
+                                        id,
+                                        escape(name),
+                                        escape(content),
+                                        updates
+                                    )
+                                } else {
+                                    format!(
+                                        "{} [label=\"{}\\n{}\"]\n",
+                                        id,
+                                        escape(name),
+                                        escape(content)
+                                    )
+                                }
+                            },
                         )
-                    } else {
-                        format!(
-                            "{} [label=\"{}\\n{}\"]\n",
-                            id, escape(name), escape(content)
-                        )
-                    }).collect::<String>();
+                        .collect::<String>();
                     let label = if *executions > 1 {
-                        format!("style=filled, fillcolor=\"#77c199\", label=\"{}\\n{}\\n{} executions\"", escape(name), escape(state), executions)
+                        format!(
+                            "style=filled, fillcolor=\"#77c199\", label=\"{}\\n{}\\n{} \
+                             executions\"",
+                            escape(name),
+                            escape(state),
+                            executions
+                        )
                     } else if state == "done" {
                         format!("label=\"{}\"", escape(name))
                     } else {
@@ -262,19 +303,33 @@ impl GraphViz {
                     if slots_info == "" {
                         format!("{} [shape=box, {}]\n", id, label)
                     } else {
-                        format!("subgraph cluster_{} {{\ncolor=lightgray;\n{} [shape=box, {}]\n{}}}\n", id, id, label, slots_info)
+                        format!(
+                            "subgraph cluster_{} {{\ncolor=lightgray;\n{} [shape=box, {}]\n{}}}\n",
+                            id, id, label, slots_info
+                        )
                     }
-                },
+                }
             })
             .collect::<String>();
-        let edges_info = self.edges
+        let edges_info = self
+            .edges
             .iter()
             .map(|(from, to, edge)| match edge {
-                EdgeType::ChildTask => format!("{} -> {} [style=dashed, color=lightgray]\n", from, to),
+                EdgeType::ChildTask => {
+                    format!("{} -> {} [style=dashed, color=lightgray]\n", from, to)
+                }
                 EdgeType::Input => format!("{} -> {} [constraint=false]\n", to, from),
-                EdgeType::Dependency => format!("{} -> {} [color=\"#77c199\", weight=0, constraint=false]\n", to, from),
-                EdgeType::DependencyAndInput => format!("{} -> {} [color=\"#009129\", weight=0, constraint=false]\n", to, from),
-                EdgeType::LinkedSlot => format!("{} -> {} [color=\"#990000\", constraint=false]\n", to, from),
+                EdgeType::Dependency => format!(
+                    "{} -> {} [color=\"#77c199\", weight=0, constraint=false]\n",
+                    to, from
+                ),
+                EdgeType::DependencyAndInput => format!(
+                    "{} -> {} [color=\"#009129\", weight=0, constraint=false]\n",
+                    to, from
+                ),
+                EdgeType::LinkedSlot => {
+                    format!("{} -> {} [color=\"#990000\", constraint=false]\n", to, from)
+                }
             })
             .collect::<String>();
         format!(
@@ -283,22 +338,22 @@ impl GraphViz {
             {}
             {}
         }}",
-            nodes_info,
-            edges_info
+            nodes_info, edges_info
         )
     }
 
     pub fn wrap_html(graph: &str) -> String {
-        format!("<!DOCTYPE html>
+        format!(
+            "<!DOCTYPE html>
           <html>
           <head>
             <meta charset=\"utf-8\">
-            <title>Graph</title>
+            \
+             <title>Graph</title>
           </head>
           <body>
-            <script src=\"https://cdn.jsdelivr.net/npm/viz.js@2.1.2/viz.js\"></script>
-            <script src=\"https://cdn.jsdelivr.net/npm/viz.js@2.1.2/full.render.js\"></script>
-            <script>
+            <script src=\"https://cdn.jsdelivr.net/npm/viz.js@2.1.2/viz.js\"></script><script \
+             src=\"https://cdn.jsdelivr.net/npm/viz.js@2.1.2/full.render.js\"></script><script>
                 const s = `{}`;
                 const Module = Viz.Module;
                 Viz.Module = function () {{
@@ -310,6 +365,8 @@ impl GraphViz {
                     .catch((e) => console.error(e));
             </script>
           </body>
-          </html>", escape(graph))
+          </html>",
+            escape(graph)
+        )
     }
 }

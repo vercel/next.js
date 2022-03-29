@@ -105,23 +105,19 @@ impl AssetReference for WebpackEntryAssetReference {
 #[derive(PartialEq, Eq)]
 pub struct PotentialWebpackRuntimeAssetReference {
     pub source: AssetRef,
-    pub request: String,
+    pub request: RequestRef,
 }
 
 #[turbo_tasks::value_impl]
 impl AssetReference for PotentialWebpackRuntimeAssetReference {
     async fn resolve_reference(&self) -> Result<ResolveResultRef> {
-        let input_request = self.request.clone();
-
-        let request = RequestRef::parse(input_request);
-
         let context = self.source.path().parent();
 
         let options = resolve_options(context.clone());
 
         let options = apply_cjs_specific_options(options);
 
-        let resolved = resolve(context.clone(), request.clone(), options);
+        let resolved = resolve(context.clone(), self.request.clone(), options);
 
         if let ResolveResult::Single(source, refs) = &*resolved.await? {
             let runtime = is_webpack_runtime(source.clone());
@@ -135,6 +131,6 @@ impl AssetReference for PotentialWebpackRuntimeAssetReference {
             }
         }
 
-        Ok(cjs_resolve(request, context))
+        Ok(cjs_resolve(self.request.clone(), context))
     }
 }

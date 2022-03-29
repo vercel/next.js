@@ -30,7 +30,7 @@ use invalidator_map::InvalidatorMap;
 use json::{parse, JsonValue};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use threadpool::ThreadPool;
-use turbo_tasks::{trace::TraceSlotRefs, CompletionRef, Task};
+use turbo_tasks::{trace::TraceSlotRefs, CompletionRef, Promise, Task, ValueToString};
 use util::{join_path, normalize_path};
 
 #[turbo_tasks::value_trait]
@@ -39,6 +39,7 @@ pub trait FileSystem {
     fn read_dir(&self, fs_path: FileSystemPathRef) -> DirectoryContentRef;
     fn parent_path(&self, fs_path: FileSystemPathRef) -> FileSystemPathRef;
     fn write(&self, from: FileSystemPathRef, content: FileContentRef) -> CompletionRef;
+    fn to_string(&self) -> Promise<String>;
 }
 
 #[turbo_tasks::value(slot: new, FileSystem)]
@@ -362,6 +363,9 @@ impl FileSystem for DiskFileSystem {
         }
         Ok(FileSystemPathRef::new(fs_path_value.fs.clone(), &p))
     }
+    fn to_string(&self) -> Promise<String> {
+        Promise::slot(self.name.clone())
+    }
 }
 
 #[turbo_tasks::value]
@@ -454,6 +458,11 @@ impl FileSystemPathRef {
     pub async fn read_glob(self, glob: GlobRef, include_dot_files: bool) -> ReadGlobResultRef {
         read_glob(self, glob, include_dot_files)
     }
+
+    pub async fn root(self) -> Result<Self> {
+        let fs = self.await?.fs.clone();
+        Ok(Self::new_normalized(fs, "".to_string()))
+    }
 }
 
 impl Display for FileSystemPath {
@@ -535,6 +544,17 @@ impl FileSystemPathRef {
         new_base: FileSystemPathRef,
     ) -> FileSystemPathRef {
         rebase(fs_path, old_base, new_base)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for FileSystemPath {
+    async fn to_string(&self) -> Result<Promise<String>> {
+        Ok(Promise::slot(format!(
+            "[{}]/{}",
+            self.fs.to_string().await?,
+            self.path
+        )))
     }
 }
 

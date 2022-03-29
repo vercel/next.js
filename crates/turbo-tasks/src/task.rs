@@ -39,26 +39,30 @@ task_local! {
 
 /// Different Task types
 enum TaskType {
-    /// A root task that will track dependencies and re-execute when dependencies change.
-    /// Task will eventually settle to the correct execution.
+    /// A root task that will track dependencies and re-execute when
+    /// dependencies change. Task will eventually settle to the correct
+    /// execution.
     Root(NativeTaskFn),
 
     // TODO implement these strongly consistency
     /// A single root task execution. It won't track dependencies.
-    /// Task will definitely include all invalidations that happened before the start of the task.
-    /// It may or may not include invalidations that happened after that.
-    /// It may see these invalidations partially applied.
+    /// Task will definitely include all invalidations that happened before the
+    /// start of the task. It may or may not include invalidations that
+    /// happened after that. It may see these invalidations partially
+    /// applied.
     Once(Mutex<Option<Pin<Box<dyn Future<Output = Result<SlotRef>> + Send + 'static>>>>),
 
     /// A normal task execution a native (rust) function
     Native(&'static NativeFunction, NativeTaskFn),
 
-    /// A resolve task, which resolves arguments and calls the function with resolve arguments.
-    /// The inner function call will do a cache lookup.
+    /// A resolve task, which resolves arguments and calls the function with
+    /// resolve arguments. The inner function call will do a cache lookup.
     ResolveNative(&'static NativeFunction),
 
-    /// A trait method resolve task. It resolves the first (`self`) argument and looks up the trait method on that value.
-    /// Then it calls that method. The method call will do a cache lookup and might resolve arguments before.
+    /// A trait method resolve task. It resolves the first (`self`) argument and
+    /// looks up the trait method on that value. Then it calls that method.
+    /// The method call will do a cache lookup and might resolve arguments
+    /// before.
     ResolveTrait(&'static TraitType, String),
 }
 
@@ -82,7 +86,8 @@ impl Debug for TaskType {
 }
 
 /// A Task is an instantiation of an Function with some arguments.
-/// The same combinations of Function and arguments usually results in the same Task instance.
+/// The same combinations of Function and arguments usually results in the same
+/// Task instance.
 pub struct Task {
     // TODO move that into TaskType where needed
     // TODO we currently only use that for visualization
@@ -100,7 +105,8 @@ pub struct Task {
     // TODO technically we need no lock here as it's only written
     // during execution, which doesn't happen in parallel
     /// Mutable state that is used during task execution.
-    /// It will only be accessed from the task execution, which happens non-concurrently.
+    /// It will only be accessed from the task execution, which happens
+    /// non-concurrently.
     execution_data: Mutex<TaskExecutionData>,
 }
 
@@ -108,12 +114,14 @@ pub struct Task {
 #[derive(Default)]
 struct TaskExecutionData {
     /// Slots that the task has read during execution.
-    /// The Task will keep these tasks alive as invalidations that happen there might affect this task.
+    /// The Task will keep these tasks alive as invalidations that happen there
+    /// might affect this task.
     ///
     /// This back-edge is [Slot] `dependent_tasks`, which is a weak edge.
     dependencies: HashSet<SlotRef>,
 
-    /// Mappings from key or data type to slot index, to store the data in the same slot again.
+    /// Mappings from key or data type to slot index, to store the data in the
+    /// same slot again.
     previous_nodes: PreviousSlotsMap,
 }
 
@@ -133,7 +141,8 @@ impl Debug for Task {
 struct TaskState {
     /// true, when the task is transitively a child of a root task.
     ///
-    /// It will be set to `false` in a background process, so it might be still `true` even if it's no longer connected.
+    /// It will be set to `false` in a background process, so it might be still
+    /// `true` even if it's no longer connected.
     active: bool,
 
     // TODO using a Atomic might be possible here
@@ -154,7 +163,8 @@ struct TaskState {
 enum TaskStateType {
     /// Ready
     ///
-    /// on invalidation this will move to Dirty or Scheduled depending on active flag
+    /// on invalidation this will move to Dirty or Scheduled depending on active
+    /// flag
     Done,
 
     /// Execution is invalid, but not yet scheduled
@@ -666,7 +676,8 @@ impl Task {
         }
     }
 
-    /// Get an [Invalidator] that can be used to invalidate the current [Task] based on external events.
+    /// Get an [Invalidator] that can be used to invalidate the current [Task]
+    /// based on external events.
     pub fn get_invalidator() -> Invalidator {
         Invalidator {
             task: Task::current()
@@ -682,7 +693,8 @@ impl Task {
         }
     }
 
-    /// Called by the [Invalidator]. Invalidate the [Task]. When the task is active it will be scheduled for execution.
+    /// Called by the [Invalidator]. Invalidate the [Task]. When the task is
+    /// active it will be scheduled for execution.
     fn invaldate(self: Arc<Self>, turbo_tasks: &Arc<TurboTasks>) {
         self.make_dirty(turbo_tasks)
     }
@@ -725,7 +737,8 @@ impl Task {
 
     /// Get a snapshot of the task information for visulization.
     ///
-    /// Note that the information might be outdated or inconsistent due to concurrent operations.
+    /// Note that the information might be outdated or inconsistent due to
+    /// concurrent operations.
     pub fn get_snapshot_for_visualization(self: &Arc<Self>) -> TaskSnapshot {
         let state = self.state.read().unwrap();
         let mut slots: Vec<_> = state

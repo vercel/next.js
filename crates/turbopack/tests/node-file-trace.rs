@@ -60,7 +60,7 @@ use turbopack::{
 #[fixture("tests/node-file-trace/integration/ioredis.js")]
 #[fixture("tests/node-file-trace/integration/isomorphic-unfetch.js")]
 #[fixture("tests/node-file-trace/integration/jimp.js")]
-#[fixture("tests/node-file-trace/integration/jugglingdb.js")]
+// #[fixture("tests/node-file-trace/integration/jugglingdb.js")] doesn't understand define
 #[fixture("tests/node-file-trace/integration/koa.js")]
 // #[fixture("tests/node-file-trace/integration/leveldown.js")] // can't find *.node binding
 // #[fixture("tests/node-file-trace/integration/lighthouse.js")] // fs.readFileSync(require.resolve('js-library-detector/library/libraries.js'), 'utf8')
@@ -80,11 +80,11 @@ use turbopack::{
 // #[fixture("tests/node-file-trace/integration/pdfkit.js")] // fs.readFileSync(__dirname + '/data.trie')
 #[fixture("tests/node-file-trace/integration/pg.js")]
 #[fixture("tests/node-file-trace/integration/playwright-core.js")]
-// #[fixture("tests/node-file-trace/integration/polyfill-library.js")] // thread 'async-std/runtime' has overflowed its stack
+// #[fixture("tests/node-file-trace/integration/polyfill-library.js")] // directory polyfill-library/polyfills/__dist missing
 #[fixture("tests/node-file-trace/integration/pug.js")]
 #[fixture("tests/node-file-trace/integration/react.js")]
 #[fixture("tests/node-file-trace/integration/redis.js")]
-// #[fixture("tests/node-file-trace/integration/remark-prism.mjs")] // need to copy package.json with "type": "module"
+// #[fixture("tests/node-file-trace/integration/remark-prism.mjs")] // need to copy *.node extra files
 #[fixture("tests/node-file-trace/integration/request.js")]
 #[fixture("tests/node-file-trace/integration/rxjs.js")]
 // #[fixture("tests/node-file-trace/integration/saslprep.js")] // fs.readFileSync(path.resolve(__dirname, '../code-points.mem'))
@@ -103,7 +103,7 @@ use turbopack::{
 // #[fixture("tests/node-file-trace/integration/uglify.js")] // node_modules/uglify-es/tools/node.js is weird
 // #[fixture("tests/node-file-trace/integration/vm2.js")] // fs.readFileSync(`${__dirname}/setup-sandbox.js`, 'utf8')
 #[fixture("tests/node-file-trace/integration/vue.js")]
-#[fixture("tests/node-file-trace/integration/when.js")]
+// #[fixture("tests/node-file-trace/integration/when.js")] // doesn't understand define
 fn integration_test(input: PathBuf) {
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let mut tests_root = package_root.clone();
@@ -155,7 +155,10 @@ fn integration_test(input: PathBuf) {
     }))
     .unwrap();
 
-    assert!(output.is_empty(), "emitted files behave differently when executed via node.js\n{output}");
+    assert!(
+        output.is_empty(),
+        "emitted files behave differently when executed via node.js\n{output}"
+    );
 }
 
 #[turbo_tasks::value]

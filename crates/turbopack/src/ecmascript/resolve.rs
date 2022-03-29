@@ -1,4 +1,5 @@
 use anyhow::Result;
+use turbo_tasks::ValueToString;
 use turbo_tasks_fs::FileSystemPathRef;
 
 use crate::{
@@ -83,7 +84,7 @@ async fn specific_resolve(
                     // TODO report this to stream
                     println!(
                         "unable to resolve esm request {} in {}",
-                        request.get().await?,
+                        request.to_string().await?,
                         context.get().await?
                     );
                 }
@@ -95,7 +96,7 @@ async fn specific_resolve(
             // TODO report this to stream
             println!(
                 "fatal error during resolving esm request {} in {}: {}",
-                request.get().await?,
+                request.to_string().await?,
                 context.get().await?,
                 err
             );

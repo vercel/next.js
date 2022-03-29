@@ -6,12 +6,15 @@ use crate::{
         FreeVarKind, JsValue, WellKnownFunctionKind, WellKnownObjectKind,
     },
     asset::AssetRef,
-    ecmascript::pattern::Pattern,
+    ecmascript::utils::js_value_to_pattern,
     errors,
     reference::{AssetReference, AssetReferenceRef, AssetReferencesSet, AssetReferencesSetRef},
     resolve::{
-        find_package_json, parse::RequestRef, resolve, resolve_options, FindPackageJsonResult,
-        ResolveResult, ResolveResultRef,
+        find_package_json,
+        parse::RequestRef,
+        pattern::{Pattern, PatternRef},
+        resolve, resolve_options, resolve_raw, FindPackageJsonResult, ResolveResult,
+        ResolveResultRef,
     },
     source_asset::SourceAssetRef,
 };
@@ -28,8 +31,8 @@ use swc_ecmascript::{
     },
     visit::{self, Visit, VisitWith},
 };
-use turbo_tasks::util::try_join_all;
-use turbo_tasks_fs::{FileContent, FileSystemPathRef};
+use turbo_tasks::{util::try_join_all, Value};
+use turbo_tasks_fs::FileSystemPathRef;
 
 use super::{
     parse::{parse, Buffer, ParseResult},
@@ -118,12 +121,26 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Import) => {
                         let args = args().await?;
                         if args.len() == 1 {
-                            let pat = Pattern::from(&args[0]);
-                            if let Some(str) = pat.into_string() {
-                                references
-                                    .push(EsmAssetReferenceRef::new(source.clone(), str).into());
-                                return Ok(());
+                            let pat = js_value_to_pattern(&args[0]);
+                            if let Pattern::Dynamic = pat {
+                                let (args, hints) = JsValue::explain_args(&args, 2);
+                                handler.span_warn_with_code(
+                                    *span,
+                                    &format!("import({args}) is very dynamic{hints}",),
+                                    DiagnosticId::Lint(
+                                        errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT
+                                            .to_string(),
+                                    ),
+                                )
                             }
+                            references.push(
+                                EsmAssetReferenceRef::new(
+                                    source.clone(),
+                                    RequestRef::parse(Value::new(pat)),
+                                )
+                                .into(),
+                            );
+                            return Ok(());
                         }
                         let (args, hints) = JsValue::explain_args(&args, 2);
                         handler.span_warn_with_code(
@@ -137,12 +154,25 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Require) => {
                         let args = args().await?;
                         if args.len() == 1 {
-                            let pat = Pattern::from(&args[0]);
-                            if let Some(str) = pat.into_string() {
-                                references
-                                    .push(CjsAssetReferenceRef::new(source.clone(), str).into());
-                                return Ok(());
+                            let pat = js_value_to_pattern(&args[0]);
+                            if let Pattern::Dynamic = pat {
+                                let (args, hints) = JsValue::explain_args(&args, 2);
+                                handler.span_warn_with_code(
+                                    *span,
+                                    &format!("require({args}) is very dynamic{hints}",),
+                                    DiagnosticId::Lint(
+                                        errors::failed_to_analyse::ecmascript::REQUIRE.to_string(),
+                                    ),
+                                )
                             }
+                            references.push(
+                                CjsAssetReferenceRef::new(
+                                    source.clone(),
+                                    RequestRef::parse(Value::new(pat)),
+                                )
+                                .into(),
+                            );
+                            return Ok(());
                         }
                         let (args, hints) = JsValue::explain_args(&args, 2);
                         handler.span_warn_with_code(
@@ -156,12 +186,26 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve) => {
                         let args = args().await?;
                         if args.len() == 1 {
-                            let pat = Pattern::from(&args[0]);
-                            if let Some(str) = pat.into_string() {
-                                references
-                                    .push(CjsAssetReferenceRef::new(source.clone(), str).into());
-                                return Ok(());
+                            let pat = js_value_to_pattern(&args[0]);
+                            if let Pattern::Dynamic = pat {
+                                let (args, hints) = JsValue::explain_args(&args, 2);
+                                handler.span_warn_with_code(
+                                    *span,
+                                    &format!("require.resolve({args}) is very dynamic{hints}",),
+                                    DiagnosticId::Lint(
+                                        errors::failed_to_analyse::ecmascript::REQUIRE_RESOLVE
+                                            .to_string(),
+                                    ),
+                                )
                             }
+                            references.push(
+                                CjsAssetReferenceRef::new(
+                                    source.clone(),
+                                    RequestRef::parse(Value::new(pat)),
+                                )
+                                .into(),
+                            );
+                            return Ok(());
                         }
                         let (args, hints) = JsValue::explain_args(&args, 2);
                         handler.span_warn_with_code(
@@ -170,19 +214,29 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                                 "require.resolve({args}) is not statically analyse-able{hints}",
                             ),
                             DiagnosticId::Error(
-                                errors::failed_to_analyse::ecmascript::REQUIRE.to_string(),
+                                errors::failed_to_analyse::ecmascript::REQUIRE_RESOLVE.to_string(),
                             ),
                         )
                     }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(name)) => {
                         let args = args().await?;
                         if args.len() >= 1 {
-                            let pat = Pattern::from(&args[0]);
-                            if let Some(str) = pat.into_string() {
-                                references
-                                    .push(SourceAssetReferenceRef::new(source.clone(), str).into());
-                                return Ok(());
+                            let pat = js_value_to_pattern(&args[0]);
+                            if let Pattern::Dynamic = pat {
+                                let (args, hints) = JsValue::explain_args(&args, 2);
+                                handler.span_warn_with_code(
+                                    *span,
+                                    &format!("fs.{name}({args}) is very dynamic{hints}",),
+                                    DiagnosticId::Lint(
+                                        errors::failed_to_analyse::ecmascript::FS_METHOD
+                                            .to_string(),
+                                    ),
+                                )
                             }
+                            references.push(
+                                SourceAssetReferenceRef::new(source.clone(), pat.into()).into(),
+                            );
+                            return Ok(());
                         }
                         let (args, hints) = JsValue::explain_args(&args, 2);
                         handler.span_warn_with_code(
@@ -253,32 +307,20 @@ async fn value_visitor(source: &AssetRef, v: JsValue) -> Result<(JsValue, bool)>
                 args,
             ) => {
                 if args.len() == 1 {
-                    let pat = Pattern::from(&args[0]);
-                    if let Some(str) = pat.into_string() {
-                        let request = RequestRef::parse(str);
-                        let resolved = cjs_resolve(request, source.path().parent()).await?;
-                        match &*resolved {
-                            ResolveResult::Single(asset, _) => as_abs_path(asset.path()).await?,
-                            _ => JsValue::Unknown(
-                                Some(box JsValue::Call(
-                                    box JsValue::WellKnownFunction(
-                                        WellKnownFunctionKind::RequireResolve,
-                                    ),
-                                    args,
-                                )),
-                                "unresolveable request",
-                            ),
-                        }
-                    } else {
-                        JsValue::Unknown(
+                    let pat = js_value_to_pattern(&args[0]);
+                    let request = RequestRef::parse(Value::new(pat));
+                    let resolved = cjs_resolve(request, source.path().parent()).await?;
+                    match &*resolved {
+                        ResolveResult::Single(asset, _) => as_abs_path(asset.path()).await?,
+                        _ => JsValue::Unknown(
                             Some(box JsValue::Call(
                                 box JsValue::WellKnownFunction(
                                     WellKnownFunctionKind::RequireResolve,
                                 ),
                                 args,
                             )),
-                            "request pattern doesn't make it into a string",
-                        )
+                            "unresolveable request",
+                        ),
                     }
                 } else {
                     JsValue::Unknown(
@@ -391,22 +433,37 @@ impl<'a> AssetReferencesVisitor<'a> {
 impl<'a> Visit for AssetReferencesVisitor<'a> {
     fn visit_export_all(&mut self, export: &ExportAll) {
         let src = export.src.value.to_string();
-        self.references
-            .push(EsmAssetReferenceRef::new(self.source.clone(), src.clone()).into());
+        self.references.push(
+            EsmAssetReferenceRef::new(
+                self.source.clone(),
+                RequestRef::parse(Value::new(src.clone().into())),
+            )
+            .into(),
+        );
         visit::visit_export_all(self, export);
     }
     fn visit_named_export(&mut self, export: &NamedExport) {
         if let Some(src) = &export.src {
             let src = src.value.to_string();
-            self.references
-                .push(EsmAssetReferenceRef::new(self.source.clone(), src.clone()).into());
+            self.references.push(
+                EsmAssetReferenceRef::new(
+                    self.source.clone(),
+                    RequestRef::parse(Value::new(src.clone().into())),
+                )
+                .into(),
+            );
         }
         visit::visit_named_export(self, export);
     }
     fn visit_import_decl(&mut self, import: &ImportDecl) {
         let src = import.src.value.to_string();
-        self.references
-            .push(EsmAssetReferenceRef::new(self.source.clone(), src.clone()).into());
+        self.references.push(
+            EsmAssetReferenceRef::new(
+                self.source.clone(),
+                RequestRef::parse(Value::new(src.clone().into())),
+            )
+            .into(),
+        );
         visit::visit_import_decl(self, import);
         if import.type_only {
             return;
@@ -457,12 +514,16 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
                                                 self.webpack_runtime =
                                                     Some(resolve_as_webpack_runtime(
                                                         self.source.path().parent(),
-                                                        &*str.value,
+                                                        RequestRef::parse(Value::new(
+                                                            str.value.to_string().into(),
+                                                        )),
                                                     ));
                                                 self.references.push(
                                                     PotentialWebpackRuntimeAssetReference {
                                                         source: self.source.clone(),
-                                                        request: str.value.to_string(),
+                                                        request: RequestRef::parse(Value::new(
+                                                            str.value.to_string().into(),
+                                                        )),
                                                     }
                                                     .into(),
                                                 );
@@ -537,12 +598,8 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
 #[turbo_tasks::function]
 async fn resolve_as_webpack_runtime(
     context: FileSystemPathRef,
-    request: &str,
+    request: RequestRef,
 ) -> Result<WebpackRuntimeRef> {
-    let input_request = request.to_string();
-
-    let request = RequestRef::parse(input_request);
-
     let options = resolve_options(context.clone());
 
     let options = apply_cjs_specific_options(options);
@@ -580,12 +637,12 @@ impl AssetReference for PackageJsonReference {
 #[derive(Hash, Debug, PartialEq, Eq)]
 pub struct EsmAssetReference {
     pub source: AssetRef,
-    pub request: String,
+    pub request: RequestRef,
 }
 
 #[turbo_tasks::value_impl]
 impl EsmAssetReferenceRef {
-    pub fn new(source: AssetRef, request: String) -> Self {
+    pub fn new(source: AssetRef, request: RequestRef) -> Self {
         Self::slot(EsmAssetReference { source, request })
     }
 }
@@ -593,13 +650,9 @@ impl EsmAssetReferenceRef {
 #[turbo_tasks::value_impl]
 impl AssetReference for EsmAssetReference {
     fn resolve_reference(&self) -> ResolveResultRef {
-        let input_request = self.request.clone();
-
-        let request = RequestRef::parse(input_request);
-
         let context = self.source.path().parent();
 
-        esm_resolve(request, context)
+        esm_resolve(self.request.clone(), context)
     }
 }
 
@@ -607,12 +660,12 @@ impl AssetReference for EsmAssetReference {
 #[derive(Hash, Debug, PartialEq, Eq)]
 pub struct CjsAssetReference {
     pub source: AssetRef,
-    pub request: String,
+    pub request: RequestRef,
 }
 
 #[turbo_tasks::value_impl]
 impl CjsAssetReferenceRef {
-    pub fn new(source: AssetRef, request: String) -> Self {
+    pub fn new(source: AssetRef, request: RequestRef) -> Self {
         Self::slot(CjsAssetReference { source, request })
     }
 }
@@ -620,13 +673,9 @@ impl CjsAssetReferenceRef {
 #[turbo_tasks::value_impl]
 impl AssetReference for CjsAssetReference {
     fn resolve_reference(&self) -> ResolveResultRef {
-        let input_request = self.request.clone();
-
-        let request = RequestRef::parse(input_request);
-
         let context = self.source.path().parent();
 
-        cjs_resolve(request, context)
+        cjs_resolve(self.request.clone(), context)
     }
 }
 
@@ -634,31 +683,21 @@ impl AssetReference for CjsAssetReference {
 #[derive(Hash, Debug, PartialEq, Eq)]
 pub struct SourceAssetReference {
     pub source: AssetRef,
-    pub request: String,
+    pub path: PatternRef,
 }
 
 #[turbo_tasks::value_impl]
 impl SourceAssetReferenceRef {
-    pub fn new(source: AssetRef, request: String) -> Self {
-        Self::slot(SourceAssetReference { source, request })
+    pub fn new(source: AssetRef, path: PatternRef) -> Self {
+        Self::slot(SourceAssetReference { source, path })
     }
 }
 
 #[turbo_tasks::value_impl]
 impl AssetReference for SourceAssetReference {
-    async fn resolve_reference(&self) -> Result<ResolveResultRef> {
+    fn resolve_reference(&self) -> ResolveResultRef {
         let context = self.source.path().parent();
 
-        let path = if self.request.starts_with("/") {
-            FileSystemPathRef::new(context.await?.fs.clone(), &self.request[1..])
-        } else {
-            context.join(&self.request)
-        };
-
-        if let FileContent::Content(_) = &*path.clone().read().await? {
-            Ok(ResolveResult::Single(SourceAssetRef::new(path).into(), None).into())
-        } else {
-            Ok(ResolveResult::Unresolveable(None).into())
-        }
+        resolve_raw(context, self.path.clone(), false)
     }
 }

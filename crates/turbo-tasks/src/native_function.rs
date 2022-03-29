@@ -9,15 +9,18 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-/// A native (rust) turbo-tasks function. It's used internally by `#[turbo_tasks::function]`.
+/// A native (rust) turbo-tasks function. It's used internally by
+/// `#[turbo_tasks::function]`.
 #[turbo_tasks::value(slot: new)]
 pub struct NativeFunction {
     /// A readable name of the function that is used to reporting purposes.
     pub name: String,
-    /// Configuration about how arguments are passed. e. g. if they are passed unresolved or resolved.
+    /// Configuration about how arguments are passed. e. g. if they are passed
+    /// unresolved or resolved.
     #[trace_ignore]
     pub task_argument_options: Vec<TaskArgumentOptions>,
-    /// The functor that creates a functor from inputs. The inner functor handles the task execution.
+    /// The functor that creates a functor from inputs. The inner functor
+    /// handles the task execution.
     #[trace_ignore]
     pub bind_fn: Box<dyn (Fn(&Vec<TaskInput>) -> Result<NativeTaskFn>) + Send + Sync + 'static>,
     // TODO move to Task

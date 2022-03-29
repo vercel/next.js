@@ -140,12 +140,13 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
         match &args[0] {
             JsValue::Constant(Lit::Str(path)) => Url::from_file_path(&*path.value)
                 .map(JsValue::Url)
-                .unwrap_or_else(|e| {
+                .unwrap_or_else(|_err| {
                     JsValue::Unknown(
                         Some(box JsValue::Call(
                             box JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
                             args,
                         )),
+                        // TODO include err in message
                         "url not parseable",
                     )
                 }),
