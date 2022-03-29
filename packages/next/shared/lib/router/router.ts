@@ -462,6 +462,7 @@ export type NextRouter = BaseRouter &
     | 'isFallback'
     | 'isReady'
     | 'isPreview'
+    | 'idx'
   >
 
 export type PrefetchOptions = {
