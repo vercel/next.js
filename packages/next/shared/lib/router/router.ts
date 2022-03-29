@@ -214,10 +214,10 @@ export function delBasePath(path: string): string {
  */
 export function isLocalURL(url: string): boolean {
   // prevent a hydration mismatch on href for url with anchor refs
-  if (url.startsWith('/') || url.startsWith('#') || url.startsWith('?'))
+  if (/^\/(?!\/)/.test(url) || url.startsWith('#') || url.startsWith('?'))
     return true
   try {
-    // absolute urls can be local if they are on the same origin
+    // absolute and scheme-relative urls can be local if they are on the same origin
     const locationOrigin = getLocationOrigin()
     const resolved = new URL(url, locationOrigin)
     return resolved.origin === locationOrigin && hasBasePath(resolved.pathname)
@@ -318,19 +318,19 @@ export function resolveHref(
 
   // repeated slashes and backslashes in the URL are considered
   // invalid and will never match a Next.js page/file
-  const urlProtoMatch = urlAsString.match(/^[a-zA-Z]{1,}:\/\//)
-  const urlAsStringNoProto = urlProtoMatch
-    ? urlAsString.slice(urlProtoMatch[0].length)
+  const urlSchemeMatch = urlAsString.match(/^(?:[a-zA-Z]+:)?\/\//)
+  const urlAsStringNoScheme = urlSchemeMatch
+    ? urlAsString.slice(urlSchemeMatch[0].length)
     : urlAsString
 
-  const urlParts = urlAsStringNoProto.split('?')
+  const urlParts = urlAsStringNoScheme.split('?')
 
   if ((urlParts[0] || '').match(/(\/\/|\\)/)) {
     console.error(
       `Invalid href passed to next/router: ${urlAsString}, repeated forward-slashes (//) or backslashes \\ are not valid in the href`
     )
-    const normalizedUrl = normalizeRepeatedSlashes(urlAsStringNoProto)
-    urlAsString = (urlProtoMatch ? urlProtoMatch[0] : '') + normalizedUrl
+    const normalizedUrl = normalizeRepeatedSlashes(urlAsStringNoScheme)
+    urlAsString = (urlSchemeMatch ? urlSchemeMatch[0] : '') + normalizedUrl
   }
 
   // Return because it cannot be routed by the Next.js router

@@ -289,12 +289,12 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       `/invalid${isExport ? '.html' : ''}`
     )
     const invalidHrefs = [
-      '//google.com',
-      '//google.com?hello=1',
-      '//google.com#hello',
-      '\\/\\/google.com',
-      '\\/\\/google.com?hello=1',
-      '\\/\\/google.com#hello',
+      '/google.com//maps',
+      '/google.com//maps?hello=1',
+      '/google.com//maps#hello',
+      '\\/google.com\\/\\/maps',
+      '\\/google.com\\/\\/maps?hello=1',
+      '\\/google.com\\/\\/maps#hello',
     ]
 
     for (const href of invalidHrefs) {
@@ -313,24 +313,24 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       {
         page: '/another',
         href: '/another',
-        as: '//google.com',
-        pathname: '/google.com',
+        as: '/google.com//maps',
+        pathname: '/google.com/maps',
       },
       {
         page: isPages404 ? '/404' : '/_error',
-        href: '//google.com',
-        pathname: '/google.com',
+        href: '/google.com//maps',
+        pathname: '/google.com/maps',
       },
       {
         page: isPages404 ? '/404' : '/_error',
-        href: '//google.com?hello=1',
-        pathname: '/google.com',
+        href: '/google.com//maps?hello=1',
+        pathname: '/google.com/maps',
         search: '?hello=1',
       },
       {
         page: isPages404 ? '/404' : '/_error',
-        href: '//google.com#hello',
-        pathname: '/google.com',
+        href: '/google.com//maps#hello',
+        pathname: '/google.com/maps',
         hash: '#hello',
       },
     ]) {
