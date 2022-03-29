@@ -8,6 +8,7 @@ use swc_common::{collections::AHashSet, Mark};
 use swc_ecmascript::{ast::*, utils::ident::IdentLike};
 use url::Url;
 
+pub mod builtin;
 pub mod graph;
 mod imports;
 pub mod linker;
@@ -42,9 +43,8 @@ pub enum JsValue {
     /// `(callee, args)`
     Call(Box<JsValue>, Vec<JsValue>),
 
-    // TODO prop should be a JsValue to support dynamic expressions
-    /// `(obj, prop)`
-    Member(Box<JsValue>, JsWord),
+    /// `obj[prop]`
+    Member(Box<JsValue>, Box<JsValue>),
 
     /// This is a reference to a imported module
     Module(JsWord),
@@ -141,7 +141,7 @@ impl Display for JsValue {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
-            JsValue::Member(obj, prop) => write!(f, "{}.{}", obj, prop),
+            JsValue::Member(obj, prop) => write!(f, "{}[{}]", obj, prop),
             JsValue::Module(name) => write!(f, "Module({})", name),
             JsValue::Unknown(..) => write!(f, "???"),
             JsValue::WellKnownObject(obj) => write!(f, "WellKnownObject({:?})", obj),
@@ -228,7 +228,11 @@ impl JsValue {
                     .join(", ")
             ),
             JsValue::Member(obj, prop) => {
-                format!("{}.{}", obj.explain_internal(hints, depth), prop)
+                format!(
+                    "{}[{}]",
+                    obj.explain_internal(hints, depth),
+                    prop.explain_internal(hints, depth)
+                )
             }
             JsValue::Module(name) => {
                 format!("module<{}>", name)
@@ -240,17 +244,17 @@ impl JsValue {
                     let i = hints.len();
                     hints.push(String::new());
                     hints[i] = format!(
-                        "- [{}] {}\n  ⚠️  {}",
+                        "- *{}* {}\n  ⚠️  {}",
                         i,
                         inner.explain_internal(hints, depth - 1),
                         explainer,
                     );
-                    format!("[{}]", i)
+                    format!("*{}*", i)
                 } else {
                     let i = hints.len();
                     hints.push(String::new());
-                    hints[i] = format!("- [{}] {}", i, explainer);
-                    format!("[{}]", i)
+                    hints[i] = format!("- *{}* {}", i, explainer);
+                    format!("*{}*", i)
                 }
             }
             JsValue::WellKnownObject(obj) => {
@@ -274,8 +278,8 @@ impl JsValue {
                 };
                 if depth > 0 {
                     let i = hints.len();
-                    hints.push(format!("- [{i}] {name}: {explainer}"));
-                    format!("{name}[{i}]")
+                    hints.push(format!("- *{i}* {name}: {explainer}"));
+                    format!("{name}*{i}*")
                 } else {
                     name.to_string()
                 }
@@ -307,12 +311,28 @@ impl JsValue {
                 };
                 if depth > 0 {
                     let i = hints.len();
-                    hints.push(format!("- [{i}] {name}: {explainer}"));
-                    format!("{name}[{i}]")
+                    hints.push(format!("- *{i}* {name}: {explainer}"));
+                    format!("{name}s*{i}*")
                 } else {
                     name
                 }
             }
+        }
+    }
+
+    pub fn as_str(&self) -> Option<&str> {
+        if let JsValue::Constant(Lit::Str(str)) = self {
+            Some(&*str.value)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_word(&self) -> Option<&JsWord> {
+        if let JsValue::Constant(Lit::Str(str)) = self {
+            Some(&str.value)
+        } else {
+            None
         }
     }
 
@@ -365,10 +385,12 @@ impl JsValue {
                 }
                 (self, modified)
             }
-            JsValue::Member(box obj, _) => {
-                let (v, m) = visitor(take(obj)).await?;
+            JsValue::Member(box obj, box prop) => {
+                let (v, m1) = visitor(take(obj)).await?;
                 *obj = v;
-                (self, m)
+                let (v, m2) = visitor(take(prop)).await?;
+                *prop = v;
+                (self, m1 || m2)
             }
             JsValue::Constant(_)
             | JsValue::FreeVar(_)
@@ -416,7 +438,10 @@ impl JsValue {
                 }
                 modified
             }
-            JsValue::Member(obj, _) => visitor(obj),
+            JsValue::Member(obj, prop) => {
+                let modified = visitor(obj);
+                visitor(prop) || modified
+            }
             JsValue::Constant(_)
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
@@ -449,8 +474,9 @@ impl JsValue {
                     visitor(item);
                 }
             }
-            JsValue::Member(obj, _) => {
+            JsValue::Member(obj, prop) => {
                 visitor(obj);
+                visitor(prop);
             }
             JsValue::Constant(_)
             | JsValue::FreeVar(_)
@@ -471,7 +497,7 @@ impl JsValue {
                 false
             }
 
-            JsValue::FreeVar(FreeVarKind::Dirname | FreeVarKind::ProcessEnv(..)) => true,
+            JsValue::FreeVar(FreeVarKind::Dirname) => true,
             JsValue::FreeVar(
                 FreeVarKind::Require | FreeVarKind::Import | FreeVarKind::RequireResolve,
             ) => false,
@@ -504,6 +530,11 @@ impl JsValue {
         }
     }
 
+    pub fn normalize_shallow(&mut self) {
+        // TODO really doing shallow
+        self.normalize();
+    }
+
     pub fn normalize(&mut self) {
         self.for_each_children_mut(&mut |child| {
             child.normalize();
@@ -527,35 +558,43 @@ impl JsValue {
                 for v in take(v) {
                     match v {
                         JsValue::Concat(v) => new.extend(v),
+                        JsValue::Constant(Lit::Str(ref str)) => {
+                            if let Some(JsValue::Constant(Lit::Str(last))) = new.last_mut() {
+                                *last = [&*last.value, &*str.value].concat().into();
+                            } else {
+                                new.push(v);
+                            }
+                        }
                         v => new.push(v),
                     }
                 }
-                *v = new;
+                if new.len() == 1 {
+                    *self = new.into_iter().next().unwrap();
+                } else {
+                    *v = new;
+                }
             }
             JsValue::Add(v) => {
-                if v.first().map_or(false, |v| v.is_string()) {
-                    // TODO(kdy1): Support non-first addition.
-                    let mut new = vec![];
-                    for v in take(v) {
-                        match v {
-                            JsValue::Concat(v) => new.extend(v),
-                            // As concat is always string, we can convert it to string
-                            JsValue::Add(v) => new.extend(v),
-                            v => new.push(v),
+                let mut added: Vec<JsValue> = Vec::new();
+                let mut iter = take(v).into_iter();
+                while let Some(item) = iter.next() {
+                    if item.is_string() {
+                        let mut concat = match added.len() {
+                            0 => Vec::new(),
+                            1 => vec![added.into_iter().next().unwrap()],
+                            _ => vec![JsValue::Add(added)],
+                        };
+                        concat.push(item);
+                        while let Some(item) = iter.next() {
+                            concat.push(item);
                         }
-                    }
-                    *self = JsValue::Concat(new);
-                    return;
-                }
-
-                let mut new = vec![];
-                for v in take(v) {
-                    match v {
-                        JsValue::Add(v) => new.extend(v),
-                        v => new.push(v),
+                        *self = JsValue::Concat(concat);
+                        return;
+                    } else {
+                        added.push(item);
                     }
                 }
-                *v = new;
+                *v = added;
             }
             _ => {}
         }
@@ -566,8 +605,6 @@ impl JsValue {
 pub enum FreeVarKind {
     /// `__dirname`
     Dirname,
-    /// `process.env.NODE_ENV` => `ProcessEnv("NODE_ENV")`
-    ProcessEnv(JsWord),
 
     /// A reference to global `require`
     Require,
@@ -628,7 +665,7 @@ mod tests {
     use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_module, visit::VisitMutWith};
     use testing::NormalizedOutput;
 
-    use crate::ecmascript::utils::lit_to_string;
+    use crate::{analyzer::builtin::replace_builtin, ecmascript::utils::lit_to_string};
 
     use super::{
         graph::{create_graph, EvalContext},
@@ -698,11 +735,18 @@ mod tests {
                             JsValue::FreeVar(FreeVarKind::Dirname) => {
                                 JsValue::Constant("__dirname".into())
                             }
+                            JsValue::FreeVar(kind) => {
+                                JsValue::Unknown(Some(box JsValue::FreeVar(kind)), "unknown global")
+                            }
                             JsValue::Module(ref name) => match &**name {
                                 "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
                                 _ => return Ok((v, false)),
                             },
-                            _ => return Ok(replace_well_known(v)),
+                            _ => {
+                                let (v, m1) = replace_well_known(v);
+                                let (v, m2) = replace_builtin(v);
+                                return Ok((v, m1 || m2));
+                            }
                         },
                         true,
                     ))

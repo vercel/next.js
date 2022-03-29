@@ -5,7 +5,24 @@
             Module(
                 Atom('x2' type=inline),
             ),
-            Atom('a' type=inline),
+            Constant(
+                Str(
+                    Str {
+                        span: Span {
+                            lo: BytePos(
+                                0,
+                            ),
+                            hi: BytePos(
+                                0,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: Atom('a' type=inline),
+                        has_escape: false,
+                        kind: Synthesized,
+                    },
+                ),
+            ),
         ),
     ),
     (
@@ -14,7 +31,24 @@
             Module(
                 Atom('x1' type=inline),
             ),
-            Atom('default' type=static),
+            Constant(
+                Str(
+                    Str {
+                        span: Span {
+                            lo: BytePos(
+                                0,
+                            ),
+                            hi: BytePos(
+                                0,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: Atom('default' type=static),
+                        has_escape: false,
+                        kind: Synthesized,
+                    },
+                ),
+            ),
         ),
     ),
     (

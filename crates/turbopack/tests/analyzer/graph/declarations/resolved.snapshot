@@ -127,10 +127,15 @@
     ),
     (
         "ff",
-        FreeVar(
-            Other(
-                Atom('f' type=inline),
+        Unknown(
+            Some(
+                FreeVar(
+                    Other(
+                        Atom('f' type=inline),
+                    ),
+                ),
             ),
+            "unknown global",
         ),
     ),
 ]

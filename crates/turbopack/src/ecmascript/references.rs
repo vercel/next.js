@@ -1,5 +1,6 @@
 use crate::{
     analyzer::{
+        builtin::replace_builtin,
         graph::{create_graph, Effect},
         linker::{link, LinkCache},
         well_known::replace_well_known,
@@ -122,7 +123,7 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                         let args = args().await?;
                         if args.len() == 1 {
                             let pat = js_value_to_pattern(&args[0]);
-                            if let Pattern::Dynamic = pat {
+                            if !pat.has_constant_parts() {
                                 let (args, hints) = JsValue::explain_args(&args, 2);
                                 handler.span_warn_with_code(
                                     *span,
@@ -155,7 +156,7 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                         let args = args().await?;
                         if args.len() == 1 {
                             let pat = js_value_to_pattern(&args[0]);
-                            if let Pattern::Dynamic = pat {
+                            if !pat.has_constant_parts() {
                                 let (args, hints) = JsValue::explain_args(&args, 2);
                                 handler.span_warn_with_code(
                                     *span,
@@ -187,7 +188,7 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                         let args = args().await?;
                         if args.len() == 1 {
                             let pat = js_value_to_pattern(&args[0]);
-                            if let Pattern::Dynamic = pat {
+                            if !pat.has_constant_parts() {
                                 let (args, hints) = JsValue::explain_args(&args, 2);
                                 handler.span_warn_with_code(
                                     *span,
@@ -222,7 +223,7 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                         let args = args().await?;
                         if args.len() >= 1 {
                             let pat = js_value_to_pattern(&args[0]);
-                            if let Pattern::Dynamic = pat {
+                            if !pat.has_constant_parts() {
                                 let (args, hints) = JsValue::explain_args(&args, 2);
                                 handler.span_warn_with_code(
                                     *span,
@@ -244,6 +245,38 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                             &format!("fs.{name}({args}) is not statically analyse-able{hints}",),
                             DiagnosticId::Error(
                                 errors::failed_to_analyse::ecmascript::FS_METHOD.to_string(),
+                            ),
+                        )
+                    }
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawn) => {
+                        let args = args().await?;
+                        if args.len() >= 1 {
+                            let pat = js_value_to_pattern(&args[0]);
+                            if !pat.has_constant_parts() {
+                                let (args, hints) = JsValue::explain_args(&args, 2);
+                                handler.span_warn_with_code(
+                                    *span,
+                                    &format!("child_process.spawn({args}) is very dynamic{hints}",),
+                                    DiagnosticId::Lint(
+                                        errors::failed_to_analyse::ecmascript::CHILD_PROCESS_SPAWN
+                                            .to_string(),
+                                    ),
+                                );
+                            }
+                            references.push(
+                                SourceAssetReferenceRef::new(source.clone(), pat.into()).into(),
+                            );
+                            return Ok(());
+                        }
+                        let (args, hints) = JsValue::explain_args(&args, 2);
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "child_process.spawn({args}) is not statically analyse-able{hints}",
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::CHILD_PROCESS_SPAWN
+                                    .to_string(),
                             ),
                         )
                     }
@@ -344,9 +377,14 @@ async fn value_visitor(source: &AssetRef, v: JsValue) -> Result<(JsValue, bool)>
                 "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
                 "fs/promises" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
                 "fs" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
+                "child_process" => JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess),
                 _ => return Ok((v, false)),
             },
-            _ => return Ok(replace_well_known(v)),
+            _ => {
+                let (v, m1) = replace_well_known(v);
+                let (v, m2) = replace_builtin(v);
+                return Ok((v, m1 || m2));
+            }
         },
         true,
     ))

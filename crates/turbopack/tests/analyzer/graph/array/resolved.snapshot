@@ -6,10 +6,10 @@
                 Number {
                     span: Span {
                         lo: BytePos(
-                            18,
+                            16,
                         ),
                         hi: BytePos(
-                            19,
+                            17,
                         ),
                         ctxt: #0,
                     },
@@ -25,10 +25,10 @@
                 Str {
                     span: Span {
                         lo: BytePos(
-                            21,
+                            19,
                         ),
                         hi: BytePos(
-                            26,
+                            24,
                         ),
                         ctxt: #0,
                     },
@@ -39,6 +39,94 @@
                     },
                 },
             ),
+        ),
+    ),
+    (
+        "c",
+        Alternatives(
+            [
+                Constant(
+                    Num(
+                        Number {
+                            span: Span {
+                                lo: BytePos(
+                                    39,
+                                ),
+                                hi: BytePos(
+                                    40,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: 1.0,
+                        },
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    42,
+                                ),
+                                hi: BytePos(
+                                    47,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('foo' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+                Unknown(
+                    Some(
+                        Member(
+                            Array(
+                                [],
+                            ),
+                            Unknown(
+                                Some(
+                                    Member(
+                                        Unknown(
+                                            Some(
+                                                FreeVar(
+                                                    Other(
+                                                        Atom('global' type=static),
+                                                    ),
+                                                ),
+                                            ),
+                                            "unknown global",
+                                        ),
+                                        Constant(
+                                            Str(
+                                                Str {
+                                                    span: Span {
+                                                        lo: BytePos(
+                                                            0,
+                                                        ),
+                                                        hi: BytePos(
+                                                            0,
+                                                        ),
+                                                        ctxt: #0,
+                                                    },
+                                                    value: Atom('index' type=inline),
+                                                    has_escape: false,
+                                                    kind: Synthesized,
+                                                },
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                                "property on unknown",
+                            ),
+                        ),
+                    ),
+                    "unknown array prototype methods or values",
+                ),
+            ],
         ),
     ),
 ]

@@ -22,7 +22,24 @@
                         Atom('Object' type=static),
                     ),
                 ),
-                Atom('keys' type=inline),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    0,
+                                ),
+                                hi: BytePos(
+                                    0,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('keys' type=inline),
+                            has_escape: false,
+                            kind: Synthesized,
+                        },
+                    ),
+                ),
             ),
             [
                 Variable(
@@ -47,7 +64,24 @@
                         #1,
                     ),
                 ),
-                Atom('keys' type=inline),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    0,
+                                ),
+                                hi: BytePos(
+                                    0,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('keys' type=inline),
+                            has_escape: false,
+                            kind: Synthesized,
+                        },
+                    ),
+                ),
             ),
             [
                 FreeVar(

@@ -78,7 +78,24 @@
                         #1,
                     ),
                 ),
-                Atom('join' type=inline),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    0,
+                                ),
+                                hi: BytePos(
+                                    0,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('join' type=inline),
+                            has_escape: false,
+                            kind: Synthesized,
+                        },
+                    ),
+                ),
             ),
             [
                 Constant(

@@ -22,11 +22,41 @@ pub enum Effect {
     },
 }
 
+impl Effect {
+    pub fn normalize(&mut self) {
+        match self {
+            Effect::Call {
+                func,
+                this,
+                args,
+                span,
+            } => {
+                func.normalize();
+                this.normalize();
+                for arg in args.iter_mut() {
+                    arg.normalize();
+                }
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct VarGraph {
     pub(crate) values: HashMap<Id, JsValue>,
 
     pub effects: Vec<Effect>,
+}
+
+impl VarGraph {
+    pub fn normalize(&mut self) {
+        for value in self.values.values_mut() {
+            value.normalize();
+        }
+        for effect in self.effects.iter_mut() {
+            effect.normalize();
+        }
+    }
 }
 
 /// You should use same [Mark] for this function and
@@ -43,6 +73,8 @@ pub fn create_graph(m: &Module, eval_context: &EvalContext) -> VarGraph {
         var_decl_kind: Default::default(),
         current_value: None,
     });
+
+    graph.normalize();
 
     graph
 }
@@ -109,16 +141,10 @@ impl EvalContext {
                     return imported;
                 }
                 if is_unresolved(&i, &self.bindings, self.top_level_mark) {
-                    if &*i.sym == "require" {
-                        return JsValue::FreeVar(FreeVarKind::Require);
-                    }
-
-                    // TODO(kdy1): Consider using Arc
-                    if &*i.sym == "__dirname" {
-                        // This is __dirname injected by node.js
-                        return JsValue::FreeVar(FreeVarKind::Dirname);
-                    } else {
-                        return JsValue::FreeVar(FreeVarKind::Other(i.sym.clone()));
+                    match &*i.sym {
+                        "require" => return JsValue::FreeVar(FreeVarKind::Require),
+                        "__dirname" => return JsValue::FreeVar(FreeVarKind::Dirname),
+                        _ => JsValue::FreeVar(FreeVarKind::Other(i.sym.clone())),
                     }
                 } else {
                     return JsValue::Variable(id);
@@ -182,23 +208,21 @@ impl EvalContext {
                 prop: MemberProp::Ident(prop),
                 ..
             }) => {
-                // TODO avoid this special case here
-                if let box Expr::Member(MemberExpr {
-                    obj: box Expr::Ident(e_obj_obj),
-                    prop: MemberProp::Ident(e_obj_prop),
-                    ..
-                }) = obj
-                {
-                    if &*e_obj_obj.sym == "process"
-                        && is_unresolved(&e_obj_obj, &self.bindings, self.top_level_mark)
-                        && &*e_obj_prop.sym == "env"
-                    {
-                        // TODO: Handle process.env['NODE_ENV']
-                        return JsValue::FreeVar(FreeVarKind::ProcessEnv(prop.sym.clone()));
-                    }
-                }
                 let obj = self.eval(&obj);
-                return JsValue::Member(box obj, prop.sym.clone());
+                return JsValue::Member(
+                    box obj,
+                    box JsValue::Constant(Lit::Str(prop.sym.clone().into())),
+                );
+            }
+
+            Expr::Member(MemberExpr {
+                obj,
+                prop: MemberProp::Computed(computed),
+                ..
+            }) => {
+                let obj = self.eval(&obj);
+                let prop = self.eval(&computed.expr);
+                return JsValue::Member(box obj, box prop);
             }
 
             Expr::Call(CallExpr {
@@ -265,14 +289,6 @@ struct Analyzer<'a> {
 }
 
 impl Analyzer<'_> {
-    fn add_value_or_unknown(&mut self, id: Id, value: Option<JsValue>) {
-        if let Some(value) = value {
-            self.add_value(id, value);
-        } else {
-            self.add_value(id, JsValue::Unknown(None, ""));
-        }
-    }
-
     fn add_value(&mut self, id: Id, value: JsValue) {
         if let Some(prev) = self.data.values.get_mut(&id) {
             prev.add_alt(value);
@@ -545,7 +561,17 @@ impl Visit for Analyzer<'_> {
                         return;
                     }
 
-                    _ => {}
+                    Some(value) => {
+                        for (idx, elem) in arr.elems.iter().enumerate() {
+                            self.current_value = Some(JsValue::Member(
+                                box value.clone(),
+                                box JsValue::Constant(Lit::Num(idx.into())),
+                            ));
+                            elem.visit_with(self);
+                        }
+                    }
+
+                    None => {}
                 }
             }
 

@@ -1,0 +1,90 @@
+[
+    (
+        "a",
+        Constant(
+            Str(
+                Str {
+                    span: Span {
+                        lo: BytePos(
+                            11,
+                        ),
+                        hi: BytePos(
+                            11,
+                        ),
+                        ctxt: #0,
+                    },
+                    value: Atom('' type=static),
+                    has_escape: false,
+                    kind: Normal {
+                        contains_quote: false,
+                    },
+                },
+            ),
+        ),
+    ),
+    (
+        "b",
+        Constant(
+            Str(
+                Str {
+                    span: Span {
+                        lo: BytePos(
+                            25,
+                        ),
+                        hi: BytePos(
+                            30,
+                        ),
+                        ctxt: #0,
+                    },
+                    value: Atom('hello' type=inline),
+                    has_escape: false,
+                    kind: Normal {
+                        contains_quote: false,
+                    },
+                },
+            ),
+        ),
+    ),
+    (
+        "c",
+        Constant(
+            Str(
+                Str {
+                    span: Span {
+                        lo: BytePos(
+                            0,
+                        ),
+                        hi: BytePos(
+                            0,
+                        ),
+                        ctxt: #0,
+                    },
+                    value: Atom('--service=0.14.12' type=dynamic),
+                    has_escape: false,
+                    kind: Synthesized,
+                },
+            ),
+        ),
+    ),
+    (
+        "d",
+        Constant(
+            Str(
+                Str {
+                    span: Span {
+                        lo: BytePos(
+                            0,
+                        ),
+                        hi: BytePos(
+                            0,
+                        ),
+                        ctxt: #0,
+                    },
+                    value: Atom('--service=0.14.12' type=dynamic),
+                    has_escape: false,
+                    kind: Synthesized,
+                },
+            ),
+        ),
+    ),
+]

@@ -25,7 +25,7 @@ impl ImportMap {
         if let Some((i_src, i_sym)) = self.imports.get(id) {
             return Some(JsValue::Member(
                 box JsValue::Module(i_src.clone()),
-                i_sym.clone(),
+                box JsValue::Constant(Lit::Str(i_sym.clone().into())),
             ));
         }
         if let Some(i_src) = self.namespace_imports.get(id) {

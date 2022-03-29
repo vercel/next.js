@@ -1,28 +1,65 @@
 [
     (
         "O",
-        FreeVar(
-            Other(
-                Atom('Object' type=static),
-            ),
-        ),
-    ),
-    (
-        "a",
-        Call(
-            Member(
+        Unknown(
+            Some(
                 FreeVar(
                     Other(
                         Atom('Object' type=static),
                     ),
                 ),
-                Atom('keys' type=inline),
+            ),
+            "unknown global",
+        ),
+    ),
+    (
+        "a",
+        Call(
+            Unknown(
+                Some(
+                    Member(
+                        Unknown(
+                            Some(
+                                FreeVar(
+                                    Other(
+                                        Atom('Object' type=static),
+                                    ),
+                                ),
+                            ),
+                            "unknown global",
+                        ),
+                        Constant(
+                            Str(
+                                Str {
+                                    span: Span {
+                                        lo: BytePos(
+                                            0,
+                                        ),
+                                        hi: BytePos(
+                                            0,
+                                        ),
+                                        ctxt: #0,
+                                    },
+                                    value: Atom('keys' type=inline),
+                                    has_escape: false,
+                                    kind: Synthesized,
+                                },
+                            ),
+                        ),
+                    ),
+                ),
+                "property on unknown",
             ),
             [
-                FreeVar(
-                    Other(
-                        Atom('Object' type=static),
+                Unknown(
+                    Some(
+                        FreeVar(
+                            Other(
+                                Atom('Object' type=static),
+                            ),
+                        ),
                     ),
+                    "unknown global",
                 ),
             ],
         ),
@@ -30,19 +67,51 @@
     (
         "b",
         Call(
-            Member(
-                FreeVar(
-                    Other(
-                        Atom('Object' type=static),
+            Unknown(
+                Some(
+                    Member(
+                        Unknown(
+                            Some(
+                                FreeVar(
+                                    Other(
+                                        Atom('Object' type=static),
+                                    ),
+                                ),
+                            ),
+                            "unknown global",
+                        ),
+                        Constant(
+                            Str(
+                                Str {
+                                    span: Span {
+                                        lo: BytePos(
+                                            0,
+                                        ),
+                                        hi: BytePos(
+                                            0,
+                                        ),
+                                        ctxt: #0,
+                                    },
+                                    value: Atom('keys' type=inline),
+                                    has_escape: false,
+                                    kind: Synthesized,
+                                },
+                            ),
+                        ),
                     ),
                 ),
-                Atom('keys' type=inline),
+                "property on unknown",
             ),
             [
-                FreeVar(
-                    Other(
-                        Atom('Object' type=static),
+                Unknown(
+                    Some(
+                        FreeVar(
+                            Other(
+                                Atom('Object' type=static),
+                            ),
+                        ),
                     ),
+                    "unknown global",
                 ),
             ],
         ),

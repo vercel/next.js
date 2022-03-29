@@ -30,6 +30,16 @@ impl Pattern {
         }
     }
 
+    pub fn has_constant_parts(&self) -> bool {
+        match self {
+            Pattern::Constant(_) => true,
+            Pattern::Dynamic => false,
+            Pattern::Alternatives(list) | Pattern::Concatenation(list) => {
+                list.iter().any(|p| p.has_constant_parts())
+            }
+        }
+    }
+
     pub fn extend(&mut self, concatenated: impl Iterator<Item = Self>) {
         if let Pattern::Concatenation(list) = self {
             list.extend(concatenated);
@@ -414,6 +424,7 @@ pub async fn read_matches(
     force_in_context: bool,
     pattern: PatternRef,
 ) -> Result<Promise<Vec<PatternMatch>>> {
+    let context_name = turbo_tasks::ValueToString::to_string(&context).await?;
     let pat = pattern.get().await?;
     let mut results = Vec::new();
     let mut nested = Vec::new();
@@ -502,5 +513,12 @@ pub async fn read_matches(
     for nested in nested.into_iter() {
         results.extend(nested.await?.iter().cloned());
     }
+    // println!(
+    //     "read_matches({}, '{}', {}) = {}",
+    //     context_name,
+    //     prefix,
+    //     pat,
+    //     results.len()
+    // );
     Ok(Promise::slot(results))
 }

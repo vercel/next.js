@@ -16,7 +16,7 @@ impl LinkCache {
 
 pub(crate) async fn link<'a, F, R>(
     graph: &VarGraph,
-    val: JsValue,
+    mut val: JsValue,
     visitor: &F,
     _cache: &Mutex<LinkCache>,
 ) -> Result<JsValue>
@@ -24,6 +24,7 @@ where
     R: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
     F: 'a + Fn(JsValue) -> R + Sync,
 {
+    val.normalize();
     let (val, _) = link_internal(graph, val, visitor, &mut HashSet::new()).await?;
     Ok(val)
 }
@@ -96,18 +97,17 @@ where
                 F: 'a + Fn(JsValue) -> R + Sync,
             {
                 let mut my_circle_stack = take(&mut *circle_stack.lock().unwrap());
-                let (value, res) =
+                let (mut value, res) =
                     link_internal_boxed(graph, child, visitor, &mut my_circle_stack).await?;
                 *circle_stack.lock().unwrap() = my_circle_stack;
-                Ok((
-                    value,
-                    if let Some(res) = res {
-                        replaced_circular_references.lock().unwrap().extend(res);
-                        true
-                    } else {
-                        false
-                    },
-                ))
+                let modified = if let Some(res) = res {
+                    value.normalize_shallow();
+                    replaced_circular_references.lock().unwrap().extend(res);
+                    true
+                } else {
+                    false
+                };
+                Ok((value, modified))
             }
             let replaced_circular_references = Mutex::new(HashSet::default());
             let circle_stack_mutex = Mutex::new(take(circle_stack));
@@ -130,6 +130,7 @@ where
                 let m;
                 (val, m) = visitor(val).await?;
                 if m {
+                    val.normalize_shallow();
                     modified = true
                 } else {
                     break;

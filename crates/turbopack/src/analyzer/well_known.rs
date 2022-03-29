@@ -1,4 +1,3 @@
-use swc_atoms::JsWord;
 use swc_ecmascript::ast::Lit;
 use url::Url;
 
@@ -14,10 +13,10 @@ pub fn replace_well_known(value: JsValue) -> (JsValue, bool) {
             ),
             true,
         ),
-        JsValue::Member(box JsValue::WellKnownObject(kind), prop) => {
+        JsValue::Member(box JsValue::WellKnownObject(kind), box prop) => {
             (well_known_object_member(kind, prop), true)
         }
-        JsValue::Member(box JsValue::WellKnownFunction(kind), prop) => {
+        JsValue::Member(box JsValue::WellKnownFunction(kind), box prop) => {
             (well_known_function_member(kind, prop), true)
         }
         _ => (value, false),
@@ -169,22 +168,22 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
     }
 }
 
-pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsWord) -> JsValue {
-    match (&kind, &*prop) {
-        (WellKnownFunctionKind::Require, "resolve") => {
+pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) -> JsValue {
+    match (&kind, prop.as_str()) {
+        (WellKnownFunctionKind::Require, Some("resolve")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)
         }
         _ => JsValue::Unknown(
             Some(box JsValue::Member(
                 box JsValue::WellKnownFunction(kind),
-                prop,
+                box prop,
             )),
             "unsupported property on function",
         ),
     }
 }
 
-pub fn well_known_object_member(kind: WellKnownObjectKind, prop: JsWord) -> JsValue {
+pub fn well_known_object_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
     match kind {
         WellKnownObjectKind::PathModule => path_module_member(prop),
         WellKnownObjectKind::FsModule => fs_module_member(prop),
@@ -193,63 +192,68 @@ pub fn well_known_object_member(kind: WellKnownObjectKind, prop: JsWord) -> JsVa
         _ => JsValue::Unknown(
             Some(box JsValue::Member(
                 box JsValue::WellKnownObject(kind),
-                prop,
+                box prop,
             )),
             "unsupported object kind",
         ),
     }
 }
 
-pub fn path_module_member(prop: JsWord) -> JsValue {
-    match &*prop {
-        "join" => JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
+pub fn path_module_member(prop: JsValue) -> JsValue {
+    match prop.as_str() {
+        Some("join") => JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
         _ => JsValue::Unknown(
             Some(box JsValue::Member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
-                prop,
+                box prop,
             )),
             "unsupported property on Node.js path module",
         ),
     }
 }
 
-pub fn fs_module_member(prop: JsWord) -> JsValue {
-    match &*prop {
-        "realpath" | "realpathSync" | "stat" | "statSync" | "existsSync" | "createReadStream"
-        | "exists" | "open" | "openSync" | "readFile" | "readFileSync" => {
-            JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(prop))
+pub fn fs_module_member(prop: JsValue) -> JsValue {
+    if let Some(word) = prop.as_word() {
+        match &**word {
+            "realpath" | "realpathSync" | "stat" | "statSync" | "existsSync"
+            | "createReadStream" | "exists" | "open" | "openSync" | "readFile" | "readFileSync" => {
+                return JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(
+                    word.clone(),
+                ))
+            }
+            "promises" => return JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
+            _ => {}
         }
-        "promises" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
-        _ => JsValue::Unknown(
-            Some(box JsValue::Member(
-                box JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
-                prop,
-            )),
-            "unsupported property on Node.js fs module",
-        ),
     }
+    JsValue::Unknown(
+        Some(box JsValue::Member(
+            box JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
+            box prop,
+        )),
+        "unsupported property on Node.js fs module",
+    )
 }
 
-pub fn url_module_member(prop: JsWord) -> JsValue {
-    match &*prop {
-        "pathToFileURL" => JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
+pub fn url_module_member(prop: JsValue) -> JsValue {
+    match prop.as_str() {
+        Some("pathToFileURL") => JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
         _ => JsValue::Unknown(
             Some(box JsValue::Member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::UrlModule),
-                prop,
+                box prop,
             )),
             "unsupported property on Node.js url module",
         ),
     }
 }
 
-pub fn child_process_module_member(prop: JsWord) -> JsValue {
-    match &*prop {
-        "spawn" => JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawn),
+pub fn child_process_module_member(prop: JsValue) -> JsValue {
+    match prop.as_str() {
+        Some("spawn") => JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawn),
         _ => JsValue::Unknown(
             Some(box JsValue::Member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess),
-                prop,
+                box prop,
             )),
             "unsupported property on Node.js child_process module",
         ),
