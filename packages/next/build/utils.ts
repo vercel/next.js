@@ -884,7 +884,7 @@ export async function isPageStatic(
 
       const hasFlightData = !!(mod as any).__next_rsc__
       const hasGetInitialProps = !!(Comp as any).getInitialProps
-      const hasStaticProps = !!mod.getStaticProps
+      const hasStaticProps = !!mod.getStaticProps && !hasFlightData
       const hasStaticPaths = !!mod.getStaticPaths
       const hasServerProps = !!mod.getServerSideProps
       const hasLegacyServerProps = !!(await mod.ComponentMod
@@ -1275,4 +1275,26 @@ export function isReservedPage(page: string) {
 
 export function isCustomErrorPage(page: string) {
   return page === '/404' || page === '/500'
+}
+
+export const createClientComponentFilter = (pageExtensions: string[]) => {
+  const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
+  // Special cases for Next.js APIs that are considered as client components:
+  // - .client.[ext]
+  // - next/link, next/image
+  // - .[imageExt]
+  const regex = new RegExp(
+    '(' +
+      `\\.client(\\.(${pageExtensions.join('|')}))?|` +
+      `next/link|next/image|` +
+      `\\.(${imageExtensions.join('|')})` +
+      ')$'
+  )
+
+  return (importSource: string) => regex.test(importSource)
+}
+
+export const createServerComponentFilter = (pageExtensions: string[]) => {
+  const regex = new RegExp(`\\.server(\\.(${pageExtensions.join('|')}))?$`)
+  return (importSource: string) => regex.test(importSource)
 }

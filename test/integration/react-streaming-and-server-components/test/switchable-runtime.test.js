@@ -73,9 +73,9 @@ describe('Without global runtime configuration', () => {
     })
   })
 
-  it('should build /node-rsc as a static page with the nodejs runtime', async () => {
+  it('should build /node-rsc as a dynamic page with the nodejs runtime', async () => {
     await testRoute(context.appPort, '/node-rsc', {
-      isStatic: true,
+      isStatic: false,
       isEdge: false,
     })
   })
@@ -87,9 +87,9 @@ describe('Without global runtime configuration', () => {
     })
   })
 
-  it('should build /node-rsc-ssg as a static page with the nodejs runtime', async () => {
+  it('should build /node-rsc-ssg as a dynamic page with the nodejs runtime', async () => {
     await testRoute(context.appPort, '/node-rsc-ssg', {
-      isStatic: true,
+      isStatic: false,
       isEdge: false,
     })
   })
@@ -109,6 +109,9 @@ describe('Without global runtime configuration', () => {
   })
 
   it('should display correct tree view with page types in terminal', async () => {
+    console.log(context.stdout)
+    console.error(context.stderr)
+
     const stdoutLines = splitLines(context.stdout).filter((line) =>
       /^[┌├└/]/.test(line)
     )
@@ -117,8 +120,8 @@ describe('Without global runtime configuration', () => {
   ├ ℇ /edge
   ├ ℇ /edge-rsc
   ├ ○ /node
-  ├ ○ /node-rsc
-  ├ ● /node-rsc-ssg
+  ├ λ /node-rsc
+  ├ λ /node-rsc-ssg
   ├ λ /node-rsc-ssr
   ├ ● /node-ssg
   ├ λ /node-ssr

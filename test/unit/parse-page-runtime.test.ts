@@ -7,6 +7,7 @@ const fixtureDir = join(__dirname, 'fixtures')
 function createNextConfig(runtime?: PageRuntime) {
   return {
     experimental: { reactRoot: true, runtime },
+    pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   }
 }
 

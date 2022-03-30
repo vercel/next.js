@@ -1,8 +1,4 @@
-import type {
-  PageRuntime,
-  NextConfigComplete,
-  NextConfig,
-} from '../server/config-shared'
+import type { PageRuntime, NextConfigComplete } from '../server/config-shared'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import fs from 'fs'
 import chalk from 'next/dist/compiled/chalk'
@@ -19,7 +15,12 @@ import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-lo
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
 import { parse } from '../build/swc'
-import { isCustomErrorPage, isFlightPage, isReservedPage } from './utils'
+import {
+  createServerComponentFilter,
+  isCustomErrorPage,
+  isFlightPage,
+  isReservedPage,
+} from './utils'
 import { ssrEntries } from './webpack/plugins/middleware-plugin'
 import {
   MIDDLEWARE_RUNTIME_WEBPACK,
@@ -109,16 +110,19 @@ const cachedPageRuntimeConfig = new Map<string, [number, PageRuntime]>()
 // could be thousands of pages existing.
 export async function getPageRuntime(
   pageFilePath: string,
-  nextConfig: Partial<NextConfig>
+  nextConfig: Pick<NextConfigComplete, 'pageExtensions' | 'experimental'>
 ): Promise<PageRuntime> {
   if (!nextConfig.experimental?.reactRoot) return undefined
-
-  const globalRuntime = nextConfig.experimental?.runtime
   const cached = cachedPageRuntimeConfig.get(pageFilePath)
   if (cached) {
     return cached[1]
   }
 
+  const isServerComponent = createServerComponentFilter(
+    nextConfig.pageExtensions
+  )
+
+  const globalRuntime = nextConfig.experimental?.runtime
   let pageContent: string
   try {
     pageContent = await fs.promises.readFile(pageFilePath, {
@@ -135,6 +139,10 @@ export async function getPageRuntime(
   // https://github.com/vercel/next.js/discussions/34179
   let isRuntimeRequired: boolean = false
   let pageRuntime: PageRuntime = undefined
+
+  if (isServerComponent(pageFilePath)) {
+    isRuntimeRequired = true
+  }
 
   // Since these configurations should always be static analyzable, we can
   // skip these cases that "runtime" and "gSP", "gSSP" are not included in the

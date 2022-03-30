@@ -1,29 +1,10 @@
 import { parse } from '../../swc'
-import { getRawPageExtensions } from '../../utils'
 import { buildExports } from './utils'
-
-const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
-
-const createClientComponentFilter = (pageExtensions: string[]) => {
-  // Special cases for Next.js APIs that are considered as client components:
-  // - .client.[ext]
-  // - next/link, next/image
-  // - .[imageExt]
-  const regex = new RegExp(
-    '(' +
-      `\\.client(\\.(${pageExtensions.join('|')}))?|` +
-      `next/link|next/image|` +
-      `\\.(${imageExtensions.join('|')})` +
-      ')$'
-  )
-
-  return (importSource: string) => regex.test(importSource)
-}
-
-const createServerComponentFilter = (pageExtensions: string[]) => {
-  const regex = new RegExp(`\\.server(\\.(${pageExtensions.join('|')}))?$`)
-  return (importSource: string) => regex.test(importSource)
-}
+import {
+  createClientComponentFilter,
+  createServerComponentFilter,
+  getRawPageExtensions,
+} from '../../utils'
 
 async function parseModuleInfo({
   resourcePath,

@@ -98,6 +98,7 @@ import {
   copyTracedFiles,
   isReservedPage,
   isCustomErrorPage,
+  createServerComponentFilter,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -945,6 +946,9 @@ export default async function build(
         config.experimental.gzipSize
       )
 
+      const isServerComponent = createServerComponentFilter(
+        config.pageExtensions
+      )
       await Promise.all(
         pageKeys.map(async (page) => {
           const checkPageSpan = staticCheckSpan.traceChild('check-page', {
@@ -971,6 +975,8 @@ export default async function build(
                 p.startsWith(actualPage + '.') ||
                 p.startsWith(actualPage + '/index.')
             )
+
+            const isRSC = pagePath ? isServerComponent(pagePath) : false
             const pageRuntime = pagePath
               ? await getPageRuntime(join(pagesDir, pagePath), config)
               : undefined
@@ -979,7 +985,8 @@ export default async function build(
               !isMiddlewareRoute &&
               !isReservedPage(page) &&
               // We currently don't support static optimization in the Edge runtime.
-              pageRuntime !== 'edge'
+              pageRuntime !== 'edge' &&
+              !isRSC
             ) {
               try {
                 let isPageStaticSpan =
