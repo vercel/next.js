@@ -40,7 +40,7 @@ use std::{
     sync::Arc,
 };
 use swc::{try_with_handler, Compiler, TransformOutput};
-use swc_common::{FileName, SourceFile};
+use swc_common::{errors::ColorConfig, FileName, SourceFile};
 use swc_ecmascript::ast::Program;
 use swc_ecmascript::transforms::pass::noop;
 
@@ -65,48 +65,55 @@ impl Task for TransformTask {
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         let res = catch_unwind(AssertUnwindSafe(|| {
-            try_with_handler(self.c.cm.clone(), true, |handler| {
-                self.c.run(|| {
-                    let options: TransformOptions = deserialize_json(&self.options)?;
-                    let fm = match &self.input {
-                        Input::Source { src } => {
-                            let filename = if options.swc.filename.is_empty() {
-                                FileName::Anon
-                            } else {
-                                FileName::Real(options.swc.filename.clone().into())
-                            };
+            try_with_handler(
+                self.c.cm.clone(),
+                swc::HandlerOpts {
+                    color: ColorConfig::Never,
+                    skip_filename: true,
+                },
+                |handler| {
+                    self.c.run(|| {
+                        let options: TransformOptions = deserialize_json(&self.options)?;
+                        let fm = match &self.input {
+                            Input::Source { src } => {
+                                let filename = if options.swc.filename.is_empty() {
+                                    FileName::Anon
+                                } else {
+                                    FileName::Real(options.swc.filename.clone().into())
+                                };
 
-                            self.c.cm.new_source_file(filename, src.to_string())
-                        }
-                        Input::FromFilename => {
-                            let filename = &options.swc.filename;
-                            if filename.is_empty() {
-                                bail!("no filename is provided via options");
+                                self.c.cm.new_source_file(filename, src.to_string())
                             }
+                            Input::FromFilename => {
+                                let filename = &options.swc.filename;
+                                if filename.is_empty() {
+                                    bail!("no filename is provided via options");
+                                }
 
-                            self.c.cm.new_source_file(
-                                FileName::Real(filename.into()),
-                                read_to_string(filename).with_context(|| {
-                                    format!("Failed to read source code from {}", filename)
-                                })?,
-                            )
-                        }
-                    };
-                    let options = options.patch(&fm);
+                                self.c.cm.new_source_file(
+                                    FileName::Real(filename.into()),
+                                    read_to_string(filename).with_context(|| {
+                                        format!("Failed to read source code from {}", filename)
+                                    })?,
+                                )
+                            }
+                        };
+                        let options = options.patch(&fm);
 
-                    let cm = self.c.cm.clone();
-                    let file = fm.clone();
+                        let cm = self.c.cm.clone();
+                        let file = fm.clone();
 
-                    self.c.process_js_with_custom_pass(
-                        fm,
-                        None,
-                        handler,
-                        &options.swc,
-                        |_, comments| custom_before_pass(cm, file, &options, comments.clone()),
-                        |_, _| noop(),
-                    )
-                })
-            })
+                        self.c.process_js_with_custom_pass(
+                            fm,
+                            None,
+                            handler,
+                            &options.swc,
+                            |_, comments| custom_before_pass(cm, file, &options, comments.clone()),
+                            |_, _| noop(),
+                        )
+                    })
+                },
+            )
         }))
         .map_err(|err| {
             if let Some(s) = err.downcast_ref::<String>() {
@@ -174,19 +181,26 @@ where
     let mut options: TransformOptions = cx.get_deserialized(2)?;
     options.swc.swcrc = false;
 
-    let output = try_with_handler(c.cm.clone(), true, |handler| {
-        c.run(|| {
-            if is_module.get_value()? {
-                let program: Program =
-                    serde_json::from_str(s.as_str()?).context("failed to deserialize Program")?;
-                c.process_js(handler, program, &options.swc)
-            } else {
-                let fm =
-                    op(&c, s.as_str()?.to_string(), &options).context("failed to load file")?;
-                c.process_js_file(fm, handler, &options.swc)
-            }
-        })
-    })
+    let output = try_with_handler(
+        c.cm.clone(),
+        swc::HandlerOpts {
+            color: ColorConfig::Never,
+            skip_filename: true,
+        },
+        |handler| {
+            c.run(|| {
+                if is_module.get_value()? {
+                    let program: Program = serde_json::from_str(s.as_str()?)
+                        .context("failed to deserialize Program")?;
+                    c.process_js(handler, program, &options.swc)
+                } else {
+                    let fm =
+                        op(&c, s.as_str()?.to_string(), &options).context("failed to load file")?;
+                    c.process_js_file(fm, handler, &options.swc)
+                }
+            })
+        },
+    )
     .convert_err()?;
 
     complete_output(cx.env, output)

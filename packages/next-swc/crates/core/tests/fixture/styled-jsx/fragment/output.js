@@ -1,5 +1,5 @@
 import _JSXStyle from "styled-jsx/style";
-import React from "react";
+import React from 'react';
 export default (()=><>
 
     <p className={"jsx-6dd5f97e085c0297"}>Testing!!!</p>
