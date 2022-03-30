@@ -25,7 +25,11 @@ describe('experimental.nextScriptWorkers: false with no Partytown dependency', (
           }
         `,
       },
-      dependencies: {},
+      // TODO: @housseindjirdeh: verify React 18 functionality
+      dependencies: {
+        react: '17.0.2',
+        'react-dom': '17.0.2',
+      },
     })
   })
   afterAll(() => next.destroy())
