@@ -149,10 +149,6 @@ describe('experimental.nextScriptWorkers: true with config override', () => {
           nextScriptWorkers: true,
         },
       },
-      dependencies: {
-        react: '17',
-        'react-dom': '17',
-      },
       files: {
         'pages/_document.js': `
         import Document, { Html, Head, Main, NextScript } from "next/document";
@@ -202,6 +198,8 @@ describe('experimental.nextScriptWorkers: true with config override', () => {
       },
       dependencies: {
         '@builder.io/partytown': '0.4.2',
+        react: '17',
+        'react-dom': '17',
       },
     })
   })
