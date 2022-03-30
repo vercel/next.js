@@ -18,6 +18,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-react-toolbox with-react-toolbox-app
 # or
 yarn create next-app --example with-react-toolbox with-react-toolbox-app
+# or
+pnpm create next-app -- --example with-react-toolbox with-react-toolbox-app
 ```
 
 Notice that `yarn toolbox` (or `npm run toolbox`) should be rerun every time the `"reactToolbox"` configuration in `package.json` is changed, in order to update `/theme.js` and `public/theme.css`. The `"reactToolbox"` configuration includes styling, and the list of react-toolbox components to include.

@@ -17,6 +17,8 @@ describe('styled-components SWC transform', () => {
       },
       dependencies: {
         'styled-components': '5.3.3',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })
@@ -34,6 +36,7 @@ describe('styled-components SWC transform', () => {
     })
     return foundLog
   }
+
   it('should not have hydration mismatch with styled-components transform enabled', async () => {
     let browser
     try {
@@ -55,5 +58,15 @@ describe('styled-components SWC transform', () => {
         await browser.close()
       }
     }
+  })
+
+  it('should render the page with correct styles', async () => {
+    const browser = await webdriver(next.appPort, '/')
+
+    expect(
+      await browser.eval(
+        `window.getComputedStyle(document.querySelector('#btn')).color`
+      )
+    ).toBe('rgb(255, 255, 255)')
   })
 })

@@ -38,6 +38,14 @@ describe('react 18 streaming SSR in minimal mode', () => {
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('static streaming')
   })
+
+  it('should have generated a static 404 page', async () => {
+    expect(await next.readFile('.next/server/pages/404.html')).toBeTruthy()
+
+    const res = await fetchViaHTTP(next.url, '/non-existent')
+    expect(res.status).toBe(404)
+    expect(await res.text()).toContain('This page could not be found')
+  })
 })
 
 describe('react 18 streaming SSR with custom next configs', () => {
@@ -59,6 +67,15 @@ describe('react 18 streaming SSR with custom next configs', () => {
         'pages/hello.js': `
           export default function Page() {
             return <p>hello nextjs</p>
+          }
+        `,
+        'pages/multi-byte.js': `
+          export default function Page() {
+            return (
+              <div>
+                <p>{"マルチバイト".repeat(28)}</p>
+              </div>
+            );
           }
         `,
       },
@@ -97,5 +114,10 @@ describe('react 18 streaming SSR with custom next configs', () => {
     expect(redirectRes.status).toBe(308)
     expect(res.status).toBe(200)
     expect(html).toContain('hello nextjs')
+  })
+
+  it('should render multi-byte characters correctly in streaming', async () => {
+    const html = await renderViaHTTP(next.url, '/multi-byte')
+    expect(html).toContain('マルチバイト'.repeat(28))
   })
 })
