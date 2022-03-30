@@ -1331,42 +1331,62 @@ export async function renderToHTML(
       return { docProps, documentCtx }
     }
 
-    if (!hasConcurrentFeatures) {
-      const documentInitialPropsRes = await documentInitialProps()
-      if (!documentInitialPropsRes) return null
-      const { docProps, documentCtx } = documentInitialPropsRes
+    const renderContent = () => {
+      return ctx.err && ErrorDebug ? (
+        <Body>
+          <ErrorDebug error={ctx.err} />
+        </Body>
+      ) : (
+        <Body>
+          <AppContainerWithIsomorphicFiberStructure>
+            {isServerComponent && AppMod.__next_rsc__ ? (
+              // _app.server.js is used.
+              <Component {...props.pageProps} router={router} />
+            ) : (
+              <App {...props} Component={Component} router={router} />
+            )}
+          </AppContainerWithIsomorphicFiberStructure>
+        </Body>
+      )
+    }
 
-      return {
-        bodyResult: (suffix: string) =>
-          streamFromArray([docProps.html, suffix]),
-        documentElement: (htmlProps: HtmlProps) => (
-          <Document {...htmlProps} {...docProps} />
-        ),
-        head: docProps.head,
-        headTags: await headTags(documentCtx),
-        styles: docProps.styles,
+    if (!hasConcurrentFeatures) {
+      if (Document.getInitialProps) {
+        const documentInitialPropsRes = await documentInitialProps()
+        if (documentInitialPropsRes === null) return null
+        const { docProps, documentCtx } = documentInitialPropsRes
+
+        return {
+          bodyResult: (suffix: string) =>
+            streamFromArray([docProps.html, suffix]),
+          documentElement: (htmlProps: HtmlProps) => (
+            <Document {...htmlProps} {...docProps} />
+          ),
+          head: docProps.head,
+          headTags: await headTags(documentCtx),
+          styles: docProps.styles,
+        }
+      } else {
+        const content = renderContent()
+        // for non-concurrent rendering we need to ensure App is rendered
+        // before _document so that updateHead is called/collected before
+        // rendering _document's head
+        const result = ReactDOMServer.renderToString(content)
+        const bodyResult = (suffix: string) => streamFromArray([result, suffix])
+
+        const styles = jsxStyleRegistry.styles()
+        jsxStyleRegistry.flush()
+
+        return {
+          bodyResult,
+          documentElement: () => (Document as any)(),
+          head,
+          headTags: [],
+          styles,
+        }
       }
     } else {
       let bodyResult
-
-      const renderContent = () => {
-        return ctx.err && ErrorDebug ? (
-          <Body>
-            <ErrorDebug error={ctx.err} />
-          </Body>
-        ) : (
-          <Body>
-            <AppContainerWithIsomorphicFiberStructure>
-              {isServerComponent && AppMod.__next_rsc__ ? (
-                // _app.server.js is used.
-                <Component {...props.pageProps} router={router} />
-              ) : (
-                <App {...props} Component={Component} router={router} />
-              )}
-            </AppContainerWithIsomorphicFiberStructure>
-          </Body>
-        )
-      }
 
       let renderStream: any
 
@@ -1415,7 +1435,9 @@ export async function renderToHTML(
       jsxStyleRegistry.flush()
 
       const documentInitialPropsRes =
-        isServerComponent || process.browser ? {} : await documentInitialProps()
+        isServerComponent || process.browser || !Document.getInitialProps
+          ? {}
+          : await documentInitialProps()
       if (documentInitialPropsRes === null) return null
 
       const documentElement = () => {
@@ -1423,7 +1445,7 @@ export async function renderToHTML(
           return (Document as any)()
         }
 
-        const { docProps } = documentInitialPropsRes as any
+        const { docProps } = (documentInitialPropsRes as any) || {}
         return <Document {...htmlProps} {...docProps} />
       }
 

@@ -67,6 +67,6 @@ describe('styled-components SWC transform', () => {
       await browser.eval(
         `window.getComputedStyle(document.querySelector('#btn')).color`
       )
-    ).toBe('white')
+    ).toBe('rgb(255, 255, 255)')
   })
 })
