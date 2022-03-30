@@ -1268,9 +1268,14 @@ export async function renderToHTML(
       }
     }
 
-    // We make it a function component to enable streaming.
-    if (hasConcurrentFeatures && builtinDocument && isServerComponent) {
-      // Document = builtinDocument
+    if ((isServerComponent || process.browser) && Document.getInitialProps) {
+      if (builtinDocument) {
+        Document = builtinDocument
+      } else {
+        throw new Error(
+          '`getInitialProps` in Document component is not supported with React Server Components.'
+        )
+      }
     }
 
     async function documentInitialProps() {
@@ -1326,7 +1331,7 @@ export async function renderToHTML(
       return { docProps, documentCtx }
     }
 
-    if (!hasConcurrentFeatures && Document.getInitialProps) {
+    if (!hasConcurrentFeatures) {
       const res = await documentInitialProps()
       if (!res) return null
       const { docProps, documentCtx } = res
@@ -1363,56 +1368,47 @@ export async function renderToHTML(
         )
       }
 
-      if (hasConcurrentFeatures) {
-        let renderStream: any
+      let renderStream: any
 
-        // We start rendering the shell earlier, before returning the head tags
-        // to `documentResult`.
-        const content = renderContent()
-        renderStream = await renderToInitialStream({
-          ReactDOMServer,
-          element: content,
-        })
+      // We start rendering the shell earlier, before returning the head tags
+      // to `documentResult`.
+      const content = renderContent()
+      renderStream = await renderToInitialStream({
+        ReactDOMServer,
+        element: content,
+      })
 
-        bodyResult = async (suffix: string) => {
-          // this must be called inside bodyResult so appWrappers is
-          // up to date when getWrappedApp is called
+      bodyResult = async (suffix: string) => {
+        // this must be called inside bodyResult so appWrappers is
+        // up to date when getWrappedApp is called
 
-          const flushEffectHandler = async () => {
-            const allFlushEffects = [
-              styledJsxFlushEffect,
-              ...(flushEffects || []),
-            ]
-            const flushEffectStream = await renderToStream({
-              ReactDOMServer,
-              element: (
-                <>
-                  {allFlushEffects.map((flushEffect, i) => (
-                    <React.Fragment key={i}>{flushEffect()}</React.Fragment>
-                  ))}
-                </>
-              ),
-              generateStaticHTML: true,
-            })
-            const flushed = await streamToString(flushEffectStream)
-            return flushed
-          }
-
-          return await continueFromInitialStream({
-            renderStream,
-            suffix,
-            dataStream: serverComponentsInlinedTransformStream?.readable,
-            generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
-            flushEffectHandler,
+        const flushEffectHandler = async () => {
+          const allFlushEffects = [
+            styledJsxFlushEffect,
+            ...(flushEffects || []),
+          ]
+          const flushEffectStream = await renderToStream({
+            ReactDOMServer,
+            element: (
+              <>
+                {allFlushEffects.map((flushEffect, i) => (
+                  <React.Fragment key={i}>{flushEffect()}</React.Fragment>
+                ))}
+              </>
+            ),
+            generateStaticHTML: true,
           })
+          const flushed = await streamToString(flushEffectStream)
+          return flushed
         }
-      } else {
-        const content = renderContent()
-        // for non-concurrent rendering we need to ensure App is rendered
-        // before _document so that updateHead is called/collected before
-        // rendering _document's head
-        const result = ReactDOMServer.renderToString(content)
-        bodyResult = (suffix: string) => streamFromArray([result, suffix])
+
+        return await continueFromInitialStream({
+          renderStream,
+          suffix,
+          dataStream: serverComponentsInlinedTransformStream?.readable,
+          generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
+          flushEffectHandler,
+        })
       }
 
       const styles = jsxStyleRegistry.styles()
