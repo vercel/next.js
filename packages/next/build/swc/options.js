@@ -104,7 +104,7 @@ function getBaseSWCOptions({
     reactRemoveProperties: nextConfig?.compiler?.reactRemoveProperties,
     modularizeImports: nextConfig?.experimental?.modularizeImports,
     relay: nextConfig?.compiler?.relay,
-    emotion: getEmotionOptions(nextConfig, development),
+    // emotion: getEmotionOptions(nextConfig, development),
   }
 }
 

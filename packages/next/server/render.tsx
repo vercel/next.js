@@ -1269,11 +1269,11 @@ export async function renderToHTML(
     }
 
     // We make it a function component to enable streaming.
-    if (hasConcurrentFeatures && builtinDocument) {
-      Document = builtinDocument
+    if (hasConcurrentFeatures && builtinDocument && isServerComponent) {
+      // Document = builtinDocument
     }
 
-    if (!hasConcurrentFeatures && Document.getInitialProps) {
+    async function documentInitialProps() {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
       ): RenderPageResult | Promise<RenderPageResult> => {
@@ -1322,6 +1322,14 @@ export async function renderToHTML(
         )}.getInitialProps()" should resolve to an object with a "html" prop set with a valid html string`
         throw new Error(message)
       }
+
+      return { docProps, documentCtx }
+    }
+
+    if (!hasConcurrentFeatures && Document.getInitialProps) {
+      const res = await documentInitialProps()
+      if (!res) return null
+      const { docProps, documentCtx } = res
 
       return {
         bodyResult: (suffix: string) =>
@@ -1410,9 +1418,22 @@ export async function renderToHTML(
       const styles = jsxStyleRegistry.styles()
       jsxStyleRegistry.flush()
 
+      const docRes =
+        isServerComponent || process.browser ? {} : await documentInitialProps()
+      if (docRes === null) return null
+
+      const documentElement = () => {
+        if (isServerComponent || process.browser) {
+          return (Document as any)()
+        }
+
+        const { docProps } = docRes as any
+        return <Document {...htmlProps} {...docProps} />
+      }
+
       return {
         bodyResult,
-        documentElement: () => (Document as any)(),
+        documentElement,
         head,
         headTags: [],
         styles,
