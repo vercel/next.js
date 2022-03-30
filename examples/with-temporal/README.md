@@ -60,6 +60,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-temporal next-temporal-app
 # or
 yarn create next-app --example with-temporal next-temporal-app
+# or
+pnpm create next-app -- --example with-temporal next-temporal-app
 ```
 
 The Temporal Node SDK requires [Node `>= 14`, `node-gyp`, and Temporal Server](https://docs.temporal.io/docs/node/getting-started#step-0-prerequisites). Once you have everything installed, you can develop locally with the below commands in four different shells:
