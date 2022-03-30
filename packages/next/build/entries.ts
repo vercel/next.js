@@ -109,7 +109,7 @@ const cachedPageRuntimeConfig = new Map<string, [number, PageRuntime]>()
 // could be thousands of pages existing.
 export async function getPageRuntime(
   pageFilePath: string,
-  nextConfig: NextConfig
+  nextConfig: Partial<NextConfig>
 ): Promise<PageRuntime> {
   if (!nextConfig.experimental?.reactRoot) return undefined
 
