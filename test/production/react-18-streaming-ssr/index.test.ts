@@ -38,6 +38,14 @@ describe('react 18 streaming SSR in minimal mode', () => {
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('static streaming')
   })
+
+  it('should have generated a static 404 page', async () => {
+    expect(await next.readFile('.next/server/pages/404.html')).toBeTruthy()
+
+    const res = await fetchViaHTTP(next.url, '/non-existent')
+    expect(res.status).toBe(404)
+    expect(await res.text()).toContain('This page could not be found')
+  })
 })
 
 describe('react 18 streaming SSR with custom next configs', () => {
