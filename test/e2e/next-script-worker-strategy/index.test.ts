@@ -56,6 +56,10 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
         experimental: {
           nextScriptWorkers: true,
         },
+        dependencies: {
+          react: '17',
+          'react-dom': '17',
+        },
       },
       files: {
         'pages/index.js': `
@@ -140,6 +144,10 @@ describe('experimental.nextScriptWorkers: true with config override', () => {
         experimental: {
           nextScriptWorkers: true,
         },
+      },
+      dependencies: {
+        react: '17',
+        'react-dom': '17',
       },
       files: {
         'pages/_document.js': `
