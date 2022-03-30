@@ -216,8 +216,8 @@ async function main() {
     // to avoid having to run yarn each time
     console.log('Creating Next.js install for isolated tests')
     const testStarter = await createNextInstall({
-      react: 'latest',
-      'react-dom': 'latest',
+      react: '17.0.2',
+      'react-dom': '17.0.2',
     })
     process.env.NEXT_TEST_STARTER = testStarter
   }
