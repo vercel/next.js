@@ -120,4 +120,149 @@
             ),
         ),
     ),
+    (
+        (
+            Atom('d1' type=inline),
+            #1,
+        ),
+        Array(
+            [
+                Constant(
+                    Num(
+                        Number {
+                            span: Span {
+                                lo: BytePos(
+                                    77,
+                                ),
+                                hi: BytePos(
+                                    78,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: 1.0,
+                        },
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    80,
+                                ),
+                                hi: BytePos(
+                                    85,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('foo' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        (
+            Atom('d2' type=inline),
+            #1,
+        ),
+        Member(
+            Variable(
+                (
+                    Atom('d1' type=inline),
+                    #1,
+                ),
+            ),
+            Member(
+                FreeVar(
+                    Other(
+                        Atom('global' type=static),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    0,
+                                ),
+                                hi: BytePos(
+                                    0,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('index' type=inline),
+                            has_escape: false,
+                            kind: Synthesized,
+                        },
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('d3' type=inline),
+            #1,
+        ),
+        Member(
+            Variable(
+                (
+                    Atom('d1' type=inline),
+                    #1,
+                ),
+            ),
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                131,
+                            ),
+                            hi: BytePos(
+                                132,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 1.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('d4' type=inline),
+            #1,
+        ),
+        Member(
+            Variable(
+                (
+                    Atom('d1' type=inline),
+                    #1,
+                ),
+            ),
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                149,
+                            ),
+                            hi: BytePos(
+                                150,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 2.0,
+                    },
+                ),
+            ),
+        ),
+    ),
 ]
