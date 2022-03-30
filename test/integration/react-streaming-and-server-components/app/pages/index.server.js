@@ -1,4 +1,3 @@
-import Foo from '../components/foo.client'
 import Nav from '../components/nav.server'
 
 const envVar = process.env.ENV_VAR_TEST
@@ -11,9 +10,6 @@ export default function Index({ header, router }) {
       <div>{'path:' + router.pathname}</div>
       <div>{'env:' + envVar}</div>
       <div>{'header:' + header}</div>
-      <div>
-        <Foo />
-      </div>
       <Nav />
     </div>
   )

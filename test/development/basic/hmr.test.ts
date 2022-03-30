@@ -22,6 +22,10 @@ describe('basic HMR', () => {
         pages: new FileRef(join(__dirname, 'hmr/pages')),
         components: new FileRef(join(__dirname, 'hmr/components')),
       },
+      dependencies: {
+        react: 'latest',
+        'react-dom': 'latest',
+      },
     })
   })
   afterAll(() => next.destroy())
@@ -561,7 +565,7 @@ describe('basic HMR', () => {
             'Unknown'
           )
         ).toMatch(
-          'Objects are not valid as a React child (found: /search/). If you meant to render a collection of children, use an array instead.'
+          'Objects are not valid as a React child (found: [object RegExp]). If you meant to render a collection of children, use an array instead.'
         )
 
         await next.patchFile(aboutPage, aboutContent)
@@ -714,7 +718,10 @@ describe('basic HMR', () => {
             await waitFor(2000)
             throw new Error('waiting')
           }
-          return getRedboxSource(browser)
+
+          await waitFor(2000)
+          const source = await getRedboxSource(browser)
+          return source
         }, /an-expected-error-in-gip/)
       } catch (err) {
         await next.patchFile(erroredPage, errorContent)

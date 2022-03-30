@@ -264,7 +264,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
   }
 }
 
-// Add a speical property to the built-in `Document` component so later we can
+// Add a special property to the built-in `Document` component so later we can
 // identify if a user customized `Document` is used or not.
 ;(Document as any).__next_internal_document =
   function InternalFunctionDocument() {

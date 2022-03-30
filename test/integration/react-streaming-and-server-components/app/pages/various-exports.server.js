@@ -23,12 +23,12 @@ export default function Page() {
       <div>
         <ClientNamed />
       </div>
-      <di>
+      <div>
         <CjsShared />
-      </di>
-      <di>
+      </div>
+      <div>
         <CjsClient />
-      </di>
+      </div>
     </div>
   )
 }
