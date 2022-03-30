@@ -14,23 +14,23 @@ The files inside the `pages` directory can be used to define most common pattern
 
 The router will automatically route files named `index` to the root of the directory.
 
-- `pages/index.js` → `/`
-- `pages/blog/index.js` → `/blog`
+- `pages/index.jsx` → `/`
+- `pages/blog/index.jsx` → `/blog`
 
 #### Nested routes
 
 The router supports nested files. If you create a nested folder structure, files will automatically be routed in the same way still.
 
-- `pages/blog/first-post.js` → `/blog/first-post`
-- `pages/dashboard/settings/username.js` → `/dashboard/settings/username`
+- `pages/blog/first-post.jsx` → `/blog/first-post`
+- `pages/dashboard/settings/username.jsx` → `/dashboard/settings/username`
 
 #### Dynamic route segments
 
 To match a dynamic segment, you can use the bracket syntax. This allows you to match named parameters.
 
-- `pages/blog/[slug].js` → `/blog/:slug` (`/blog/hello-world`)
-- `pages/[username]/settings.js` → `/:username/settings` (`/foo/settings`)
-- `pages/post/[...all].js` → `/post/*` (`/post/2020/id/title`)
+- `pages/blog/[slug].jsx` → `/blog/:slug` (`/blog/hello-world`)
+- `pages/[username]/settings.jsx` → `/:username/settings` (`/foo/settings`)
+- `pages/post/[...all].jsx` → `/post/*` (`/post/2020/id/title`)
 
 > Check out the [Dynamic Routes documentation](/docs/routing/dynamic-routes.md) to learn more about how they work.
 
@@ -70,9 +70,9 @@ export default Home
 
 The example above uses multiple links. Each one maps a path (`href`) to a known page:
 
-- `/` → `pages/index.js`
-- `/about` → `pages/about.js`
-- `/blog/hello-world` → `pages/blog/[slug].js`
+- `/` → `pages/index.jsx`
+- `/about` → `pages/about.jsx`
+- `/blog/hello-world` → `pages/blog/[slug].jsx`
 
 Any `<Link />` in the viewport (initially or through scroll) will be prefetched by default (including the corresponding data) for pages using [Static Generation](/docs/basic-features/data-fetching/get-static-props.md). The corresponding data for [server-rendered](/docs/basic-features/data-fetching/get-server-side-props.md) routes is _not_ prefetched.
 

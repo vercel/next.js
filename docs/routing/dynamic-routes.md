@@ -13,7 +13,7 @@ description: Dynamic Routes are pages that allow you to add custom params to you
 
 Defining routes by using predefined paths is not always enough for complex applications. In Next.js you can add brackets to a page (`[param]`) to create a dynamic route (a.k.a. url slugs, pretty urls, and others).
 
-Consider the following page `pages/post/[pid].js`:
+Consider the following page `pages/post/[pid].jsx`:
 
 ```jsx
 import { useRouter } from 'next/router'
@@ -28,7 +28,7 @@ const Post = () => {
 export default Post
 ```
 
-Any route like `/post/1`, `/post/abc`, etc. will be matched by `pages/post/[pid].js`. The matched path parameter will be sent as a query parameter to the page, and it will be merged with the other query parameters.
+Any route like `/post/1`, `/post/abc`, etc. will be matched by `pages/post/[pid].jsx`. The matched path parameter will be sent as a query parameter to the page, and it will be merged with the other query parameters.
 
 For example, the route `/post/abc` will have the following `query` object:
 
@@ -48,7 +48,7 @@ However, route parameters will override query parameters with the same name. For
 { "pid": "abc" }
 ```
 
-Multiple dynamic route segments work the same way. The page `pages/post/[pid]/[comment].js` will match the route `/post/abc/a-comment` and its `query` object will be:
+Multiple dynamic route segments work the same way. The page `pages/post/[pid]/[comment].jsx` will match the route `/post/abc/a-comment` and its `query` object will be:
 
 ```json
 { "pid": "abc", "comment": "a-comment" }
@@ -64,17 +64,17 @@ function Home() {
     <ul>
       <li>
         <Link href="/post/abc">
-          <a>Go to pages/post/[pid].js</a>
+          <a>Go to pages/post/[pid].jsx</a>
         </Link>
       </li>
       <li>
         <Link href="/post/abc?foo=bar">
-          <a>Also goes to pages/post/[pid].js</a>
+          <a>Also goes to pages/post/[pid].jsx</a>
         </Link>
       </li>
       <li>
         <Link href="/post/abc/a-comment">
-          <a>Go to pages/post/[pid]/[comment].js</a>
+          <a>Go to pages/post/[pid]/[comment].jsx</a>
         </Link>
       </li>
     </ul>
@@ -97,7 +97,7 @@ Read our docs for [Linking between pages](/docs/routing/introduction.md#linking-
 
 Dynamic routes can be extended to catch all paths by adding three dots (`...`) inside the brackets. For example:
 
-- `pages/post/[...slug].js` matches `/post/a`, but also `/post/a/b`, `/post/a/b/c` and so on.
+- `pages/post/[...slug].jsx` matches `/post/a`, but also `/post/a/b`, `/post/a/b/c` and so on.
 
 > **Note**: You can use names other than `slug`, such as: `[...param]`
 
@@ -117,7 +117,7 @@ And in the case of `/post/a/b`, and any other matching path, new parameters will
 
 Catch all routes can be made optional by including the parameter in double brackets (`[[...slug]]`).
 
-For example, `pages/post/[[...slug]].js` will match `/post`, `/post/a`, `/post/a/b`, and so on.
+For example, `pages/post/[[...slug]].jsx` will match `/post`, `/post/a`, `/post/a/b`, and so on.
 
 The main difference between catch all and optional catch all routes is that with optional, the route without the parameter is also matched (`/post` in the example above).
 
@@ -132,9 +132,9 @@ The `query` objects are as follows:
 ## Caveats
 
 - Predefined routes take precedence over dynamic routes, and dynamic routes over catch all routes. Take a look at the following examples:
-  - `pages/post/create.js` - Will match `/post/create`
-  - `pages/post/[pid].js` - Will match `/post/1`, `/post/abc`, etc. But not `/post/create`
-  - `pages/post/[...slug].js` - Will match `/post/1/2`, `/post/a/b/c`, etc. But not `/post/create`, `/post/abc`
+  - `pages/post/create.jsx` - Will match `/post/create`
+  - `pages/post/[pid].jsx` - Will match `/post/1`, `/post/abc`, etc. But not `/post/create`
+  - `pages/post/[...slug].jsx` - Will match `/post/1/2`, `/post/a/b/c`, etc. But not `/post/create`, `/post/abc`
 - Pages that are statically optimized by [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) will be hydrated without their route parameters provided, i.e `query` will be an empty object (`{}`).
 
   After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.
