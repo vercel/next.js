@@ -58,6 +58,7 @@ describe('root dir', () => {
     expect($('p').text()).toBe('hello from root/dashboard/integrations')
   })
 
+  // TODO: why is this routable but /should-not-serve-server.server.js
   it('should not include parent when not in parent directory with route in directory', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard/rootonly/hello')
     const $ = cheerio.load(html)
@@ -123,6 +124,8 @@ describe('root dir', () => {
     expect(await res.text()).toContain('This page could not be found')
   })
 
+  // TODO: do we want to make this only work for /root or is it allowed
+  // to work for /pages as well?
   it('should match partial parameters', async () => {
     const html = await renderViaHTTP(next.url, '/partial-match-123')
     expect(html).toContain('hello from root/partial-match-[id]. ID is: 123')
@@ -173,6 +176,8 @@ describe('root dir', () => {
   })
 
   describe('server components', () => {
+    // TODO: why is this not servable but /dashboard+rootonly/hello.server.js
+    // should be? Seems like they both either should be servable or not
     it('should not serve .server.js as a path', async () => {
       // Without .server.js should serve
       const html = await renderViaHTTP(next.url, '/should-not-serve-server')
