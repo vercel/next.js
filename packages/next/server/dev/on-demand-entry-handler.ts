@@ -43,7 +43,6 @@ export default function onDemandEntryHandler(
 ) {
   const { compilers } = multiCompiler
   const invalidator = new Invalidator(watcher, multiCompiler)
-  const hasReactRoot = !!nextConfig.experimental.reactRoot
 
   let lastClientAccessPages = ['']
   let doneCallbacks: EventEmitter | null = new EventEmitter()

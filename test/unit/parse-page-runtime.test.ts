@@ -1,9 +1,10 @@
 import { getPageRuntime } from 'next/dist/build/entries'
+import type { PageRuntime } from 'next/dist/server/config-shared'
 import { join } from 'path'
 
 const fixtureDir = join(__dirname, 'fixtures')
 
-function createNextConfig(runtime?: string) {
+function createNextConfig(runtime?: PageRuntime) {
   return {
     experimental: { reactRoot: true, runtime },
   }
