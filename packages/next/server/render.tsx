@@ -74,6 +74,8 @@ import {
   chainStreams,
   createBufferedTransformStream,
   renderToStream,
+  renderToInitialStream,
+  continueFromInitialStream,
 } from './node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
@@ -1354,11 +1356,20 @@ export async function renderToHTML(
       }
 
       if (hasConcurrentFeatures) {
+        let renderStream: any
+
+        // We start rendering the shell earlier, before returning the head tags
+        // to `documentResult`.
+        const content = renderContent()
+        renderStream = await renderToInitialStream({
+          ReactDOMServer,
+          element: content,
+        })
+
         bodyResult = async (suffix: string) => {
           // this must be called inside bodyResult so appWrappers is
           // up to date when getWrappedApp is called
 
-          const content = renderContent()
           const flushEffectHandler = async () => {
             const allFlushEffects = [
               styledJsxFlushEffect,
@@ -1379,9 +1390,8 @@ export async function renderToHTML(
             return flushed
           }
 
-          return await renderToStream({
-            ReactDOMServer,
-            element: content,
+          return await continueFromInitialStream({
+            renderStream,
             suffix,
             dataStream: serverComponentsInlinedTransformStream?.readable,
             generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
