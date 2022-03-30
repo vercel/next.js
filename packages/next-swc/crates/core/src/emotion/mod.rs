@@ -755,7 +755,7 @@ fn minify_css_string(input: &str, is_first_item: bool, is_last_item: bool) -> Co
     let pattern_trim_spaces = |c| c == ' ' || c == '\n';
     SPACE_AROUND_COLON.replace_all(
         input
-            .trim_matches(if is_first_item {
+            .trim_start_matches(if is_first_item {
                 pattern_trim_spaces
             } else {
                 pattern
@@ -767,4 +767,22 @@ fn minify_css_string(input: &str, is_first_item: bool, is_last_item: bool) -> Co
             }),
         "$s",
     )
+}
+
+#[allow(unused_imports)]
+mod test_emotion {
+    use super::minify_css_string;
+
+    #[test]
+    fn should_not_trim_end_space_in_first_item() {
+        assert_eq!(
+            minify_css_string(
+                r#"
+            box-shadow: inset 0px 0px 0px "#,
+                true,
+                false
+            ),
+            "box-shadow:inset 0px 0px 0px "
+        );
+    }
 }
