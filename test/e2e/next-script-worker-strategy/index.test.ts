@@ -25,7 +25,11 @@ describe('experimental.nextScriptWorkers: false with no Partytown dependency', (
           }
         `,
       },
-      dependencies: {},
+      // TODO: @housseindjirdeh: verify React 18 functionality
+      dependencies: {
+        react: '17.0.2',
+        'react-dom': '17.0.2',
+      },
     })
   })
   afterAll(() => next.destroy())
@@ -55,6 +59,10 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
       nextConfig: {
         experimental: {
           nextScriptWorkers: true,
+        },
+        dependencies: {
+          react: '17',
+          'react-dom': '17',
         },
       },
       files: {
@@ -190,6 +198,8 @@ describe('experimental.nextScriptWorkers: true with config override', () => {
       },
       dependencies: {
         '@builder.io/partytown': '0.4.2',
+        react: '17',
+        'react-dom': '17',
       },
     })
   })
