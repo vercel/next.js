@@ -1431,10 +1431,15 @@ export async function renderToHTML(
         })
       }
 
-      const documentInitialPropsRes =
-        isServerComponent || process.browser || !Document.getInitialProps
-          ? {}
-          : await documentInitialProps()
+      const hasDocumentGetInitialProps = !(
+        isServerComponent ||
+        process.browser ||
+        !Document.getInitialProps
+      )
+
+      const documentInitialPropsRes = hasDocumentGetInitialProps
+        ? await documentInitialProps()
+        : {}
       if (documentInitialPropsRes === null) return null
 
       const { docProps } = (documentInitialPropsRes as any) || {}
@@ -1445,13 +1450,21 @@ export async function renderToHTML(
 
         return <Document {...htmlProps} {...docProps} />
       }
+      let styles
+
+      if (hasDocumentGetInitialProps) {
+        styles = docProps.styles
+      } else {
+        styles = jsxStyleRegistry.styles()
+        jsxStyleRegistry.flush()
+      }
 
       return {
         bodyResult,
         documentElement,
         head,
         headTags: [],
-        styles: docProps.styles,
+        styles,
       }
     }
   }
