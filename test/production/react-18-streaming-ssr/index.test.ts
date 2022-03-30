@@ -61,6 +61,15 @@ describe('react 18 streaming SSR with custom next configs', () => {
             return <p>hello nextjs</p>
           }
         `,
+        'pages/multi-byte.js': `
+          export default function Page() {
+            return (
+              <div>
+                <p>{"マルチバイト".repeat(28)}</p>
+              </div>
+            );
+          }
+        `,
       },
       nextConfig: {
         trailingSlash: true,
@@ -97,5 +106,10 @@ describe('react 18 streaming SSR with custom next configs', () => {
     expect(redirectRes.status).toBe(308)
     expect(res.status).toBe(200)
     expect(html).toContain('hello nextjs')
+  })
+
+  it('should render multi-byte characters correctly in streaming', async () => {
+    const html = await renderViaHTTP(next.url, '/multi-byte')
+    expect(html).toContain('マルチバイト'.repeat(28))
   })
 })
