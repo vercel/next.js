@@ -1332,9 +1332,9 @@ export async function renderToHTML(
     }
 
     if (!hasConcurrentFeatures) {
-      const res = await documentInitialProps()
-      if (!res) return null
-      const { docProps, documentCtx } = res
+      const documentInitialPropsRes = await documentInitialProps()
+      if (!documentInitialPropsRes) return null
+      const { docProps, documentCtx } = documentInitialPropsRes
 
       return {
         bodyResult: (suffix: string) =>
@@ -1414,16 +1414,16 @@ export async function renderToHTML(
       const styles = jsxStyleRegistry.styles()
       jsxStyleRegistry.flush()
 
-      const docRes =
+      const documentInitialPropsRes =
         isServerComponent || process.browser ? {} : await documentInitialProps()
-      if (docRes === null) return null
+      if (documentInitialPropsRes === null) return null
 
       const documentElement = () => {
         if (isServerComponent || process.browser) {
           return (Document as any)()
         }
 
-        const { docProps } = docRes as any
+        const { docProps } = documentInitialPropsRes as any
         return <Document {...htmlProps} {...docProps} />
       }
 
