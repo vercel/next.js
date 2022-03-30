@@ -87,8 +87,9 @@ let warn: typeof import('../build/output/log').warn
 let postProcess: typeof import('../shared/lib/post-process').default
 
 const DOCTYPE = '<!DOCTYPE html>'
+const isEdgeRuntime = !!process.browser
 
-if (!process.browser) {
+if (!isEdgeRuntime) {
   require('./node-polyfill-web-streams')
   optimizeAmp = require('./optimize-amp').default
   getFontDefinitionFromManifest =
@@ -665,7 +666,7 @@ export async function renderToHTML(
   let isPreview
   let previewData: PreviewData
 
-  if ((isSSG || getServerSideProps) && !isFallback && !process.browser) {
+  if ((isSSG || getServerSideProps) && !isFallback && !isEdgeRuntime) {
     // Reads of this are cached on the `req` object, so this should resolve
     // instantly. There's no need to pass this data down from a previous
     // invoke, where we'd have to consider server & serverless.
@@ -735,7 +736,7 @@ export async function renderToHTML(
   }
 
   // Disable AMP under the web environment
-  const inAmpMode = !process.browser && isInAmpMode(ampState)
+  const inAmpMode = !isEdgeRuntime && isInAmpMode(ampState)
 
   const reactLoadableModules: string[] = []
 
@@ -1235,6 +1236,59 @@ export async function renderToHTML(
     ? require('react-dom/server.browser')
     : require('react-dom/server')
 
+  async function documentInitialProps() {
+    const renderPage: RenderPage = (
+      options: ComponentsEnhancer = {}
+    ): RenderPageResult | Promise<RenderPageResult> => {
+      if (ctx.err && ErrorDebug) {
+        const html = ReactDOMServer.renderToString(
+          <Body>
+            <ErrorDebug error={ctx.err} />
+          </Body>
+        )
+        return { html, head }
+      }
+
+      if (dev && (props.router || props.Component)) {
+        throw new Error(
+          `'router' and 'Component' can not be returned in getInitialProps from _app.js https://nextjs.org/docs/messages/cant-override-next-props`
+        )
+      }
+
+      const { App: EnhancedApp, Component: EnhancedComponent } =
+        enhanceComponents(options, App, Component)
+
+      const html = ReactDOMServer.renderToString(
+        <Body>
+          <AppContainerWithIsomorphicFiberStructure>
+            <EnhancedApp
+              Component={EnhancedComponent}
+              router={router}
+              {...props}
+            />
+          </AppContainerWithIsomorphicFiberStructure>
+        </Body>
+      )
+      return { html, head }
+    }
+    const documentCtx = { ...ctx, renderPage }
+    const docProps: DocumentInitialProps = await loadGetInitialProps(
+      Document,
+      documentCtx
+    )
+    // the response might be finished on the getInitialProps call
+    if (isResSent(res) && !isSSG) return null
+
+    if (!docProps || typeof docProps.html !== 'string') {
+      const message = `"${getDisplayName(
+        Document
+      )}.getInitialProps()" should resolve to an object with a "html" prop set with a valid html string`
+      throw new Error(message)
+    }
+
+    return { docProps, documentCtx }
+  }
+
   /**
    * Rules of Static & Dynamic HTML:
    *
@@ -1250,85 +1304,45 @@ export async function renderToHTML(
    */
   const generateStaticHTML = supportsDynamicHTML !== true
   const renderDocument = async () => {
-    // For `Document`, there are two cases that we don't support:
-    // 1. Using `Document.getInitialProps` in the Edge runtime.
-    // 2. Using the class component `Document` with concurrent features.
+    // If the user isn't specifying a custom _document, the built-in _document
+    // will have the `__next_internal_document` field which is a function
+    // component without gIP.
+    const builtinFunctionDocument = (Document as any)
+      .__next_internal_document as typeof Document | undefined
 
-    const builtinDocument = (Document as any).__next_internal_document as
-      | typeof Document
-      | undefined
+    /**
+     * For `Document`, there are two cases that we don't support (both requires
+     * concurrent features to be enabled):
+     *
+     *   - Using `Document.getInitialProps` in the Edge runtime or with Server
+     *     Components.
+     *   - Using the class component `Document` with Server Components.
+     *
+     * If a custom _document is not used, we can workaround this by using the
+     * built-in class `Document` component with gIP.
+     * If a custom _document is used, we throw an error in these 2 cases.
+     */
 
-    if (process.browser && Document.getInitialProps) {
+    if (isEdgeRuntime && Document.getInitialProps) {
       // In the Edge runtime, `Document.getInitialProps` isn't supported.
       // We throw an error here if it's customized.
-      if (!builtinDocument) {
+      if (!builtinFunctionDocument) {
         throw new Error(
           '`getInitialProps` in Document component is not supported with the Edge Runtime.'
         )
+      } else {
+        Document = builtinFunctionDocument
       }
     }
 
-    if ((isServerComponent || process.browser) && Document.getInitialProps) {
-      if (builtinDocument) {
-        Document = builtinDocument
-      } else {
+    if (isServerComponent && Document.getInitialProps) {
+      if (!builtinFunctionDocument) {
         throw new Error(
           '`getInitialProps` in Document component is not supported with React Server Components.'
         )
+      } else {
+        Document = builtinFunctionDocument
       }
-    }
-
-    async function documentInitialProps() {
-      const renderPage: RenderPage = (
-        options: ComponentsEnhancer = {}
-      ): RenderPageResult | Promise<RenderPageResult> => {
-        if (ctx.err && ErrorDebug) {
-          const html = ReactDOMServer.renderToString(
-            <Body>
-              <ErrorDebug error={ctx.err} />
-            </Body>
-          )
-          return { html, head }
-        }
-
-        if (dev && (props.router || props.Component)) {
-          throw new Error(
-            `'router' and 'Component' can not be returned in getInitialProps from _app.js https://nextjs.org/docs/messages/cant-override-next-props`
-          )
-        }
-
-        const { App: EnhancedApp, Component: EnhancedComponent } =
-          enhanceComponents(options, App, Component)
-
-        const html = ReactDOMServer.renderToString(
-          <Body>
-            <AppContainerWithIsomorphicFiberStructure>
-              <EnhancedApp
-                Component={EnhancedComponent}
-                router={router}
-                {...props}
-              />
-            </AppContainerWithIsomorphicFiberStructure>
-          </Body>
-        )
-        return { html, head }
-      }
-      const documentCtx = { ...ctx, renderPage }
-      const docProps: DocumentInitialProps = await loadGetInitialProps(
-        Document,
-        documentCtx
-      )
-      // the response might be finished on the getInitialProps call
-      if (isResSent(res) && !isSSG) return null
-
-      if (!docProps || typeof docProps.html !== 'string') {
-        const message = `"${getDisplayName(
-          Document
-        )}.getInitialProps()" should resolve to an object with a "html" prop set with a valid html string`
-        throw new Error(message)
-      }
-
-      return { docProps, documentCtx }
     }
 
     const renderContent = () => {
@@ -1367,11 +1381,10 @@ export async function renderToHTML(
           styles: docProps.styles,
         }
       } else {
-        const content = renderContent()
         // for non-concurrent rendering we need to ensure App is rendered
         // before _document so that updateHead is called/collected before
         // rendering _document's head
-        const result = ReactDOMServer.renderToString(content)
+        const result = ReactDOMServer.renderToString(renderContent())
         const bodyResult = (suffix: string) => streamFromArray([result, suffix])
 
         const styles = jsxStyleRegistry.styles()
@@ -1386,19 +1399,14 @@ export async function renderToHTML(
         }
       }
     } else {
-      let bodyResult
-
-      let renderStream: any
-
       // We start rendering the shell earlier, before returning the head tags
       // to `documentResult`.
-      const content = renderContent()
-      renderStream = await renderToInitialStream({
+      const renderStream = await renderToInitialStream({
         ReactDOMServer,
-        element: content,
+        element: renderContent(),
       })
 
-      bodyResult = async (suffix: string) => {
+      const bodyResult = async (suffix: string) => {
         // this must be called inside bodyResult so appWrappers is
         // up to date when getWrappedApp is called
 
@@ -1434,14 +1442,13 @@ export async function renderToHTML(
       const styles = jsxStyleRegistry.styles()
       jsxStyleRegistry.flush()
 
-      const documentInitialPropsRes =
-        isServerComponent || process.browser || !Document.getInitialProps
-          ? {}
-          : await documentInitialProps()
+      const documentInitialPropsRes = Document.getInitialProps
+        ? await documentInitialProps()
+        : {}
       if (documentInitialPropsRes === null) return null
 
       const documentElement = () => {
-        if (isServerComponent || process.browser) {
+        if (isServerComponent || isEdgeRuntime) {
           return (Document as any)()
         }
 
@@ -1628,7 +1635,7 @@ export async function renderToHTML(
                 return html
               }
             : null,
-          !process.browser && process.env.__NEXT_OPTIMIZE_FONTS
+          !isEdgeRuntime && process.env.__NEXT_OPTIMIZE_FONTS
             ? async (html: string) => {
                 return await postProcess(
                   html,
@@ -1639,7 +1646,7 @@ export async function renderToHTML(
                 )
               }
             : null,
-          !process.browser && renderOpts.optimizeCss
+          !isEdgeRuntime && renderOpts.optimizeCss
             ? async (html: string) => {
                 // eslint-disable-next-line import/no-extraneous-dependencies
                 const Critters = require('critters')
