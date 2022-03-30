@@ -17778,10 +17778,10 @@ rc@^1.0.1, rc@^1.1.6, rc@^1.2.7, rc@^1.2.8:
     minimist "^1.2.0"
     strip-json-comments "~2.0.1"
 
-"react-18@npm:react@18.0.0-rc.2":
-  version "18.0.0-rc.2"
-  resolved "https://registry.yarnpkg.com/react/-/react-18.0.0-rc.2.tgz#f54de68a912454331f7f718794fbf5e6c01eb855"
-  integrity sha512-q32FWyA5HvqfRCN0ZOk0gUOpzJGPPh8fqbk8DYQuh4DyiGWiNgN/BxMq3/ScY0SlwDB1HOAMU1lUgtaOr5p2Ng==
+"react-18@npm:react@18.0.0":
+  version "18.0.0"
+  resolved "https://registry.yarnpkg.com/react/-/react-18.0.0.tgz#b468736d1f4a5891f38585ba8e8fb29f91c3cb96"
+  integrity sha512-x+VL6wbT4JRVPm7EGxXhZ8w8LTROaxPXOqhlGyVSrv0sB1jkyFGgXxJ8LVoPRLvPR6/CIZGFmfzqUa2NYeMr2A==
   dependencies:
     loose-envify "^1.1.0"
 
