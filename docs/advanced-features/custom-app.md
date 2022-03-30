@@ -40,6 +40,8 @@ The `Component` prop is the active `page`, so whenever you navigate between rout
 
 `pageProps` is an object with the initial props that were preloaded for your page by one of our [data fetching methods](/docs/basic-features/data-fetching/overview.md), otherwise it's an empty object.
 
+The `App.getInitialProps` receives a single argument called `context.ctx`. It's an object with the same set of properties as the [`context` object](/docs/api-reference/data-fetching/get-initial-props#context-object) in `getInitialProps`.
+
 ### Caveats
 
 - If your app is running and you added a custom `App`, you'll need to restart the development server. Only required if `pages/_app.js` didn't exist before.

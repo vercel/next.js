@@ -163,11 +163,12 @@ export async function ncc_next__react_dev_overlay(task, opts) {
         )
     )
     .ncc({
+      precompiled: false,
       packageName: '@next/react-dev-overlay',
       externals: overlayExternals,
       target: 'es5',
     })
-    .target('compiled/@next/react-dev-overlay')
+    .target('dist/compiled/@next/react-dev-overlay')
 
   await task
     .source(
@@ -178,15 +179,16 @@ export async function ncc_next__react_dev_overlay(task, opts) {
         )
     )
     .ncc({
+      precompiled: false,
       packageName: '@next/react-dev-overlay',
       externals: overlayExternals,
       target: 'es5',
     })
-    .target('compiled/@next/react-dev-overlay')
+    .target('dist/compiled/@next/react-dev-overlay')
 
   const clientFile = join(
     __dirname,
-    'compiled/@next/react-dev-overlay/client.js'
+    'dist/compiled/@next/react-dev-overlay/client.js'
   )
   const content = fs.readFileSync(clientFile, 'utf8')
   // remove AMD define branch as this forces the module to not
@@ -266,7 +268,7 @@ export async function ncc_jest_worker(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function ncc_react_refresh_utils(task, opts) {
-  await fs.remove(join(__dirname, 'compiled/react-refresh'))
+  await fs.remove(join(__dirname, 'dist/compiled/react-refresh'))
   await fs.copy(
     dirname(require.resolve('react-refresh/package.json')),
     join(__dirname, 'dist/compiled/react-refresh')
@@ -779,6 +781,7 @@ const babelCorePackages = {
   '@babel/traverse': 'next/dist/compiled/babel/traverse',
   '@babel/types': 'next/dist/compiled/babel/types',
   '@babel/core': 'next/dist/compiled/babel/core',
+  '@babel/parser': 'next/dist/compiled/babel/parser',
   '@babel/core/lib/config': 'next/dist/compiled/babel/core-lib-config',
   '@babel/core/lib/transformation/normalize-file':
     'next/dist/compiled/babel/core-lib-normalize-config',
@@ -813,6 +816,20 @@ export async function ncc_babel_bundle(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function ncc_babel_bundle_packages(task, opts) {
+  const eslintParseFile = join(
+    dirname(require.resolve('@babel/eslint-parser')),
+    './parse.cjs'
+  )
+  const content = fs.readFileSync(eslintParseFile, 'utf-8')
+  // Let parser.cjs require @babel/parser directly
+  const replacedContent = content
+    .replace(
+      `const babelParser = require((`,
+      `function noop(){};\nconst babelParser = require('@babel/parser');noop((`
+    )
+    .replace(/require.resolve/g, 'noop')
+  await fs.writeFile(eslintParseFile, replacedContent)
+
   await task
     .source(opts.src || 'bundles/babel/packages-bundle.js')
     .ncc({
@@ -1711,7 +1728,6 @@ export async function ncc(task, opts) {
   await task.serial(
     [
       'ncc_browserslist',
-      'ncc_next__react_dev_overlay',
       'copy_regenerator_runtime',
       'copy_babel_runtime',
       'copy_constants_browserify',
@@ -1744,7 +1760,7 @@ export async function compile(task, opts) {
     ],
     opts
   )
-  await task.serial(['ncc_react_refresh_utils'])
+  await task.serial(['ncc_react_refresh_utils', 'ncc_next__react_dev_overlay'])
 }
 
 export async function bin(task, opts) {
@@ -1809,28 +1825,28 @@ export async function nextbuildstatic(task, opts) {
 export async function pages_app(task, opts) {
   await task
     .source('pages/_app.tsx')
-    .swc('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev, keepImportAssertions: true })
     .target('dist/pages')
 }
 
 export async function pages_error(task, opts) {
   await task
     .source('pages/_error.tsx')
-    .swc('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev, keepImportAssertions: true })
     .target('dist/pages')
 }
 
 export async function pages_document(task, opts) {
   await task
     .source('pages/_document.tsx')
-    .swc('server', { dev: opts.dev })
+    .swc('server', { dev: opts.dev, keepImportAssertions: true })
     .target('dist/pages')
 }
 
 export async function pages_document_server(task, opts) {
   await task
     .source('pages/_document-concurrent.tsx')
-    .swc('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev, keepImportAssertions: true })
     .target('dist/pages')
 }
 

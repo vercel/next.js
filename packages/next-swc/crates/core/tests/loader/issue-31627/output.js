@@ -9,11 +9,11 @@ export default function Home() {
     useEffect(function() {
         new MyClass();
     }, []);
-    return(/*#__PURE__*/ React.createElement("svg", null, /*#__PURE__*/ React.createElement("g", {
+    return /*#__PURE__*/ React.createElement("svg", null, /*#__PURE__*/ React.createElement("g", {
         className: "group"
     }, /*#__PURE__*/ React.createElement("path", null), /*#__PURE__*/ React.createElement("path", null)), /*#__PURE__*/ React.createElement("g", {
         className: "group"
-    }, /*#__PURE__*/ React.createElement("path", null), /*#__PURE__*/ React.createElement("path", null))));
+    }, /*#__PURE__*/ React.createElement("path", null), /*#__PURE__*/ React.createElement("path", null)));
 };
 var MyClass = function MyClass() {
     "use strict";

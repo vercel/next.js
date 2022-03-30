@@ -97,7 +97,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           profile: minimal
-          toolchain: nightly-2021-11-15
+          toolchain: nightly-2022-02-23
           components: rustfmt, clippy
 
       - name: Cache cargo registry
@@ -181,7 +181,7 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 14
 
@@ -208,12 +208,16 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [16, 17]
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          node-version: 14
+          node-version: ${{ matrix.node }}
 
       - run: echo ${{needs.build.outputs.docsChange}}
 
@@ -241,6 +245,56 @@ jobs:
         name: Run test/development
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
+      - name: Upload test trace
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-trace
+          if-no-files-found: ignore
+          retention-days: 2
+          path: |
+            test/traces
+
+  testDevE2E:
+    name: Test Development (E2E)
+    runs-on: ubuntu-latest
+    needs: [build, build-native-dev]
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [16, 17]
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          node-version: ${{ matrix.node }}
+
+      - run: echo ${{needs.build.outputs.docsChange}}
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+
+      - uses: actions/download-artifact@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: next-swc-dev-binary
+          path: packages/next-swc/native
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -262,12 +316,16 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [16, 17]
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          node-version: 14
+          node-version: ${{ matrix.node }}
 
       - run: echo ${{needs.build.outputs.docsChange}}
 
@@ -295,28 +353,23 @@ jobs:
         name: Run test/production
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e
-        name: Run test/e2e (production)
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-
-  testIntegration:
-    name: Test Integration
+  testProdE2E:
+    name: Test Production (E2E)
     runs-on: ubuntu-latest
     needs: [build, build-native-dev]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
-      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5, 6]
+        node: [16, 17]
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          node-version: 14
+          node-version: ${{ matrix.node }}
 
       - run: echo ${{needs.build.outputs.docsChange}}
 
@@ -340,7 +393,56 @@ jobs:
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/6
+      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e
+        name: Run test/e2e (production)
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+  testIntegration:
+    name: Test Integration
+    runs-on: ubuntu-latest
+    needs: [build, build-native-dev]
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          node-version: 14
+
+      - run: echo ${{needs.build.outputs.docsChange}}
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+
+      - uses: pnpm/action-setup@v2.2.1
+        with:
+          version: 6.32.2
+
+      - uses: actions/download-artifact@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: next-swc-dev-binary
+          path: packages/next-swc/native
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/18
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - name: Upload test trace
@@ -364,7 +466,7 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 14
 
@@ -414,7 +516,7 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 14
 
@@ -449,7 +551,7 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 14
 
@@ -493,7 +595,7 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 14
 
@@ -530,7 +632,7 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 17
           check-latest: true
@@ -563,7 +665,7 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 14
 
@@ -598,7 +700,6 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
         with:
           node-version: 14
 
@@ -647,7 +748,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           profile: minimal
-          toolchain: nightly-2021-11-15
+          toolchain: nightly-2022-02-23
 
       - name: Cache cargo registry
         uses: actions/cache@v2
@@ -726,7 +827,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2021-11-15
+          toolchain: nightly-2022-02-23
           profile: minimal
       - run: cd packages/next-swc && cargo test
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
@@ -804,8 +905,8 @@ jobs:
             # Node.js in Baidu need to compatible with `GLIBC_2.12`
             build: >-
               set -e &&
-              rustup toolchain install nightly-2021-11-15 &&
-              rustup default nightly-2021-11-15 &&
+              rustup toolchain install nightly-2022-02-23 &&
+              rustup default nightly-2022-02-23 &&
               rustup target add x86_64-unknown-linux-gnu &&
               npm i -g @napi-rs/cli@2.4.4 turbo@1.0.28 &&
               turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-gnu --zig --zig-abi-suffix 2.12 &&
@@ -815,8 +916,8 @@ jobs:
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: >-
               set -e &&
-              rustup toolchain install nightly-2021-11-15 &&
-              rustup default nightly-2021-11-15 &&
+              rustup toolchain install nightly-2022-02-23 &&
+              rustup default nightly-2022-02-23 &&
               rustup target add x86_64-unknown-linux-musl &&
               npm i -g @napi-rs/cli@2.4.4 turbo@1.0.28 &&
               turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-musl &&
@@ -837,8 +938,8 @@ jobs:
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine-zig
             build: >-
               set -e &&
-              rustup toolchain install nightly-2021-11-15 &&
-              rustup default nightly-2021-11-15 &&
+              rustup toolchain install nightly-2022-02-23 &&
+              rustup default nightly-2022-02-23 &&
               rustup target add aarch64-unknown-linux-gnu &&
               npm i -g @napi-rs/cli@2.4.4 turbo@1.0.28 &&
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu --zig --zig-abi-suffix 2.12 &&
@@ -878,8 +979,8 @@ jobs:
             build: >-
               set -e &&
               npm i -g @napi-rs/cli@2.4.4 turbo@1.0.28 &&
-              rustup toolchain install nightly-2021-11-15 &&
-              rustup default nightly-2021-11-15 &&
+              rustup toolchain install nightly-2022-02-23 &&
+              rustup default nightly-2022-02-23 &&
               rustup target add aarch64-unknown-linux-musl &&
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-musl &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
@@ -945,7 +1046,7 @@ jobs:
         with:
           profile: minimal
           override: true
-          toolchain: nightly-2021-11-15
+          toolchain: nightly-2022-02-23
           target: ${{ matrix.settings.target }}
 
       - name: Cache cargo registry
@@ -1007,7 +1108,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-11-15
+          toolchain: nightly-2022-02-23
           override: true
           target: wasm32-unknown-unknown
 
@@ -1063,7 +1164,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-11-15
+          toolchain: nightly-2022-02-23
           override: true
           target: wasm32-unknown-unknown
 

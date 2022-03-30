@@ -61,6 +61,8 @@ fn test(input: &Path, minify: bool) {
                 react_remove_properties: None,
                 relay: None,
                 shake_exports: None,
+                emotion: Some(assert_json("{}")),
+                modularize_imports: None,
             };
 
             let options = options.patch(&fm);
@@ -70,8 +72,10 @@ fn test(input: &Path, minify: bool) {
                 None,
                 &handler,
                 &options.swc,
-                |_| custom_before_pass(cm.clone(), fm.clone(), &options),
-                |_| noop(),
+                |_, comments| {
+                    custom_before_pass(cm.clone(), fm.clone(), &options, comments.clone())
+                },
+                |_, _| noop(),
             ) {
                 Ok(v) => {
                     NormalizedOutput::from(v.code)
