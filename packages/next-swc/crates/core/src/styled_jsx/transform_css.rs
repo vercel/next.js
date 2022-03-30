@@ -12,10 +12,10 @@ use swc_css::codegen::{
 use swc_css::parser::parser::input::ParserInput;
 use swc_css::parser::{parse_str, parse_tokens, parser::ParserConfig};
 use swc_css::visit::{VisitMut, VisitMutWith};
+use swc_css_prefixer::prefixer;
 use swc_ecmascript::ast::{Expr, Tpl, TplElement};
 use swc_ecmascript::parser::StringInput;
 use swc_ecmascript::utils::HANDLER;
-use swc_stylis::prefixer::prefixer;
 use tracing::{debug, trace};
 
 use super::{hash_string, string_literal_expr, LocalStyle};
