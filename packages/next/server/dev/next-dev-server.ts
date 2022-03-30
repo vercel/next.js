@@ -285,7 +285,7 @@ export default class DevServer extends Server {
           invalidatePageRuntimeCache(fileName, safeTime)
           const pageRuntimeConfig = await getPageRuntime(
             fileName,
-            this.nextConfig.experimental.runtime
+            this.nextConfig
           )
           const isEdgeRuntime = pageRuntimeConfig === 'edge'
 
