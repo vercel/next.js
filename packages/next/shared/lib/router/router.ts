@@ -97,7 +97,7 @@ type PreflightEffect =
 type HistoryState =
   | null
   | { __N: false }
-  | ({ __N: true; idx: number } & NextHistoryState)
+  | ({ __N: true; key: string } & NextHistoryState)
 
 let detectDomainLocale: typeof import('../i18n/detect-domain-locale').detectDomainLocale
 
@@ -602,6 +602,12 @@ interface NextDataCache {
   [asPath: string]: Promise<object>
 }
 
+type Key = string
+
+function createKey() {
+  return Math.random().toString(36).slice(2, 10)
+}
+
 export default class Router implements BaseRouter {
   basePath: string
 
@@ -641,7 +647,7 @@ export default class Router implements BaseRouter {
     isPreview: boolean
   }>
 
-  private _idx: number = 0
+  private key: Key
 
   static events: MittEmitter<RouterEvent> = mitt()
 
@@ -734,6 +740,7 @@ export default class Router implements BaseRouter {
         !self.location.search &&
         !process.env.__NEXT_HAS_REWRITES)
     )
+    this.key = createKey()
 
     if (process.env.__NEXT_I18N_SUPPORT) {
       this.locales = locales
@@ -811,21 +818,21 @@ export default class Router implements BaseRouter {
     }
 
     let forcedScroll: { x: number; y: number } | undefined
-    const { url, as, options, idx } = state
+    const { url, as, options, key } = state
     if (process.env.__NEXT_SCROLL_RESTORATION) {
       if (manualScrollRestoration) {
-        if (this._idx !== idx) {
+        if (this.key !== key) {
           // Snapshot current scroll position:
           try {
             sessionStorage.setItem(
-              '__next_scroll_' + this._idx,
+              '__next_scroll_' + this.key,
               JSON.stringify({ x: self.pageXOffset, y: self.pageYOffset })
             )
           } catch {}
 
           // Restore old scroll position:
           try {
-            const v = sessionStorage.getItem('__next_scroll_' + idx)
+            const v = sessionStorage.getItem('__next_scroll_' + key)
             forcedScroll = JSON.parse(v!)
           } catch {
             forcedScroll = { x: 0, y: 0 }
@@ -833,7 +840,7 @@ export default class Router implements BaseRouter {
         }
       }
     }
-    this._idx = idx
+    this.key = key
 
     const { pathname } = parseRelativeUrl(url)
 
@@ -890,7 +897,7 @@ export default class Router implements BaseRouter {
         try {
           // Snapshot scroll position right before navigating to a new page:
           sessionStorage.setItem(
-            '__next_scroll_' + this._idx,
+            '__next_scroll_' + this.key,
             JSON.stringify({ x: self.pageXOffset, y: self.pageYOffset })
           )
         } catch {}
@@ -1424,7 +1431,7 @@ export default class Router implements BaseRouter {
           as,
           options,
           __N: true,
-          idx: (this._idx = method !== 'pushState' ? this._idx : this._idx + 1),
+          key: (this.key = method !== 'pushState' ? this.key : createKey()),
         } as HistoryState,
         // Most browsers currently ignores this parameter, although they may use it in the future.
         // Passing the empty string here should be safe against future changes to the method.
