@@ -12,6 +12,7 @@ import {
   appDir,
   nativeModuleTestAppDir,
   distDir,
+  documentPage,
   appPage,
   appServerPage,
   error500Page,
@@ -23,6 +24,26 @@ import rsc from './rsc'
 import streaming from './streaming'
 import basic from './basic'
 import runtime from './runtime'
+
+const documentWithGip = `
+import { Html, Head, Main, NextScript } from 'next/document'
+
+export default function Document() {
+  return (
+    <Html>
+      <Head />
+      <body>
+        <Main />
+        <NextScript />
+      </body>
+    </Html>
+  )
+}
+
+Document.getInitialProps = (ctx) => {
+  return ctx.defaultGetInitialProps(ctx)
+}
+`
 
 const rscAppPage = `
 import Container from '../components/container.server'
@@ -219,6 +240,17 @@ const cssSuite = {
   afterAll: () => appPage.delete(),
 }
 
+const documentSuite = {
+  runTests: (context) => {
+    it('should error when custom _document has getInitialProps method', async () => {
+      const res = await fetchViaHTTP(context.appPort, '/')
+      expect(res.status).toBe(500)
+    })
+  },
+  beforeAll: () => documentPage.write(documentWithGip),
+  afterAll: () => documentPage.delete(),
+}
+
 runSuite('Node.js runtime', 'dev', nodejsRuntimeBasicSuite)
 runSuite('Node.js runtime', 'prod', nodejsRuntimeBasicSuite)
 
@@ -227,6 +259,9 @@ runSuite('Custom App', 'prod', customAppPageSuite)
 
 runSuite('CSS', 'dev', cssSuite)
 runSuite('CSS', 'prod', cssSuite)
+
+runSuite('Custom Document', 'dev', documentSuite)
+runSuite('Custom Document', 'prod', documentSuite)
 
 function runSuite(suiteName, env, options) {
   const context = { appDir, distDir }
