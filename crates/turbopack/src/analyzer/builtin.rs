@@ -39,6 +39,23 @@ pub fn replace_builtin(value: JsValue) -> (JsValue, bool) {
                     )
                 }
             }
+            JsValue::Call(box JsValue::Function(mut return_value), args) => {
+                //
+                let modified = return_value.visit_mut_recursive(&mut |value| match value {
+                    JsValue::Argument(index) => {
+                        if let Some(arg) = args.get(*index).cloned() {
+                            *value = arg;
+                            true
+                        } else {
+                            false
+                        }
+                    }
+
+                    _ => false,
+                });
+
+                return (*return_value, modified);
+            }
             _ => return (value, false),
         },
         true,

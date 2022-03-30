@@ -4,9 +4,12 @@
             Atom('a' type=inline),
             #1,
         ),
-        Unknown(
-            None,
-            "function expressions are not yet supported",
+        Function(
+            FreeVar(
+                Other(
+                    Atom('undefined' type=static),
+                ),
+            ),
         ),
     ),
     (
@@ -44,9 +47,12 @@
             Atom('e' type=inline),
             #7,
         ),
-        Unknown(
-            None,
-            "function expressions are not yet supported",
+        Function(
+            FreeVar(
+                Other(
+                    Atom('undefined' type=static),
+                ),
+            ),
         ),
     ),
     (

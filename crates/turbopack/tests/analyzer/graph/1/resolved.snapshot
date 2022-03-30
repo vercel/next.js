@@ -1,23 +1,47 @@
 [
     (
         "a",
-        Unknown(
-            None,
-            "function expressions are not yet supported",
+        Function(
+            Unknown(
+                Some(
+                    FreeVar(
+                        Other(
+                            Atom('undefined' type=static),
+                        ),
+                    ),
+                ),
+                "unknown global",
+            ),
         ),
     ),
     (
         "b",
-        Unknown(
-            None,
-            "function expressions are not yet supported",
+        Function(
+            Unknown(
+                Some(
+                    FreeVar(
+                        Other(
+                            Atom('undefined' type=static),
+                        ),
+                    ),
+                ),
+                "unknown global",
+            ),
         ),
     ),
     (
         "c",
-        Unknown(
-            None,
-            "function expressions are not yet supported",
+        Function(
+            Unknown(
+                Some(
+                    FreeVar(
+                        Other(
+                            Atom('undefined' type=static),
+                        ),
+                    ),
+                ),
+                "unknown global",
+            ),
         ),
     ),
     (

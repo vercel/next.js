@@ -1,0 +1,182 @@
+[
+    (
+        (
+            Atom('a' type=inline),
+            #2,
+        ),
+        Argument(
+            0,
+        ),
+    ),
+    (
+        (
+            Atom('b' type=inline),
+            #2,
+        ),
+        Argument(
+            1,
+        ),
+    ),
+    (
+        (
+            Atom('c' type=inline),
+            #1,
+        ),
+        Function(
+            Array(
+                [
+                    Concat(
+                        [
+                            Variable(
+                                (
+                                    Atom('a' type=inline),
+                                    #2,
+                                ),
+                            ),
+                            Variable(
+                                (
+                                    Atom('x' type=inline),
+                                    #2,
+                                ),
+                            ),
+                        ],
+                    ),
+                    Variable(
+                        (
+                            Atom('a' type=inline),
+                            #2,
+                        ),
+                    ),
+                ],
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('d' type=inline),
+            #1,
+        ),
+        Call(
+            Variable(
+                (
+                    Atom('c' type=inline),
+                    #1,
+                ),
+            ),
+            [
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    78,
+                                ),
+                                hi: BytePos(
+                                    81,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('1' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    83,
+                                ),
+                                hi: BytePos(
+                                    86,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('2' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        (
+            Atom('e' type=inline),
+            #1,
+        ),
+        Member(
+            Variable(
+                (
+                    Atom('d' type=inline),
+                    #1,
+                ),
+            ),
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                0,
+                            ),
+                            hi: BytePos(
+                                0,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 0.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('f' type=inline),
+            #1,
+        ),
+        Member(
+            Variable(
+                (
+                    Atom('d' type=inline),
+                    #1,
+                ),
+            ),
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                0,
+                            ),
+                            hi: BytePos(
+                                0,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 1.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        (
+            Atom('x' type=inline),
+            #2,
+        ),
+        Variable(
+            (
+                Atom('b' type=inline),
+                #2,
+            ),
+        ),
+    ),
+]

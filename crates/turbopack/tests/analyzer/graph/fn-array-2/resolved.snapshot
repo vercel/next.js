@@ -1,0 +1,131 @@
+[
+    (
+        "a",
+        Argument(
+            0,
+        ),
+    ),
+    (
+        "b",
+        Argument(
+            1,
+        ),
+    ),
+    (
+        "c",
+        Function(
+            Array(
+                [
+                    Concat(
+                        [
+                            Argument(
+                                0,
+                            ),
+                            Argument(
+                                1,
+                            ),
+                        ],
+                    ),
+                    Argument(
+                        0,
+                    ),
+                ],
+            ),
+        ),
+    ),
+    (
+        "d",
+        Array(
+            [
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    0,
+                                ),
+                                hi: BytePos(
+                                    0,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('12' type=inline),
+                            has_escape: false,
+                            kind: Synthesized,
+                        },
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    78,
+                                ),
+                                hi: BytePos(
+                                    81,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('1' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "e",
+        Constant(
+            Str(
+                Str {
+                    span: Span {
+                        lo: BytePos(
+                            0,
+                        ),
+                        hi: BytePos(
+                            0,
+                        ),
+                        ctxt: #0,
+                    },
+                    value: Atom('12' type=inline),
+                    has_escape: false,
+                    kind: Synthesized,
+                },
+            ),
+        ),
+    ),
+    (
+        "f",
+        Constant(
+            Str(
+                Str {
+                    span: Span {
+                        lo: BytePos(
+                            78,
+                        ),
+                        hi: BytePos(
+                            81,
+                        ),
+                        ctxt: #0,
+                    },
+                    value: Atom('1' type=inline),
+                    has_escape: false,
+                    kind: Normal {
+                        contains_quote: true,
+                    },
+                },
+            ),
+        ),
+    ),
+    (
+        "x",
+        Argument(
+            1,
+        ),
+    ),
+]

@@ -1,9 +1,17 @@
 [
     (
         "a",
-        Unknown(
-            None,
-            "function expressions are not yet supported",
+        Function(
+            Unknown(
+                Some(
+                    FreeVar(
+                        Other(
+                            Atom('undefined' type=static),
+                        ),
+                    ),
+                ),
+                "unknown global",
+            ),
         ),
     ),
     (
@@ -29,9 +37,17 @@
     ),
     (
         "e",
-        Unknown(
-            None,
-            "function expressions are not yet supported",
+        Function(
+            Unknown(
+                Some(
+                    FreeVar(
+                        Other(
+                            Atom('undefined' type=static),
+                        ),
+                    ),
+                ),
+                "unknown global",
+            ),
         ),
     ),
     (
@@ -271,9 +287,17 @@
     ),
     (
         "z#2",
-        Unknown(
-            None,
-            "function expressions are not yet supported",
+        Function(
+            Unknown(
+                Some(
+                    FreeVar(
+                        Other(
+                            Atom('undefined' type=static),
+                        ),
+                    ),
+                ),
+                "unknown global",
+            ),
         ),
     ),
     (
@@ -292,9 +316,17 @@
     ),
     (
         "z#7",
-        Unknown(
-            None,
-            "function expressions are not yet supported",
+        Function(
+            Unknown(
+                Some(
+                    FreeVar(
+                        Other(
+                            Atom('undefined' type=static),
+                        ),
+                    ),
+                ),
+                "unknown global",
+            ),
         ),
     ),
     (

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, iter};
+use std::{collections::HashMap, iter, mem::replace};
 
 use swc_atoms::js_word;
 use swc_common::{collections::AHashSet, Mark, Span, Spanned};
@@ -71,7 +71,8 @@ pub fn create_graph(m: &Module, eval_context: &EvalContext) -> VarGraph {
         data: &mut graph,
         eval_context,
         var_decl_kind: Default::default(),
-        current_value: None,
+        current_value: Default::default(),
+        cur_fn_return_values: Default::default(),
     });
 
     graph.normalize();
@@ -285,7 +286,14 @@ struct Analyzer<'a> {
 
     var_decl_kind: Option<VarDeclKind>,
 
+    /// Used for patterns
     current_value: Option<JsValue>,
+
+    /// Return values of the current function.
+    ///
+    /// This is configured to [Some] by function handlers and filled by the
+    /// return statement handler.
+    cur_fn_return_values: Option<Vec<JsValue>>,
 }
 
 impl Analyzer<'_> {
@@ -431,9 +439,28 @@ impl Analyzer<'_> {
             _ => {}
         }
     }
+
+    fn take_return_values(&mut self) -> Box<JsValue> {
+        let values = self.cur_fn_return_values.take().unwrap();
+
+        match values.len() {
+            0 => box JsValue::FreeVar(FreeVarKind::Other(js_word!("undefined"))),
+            1 => box values.into_iter().next().unwrap(),
+            _ => box JsValue::Alternatives(values),
+        }
+    }
 }
 
 impl Visit for Analyzer<'_> {
+    /// We need this to avoid marking return statements in a function with a
+    /// function keyword marked as a return value for the function with function
+    /// keyword.
+    fn visit_arrow_expr(&mut self, expr: &ArrowExpr) {
+        let old = replace(&mut self.cur_fn_return_values, Some(vec![]));
+        expr.visit_children_with(self);
+        self.cur_fn_return_values = old;
+    }
+
     fn visit_assign_expr(&mut self, n: &AssignExpr) {
         match &n.left {
             PatOrExpr::Expr(expr) => {
@@ -463,6 +490,15 @@ impl Visit for Analyzer<'_> {
         self.var_decl_kind = old;
     }
 
+    fn visit_params(&mut self, n: &[Param]) {
+        let value = self.current_value.take();
+        for (index, p) in n.iter().enumerate() {
+            self.current_value = Some(JsValue::Argument(index));
+            p.visit_children_with(self);
+        }
+        self.current_value = value;
+    }
+
     fn visit_param(&mut self, n: &Param) {
         let old = self.var_decl_kind;
         let Param {
@@ -480,23 +516,25 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_fn_decl(&mut self, decl: &FnDecl) {
-        self.add_value_from_expr(
-            decl.ident.to_id(),
-            // TODO avoid clone
-            &Expr::Fn(FnExpr {
-                ident: Some(decl.ident.clone()),
-                function: decl.function.clone(),
-            }),
-        );
+        let old = replace(&mut self.cur_fn_return_values, Some(vec![]));
         decl.visit_children_with(self);
+        let return_value = self.take_return_values();
+
+        self.add_value(decl.ident.to_id(), JsValue::Function(return_value));
+
+        self.cur_fn_return_values = old;
     }
 
     fn visit_fn_expr(&mut self, expr: &FnExpr) {
-        if let Some(ident) = &expr.ident {
-            // TODO avoid clone
-            self.add_value_from_expr(ident.to_id(), &Expr::Fn(expr.clone()));
-        }
+        let old = replace(&mut self.cur_fn_return_values, Some(vec![]));
         expr.visit_children_with(self);
+        let return_value = self.take_return_values();
+
+        if let Some(ident) = &expr.ident {
+            self.add_value(ident.to_id(), JsValue::Function(return_value));
+        }
+
+        self.cur_fn_return_values = old;
     }
 
     fn visit_class_decl(&mut self, decl: &ClassDecl) {
@@ -569,6 +607,8 @@ impl Visit for Analyzer<'_> {
                             ));
                             elem.visit_with(self);
                         }
+                        // We should not call visit_children_with
+                        return;
                     }
 
                     None => {}
@@ -578,5 +618,19 @@ impl Visit for Analyzer<'_> {
             _ => {}
         }
         pat.visit_children_with(self);
+    }
+
+    fn visit_return_stmt(&mut self, stmt: &ReturnStmt) {
+        stmt.visit_children_with(self);
+
+        if let Some(values) = &mut self.cur_fn_return_values {
+            let return_value = stmt
+                .arg
+                .as_deref()
+                .map(|e| self.eval_context.eval(e))
+                .unwrap_or(JsValue::FreeVar(FreeVarKind::Other(js_word!("undefined"))));
+
+            values.push(return_value);
+        }
     }
 }

@@ -3,7 +3,7 @@ use std::{fmt::Display, future::Future, mem::take};
 use crate::ecmascript::utils::lit_to_string;
 
 pub(crate) use self::imports::ImportMap;
-use swc_atoms::JsWord;
+use swc_atoms::{js_word, JsWord};
 use swc_common::{collections::AHashSet, Mark};
 use swc_ecmascript::{ast::*, utils::ident::IdentLike};
 use url::Url;
@@ -57,6 +57,11 @@ pub enum JsValue {
 
     /// Not analyzable.
     Unknown(Option<Box<JsValue>>, &'static str),
+
+    /// `(return_value)`
+    Function(Box<JsValue>),
+
+    Argument(usize),
 }
 
 impl From<&'_ str> for JsValue {
@@ -146,6 +151,8 @@ impl Display for JsValue {
             JsValue::Unknown(..) => write!(f, "???"),
             JsValue::WellKnownObject(obj) => write!(f, "WellKnownObject({:?})", obj),
             JsValue::WellKnownFunction(func) => write!(f, "WellKnownFunction({:?})", func),
+            JsValue::Function(return_value) => write!(f, "Function(return = {:?})", return_value),
+            JsValue::Argument(index) => write!(f, "Argument({})", index),
         }
     }
 }
@@ -201,6 +208,9 @@ impl JsValue {
             JsValue::FreeVar(name) => format!("FreeVar({:?})", name),
             JsValue::Variable(name) => {
                 format!("{}", name.0)
+            }
+            JsValue::Argument(index) => {
+                format!("Argument({})", index)
             }
             JsValue::Concat(list) => format!(
                 "`{}`",
@@ -317,6 +327,9 @@ impl JsValue {
                     name
                 }
             }
+            JsValue::Function(return_value) => {
+                format!("A function which returns ({:?})", return_value)
+            }
         }
     }
 
@@ -385,6 +398,13 @@ impl JsValue {
                 }
                 (self, modified)
             }
+
+            JsValue::Function(box return_value) => {
+                let (new_return_value, modified) = visitor(take(return_value)).await?;
+                *return_value = new_return_value;
+
+                (self, modified)
+            }
             JsValue::Member(box obj, box prop) => {
                 let (v, m1) = visitor(take(obj)).await?;
                 *obj = v;
@@ -399,12 +419,27 @@ impl JsValue {
             | JsValue::Url(_)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
-            | JsValue::Unknown(..) => (self, false),
+            | JsValue::Unknown(..)
+            | JsValue::Argument(..) => (self, false),
         })
     }
 
     pub fn visit_mut(&mut self, visitor: &mut impl FnMut(&mut JsValue) -> bool) -> bool {
         let modified = self.for_each_children_mut(visitor);
+        if visitor(self) {
+            true
+        } else {
+            modified
+        }
+    }
+
+    pub fn visit_mut_recursive(&mut self, visitor: &mut impl FnMut(&mut JsValue) -> bool) -> bool {
+        let modified = self.for_each_children_mut(&mut |value| {
+            let m1 = value.visit_mut(visitor);
+            let m2 = visitor(value);
+
+            m1 || m2
+        });
         if visitor(self) {
             true
         } else {
@@ -438,6 +473,11 @@ impl JsValue {
                 }
                 modified
             }
+            JsValue::Function(return_value) => {
+                let modified = visitor(return_value);
+
+                modified
+            }
             JsValue::Member(obj, prop) => {
                 let modified = visitor(obj);
                 visitor(prop) || modified
@@ -449,7 +489,8 @@ impl JsValue {
             | JsValue::Url(_)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
-            | JsValue::Unknown(..) => false,
+            | JsValue::Unknown(..)
+            | JsValue::Argument(..) => false,
         }
     }
 
@@ -474,6 +515,9 @@ impl JsValue {
                     visitor(item);
                 }
             }
+            JsValue::Function(return_value) => {
+                visitor(return_value);
+            }
             JsValue::Member(obj, prop) => {
                 visitor(obj);
                 visitor(prop);
@@ -485,7 +529,8 @@ impl JsValue {
             | JsValue::Url(_)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
-            | JsValue::Unknown(..) => {}
+            | JsValue::Unknown(..)
+            | JsValue::Argument(..) => {}
         }
     }
 
@@ -493,9 +538,11 @@ impl JsValue {
         match self {
             JsValue::Constant(Lit::Str(..)) | JsValue::Concat(_) => true,
 
-            JsValue::Constant(..) | JsValue::Array(..) | JsValue::Url(..) | JsValue::Module(..) => {
-                false
-            }
+            JsValue::Constant(..)
+            | JsValue::Array(..)
+            | JsValue::Url(..)
+            | JsValue::Module(..)
+            | JsValue::Function(..) => false,
 
             JsValue::FreeVar(FreeVarKind::Dirname) => true,
             JsValue::FreeVar(
@@ -507,7 +554,7 @@ impl JsValue {
 
             JsValue::Alternatives(v) => v.iter().all(|v| v.is_string()),
 
-            JsValue::Variable(_) | JsValue::Unknown(..) => false,
+            JsValue::Variable(_) | JsValue::Unknown(..) | JsValue::Argument(..) => false,
 
             JsValue::Call(box JsValue::FreeVar(FreeVarKind::RequireResolve), _) => true,
             JsValue::Call(..) | JsValue::Member(..) => false,
@@ -553,6 +600,15 @@ impl JsValue {
                 *v = new;
             }
             JsValue::Concat(v) => {
+                // Remove empty strings
+                v.retain(|v| match v {
+                    JsValue::Constant(Lit::Str(Str {
+                        value: js_word!(""),
+                        ..
+                    })) => false,
+                    _ => true,
+                });
+
                 // TODO(kdy1): Remove duplicate
                 let mut new = vec![];
                 for v in take(v) {
