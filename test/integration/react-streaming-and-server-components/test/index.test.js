@@ -241,11 +241,17 @@ const cssSuite = {
 }
 
 const documentSuite = {
-  runTests: (context) => {
-    it('should error when custom _document has getInitialProps method', async () => {
-      const res = await fetchViaHTTP(context.appPort, '/')
-      expect(res.status).toBe(500)
-    })
+  runTests: (context, env) => {
+    if (env === 'dev') {
+      it('should error when custom _document has getInitialProps method', async () => {
+        const res = await fetchViaHTTP(context.appPort, '/')
+        expect(res.status).toBe(500)
+      })
+    } else {
+      it('should failed building', async () => {
+        expect(context.code).toBe(1)
+      })
+    }
   },
   beforeAll: () => documentPage.write(documentWithGip),
   afterAll: () => documentPage.delete(),
@@ -270,7 +276,7 @@ function runSuite(suiteName, env, options) {
       options.beforeAll?.()
       if (env === 'prod') {
         context.appPort = await findPort()
-        await nextBuild(context.appDir)
+        context.code = (await nextBuild(context.appDir)).code
         context.server = await nextStart(context.appDir, context.appPort)
       }
       if (env === 'dev') {
