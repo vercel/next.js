@@ -60,7 +60,7 @@ describe('styled-components SWC transform', () => {
     }
   })
 
-  it.only('should render the page', async () => {
+  it('should render the page with correct styles', async () => {
     const browser = await webdriver(next.appPort, '/')
 
     expect(
