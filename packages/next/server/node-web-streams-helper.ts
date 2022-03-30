@@ -111,8 +111,10 @@ export function encodeText(input: string) {
   return new TextEncoder().encode(input)
 }
 
-export function decodeText(input?: Uint8Array) {
-  return new TextDecoder().decode(input)
+export function decodeText(input?: Uint8Array, textDecoder?: TextDecoder) {
+  return textDecoder
+    ? textDecoder.decode(input, { stream: true })
+    : new TextDecoder().decode(input)
 }
 
 export function createTransformStream<Input, Output>({
@@ -207,9 +209,11 @@ export function createBufferedTransformStream(): TransformStream<
     return pendingFlush
   }
 
+  const textDecoder = new TextDecoder()
+
   return createTransformStream({
     transform(chunk, controller) {
-      bufferedString += decodeText(chunk)
+      bufferedString += decodeText(chunk, textDecoder)
       flushBuffer(controller)
     },
 

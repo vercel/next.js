@@ -1302,12 +1302,17 @@ export async function renderToHTML(
       }
     }
 
-    // We make it a function component to enable streaming.
-    if (hasConcurrentFeatures && builtinDocument) {
-      Document = builtinDocument
+    if ((isServerComponent || process.browser) && Document.getInitialProps) {
+      if (builtinDocument) {
+        Document = builtinDocument
+      } else {
+        throw new Error(
+          '`getInitialProps` in Document component is not supported with React Server Components.'
+        )
+      }
     }
 
-    if (!hasConcurrentFeatures && Document.getInitialProps) {
+    async function documentInitialProps() {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
       ): RenderPageResult | Promise<RenderPageResult> => {
@@ -1357,109 +1362,43 @@ export async function renderToHTML(
         throw new Error(message)
       }
 
-      return {
-        bodyResult: (suffix: string) =>
-          streamFromArray([docProps.html, suffix]),
-        documentElement: (htmlProps: HtmlProps) => (
-          <Document {...htmlProps} {...docProps} />
-        ),
-        head: docProps.head,
-        headTags: await headTags(documentCtx),
-        styles: docProps.styles,
-      }
-    } else {
-      let bodyResult
+      return { docProps, documentCtx }
+    }
 
-      const renderContent = () => {
-        return ctx.err && ErrorDebug ? (
-          <Body>
-            <ErrorDebug error={ctx.err} />
-          </Body>
-        ) : (
-          <Body>
-            <AppContainerWithIsomorphicFiberStructure>
-              {isServerComponent && AppMod.__next_rsc__ ? (
-                // _app.server.js is used.
-                <Component {...props.pageProps} router={router} />
-              ) : (
-                <App {...props} Component={Component} router={router} />
-              )}
-            </AppContainerWithIsomorphicFiberStructure>
-          </Body>
-        )
-      }
+    const renderContent = () => {
+      return ctx.err && ErrorDebug ? (
+        <Body>
+          <ErrorDebug error={ctx.err} />
+        </Body>
+      ) : (
+        <Body>
+          <AppContainerWithIsomorphicFiberStructure>
+            {isServerComponent && AppMod.__next_rsc__ ? (
+              // _app.server.js is used.
+              <Component {...props.pageProps} router={router} />
+            ) : (
+              <App {...props} Component={Component} router={router} />
+            )}
+          </AppContainerWithIsomorphicFiberStructure>
+        </Body>
+      )
+    }
 
-      if (hasConcurrentFeatures) {
-        let renderStream: any
+    if (!hasConcurrentFeatures) {
+      if (Document.getInitialProps) {
+        const documentInitialPropsRes = await documentInitialProps()
+        if (documentInitialPropsRes === null) return null
+        const { docProps, documentCtx } = documentInitialPropsRes
 
-        // We start rendering the shell earlier, before returning the head tags
-        // to `documentResult`.
-        const content = renderContent()
-        renderStream = await renderToInitialStream({
-          ReactDOMServer,
-          element: content,
-        })
-
-        bodyResult = async (suffix: string) => {
-          // this must be called inside bodyResult so appWrappers is
-          // up to date when getWrappedApp is called
-
-          const flushEffectHandler = async () => {
-            const allFlushEffects = [
-              styledJsxFlushEffect,
-              ...(flushEffects || []),
-            ]
-            const flushEffectStream = await renderToStream({
-              ReactDOMServer,
-              element: (
-                <>
-                  {allFlushEffects.map((flushEffect, i) => (
-                    <React.Fragment key={i}>{flushEffect()}</React.Fragment>
-                  ))}
-                </>
-              ),
-              generateStaticHTML: true,
-            })
-            const flushed = await streamToString(flushEffectStream)
-            return flushed
-          }
-
-          // Handle static data for server components.
-          async function generateStaticFlightDataIfNeeded() {
-            if (serverComponentsPageDataTrasnformStream) {
-              // If it's a server component with the Node.js runtime, we also
-              // statically generate the page data.
-              let data = ''
-              const readable = serverComponentsPageDataTrasnformStream.readable
-              const reader = readable.getReader()
-              while (true) {
-                const { done, value } = await reader.read()
-                if (done) {
-                  break
-                }
-                data += decodeText(value)
-              }
-              ;(renderOpts as any).pageData = {
-                ...(renderOpts as any).pageData,
-                __flight__: data,
-              }
-              return data
-            }
-          }
-
-          // @TODO: A potential improvement would be to reuse the inlined
-          // data stream, or pass a callback inside as this doesn't need to
-          // be streamed.
-          // Do not use `await` here.
-          generateStaticFlightDataIfNeeded()
-
-          return await continueFromInitialStream({
-            renderStream,
-            suffix,
-            dataStream: serverComponentsInlinedTransformStream?.readable,
-            generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
-            flushEffectHandler,
-          })
+        return {
+          bodyResult: (suffix: string) =>
+            streamFromArray([docProps.html, suffix]),
+          documentElement: (htmlProps: HtmlProps) => (
+            <Document {...htmlProps} {...docProps} />
+          ),
+          head: docProps.head,
+          headTags: await headTags(documentCtx),
+          styles: docProps.styles,
         }
       } else {
         const content = renderContent()
@@ -1467,15 +1406,115 @@ export async function renderToHTML(
         // before _document so that updateHead is called/collected before
         // rendering _document's head
         const result = ReactDOMServer.renderToString(content)
-        bodyResult = (suffix: string) => streamFromArray([result, suffix])
+        const bodyResult = (suffix: string) => streamFromArray([result, suffix])
+
+        const styles = jsxStyleRegistry.styles()
+        jsxStyleRegistry.flush()
+
+        return {
+          bodyResult,
+          documentElement: () => (Document as any)(),
+          head,
+          headTags: [],
+          styles,
+        }
+      }
+    } else {
+      let bodyResult
+
+      let renderStream: any
+
+      // We start rendering the shell earlier, before returning the head tags
+      // to `documentResult`.
+      const content = renderContent()
+      renderStream = await renderToInitialStream({
+        ReactDOMServer,
+        element: content,
+      })
+
+      bodyResult = async (suffix: string) => {
+        // this must be called inside bodyResult so appWrappers is
+        // up to date when getWrappedApp is called
+
+        const flushEffectHandler = async () => {
+          const allFlushEffects = [
+            styledJsxFlushEffect,
+            ...(flushEffects || []),
+          ]
+          const flushEffectStream = await renderToStream({
+            ReactDOMServer,
+            element: (
+              <>
+                {allFlushEffects.map((flushEffect, i) => (
+                  <React.Fragment key={i}>{flushEffect()}</React.Fragment>
+                ))}
+              </>
+            ),
+            generateStaticHTML: true,
+          })
+          const flushed = await streamToString(flushEffectStream)
+          return flushed
+        }
+
+        // Handle static data for server components.
+        async function generateStaticFlightDataIfNeeded() {
+          if (serverComponentsPageDataTrasnformStream) {
+            // If it's a server component with the Node.js runtime, we also
+            // statically generate the page data.
+            let data = ''
+            const readable = serverComponentsPageDataTrasnformStream.readable
+            const reader = readable.getReader()
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) {
+                break
+              }
+              data += decodeText(value)
+            }
+            ;(renderOpts as any).pageData = {
+              ...(renderOpts as any).pageData,
+              __flight__: data,
+            }
+            return data
+          }
+        }
+
+        // @TODO: A potential improvement would be to reuse the inlined
+        // data stream, or pass a callback inside as this doesn't need to
+        // be streamed.
+        // Do not use `await` here.
+        generateStaticFlightDataIfNeeded()
+
+        return await continueFromInitialStream({
+          renderStream,
+          suffix,
+          dataStream: serverComponentsInlinedTransformStream?.readable,
+          generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
+          flushEffectHandler,
+        })
       }
 
       const styles = jsxStyleRegistry.styles()
       jsxStyleRegistry.flush()
 
+      const documentInitialPropsRes =
+        isServerComponent || process.browser || !Document.getInitialProps
+          ? {}
+          : await documentInitialProps()
+      if (documentInitialPropsRes === null) return null
+
+      const documentElement = () => {
+        if (isServerComponent || process.browser) {
+          return (Document as any)()
+        }
+
+        const { docProps } = (documentInitialPropsRes as any) || {}
+        return <Document {...htmlProps} {...docProps} />
+      }
+
       return {
         bodyResult,
-        documentElement: () => (Document as any)(),
+        documentElement,
         head,
         headTags: [],
         styles,

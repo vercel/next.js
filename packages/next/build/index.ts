@@ -973,13 +973,9 @@ export default async function build(
                 p.startsWith(actualPage + '.') ||
                 p.startsWith(actualPage + '/index.')
             )
-            const pageRuntime =
-              hasConcurrentFeatures && pagePath
-                ? await getPageRuntime(
-                    join(pagesDir, pagePath),
-                    config.experimental.runtime
-                  )
-                : undefined
+            const pageRuntime = pagePath
+              ? await getPageRuntime(join(pagesDir, pagePath), config)
+              : undefined
 
             if (hasServerComponents && pagePath) {
               if (isFlightPage(config, pagePath)) {
@@ -1407,9 +1403,7 @@ export default async function build(
     // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
     // Only export the static 404 when there is no /_error present
     const useStatic404 =
-      !hasConcurrentFeatures &&
-      !customAppGetInitialProps &&
-      (!hasNonStaticErrorPage || hasPages404)
+      !customAppGetInitialProps && (!hasNonStaticErrorPage || hasPages404)
 
     if (invalidPages.size > 0) {
       const err = new Error(

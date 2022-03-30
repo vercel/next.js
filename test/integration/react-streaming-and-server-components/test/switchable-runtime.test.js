@@ -135,7 +135,7 @@ describe('Without global runtime configuration', () => {
       /^[┌├└/]/.test(line)
     )
     const expectedOutputLines = splitLines(`
-  ┌ λ /404
+  ┌ ○ /404
   ├ ℇ /edge
   ├ ℇ /edge-rsc
   ├ ○ /node
