@@ -85,7 +85,8 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
   try {
     let {
       partytownSnippet,
-    } = require(/* webpackIgnore: true */ '@builder.io/partytown/integration'!)
+      // @ts-ignore: Prevent webpack from processing this require
+    } = __non_webpack_require__('@builder.io/partytown/integration'!)
 
     const children = Array.isArray(props.children)
       ? props.children
@@ -135,9 +136,11 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
       </>
     )
   } catch (err) {
-    console.warn(
-      `Warning: Partytown could not be instantiated in your application due to an error. ${err}`
-    )
+    if (isError(err) && err.code !== 'MODULE_NOT_FOUND') {
+      console.warn(
+        `Warning: Partytown could not be instantiated in your application due to an error. ${err.message}`
+      )
+    }
     return null
   }
 }

@@ -1573,7 +1573,6 @@ export default async function getBaseWebpackConfig(
   webpack5Config.module!.parser = {
     javascript: {
       url: 'relative',
-      commonjsMagicComments: true,
     },
   }
   webpack5Config.module!.generator = {
