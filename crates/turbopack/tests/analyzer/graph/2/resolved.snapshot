@@ -69,11 +69,27 @@
                         },
                     ),
                 ),
+                Constant(
+                    Num(
+                        Number {
+                            span: Span {
+                                lo: BytePos(
+                                    8,
+                                ),
+                                hi: BytePos(
+                                    9,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: 1.0,
+                        },
+                    ),
+                ),
                 Unknown(
                     Some(
                         Variable(
                             (
-                                Atom('x' type=inline),
+                                Atom('y' type=inline),
                                 #1,
                             ),
                         ),
@@ -103,11 +119,27 @@
                         },
                     ),
                 ),
+                Constant(
+                    Num(
+                        Number {
+                            span: Span {
+                                lo: BytePos(
+                                    8,
+                                ),
+                                hi: BytePos(
+                                    9,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: 1.0,
+                        },
+                    ),
+                ),
                 Unknown(
                     Some(
                         Variable(
                             (
-                                Atom('x' type=inline),
+                                Atom('y' type=inline),
                                 #1,
                             ),
                         ),

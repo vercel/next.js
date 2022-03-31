@@ -916,7 +916,6 @@ mod tests {
                     .iter()
                     .map(|(id, val)| {
                         let val = val.clone();
-                        println!("LINKING {id}");
                         let mut res = block_on(link(
                             &var_graph,
                             val,

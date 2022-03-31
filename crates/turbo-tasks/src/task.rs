@@ -735,6 +735,11 @@ impl Task {
         }
     }
 
+    pub fn is_pending(&self) -> bool {
+        let state = self.state.read().unwrap();
+        state.state_type != TaskStateType::Done
+    }
+
     pub fn get_stats_type(self: &Arc<Task>) -> stats::TaskType {
         match &self.ty {
             TaskType::Root(_) => stats::TaskType::Root(self.clone()),

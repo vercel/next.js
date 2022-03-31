@@ -19,7 +19,7 @@ use turbopack::{
 };
 
 #[fixture("tests/node-file-trace/integration/analytics-node.js")]
-// #[fixture("tests/node-file-trace/integration/apollo.js")] // hanging
+#[fixture("tests/node-file-trace/integration/apollo.js")]
 // #[fixture("tests/node-file-trace/integration/argon2.js")] // can't find *.node binding
 #[fixture("tests/node-file-trace/integration/auth0.js")]
 #[fixture("tests/node-file-trace/integration/aws-sdk.js")]
@@ -131,7 +131,7 @@ fn integration_test(input: PathBuf) {
         .unwrap();
 
     let tt = TurboTasks::new();
-    let output = block_on(tt.run_once(async move {
+    let output = block_on(timeout(Duration::from_secs(30), tt.run_once(async move {
         let input_fs = DiskFileSystemRef::new("tests".to_string(), tests_root.clone());
         let input = FileSystemPathRef::new(input_fs.into(), &input);
 
@@ -153,13 +153,27 @@ fn integration_test(input: PathBuf) {
         let output = asset_output(original_output, output);
 
         Ok(output.await?)
-    }))
+    })))
     .unwrap();
 
-    assert!(
-        output.is_empty(),
-        "emitted files behave differently when executed via node.js\n{output}"
-    );
+    match output {
+        Ok(output) => {
+            assert!(
+                output.is_empty(),
+                "emitted files behave differently when executed via node.js\n{output}"
+            );
+        }
+        Err(err) => {
+            let mut pending_tasks = 0_usize;
+            for task in tt.cached_tasks_iter() {
+                if task.is_pending() {
+                    println!("PENDING: {task}");
+                    pending_tasks += 1;
+                }
+            }
+            panic!("Execution is hanging (for > 30s, {pending_tasks} pending tasks)");
+        }
+    }
 }
 
 #[turbo_tasks::value]
