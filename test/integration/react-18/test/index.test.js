@@ -25,7 +25,9 @@ const nextConfig = new File(join(appDir, 'next.config.js'))
 const invalidPage = new File(join(appDir, 'pages/invalid.js'))
 
 describe('Basics', () => {
-  runTests('default setting with react 18', (context) => basics(context))
+  runTests('default setting with react 18', (context, env) =>
+    basics(context, env)
+  )
 })
 
 // React 18 with Strict Mode enabled might cause double invocation of lifecycle methods.

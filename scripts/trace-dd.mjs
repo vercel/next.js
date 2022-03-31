@@ -136,7 +136,7 @@ const validateArgs = async () => {
 
   if (!DD_ENV || !DD_SERVICE) {
     throw new Error(
-      `Could not find proper enviroment variables. Ensure to set DD_ENV / DD_SERVICE`
+      `Could not find proper environment variables. Ensure to set DD_ENV / DD_SERVICE`
     )
   }
 
