@@ -4,13 +4,14 @@ use std::{
     fs::remove_dir_all,
     io::ErrorKind,
     path::{Path, PathBuf},
+    time::Duration,
 };
 
-use anyhow::{Context, Result};
-use async_std::{process::Command, task::block_on};
+use anyhow::{anyhow, Context, Result};
+use async_std::{future::timeout, process::Command, task::block_on};
 use difference::{Changeset, Difference};
 use testing::fixture;
-use turbo_tasks::TurboTasks;
+use turbo_tasks::{TurboTasks, ValueToString};
 use turbo_tasks_fs::{DiskFileSystemRef, FileSystemPathRef};
 use turbopack::{
     asset::Asset, emit_with_completion, module, rebase::RebasedAssetRef,
@@ -18,7 +19,7 @@ use turbopack::{
 };
 
 #[fixture("tests/node-file-trace/integration/analytics-node.js")]
-#[fixture("tests/node-file-trace/integration/apollo.js")]
+// #[fixture("tests/node-file-trace/integration/apollo.js")] // hanging
 // #[fixture("tests/node-file-trace/integration/argon2.js")] // can't find *.node binding
 #[fixture("tests/node-file-trace/integration/auth0.js")]
 #[fixture("tests/node-file-trace/integration/aws-sdk.js")]
@@ -48,7 +49,7 @@ use turbopack::{
 #[fixture("tests/node-file-trace/integration/fast-glob.js")]
 #[fixture("tests/node-file-trace/integration/fetch-h2.js")]
 // #[fixture("tests/node-file-trace/integration/ffmpeg.js")] // Could not find ffmpeg executable
-#[fixture("tests/node-file-trace/integration/firebase-admin.js")]
+// #[fixture("tests/node-file-trace/integration/firebase-admin.js")] // hanging
 // #[fixture("tests/node-file-trace/integration/firebase.js")] // Cannot find module 'firebase/app'
 #[fixture("tests/node-file-trace/integration/firestore.js")]
 #[fixture("tests/node-file-trace/integration/fluent-ffmpeg.js")]
@@ -190,10 +191,14 @@ async fn exec_node(directory: String, path: FileSystemPathRef) -> Result<Command
 
     let p = path.get().await?;
     let f = Path::new(&directory).join(&p.path);
+    let label = path.to_string().await?;
 
     cmd.arg(&f);
 
-    let output = cmd.output().await.context("failed to spawn process")?;
+    let output = timeout(Duration::from_secs(100), cmd.output())
+        .await
+        .with_context(|| anyhow!("node execution of {label} is hanging"))?
+        .with_context(|| anyhow!("failed to spawn node process of {label}"))?;
 
     let output = CommandOutput {
         stdout: String::from_utf8_lossy(&output.stdout).to_string(),
