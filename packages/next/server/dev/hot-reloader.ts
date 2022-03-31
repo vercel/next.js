@@ -509,7 +509,7 @@ export default class HotReloader {
 
             const pageRuntimeConfig = await getPageRuntime(
               absolutePagePath,
-              this.runtime
+              this.config
             )
             const isEdgeSSRPage = pageRuntimeConfig === 'edge' && !isApiRoute
 
