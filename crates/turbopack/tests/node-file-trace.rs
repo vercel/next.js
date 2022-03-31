@@ -131,7 +131,7 @@ fn integration_test(input: PathBuf) {
         .unwrap();
 
     let tt = TurboTasks::new();
-    let output = block_on(timeout(Duration::from_secs(30), tt.run_once(async move {
+    let output = block_on(timeout(Duration::from_secs(60), tt.run_once(async move {
         let input_fs = DiskFileSystemRef::new("tests".to_string(), tests_root.clone());
         let input = FileSystemPathRef::new(input_fs.into(), &input);
 
@@ -171,7 +171,7 @@ fn integration_test(input: PathBuf) {
                     pending_tasks += 1;
                 }
             }
-            panic!("Execution is hanging (for > 30s, {pending_tasks} pending tasks)");
+            panic!("Execution is hanging (for > 60s, {pending_tasks} pending tasks)");
         }
     }
 }
