@@ -2,7 +2,7 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { fetchViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 
 describe('styled-components SWC transform', () => {
   let next: NextInstance
@@ -68,5 +68,11 @@ describe('styled-components SWC transform', () => {
         `window.getComputedStyle(document.querySelector('#btn')).color`
       )
     ).toBe('rgb(255, 255, 255)')
+  })
+
+  it('should contain styles in initial HTML', async () => {
+    const html = await renderViaHTTP(next.url, '/')
+    expect(html).toContain('background:transparent')
+    expect(html).toContain('color:white')
   })
 })
