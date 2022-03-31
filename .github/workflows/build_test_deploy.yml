@@ -1213,7 +1213,7 @@ jobs:
     name: Performance Metrics for Release Build
     runs-on: ubuntu-latest
     needs: [build, build-native-test, check-trace-secrests]
-    if: needs.check-trace-secrests.trace-api-key == 'true'
+    if: needs.check-trace-secrests.outputs.trace-api-key == 'true'
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
