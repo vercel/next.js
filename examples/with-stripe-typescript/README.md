@@ -69,6 +69,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-stripe-typescript with-stripe-typescript-app
 # or
 yarn create next-app --example with-stripe-typescript with-stripe-typescript-app
+# or
+pnpm create next-app -- --example with-stripe-typescript with-stripe-typescript-app
 ```
 
 ### Required configuration

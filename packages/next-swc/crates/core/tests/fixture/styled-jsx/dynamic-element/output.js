@@ -19,7 +19,7 @@ export const TestLowerCase = ({ level =1  })=>{
 
     </element>;
 };
-const Element2 = "div";
+const Element2 = 'div';
 export const Test2 = ()=>{
     return <Element2 className="root">
 
@@ -29,7 +29,7 @@ export const Test2 = ()=>{
 
     </Element2>;
 };
-export const Test3 = ({ Component ="div"  })=>{
+export const Test3 = ({ Component ='div'  })=>{
     return <Component className={"jsx-f825b24bbab5b83b"}>
 
       <p className={"jsx-f825b24bbab5b83b"}>dynamic element</p>

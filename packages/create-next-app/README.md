@@ -3,19 +3,31 @@
 The easiest way to get started with Next.js is by using `create-next-app`. This CLI tool enables you to quickly start building a new Next.js application, with everything set up for you. You can create a new app using the default Next.js template, or by using one of the [official Next.js examples](https://github.com/vercel/next.js/tree/canary/examples). To get started, use the following command:
 
 ```bash
-npx create-next-app
+npx create-next-app@latest
+# or
+yarn create next-app
+# or
+pnpm create next-app
 ```
 
 Or, for a [TypeScript project](https://github.com/vercel/next.js/blob/canary/docs/basic-features/typescript.md):
 
 ```bash
-npx create-next-app --typescript
+npx create-next-app@latest --typescript
+# or
+yarn create next-app --typescript
+# or
+pnpm create next-app -- --typescript
 ```
 
 To create a new app in a specific folder, you can send a name as an argument. For example, the following command will create a new Next.js app called `blog-app` in a folder with the same name:
 
 ```bash
-npx create-next-app blog-app
+npx create-next-app@latest blog-app
+# or
+yarn create next-app blog-app
+# or
+pnpm create next-app blog-app
 ```
 
 ## Options
