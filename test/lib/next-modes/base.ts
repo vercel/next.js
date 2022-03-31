@@ -100,10 +100,6 @@ export class NextInstance {
         this.installCommand,
         this.packageJson
       )
-      console.log('Using react version', {
-        env: reactVersion,
-        actual: finalDependencies.react,
-      })
     }
     console.log('created next.js install, writing test files')
 
