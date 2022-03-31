@@ -680,7 +680,7 @@ if (process.env.__NEXT_RSC) {
   const encoder = new TextEncoder()
 
   let initialServerDataBuffer: string[] | undefined = undefined
-  let initialServerDataWriter: WritableStreamDefaultWriter | undefined =
+  let initialServerDataWriter: ReadableStreamDefaultController | undefined =
     undefined
   let initialServerDataLoaded = false
   let initialServerDataFlushed = false
@@ -693,7 +693,7 @@ if (process.env.__NEXT_RSC) {
         throw new Error('Unexpected server data: missing bootstrap script.')
 
       if (initialServerDataWriter) {
-        initialServerDataWriter.write(encoder.encode(seg[2]))
+        initialServerDataWriter.enqueue(encoder.encode(seg[2]))
       } else {
         initialServerDataBuffer.push(seg[2])
       }
@@ -708,19 +708,19 @@ if (process.env.__NEXT_RSC) {
   // Hence, we use two variables `initialServerDataLoaded` and
   // `initialServerDataFlushed` to make sure the writer will be closed and
   // `initialServerDataBuffer` will be cleared in the right time.
-  function nextServerDataRegisterWriter(writer: WritableStreamDefaultWriter) {
+  function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
     if (initialServerDataBuffer) {
       initialServerDataBuffer.forEach((val) => {
-        writer.write(encoder.encode(val))
+        ctr.enqueue(encoder.encode(val))
       })
       if (initialServerDataLoaded && !initialServerDataFlushed) {
-        writer.close()
+        ctr.close()
         initialServerDataFlushed = true
         initialServerDataBuffer = undefined
       }
     }
 
-    initialServerDataWriter = writer
+    initialServerDataWriter = ctr
   }
 
   // When `DOMContentLoaded`, we can close all pending writers to finish hydration.
@@ -764,19 +764,22 @@ if (process.env.__NEXT_RSC) {
     if (response) return response
 
     if (initialServerDataBuffer) {
-      const t = new TransformStream()
-      const writer = t.writable.getWriter()
-      response = createFromFetch(Promise.resolve({ body: t.readable }))
-      nextServerDataRegisterWriter(writer)
+      const readable = new ReadableStream({
+        start(controller) {
+          nextServerDataRegisterWriter(controller)
+        },
+      })
+      response = createFromFetch(Promise.resolve({ body: readable }))
     } else {
       const fetchPromise = serialized
         ? (() => {
-            const t = new TransformStream()
-            const writer = t.writable.getWriter()
-            writer.ready.then(() => {
-              writer.write(new TextEncoder().encode(serialized))
+            const readable = new ReadableStream({
+              start(controller) {
+                controller.enqueue(new TextEncoder().encode(serialized))
+                controller.close()
+              },
             })
-            return Promise.resolve({ body: t.readable })
+            return Promise.resolve({ body: readable })
           })()
         : fetchFlight(getCacheKey())
       response = createFromFetch(fetchPromise)
