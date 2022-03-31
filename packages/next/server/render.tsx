@@ -590,7 +590,7 @@ export async function renderToHTML(
     defaultAppGetInitialProps &&
     !isSSG &&
     !getServerSideProps &&
-    !hasConcurrentFeatures
+    !isServerComponent
 
   for (const methodName of [
     'getStaticProps',
@@ -1494,22 +1494,32 @@ export async function renderToHTML(
         })
       }
 
-      const styles = jsxStyleRegistry.styles()
-      jsxStyleRegistry.flush()
+      const hasDocumentGetInitialProps = !(
+        isServerComponent ||
+        process.browser ||
+        !Document.getInitialProps
+      )
 
-      const documentInitialPropsRes =
-        isServerComponent || process.browser || !Document.getInitialProps
-          ? {}
-          : await documentInitialProps()
+      const documentInitialPropsRes = hasDocumentGetInitialProps
+        ? await documentInitialProps()
+        : {}
       if (documentInitialPropsRes === null) return null
 
+      const { docProps } = (documentInitialPropsRes as any) || {}
       const documentElement = () => {
         if (isServerComponent || process.browser) {
           return (Document as any)()
         }
 
-        const { docProps } = (documentInitialPropsRes as any) || {}
         return <Document {...htmlProps} {...docProps} />
+      }
+      let styles
+
+      if (hasDocumentGetInitialProps) {
+        styles = docProps.styles
+      } else {
+        styles = jsxStyleRegistry.styles()
+        jsxStyleRegistry.flush()
       }
 
       return {

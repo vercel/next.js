@@ -307,8 +307,7 @@ impl<C: Comments> EmotionTransformer<C> {
             if index % 2 == 0 {
                 if let Some(q) = tagged_tpl.quasis.get_mut(i) {
                     let q = q.take();
-                    let minified =
-                        minify_css_string(&q.raw.value, index == 0, index == args_len - 1);
+                    let minified = minify_css_string(&q.raw, index == 0, index == args_len - 1);
                     // Compress one more spaces into one space
                     if minified.replace(' ', "").is_empty() {
                         if index != 0 && index != args_len - 1 {
