@@ -18,6 +18,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-cookie-auth-fauna with-cookie-auth-fauna-app
 # or
 yarn create next-app --example with-cookie-auth-fauna with-cookie-auth-fauna-app
+# or
+pnpm create next-app -- --example with-cookie-auth-fauna with-cookie-auth-fauna-app
 ```
 
 ### Run locally

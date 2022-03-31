@@ -90,8 +90,8 @@ export class NextInstance {
     } else if (!skipIsolatedNext) {
       this.testDir = await createNextInstall(
         {
-          react: 'latest',
-          'react-dom': 'latest',
+          react: '17.0.2',
+          'react-dom': '17.0.2',
           ...this.dependencies,
           ...((this.packageJson.dependencies as object | undefined) || {}),
         },

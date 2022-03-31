@@ -79,7 +79,8 @@ function hasComponentProps(child: any): child is React.ReactElement {
 function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
   const { assetPrefix, scriptLoader, crossOrigin, nextScriptWorkers } = context
 
-  if (!nextScriptWorkers) return null
+  // disable `nextScriptWorkers` in edge runtime
+  if (!nextScriptWorkers || process.browser) return null
 
   try {
     let {
@@ -263,7 +264,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
   }
 }
 
-// Add a speical property to the built-in `Document` component so later we can
+// Add a special property to the built-in `Document` component so later we can
 // identify if a user customized `Document` is used or not.
 ;(Document as any).__next_internal_document =
   function InternalFunctionDocument() {

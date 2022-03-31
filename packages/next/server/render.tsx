@@ -74,6 +74,8 @@ import {
   chainStreams,
   createBufferedTransformStream,
   renderToStream,
+  renderToInitialStream,
+  continueFromInitialStream,
 } from './node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
@@ -307,7 +309,7 @@ function checkRedirectValues(
 
 const rscCache = new Map()
 
-function createRSCHook() {
+function createFlightHook() {
   return (
     writable: WritableStream<Uint8Array>,
     id: string,
@@ -356,7 +358,7 @@ function createRSCHook() {
   }
 }
 
-const useRSCResponse = createRSCHook()
+const useFlightResponse = createFlightHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
@@ -386,7 +388,7 @@ function createServerComponentRenderer(
       serverComponentManifest
     )
 
-    const response = useRSCResponse(
+    const response = useFlightResponse(
       writable,
       cachePrefix + ',' + id,
       reqStream,
@@ -456,22 +458,22 @@ export async function renderToHTML(
     devOnlyCacheBusterQueryString,
     supportsDynamicHTML,
     images,
-    // reactRoot,
-    runtime,
+    reactRoot,
+    runtime: globalRuntime,
     ComponentMod,
     AppMod,
   } = renderOpts
 
-  const hasConcurrentFeatures = !!runtime
+  const hasConcurrentFeatures = reactRoot
 
   let Document = renderOpts.Document
   const OriginalComponent = renderOpts.Component
 
   // We don't need to opt-into the flight inlining logic if the page isn't a RSC.
   const isServerComponent =
-    !!serverComponentManifest &&
     hasConcurrentFeatures &&
-    ComponentMod.__next_rsc__
+    !!serverComponentManifest &&
+    !!ComponentMod.__next_rsc_server__
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
@@ -1256,7 +1258,7 @@ export async function renderToHTML(
       | typeof Document
       | undefined
 
-    if (runtime === 'edge' && Document.getInitialProps) {
+    if (process.browser && Document.getInitialProps) {
       // In the Edge runtime, `Document.getInitialProps` isn't supported.
       // We throw an error here if it's customized.
       if (!builtinDocument) {
@@ -1266,12 +1268,17 @@ export async function renderToHTML(
       }
     }
 
-    // We make it a function component to enable streaming.
-    if (hasConcurrentFeatures && builtinDocument) {
-      Document = builtinDocument
+    if ((isServerComponent || process.browser) && Document.getInitialProps) {
+      if (builtinDocument) {
+        Document = builtinDocument
+      } else {
+        throw new Error(
+          '`getInitialProps` in Document component is not supported with React Server Components.'
+        )
+      }
     }
 
-    if (!hasConcurrentFeatures && Document.getInitialProps) {
+    async function documentInitialProps() {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
       ): RenderPageResult | Promise<RenderPageResult> => {
@@ -1321,72 +1328,43 @@ export async function renderToHTML(
         throw new Error(message)
       }
 
-      return {
-        bodyResult: (suffix: string) =>
-          streamFromArray([docProps.html, suffix]),
-        documentElement: (htmlProps: HtmlProps) => (
-          <Document {...htmlProps} {...docProps} />
-        ),
-        head: docProps.head,
-        headTags: await headTags(documentCtx),
-        styles: docProps.styles,
-      }
-    } else {
-      let bodyResult
+      return { docProps, documentCtx }
+    }
 
-      const renderContent = () => {
-        return ctx.err && ErrorDebug ? (
-          <Body>
-            <ErrorDebug error={ctx.err} />
-          </Body>
-        ) : (
-          <Body>
-            <AppContainerWithIsomorphicFiberStructure>
-              {renderOpts.serverComponents && AppMod.__next_rsc__ ? (
-                <Component {...props.pageProps} router={router} />
-              ) : (
-                <App {...props} Component={Component} router={router} />
-              )}
-            </AppContainerWithIsomorphicFiberStructure>
-          </Body>
-        )
-      }
+    const renderContent = () => {
+      return ctx.err && ErrorDebug ? (
+        <Body>
+          <ErrorDebug error={ctx.err} />
+        </Body>
+      ) : (
+        <Body>
+          <AppContainerWithIsomorphicFiberStructure>
+            {isServerComponent && AppMod.__next_rsc__ ? (
+              // _app.server.js is used.
+              <Component {...props.pageProps} router={router} />
+            ) : (
+              <App {...props} Component={Component} router={router} />
+            )}
+          </AppContainerWithIsomorphicFiberStructure>
+        </Body>
+      )
+    }
 
-      if (hasConcurrentFeatures) {
-        bodyResult = async (suffix: string) => {
-          // this must be called inside bodyResult so appWrappers is
-          // up to date when getWrappedApp is called
+    if (!hasConcurrentFeatures) {
+      if (Document.getInitialProps) {
+        const documentInitialPropsRes = await documentInitialProps()
+        if (documentInitialPropsRes === null) return null
+        const { docProps, documentCtx } = documentInitialPropsRes
 
-          const content = renderContent()
-          const flushEffectHandler = async () => {
-            const allFlushEffects = [
-              styledJsxFlushEffect,
-              ...(flushEffects || []),
-            ]
-            const flushEffectStream = await renderToStream({
-              ReactDOMServer,
-              element: (
-                <>
-                  {allFlushEffects.map((flushEffect, i) => (
-                    <React.Fragment key={i}>{flushEffect()}</React.Fragment>
-                  ))}
-                </>
-              ),
-              generateStaticHTML: true,
-            })
-
-            const flushed = await streamToString(flushEffectStream)
-            return flushed
-          }
-
-          return await renderToStream({
-            ReactDOMServer,
-            element: content,
-            suffix,
-            dataStream: serverComponentsInlinedTransformStream?.readable,
-            generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
-            flushEffectHandler,
-          })
+        return {
+          bodyResult: (suffix: string) =>
+            streamFromArray([docProps.html, suffix]),
+          documentElement: (htmlProps: HtmlProps) => (
+            <Document {...htmlProps} {...docProps} />
+          ),
+          head: docProps.head,
+          headTags: await headTags(documentCtx),
+          styles: docProps.styles,
         }
       } else {
         const content = renderContent()
@@ -1394,15 +1372,96 @@ export async function renderToHTML(
         // before _document so that updateHead is called/collected before
         // rendering _document's head
         const result = ReactDOMServer.renderToString(content)
-        bodyResult = (suffix: string) => streamFromArray([result, suffix])
+        const bodyResult = (suffix: string) => streamFromArray([result, suffix])
+
+        const styles = jsxStyleRegistry.styles()
+        jsxStyleRegistry.flush()
+
+        return {
+          bodyResult,
+          documentElement: () => (Document as any)(),
+          head,
+          headTags: [],
+          styles,
+        }
+      }
+    } else {
+      let bodyResult
+
+      let renderStream: any
+
+      // We start rendering the shell earlier, before returning the head tags
+      // to `documentResult`.
+      const content = renderContent()
+      renderStream = await renderToInitialStream({
+        ReactDOMServer,
+        element: content,
+      })
+
+      bodyResult = async (suffix: string) => {
+        // this must be called inside bodyResult so appWrappers is
+        // up to date when getWrappedApp is called
+
+        const flushEffectHandler = async () => {
+          const allFlushEffects = [
+            styledJsxFlushEffect,
+            ...(flushEffects || []),
+          ]
+          const flushEffectStream = await renderToStream({
+            ReactDOMServer,
+            element: (
+              <>
+                {allFlushEffects.map((flushEffect, i) => (
+                  <React.Fragment key={i}>{flushEffect()}</React.Fragment>
+                ))}
+              </>
+            ),
+            generateStaticHTML: true,
+          })
+          const flushed = await streamToString(flushEffectStream)
+          return flushed
+        }
+
+        return await continueFromInitialStream({
+          renderStream,
+          suffix,
+          dataStream: serverComponentsInlinedTransformStream?.readable,
+          generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
+          flushEffectHandler,
+        })
       }
 
-      const styles = jsxStyleRegistry.styles()
-      jsxStyleRegistry.flush()
+      const hasDocumentGetInitialProps = !(
+        isServerComponent ||
+        process.browser ||
+        !Document.getInitialProps
+      )
+
+      const documentInitialPropsRes = hasDocumentGetInitialProps
+        ? await documentInitialProps()
+        : {}
+      if (documentInitialPropsRes === null) return null
+
+      const { docProps } = (documentInitialPropsRes as any) || {}
+      const documentElement = () => {
+        if (isServerComponent || process.browser) {
+          return (Document as any)()
+        }
+
+        return <Document {...htmlProps} {...docProps} />
+      }
+      let styles
+
+      if (hasDocumentGetInitialProps) {
+        styles = docProps.styles
+      } else {
+        styles = jsxStyleRegistry.styles()
+        jsxStyleRegistry.flush()
+      }
 
       return {
         bodyResult,
-        documentElement: () => (Document as any)(),
+        documentElement,
         head,
         headTags: [],
         styles,
@@ -1502,7 +1561,8 @@ export async function renderToHTML(
     optimizeCss: renderOpts.optimizeCss,
     optimizeFonts: renderOpts.optimizeFonts,
     nextScriptWorkers: renderOpts.nextScriptWorkers,
-    runtime,
+    runtime: globalRuntime,
+    hasConcurrentFeatures,
   }
 
   const document = (

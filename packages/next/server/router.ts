@@ -66,6 +66,7 @@ export default class Router {
   basePath: string
   headers: Route[]
   fsRoutes: Route[]
+  internalFsRoutes: Route[]
   redirects: Route[]
   rewrites: {
     beforeFiles: Route[]
@@ -73,7 +74,8 @@ export default class Router {
     fallback: Route[]
   }
   catchAllRoute: Route
-  catchAllMiddleware?: Route
+  catchAllStaticMiddleware?: Route
+  catchAllDynamicMiddleware?: Route
   pageChecker: PageChecker
   dynamicRoutes: DynamicRoutes
   useFileSystemPublicRoutes: boolean
@@ -84,6 +86,7 @@ export default class Router {
     basePath = '',
     headers = [],
     fsRoutes = [],
+    internalFsRoutes = [],
     rewrites = {
       beforeFiles: [],
       afterFiles: [],
@@ -91,7 +94,8 @@ export default class Router {
     },
     redirects = [],
     catchAllRoute,
-    catchAllMiddleware,
+    catchAllStaticMiddleware,
+    catchAllDynamicMiddleware,
     dynamicRoutes = [],
     pageChecker,
     useFileSystemPublicRoutes,
@@ -100,6 +104,7 @@ export default class Router {
     basePath: string
     headers: Route[]
     fsRoutes: Route[]
+    internalFsRoutes: Route[]
     rewrites: {
       beforeFiles: Route[]
       afterFiles: Route[]
@@ -107,7 +112,8 @@ export default class Router {
     }
     redirects: Route[]
     catchAllRoute: Route
-    catchAllMiddleware?: Route
+    catchAllStaticMiddleware?: Route
+    catchAllDynamicMiddleware?: Route
     dynamicRoutes: DynamicRoutes | undefined
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
@@ -116,11 +122,13 @@ export default class Router {
     this.basePath = basePath
     this.headers = headers
     this.fsRoutes = fsRoutes
+    this.internalFsRoutes = internalFsRoutes
     this.rewrites = rewrites
     this.redirects = redirects
     this.pageChecker = pageChecker
     this.catchAllRoute = catchAllRoute
-    this.catchAllMiddleware = catchAllMiddleware
+    this.catchAllStaticMiddleware = catchAllStaticMiddleware
+    this.catchAllDynamicMiddleware = catchAllDynamicMiddleware
     this.dynamicRoutes = dynamicRoutes
     this.useFileSystemPublicRoutes = useFileSystemPublicRoutes
     this.locales = locales
@@ -166,7 +174,7 @@ export default class Router {
       const originalFsPathname = checkParsedUrl.pathname
       const fsPathname = replaceBasePath(originalFsPathname!, this.basePath)
 
-      for (const fsRoute of this.fsRoutes) {
+      for (const fsRoute of [...this.internalFsRoutes, ...this.fsRoutes]) {
         const fsParams = fsRoute.match(fsPathname)
 
         if (fsParams) {
@@ -225,10 +233,14 @@ export default class Router {
       ...this.headers,
       ...this.redirects,
       ...this.rewrites.beforeFiles,
-      ...(this.useFileSystemPublicRoutes && this.catchAllMiddleware
-        ? [this.catchAllMiddleware]
+      ...this.internalFsRoutes,
+      ...(this.useFileSystemPublicRoutes && this.catchAllStaticMiddleware
+        ? [this.catchAllStaticMiddleware]
         : []),
       ...this.fsRoutes,
+      ...(this.useFileSystemPublicRoutes && this.catchAllDynamicMiddleware
+        ? [this.catchAllDynamicMiddleware]
+        : []),
       // We only check the catch-all route if public page routes hasn't been
       // disabled
       ...(this.useFileSystemPublicRoutes
@@ -299,9 +311,15 @@ export default class Router {
       const requireBasePath = testRoute.requireBasePath !== false
       const isCustomRoute = customRouteTypes.has(testRoute.type)
       const isPublicFolderCatchall = testRoute.name === 'public folder catchall'
-      const isMiddlewareCatchall = testRoute.name === 'middleware catchall'
+      const isStaticMiddlewareCatchall =
+        testRoute.name === 'static middleware catchall'
+      const isDynamicMiddlewareCatchall =
+        testRoute.name === 'dynamic middleware catchall'
       const keepBasePath =
-        isCustomRoute || isPublicFolderCatchall || isMiddlewareCatchall
+        isCustomRoute ||
+        isPublicFolderCatchall ||
+        isStaticMiddlewareCatchall ||
+        isDynamicMiddlewareCatchall
       const keepLocale = isCustomRoute
 
       const currentPathnameNoBasePath = replaceBasePath(
