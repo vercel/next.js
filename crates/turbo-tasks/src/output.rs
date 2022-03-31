@@ -5,7 +5,7 @@ use std::{
 };
 use weak_table::WeakHashSet;
 
-use crate::{error::SharedError, viz::SlotSnapshot, SlotRef, Task, TurboTasks};
+use crate::{error::SharedError, SlotRef, Task, TurboTasks};
 
 #[derive(Default, Debug)]
 pub struct Output {
@@ -88,17 +88,5 @@ impl Output {
         self.updates += 1;
         // notify
         TurboTasks::schedule_notify_tasks(self.dependent_tasks.iter());
-    }
-
-    pub fn get_snapshot_for_visualization(&self) -> SlotSnapshot {
-        SlotSnapshot {
-            name: "output".to_string(),
-            content: self.content.to_string(),
-            updates: self.updates,
-            linked_to_slot: match &self.content {
-                OutputContent::Link(slot_ref) => Some(slot_ref.clone()),
-                _ => None,
-            },
-        }
     }
 }

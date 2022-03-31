@@ -1,27 +1,6 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::collections::HashMap;
 
-use crate::{SlotRef, Task};
-
-pub struct TaskSnapshot {
-    pub name: String,
-    pub inputs: Vec<SlotRef>,
-    pub state: String,
-    pub children: Vec<Arc<Task>>,
-    pub dependencies: Vec<SlotRef>,
-    pub slots: Vec<SlotRef>,
-    pub output: SlotRef,
-    pub executions: u32,
-}
-
-pub struct SlotSnapshot {
-    pub name: String,
-    pub content: String,
-    pub updates: u32,
-    pub linked_to_slot: Option<SlotRef>,
-}
+use crate::stats::{GroupTree, ReferenceStats, ReferenceType, TaskStats, TaskType};
 
 fn escape(s: &str) -> String {
     s.replace("\\", "\\\\")
@@ -29,344 +8,172 @@ fn escape(s: &str) -> String {
         .replace("\n", "\\n")
 }
 
-#[derive(Clone, Hash, PartialEq, Eq)]
-enum EdgeType {
-    ChildTask,
-    Dependency,
-    LinkedSlot,
-    Input,
-    DependencyAndInput,
+pub fn wrap_html(graph: &str) -> String {
+    format!("
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=\"utf-8\">
+  <title>Graph</title>
+</head>
+<body>
+  <script src=\"https://cdn.jsdelivr.net/npm/@hpcc-js/wasm/dist/index.min.js\"></script><script \
+      src=\"https://cdn.jsdelivr.net/npm/viz.js@2.1.2/full.render.js\"></script><script>
+      var wasmBinaryFile = \"https://cdn.jsdelivr.net/npm/@hpcc-js/wasm/dist/graphvizlib.wasm\";
+      var hpccWasm = window[\"@hpcc-js/wasm\"];
+      const dot = `{}`;
+      hpccWasm.graphviz.layout(dot, \"svg\", \"dot\").then(svg => {{
+          const div = document.createElement(\"div\");
+          div.innerHTML = svg;
+          document.body.appendChild(div)
+      }}).catch(err => console.error(err.message));
+  </script>
+</body>
+</html>",
+        escape(graph)
+    )
 }
 
-#[derive(Hash, PartialEq, Eq)]
-struct Slot {
-    id: String,
-    name: String,
-    content: String,
-    updates: u32,
+fn get_id<'a>(ty: &'a TaskType, ids: &mut HashMap<&'a TaskType, usize>) -> usize {
+    let len = ids.len();
+    *ids.entry(ty).or_insert(len)
 }
 
-#[derive(Hash, PartialEq, Eq)]
-enum NodeType {
-    Task(String, String, u32, Vec<Slot>),
+pub fn visualize_stats_tree(root: GroupTree) -> String {
+    let mut out = String::new();
+    let mut edges = String::new();
+    let mut depths = HashMap::new();
+    compute_depths(&root, 0, &mut depths);
+    out += "digraph {\nrankdir=LR\n\n";
+    // out += "digraph {\n\n";
+    visualize_stats_tree_internal(&root, 0, &mut HashMap::new(), &depths, &mut out, &mut edges);
+    out += &edges;
+    out += "\n}";
+    out
 }
 
-#[derive(Default)]
-pub struct GraphViz {
-    visited: HashSet<String>,
-    id_map: HashMap<usize, usize>,
-    nodes: HashSet<(String, NodeType)>,
-    edges: HashSet<(String, String, EdgeType)>,
+fn compute_depths<'a>(
+    node: &'a GroupTree,
+    depth: usize,
+    output: &mut HashMap<&'a TaskType, usize>,
+) {
+    if let Some((ty, _)) = &node.primary {
+        output.insert(ty, depth);
+    }
+    for (ty, _) in node.task_types.iter() {
+        output.insert(ty, depth);
+    }
+    for child in node.children.iter() {
+        compute_depths(child, depth + 1, output);
+    }
 }
 
-impl GraphViz {
-    pub fn new() -> Self {
-        Default::default()
+fn visualize_stats_tree_internal<'a>(
+    node: &'a GroupTree,
+    depth: usize,
+    ids: &mut HashMap<&'a TaskType, usize>,
+    depths: &HashMap<&'a TaskType, usize>,
+    output: &mut String,
+    edges: &mut String,
+) {
+    let GroupTree {
+        primary,
+        children,
+        task_types,
+    } = node;
+    if let Some((ty, stats)) = primary {
+        let id = get_id(ty, ids);
+        let label = get_task_label(ty, stats);
+        output.push_str(&format!("subgraph cluster_{id} {{\ncolor=lightgray;\n"));
+        output.push_str(&format!("task_{id} [shape=box, label=\"{label}\"]\n"));
+        visualize_stats_references_internal(
+            id,
+            stats.count,
+            &stats.references,
+            depth,
+            ids,
+            depths,
+            output,
+            edges,
+        );
     }
-
-    fn get_id<T>(&mut self, ptr: *const T) -> String {
-        let ptr = ptr as usize;
-        match self.id_map.get(&ptr) {
-            Some(id) => id.to_string(),
-            None => {
-                let id = self.id_map.len() + 1;
-                self.id_map.insert(ptr, id);
-                id.to_string()
-            }
-        }
+    for (ty, stats) in task_types.iter() {
+        let id = get_id(ty, ids);
+        let label = get_task_label(ty, stats);
+        output.push_str(&format!("task_{id} [label=\"{label}\"]\n"));
+        visualize_stats_references_internal(
+            id,
+            stats.count,
+            &stats.references,
+            depth,
+            ids,
+            depths,
+            output,
+            edges,
+        );
     }
-
-    fn get_slot_id(&mut self, slot_ref: &SlotRef) -> String {
-        match slot_ref {
-            SlotRef::TaskOutput(task) => {
-                format!("slot_{}_output", self.get_id(&**task as *const Task))
-            }
-            SlotRef::TaskCreated(task, index) => {
-                format!("slot_{}_{}", self.get_id(&**task as *const Task), index)
-            }
-        }
+    for child in children.iter() {
+        visualize_stats_tree_internal(child, depth + 1, ids, depths, output, edges);
     }
-
-    pub fn add_task(&mut self, task: &Arc<Task>) {
-        let id = self.get_id(&**task as *const Task);
-        if self.visited.contains(&id) {
-            return;
-        }
-        self.visited.insert(id.clone());
-        let snapshot = task.get_snapshot_for_visualization();
-        let mut slots = Vec::new();
-        for input in snapshot.inputs.iter() {
-            let slot_id = self.get_slot_id(input);
-            self.edges.insert((id.clone(), slot_id, EdgeType::Input));
-        }
-        for slot in snapshot.slots.iter() {
-            let snapshot = slot.get_snapshot_for_visualization();
-            let slot_id = self.get_slot_id(slot);
-            slots.push(Slot {
-                id: slot_id.clone(),
-                name: snapshot.name,
-                content: snapshot.content,
-                updates: snapshot.updates,
-            });
-            if let Some(linked) = &snapshot.linked_to_slot {
-                let linked_id = self.get_slot_id(linked);
-                self.edges
-                    .insert((slot_id.clone(), linked_id, EdgeType::LinkedSlot));
-            }
-        }
-        self.nodes.insert((
-            id.clone(),
-            NodeType::Task(snapshot.name, snapshot.state, snapshot.executions, slots),
-        ));
-        for child in snapshot.children.iter() {
-            self.add_task(child);
-            let child_id = self.get_id(&**child as *const Task);
-            self.edges
-                .insert((id.clone(), child_id, EdgeType::ChildTask));
-        }
-        for dependency in snapshot.dependencies.iter() {
-            let dep_id = self.get_slot_id(&dependency);
-            self.edges
-                .insert((id.clone(), dep_id, EdgeType::Dependency));
-        }
+    if let Some(_) = primary {
+        output.push_str("}\n");
     }
+}
 
-    pub fn drop_unchanged_slots(&mut self) {
-        let mut dropped_ids = HashSet::new();
-        for (id, node) in self.nodes.drain().collect::<Vec<_>>() {
-            match node {
-                NodeType::Task(name, state, executions, mut slots) => {
-                    for slot in slots.drain(..).collect::<Vec<_>>() {
-                        if slot.updates <= 1 {
-                            dropped_ids.insert(slot.id);
-                        } else {
-                            slots.push(slot);
-                        }
-                    }
-                    self.nodes
-                        .insert((id, NodeType::Task(name, state, executions, slots)));
-                }
-            }
-        }
-        self.edges
-            .retain(|(from, to, _)| !dropped_ids.contains(from) && !dropped_ids.contains(to));
-    }
-
-    pub fn drop_inactive_tasks(&mut self) {
-        let mut nodes_with_edges = HashSet::new();
-        for (from, to, ty) in self.edges.iter() {
-            if ty != &EdgeType::ChildTask {
-                nodes_with_edges.insert(from.clone());
-                nodes_with_edges.insert(to.clone());
-            }
-        }
-        let mut dropped_ids = HashSet::new();
-        self.nodes.retain(|(id, node)| {
-            if nodes_with_edges.contains(id) {
-                return true;
-            }
-            match node {
-                NodeType::Task(_name, state, executions, slots) => {
-                    if *executions <= 1
-                        && (state == "done" || state == "1 children dirty (scheduled)")
-                        && slots.len() == 0
-                    {
-                        dropped_ids.insert(id.clone());
-                        false
-                    } else {
-                        true
-                    }
-                }
-            }
-        });
-        self.edges
-            .retain(|(from, to, _)| !dropped_ids.contains(from) && !dropped_ids.contains(to));
-    }
-
-    pub fn merge_edges(&mut self) {
-        let mut new_edges = Vec::new();
-        let old_edges = self.edges.clone();
-        self.edges.retain(|(from, to, edge)| {
-            match edge {
-                EdgeType::Input => {
-                    if old_edges.contains(&(from.clone(), to.clone(), EdgeType::Dependency)) {
-                        new_edges.push((from.clone(), to.clone(), EdgeType::DependencyAndInput));
-                        return false;
-                    }
-                }
-                EdgeType::Dependency => {
-                    if old_edges.contains(&(from.clone(), to.clone(), EdgeType::Input)) {
-                        return false;
-                    }
-                }
-                _ => {}
-            }
-            true
-        });
-        for edge in new_edges {
-            self.edges.insert(edge);
-        }
-    }
-
-    pub fn skip_loney_resolve(&mut self) {
-        self.skip_loney("[resolve] ");
-        self.skip_loney("[resolve trait] ");
-    }
-
-    fn skip_loney(&mut self, prefix: &str) {
-        let mut map = self
-            .nodes
-            .iter()
-            .filter_map(|(id, node)| match node {
-                NodeType::Task(name, _, _, slots) => {
-                    if name.starts_with(prefix) && slots.len() == 0 {
-                        Some((id.clone(), (Vec::new(), Vec::new())))
-                    } else {
-                        None
-                    }
-                }
-            })
-            .collect::<HashMap<_, _>>();
-        for (from, to, edge) in self.edges.iter() {
-            if let Some(entry) = map.get_mut(from) {
-                entry.1.push((to.clone(), edge.clone()));
-            }
-            if let Some(entry) = map.get_mut(to) {
-                entry.0.push((from.clone(), edge.clone()));
-            }
-        }
-        let skipped_nodes = map
-            .drain()
-            .filter_map(|(id, (a, b))| {
-                if a.len() == 1 && b.len() == 1 && a[0].1 == b[0].1 {
-                    self.edges
-                        .insert((a[0].0.clone(), b[0].0.clone(), a[0].1.clone()));
-                    Some(id)
+fn visualize_stats_references_internal<'a>(
+    source_id: usize,
+    source_count: usize,
+    references: &'a HashMap<(ReferenceType, TaskType), ReferenceStats>,
+    depth: usize,
+    ids: &mut HashMap<&'a TaskType, usize>,
+    depths: &HashMap<&'a TaskType, usize>,
+    output: &mut String,
+    edges: &mut String,
+) {
+    for ((ref_ty, ty), stats) in references.iter() {
+        let target_id = get_id(ty, ids);
+        let is_far = *depths.get(ty).unwrap() < depth;
+        match ref_ty {
+            ReferenceType::Child => {
+                let label = get_child_label(ref_ty, stats, source_count);
+                if is_far {
+                    output.push_str(&format!(
+                        "far_task_{source_id}_{target_id} [label=\"{ty}\", style=dashed]\n"
+                    ));
+                    edges.push_str(&format!(
+                        "task_{source_id} -> far_task_{source_id}_{target_id} [style=dashed, \
+                         color=lightgray, label=\"{label}\"]\n"
+                    ));
                 } else {
-                    None
+                    edges.push_str(&format!(
+                        "task_{source_id} -> task_{target_id} [style=dashed, color=lightgray, \
+                         label=\"{label}\"]\n"
+                    ));
                 }
-            })
-            .collect::<HashSet<_>>();
-        self.nodes.retain(|(id, _)| !skipped_nodes.contains(id));
-        self.edges
-            .retain(|(from, to, _)| !skipped_nodes.contains(from) && !skipped_nodes.contains(to));
+            }
+            ReferenceType::Dependency => {
+                // output.push_str(&format!(
+                //     "task_{source_id} -> task_{target_id} [color=\"#77c199\",
+                // weight=0, \      constraint=false]\n"
+                // ));
+            }
+            ReferenceType::Input => {
+                //   output.push_str(&format!(
+                //     "task_{source_id} -> task_{target_id}
+                // [constraint=false]\n" ));
+            }
+        }
     }
+}
 
-    pub fn get_graph(&self) -> String {
-        let nodes_info = self
-            .nodes
-            .iter()
-            .map(|(id, node)| match node {
-                NodeType::Task(name, state, executions, slots) => {
-                    let slots_info = slots
-                        .iter()
-                        .map(
-                            |Slot {
-                                 id,
-                                 name,
-                                 content,
-                                 updates,
-                             }| {
-                                if *updates > 1 {
-                                    format!(
-                                        "{} [style=filled, fillcolor=\"#77c199\", \
-                                         label=\"{}\\n{}\\n{} updates\"]\n",
-                                        id,
-                                        escape(name),
-                                        escape(content),
-                                        updates
-                                    )
-                                } else {
-                                    format!(
-                                        "{} [label=\"{}\\n{}\"]\n",
-                                        id,
-                                        escape(name),
-                                        escape(content)
-                                    )
-                                }
-                            },
-                        )
-                        .collect::<String>();
-                    let label = if *executions > 1 {
-                        format!(
-                            "style=filled, fillcolor=\"#77c199\", label=\"{}\\n{}\\n{} \
-                             executions\"",
-                            escape(name),
-                            escape(state),
-                            executions
-                        )
-                    } else if state == "done" {
-                        format!("label=\"{}\"", escape(name))
-                    } else {
-                        format!("label=\"{}\\n{}\"", escape(name), escape(state))
-                    };
-                    if slots_info == "" {
-                        format!("{} [shape=box, {}]\n", id, label)
-                    } else {
-                        format!(
-                            "subgraph cluster_{} {{\ncolor=lightgray;\n{} [shape=box, {}]\n{}}}\n",
-                            id, id, label, slots_info
-                        )
-                    }
-                }
-            })
-            .collect::<String>();
-        let edges_info = self
-            .edges
-            .iter()
-            .map(|(from, to, edge)| match edge {
-                EdgeType::ChildTask => {
-                    format!("{} -> {} [style=dashed, color=lightgray]\n", from, to)
-                }
-                EdgeType::Input => format!("{} -> {} [constraint=false]\n", to, from),
-                EdgeType::Dependency => format!(
-                    "{} -> {} [color=\"#77c199\", weight=0, constraint=false]\n",
-                    to, from
-                ),
-                EdgeType::DependencyAndInput => format!(
-                    "{} -> {} [color=\"#009129\", weight=0, constraint=false]\n",
-                    to, from
-                ),
-                EdgeType::LinkedSlot => {
-                    format!("{} -> {} [color=\"#990000\", constraint=false]\n", to, from)
-                }
-            })
-            .collect::<String>();
-        format!(
-            "digraph {{
-            rankdir=LR
-            {}
-            {}
-        }}",
-            nodes_info, edges_info
-        )
-    }
+fn get_task_label(ty: &TaskType, stats: &TaskStats) -> String {
+    format!("{}\n{}", escape(&ty.to_string()), stats.count)
+}
 
-    pub fn wrap_html(graph: &str) -> String {
-        format!(
-            "<!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset=\"utf-8\">
-            \
-             <title>Graph</title>
-          </head>
-          <body>
-            <script src=\"https://cdn.jsdelivr.net/npm/viz.js@2.1.2/viz.js\"></script><script \
-             src=\"https://cdn.jsdelivr.net/npm/viz.js@2.1.2/full.render.js\"></script><script>
-                const s = `{}`;
-                const Module = Viz.Module;
-                Viz.Module = function () {{
-                    return Module({{ TOTAL_MEMORY: 16777216 * 10 }});
-                }};
-                new Viz()
-                    .renderSVGElement(s)
-                    .then((el) => document.body.appendChild(el))
-                    .catch((e) => console.error(e));
-            </script>
-          </body>
-          </html>",
-            escape(graph)
-        )
+fn get_child_label(ty: &ReferenceType, stats: &ReferenceStats, source_count: usize) -> String {
+    if stats.count == source_count {
+        "".to_string()
+    } else {
+        format!("{}", stats.count)
     }
 }

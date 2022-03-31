@@ -2,6 +2,7 @@
 #![feature(trivial_bounds)]
 #![feature(into_future)]
 #![feature(try_trait_v2)]
+#![feature(hash_drain_filter)]
 
 mod completion;
 mod display;
@@ -15,6 +16,7 @@ mod promise;
 pub(crate) mod slot;
 mod slot_ref;
 pub(crate) mod slot_value_type;
+pub mod stats;
 mod task;
 mod task_input;
 pub mod trace;

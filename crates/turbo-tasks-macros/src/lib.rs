@@ -618,15 +618,15 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
             }) = ident
             {
                 let PathSegment { ident, .. } = segments.iter().next()?;
-                Some(get_ref_ident(&ident))
+                Some(get_ref_ident(ident))
             } else {
                 None
             }
         })
         .collect();
 
-    let ref_ident = get_ref_ident(&ident);
-    let mod_ident = get_trait_mod_ident(&ident);
+    let ref_ident = get_ref_ident(ident);
+    let mod_ident = get_trait_mod_ident(ident);
     let trait_type_ident = get_trait_type_ident(&ident);
     let mut trait_fns = Vec::new();
 
@@ -642,7 +642,7 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
             ..
         }) = item
         {
-            let output_type = get_return_type(&output);
+            let output_type = get_return_type(output);
             let args = inputs.iter().filter_map(|arg| match arg {
                 FnArg::Receiver(_) => None,
                 FnArg::Typed(PatType { pat, .. }) => Some(quote! {
@@ -759,9 +759,9 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
-    fn generate_for_self_impl(ident: &Ident, items: &Vec<ImplItem>) -> TokenStream2 {
-        let ref_ident = get_ref_ident(&ident);
-        let slot_value_type_ident = get_slot_value_type_ident(&ident);
+    fn generate_for_self_impl(ident: &Ident, items: &[ImplItem]) -> TokenStream2 {
+        let ref_ident = get_ref_ident(ident);
+        let slot_value_type_ident = get_slot_value_type_ident(ident);
         let mut constructors = Vec::new();
         let mut i = 0;
         for item in items.iter() {
@@ -932,7 +932,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
         };
     }
 
-    fn generate_for_self_ref_impl(ref_ident: &Ident, items: &Vec<ImplItem>) -> TokenStream2 {
+    fn generate_for_self_ref_impl(ref_ident: &Ident, items: &[ImplItem]) -> TokenStream2 {
         let mut functions = Vec::new();
 
         for item in items.iter() {
@@ -969,7 +969,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     );
 
                     let (raw_output_type, _) = unwrap_result_type(&output_type);
-                    let convert_result_code = if is_empty_type(&raw_output_type) {
+                    let convert_result_code = if is_empty_type(raw_output_type) {
                         external_sig.output = ReturnType::Default;
                         quote! {}
                     } else {
@@ -1007,7 +1007,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
     fn generate_for_trait_impl(
         trait_ident: &Ident,
         struct_ident: &Ident,
-        items: &Vec<ImplItem>,
+        items: &[ImplItem],
     ) -> TokenStream2 {
         let register = get_register_trait_methods_ident(trait_ident, struct_ident);
         let ref_ident = get_ref_ident(struct_ident);
@@ -1060,7 +1060,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     });
 
                     let (raw_output_type, _) = unwrap_result_type(&output_type);
-                    let convert_result_code = if is_empty_type(&raw_output_type) {
+                    let convert_result_code = if is_empty_type(raw_output_type) {
                         external_sig.output = ReturnType::Default;
                         quote! {}
                     } else {
@@ -1196,7 +1196,7 @@ pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
     );
 
     let (raw_output_type, _) = unwrap_result_type(&output_type);
-    let convert_result_code = if is_empty_type(&raw_output_type) {
+    let convert_result_code = if is_empty_type(raw_output_type) {
         external_sig.output = ReturnType::Default;
         quote! {}
     } else {
@@ -1470,7 +1470,7 @@ pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
                             })
                             .collect();
                         let active_idents: Vec<_> = idents.iter()
-                            .filter(|ident| ident.to_string() != "_")
+                            .filter(|ident| &**ident != "_")
                             .collect();
                         quote! {
                             #ident::#variant_ident( #(#idents),* ) => {

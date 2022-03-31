@@ -159,7 +159,7 @@ impl ImportMapRef {
         let this = self.await?;
         // TODO lookup pattern
         if let Some(request_string) = request.await?.request() {
-            for result in this.direct.lookup(&request_string) {
+            if let Some(result) = this.direct.lookup(&request_string).next() {
                 return Ok(import_mapping_to_result(result?.as_ref()));
             }
             let request_string_without_slash = if request_string.ends_with('/') {

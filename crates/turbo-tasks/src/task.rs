@@ -1,6 +1,6 @@
 use crate::{
-    output::Output, slot::Slot, slot_ref::SlotRef, task_input::TaskInput, viz::TaskSnapshot,
-    NativeFunction, TraitType, TurboTasks,
+    output::Output, slot::Slot, slot_ref::SlotRef, stats, task_input::TaskInput, NativeFunction,
+    TraitType, TurboTasks,
 };
 use any_key::AnyHash;
 use anyhow::{anyhow, Result};
@@ -735,52 +735,38 @@ impl Task {
         }
     }
 
-    /// Get a snapshot of the task information for visulization.
-    ///
-    /// Note that the information might be outdated or inconsistent due to
-    /// concurrent operations.
-    pub fn get_snapshot_for_visualization(self: &Arc<Self>) -> TaskSnapshot {
-        let state = self.state.read().unwrap();
-        let mut slots: Vec<_> = state
-            .created_slots
-            .iter()
-            .enumerate()
-            .map(|(i, _)| SlotRef::TaskCreated(self.clone(), i))
-            .collect();
-        slots.push(SlotRef::TaskOutput(self.clone()));
-        TaskSnapshot {
-            inputs: self
-                .inputs
-                .iter()
-                .filter_map(|task_input| match task_input {
-                    TaskInput::TaskCreated(task, i) => Some(SlotRef::TaskCreated(task.clone(), *i)),
-                    TaskInput::TaskOutput(task) => Some(SlotRef::TaskOutput(task.clone())),
-                    _ => None,
-                })
-                .collect(),
-            children: state.children.iter().map(|c| c.clone()).collect(),
-            dependencies: self
-                .execution_data
-                .lock()
-                .unwrap()
-                .dependencies
-                .iter()
-                .map(|d| d.clone())
-                .collect(),
-            name: match &self.ty {
-                TaskType::Root(..) => "root".to_string(),
-                TaskType::Once(..) => "once".to_string(),
-                TaskType::Native(native_fn, _) => native_fn.name.clone(),
-                TaskType::ResolveNative(native_fn) => format!("[resolve] {}", native_fn.name),
-                TaskType::ResolveTrait(trait_type, fn_name) => {
-                    format!("[resolve trait] {} in trait {}", fn_name, trait_type.name)
-                }
-            },
-            state: Task::state_string(&state),
-            output: SlotRef::TaskOutput(self.clone()),
-            slots,
-            executions: state.executions,
+    pub fn get_stats_type(self: &Arc<Task>) -> stats::TaskType {
+        match &self.ty {
+            TaskType::Root(_) => stats::TaskType::Root(self.clone()),
+            TaskType::Once(_) => stats::TaskType::Once(self.clone()),
+            TaskType::Native(f, _) => stats::TaskType::Native(f),
+            TaskType::ResolveNative(f) => stats::TaskType::ResolveNative(f),
+            TaskType::ResolveTrait(t, n) => stats::TaskType::ResolveTrait(t, n.to_string()),
         }
+    }
+
+    pub fn get_stats_references(&self) -> Vec<(stats::ReferenceType, Arc<Task>)> {
+        let mut refs = Vec::new();
+        {
+            let state = self.state.read().unwrap();
+            for child in state.children.iter() {
+                refs.push((stats::ReferenceType::Child, child.clone()));
+            }
+        }
+        {
+            let execution_data = self.execution_data.lock().unwrap();
+            for dep in execution_data.dependencies.iter() {
+                refs.push((stats::ReferenceType::Dependency, dep.get_task()));
+            }
+        }
+        {
+            for input in self.inputs.iter() {
+                if let Some(task) = input.get_task() {
+                    refs.push((stats::ReferenceType::Input, task));
+                }
+            }
+        }
+        refs
     }
 
     fn state_string(state: &TaskState) -> String {

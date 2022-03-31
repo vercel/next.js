@@ -83,6 +83,8 @@ impl PartialEq for &'static NativeFunction {
     }
 }
 
+impl Eq for &'static NativeFunction {}
+
 impl Hash for &'static NativeFunction {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         Hash::hash(&(*self as *const NativeFunction), state);

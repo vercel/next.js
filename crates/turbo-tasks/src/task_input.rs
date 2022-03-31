@@ -33,6 +33,7 @@ impl PartialEq for SharedReference {
 }
 impl Eq for SharedReference {}
 
+#[allow(clippy::derive_hash_xor_eq)]
 #[derive(Hash, Clone)]
 pub enum TaskInput {
     TaskOutput(Arc<Task>),
@@ -99,6 +100,13 @@ impl TaskInput {
                 }
                 _ => return Ok(current),
             }
+        }
+    }
+
+    pub fn get_task(&self) -> Option<Arc<Task>> {
+        match self {
+            TaskInput::TaskOutput(t) | TaskInput::TaskCreated(t, _) => Some(t.clone()),
+            _ => None,
         }
     }
 

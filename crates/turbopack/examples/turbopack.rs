@@ -6,7 +6,8 @@ use async_std::task::{block_on, sleep, spawn};
 use std::fs;
 use std::time::Instant;
 use std::{env::current_dir, time::Duration};
-use turbo_tasks::viz::GraphViz;
+use turbo_tasks::stats::Stats;
+use turbo_tasks::viz::{visualize_stats_tree, wrap_html};
 use turbo_tasks::{NothingRef, TurboTasks};
 use turbopack::ecmascript::ModuleAssetRef;
 use turbopack::emit;
@@ -65,24 +66,23 @@ fn main() {
         loop {
             println!("writing graph.html...");
             // create a graph
-            let mut graph_viz = GraphViz::new();
+            let mut stats = Stats::new();
 
             // graph root node
-            graph_viz.add_task(&task);
+            stats.add(&task);
 
             // graph tasks in cache
             for task in tt.cached_tasks_iter() {
-                graph_viz.add_task(&task);
+                stats.add(&task);
             }
 
             // prettify graph
-            graph_viz.merge_edges();
-            graph_viz.drop_unchanged_slots();
-            graph_viz.skip_loney_resolve();
-            // graph_viz.drop_inactive_tasks();
+            stats.merge_resolve();
+
+            let tree = stats.treeify();
 
             // write HTML
-            fs::write("graph.html", GraphViz::wrap_html(&graph_viz.get_graph())).unwrap();
+            fs::write("graph.html", wrap_html(&visualize_stats_tree(tree))).unwrap();
             println!("graph.html written");
 
             sleep(Duration::from_secs(10)).await;

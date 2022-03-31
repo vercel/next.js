@@ -10,7 +10,6 @@ use weak_table::WeakHashSet;
 use crate::{
     slot_ref::{SlotRef, SlotRefReadResult},
     task_input::{SharedReference, TaskInput},
-    viz::SlotSnapshot,
     SlotValueType, Task, TurboTasks,
 };
 
@@ -268,15 +267,6 @@ impl Slot {
         self.updates += 1;
         // notify
         TurboTasks::schedule_notify_tasks(self.dependent_tasks.iter());
-    }
-
-    pub fn get_snapshot_for_visualization(&self, index: usize) -> SlotSnapshot {
-        SlotSnapshot {
-            name: format!("slot {}", index),
-            content: self.content.to_string(),
-            updates: self.updates,
-            linked_to_slot: None,
-        }
     }
 }
 

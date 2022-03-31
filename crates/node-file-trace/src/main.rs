@@ -4,9 +4,10 @@ use anyhow::{anyhow, Context, Result};
 use async_std::task::{block_on, spawn};
 use clap::Parser;
 use std::{
-    collections::BTreeSet, env::current_dir, future::Future, path::PathBuf, pin::Pin, time::Instant,
+    collections::BTreeSet, env::current_dir, fs, future::Future, path::PathBuf, pin::Pin,
+    sync::Arc, time::Instant,
 };
-use turbo_tasks::{NothingRef, TurboTasks};
+use turbo_tasks::{stats::Stats, viz, NothingRef, Task, TurboTasks};
 use turbo_tasks_fs::{
     glob::GlobRef, DirectoryEntry, DiskFileSystemRef, FileSystemPathRef, FileSystemRef,
     ReadGlobResultRef,
@@ -18,12 +19,21 @@ use turbopack::{
 
 use crate::nft_json::NftJsonAssetRef;
 
+#[derive(clap::Args, Debug, Clone)]
+struct CommonArgs {
+    input: Vec<String>,
+
+    #[clap(short, long)]
+    visualize_graph: bool,
+}
+
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 enum Args {
     // Print all files that the input files reference
     Print {
-        input: Vec<String>,
+        #[clap(flatten)]
+        common: CommonArgs,
 
         #[clap(short, long)]
         context_directory: Option<String>,
@@ -31,7 +41,8 @@ enum Args {
 
     // Adds a *.nft.json file next to each input file which lists the referenced files
     Annotate {
-        input: Vec<String>,
+        #[clap(flatten)]
+        common: CommonArgs,
 
         #[clap(short, long)]
         context_directory: Option<String>,
@@ -39,7 +50,8 @@ enum Args {
 
     // Copy input files and all referenced files to the output directory
     Build {
-        input: Vec<String>,
+        #[clap(flatten)]
+        common: CommonArgs,
 
         #[clap(short, long)]
         context_directory: Option<String>,
@@ -51,7 +63,8 @@ enum Args {
     // Copy input files and all referenced files to the output directory as long as the process is
     // running
     Watch {
-        input: Vec<String>,
+        #[clap(flatten)]
+        common: CommonArgs,
 
         #[clap(short, long)]
         context_directory: Option<String>,
@@ -62,11 +75,24 @@ enum Args {
 
     // Print total size of input and referenced files
     Size {
-        input: Vec<String>,
+        #[clap(flatten)]
+        common: CommonArgs,
 
         #[clap(short, long)]
         context_directory: Option<String>,
     },
+}
+
+impl Args {
+    fn common(&self) -> CommonArgs {
+        match self {
+            Args::Print { common, .. }
+            | Args::Annotate { common, .. }
+            | Args::Build { common, .. }
+            | Args::Watch { common, .. }
+            | Args::Size { common, .. } => common.clone(),
+        }
+    }
 }
 
 fn create_fs(name: &str, context: &str) -> FileSystemRef {
@@ -156,17 +182,38 @@ fn process_input(dir: &PathBuf, context: &String, input: Vec<String>) -> Result<
 }
 
 fn main() {
-    match Args::parse() {
+    let args = Args::parse();
+    let CommonArgs {
+        input,
+        visualize_graph,
+    } = args.common();
+
+    let finish = |tt: Arc<TurboTasks>, root_task: Arc<Task>| {
+        if visualize_graph {
+            let mut stats = Stats::new();
+            for task in tt.cached_tasks_iter() {
+                stats.add(&task);
+            }
+            stats.add(&root_task);
+            stats.merge_resolve();
+            let tree = stats.treeify();
+            let graph = viz::visualize_stats_tree(tree);
+            fs::write("graph.html", viz::wrap_html(&graph)).unwrap();
+            println!("graph.html written");
+        }
+    };
+
+    match args {
         Args::Print {
-            input,
             context_directory,
+            common: _,
         } => {
             let start = Instant::now();
             let dir = current_dir().unwrap();
             let context = process_context(&dir, context_directory).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
             let tt = TurboTasks::new();
-            tt.spawn_once_task(async move {
+            let task = tt.spawn_once_task(async move {
                 let mut result = BTreeSet::new();
                 let fs = create_fs("context directory", &context);
                 let modules = input_to_modules(&fs, &input).await?;
@@ -184,17 +231,18 @@ fn main() {
             });
             block_on(tt.wait_done());
             println!("done in {} ms", start.elapsed().as_millis());
+            finish(tt, task);
         }
         Args::Annotate {
-            input,
             context_directory,
+            common: _,
         } => {
             let start = Instant::now();
             let dir = current_dir().unwrap();
             let context = process_context(&dir, context_directory).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
             let tt = TurboTasks::new();
-            tt.spawn_once_task(async move {
+            let task = tt.spawn_once_task(async move {
                 let fs = create_fs("context directory", &context);
                 for module in input_to_modules(&fs, &input).await? {
                     let nft_asset = NftJsonAssetRef::new(module).into();
@@ -204,16 +252,17 @@ fn main() {
             });
             block_on(tt.wait_done());
             println!("done in {} ms", start.elapsed().as_millis());
+            finish(tt, task);
         }
         Args::Build {
-            input,
             context_directory,
             output_directory,
+            common: _,
         } => todo!(),
         Args::Watch {
-            input,
             context_directory,
             output_directory,
+            common: _,
         } => {
             let start = Instant::now();
             let tt = TurboTasks::new();
@@ -255,8 +304,8 @@ fn main() {
             block_on(handle);
         }
         Args::Size {
-            input,
             context_directory,
+            common: _,
         } => todo!(),
     }
 }

@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::Result;
 
-use crate::{slot::SlotReadResult, viz::SlotSnapshot, Task, TurboTasks};
+use crate::{slot::SlotReadResult, Task, TurboTasks};
 
 /// The result of reading a ValueRef.
 /// Can be dereferenced to the concrete type.
@@ -140,14 +140,9 @@ impl SlotRef {
         }
     }
 
-    pub fn get_snapshot_for_visualization(&self) -> SlotSnapshot {
+    pub(crate) fn get_task(&self) -> Arc<Task> {
         match self {
-            SlotRef::TaskOutput(task) => {
-                task.with_output(|output| output.get_snapshot_for_visualization())
-            }
-            SlotRef::TaskCreated(task, index) => {
-                task.with_created_slot(*index, |slot| slot.get_snapshot_for_visualization(*index))
-            }
+            SlotRef::TaskOutput(t) | SlotRef::TaskCreated(t, _) => t.clone(),
         }
     }
 }
