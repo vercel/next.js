@@ -1259,6 +1259,7 @@ jobs:
         run: |
           node scripts/trace-dd.mjs bench/nested-deps/.next/trace build ${GIT_SHORT_SHA} ./bench/nested-deps/next.config.js
         env:
+          DATA_DOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
           DD_TRACE_PARTIAL_FLUSH_MIN_SPANS: 10
           DD_ENV: canary
           DD_SERVICE: nextjs-dev-build
