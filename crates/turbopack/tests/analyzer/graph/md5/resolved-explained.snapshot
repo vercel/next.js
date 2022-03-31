@@ -1,60 +1,60 @@
-a#10 = Argument(0)
+a#10 = arguments[0]
 
-a#11 = Argument(0)
+a#11 = arguments[0]
 
-a#12 = Argument(0)
+a#12 = arguments[0]
 
 a#4 = (1732584193 | ???*0*)
 - *0* unsupported expression
 
-a#8 = Argument(1)
+a#8 = arguments[1]
 
-a#9 = Argument(0)
+a#9 = arguments[0]
 
-b#10 = Argument(1)
+b#10 = arguments[1]
 
-b#11 = Argument(1)
+b#11 = arguments[1]
 
-b#12 = Argument(1)
+b#12 = arguments[1]
 
 b#4 = ???*0*
 - *0* unsupported expression
 
-b#8 = Argument(2)
+b#8 = arguments[2]
 
-b#9 = Argument(1)
+b#9 = arguments[1]
 
 bitRotateLeft = (...) => (???*0*)
 - *0* unsupported expression
 
-bytes = (Argument(0) | ???*0*)
+bytes = (arguments[0] | ???*0*)
 - *0* new expression are not supported
 
 bytesToWords = (...) => ([])
 
-c#10 = Argument(2)
+c#10 = arguments[2]
 
-c#11 = Argument(2)
+c#11 = arguments[2]
 
-c#12 = Argument(2)
+c#12 = arguments[2]
 
 c#4 = ???*0*
 - *0* unsupported expression
 
-c#9 = Argument(2)
+c#9 = arguments[2]
 
-cnt = Argument(1)
+cnt = arguments[1]
 
-d#10 = Argument(3)
+d#10 = arguments[3]
 
-d#11 = Argument(3)
+d#11 = arguments[3]
 
-d#12 = Argument(3)
+d#12 = arguments[3]
 
 d#4 = (271733878 | ???*0*)
 - *0* unsupported expression
 
-d#9 = Argument(3)
+d#9 = arguments[3]
 
 hex = (???*0* | ???*1*)
 - *0* hex
@@ -82,11 +82,11 @@ i#5 = (???*0* | 0 | 0)
 - *0* i
   ⚠️  pattern without value
 
-input#3 = Argument(0)
+input#3 = arguments[0]
 
-input#5 = Argument(0)
+input#5 = arguments[0]
 
-len = Argument(1)
+len = arguments[1]
 
 length32 = ???*0*
 - *0* unsupported expression
@@ -122,7 +122,7 @@ msg = ???*0*
   ⚠️  call of unknown function
 - *1* FreeVar(unescape)
   ⚠️  unknown global
-- *2* ???*3*((Argument(0) | ???*4*))
+- *2* ???*3*((arguments[0] | ???*4*))
   ⚠️  call of unknown function
 - *3* FreeVar(encodeURIComponent)
   ⚠️  unknown global
@@ -133,7 +133,7 @@ msw = (???*0* + ???*1* + ???*2*)
 - *1* unsupported expression
 - *2* unsupported expression
 
-num = Argument(0)
+num = arguments[0]
 
 olda = (???*0* | 1732584193 | ???*1*)
 - *0* olda
@@ -159,30 +159,30 @@ output#3 = []
 
 output#5 = []
 
-q = Argument(0)
+q = arguments[0]
 
-s#10 = Argument(5)
+s#10 = arguments[5]
 
-s#11 = Argument(5)
+s#11 = arguments[5]
 
-s#12 = Argument(5)
+s#12 = arguments[5]
 
-s#8 = Argument(4)
+s#8 = arguments[4]
 
-s#9 = Argument(5)
+s#9 = arguments[5]
 
 safeAdd = (...) => (???*0*)
 - *0* unsupported expression
 
-t#10 = Argument(6)
+t#10 = arguments[6]
 
-t#11 = Argument(6)
+t#11 = arguments[6]
 
-t#12 = Argument(6)
+t#12 = arguments[6]
 
-t#8 = Argument(5)
+t#8 = arguments[5]
 
-t#9 = Argument(6)
+t#9 = arguments[6]
 
 wordsToMd5 = (...) => ([(1732584193 | ???*0*), ???*1*, ???*2*, (271733878 | ???*3*)])
 - *0* unsupported expression
@@ -190,23 +190,23 @@ wordsToMd5 = (...) => ([(1732584193 | ???*0*), ???*1*, ???*2*, (271733878 | ???*
 - *2* unsupported expression
 - *3* unsupported expression
 
-x#10 = Argument(4)
+x#10 = arguments[4]
 
-x#11 = Argument(4)
+x#11 = arguments[4]
 
-x#12 = Argument(4)
+x#12 = arguments[4]
 
 x#3 = (???*0* | ???*1*)
 - *0* x
   ⚠️  pattern without value
 - *1* unsupported expression
 
-x#4 = Argument(0)
+x#4 = arguments[0]
 
-x#6 = Argument(0)
+x#6 = arguments[0]
 
-x#8 = Argument(3)
+x#8 = arguments[3]
 
-x#9 = Argument(4)
+x#9 = arguments[4]
 
-y = Argument(1)
+y = arguments[1]

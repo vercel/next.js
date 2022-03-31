@@ -1,8 +1,8 @@
-a = Argument(0)
+a = arguments[0]
 
-b = Argument(1)
+b = arguments[1]
 
-c = (...) => ([`${Argument(0)}${Argument(1)}`, Argument(0)])
+c = (...) => ([`${arguments[0]}${arguments[1]}`, arguments[0]])
 
 d = ["12", "1"]
 
@@ -10,4 +10,4 @@ e = "12"
 
 f = "1"
 
-x = Argument(1)
+x = arguments[1]

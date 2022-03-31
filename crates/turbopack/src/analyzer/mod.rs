@@ -247,7 +247,7 @@ impl JsValue {
                 format!("{}", name.0)
             }
             JsValue::Argument(index) => {
-                format!("Argument({})", index)
+                format!("arguments[{}]", index)
             }
             JsValue::Concat(list) => format!(
                 "`{}`",
