@@ -1,7 +1,6 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 
 describe('react 18 streaming SSR in minimal mode', () => {
   let next: NextInstance
@@ -16,34 +15,6 @@ describe('react 18 streaming SSR in minimal mode', () => {
             return <p>static streaming</p>
           }
         `,
-        'pages/streaming-rsc.js': `
-          import { Suspense } from 'react'
-
-          let result
-          let promise
-          function Data() {
-            if (result) return result
-            if (!promise)
-              promise = new Promise((res) => {
-                setTimeout(() => {
-                  result = 'data'
-                  res()
-                }, 500)
-              })
-            throw promise
-          }
-
-          export default function Page() {
-            return (
-              <Suspense fallback="fallback">
-                <Data />
-              </Suspense>
-            )
-          }
-
-          export const config = {
-            runtime: 'edge',
-          }`,
       },
       nextConfig: {
         experimental: {
@@ -74,19 +45,6 @@ describe('react 18 streaming SSR in minimal mode', () => {
     const res = await fetchViaHTTP(next.url, '/non-existent')
     expect(res.status).toBe(404)
     expect(await res.text()).toContain('This page could not be found')
-  })
-
-  // Firefox doesn't support TransformStream at the moment,
-  // this test is to guarantee using ReadableStream on client works with hydration
-  it('should hydrate streaming content with firefox browser', async () => {
-    const originBrowserName = process.env.BROWSER_NAME
-    process.env.BROWSER_NAME = 'firefox'
-    const browser = await webdriver(next.url, '/')
-    const content = await browser.eval(
-      `document.querySelector('#content').innerText`
-    )
-    expect(content).toMatchInlineSnapshot('"data"')
-    process.env.BROWSER_NAME = originBrowserName
   })
 })
 
