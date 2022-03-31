@@ -1247,5 +1247,7 @@ jobs:
         run: |
           node scripts/trace-dd.mjs bench/nested-deps/.next/trace build ${GIT_SHORT_SHA} ./bench/nested-deps/next.config.js
         env:
+          DD_TRACE_PARTIAL_FLUSH_MIN_SPANS: 10
           DD_ENV: canary
-          DD_SERVICE: http://localhost:8126
+          DD_SERVICE: nextjs-dev-build
+          DD_TRACE_DEBUG: true
