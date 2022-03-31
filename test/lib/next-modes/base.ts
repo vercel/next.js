@@ -81,13 +81,7 @@ export class NextInstance {
       `next-test-${Date.now()}-${(Math.random() * 1000) | 0}`
     )
 
-    if (
-      process.env.NEXT_TEST_STARTER &&
-      !this.dependencies &&
-      !this.installCommand
-    ) {
-      await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
-    } else if (!skipIsolatedNext) {
+    if (!skipIsolatedNext) {
       const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
       const finalDependencies = {
         react: reactVersion,
