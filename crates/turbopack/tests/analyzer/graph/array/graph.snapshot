@@ -1,9 +1,6 @@
 [
     (
-        (
-            Atom('a' type=inline),
-            #1,
-        ),
+        "a",
         Constant(
             Num(
                 Number {
@@ -22,10 +19,7 @@
         ),
     ),
     (
-        (
-            Atom('b' type=inline),
-            #1,
-        ),
+        "b",
         Constant(
             Str(
                 Str {
@@ -48,10 +42,7 @@
         ),
     ),
     (
-        (
-            Atom('c' type=inline),
-            #1,
-        ),
+        "c",
         Member(
             Array(
                 [
@@ -121,10 +112,7 @@
         ),
     ),
     (
-        (
-            Atom('d1' type=inline),
-            #1,
-        ),
+        "d1",
         Array(
             [
                 Constant(
@@ -167,10 +155,7 @@
         ),
     ),
     (
-        (
-            Atom('d2' type=inline),
-            #1,
-        ),
+        "d2",
         Member(
             Variable(
                 (
@@ -206,10 +191,7 @@
         ),
     ),
     (
-        (
-            Atom('d3' type=inline),
-            #1,
-        ),
+        "d3",
         Member(
             Variable(
                 (
@@ -236,10 +218,7 @@
         ),
     ),
     (
-        (
-            Atom('d4' type=inline),
-            #1,
-        ),
+        "d4",
         Member(
             Variable(
                 (

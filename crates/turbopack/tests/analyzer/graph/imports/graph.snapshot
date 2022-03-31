@@ -1,9 +1,6 @@
 [
     (
-        (
-            Atom('aa' type=inline),
-            #1,
-        ),
+        "aa",
         Member(
             Module(
                 Atom('x2' type=inline),
@@ -29,10 +26,7 @@
         ),
     ),
     (
-        (
-            Atom('xx' type=inline),
-            #1,
-        ),
+        "xx",
         Member(
             Module(
                 Atom('x1' type=inline),
@@ -58,10 +52,7 @@
         ),
     ),
     (
-        (
-            Atom('yy' type=inline),
-            #1,
-        ),
+        "yy",
         Module(
             Atom('x3' type=inline),
         ),

@@ -1,9 +1,6 @@
 [
     (
-        (
-            Atom('a' type=inline),
-            #1,
-        ),
+        "a",
         Function(
             FreeVar(
                 Other(
@@ -13,10 +10,7 @@
         ),
     ),
     (
-        (
-            Atom('aa' type=inline),
-            #1,
-        ),
+        "aa",
         Variable(
             (
                 Atom('a' type=inline),
@@ -25,20 +19,14 @@
         ),
     ),
     (
-        (
-            Atom('b' type=inline),
-            #1,
-        ),
+        "b",
         Unknown(
             None,
             "function expressions are not yet supported",
         ),
     ),
     (
-        (
-            Atom('bb' type=inline),
-            #1,
-        ),
+        "bb",
         Variable(
             (
                 Atom('b' type=inline),
@@ -47,10 +35,7 @@
         ),
     ),
     (
-        (
-            Atom('c' type=inline),
-            #1,
-        ),
+        "c",
         Constant(
             Num(
                 Number {
@@ -69,10 +54,7 @@
         ),
     ),
     (
-        (
-            Atom('cc' type=inline),
-            #1,
-        ),
+        "cc",
         Variable(
             (
                 Atom('c' type=inline),
@@ -81,10 +63,7 @@
         ),
     ),
     (
-        (
-            Atom('d' type=inline),
-            #1,
-        ),
+        "d",
         Constant(
             Str(
                 Str {
@@ -107,10 +86,7 @@
         ),
     ),
     (
-        (
-            Atom('dd' type=inline),
-            #1,
-        ),
+        "dd",
         Variable(
             (
                 Atom('d' type=inline),
@@ -119,20 +95,14 @@
         ),
     ),
     (
-        (
-            Atom('e' type=inline),
-            #1,
-        ),
+        "e",
         Unknown(
             None,
             "unsupported expression",
         ),
     ),
     (
-        (
-            Atom('ee' type=inline),
-            #1,
-        ),
+        "ee",
         Variable(
             (
                 Atom('e' type=inline),
@@ -141,10 +111,7 @@
         ),
     ),
     (
-        (
-            Atom('ff' type=inline),
-            #1,
-        ),
+        "ff",
         FreeVar(
             Other(
                 Atom('f' type=inline),

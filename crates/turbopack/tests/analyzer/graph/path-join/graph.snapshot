@@ -1,9 +1,6 @@
 [
     (
-        (
-            Atom('a' type=inline),
-            #1,
-        ),
+        "a",
         Call(
             FreeVar(
                 Require,
@@ -33,10 +30,7 @@
         ),
     ),
     (
-        (
-            Atom('path' type=inline),
-            #1,
-        ),
+        "path",
         Call(
             FreeVar(
                 Require,
@@ -66,10 +60,7 @@
         ),
     ),
     (
-        (
-            Atom('z_joined' type=dynamic),
-            #1,
-        ),
+        "z_joined",
         Call(
             Member(
                 Variable(

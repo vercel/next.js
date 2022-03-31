@@ -1,0 +1,11 @@
+a = Argument(0)
+
+b = Argument(1)
+
+c = (...) => ([`${Argument(0)}${Argument(1)}`, Argument(0)])
+
+d = ["12", "1"]
+
+e = "12"
+
+f = "1"

@@ -1,9 +1,6 @@
 [
     (
-        (
-            Atom('a' type=inline),
-            #1,
-        ),
+        "a",
         Constant(
             Str(
                 Str {
@@ -26,10 +23,7 @@
         ),
     ),
     (
-        (
-            Atom('b' type=inline),
-            #1,
-        ),
+        "b",
         Constant(
             Str(
                 Str {
@@ -52,10 +46,7 @@
         ),
     ),
     (
-        (
-            Atom('c' type=inline),
-            #1,
-        ),
+        "c",
         Constant(
             Str(
                 Str {
@@ -76,10 +67,7 @@
         ),
     ),
     (
-        (
-            Atom('d' type=inline),
-            #1,
-        ),
+        "d",
         Constant(
             Str(
                 Str {

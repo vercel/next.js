@@ -1,0 +1,5 @@
+a = FreeVar(Require)("foo")
+
+path = FreeVar(Require)("path")
+
+z_joined = path["join"]("foo", "bar")

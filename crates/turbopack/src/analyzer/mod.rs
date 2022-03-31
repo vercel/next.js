@@ -205,6 +205,7 @@ impl JsValue {
                     .collect::<Vec<_>>()
                     .join(" | ")
             ),
+            JsValue::FreeVar(FreeVarKind::Other(name)) => format!("FreeVar({})", name),
             JsValue::FreeVar(name) => format!("FreeVar({:?})", name),
             JsValue::Variable(name) => {
                 format!("{}", name.0)
@@ -322,13 +323,13 @@ impl JsValue {
                 if depth > 0 {
                     let i = hints.len();
                     hints.push(format!("- *{i}* {name}: {explainer}"));
-                    format!("{name}s*{i}*")
+                    format!("{name}*{i}*")
                 } else {
                     name
                 }
             }
             JsValue::Function(return_value) => {
-                format!("A function which returns ({:?})", return_value)
+                format!("(...) => ({})", return_value.explain_internal(hints, depth))
             }
         }
     }
@@ -733,7 +734,9 @@ mod tests {
     #[testing::fixture("tests/analyzer/graph/**/input.js")]
     fn fixture(input: PathBuf) {
         let graph_snapshot_path = input.with_file_name("graph.snapshot");
+        let graph_explained_snapshot_path = input.with_file_name("graph-explained.snapshot");
         let resolved_snapshot_path = input.with_file_name("resolved.snapshot");
+        let resolved_explained_snapshot_path = input.with_file_name("resolved-explained.snapshot");
 
         testing::run_test(false, |cm, handler| {
             let fm = cm.load_file(&input).unwrap();
@@ -754,22 +757,45 @@ mod tests {
 
             let var_graph = create_graph(&m, &eval_context);
 
+            let mut named_values = var_graph
+                .values
+                .clone()
+                .into_iter()
+                .map(|((id, ctx), value)| {
+                    let unique = var_graph.values.keys().filter(|(i, _)| &id == i).count() == 1;
+                    if unique {
+                        (id.to_string(), value)
+                    } else {
+                        (format!("{id}{ctx:?}"), value)
+                    }
+                })
+                .collect::<Vec<_>>();
+            named_values.sort_by(|a, b| a.0.cmp(&b.0));
+
+            fn explain_all(values: &Vec<(String, JsValue)>) -> String {
+                values
+                    .iter()
+                    .map(|(id, value)| {
+                        let (explainer, hints) = value.explain(usize::MAX);
+                        format!("{id} = {explainer}{hints}")
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n\n")
+            }
+
             {
                 // Dump snapshot of graph
 
-                let mut dump = var_graph.values.clone().into_iter().collect::<Vec<_>>();
-                dump.sort_by(|a, b| a.0 .1.cmp(&b.0 .1));
-                dump.sort_by(|a, b| a.0 .0.cmp(&b.0 .0));
-
-                NormalizedOutput::from(format!("{:#?}", dump))
+                NormalizedOutput::from(format!("{:#?}", named_values))
                     .compare_to_file(&graph_snapshot_path)
+                    .unwrap();
+                NormalizedOutput::from(explain_all(&named_values))
+                    .compare_to_file(&graph_explained_snapshot_path)
                     .unwrap();
             }
 
             {
                 // Dump snapshot of resolved
-
-                let mut resolved = vec![];
 
                 async fn visitor(v: JsValue) -> Result<(JsValue, bool)> {
                     Ok((
@@ -808,28 +834,28 @@ mod tests {
                     ))
                 }
 
-                for ((id, ctx), val) in var_graph.values.iter() {
-                    let val = val.clone();
-                    let mut res = block_on(link(
-                        &var_graph,
-                        val,
-                        &(|val| Box::pin(visitor(val))),
-                        &Mutex::new(LinkCache::new()),
-                    ))
-                    .unwrap();
-                    res.normalize();
+                let resolved = named_values
+                    .iter()
+                    .map(|(id, val)| {
+                        let val = val.clone();
+                        let mut res = block_on(link(
+                            &var_graph,
+                            val,
+                            &(|val| Box::pin(visitor(val))),
+                            &Mutex::new(LinkCache::new()),
+                        ))
+                        .unwrap();
+                        res.normalize();
 
-                    let unique = var_graph.values.keys().filter(|(i, _)| id == i).count() == 1;
-                    if unique {
-                        resolved.push((id.to_string(), res));
-                    } else {
-                        resolved.push((format!("{id}{ctx:?}"), res));
-                    }
-                }
-                resolved.sort_by(|a, b| a.0.cmp(&b.0));
+                        (id.clone(), res)
+                    })
+                    .collect::<Vec<_>>();
 
                 NormalizedOutput::from(format!("{:#?}", resolved))
                     .compare_to_file(&resolved_snapshot_path)
+                    .unwrap();
+                NormalizedOutput::from(explain_all(&resolved))
+                    .compare_to_file(&resolved_explained_snapshot_path)
                     .unwrap();
             }
 

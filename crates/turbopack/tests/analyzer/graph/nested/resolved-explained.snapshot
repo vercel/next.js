@@ -1,0 +1,60 @@
+a = (...) => (*0*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+b = *0*
+- *0* function expressions are not yet supported
+
+c = *0*
+- *0* function expressions are not yet supported
+
+d = *0*
+- *0* unsupported expression
+
+e = (...) => (*0*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+f = *0*
+- *0* function expressions are not yet supported
+
+x#2 = 1
+
+x#3 = 1
+
+x#4 = 1
+
+x#5 = 1
+
+x#6 = 1
+
+x#7 = 1
+
+y#2 = 1
+
+y#3 = 1
+
+y#4 = 1
+
+y#5 = 1
+
+y#6 = 1
+
+y#7 = 1
+
+z#2 = (...) => (*0*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+z#5 = *0*
+- *0* unsupported expression
+
+z#6 = *0*
+- *0* unsupported expression
+
+z#7 = (...) => (*0*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+z2 = *0*
+- *0* function expressions are not yet supported

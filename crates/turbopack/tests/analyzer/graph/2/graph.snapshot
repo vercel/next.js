@@ -1,9 +1,6 @@
 [
     (
-        (
-            Atom('x' type=inline),
-            #1,
-        ),
+        "x",
         Alternatives(
             [
                 Constant(
@@ -32,10 +29,7 @@
         ),
     ),
     (
-        (
-            Atom('y' type=inline),
-            #1,
-        ),
+        "y",
         Variable(
             (
                 Atom('x' type=inline),
@@ -44,10 +38,7 @@
         ),
     ),
     (
-        (
-            Atom('z' type=inline),
-            #1,
-        ),
+        "z",
         Variable(
             (
                 Atom('x' type=inline),

@@ -1,18 +1,12 @@
 [
     (
-        (
-            Atom('a' type=inline),
-            #1,
-        ),
+        "a",
         FreeVar(
             Require,
         ),
     ),
     (
-        (
-            Atom('b' type=inline),
-            #2,
-        ),
+        "b",
         Variable(
             (
                 Atom('a' type=inline),
@@ -21,10 +15,7 @@
         ),
     ),
     (
-        (
-            Atom('c' type=inline),
-            #2,
-        ),
+        "c",
         Variable(
             (
                 Atom('b' type=inline),
@@ -33,10 +24,7 @@
         ),
     ),
     (
-        (
-            Atom('d' type=inline),
-            #3,
-        ),
+        "d",
         Variable(
             (
                 Atom('a' type=inline),
@@ -45,10 +33,7 @@
         ),
     ),
     (
-        (
-            Atom('e' type=inline),
-            #3,
-        ),
+        "e",
         Variable(
             (
                 Atom('d' type=inline),
@@ -57,10 +42,7 @@
         ),
     ),
     (
-        (
-            Atom('f' type=inline),
-            #4,
-        ),
+        "f",
         Variable(
             (
                 Atom('a' type=inline),
@@ -69,10 +51,7 @@
         ),
     ),
     (
-        (
-            Atom('g' type=inline),
-            #4,
-        ),
+        "g",
         Variable(
             (
                 Atom('f' type=inline),

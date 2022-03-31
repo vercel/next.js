@@ -1,9 +1,6 @@
 [
     (
-        (
-            Atom('O' type=inline),
-            #1,
-        ),
+        "O",
         FreeVar(
             Other(
                 Atom('Object' type=static),
@@ -11,10 +8,7 @@
         ),
     ),
     (
-        (
-            Atom('a' type=inline),
-            #1,
-        ),
+        "a",
         Call(
             Member(
                 FreeVar(
@@ -52,10 +46,7 @@
         ),
     ),
     (
-        (
-            Atom('b' type=inline),
-            #1,
-        ),
+        "b",
         Call(
             Member(
                 Variable(

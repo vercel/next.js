@@ -1,0 +1,49 @@
+a = (...) => (FreeVar(undefined))
+
+b = *0*
+- *0* function expressions are not yet supported
+
+c = *0*
+- *0* function expressions are not yet supported
+
+d = *0*
+- *0* unsupported expression
+
+e = (...) => (FreeVar(undefined))
+
+f = *0*
+- *0* function expressions are not yet supported
+
+x#2 = 1
+
+x#3 = 1
+
+x#4 = 1
+
+x#5 = 1
+
+x#6 = 1
+
+x#7 = 1
+
+y#2 = x
+
+y#3 = x
+
+y#4 = x
+
+y#5 = x
+
+y#6 = x
+
+y#7 = x
+
+z#2 = a
+
+z#5 = d
+
+z#6 = d
+
+z#7 = e
+
+z2 = f

@@ -1,9 +1,6 @@
 [
     (
-        (
-            Atom('a' type=inline),
-            #1,
-        ),
+        "a",
         Function(
             FreeVar(
                 Other(
@@ -13,10 +10,7 @@
         ),
     ),
     (
-        (
-            Atom('b' type=inline),
-            #1,
-        ),
+        "b",
         Function(
             FreeVar(
                 Other(
@@ -26,10 +20,7 @@
         ),
     ),
     (
-        (
-            Atom('c' type=inline),
-            #1,
-        ),
+        "c",
         Function(
             FreeVar(
                 Other(
@@ -39,10 +30,7 @@
         ),
     ),
     (
-        (
-            Atom('x' type=inline),
-            #1,
-        ),
+        "x",
         Alternatives(
             [
                 Constant(
@@ -95,10 +83,7 @@
         ),
     ),
     (
-        (
-            Atom('y' type=inline),
-            #1,
-        ),
+        "y",
         Alternatives(
             [
                 Constant(

@@ -1,0 +1,19 @@
+O = *0*
+- *0* FreeVar(Object)
+  ⚠️  unknown global
+
+a = *0*(*2*)
+- *0* *1*["keys"]
+  ⚠️  property on unknown
+- *1* FreeVar(Object)
+  ⚠️  unknown global
+- *2* FreeVar(Object)
+  ⚠️  unknown global
+
+b = *0*(*2*)
+- *0* *1*["keys"]
+  ⚠️  property on unknown
+- *1* FreeVar(Object)
+  ⚠️  unknown global
+- *2* FreeVar(Object)
+  ⚠️  unknown global

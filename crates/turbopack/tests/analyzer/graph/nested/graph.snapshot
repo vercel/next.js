@@ -1,9 +1,6 @@
 [
     (
-        (
-            Atom('a' type=inline),
-            #1,
-        ),
+        "a",
         Function(
             FreeVar(
                 Other(
@@ -13,40 +10,28 @@
         ),
     ),
     (
-        (
-            Atom('b' type=inline),
-            #1,
-        ),
+        "b",
         Unknown(
             None,
             "function expressions are not yet supported",
         ),
     ),
     (
-        (
-            Atom('c' type=inline),
-            #1,
-        ),
+        "c",
         Unknown(
             None,
             "function expressions are not yet supported",
         ),
     ),
     (
-        (
-            Atom('d' type=inline),
-            #1,
-        ),
+        "d",
         Unknown(
             None,
             "unsupported expression",
         ),
     ),
     (
-        (
-            Atom('e' type=inline),
-            #7,
-        ),
+        "e",
         Function(
             FreeVar(
                 Other(
@@ -56,20 +41,14 @@
         ),
     ),
     (
-        (
-            Atom('f' type=inline),
-            #1,
-        ),
+        "f",
         Unknown(
             None,
             "function expressions are not yet supported",
         ),
     ),
     (
-        (
-            Atom('x' type=inline),
-            #2,
-        ),
+        "x#2",
         Constant(
             Num(
                 Number {
@@ -88,10 +67,7 @@
         ),
     ),
     (
-        (
-            Atom('x' type=inline),
-            #3,
-        ),
+        "x#3",
         Constant(
             Num(
                 Number {
@@ -110,10 +86,7 @@
         ),
     ),
     (
-        (
-            Atom('x' type=inline),
-            #4,
-        ),
+        "x#4",
         Constant(
             Num(
                 Number {
@@ -132,10 +105,7 @@
         ),
     ),
     (
-        (
-            Atom('x' type=inline),
-            #5,
-        ),
+        "x#5",
         Constant(
             Num(
                 Number {
@@ -154,10 +124,7 @@
         ),
     ),
     (
-        (
-            Atom('x' type=inline),
-            #6,
-        ),
+        "x#6",
         Constant(
             Num(
                 Number {
@@ -176,10 +143,7 @@
         ),
     ),
     (
-        (
-            Atom('x' type=inline),
-            #7,
-        ),
+        "x#7",
         Constant(
             Num(
                 Number {
@@ -198,10 +162,7 @@
         ),
     ),
     (
-        (
-            Atom('y' type=inline),
-            #2,
-        ),
+        "y#2",
         Variable(
             (
                 Atom('x' type=inline),
@@ -210,10 +171,7 @@
         ),
     ),
     (
-        (
-            Atom('y' type=inline),
-            #3,
-        ),
+        "y#3",
         Variable(
             (
                 Atom('x' type=inline),
@@ -222,10 +180,7 @@
         ),
     ),
     (
-        (
-            Atom('y' type=inline),
-            #4,
-        ),
+        "y#4",
         Variable(
             (
                 Atom('x' type=inline),
@@ -234,10 +189,7 @@
         ),
     ),
     (
-        (
-            Atom('y' type=inline),
-            #5,
-        ),
+        "y#5",
         Variable(
             (
                 Atom('x' type=inline),
@@ -246,10 +198,7 @@
         ),
     ),
     (
-        (
-            Atom('y' type=inline),
-            #6,
-        ),
+        "y#6",
         Variable(
             (
                 Atom('x' type=inline),
@@ -258,10 +207,7 @@
         ),
     ),
     (
-        (
-            Atom('y' type=inline),
-            #7,
-        ),
+        "y#7",
         Variable(
             (
                 Atom('x' type=inline),
@@ -270,10 +216,7 @@
         ),
     ),
     (
-        (
-            Atom('z' type=inline),
-            #2,
-        ),
+        "z#2",
         Variable(
             (
                 Atom('a' type=inline),
@@ -282,10 +225,7 @@
         ),
     ),
     (
-        (
-            Atom('z' type=inline),
-            #5,
-        ),
+        "z#5",
         Variable(
             (
                 Atom('d' type=inline),
@@ -294,10 +234,7 @@
         ),
     ),
     (
-        (
-            Atom('z' type=inline),
-            #6,
-        ),
+        "z#6",
         Variable(
             (
                 Atom('d' type=inline),
@@ -306,10 +243,7 @@
         ),
     ),
     (
-        (
-            Atom('z' type=inline),
-            #7,
-        ),
+        "z#7",
         Variable(
             (
                 Atom('e' type=inline),
@@ -318,10 +252,7 @@
         ),
     ),
     (
-        (
-            Atom('z2' type=inline),
-            #7,
-        ),
+        "z2",
         Variable(
             (
                 Atom('f' type=inline),

@@ -1,27 +1,18 @@
 [
     (
-        (
-            Atom('a' type=inline),
-            #2,
-        ),
+        "a",
         Argument(
             0,
         ),
     ),
     (
-        (
-            Atom('b' type=inline),
-            #2,
-        ),
+        "b",
         Argument(
             1,
         ),
     ),
     (
-        (
-            Atom('c' type=inline),
-            #1,
-        ),
+        "c",
         Function(
             Array(
                 [
@@ -52,10 +43,7 @@
         ),
     ),
     (
-        (
-            Atom('d' type=inline),
-            #1,
-        ),
+        "d",
         Call(
             Variable(
                 (
@@ -108,10 +96,7 @@
         ),
     ),
     (
-        (
-            Atom('e' type=inline),
-            #1,
-        ),
+        "e",
         Member(
             Variable(
                 (
@@ -138,10 +123,7 @@
         ),
     ),
     (
-        (
-            Atom('f' type=inline),
-            #1,
-        ),
+        "f",
         Member(
             Variable(
                 (
