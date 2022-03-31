@@ -17,8 +17,6 @@ describe('styled-components SWC transform', () => {
       },
       dependencies: {
         'styled-components': '5.3.3',
-        react: 'latest',
-        'react-dom': 'latest',
       },
     })
   })
