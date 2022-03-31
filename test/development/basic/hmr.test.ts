@@ -22,10 +22,6 @@ describe('basic HMR', () => {
         pages: new FileRef(join(__dirname, 'hmr/pages')),
         components: new FileRef(join(__dirname, 'hmr/components')),
       },
-      dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
-      },
     })
   })
   afterAll(() => next.destroy())
