@@ -8,6 +8,7 @@ const fetch = vercelFetch(nodeFetch)
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
+const { createNextInstall } = require('./test/lib/create-next-install')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
@@ -32,6 +33,9 @@ const testFilters = {
 const configuredTestTypes = Object.values(testFilters)
 
 const cleanUpAndExit = async (code) => {
+  if (process.env.NEXT_TEST_STARTER) {
+    await fs.remove(process.env.NEXT_TEST_STARTER)
+  }
   console.log(`exiting with code ${code}`)
   process.exit(code)
 }
@@ -205,6 +209,19 @@ async function main() {
       (type) => type !== testFilters.unit && test.startsWith(`test/${type}`)
     )
   })
+
+  if ((testType && testType !== 'unit') || hasIsolatedTests) {
+    // for isolated next tests: e2e, dev, prod we create
+    // a starter Next.js install to re-use to speed up tests
+    // to avoid having to run yarn each time
+    console.log('Creating Next.js install for isolated tests')
+    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
+    const testStarter = await createNextInstall({
+      react: reactVersion,
+      'react-dom': reactVersion,
+    })
+    process.env.NEXT_TEST_STARTER = testStarter
+  }
 
   const sema = new Sema(concurrency, { capacity: testNames.length })
   const jestPath = path.join(
