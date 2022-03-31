@@ -30,6 +30,38 @@ describe('basic HMR', () => {
   })
   afterAll(() => next.destroy())
 
+  it('should have correct router.isReady for auto-export page', async () => {
+    let browser = await webdriver(next.url, '/auto-export-is-ready')
+
+    expect(await browser.elementByCss('#ready').text()).toBe('yes')
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
+
+    browser = await webdriver(next.url, '/auto-export-is-ready?hello=world')
+
+    await check(async () => {
+      return browser.elementByCss('#ready').text()
+    }, 'yes')
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      hello: 'world',
+    })
+  })
+
+  it('should have correct router.isReady for getStaticProps page', async () => {
+    let browser = await webdriver(next.url, '/gsp-is-ready')
+
+    expect(await browser.elementByCss('#ready').text()).toBe('yes')
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
+
+    browser = await webdriver(next.url, '/gsp-is-ready?hello=world')
+
+    await check(async () => {
+      return browser.elementByCss('#ready').text()
+    }, 'yes')
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      hello: 'world',
+    })
+  })
+
   describe('Hot Module Reloading', () => {
     describe('delete a page and add it back', () => {
       it('should load the page properly', async () => {
