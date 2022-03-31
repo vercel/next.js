@@ -536,7 +536,7 @@ jobs:
       - run: node run-tests.js test/integration/production/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       # test rsc hydration on firefox due to limited support of TransformStream api
-      - run: yarn jest test/integration/react-streaming-and-server-components/test/index.test.js -t "should handle streaming server components correctly"
+      - run: xvfb-run yarn jest test/integration/react-streaming-and-server-components/test/index.test.js -t "should handle streaming server components correctly"
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testSafari:

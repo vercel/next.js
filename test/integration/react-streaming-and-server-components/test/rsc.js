@@ -120,13 +120,10 @@ export default function (context, { runtime, env }) {
   })
 
   it('should handle streaming server components correctly', async () => {
-    const temp = process.env.BROWSER_NAME
-    process.env.BROWSER_NAME = 'firefox'
     const browser = await webdriver(context.appPort, '/streaming-rsc')
     const content = await browser.eval(
       `document.querySelector('#content').innerText`
     )
-    process.env.BROWSER_NAME = temp
     expect(content).toMatchInlineSnapshot('"next_streaming_data"')
   })
 
