@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use swc_ecmascript::ast::Lit;
 
 use crate::analyzer::FreeVarKind;
@@ -8,18 +10,18 @@ pub fn replace_builtin(value: JsValue) -> (JsValue, bool) {
     (
         match value {
             JsValue::Member(box JsValue::Unknown(inner, reason), prop) => JsValue::Unknown(
-                Some(box JsValue::Member(
+                Some(Arc::new(JsValue::Member(
                     box JsValue::Unknown(inner, reason),
                     prop,
-                )),
+                ))),
                 "property on unknown",
             ),
             JsValue::Member(box JsValue::Array(mut array), box JsValue::Unknown(inner, reason)) => {
                 array.push(JsValue::Unknown(
-                    Some(box JsValue::Member(
+                    Some(Arc::new(JsValue::Member(
                         box JsValue::Array(Vec::new()),
                         box JsValue::Unknown(inner, reason),
-                    )),
+                    ))),
                     "unknown array prototype methods or values",
                 ));
                 JsValue::Alternatives(array)
@@ -33,19 +35,19 @@ pub fn replace_builtin(value: JsValue) -> (JsValue, bool) {
                     array.swap_remove(index)
                 } else {
                     JsValue::Unknown(
-                        Some(box JsValue::Member(
+                        Some(Arc::new(JsValue::Member(
                             box JsValue::Array(array),
                             box JsValue::Constant(Lit::Num(num)),
-                        )),
+                        ))),
                         "invalid index",
                     )
                 }
             }
             JsValue::Call(box JsValue::Unknown(inner, explainer), args) => JsValue::Unknown(
-                Some(box JsValue::Call(
+                Some(Arc::new(JsValue::Call(
                     box JsValue::Unknown(inner, explainer),
                     args,
-                )),
+                ))),
                 "call of unknown function",
             ),
             JsValue::Call(box JsValue::Function(box mut return_value), args) => {

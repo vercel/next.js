@@ -4,7 +4,8 @@ use std::{
     future::Future,
     mem::take,
     pin::Pin,
-    sync::Mutex,
+    sync::{Arc, Mutex},
+    time::Instant,
 };
 use swc_ecmascript::utils::Id;
 
@@ -76,7 +77,7 @@ where
             if circle_stack.contains(&var) {
                 Ok((
                     JsValue::Unknown(
-                        Some(box JsValue::Variable(var.clone())),
+                        Some(Arc::new(JsValue::Variable(var.clone()))),
                         "circular variable reference",
                     ),
                     Some(HashSet::from([var])),
@@ -92,7 +93,7 @@ where
                     val.clone()
                 } else {
                     JsValue::Unknown(
-                        Some(box JsValue::Variable(var.clone())),
+                        Some(Arc::new(JsValue::Variable(var.clone()))),
                         "no value of this variable analysed",
                     )
                 };
@@ -141,7 +142,7 @@ where
             }
             let replaced_circular_references = Mutex::new(HashSet::default());
             let circle_stack_mutex = Mutex::new(take(circle_stack));
-            let (val, mut modified) = val
+            let (mut val, mut modified) = val
                 .for_each_children_async(&mut |child| {
                     Box::pin(child_visitor(
                         child,
@@ -155,6 +156,10 @@ where
                 })
                 .await?;
             *circle_stack = circle_stack_mutex.into_inner().unwrap();
+
+            if modified {
+                val.normalize_shallow();
+            }
 
             let mut val = val;
             loop {

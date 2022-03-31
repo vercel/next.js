@@ -20,7 +20,12 @@ use crate::{
     source_asset::SourceAssetRef,
 };
 use anyhow::Result;
-use std::{collections::HashMap, future::Future, pin::Pin, sync::Mutex};
+use std::{
+    collections::HashMap,
+    future::Future,
+    pin::Pin,
+    sync::{Arc, Mutex},
+};
 use swc_common::{
     errors::{DiagnosticId, Handler, HANDLER},
     Span, GLOBALS,
@@ -346,21 +351,21 @@ async fn value_visitor(source: &AssetRef, v: JsValue) -> Result<(JsValue, bool)>
                     match &*resolved {
                         ResolveResult::Single(asset, _) => as_abs_path(asset.path()).await?,
                         _ => JsValue::Unknown(
-                            Some(box JsValue::Call(
+                            Some(Arc::new(JsValue::Call(
                                 box JsValue::WellKnownFunction(
                                     WellKnownFunctionKind::RequireResolve,
                                 ),
                                 args,
-                            )),
+                            ))),
                             "unresolveable request",
                         ),
                     }
                 } else {
                     JsValue::Unknown(
-                        Some(box JsValue::Call(
+                        Some(Arc::new(JsValue::Call(
                             box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
                             args,
-                        )),
+                        ))),
                         "only a single argument is supported",
                     )
                 }

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use swc_ecmascript::ast::Lit;
 use url::Url;
 
@@ -31,26 +33,26 @@ pub fn well_known_function_call(
     match kind {
         WellKnownFunctionKind::PathJoin => path_join(args),
         WellKnownFunctionKind::Import => JsValue::Unknown(
-            Some(box JsValue::Call(
+            Some(Arc::new(JsValue::Call(
                 box JsValue::WellKnownFunction(kind),
                 args,
-            )),
+            ))),
             "import() is not supported",
         ),
         WellKnownFunctionKind::Require => require(args),
         WellKnownFunctionKind::RequireResolve => JsValue::Unknown(
-            Some(box JsValue::Call(
+            Some(Arc::new(JsValue::Call(
                 box JsValue::WellKnownFunction(kind),
                 args,
-            )),
+            ))),
             "require.resolve() is not supported",
         ),
         WellKnownFunctionKind::PathToFileUrl => path_to_file_url(args),
         _ => JsValue::Unknown(
-            Some(box JsValue::Call(
+            Some(Arc::new(JsValue::Call(
                 box JsValue::WellKnownFunction(kind),
                 args,
-            )),
+            ))),
             "unsupported function",
         ),
     }
@@ -60,10 +62,10 @@ pub fn path_join(args: Vec<JsValue>) -> JsValue {
     // Currently we only support constants.
     if args.iter().any(|arg| !matches!(arg, JsValue::Constant(..))) {
         JsValue::Unknown(
-            Some(box JsValue::Call(
+            Some(Arc::new(JsValue::Call(
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
                 args,
-            )),
+            ))),
             "only constants are supported",
         )
     } else {
@@ -116,19 +118,19 @@ pub fn require(args: Vec<JsValue>) -> JsValue {
         match &args[0] {
             JsValue::Constant(Lit::Str(s)) => JsValue::Module(s.value.clone()),
             _ => JsValue::Unknown(
-                Some(box JsValue::Call(
+                Some(Arc::new(JsValue::Call(
                     box JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
                     args,
-                )),
+                ))),
                 "only constant argument is supported",
             ),
         }
     } else {
         JsValue::Unknown(
-            Some(box JsValue::Call(
+            Some(Arc::new(JsValue::Call(
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
                 args,
-            )),
+            ))),
             "only a single argument is supported",
         )
     }
@@ -141,28 +143,28 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
                 .map(JsValue::Url)
                 .unwrap_or_else(|_err| {
                     JsValue::Unknown(
-                        Some(box JsValue::Call(
+                        Some(Arc::new(JsValue::Call(
                             box JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
                             args,
-                        )),
+                        ))),
                         // TODO include err in message
                         "url not parseable",
                     )
                 }),
             _ => JsValue::Unknown(
-                Some(box JsValue::Call(
+                Some(Arc::new(JsValue::Call(
                     box JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
                     args,
-                )),
+                ))),
                 "only constant argument is supported",
             ),
         }
     } else {
         JsValue::Unknown(
-            Some(box JsValue::Call(
+            Some(Arc::new(JsValue::Call(
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
                 args,
-            )),
+            ))),
             "only a single argument is supported",
         )
     }
@@ -174,10 +176,10 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
             JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)
         }
         _ => JsValue::Unknown(
-            Some(box JsValue::Member(
+            Some(Arc::new(JsValue::Member(
                 box JsValue::WellKnownFunction(kind),
                 box prop,
-            )),
+            ))),
             "unsupported property on function",
         ),
     }
@@ -190,10 +192,10 @@ pub fn well_known_object_member(kind: WellKnownObjectKind, prop: JsValue) -> JsV
         WellKnownObjectKind::UrlModule => url_module_member(prop),
         WellKnownObjectKind::ChildProcess => child_process_module_member(prop),
         _ => JsValue::Unknown(
-            Some(box JsValue::Member(
+            Some(Arc::new(JsValue::Member(
                 box JsValue::WellKnownObject(kind),
                 box prop,
-            )),
+            ))),
             "unsupported object kind",
         ),
     }
@@ -203,10 +205,10 @@ pub fn path_module_member(prop: JsValue) -> JsValue {
     match prop.as_str() {
         Some("join") => JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
         _ => JsValue::Unknown(
-            Some(box JsValue::Member(
+            Some(Arc::new(JsValue::Member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
                 box prop,
-            )),
+            ))),
             "unsupported property on Node.js path module",
         ),
     }
@@ -226,10 +228,10 @@ pub fn fs_module_member(prop: JsValue) -> JsValue {
         }
     }
     JsValue::Unknown(
-        Some(box JsValue::Member(
+        Some(Arc::new(JsValue::Member(
             box JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
             box prop,
-        )),
+        ))),
         "unsupported property on Node.js fs module",
     )
 }
@@ -238,10 +240,10 @@ pub fn url_module_member(prop: JsValue) -> JsValue {
     match prop.as_str() {
         Some("pathToFileURL") => JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
         _ => JsValue::Unknown(
-            Some(box JsValue::Member(
+            Some(Arc::new(JsValue::Member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::UrlModule),
                 box prop,
-            )),
+            ))),
             "unsupported property on Node.js url module",
         ),
     }
@@ -251,10 +253,10 @@ pub fn child_process_module_member(prop: JsValue) -> JsValue {
     match prop.as_str() {
         Some("spawn") => JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawn),
         _ => JsValue::Unknown(
-            Some(box JsValue::Member(
+            Some(Arc::new(JsValue::Member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess),
                 box prop,
-            )),
+            ))),
             "unsupported property on Node.js child_process module",
         ),
     }

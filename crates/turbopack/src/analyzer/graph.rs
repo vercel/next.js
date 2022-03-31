@@ -1,4 +1,4 @@
-use std::{collections::HashMap, iter, mem::replace};
+use std::{collections::HashMap, iter, mem::replace, sync::Arc};
 
 use swc_atoms::js_word;
 use swc_common::{collections::AHashSet, Mark, Span, Spanned};
@@ -577,7 +577,7 @@ impl Visit for Analyzer<'_> {
                     i.to_id(),
                     value.unwrap_or_else(|| {
                         JsValue::Unknown(
-                            Some(box JsValue::Variable(i.to_id())),
+                            Some(Arc::new(JsValue::Variable(i.to_id()))),
                             "pattern without value",
                         )
                     }),

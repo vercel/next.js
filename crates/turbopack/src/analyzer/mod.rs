@@ -1,8 +1,11 @@
-use std::{fmt::Display, future::Future, mem::take, pin::Pin};
+use std::{
+    collections::HashSet, fmt::Display, future::Future, hash::Hash, mem::take, pin::Pin, sync::Arc,
+};
 
 use crate::ecmascript::utils::lit_to_string;
 
 pub(crate) use self::imports::ImportMap;
+use indexmap::IndexSet;
 use swc_atoms::{js_word, JsWord};
 use swc_common::{collections::AHashSet, Mark};
 use swc_ecmascript::{ast::*, utils::ident::IdentLike};
@@ -15,7 +18,7 @@ pub mod linker;
 pub mod well_known;
 
 /// TODO: Use `Arc`
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum JsValue {
     /// Denotes a single string literal, which does not have any unknown value.
     ///
@@ -56,7 +59,7 @@ pub enum JsValue {
     WellKnownFunction(WellKnownFunctionKind),
 
     /// Not analyzable.
-    Unknown(Option<Box<JsValue>>, &'static str),
+    Unknown(Option<Arc<JsValue>>, &'static str),
 
     /// `(return_value)`
     Function(Box<JsValue>),
@@ -656,26 +659,22 @@ impl JsValue {
     }
 
     pub fn normalize_shallow(&mut self) {
-        // TODO really doing shallow
-        self.normalize();
-    }
-
-    pub fn normalize(&mut self) {
-        self.for_each_children_mut(&mut |child| {
-            child.normalize();
-            true
-        });
-        // Handle nested
         match self {
             JsValue::Alternatives(v) => {
-                let mut new = vec![];
+                let mut set = IndexSet::new();
                 for v in take(v) {
                     match v {
-                        JsValue::Alternatives(v) => new.extend(v),
-                        v => new.push(v),
+                        JsValue::Alternatives(v) => {
+                            for v in v {
+                                set.insert(SimilarJsValue(v));
+                            }
+                        }
+                        v => {
+                            set.insert(SimilarJsValue(v));
+                        }
                     }
                 }
-                *v = new;
+                *v = set.into_iter().map(|v| v.0).collect();
             }
             JsValue::Concat(v) => {
                 // Remove empty strings
@@ -733,9 +732,94 @@ impl JsValue {
             _ => {}
         }
     }
+
+    pub fn normalize(&mut self) {
+        self.for_each_children_mut(&mut |child| {
+            child.normalize();
+            true
+        });
+        self.normalize_shallow();
+    }
+
+    fn similar(&self, other: &JsValue) -> bool {
+        fn all_similar(a: &[JsValue], b: &[JsValue]) -> bool {
+            if a.len() != b.len() {
+                return false;
+            }
+            a.iter().zip(b.iter()).all(|(a, b)| a.similar(b))
+        }
+        match (self, other) {
+            (JsValue::Constant(l), JsValue::Constant(r)) => l == r,
+            (JsValue::Array(l), JsValue::Array(r)) => all_similar(l, r),
+            (JsValue::Url(l), JsValue::Url(r)) => l == r,
+            (JsValue::Alternatives(l), JsValue::Alternatives(r)) => all_similar(l, r),
+            (JsValue::FreeVar(l), JsValue::FreeVar(r)) => l == r,
+            (JsValue::Variable(l), JsValue::Variable(r)) => l == r,
+            (JsValue::Concat(l), JsValue::Concat(r)) => all_similar(l, r),
+            (JsValue::Add(l), JsValue::Add(r)) => all_similar(l, r),
+            (JsValue::Call(lf, la), JsValue::Call(rf, ra)) => lf.similar(rf) && all_similar(la, ra),
+            (JsValue::Member(lo, lp), JsValue::Member(ro, rp)) => lo.similar(ro) && lp.similar(rp),
+            (JsValue::Module(l), JsValue::Module(r)) => l == r,
+            (JsValue::WellKnownObject(l), JsValue::WellKnownObject(r)) => l == r,
+            (JsValue::WellKnownFunction(l), JsValue::WellKnownFunction(r)) => l == r,
+            (JsValue::Unknown(_, l), JsValue::Unknown(_, r)) => l == r,
+            (JsValue::Function(l), JsValue::Function(r)) => l.similar(r),
+            (JsValue::Argument(l), JsValue::Argument(r)) => l == r,
+            _ => false,
+        }
+    }
+
+    fn similar_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        fn all_similar_hash<H: std::hash::Hasher>(slice: &[JsValue], state: &mut H) {
+            for item in slice {
+                item.similar_hash(state);
+            }
+        }
+
+        match self {
+            JsValue::Constant(v) => Hash::hash(v, state),
+            JsValue::Array(v) => all_similar_hash(v, state),
+            JsValue::Url(v) => Hash::hash(v, state),
+            JsValue::Alternatives(v) => all_similar_hash(v, state),
+            JsValue::FreeVar(v) => Hash::hash(v, state),
+            JsValue::Variable(v) => Hash::hash(v, state),
+            JsValue::Concat(v) => all_similar_hash(v, state),
+            JsValue::Add(v) => all_similar_hash(v, state),
+            JsValue::Call(a, b) => {
+                a.similar_hash(state);
+                all_similar_hash(b, state);
+            }
+            JsValue::Member(o, p) => {
+                o.similar_hash(state);
+                p.similar_hash(state);
+            }
+            JsValue::Module(v) => Hash::hash(v, state),
+            JsValue::WellKnownObject(v) => Hash::hash(v, state),
+            JsValue::WellKnownFunction(v) => Hash::hash(v, state),
+            JsValue::Unknown(_, v) => Hash::hash(v, state),
+            JsValue::Function(v) => v.similar_hash(state),
+            JsValue::Argument(v) => Hash::hash(v, state),
+        }
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+struct SimilarJsValue(JsValue);
+
+impl PartialEq for SimilarJsValue {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.similar(&other.0)
+    }
+}
+
+impl Eq for SimilarJsValue {}
+
+impl Hash for SimilarJsValue {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.similar_hash(state)
+    }
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum FreeVarKind {
     /// `__dirname`
     Dirname,
@@ -753,7 +837,7 @@ pub enum FreeVarKind {
     Other(JsWord),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WellKnownObjectKind {
     PathModule,
     FsModule,
@@ -761,7 +845,7 @@ pub enum WellKnownObjectKind {
     ChildProcess,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WellKnownFunctionKind {
     PathJoin,
     Import,
@@ -790,7 +874,10 @@ fn is_unresolved(i: &Ident, bindings: &AHashSet<Id>, top_level_mark: Mark) -> bo
 
 #[cfg(test)]
 mod tests {
-    use std::{path::PathBuf, sync::Mutex};
+    use std::{
+        path::PathBuf,
+        sync::{Arc, Mutex},
+    };
 
     use anyhow::Result;
     use async_std::task::block_on;
@@ -886,7 +973,10 @@ mod tests {
                                 JsValue::Constant(lit) => {
                                     JsValue::Constant((lit_to_string(&lit) + " (resolved)").into())
                                 }
-                                _ => JsValue::Unknown(Some(box v), "resolve.resolve non constant"),
+                                _ => JsValue::Unknown(
+                                    Some(Arc::new(v)),
+                                    "resolve.resolve non constant",
+                                ),
                             },
                             JsValue::FreeVar(FreeVarKind::Require) => {
                                 JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
@@ -894,9 +984,10 @@ mod tests {
                             JsValue::FreeVar(FreeVarKind::Dirname) => {
                                 JsValue::Constant("__dirname".into())
                             }
-                            JsValue::FreeVar(kind) => {
-                                JsValue::Unknown(Some(box JsValue::FreeVar(kind)), "unknown global")
-                            }
+                            JsValue::FreeVar(kind) => JsValue::Unknown(
+                                Some(Arc::new(JsValue::FreeVar(kind))),
+                                "unknown global",
+                            ),
                             JsValue::Module(ref name) => match &**name {
                                 "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
                                 _ => return Ok((v, false)),
