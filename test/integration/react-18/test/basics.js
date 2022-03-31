@@ -4,7 +4,7 @@ import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 import { renderViaHTTP } from 'next-test-utils'
 
-export default (context) => {
+export default (context, env) => {
   it('no warnings for image related link props', async () => {
     await renderViaHTTP(context.appPort, '/')
     expect(context.stderr).not.toContain('Warning: Invalid DOM property')
@@ -26,5 +26,17 @@ export default (context) => {
     const csrId = await browser.eval('document.getElementById("id").innerText')
 
     expect(ssrId).toEqual(csrId)
+  })
+
+  it('should contain dynamicIds in next data for basic dynamic imports', async () => {
+    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
+    const $ = cheerio.load(html)
+    const { dynamicIds } = JSON.parse($('#__NEXT_DATA__').html())
+
+    if (env === 'dev') {
+      expect(dynamicIds).toContain('dynamic-imports.js -> ../components/foo')
+    } else {
+      expect(dynamicIds.length).toBe(1)
+    }
   })
 }
