@@ -1024,6 +1024,14 @@ function Root({
     () => callbacks.forEach((callback) => callback()),
     [callbacks]
   )
+  // We should ask to measure the Web Vitals after rendering completes so we
+  // don't cause any hydration delay:
+  React.useEffect(() => {
+    measureWebVitals(onPerfEntry)
+
+    flushBufferedVitalsMetrics()
+  }, [])
+
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
@@ -1034,13 +1042,6 @@ function Root({
       }
     }, [])
   }
-  // We should ask to measure the Web Vitals after rendering completes so we
-  // don't cause any hydration delay:
-  React.useEffect(() => {
-    measureWebVitals(onPerfEntry)
-
-    flushBufferedVitalsMetrics()
-  }, [])
 
   return children as React.ReactElement
 }
