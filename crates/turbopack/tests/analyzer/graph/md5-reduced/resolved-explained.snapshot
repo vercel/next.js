@@ -1,0 +1,1069 @@
+a#2 = (1732584193 | *0* | *10* | *20* | *30*)
+- *0* *1*(*2*, Argument(2))
+  ⚠️  call of unknown function
+- *1* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *2* *3*(*4*, Argument(4))
+  ⚠️  call of unknown function
+- *3* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *4* *5*(*6*, *8*)
+  ⚠️  call of unknown function
+- *5* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *6* *7*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *7* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *8* *9*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *9* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *10* *11*(*12*, Argument(2))
+  ⚠️  call of unknown function
+- *11* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *12* *13*(*14*, Argument(4))
+  ⚠️  call of unknown function
+- *13* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *14* *15*(*16*, *18*)
+  ⚠️  call of unknown function
+- *15* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *16* *17*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *17* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *18* *19*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *19* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *20* *21*(*22*, Argument(2))
+  ⚠️  call of unknown function
+- *21* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *22* *23*(*24*, Argument(4))
+  ⚠️  call of unknown function
+- *23* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *24* *25*(*26*, *28*)
+  ⚠️  call of unknown function
+- *25* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *26* *27*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *27* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *28* *29*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *29* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *30* *31*(*32*, Argument(2))
+  ⚠️  call of unknown function
+- *31* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *32* *33*(*34*, Argument(4))
+  ⚠️  call of unknown function
+- *33* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *34* *35*(*36*, *38*)
+  ⚠️  call of unknown function
+- *35* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *36* *37*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *37* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *38* *39*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *39* FreeVar(safeAdd)
+  ⚠️  unknown global
+
+a#3 = Argument(1)
+
+a#4 = Argument(0)
+
+b#2 = (*0* | *1* | *11* | *21* | *31*)
+- *0* unsupported expression
+- *1* *2*(*3*, Argument(2))
+  ⚠️  call of unknown function
+- *2* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *3* *4*(*5*, Argument(4))
+  ⚠️  call of unknown function
+- *4* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *5* *6*(*7*, *9*)
+  ⚠️  call of unknown function
+- *6* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *7* *8*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *8* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *9* *10*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *10* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *11* *12*(*13*, Argument(2))
+  ⚠️  call of unknown function
+- *12* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *13* *14*(*15*, Argument(4))
+  ⚠️  call of unknown function
+- *14* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *15* *16*(*17*, *19*)
+  ⚠️  call of unknown function
+- *16* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *17* *18*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *18* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *19* *20*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *20* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *21* *22*(*23*, Argument(2))
+  ⚠️  call of unknown function
+- *22* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *23* *24*(*25*, Argument(4))
+  ⚠️  call of unknown function
+- *24* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *25* *26*(*27*, *29*)
+  ⚠️  call of unknown function
+- *26* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *27* *28*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *28* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *29* *30*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *30* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *31* *32*(*33*, Argument(2))
+  ⚠️  call of unknown function
+- *32* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *33* *34*(*35*, Argument(4))
+  ⚠️  call of unknown function
+- *34* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *35* *36*(*37*, *39*)
+  ⚠️  call of unknown function
+- *36* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *37* *38*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *38* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *39* *40*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *40* FreeVar(safeAdd)
+  ⚠️  unknown global
+
+b#3 = Argument(2)
+
+b#4 = Argument(1)
+
+c#2 = (*0* | *1* | *11* | *21* | *31*)
+- *0* unsupported expression
+- *1* *2*(*3*, Argument(2))
+  ⚠️  call of unknown function
+- *2* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *3* *4*(*5*, Argument(4))
+  ⚠️  call of unknown function
+- *4* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *5* *6*(*7*, *9*)
+  ⚠️  call of unknown function
+- *6* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *7* *8*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *8* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *9* *10*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *10* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *11* *12*(*13*, Argument(2))
+  ⚠️  call of unknown function
+- *12* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *13* *14*(*15*, Argument(4))
+  ⚠️  call of unknown function
+- *14* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *15* *16*(*17*, *19*)
+  ⚠️  call of unknown function
+- *16* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *17* *18*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *18* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *19* *20*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *20* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *21* *22*(*23*, Argument(2))
+  ⚠️  call of unknown function
+- *22* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *23* *24*(*25*, Argument(4))
+  ⚠️  call of unknown function
+- *24* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *25* *26*(*27*, *29*)
+  ⚠️  call of unknown function
+- *26* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *27* *28*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *28* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *29* *30*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *30* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *31* *32*(*33*, Argument(2))
+  ⚠️  call of unknown function
+- *32* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *33* *34*(*35*, Argument(4))
+  ⚠️  call of unknown function
+- *34* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *35* *36*(*37*, *39*)
+  ⚠️  call of unknown function
+- *36* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *37* *38*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *38* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *39* *40*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *40* FreeVar(safeAdd)
+  ⚠️  unknown global
+
+c#4 = Argument(2)
+
+d#2 = (271733878 | *0* | *10* | *20* | *30*)
+- *0* *1*(*2*, Argument(2))
+  ⚠️  call of unknown function
+- *1* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *2* *3*(*4*, Argument(4))
+  ⚠️  call of unknown function
+- *3* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *4* *5*(*6*, *8*)
+  ⚠️  call of unknown function
+- *5* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *6* *7*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *7* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *8* *9*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *9* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *10* *11*(*12*, Argument(2))
+  ⚠️  call of unknown function
+- *11* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *12* *13*(*14*, Argument(4))
+  ⚠️  call of unknown function
+- *13* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *14* *15*(*16*, *18*)
+  ⚠️  call of unknown function
+- *15* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *16* *17*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *17* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *18* *19*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *19* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *20* *21*(*22*, Argument(2))
+  ⚠️  call of unknown function
+- *21* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *22* *23*(*24*, Argument(4))
+  ⚠️  call of unknown function
+- *23* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *24* *25*(*26*, *28*)
+  ⚠️  call of unknown function
+- *25* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *26* *27*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *27* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *28* *29*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *29* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *30* *31*(*32*, Argument(2))
+  ⚠️  call of unknown function
+- *31* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *32* *33*(*34*, Argument(4))
+  ⚠️  call of unknown function
+- *33* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *34* *35*(*36*, *38*)
+  ⚠️  call of unknown function
+- *35* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *36* *37*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *37* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *38* *39*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *39* FreeVar(safeAdd)
+  ⚠️  unknown global
+
+d#4 = Argument(3)
+
+i = (*0* | 0)
+- *0* i
+  ⚠️  pattern without value
+
+len = Argument(1)
+
+md5cmn = (...) => (*0*)
+- *0* *1*(*2*, Argument(2))
+  ⚠️  call of unknown function
+- *1* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *2* *3*(*4*, Argument(4))
+  ⚠️  call of unknown function
+- *3* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *4* *5*(*6*, *8*)
+  ⚠️  call of unknown function
+- *5* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *6* *7*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *7* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *8* *9*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *9* FreeVar(safeAdd)
+  ⚠️  unknown global
+
+md5ff = (...) => (*0*)
+- *0* *1*(*2*, Argument(2))
+  ⚠️  call of unknown function
+- *1* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *2* *3*(*4*, Argument(4))
+  ⚠️  call of unknown function
+- *3* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *4* *5*(*6*, *8*)
+  ⚠️  call of unknown function
+- *5* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *6* *7*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *7* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *8* *9*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *9* FreeVar(safeAdd)
+  ⚠️  unknown global
+
+olda = (*0* | 1732584193 | *1* | *11* | *21* | *31*)
+- *0* olda
+  ⚠️  pattern without value
+- *1* *2*(*3*, Argument(2))
+  ⚠️  call of unknown function
+- *2* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *3* *4*(*5*, Argument(4))
+  ⚠️  call of unknown function
+- *4* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *5* *6*(*7*, *9*)
+  ⚠️  call of unknown function
+- *6* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *7* *8*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *8* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *9* *10*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *10* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *11* *12*(*13*, Argument(2))
+  ⚠️  call of unknown function
+- *12* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *13* *14*(*15*, Argument(4))
+  ⚠️  call of unknown function
+- *14* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *15* *16*(*17*, *19*)
+  ⚠️  call of unknown function
+- *16* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *17* *18*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *18* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *19* *20*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *20* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *21* *22*(*23*, Argument(2))
+  ⚠️  call of unknown function
+- *22* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *23* *24*(*25*, Argument(4))
+  ⚠️  call of unknown function
+- *24* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *25* *26*(*27*, *29*)
+  ⚠️  call of unknown function
+- *26* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *27* *28*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *28* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *29* *30*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *30* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *31* *32*(*33*, Argument(2))
+  ⚠️  call of unknown function
+- *32* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *33* *34*(*35*, Argument(4))
+  ⚠️  call of unknown function
+- *34* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *35* *36*(*37*, *39*)
+  ⚠️  call of unknown function
+- *36* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *37* *38*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *38* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *39* *40*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *40* FreeVar(safeAdd)
+  ⚠️  unknown global
+
+oldb = (*0* | *1* | *2* | *12* | *22* | *32*)
+- *0* oldb
+  ⚠️  pattern without value
+- *1* unsupported expression
+- *2* *3*(*4*, Argument(2))
+  ⚠️  call of unknown function
+- *3* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *4* *5*(*6*, Argument(4))
+  ⚠️  call of unknown function
+- *5* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *6* *7*(*8*, *10*)
+  ⚠️  call of unknown function
+- *7* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *8* *9*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *9* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *10* *11*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *11* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *12* *13*(*14*, Argument(2))
+  ⚠️  call of unknown function
+- *13* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *14* *15*(*16*, Argument(4))
+  ⚠️  call of unknown function
+- *15* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *16* *17*(*18*, *20*)
+  ⚠️  call of unknown function
+- *17* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *18* *19*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *19* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *20* *21*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *21* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *22* *23*(*24*, Argument(2))
+  ⚠️  call of unknown function
+- *23* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *24* *25*(*26*, Argument(4))
+  ⚠️  call of unknown function
+- *25* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *26* *27*(*28*, *30*)
+  ⚠️  call of unknown function
+- *27* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *28* *29*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *29* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *30* *31*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *31* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *32* *33*(*34*, Argument(2))
+  ⚠️  call of unknown function
+- *33* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *34* *35*(*36*, Argument(4))
+  ⚠️  call of unknown function
+- *35* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *36* *37*(*38*, *40*)
+  ⚠️  call of unknown function
+- *37* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *38* *39*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *39* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *40* *41*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *41* FreeVar(safeAdd)
+  ⚠️  unknown global
+
+oldc = (*0* | *1* | *2* | *12* | *22* | *32*)
+- *0* oldc
+  ⚠️  pattern without value
+- *1* unsupported expression
+- *2* *3*(*4*, Argument(2))
+  ⚠️  call of unknown function
+- *3* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *4* *5*(*6*, Argument(4))
+  ⚠️  call of unknown function
+- *5* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *6* *7*(*8*, *10*)
+  ⚠️  call of unknown function
+- *7* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *8* *9*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *9* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *10* *11*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *11* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *12* *13*(*14*, Argument(2))
+  ⚠️  call of unknown function
+- *13* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *14* *15*(*16*, Argument(4))
+  ⚠️  call of unknown function
+- *15* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *16* *17*(*18*, *20*)
+  ⚠️  call of unknown function
+- *17* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *18* *19*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *19* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *20* *21*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *21* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *22* *23*(*24*, Argument(2))
+  ⚠️  call of unknown function
+- *23* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *24* *25*(*26*, Argument(4))
+  ⚠️  call of unknown function
+- *25* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *26* *27*(*28*, *30*)
+  ⚠️  call of unknown function
+- *27* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *28* *29*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *29* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *30* *31*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *31* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *32* *33*(*34*, Argument(2))
+  ⚠️  call of unknown function
+- *33* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *34* *35*(*36*, Argument(4))
+  ⚠️  call of unknown function
+- *35* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *36* *37*(*38*, *40*)
+  ⚠️  call of unknown function
+- *37* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *38* *39*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *39* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *40* *41*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *41* FreeVar(safeAdd)
+  ⚠️  unknown global
+
+oldd = (*0* | 271733878 | *1* | *11* | *21* | *31*)
+- *0* oldd
+  ⚠️  pattern without value
+- *1* *2*(*3*, Argument(2))
+  ⚠️  call of unknown function
+- *2* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *3* *4*(*5*, Argument(4))
+  ⚠️  call of unknown function
+- *4* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *5* *6*(*7*, *9*)
+  ⚠️  call of unknown function
+- *6* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *7* *8*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *8* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *9* *10*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *10* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *11* *12*(*13*, Argument(2))
+  ⚠️  call of unknown function
+- *12* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *13* *14*(*15*, Argument(4))
+  ⚠️  call of unknown function
+- *14* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *15* *16*(*17*, *19*)
+  ⚠️  call of unknown function
+- *16* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *17* *18*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *18* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *19* *20*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *20* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *21* *22*(*23*, Argument(2))
+  ⚠️  call of unknown function
+- *22* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *23* *24*(*25*, Argument(4))
+  ⚠️  call of unknown function
+- *24* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *25* *26*(*27*, *29*)
+  ⚠️  call of unknown function
+- *26* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *27* *28*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *28* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *29* *30*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *30* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *31* *32*(*33*, Argument(2))
+  ⚠️  call of unknown function
+- *32* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *33* *34*(*35*, Argument(4))
+  ⚠️  call of unknown function
+- *34* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *35* *36*(*37*, *39*)
+  ⚠️  call of unknown function
+- *36* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *37* *38*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *38* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *39* *40*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *40* FreeVar(safeAdd)
+  ⚠️  unknown global
+
+q = Argument(0)
+
+s#3 = Argument(4)
+
+s#4 = Argument(5)
+
+t#3 = Argument(5)
+
+t#4 = Argument(6)
+
+wordsToMd5 = (...) => ([(1732584193 | *0* | *10* | *20* | *30*), (*40* | *41* | *51* | *61* | *71*), (*81* | *82* | *92* | *102* | *112*), (271733878 | *122* | *132* | *142* | *152*)])
+- *0* *1*(*2*, Argument(2))
+  ⚠️  call of unknown function
+- *1* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *2* *3*(*4*, Argument(4))
+  ⚠️  call of unknown function
+- *3* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *4* *5*(*6*, *8*)
+  ⚠️  call of unknown function
+- *5* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *6* *7*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *7* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *8* *9*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *9* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *10* *11*(*12*, Argument(2))
+  ⚠️  call of unknown function
+- *11* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *12* *13*(*14*, Argument(4))
+  ⚠️  call of unknown function
+- *13* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *14* *15*(*16*, *18*)
+  ⚠️  call of unknown function
+- *15* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *16* *17*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *17* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *18* *19*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *19* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *20* *21*(*22*, Argument(2))
+  ⚠️  call of unknown function
+- *21* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *22* *23*(*24*, Argument(4))
+  ⚠️  call of unknown function
+- *23* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *24* *25*(*26*, *28*)
+  ⚠️  call of unknown function
+- *25* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *26* *27*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *27* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *28* *29*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *29* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *30* *31*(*32*, Argument(2))
+  ⚠️  call of unknown function
+- *31* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *32* *33*(*34*, Argument(4))
+  ⚠️  call of unknown function
+- *33* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *34* *35*(*36*, *38*)
+  ⚠️  call of unknown function
+- *35* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *36* *37*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *37* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *38* *39*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *39* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *40* unsupported expression
+- *41* *42*(*43*, Argument(2))
+  ⚠️  call of unknown function
+- *42* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *43* *44*(*45*, Argument(4))
+  ⚠️  call of unknown function
+- *44* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *45* *46*(*47*, *49*)
+  ⚠️  call of unknown function
+- *46* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *47* *48*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *48* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *49* *50*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *50* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *51* *52*(*53*, Argument(2))
+  ⚠️  call of unknown function
+- *52* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *53* *54*(*55*, Argument(4))
+  ⚠️  call of unknown function
+- *54* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *55* *56*(*57*, *59*)
+  ⚠️  call of unknown function
+- *56* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *57* *58*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *58* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *59* *60*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *60* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *61* *62*(*63*, Argument(2))
+  ⚠️  call of unknown function
+- *62* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *63* *64*(*65*, Argument(4))
+  ⚠️  call of unknown function
+- *64* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *65* *66*(*67*, *69*)
+  ⚠️  call of unknown function
+- *66* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *67* *68*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *68* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *69* *70*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *70* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *71* *72*(*73*, Argument(2))
+  ⚠️  call of unknown function
+- *72* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *73* *74*(*75*, Argument(4))
+  ⚠️  call of unknown function
+- *74* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *75* *76*(*77*, *79*)
+  ⚠️  call of unknown function
+- *76* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *77* *78*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *78* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *79* *80*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *80* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *81* unsupported expression
+- *82* *83*(*84*, Argument(2))
+  ⚠️  call of unknown function
+- *83* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *84* *85*(*86*, Argument(4))
+  ⚠️  call of unknown function
+- *85* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *86* *87*(*88*, *90*)
+  ⚠️  call of unknown function
+- *87* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *88* *89*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *89* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *90* *91*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *91* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *92* *93*(*94*, Argument(2))
+  ⚠️  call of unknown function
+- *93* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *94* *95*(*96*, Argument(4))
+  ⚠️  call of unknown function
+- *95* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *96* *97*(*98*, *100*)
+  ⚠️  call of unknown function
+- *97* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *98* *99*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *99* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *100* *101*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *101* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *102* *103*(*104*, Argument(2))
+  ⚠️  call of unknown function
+- *103* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *104* *105*(*106*, Argument(4))
+  ⚠️  call of unknown function
+- *105* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *106* *107*(*108*, *110*)
+  ⚠️  call of unknown function
+- *107* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *108* *109*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *109* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *110* *111*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *111* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *112* *113*(*114*, Argument(2))
+  ⚠️  call of unknown function
+- *113* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *114* *115*(*116*, Argument(4))
+  ⚠️  call of unknown function
+- *115* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *116* *117*(*118*, *120*)
+  ⚠️  call of unknown function
+- *117* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *118* *119*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *119* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *120* *121*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *121* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *122* *123*(*124*, Argument(2))
+  ⚠️  call of unknown function
+- *123* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *124* *125*(*126*, Argument(4))
+  ⚠️  call of unknown function
+- *125* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *126* *127*(*128*, *130*)
+  ⚠️  call of unknown function
+- *127* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *128* *129*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *129* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *130* *131*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *131* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *132* *133*(*134*, Argument(2))
+  ⚠️  call of unknown function
+- *133* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *134* *135*(*136*, Argument(4))
+  ⚠️  call of unknown function
+- *135* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *136* *137*(*138*, *140*)
+  ⚠️  call of unknown function
+- *137* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *138* *139*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *139* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *140* *141*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *141* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *142* *143*(*144*, Argument(2))
+  ⚠️  call of unknown function
+- *143* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *144* *145*(*146*, Argument(4))
+  ⚠️  call of unknown function
+- *145* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *146* *147*(*148*, *150*)
+  ⚠️  call of unknown function
+- *147* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *148* *149*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *149* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *150* *151*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *151* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *152* *153*(*154*, Argument(2))
+  ⚠️  call of unknown function
+- *153* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *154* *155*(*156*, Argument(4))
+  ⚠️  call of unknown function
+- *155* FreeVar(bitRotateLeft)
+  ⚠️  unknown global
+- *156* *157*(*158*, *160*)
+  ⚠️  call of unknown function
+- *157* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *158* *159*(Argument(1), Argument(0))
+  ⚠️  call of unknown function
+- *159* FreeVar(safeAdd)
+  ⚠️  unknown global
+- *160* *161*(Argument(3), Argument(5))
+  ⚠️  call of unknown function
+- *161* FreeVar(safeAdd)
+  ⚠️  unknown global
+
+x#2 = Argument(0)
+
+x#3 = Argument(3)
+
+x#4 = Argument(4)

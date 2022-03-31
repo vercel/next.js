@@ -513,12 +513,5 @@ pub async fn read_matches(
     for nested in nested.into_iter() {
         results.extend(nested.await?.iter().cloned());
     }
-    // println!(
-    //     "read_matches({}, '{}', {}) = {}",
-    //     context_name,
-    //     prefix,
-    //     pat,
-    //     results.len()
-    // );
     Ok(Promise::slot(results))
 }

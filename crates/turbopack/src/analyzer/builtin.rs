@@ -1,5 +1,7 @@
 use swc_ecmascript::ast::Lit;
 
+use crate::analyzer::FreeVarKind;
+
 use super::JsValue;
 
 pub fn replace_builtin(value: JsValue) -> (JsValue, bool) {
@@ -39,22 +41,38 @@ pub fn replace_builtin(value: JsValue) -> (JsValue, bool) {
                     )
                 }
             }
-            JsValue::Call(box JsValue::Function(mut return_value), args) => {
+            JsValue::Call(box JsValue::Unknown(inner, explainer), args) => JsValue::Unknown(
+                Some(box JsValue::Call(
+                    box JsValue::Unknown(inner, explainer),
+                    args,
+                )),
+                "call of unknown function",
+            ),
+            JsValue::Call(box JsValue::Function(box mut return_value), args) => {
                 //
-                let modified = return_value.visit_mut_recursive(&mut |value| match value {
-                    JsValue::Argument(index) => {
-                        if let Some(arg) = args.get(*index).cloned() {
-                            *value = arg;
-                            true
-                        } else {
+                return_value.visit_mut_conditional(
+                    |value| {
+                        if let JsValue::Function(_) = value {
                             false
+                        } else {
+                            true
                         }
-                    }
+                    },
+                    &mut |value| match value {
+                        JsValue::Argument(index) => {
+                            if let Some(arg) = args.get(*index).cloned() {
+                                *value = arg;
+                            } else {
+                                *value = JsValue::FreeVar(FreeVarKind::Other("undefined".into()))
+                            }
+                            true
+                        }
 
-                    _ => false,
-                });
+                        _ => false,
+                    },
+                );
 
-                return (*return_value, modified);
+                return_value
             }
             _ => return (value, false),
         },

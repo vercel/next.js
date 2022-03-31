@@ -1,4 +1,4 @@
-use std::{fmt::Display, future::Future, mem::take};
+use std::{fmt::Display, future::Future, mem::take, pin::Pin};
 
 use crate::ecmascript::utils::lit_to_string;
 
@@ -355,13 +355,87 @@ impl JsValue {
         R: 'a + Future<Output = Result<(Self, bool), E>>,
         F: 'a + FnMut(JsValue) -> R,
     {
-        let (v, modified) = self.for_each_children_async(visitor).await?;
+        let (v, modified) = self.visit_each_children_async(visitor).await?;
         let (v, m) = visitor(v).await?;
         if m {
             Ok((v, true))
         } else {
             Ok((v, modified))
         }
+    }
+
+    pub fn visit_async_box<'a, F, R, E>(
+        self,
+        visitor: &'a mut F,
+    ) -> Pin<Box<dyn Future<Output = Result<(Self, bool), E>> + 'a>>
+    where
+        R: 'a + Future<Output = Result<(Self, bool), E>>,
+        F: 'a + FnMut(JsValue) -> R,
+        E: 'a,
+    {
+        Box::pin(self.visit_async(visitor))
+    }
+
+    pub async fn visit_each_children_async<'a, F, R, E>(
+        mut self,
+        visitor: &mut F,
+    ) -> Result<(Self, bool), E>
+    where
+        R: 'a + Future<Output = Result<(Self, bool), E>>,
+        F: 'a + FnMut(JsValue) -> R,
+    {
+        Ok(match &mut self {
+            JsValue::Alternatives(list)
+            | JsValue::Concat(list)
+            | JsValue::Add(list)
+            | JsValue::Array(list) => {
+                let mut modified = false;
+                for item in list.iter_mut() {
+                    let (v, m) = take(item).visit_async_box(visitor).await?;
+                    *item = v;
+                    if m {
+                        modified = true
+                    }
+                }
+                (self, modified)
+            }
+            JsValue::Call(box callee, list) => {
+                let (new_callee, mut modified) = take(callee).visit_async_box(visitor).await?;
+                *callee = new_callee;
+                for item in list.iter_mut() {
+                    let (v, m) = take(item).visit_async_box(visitor).await?;
+                    *item = v;
+                    if m {
+                        modified = true
+                    }
+                }
+                (self, modified)
+            }
+
+            JsValue::Function(box return_value) => {
+                let (new_return_value, modified) =
+                    take(return_value).visit_async_box(visitor).await?;
+                *return_value = new_return_value;
+
+                (self, modified)
+            }
+            JsValue::Member(box obj, box prop) => {
+                let (v, m1) = take(obj).visit_async_box(visitor).await?;
+                *obj = v;
+                let (v, m2) = take(prop).visit_async_box(visitor).await?;
+                *prop = v;
+                (self, m1 || m2)
+            }
+            JsValue::Constant(_)
+            | JsValue::FreeVar(_)
+            | JsValue::Variable(_)
+            | JsValue::Module(_)
+            | JsValue::Url(_)
+            | JsValue::WellKnownObject(_)
+            | JsValue::WellKnownFunction(_)
+            | JsValue::Unknown(..)
+            | JsValue::Argument(..) => (self, false),
+        })
     }
 
     pub async fn for_each_children_async<'a, F, R, E>(
@@ -426,7 +500,7 @@ impl JsValue {
     }
 
     pub fn visit_mut(&mut self, visitor: &mut impl FnMut(&mut JsValue) -> bool) -> bool {
-        let modified = self.for_each_children_mut(visitor);
+        let modified = self.for_each_children_mut(&mut |value| value.visit_mut(visitor));
         if visitor(self) {
             true
         } else {
@@ -434,17 +508,20 @@ impl JsValue {
         }
     }
 
-    pub fn visit_mut_recursive(&mut self, visitor: &mut impl FnMut(&mut JsValue) -> bool) -> bool {
-        let modified = self.for_each_children_mut(&mut |value| {
-            let m1 = value.visit_mut(visitor);
-            let m2 = visitor(value);
-
-            m1 || m2
-        });
-        if visitor(self) {
-            true
+    pub fn visit_mut_conditional(
+        &mut self,
+        condition: impl Fn(&JsValue) -> bool,
+        visitor: &mut impl FnMut(&mut JsValue) -> bool,
+    ) -> bool {
+        if condition(&self) {
+            let modified = self.for_each_children_mut(&mut |value| value.visit_mut(visitor));
+            if visitor(self) {
+                true
+            } else {
+                modified
+            }
         } else {
-            modified
+            false
         }
     }
 
@@ -495,8 +572,8 @@ impl JsValue {
         }
     }
 
-    pub fn visit(&mut self, visitor: &mut impl FnMut(&JsValue)) {
-        self.for_each_children(visitor);
+    pub fn visit(&self, visitor: &mut impl FnMut(&JsValue)) {
+        self.for_each_children(&mut |value| value.visit(visitor));
         visitor(self);
     }
 
@@ -834,15 +911,17 @@ mod tests {
                     ))
                 }
 
+                let cache = Mutex::new(LinkCache::new());
                 let resolved = named_values
                     .iter()
                     .map(|(id, val)| {
                         let val = val.clone();
+                        println!("LINKING {id}");
                         let mut res = block_on(link(
                             &var_graph,
                             val,
                             &(|val| Box::pin(visitor(val))),
-                            &Mutex::new(LinkCache::new()),
+                            &cache,
                         ))
                         .unwrap();
                         res.normalize();
