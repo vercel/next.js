@@ -585,7 +585,7 @@ describe('basic HMR', () => {
           )
         )
 
-        const isReact17 = process.env.NEXT_TEST_REACT === '^17'
+        const isReact17 = process.env.NEXT_TEST_REACT_VERSION === '^17'
 
         expect(await hasRedbox(browser)).toBe(true)
         // TODO: Replace this when webpack 5 is the default
