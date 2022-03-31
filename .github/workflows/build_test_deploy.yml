@@ -1206,44 +1206,44 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           node-version: 14
 
       - uses: actions/cache@v2
         id: restore-build
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - name: Set Git Short sha Env
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         run: echo "GIT_SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
 
       - name: Check Git Short sha Env
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         run: echo ${GIT_SHORT_SHA}
 
       - uses: actions/download-artifact@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
       - name: Generate metrics data
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         run: |
           yarn --cwd bench/nested-deps install
           node bench/nested-deps/bench.mjs build
 
       - uses: datadog/agent-github-action@v1
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           api_key: ${{ secrets.DATA_DOG_API_KEY }}
 
       - name: Sending metrics data to Datadog
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         run: |
           node scripts/trace-dd.mjs bench/nested-deps/.next/trace build ${GIT_SHORT_SHA} ./bench/nested-deps/next.config.js
         env:
