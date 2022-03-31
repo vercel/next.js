@@ -2,7 +2,7 @@ a = (...) => (FreeVar(undefined))
 
 aa = a
 
-b = *0*
+b = ???*0*
 - *0* function expressions are not yet supported
 
 bb = b
@@ -15,7 +15,7 @@ d = "hello"
 
 dd = d
 
-e = *0*
+e = ???*0*
 - *0* unsupported expression
 
 ee = e

@@ -1,21 +1,21 @@
-a = (...) => (*0*)
+a = (...) => (???*0*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
-b = *0*
+b = ???*0*
 - *0* function expressions are not yet supported
 
-c = *0*
+c = ???*0*
 - *0* function expressions are not yet supported
 
-d = *0*
+d = ???*0*
 - *0* unsupported expression
 
-e = (...) => (*0*)
+e = (...) => (???*0*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
-f = *0*
+f = ???*0*
 - *0* function expressions are not yet supported
 
 x#2 = 1
@@ -42,19 +42,19 @@ y#6 = 1
 
 y#7 = 1
 
-z#2 = (...) => (*0*)
+z#2 = (...) => (???*0*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
-z#5 = *0*
+z#5 = ???*0*
 - *0* unsupported expression
 
-z#6 = *0*
+z#6 = ???*0*
 - *0* unsupported expression
 
-z#7 = (...) => (*0*)
+z#7 = (...) => (???*0*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
-z2 = *0*
+z2 = ???*0*
 - *0* function expressions are not yet supported

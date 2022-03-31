@@ -1,12 +1,12 @@
-a = (...) => (*0*)
+a = (...) => (???*0*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
-b = (...) => (*0*)
+b = (...) => (???*0*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
-c = (...) => (*0*)
+c = (...) => (???*0*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 

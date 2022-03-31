@@ -1,17 +1,17 @@
 a = (...) => (FreeVar(undefined))
 
-b = *0*
+b = ???*0*
 - *0* function expressions are not yet supported
 
-c = *0*
+c = ???*0*
 - *0* function expressions are not yet supported
 
-d = *0*
+d = ???*0*
 - *0* unsupported expression
 
 e = (...) => (FreeVar(undefined))
 
-f = *0*
+f = ???*0*
 - *0* function expressions are not yet supported
 
 x#2 = 1

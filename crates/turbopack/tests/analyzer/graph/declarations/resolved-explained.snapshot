@@ -1,15 +1,15 @@
-a = (...) => (*0*)
+a = (...) => (???*0*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
-aa = (...) => (*0*)
+aa = (...) => (???*0*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
-b = *0*
+b = ???*0*
 - *0* function expressions are not yet supported
 
-bb = *0*
+bb = ???*0*
 - *0* function expressions are not yet supported
 
 c = 123
@@ -20,12 +20,12 @@ d = "hello"
 
 dd = "hello"
 
-e = *0*
+e = ???*0*
 - *0* unsupported expression
 
-ee = *0*
+ee = ???*0*
 - *0* unsupported expression
 
-ff = *0*
+ff = ???*0*
 - *0* FreeVar(f)
   ⚠️  unknown global

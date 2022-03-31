@@ -4,24 +4,8 @@ a#11 = Argument(0)
 
 a#12 = Argument(0)
 
-a#4 = (1732584193 | *0* | *1* | *2* | *3* | *4* | *5* | *6* | *7* | *8* | *9* | *10* | *11* | *12* | *13* | *14* | *15* | *16*)
+a#4 = (1732584193 | ???*0*)
 - *0* unsupported expression
-- *1* unsupported expression
-- *2* unsupported expression
-- *3* unsupported expression
-- *4* unsupported expression
-- *5* unsupported expression
-- *6* unsupported expression
-- *7* unsupported expression
-- *8* unsupported expression
-- *9* unsupported expression
-- *10* unsupported expression
-- *11* unsupported expression
-- *12* unsupported expression
-- *13* unsupported expression
-- *14* unsupported expression
-- *15* unsupported expression
-- *16* unsupported expression
 
 a#8 = Argument(1)
 
@@ -33,34 +17,17 @@ b#11 = Argument(1)
 
 b#12 = Argument(1)
 
-b#4 = (*0* | *1* | *2* | *3* | *4* | *5* | *6* | *7* | *8* | *9* | *10* | *11* | *12* | *13* | *14* | *15* | *16* | *17*)
+b#4 = ???*0*
 - *0* unsupported expression
-- *1* unsupported expression
-- *2* unsupported expression
-- *3* unsupported expression
-- *4* unsupported expression
-- *5* unsupported expression
-- *6* unsupported expression
-- *7* unsupported expression
-- *8* unsupported expression
-- *9* unsupported expression
-- *10* unsupported expression
-- *11* unsupported expression
-- *12* unsupported expression
-- *13* unsupported expression
-- *14* unsupported expression
-- *15* unsupported expression
-- *16* unsupported expression
-- *17* unsupported expression
 
 b#8 = Argument(2)
 
 b#9 = Argument(1)
 
-bitRotateLeft = (...) => (*0*)
+bitRotateLeft = (...) => (???*0*)
 - *0* unsupported expression
 
-bytes = (Argument(0) | *0*)
+bytes = (Argument(0) | ???*0*)
 - *0* new expression are not supported
 
 bytesToWords = (...) => ([])
@@ -71,25 +38,8 @@ c#11 = Argument(2)
 
 c#12 = Argument(2)
 
-c#4 = (*0* | *1* | *2* | *3* | *4* | *5* | *6* | *7* | *8* | *9* | *10* | *11* | *12* | *13* | *14* | *15* | *16* | *17*)
+c#4 = ???*0*
 - *0* unsupported expression
-- *1* unsupported expression
-- *2* unsupported expression
-- *3* unsupported expression
-- *4* unsupported expression
-- *5* unsupported expression
-- *6* unsupported expression
-- *7* unsupported expression
-- *8* unsupported expression
-- *9* unsupported expression
-- *10* unsupported expression
-- *11* unsupported expression
-- *12* unsupported expression
-- *13* unsupported expression
-- *14* unsupported expression
-- *15* unsupported expression
-- *16* unsupported expression
-- *17* unsupported expression
 
 c#9 = Argument(2)
 
@@ -101,31 +51,15 @@ d#11 = Argument(3)
 
 d#12 = Argument(3)
 
-d#4 = (271733878 | *0* | *1* | *2* | *3* | *4* | *5* | *6* | *7* | *8* | *9* | *10* | *11* | *12* | *13* | *14* | *15* | *16*)
+d#4 = (271733878 | ???*0*)
 - *0* unsupported expression
-- *1* unsupported expression
-- *2* unsupported expression
-- *3* unsupported expression
-- *4* unsupported expression
-- *5* unsupported expression
-- *6* unsupported expression
-- *7* unsupported expression
-- *8* unsupported expression
-- *9* unsupported expression
-- *10* unsupported expression
-- *11* unsupported expression
-- *12* unsupported expression
-- *13* unsupported expression
-- *14* unsupported expression
-- *15* unsupported expression
-- *16* unsupported expression
 
 d#9 = Argument(3)
 
-hex = (*0* | *1*)
+hex = (???*0* | ???*1*)
 - *0* hex
   ⚠️  pattern without value
-- *1* *2*(("0123456789abcdef"["charAt"](*3*) + "0123456789abcdef"["charAt"](*4*)), 16)
+- *1* ???*2*(("0123456789abcdef"["charAt"](???*3*) + "0123456789abcdef"["charAt"](???*4*)), 16)
   ⚠️  call of unknown function
 - *2* FreeVar(parseInt)
   ⚠️  unknown global
@@ -136,15 +70,15 @@ hexTab = "0123456789abcdef"
 
 i#2 = 0
 
-i#3 = (*0* | 0)
+i#3 = (???*0* | 0)
 - *0* i
   ⚠️  pattern without value
 
-i#4 = (*0* | 0)
+i#4 = (???*0* | 0)
 - *0* i
   ⚠️  pattern without value
 
-i#5 = (*0* | 0 | 0)
+i#5 = (???*0* | 0 | 0)
 - *0* i
   ⚠️  pattern without value
 
@@ -154,13 +88,13 @@ input#5 = Argument(0)
 
 len = Argument(1)
 
-length32 = *0*
+length32 = ???*0*
 - *0* unsupported expression
 
-length8 = *0*
+length8 = ???*0*
 - *0* unsupported expression
 
-lsw = (*0* + *1*)
+lsw = (???*0* + ???*1*)
 - *0* unsupported expression
 - *1* unsupported expression
 
@@ -168,124 +102,58 @@ md5 = (...) => ([])
 
 md5ToHexEncodedArray = (...) => ([])
 
-md5cmn = (...) => (*0*)
+md5cmn = (...) => (???*0*)
 - *0* unsupported expression
 
-md5ff = (...) => (*0*)
+md5ff = (...) => (???*0*)
 - *0* unsupported expression
 
-md5gg = (...) => (*0*)
+md5gg = (...) => (???*0*)
 - *0* unsupported expression
 
-md5hh = (...) => (*0*)
+md5hh = (...) => (???*0*)
 - *0* unsupported expression
 
-md5ii = (...) => (*0*)
+md5ii = (...) => (???*0*)
 - *0* unsupported expression
 
-msg = *0*
-- *0* *1*(*2*)
+msg = ???*0*
+- *0* ???*1*(???*2*)
   ⚠️  call of unknown function
 - *1* FreeVar(unescape)
   ⚠️  unknown global
-- *2* *3*((Argument(0) | *4*))
+- *2* ???*3*((Argument(0) | ???*4*))
   ⚠️  call of unknown function
 - *3* FreeVar(encodeURIComponent)
   ⚠️  unknown global
 - *4* new expression are not supported
 
-msw = (*0* + *1* + *2*)
+msw = (???*0* + ???*1* + ???*2*)
 - *0* unsupported expression
 - *1* unsupported expression
 - *2* unsupported expression
 
 num = Argument(0)
 
-olda = (*0* | 1732584193 | *1* | *2* | *3* | *4* | *5* | *6* | *7* | *8* | *9* | *10* | *11* | *12* | *13* | *14* | *15* | *16* | *17*)
+olda = (???*0* | 1732584193 | ???*1*)
 - *0* olda
   ⚠️  pattern without value
 - *1* unsupported expression
-- *2* unsupported expression
-- *3* unsupported expression
-- *4* unsupported expression
-- *5* unsupported expression
-- *6* unsupported expression
-- *7* unsupported expression
-- *8* unsupported expression
-- *9* unsupported expression
-- *10* unsupported expression
-- *11* unsupported expression
-- *12* unsupported expression
-- *13* unsupported expression
-- *14* unsupported expression
-- *15* unsupported expression
-- *16* unsupported expression
-- *17* unsupported expression
 
-oldb = (*0* | *1* | *2* | *3* | *4* | *5* | *6* | *7* | *8* | *9* | *10* | *11* | *12* | *13* | *14* | *15* | *16* | *17* | *18*)
+oldb = (???*0* | ???*1*)
 - *0* oldb
   ⚠️  pattern without value
 - *1* unsupported expression
-- *2* unsupported expression
-- *3* unsupported expression
-- *4* unsupported expression
-- *5* unsupported expression
-- *6* unsupported expression
-- *7* unsupported expression
-- *8* unsupported expression
-- *9* unsupported expression
-- *10* unsupported expression
-- *11* unsupported expression
-- *12* unsupported expression
-- *13* unsupported expression
-- *14* unsupported expression
-- *15* unsupported expression
-- *16* unsupported expression
-- *17* unsupported expression
-- *18* unsupported expression
 
-oldc = (*0* | *1* | *2* | *3* | *4* | *5* | *6* | *7* | *8* | *9* | *10* | *11* | *12* | *13* | *14* | *15* | *16* | *17* | *18*)
+oldc = (???*0* | ???*1*)
 - *0* oldc
   ⚠️  pattern without value
 - *1* unsupported expression
-- *2* unsupported expression
-- *3* unsupported expression
-- *4* unsupported expression
-- *5* unsupported expression
-- *6* unsupported expression
-- *7* unsupported expression
-- *8* unsupported expression
-- *9* unsupported expression
-- *10* unsupported expression
-- *11* unsupported expression
-- *12* unsupported expression
-- *13* unsupported expression
-- *14* unsupported expression
-- *15* unsupported expression
-- *16* unsupported expression
-- *17* unsupported expression
-- *18* unsupported expression
 
-oldd = (*0* | 271733878 | *1* | *2* | *3* | *4* | *5* | *6* | *7* | *8* | *9* | *10* | *11* | *12* | *13* | *14* | *15* | *16* | *17*)
+oldd = (???*0* | 271733878 | ???*1*)
 - *0* oldd
   ⚠️  pattern without value
 - *1* unsupported expression
-- *2* unsupported expression
-- *3* unsupported expression
-- *4* unsupported expression
-- *5* unsupported expression
-- *6* unsupported expression
-- *7* unsupported expression
-- *8* unsupported expression
-- *9* unsupported expression
-- *10* unsupported expression
-- *11* unsupported expression
-- *12* unsupported expression
-- *13* unsupported expression
-- *14* unsupported expression
-- *15* unsupported expression
-- *16* unsupported expression
-- *17* unsupported expression
 
 output#3 = []
 
@@ -303,7 +171,7 @@ s#8 = Argument(4)
 
 s#9 = Argument(5)
 
-safeAdd = (...) => (*0*)
+safeAdd = (...) => (???*0*)
 - *0* unsupported expression
 
 t#10 = Argument(6)
@@ -316,77 +184,11 @@ t#8 = Argument(5)
 
 t#9 = Argument(6)
 
-wordsToMd5 = (...) => ([(1732584193 | *0* | *1* | *2* | *3* | *4* | *5* | *6* | *7* | *8* | *9* | *10* | *11* | *12* | *13* | *14* | *15* | *16*), (*17* | *18* | *19* | *20* | *21* | *22* | *23* | *24* | *25* | *26* | *27* | *28* | *29* | *30* | *31* | *32* | *33* | *34*), (*35* | *36* | *37* | *38* | *39* | *40* | *41* | *42* | *43* | *44* | *45* | *46* | *47* | *48* | *49* | *50* | *51* | *52*), (271733878 | *53* | *54* | *55* | *56* | *57* | *58* | *59* | *60* | *61* | *62* | *63* | *64* | *65* | *66* | *67* | *68* | *69*)])
+wordsToMd5 = (...) => ([(1732584193 | ???*0*), ???*1*, ???*2*, (271733878 | ???*3*)])
 - *0* unsupported expression
 - *1* unsupported expression
 - *2* unsupported expression
 - *3* unsupported expression
-- *4* unsupported expression
-- *5* unsupported expression
-- *6* unsupported expression
-- *7* unsupported expression
-- *8* unsupported expression
-- *9* unsupported expression
-- *10* unsupported expression
-- *11* unsupported expression
-- *12* unsupported expression
-- *13* unsupported expression
-- *14* unsupported expression
-- *15* unsupported expression
-- *16* unsupported expression
-- *17* unsupported expression
-- *18* unsupported expression
-- *19* unsupported expression
-- *20* unsupported expression
-- *21* unsupported expression
-- *22* unsupported expression
-- *23* unsupported expression
-- *24* unsupported expression
-- *25* unsupported expression
-- *26* unsupported expression
-- *27* unsupported expression
-- *28* unsupported expression
-- *29* unsupported expression
-- *30* unsupported expression
-- *31* unsupported expression
-- *32* unsupported expression
-- *33* unsupported expression
-- *34* unsupported expression
-- *35* unsupported expression
-- *36* unsupported expression
-- *37* unsupported expression
-- *38* unsupported expression
-- *39* unsupported expression
-- *40* unsupported expression
-- *41* unsupported expression
-- *42* unsupported expression
-- *43* unsupported expression
-- *44* unsupported expression
-- *45* unsupported expression
-- *46* unsupported expression
-- *47* unsupported expression
-- *48* unsupported expression
-- *49* unsupported expression
-- *50* unsupported expression
-- *51* unsupported expression
-- *52* unsupported expression
-- *53* unsupported expression
-- *54* unsupported expression
-- *55* unsupported expression
-- *56* unsupported expression
-- *57* unsupported expression
-- *58* unsupported expression
-- *59* unsupported expression
-- *60* unsupported expression
-- *61* unsupported expression
-- *62* unsupported expression
-- *63* unsupported expression
-- *64* unsupported expression
-- *65* unsupported expression
-- *66* unsupported expression
-- *67* unsupported expression
-- *68* unsupported expression
-- *69* unsupported expression
 
 x#10 = Argument(4)
 
@@ -394,7 +196,7 @@ x#11 = Argument(4)
 
 x#12 = Argument(4)
 
-x#3 = (*0* | *1*)
+x#3 = (???*0* | ???*1*)
 - *0* x
   ⚠️  pattern without value
 - *1* unsupported expression
