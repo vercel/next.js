@@ -267,6 +267,7 @@ export async function runLintCheck(
     // Find user's .eslintrc file
     const eslintrcFile =
       (await findUp(
+        eslintOptions.overrideConfigFile ??
         [
           '.eslintrc.js',
           '.eslintrc.yaml',
