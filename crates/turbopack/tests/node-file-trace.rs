@@ -37,6 +37,7 @@ use turbopack::{
 #[fixture("tests/node-file-trace/integration/core-js.js")]
 // #[fixture("tests/node-file-trace/integration/cowsay.js")] // can't find node_modules/cowsay/cows/default.cow
 // #[fixture("tests/node-file-trace/integration/dogfood.js")] // can't find node-file-trace
+#[fixture("tests/node-file-trace/integration/dynamic-in-package.js")]
 #[fixture("tests/node-file-trace/integration/empty.js")]
 #[fixture("tests/node-file-trace/integration/env-var.js")]
 #[fixture("tests/node-file-trace/integration/es-get-iterator.js")]
