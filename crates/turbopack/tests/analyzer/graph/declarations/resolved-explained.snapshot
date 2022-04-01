@@ -1,3 +1,7 @@
+*anonymous function 24* = (...) => (???*0*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
 a = (...) => (???*0*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
@@ -6,11 +10,13 @@ aa = (...) => (???*0*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
-b = ???*0*
-- *0* function expressions are not yet supported
+b = (...) => (???*0*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
 
-bb = ???*0*
-- *0* function expressions are not yet supported
+bb = (...) => (???*0*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
 
 c = 123
 

@@ -59,12 +59,20 @@ d#9 = arguments[3]
 hex = (???*0* | ???*1*)
 - *0* hex
   ⚠️  pattern without value
-- *1* ???*2*(("0123456789abcdef"["charAt"](???*3*) + "0123456789abcdef"["charAt"](???*4*)), 16)
+- *1* ???*2*((???*3* + ???*6*), 16)
   ⚠️  call of unknown function
 - *2* FreeVar(parseInt)
   ⚠️  unknown global
-- *3* unsupported expression
-- *4* unsupported expression
+- *3* ???*4*(???*5*)
+  ⚠️  call of unknown function
+- *4* "0123456789abcdef"["charAt"]
+  ⚠️  property on constant
+- *5* unsupported expression
+- *6* ???*7*(???*8*)
+  ⚠️  call of unknown function
+- *7* "0123456789abcdef"["charAt"]
+  ⚠️  property on constant
+- *8* unsupported expression
 
 hexTab = "0123456789abcdef"
 

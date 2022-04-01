@@ -1,5 +1,15 @@
 [
     (
+        "*anonymous function 24*",
+        Function(
+            FreeVar(
+                Other(
+                    Atom('undefined' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
         "a",
         Function(
             FreeVar(
@@ -20,9 +30,11 @@
     ),
     (
         "b",
-        Unknown(
-            None,
-            "function expressions are not yet supported",
+        Variable(
+            (
+                Atom('*anonymous function 24*' type=dynamic),
+                #0,
+            ),
         ),
     ),
     (

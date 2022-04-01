@@ -1,7 +1,7 @@
 use std::{collections::HashMap, iter, mem::replace, sync::Arc};
 
 use swc_atoms::js_word;
-use swc_common::{collections::AHashSet, Mark, Span, Spanned};
+use swc_common::{collections::AHashSet, Mark, Span, Spanned, SyntaxContext};
 use swc_ecmascript::{
     ast::*,
     utils::{collect_decls, ident::IdentLike},
@@ -12,7 +12,7 @@ use crate::analyzer::{is_unresolved, FreeVarKind};
 
 use super::{ImportMap, JsValue};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Effect {
     Call {
         func: JsValue,
@@ -191,8 +191,21 @@ impl EvalContext {
                 }
             }
 
-            Expr::Fn(..) | Expr::Arrow(..) => {
-                return JsValue::Unknown(None, "function expressions are not yet supported")
+            Expr::Fn(expr) => {
+                if let Some(ident) = &expr.ident {
+                    return JsValue::Variable(ident.to_id());
+                } else {
+                    return JsValue::Variable((
+                        format!("*anonymous function {}*", expr.function.span.lo.0).into(),
+                        SyntaxContext::empty(),
+                    ));
+                }
+            }
+            Expr::Arrow(expr) => {
+                return JsValue::Variable((
+                    format!("*arrow function {}*", expr.span.lo.0).into(),
+                    SyntaxContext::empty(),
+                ));
             }
             Expr::New(..) => return JsValue::Unknown(None, "new expression are not supported"),
 
@@ -452,15 +465,6 @@ impl Analyzer<'_> {
 }
 
 impl Visit for Analyzer<'_> {
-    /// We need this to avoid marking return statements in a function with a
-    /// function keyword marked as a return value for the function with function
-    /// keyword.
-    fn visit_arrow_expr(&mut self, expr: &ArrowExpr) {
-        let old = replace(&mut self.cur_fn_return_values, Some(vec![]));
-        expr.visit_children_with(self);
-        self.cur_fn_return_values = old;
-    }
-
     fn visit_assign_expr(&mut self, n: &AssignExpr) {
         match &n.left {
             PatOrExpr::Expr(expr) => {
@@ -532,9 +536,43 @@ impl Visit for Analyzer<'_> {
 
         if let Some(ident) = &expr.ident {
             self.add_value(ident.to_id(), JsValue::Function(return_value));
+        } else {
+            self.add_value(
+                (
+                    format!("*anonymous function {}*", expr.function.span.lo.0).into(),
+                    SyntaxContext::empty(),
+                ),
+                JsValue::Function(return_value),
+            );
         }
 
         self.cur_fn_return_values = old;
+    }
+
+    fn visit_arrow_expr(&mut self, expr: &ArrowExpr) {
+        let value = match &expr.body {
+            BlockStmtOrExpr::BlockStmt(block) => {
+                let old = replace(&mut self.cur_fn_return_values, Some(vec![]));
+                expr.visit_children_with(self);
+                let return_value = self.take_return_values();
+
+                self.cur_fn_return_values = old;
+                JsValue::Function(return_value)
+            }
+            BlockStmtOrExpr::Expr(inner_expr) => {
+                expr.visit_children_with(self);
+                let return_value = self.eval_context.eval(&*inner_expr);
+
+                JsValue::Function(box return_value)
+            }
+        };
+        self.add_value(
+            (
+                format!("*arrow function {}*", expr.span.lo.0).into(),
+                SyntaxContext::empty(),
+            ),
+            value,
+        );
     }
 
     fn visit_class_decl(&mut self, decl: &ClassDecl) {

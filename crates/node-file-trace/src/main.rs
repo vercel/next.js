@@ -258,7 +258,29 @@ fn main() {
             context_directory,
             output_directory,
             common: _,
-        } => todo!(),
+        } => {
+            let start = Instant::now();
+            let dir = current_dir().unwrap();
+            let context = process_context(&dir, context_directory).unwrap();
+            let output = process_context(&dir, Some(output_directory)).unwrap();
+            let input = process_input(&dir, &context, input).unwrap();
+            let tt = TurboTasks::new();
+            let task = tt.spawn_once_task(async move {
+                let fs = create_fs("context directory", &context);
+                let out_fs = create_fs("output directory", &output);
+                let input_dir = FileSystemPathRef::new(fs.clone(), "");
+                let output_dir = FileSystemPathRef::new(out_fs, "");
+                for module in input_to_modules(&fs, &input).await? {
+                    let rebased =
+                        RebasedAssetRef::new(module, input_dir.clone(), output_dir.clone()).into();
+                    emit(rebased);
+                }
+                Ok(NothingRef::new().into())
+            });
+            block_on(tt.wait_done());
+            println!("done in {} ms", start.elapsed().as_millis());
+            finish(tt, task);
+        }
         Args::Watch {
             context_directory,
             output_directory,
