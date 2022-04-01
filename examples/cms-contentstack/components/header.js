@@ -54,7 +54,7 @@ export default function Header({ header }) {
         </div>
         <input className="menu-btn" type="checkbox" id="menu-btn" />
         <label className="menu-icon" htmlFor="menu-btn">
-          <span className="navicon" />
+          <span className="nav-icon" />
         </label>
         <nav className="menu">
           <ul className="nav-ul header-ul">

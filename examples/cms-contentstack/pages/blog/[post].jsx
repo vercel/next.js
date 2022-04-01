@@ -75,7 +75,7 @@ export const getStaticProps = async ({ params }) => {
     const blogPostRes = await getBlogPostRes(paramsPath)
     const pageRes = await getPageRes('/blog')
 
-    if (!blogPostRes || !pageRes) throw 'Error 404'
+    if (!blogPostRes || !pageRes) throw new Error('Error 404')
     return {
       props: {
         page: pageRes,

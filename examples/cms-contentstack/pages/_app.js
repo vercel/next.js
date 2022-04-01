@@ -39,7 +39,7 @@ function MyApp(props) {
       <Head>
         <meta
           name="application-name"
-          content="Contentstack-Nextjs-Starter-App"
+          content="Contentstack-Next.js-Starter-App"
         />
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
@@ -48,7 +48,7 @@ function MyApp(props) {
           content="width=device-width,initial-scale=1,minimum-scale=1"
         />
         <meta name="theme-color" content="#317EFB" />
-        <title>Contentstack-Nextjs-SSG-Starter-App</title>
+        <title>Contentstack-Next.js-SSG-Starter-App</title>
         {page?.seo && page.seo.enable_search_indexing && metaData(page.seo)}
       </Head>
       <Layout

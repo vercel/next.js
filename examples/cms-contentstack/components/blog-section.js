@@ -47,7 +47,7 @@ export default function BlogSection({ fromBlog }) {
               )}
               {blog.url && (
                 <Link href={blog.url} passHref>
-                  <a className="blogpost-readmore" {...blog.$?.url}>
+                  <a className="blogpost-read-more" {...blog.$?.url}>
                     {'Read More -->'}
                   </a>
                 </Link>

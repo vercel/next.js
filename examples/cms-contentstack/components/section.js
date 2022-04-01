@@ -42,8 +42,8 @@ export default function Section({ section }) {
   return (
     <div className="home-advisor-section">
       {section.image_alignment === 'Left'
-        ? [imageContent('key-image'), contentSection('key-contentstection')]
-        : [contentSection('key-contentstection'), imageContent('key-image')]}
+        ? [imageContent('key-image'), contentSection('key-content-section')]
+        : [contentSection('key-content-section'), imageContent('key-image')]}
     </div>
   )
 }

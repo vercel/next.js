@@ -6,7 +6,7 @@ import { getPageRes, getBlogListRes } from '../../helper'
 
 import ArchiveRelative from '../../components/archive-relative'
 
-export default function Blog({ archivePost, page, blogList }) {
+export default function Blog({ archivePost, page, blogLists }) {
   const [getEntry, setEntry] = useState(page)
 
   useEffect(() => {
@@ -34,8 +34,8 @@ export default function Blog({ archivePost, page, blogList }) {
       )}
       <div className="blog-container">
         <div className="blog-column-left">
-          {blogList?.map((bloglist, index) => (
-            <BlogList bloglist={bloglist} key={index} />
+          {blogLists?.map((blogList, index) => (
+            <BlogList blogList={blogList} key={index} />
           ))}
         </div>
         <div className="blog-column-right">
@@ -71,7 +71,7 @@ export const getStaticProps = async () => {
     return {
       props: {
         page: resPage,
-        blogList: blogLists,
+        blogLists,
         archivePost: archived,
       },
       revalidate: 1000,

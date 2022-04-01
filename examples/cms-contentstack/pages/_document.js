@@ -36,7 +36,6 @@ class MyDocument extends Document {
           <link rel='manifest' href='/manifest.json' />
           <link href='/favicon.ico' rel='icon' type='image/ico' sizes='16x16' />
           <link rel='apple-touch-icon' href='/path/to/apple-touch-icon.png' />
-          <meta name='theme-color' content='#317EFB' />
         </Head>
         <body>
           <Main />

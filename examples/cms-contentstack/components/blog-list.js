@@ -4,17 +4,17 @@ import moment from 'moment'
 import parse from 'html-react-parser'
 import Image from 'next/image'
 
-function BlogList({ bloglist }) {
-  let body = typeof bloglist.body === 'string' && bloglist.body.substr(0, 300)
+function BlogList({ blogList }) {
+  let body = typeof blogList.body === 'string' && blogList.body.substr(0, 300)
   const stringLength = body.lastIndexOf(' ')
   body = `${body.substr(0, Math.min(body.length, stringLength))}...`
   return (
     <div className="blog-list">
-      {bloglist.featured_image && (
-        <Link href={bloglist.url}>
-          <a className="blog-list-img" {...bloglist.featured_image.$?.url}>
+      {blogList.featured_image && (
+        <Link href={blogList.url}>
+          <a className="blog-list-img" {...blogList.featured_image.$?.url}>
             <Image
-              src={bloglist.featured_image.url}
+              src={blogList.featured_image.url}
               layout="fill"
               alt="blog img"
             />
@@ -22,20 +22,20 @@ function BlogList({ bloglist }) {
         </Link>
       )}
       <div className="blog-content">
-        {bloglist.title && (
-          <Link href={bloglist.url}>
-            <h3 {...bloglist.$?.title}>{bloglist.title}</h3>
+        {blogList.title && (
+          <Link href={blogList.url}>
+            <h3 {...blogList.$?.title}>{blogList.title}</h3>
           </Link>
         )}
-        <p {...bloglist.$?.date}>
-          {moment(bloglist.date).format('ddd, MMM D YYYY')},{' '}
-          <strong {...bloglist.author[0].$?.title}>
-            {bloglist.author[0].title}
+        <p {...blogList.$?.date}>
+          {moment(blogList.date).format('ddd, MMM D YYYY')},{' '}
+          <strong {...blogList.author[0].$?.title}>
+            {blogList.author[0].title}
           </strong>
         </p>
-        <span {...bloglist.$?.body}>{parse(body)}</span>
-        {bloglist.url ? (
-          <Link href={bloglist.url}>
+        <span {...blogList.$?.body}>{parse(body)}</span>
+        {blogList.url ? (
+          <Link href={blogList.url}>
             <a>
               <span>{'Read more -->'}</span>
             </a>
