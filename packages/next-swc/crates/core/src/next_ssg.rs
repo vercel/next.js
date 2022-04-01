@@ -360,7 +360,11 @@ impl Fold for NextSsg {
             | ImportSpecifier::Default(ImportDefaultSpecifier { local, .. })
             | ImportSpecifier::Namespace(ImportStarAsSpecifier { local, .. }) => {
                 if self.should_remove(local.to_id()) {
-                    if self.state.is_server_props {
+                    if self.state.is_server_props
+                        // filter out non-packages import
+                        // third part packages must start with `a-z` or `@`
+                        && import_src.starts_with(|c: char| c.is_ascii_lowercase() || c == '@')
+                    {
                         self.state
                             .eliminated_packages
                             .borrow_mut()
