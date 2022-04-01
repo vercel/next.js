@@ -1,6 +1,6 @@
 [
     (
-        "*arrow function 1783*",
+        "*arrow function 1813*",
         Function(
             Alternatives(
                 [
@@ -11,10 +11,10 @@
                                     Str {
                                         span: Span {
                                             lo: BytePos(
-                                                2634,
+                                                2664,
                                             ),
                                             hi: BytePos(
-                                                2640,
+                                                2670,
                                             ),
                                             ctxt: #0,
                                         },
@@ -30,9 +30,10 @@
                                 [
                                     Call(
                                         Member(
-                                            FreeVar(
-                                                Other(
+                                            Variable(
+                                                (
                                                     Atom('path2' type=inline),
+                                                    #1,
                                                 ),
                                             ),
                                             Constant(
@@ -63,10 +64,10 @@
                                                     Str {
                                                         span: Span {
                                                             lo: BytePos(
-                                                                2665,
+                                                                2695,
                                                             ),
                                                             hi: BytePos(
-                                                                2669,
+                                                                2699,
                                                             ),
                                                             ctxt: #0,
                                                         },
@@ -83,10 +84,10 @@
                                                     Str {
                                                         span: Span {
                                                             lo: BytePos(
-                                                                2671,
+                                                                2701,
                                                             ),
                                                             hi: BytePos(
-                                                                2676,
+                                                                2706,
                                                             ),
                                                             ctxt: #0,
                                                         },
@@ -103,10 +104,10 @@
                                                     Str {
                                                         span: Span {
                                                             lo: BytePos(
-                                                                2678,
+                                                                2708,
                                                             ),
                                                             hi: BytePos(
-                                                                2687,
+                                                                2717,
                                                             ),
                                                             ctxt: #0,
                                                         },
@@ -197,10 +198,10 @@
                                         Str {
                                             span: Span {
                                                 lo: BytePos(
-                                                    742,
+                                                    772,
                                                 ),
                                                 hi: BytePos(
-                                                    743,
+                                                    773,
                                                 ),
                                                 ctxt: #0,
                                             },
@@ -289,10 +290,10 @@
                                 Str {
                                     span: Span {
                                         lo: BytePos(
-                                            1523,
+                                            1553,
                                         ),
                                         hi: BytePos(
-                                            1530,
+                                            1560,
                                         ),
                                         ctxt: #0,
                                     },
@@ -315,10 +316,10 @@
                                 Str {
                                     span: Span {
                                         lo: BytePos(
-                                            1536,
+                                            1566,
                                         ),
                                         hi: BytePos(
-                                            1537,
+                                            1567,
                                         ),
                                         ctxt: #0,
                                     },
@@ -403,7 +404,7 @@
         "esbuildCommandAndArgs",
         Variable(
             (
-                Atom('*arrow function 1783*' type=dynamic),
+                Atom('*arrow function 1813*' type=dynamic),
                 #0,
             ),
         ),
@@ -468,10 +469,10 @@
                                 Str {
                                     span: Span {
                                         lo: BytePos(
-                                            1445,
+                                            1475,
                                         ),
                                         hi: BytePos(
-                                            1454,
+                                            1484,
                                         ),
                                         ctxt: #0,
                                     },
@@ -523,10 +524,10 @@
                         Bool {
                             span: Span {
                                 lo: BytePos(
-                                    1294,
+                                    1324,
                                 ),
                                 hi: BytePos(
-                                    1299,
+                                    1329,
                                 ),
                                 ctxt: #0,
                             },
@@ -539,10 +540,10 @@
                         Bool {
                             span: Span {
                                 lo: BytePos(
-                                    1348,
+                                    1378,
                                 ),
                                 hi: BytePos(
-                                    1352,
+                                    1382,
                                 ),
                                 ctxt: #0,
                             },
@@ -569,6 +570,36 @@
                                 ),
                                 hi: BytePos(
                                     25,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('path' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "path2",
+        Call(
+            FreeVar(
+                Require,
+            ),
+            [
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    48,
+                                ),
+                                hi: BytePos(
+                                    54,
                                 ),
                                 ctxt: #0,
                             },
@@ -670,10 +701,10 @@
                         Str {
                             span: Span {
                                 lo: BytePos(
-                                    139,
+                                    169,
                                 ),
                                 hi: BytePos(
-                                    140,
+                                    170,
                                 ),
                                 ctxt: #0,
                             },
@@ -718,10 +749,10 @@
                         Str {
                             span: Span {
                                 lo: BytePos(
-                                    152,
+                                    182,
                                 ),
                                 hi: BytePos(
-                                    153,
+                                    183,
                                 ),
                                 ctxt: #0,
                             },
@@ -784,10 +815,10 @@
                         Str {
                             span: Span {
                                 lo: BytePos(
-                                    278,
+                                    308,
                                 ),
                                 hi: BytePos(
-                                    291,
+                                    321,
                                 ),
                                 ctxt: #0,
                             },
@@ -804,10 +835,10 @@
                         Str {
                             span: Span {
                                 lo: BytePos(
-                                    406,
+                                    436,
                                 ),
                                 hi: BytePos(
-                                    419,
+                                    449,
                                 ),
                                 ctxt: #0,
                             },

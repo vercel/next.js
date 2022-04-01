@@ -1,4 +1,6 @@
 var path = require('path');
+var path2 = require('path');
+
 function pkgAndSubpathForCurrentPlatform() {
   let pkg;
   let subpath;
