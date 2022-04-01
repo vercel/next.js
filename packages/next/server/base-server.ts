@@ -1131,7 +1131,7 @@ export default abstract class Server {
     const isSSG =
       !!components.getStaticProps ||
       // For static server component pages, we currently always consider them
-      // as SSG since we also need to handle the next data.
+      // as SSG since we also need to handle the next data (flight JSON).
       (isServerComponent &&
         !hasServerProps &&
         !hasGetInitialProps &&
@@ -1142,6 +1142,7 @@ export default abstract class Server {
       !!query._nextDataReq && (isSSG || hasServerProps || isServerComponent)
 
     delete query._nextDataReq
+
     // Don't delete query.__flight__ yet, it still needs to be used in renderToHTML later
     const isFlightRequest = Boolean(
       this.serverComponentManifest && query.__flight__
@@ -1300,8 +1301,8 @@ export default abstract class Server {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG || opts.supportsDynamicHTML
-        ? null // Preview mode and manual revalidate bypasses the cache
+      isPreviewMode || !isSSG || opts.supportsDynamicHTML || isFlightRequest
+        ? null // Preview mode, manual revalidate, flight request can bypass the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
               ? ''
