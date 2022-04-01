@@ -504,7 +504,7 @@ export async function renderToHTML(
     Uint8Array,
     Uint8Array
   > | null = null
-  let serverComponentsPageDataTrasnformStream: TransformStream<
+  let serverComponentsPageDataTransformStream: TransformStream<
     Uint8Array,
     Uint8Array
   > | null =
@@ -520,7 +520,7 @@ export async function renderToHTML(
       {
         cachePrefix: pathname + (search ? `?${search}` : ''),
         inlinedTransformStream: serverComponentsInlinedTransformStream,
-        staticTransformStream: serverComponentsPageDataTrasnformStream,
+        staticTransformStream: serverComponentsPageDataTransformStream,
         serverComponentManifest,
       }
     )
@@ -1200,7 +1200,7 @@ export async function renderToHTML(
   if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
     // For server components, we still need to render the page to get the flight
     // data.
-    if (!serverComponentsPageDataTrasnformStream) {
+    if (!serverComponentsPageDataTransformStream) {
       return RenderResult.fromStatic(JSON.stringify(props))
     }
   }
@@ -1458,11 +1458,11 @@ export async function renderToHTML(
 
         // Handle static data for server components.
         async function generateStaticFlightDataIfNeeded() {
-          if (serverComponentsPageDataTrasnformStream) {
+          if (serverComponentsPageDataTransformStream) {
             // If it's a server component with the Node.js runtime, we also
             // statically generate the page data.
             let data = ''
-            const readable = serverComponentsPageDataTrasnformStream.readable
+            const readable = serverComponentsPageDataTransformStream.readable
             const reader = readable.getReader()
             while (true) {
               const { done, value } = await reader.read()
@@ -1690,7 +1690,7 @@ export async function renderToHTML(
   ]
 
   if (
-    serverComponentsPageDataTrasnformStream &&
+    serverComponentsPageDataTransformStream &&
     ((isDataReq && !isSSG) || (renderOpts as any).isRedirect)
   ) {
     await streamToString(streams[1])
