@@ -3,7 +3,7 @@ import Time from '../utils/time'
 
 export default function Page() {
   return (
-    <div>
+    <div className="node-rsc">
       This is a static RSC page.
       <br />
       <Runtime />

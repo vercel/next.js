@@ -2,7 +2,7 @@
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { findPort, killApp, renderViaHTTP } from 'next-test-utils'
-import { nextBuild, nextStart } from './utils'
+import { nextBuild, nextDev, nextStart } from './utils'
 
 const appDir = join(__dirname, '../switchable-runtime')
 
@@ -31,7 +31,7 @@ async function testRoute(appPort, url, { isStatic, isEdge }) {
   }
 }
 
-describe('Without global runtime configuration', () => {
+describe('Switchable runtime (prod)', () => {
   const context = { appDir }
 
   beforeAll(async () => {
@@ -167,7 +167,6 @@ describe('Without global runtime configuration', () => {
       },
     })
 
-    await browser.eval('window.beforeNav = 1')
     for (const data of [
       'node-rsc.json',
       'node-rsc-ssg.json',
@@ -192,8 +191,6 @@ describe('Without global runtime configuration', () => {
       },
     })
 
-    await browser.eval('window.beforeNav = 1')
-
     await browser.waitForElementByCss('#link-node-rsc-ssr').click()
 
     expect(await browser.elementByCss('body').text()).toContain(
@@ -204,7 +201,6 @@ describe('Without global runtime configuration', () => {
 
   it('should support client side navigation to ssg rsc pages', async () => {
     const browser = await webdriver(context.appPort, '/node')
-    await browser.eval('window.beforeNav = 1')
 
     await browser.waitForElementByCss('#link-node-rsc-ssg').click()
     expect(await browser.elementByCss('body').text()).toContain(
@@ -214,9 +210,71 @@ describe('Without global runtime configuration', () => {
 
   it('should support client side navigation to static rsc pages', async () => {
     const browser = await webdriver(context.appPort, '/node')
-    await browser.eval('window.beforeNav = 1')
 
     await browser.waitForElementByCss('#link-node-rsc').click()
+    expect(await browser.elementByCss('body').text()).toContain(
+      'This is a static RSC page.'
+    )
+  })
+})
+
+describe('Switchable runtime (dev)', () => {
+  const context = { appDir }
+
+  beforeAll(async () => {
+    context.appPort = await findPort()
+    context.server = await nextDev(context.appDir, context.appPort)
+  })
+  afterAll(async () => {
+    await killApp(context.server)
+  })
+
+  it('should support client side navigation to ssr rsc pages', async () => {
+    let flightRequest = null
+
+    const browser = await webdriver(context.appPort, '/node', {
+      beforePageLoad(page) {
+        page.on('request', (request) => {
+          const url = request.url()
+          if (/\?__flight__=1/.test(url)) {
+            flightRequest = url
+          }
+        })
+      },
+    })
+
+    await browser
+      .waitForElementByCss('#link-node-rsc-ssr')
+      .click()
+      .waitForElementByCss('.node-rsc-ssr')
+
+    expect(await browser.elementByCss('body').text()).toContain(
+      'This is a SSR RSC page.'
+    )
+    expect(flightRequest).toContain('/node-rsc-ssr?__flight__=1')
+  })
+
+  it('should support client side navigation to ssg rsc pages', async () => {
+    const browser = await webdriver(context.appPort, '/node')
+
+    await browser
+      .waitForElementByCss('#link-node-rsc-ssg')
+      .click()
+      .waitForElementByCss('.node-rsc-ssg')
+
+    expect(await browser.elementByCss('body').text()).toContain(
+      'This is a SSG RSC page.'
+    )
+  })
+
+  it('should support client side navigation to static rsc pages', async () => {
+    const browser = await webdriver(context.appPort, '/node')
+
+    await browser
+      .waitForElementByCss('#link-node-rsc')
+      .click()
+      .waitForElementByCss('.node-rsc')
+
     expect(await browser.elementByCss('body').text()).toContain(
       'This is a static RSC page.'
     )
