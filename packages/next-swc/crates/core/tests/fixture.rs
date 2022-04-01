@@ -1,5 +1,7 @@
 use next_swc::{
     amp_attributes::amp_attributes,
+    emotion::{self, EmotionOptions},
+    modularize_imports::modularize_imports,
     next_dynamic::next_dynamic,
     next_ssg::next_ssg,
     page_config::page_config_test,
@@ -13,14 +15,24 @@ use std::path::PathBuf;
 use swc_common::{chain, comments::SingleThreadedComments, FileName, Mark, Span, DUMMY_SP};
 use swc_ecma_transforms_testing::{test, test_fixture};
 use swc_ecmascript::{
-    parser::{EsConfig, Syntax},
-    transforms::{react::jsx, resolver},
+    parser::{EsConfig, Syntax, TsConfig},
+    transforms::{
+        react::{jsx, Runtime},
+        resolver,
+    },
 };
 use testing::fixture;
 
 fn syntax() -> Syntax {
     Syntax::Es(EsConfig {
         jsx: true,
+        ..Default::default()
+    })
+}
+
+fn ts_syntax() -> Syntax {
+    Syntax::Typescript(TsConfig {
+        tsx: true,
         ..Default::default()
     })
 }
@@ -254,6 +266,90 @@ fn shake_exports_fixture_default(input: PathBuf) {
         &|_tr| {
             shake_exports(ShakeExportsConfig {
                 ignore: vec![String::from("default").into()],
+            })
+        },
+        &input,
+        &output,
+    );
+}
+
+#[fixture("tests/fixture/emotion/*/input.tsx")]
+fn next_emotion_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.ts");
+    test_fixture(
+        ts_syntax(),
+        &|tr| {
+            let top_level_mark = Mark::fresh(Mark::root());
+            let jsx = jsx::<SingleThreadedComments>(
+                tr.cm.clone(),
+                Some(tr.comments.as_ref().clone()),
+                swc_ecmascript::transforms::react::Options {
+                    next: false,
+                    runtime: Some(Runtime::Automatic),
+                    throw_if_namespace: false,
+                    development: false,
+                    use_builtins: true,
+                    use_spread: true,
+                    ..Default::default()
+                },
+                top_level_mark,
+            );
+            chain!(
+                emotion::emotion(
+                    EmotionOptions {
+                        enabled: Some(true),
+                        sourcemap: Some(true),
+                        auto_label: Some(true),
+                        ..Default::default()
+                    },
+                    &PathBuf::from("input.ts"),
+                    tr.cm.clone(),
+                    tr.comments.as_ref().clone(),
+                ),
+                jsx
+            )
+        },
+        &input,
+        &output,
+    );
+}
+
+#[fixture("tests/fixture/modularize-imports/**/input.js")]
+fn modularize_imports_fixture(input: PathBuf) {
+    use next_swc::modularize_imports::PackageConfig;
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            modularize_imports(next_swc::modularize_imports::Config {
+                packages: vec![
+                    (
+                        "react-bootstrap".to_string(),
+                        PackageConfig {
+                            transform: "react-bootstrap/lib/{{member}}".into(),
+                            prevent_full_import: false,
+                            skip_default_conversion: false,
+                        },
+                    ),
+                    (
+                        "my-library/?(((\\w*)?/?)*)".to_string(),
+                        PackageConfig {
+                            transform: "my-library/{{ matches.[1] }}/{{member}}".into(),
+                            prevent_full_import: false,
+                            skip_default_conversion: false,
+                        },
+                    ),
+                    (
+                        "my-library-2".to_string(),
+                        PackageConfig {
+                            transform: "my-library-2/{{ camelCase member }}".into(),
+                            prevent_full_import: false,
+                            skip_default_conversion: true,
+                        },
+                    ),
+                ]
+                .into_iter()
+                .collect(),
             })
         },
         &input,

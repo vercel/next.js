@@ -1,3 +1,5 @@
+import type { NextConfigComplete, PageRuntime } from '../server/config-shared'
+
 import '../server/node-polyfill-fetch'
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
@@ -37,7 +39,6 @@ import * as Log from './output/log'
 import { loadComponents } from '../server/load-components'
 import { trace } from '../trace'
 import { setHttpAgentOptions } from '../server/config'
-import { NextConfigComplete } from '../server/config-shared'
 import isError from '../lib/is-error'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
@@ -77,11 +78,11 @@ export interface PageInfo {
   totalSize: number
   static: boolean
   isSsg: boolean
-  isWebSsr: boolean
   ssgPageRoutes: string[] | null
   initialRevalidateSeconds: number | false
   pageDuration: number | undefined
   ssgPageDurations: number[] | undefined
+  runtime: PageRuntime
 }
 
 export async function printTreeView(
@@ -195,12 +196,12 @@ export async function printTreeView(
         ? ' '
         : item.endsWith('/_middleware')
         ? 'ƒ'
-        : pageInfo?.isWebSsr
-        ? 'ℇ'
         : pageInfo?.static
         ? '○'
         : pageInfo?.isSsg
         ? '●'
+        : pageInfo?.runtime === 'edge'
+        ? 'ℇ'
         : 'λ'
 
     usedSymbols.add(symbol)
@@ -723,7 +724,7 @@ export async function buildStaticPaths(
       let cleanedEntry = entry
 
       if (localePathResult.detectedLocale) {
-        cleanedEntry = entry.substr(localePathResult.detectedLocale.length + 1)
+        cleanedEntry = entry.slice(localePathResult.detectedLocale.length + 1)
       } else if (defaultLocale) {
         entry = `/${defaultLocale}${entry}`
       }
@@ -1113,12 +1114,7 @@ export function isFlightPage(
   nextConfig: NextConfigComplete,
   filePath: string
 ): boolean {
-  if (
-    !(
-      nextConfig.experimental.serverComponents &&
-      nextConfig.experimental.runtime
-    )
-  ) {
+  if (!nextConfig.experimental.serverComponents) {
     return false
   }
 

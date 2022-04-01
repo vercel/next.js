@@ -1,6 +1,6 @@
 import _JSXStyle from "styled-jsx/style";
 const attrs = {
-    id: "test"
+    id: 'test'
 };
 const Test1 = ()=><div className={"jsx-a9535d7d5f32c3c4"}>
 

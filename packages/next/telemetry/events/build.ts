@@ -1,4 +1,5 @@
 import { TelemetryPlugin } from '../../build/webpack/plugins/telemetry-plugin'
+import type { SWC_TARGET_TRIPLE } from '../../build/webpack/plugins/telemetry-plugin'
 
 const REGEXP_DIRECTORY_DUNDER =
   /[\\/]__[^\\/]+(?<![\\/]__(?:tests|mocks))__[\\/]/i
@@ -143,6 +144,8 @@ export type EventBuildFeatureUsage = {
     | 'swcExperimentalDecorators'
     | 'swcRemoveConsole'
     | 'swcImportSource'
+    | 'swcEmotion'
+    | `swc/target/${SWC_TARGET_TRIPLE}`
     | 'build-lint'
   invocationCount: number
 }

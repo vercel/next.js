@@ -6,6 +6,7 @@ import type {
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
+  MIDDLEWARE_FLIGHT_MANIFEST,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
@@ -30,6 +31,7 @@ export type LoadComponentsReturnType = {
   pageConfig: PageConfig
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
+  serverComponentManifest?: any | null
   Document: DocumentType
   App: AppType
   getStaticProps?: GetStaticProps
@@ -39,14 +41,8 @@ export type LoadComponentsReturnType = {
   AppMod: any
 }
 
-export async function loadDefaultErrorComponents(
-  distDir: string,
-  { hasConcurrentFeatures }: { hasConcurrentFeatures: boolean }
-) {
-  const Document = interopDefault(
-    require(`next/dist/pages/_document` +
-      (hasConcurrentFeatures ? '-concurrent' : ''))
-  )
+export async function loadDefaultErrorComponents(distDir: string) {
+  const Document = interopDefault(require('next/dist/pages/_document'))
   const AppMod = require('next/dist/pages/_app')
   const App = interopDefault(AppMod)
   const ComponentMod = require('next/dist/pages/_error')
@@ -67,7 +63,8 @@ export async function loadDefaultErrorComponents(
 export async function loadComponents(
   distDir: string,
   pathname: string,
-  serverless: boolean
+  serverless: boolean,
+  serverComponents?: boolean
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const ComponentMod = await requirePage(pathname, distDir, serverless)
@@ -108,10 +105,14 @@ export async function loadComponents(
     requirePage(pathname, distDir, serverless),
   ])
 
-  const [buildManifest, reactLoadableManifest] = await Promise.all([
-    require(join(distDir, BUILD_MANIFEST)),
-    require(join(distDir, REACT_LOADABLE_MANIFEST)),
-  ])
+  const [buildManifest, reactLoadableManifest, serverComponentManifest] =
+    await Promise.all([
+      require(join(distDir, BUILD_MANIFEST)),
+      require(join(distDir, REACT_LOADABLE_MANIFEST)),
+      serverComponents
+        ? require(join(distDir, 'server', MIDDLEWARE_FLIGHT_MANIFEST + '.json'))
+        : null,
+    ])
 
   const Component = interopDefault(ComponentMod)
   const Document = interopDefault(DocumentMod)
@@ -131,5 +132,6 @@ export async function loadComponents(
     getServerSideProps,
     getStaticProps,
     getStaticPaths,
+    serverComponentManifest,
   }
 }

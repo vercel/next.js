@@ -1,7 +1,7 @@
-error: next/dynamic options must be an object literal.
-Read more: https://nextjs.org/docs/messages/invalid-dynamic-options-type
- --> input.js:4:43
-  |
-4 | const DynamicComponentWithCustomLoading = dynamic(
-  |                                           ^^^^^^^
 
+  x next/dynamic options must be an object literal.
+  | Read more: https://nextjs.org/docs/messages/invalid-dynamic-options-type
+   ,-[input.js:4:1]
+ 4 | const DynamicComponentWithCustomLoading = dynamic(
+   :                                           ^^^^^^^
+   `----

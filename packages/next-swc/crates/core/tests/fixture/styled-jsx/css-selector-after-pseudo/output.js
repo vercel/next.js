@@ -1,10 +1,10 @@
 import _JSXStyle from "styled-jsx/style";
-function NavigationItem({ active , className  }) {
+function NavigationItem({ active , className ,  }) {
     return <span className={"jsx-2342aae4628612c6" + " " + (cn({
         active
-    }, className, "navigation-item") || "")}>
+    }, className, 'navigation-item') || "")}>
 
-      <_JSXStyle id={"2342aae4628612c6"}>{".navigation-item.jsx-2342aae4628612c6 a::after{content:attr(data-text);content:attr(data-text)/\"\"}"}</_JSXStyle>
+      <_JSXStyle id={"2342aae4628612c6"}>{'.navigation-item.jsx-2342aae4628612c6 a::after{content:attr(data-text);content:attr(data-text)/""}'}</_JSXStyle>
 
     </span>;
 }

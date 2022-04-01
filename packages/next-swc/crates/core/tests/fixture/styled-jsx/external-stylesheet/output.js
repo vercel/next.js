@@ -1,7 +1,7 @@
 import _JSXStyle from "styled-jsx/style";
-import styles from "./styles";
-const styles2 = require("./styles2");
-import { foo as styles3 } from "./styles";
+import styles from './styles';
+const styles2 = require('./styles2');
+import { foo as styles3 } from './styles';
 export default (()=><div className={"jsx-bee92b62eadf8a14 " + `jsx-${styles.__hash} jsx-${styles3.__hash}`}>
 
     <p className={"jsx-bee92b62eadf8a14 " + `jsx-${styles.__hash} jsx-${styles3.__hash}` + " " + "foo"}>test</p>

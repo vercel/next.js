@@ -475,8 +475,8 @@ impl StyledJSXTransformer {
                 expr,
             ) => {
                 if exprs.is_empty() {
-                    hasher.write(quasis[0].raw.value.as_bytes());
-                    css = quasis[0].raw.value.to_string();
+                    hasher.write(quasis[0].raw.as_bytes());
+                    css = quasis[0].raw.to_string();
                     css_span = *span;
                     is_dynamic = false;
                 } else {
@@ -488,7 +488,7 @@ impl StyledJSXTransformer {
                         } else {
                             format!("__styled-jsx-placeholder-{}__", i)
                         };
-                        s = format!("{}{}{}", s, quasis[i].raw.value, placeholder)
+                        s = format!("{}{}{}", s, quasis[i].raw, placeholder)
                     }
                     css = s;
                     css_span = *span;

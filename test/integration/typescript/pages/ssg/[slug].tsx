@@ -20,16 +20,19 @@ export const getStaticPaths: GetStaticPaths<Params> = async () => {
   }
 }
 
-export const getStaticProps: GetStaticProps<Props, Params, PreviewData> =
-  async ({ params, previewData }) => {
-    return {
-      props: {
-        data: params!.slug,
-        title: previewData?.title || 'default title',
-      },
-      revalidate: false,
-    }
+export const getStaticProps: GetStaticProps<
+  Props,
+  Params,
+  PreviewData
+> = async ({ params, previewData }) => {
+  return {
+    props: {
+      data: params!.slug,
+      title: previewData?.title || 'default title',
+    },
+    revalidate: false,
   }
+}
 
 export default function Page({ data, title }: Props) {
   return (

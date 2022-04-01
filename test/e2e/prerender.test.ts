@@ -1701,13 +1701,13 @@ describe('Prerender', () => {
 
       it('should handle revalidating HTML correctly', async () => {
         const route = '/blog/post-2/comment-2'
-        await renderViaHTTP(next.url, route)
         const initialHtml = await renderViaHTTP(next.url, route)
         expect(initialHtml).toMatch(/Post:.*?post-2/)
         expect(initialHtml).toMatch(/Comment:.*?comment-2/)
 
         let newHtml = await renderViaHTTP(next.url, route)
-        expect(newHtml).toBe(initialHtml)
+        expect(newHtml).toMatch(/Post:.*?post-2/)
+        expect(newHtml).toMatch(/Comment:.*?comment-2/)
 
         await waitFor(2 * 1000)
         await renderViaHTTP(next.url, route)
@@ -1922,11 +1922,15 @@ describe('Prerender', () => {
           expect(res.status).toBe(200)
         }
         await next.deleteFile('error.txt')
-        expect(
-          next.cliOutput.match(
-            /throwing error for \/blocking-fallback\/test-errors-1/
-          ).length
-        ).toBe(1)
+        await check(
+          () =>
+            next.cliOutput.match(
+              /throwing error for \/blocking-fallback\/test-errors-1/
+            ).length === 1
+              ? 'success'
+              : next.cliOutput,
+          'success'
+        )
       })
 
       it('should automatically reset cache TTL when an error occurs and runtime cache was available', async () => {
@@ -1947,11 +1951,16 @@ describe('Prerender', () => {
           expect(res.status).toBe(200)
         }
         await next.deleteFile('error.txt')
-        expect(
-          next.cliOutput.match(
-            /throwing error for \/blocking-fallback\/test-errors-2/
-          ).length
-        ).toBe(1)
+
+        await check(
+          () =>
+            next.cliOutput.match(
+              /throwing error for \/blocking-fallback\/test-errors-2/
+            ).length === 1
+              ? 'success'
+              : next.cliOutput,
+          'success'
+        )
       })
 
       it('should handle manual revalidate for fallback: blocking', async () => {

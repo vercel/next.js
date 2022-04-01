@@ -36,8 +36,8 @@ import { searchParamsToUrlQuery } from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
-import { getMiddlewareRegex } from './utils/get-middleware-regex'
 import { formatWithValidation } from './utils/format-url'
+import { getRoutingItems } from './utils/routing-items'
 
 declare global {
   interface Window {
@@ -121,7 +121,7 @@ function addPathPrefix(path: string, prefix?: string) {
 
   return (
     normalizePathTrailingSlash(`${prefix}${pathname}`) +
-    path.substr(pathname.length)
+    path.slice(pathname.length)
   )
 }
 
@@ -177,7 +177,7 @@ export function delLocale(path: string, locale?: string) {
       (pathLower.startsWith('/' + localeLower + '/') ||
         pathLower === '/' + localeLower)
       ? (pathname.length === locale.length + 1 ? '/' : '') +
-          path.substr(locale.length + 1)
+          path.slice(locale.length + 1)
       : path
   }
   return path
@@ -320,7 +320,7 @@ export function resolveHref(
   // invalid and will never match a Next.js page/file
   const urlProtoMatch = urlAsString.match(/^[a-zA-Z]{1,}:\/\//)
   const urlAsStringNoProto = urlProtoMatch
-    ? urlAsString.substr(urlProtoMatch[0].length)
+    ? urlAsString.slice(urlProtoMatch[0].length)
     : urlAsString
 
   const urlParts = urlAsStringNoProto.split('?')
@@ -751,7 +751,7 @@ export default class Router implements BaseRouter {
     if (typeof window !== 'undefined') {
       // make sure "as" doesn't start with double slashes or else it can
       // throw an error as it's considered invalid
-      if (as.substr(0, 2) !== '//') {
+      if (!as.startsWith('//')) {
         // in order for `e.state` to work on the `onpopstate` event
         // we have to register the initial route upon initialization
         const options: TransitionOptions = { locale }
@@ -1165,8 +1165,9 @@ export default class Router implements BaseRouter {
      * request as it is not necessary.
      */
     if (
-      (options as any)._h !== 1 ||
-      isDynamicRoute(removePathTrailingSlash(pathname))
+      (!options.shallow || (options as any)._h === 1) &&
+      ((options as any)._h !== 1 ||
+        isDynamicRoute(removePathTrailingSlash(pathname)))
     ) {
       const effect = await this._preflightRequest({
         as,
@@ -1864,25 +1865,43 @@ export default class Router implements BaseRouter {
     locale: string | undefined
     isPreview: boolean
   }): Promise<PreflightEffect> {
+    const asPathname = pathNoQueryHash(options.as)
     const cleanedAs = delLocale(
-      hasBasePath(options.as) ? delBasePath(options.as) : options.as,
+      hasBasePath(asPathname) ? delBasePath(asPathname) : asPathname,
       options.locale
     )
 
-    const fns = await this.pageLoader.getMiddlewareList()
-    const requiresPreflight = fns.some(([middleware, isSSR]) => {
-      return getRouteMatcher(getMiddlewareRegex(middleware, !isSSR))(cleanedAs)
-    })
+    const middlewareList = await this.pageLoader.getMiddlewareList()
+    const middleware = middlewareList.map(([page, ssr]) => ({ page, ssr }))
+    const routingItems = getRoutingItems(options.pages, middleware)
+    let requiresPreflight = false
+    for (const item of routingItems) {
+      if (item.match(cleanedAs)) {
+        if (item.isMiddleware) {
+          requiresPreflight = true
+        }
+        break
+      }
+    }
 
     if (!requiresPreflight) {
       return { type: 'next' }
     }
 
-    const preflight = await this._getPreflightData({
-      preflightHref: options.as,
-      shouldCache: options.cache,
-      isPreview: options.isPreview,
-    })
+    let preflight: PreflightData | undefined
+    try {
+      preflight = await this._getPreflightData({
+        preflightHref: options.as,
+        shouldCache: options.cache,
+        isPreview: options.isPreview,
+      })
+    } catch (err) {
+      // If preflight request fails, we need to do a hard-navigation.
+      return {
+        type: 'redirect',
+        destination: options.as,
+      }
+    }
 
     if (preflight.rewrite) {
       // for external rewrites we need to do a hard navigation

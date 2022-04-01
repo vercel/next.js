@@ -489,7 +489,14 @@ describe('CLI Usage', () => {
     test('should print output', async () => {
       const info = await runNextCommand(['info'], {
         stdout: true,
+        stderr: true,
       })
+
+      // when a stable release is done the non-latest canary
+      // warning will show so skip this check for the stable release
+      if (pkg.version.includes('-canary')) {
+        expect(info.stderr || '').toBe('')
+      }
       expect(info.stdout).toMatch(
         new RegExp(`
     Operating System:

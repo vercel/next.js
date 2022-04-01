@@ -10,6 +10,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-docker nextjs-docker
 # or
 yarn create next-app --example with-docker nextjs-docker
+# or
+pnpm create next-app -- --example with-docker nextjs-docker
 ```
 
 ## Using Docker
