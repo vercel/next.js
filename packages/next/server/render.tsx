@@ -517,16 +517,12 @@ export async function renderToHTML(
   if (isServerComponent) {
     serverComponentsInlinedTransformStream = new TransformStream()
     const search = stringifyQuery(query)
-    Component = createServerComponentRenderer(
-      AppMod,
-      ComponentMod,
-      {
-        cachePrefix: pathname + (search ? `?${search}` : ''),
-        inlinedTransformStream: serverComponentsInlinedTransformStream,
-        staticTransformStream: serverComponentsPageDataTransformStream,
-        serverComponentManifest,
-      }
-    )
+    Component = createServerComponentRenderer(AppMod, ComponentMod, {
+      cachePrefix: pathname + (search ? `?${search}` : ''),
+      inlinedTransformStream: serverComponentsInlinedTransformStream,
+      staticTransformStream: serverComponentsPageDataTransformStream,
+      serverComponentManifest,
+    })
   }
 
   const getFontDefinition = (url: string): string => {

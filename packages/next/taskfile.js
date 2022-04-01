@@ -1870,12 +1870,7 @@ export async function pages_document(task, opts) {
 
 export async function pages(task, opts) {
   await task.parallel(
-    [
-      'pages_app',
-      'pages_app_server',
-      'pages_error',
-      'pages_document',
-    ],
+    ['pages_app', 'pages_app_server', 'pages_error', 'pages_document'],
     opts
   )
 }
