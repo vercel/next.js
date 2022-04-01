@@ -310,12 +310,19 @@ function checkRedirectValues(
 const rscCache = new Map()
 
 function createFlightHook() {
-  return (
-    writable: WritableStream<Uint8Array>,
-    id: string,
-    req: ReadableStream<Uint8Array>,
+  return ({
+    id,
+    req,
+    inlinedDataWritable,
+    staticDataWritable,
+    bootstrap,
+  }: {
+    id: string
+    req: ReadableStream<Uint8Array>
     bootstrap: boolean
-  ) => {
+    inlinedDataWritable: WritableStream<Uint8Array>
+    staticDataWritable: WritableStream<Uint8Array> | null
+  }) => {
     let entry = rscCache.get(id)
     if (!entry) {
       const [renderStream, forwardStream] = readableStreamTee(req)
@@ -323,13 +330,18 @@ function createFlightHook() {
       rscCache.set(id, entry)
 
       let bootstrapped = false
+
       const forwardReader = forwardStream.getReader()
-      const writer = writable.getWriter()
+      const inlinedDataWriter = inlinedDataWritable.getWriter()
+      const staticDataWriter = staticDataWritable
+        ? staticDataWritable.getWriter()
+        : null
+
       function process() {
         forwardReader.read().then(({ done, value }) => {
           if (bootstrap && !bootstrapped) {
             bootstrapped = true
-            writer.write(
+            inlinedDataWriter.write(
               encodeText(
                 `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
                   [0, id]
@@ -339,15 +351,21 @@ function createFlightHook() {
           }
           if (done) {
             rscCache.delete(id)
-            writer.close()
+            inlinedDataWriter.close()
+            if (staticDataWriter) {
+              staticDataWriter.close()
+            }
           } else {
-            writer.write(
+            inlinedDataWriter.write(
               encodeText(
                 `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
                   [1, id, decodeText(value)]
                 )})</script>`
               )
             )
+            if (staticDataWriter) {
+              staticDataWriter.write(value)
+            }
             process()
           }
         })
@@ -367,11 +385,13 @@ function createServerComponentRenderer(
   ComponentMod: any,
   {
     cachePrefix,
-    transformStream,
+    inlinedTransformStream,
+    staticTransformStream,
     serverComponentManifest,
   }: {
     cachePrefix: string
-    transformStream: TransformStream<Uint8Array, Uint8Array>
+    inlinedTransformStream: TransformStream<Uint8Array, Uint8Array>
+    staticTransformStream: null | TransformStream<Uint8Array, Uint8Array>
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
   }
 ) {
@@ -380,7 +400,6 @@ function createServerComponentRenderer(
   // @ts-ignore
   globalThis.__webpack_require__ = ComponentMod.__next_rsc__.__webpack_require__
 
-  const writable = transformStream.writable
   const ServerComponentWrapper = (props: any) => {
     const id = (React as any).useId()
     const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
@@ -388,12 +407,16 @@ function createServerComponentRenderer(
       serverComponentManifest
     )
 
-    const response = useFlightResponse(
-      writable,
-      cachePrefix + ',' + id,
-      reqStream,
-      true
-    )
+    const response = useFlightResponse({
+      id: cachePrefix + ',' + id,
+      req: reqStream,
+      inlinedDataWritable: inlinedTransformStream.writable,
+      staticDataWritable: staticTransformStream
+        ? staticTransformStream.writable
+        : null,
+      bootstrap: true,
+    })
+
     const root = response.readRoot()
     rscCache.delete(id)
     return root
@@ -481,6 +504,11 @@ export async function renderToHTML(
     Uint8Array,
     Uint8Array
   > | null = null
+  let serverComponentsPageDataTransformStream: TransformStream<
+    Uint8Array,
+    Uint8Array
+  > | null =
+    isServerComponent && !process.browser ? new TransformStream() : null
 
   if (isServerComponent) {
     serverComponentsInlinedTransformStream = new TransformStream()
@@ -491,7 +519,8 @@ export async function renderToHTML(
       ComponentMod,
       {
         cachePrefix: pathname + (search ? `?${search}` : ''),
-        transformStream: serverComponentsInlinedTransformStream,
+        inlinedTransformStream: serverComponentsInlinedTransformStream,
+        staticTransformStream: serverComponentsPageDataTransformStream,
         serverComponentManifest,
       }
     )
@@ -1169,7 +1198,11 @@ export async function renderToHTML(
   // Avoid rendering page un-necessarily for getServerSideProps data request
   // and getServerSideProps/getStaticProps redirects
   if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
-    return RenderResult.fromStatic(JSON.stringify(props))
+    // For server components, we still need to render the page to get the flight
+    // data.
+    if (!serverComponentsPageDataTransformStream) {
+      return RenderResult.fromStatic(JSON.stringify(props))
+    }
   }
 
   // We don't call getStaticProps or getServerSideProps while generating
@@ -1187,16 +1220,17 @@ export async function renderToHTML(
   if (isResSent(res) && !isSSG) return null
 
   if (renderServerComponentData) {
-    const stream: ReadableStream<Uint8Array> = renderToReadableStream(
-      renderFlight(AppMod, OriginalComponent, {
-        ...props.pageProps,
-        ...serverComponentProps,
-      }),
-      serverComponentManifest
-    )
-
     return new RenderResult(
-      pipeThrough(stream, createBufferedTransformStream())
+      pipeThrough(
+        renderToReadableStream(
+          renderFlight(AppMod, OriginalComponent, {
+            ...props.pageProps,
+            ...serverComponentProps,
+          }),
+          serverComponentManifest
+        ),
+        createBufferedTransformStream()
+      )
     )
   }
 
@@ -1422,6 +1456,35 @@ export async function renderToHTML(
           return flushed
         }
 
+        // Handle static data for server components.
+        async function generateStaticFlightDataIfNeeded() {
+          if (serverComponentsPageDataTransformStream) {
+            // If it's a server component with the Node.js runtime, we also
+            // statically generate the page data.
+            let data = ''
+            const readable = serverComponentsPageDataTransformStream.readable
+            const reader = readable.getReader()
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) {
+                break
+              }
+              data += decodeText(value)
+            }
+            ;(renderOpts as any).pageData = {
+              ...(renderOpts as any).pageData,
+              __flight__: data,
+            }
+            return data
+          }
+        }
+
+        // @TODO: A potential improvement would be to reuse the inlined
+        // data stream, or pass a callback inside as this doesn't need to
+        // be streamed.
+        // Do not use `await` here.
+        generateStaticFlightDataIfNeeded()
+
         return await continueFromInitialStream({
           renderStream,
           suffix,
@@ -1625,6 +1688,14 @@ export async function renderToHTML(
     streamFromArray(prefix),
     await documentResult.bodyResult(renderTargetSuffix),
   ]
+
+  if (
+    serverComponentsPageDataTransformStream &&
+    ((isDataReq && !isSSG) || (renderOpts as any).isRedirect)
+  ) {
+    await streamToString(streams[1])
+    return RenderResult.fromStatic((renderOpts as any).pageData)
+  }
 
   const postProcessors: Array<((html: string) => Promise<string>) | null> = (
     generateStaticHTML

@@ -680,6 +680,7 @@ export default class NextNodeServer extends BaseServer {
                   _nextDataReq: query._nextDataReq,
                   __nextLocale: query.__nextLocale,
                   __nextDefaultLocale: query.__nextDefaultLocale,
+                  __flight__: query.__flight__,
                 } as NextParsedUrlQuery)
               : query),
             ...(params || {}),

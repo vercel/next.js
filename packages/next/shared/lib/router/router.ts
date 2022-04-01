@@ -1546,18 +1546,25 @@ export default class Router implements BaseRouter {
 
       let dataHref: string | undefined
 
+      // For server components, non-SSR pages will have statically optimized
+      // flight data in a production build.
+      // So only development and SSR pages will always have the real-time
+      // generated and streamed flight data.
+      const useStreamedFlightData =
+        (process.env.NODE_ENV !== 'production' || __N_SSP) && __N_RSC
+
       if (__N_SSG || __N_SSP || __N_RSC) {
         dataHref = this.pageLoader.getDataHref({
           href: formatWithValidation({ pathname, query }),
           asPath: resolvedAs,
           ssg: __N_SSG,
-          rsc: __N_RSC,
+          flight: useStreamedFlightData,
           locale,
         })
       }
 
       const props = await this._getData<CompletePrivateRouteInfo>(() =>
-        __N_SSG || __N_SSP
+        (__N_SSG || __N_SSP || __N_RSC) && !useStreamedFlightData
           ? fetchNextData(
               dataHref!,
               this.isSsr,
@@ -1580,13 +1587,23 @@ export default class Router implements BaseRouter {
       )
 
       if (__N_RSC) {
-        const { fresh, data } = (await this._getData(() =>
-          this._getFlightData(dataHref!)
-        )) as { fresh: boolean; data: string }
-        ;(props as any).pageProps = Object.assign((props as any).pageProps, {
-          __flight_serialized__: data,
-          __flight_fresh__: fresh,
-        })
+        if (useStreamedFlightData) {
+          const { data } = (await this._getData(() =>
+            this._getFlightData(dataHref!)
+          )) as { data: string }
+          ;(props as any).pageProps = Object.assign((props as any).pageProps, {
+            __flight__: data,
+          })
+        } else {
+          const { __flight__ } = props as any
+          ;(props as any).pageProps = Object.assign(
+            {},
+            (props as any).pageProps,
+            {
+              __flight__,
+            }
+          )
+        }
       }
 
       routeInfo.props = props
@@ -1851,7 +1868,7 @@ export default class Router implements BaseRouter {
     // Do not cache RSC flight response since it's not a static resource
     return fetchNextData(dataHref, true, true, this.sdc, false).then(
       (serialized) => {
-        return { fresh: true, data: serialized }
+        return { data: serialized }
       }
     )
   }
