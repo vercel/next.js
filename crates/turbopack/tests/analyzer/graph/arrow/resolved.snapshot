@@ -1,0 +1,521 @@
+[
+    (
+        "*anonymous function 115*",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                138,
+                            ),
+                            hi: BytePos(
+                                139,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 3.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "*anonymous function 338*",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                363,
+                            ),
+                            hi: BytePos(
+                                364,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 3.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 10*",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                16,
+                            ),
+                            hi: BytePos(
+                                17,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 1.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 213*",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                219,
+                            ),
+                            hi: BytePos(
+                                220,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 1.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 235*",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                241,
+                            ),
+                            hi: BytePos(
+                                242,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 2.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 258*",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                277,
+                            ),
+                            hi: BytePos(
+                                278,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 1.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 29*",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                35,
+                            ),
+                            hi: BytePos(
+                                36,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 2.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 298*",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                317,
+                            ),
+                            hi: BytePos(
+                                318,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 2.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 49*",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                66,
+                            ),
+                            hi: BytePos(
+                                67,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 1.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 82*",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                99,
+                            ),
+                            hi: BytePos(
+                                100,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 2.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "a",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                16,
+                            ),
+                            hi: BytePos(
+                                17,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 1.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "b",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                35,
+                            ),
+                            hi: BytePos(
+                                36,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 2.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "c",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                66,
+                            ),
+                            hi: BytePos(
+                                67,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 1.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "d",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                99,
+                            ),
+                            hi: BytePos(
+                                100,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 2.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "e#1",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                138,
+                            ),
+                            hi: BytePos(
+                                139,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 3.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "e#2",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                178,
+                            ),
+                            hi: BytePos(
+                                179,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 4.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "f",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                178,
+                            ),
+                            hi: BytePos(
+                                179,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 4.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "x",
+        Function(
+            Unknown(
+                Some(
+                    FreeVar(
+                        Other(
+                            Atom('undefined' type=static),
+                        ),
+                    ),
+                ),
+                "unknown global",
+            ),
+        ),
+    ),
+    (
+        "xa",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                219,
+                            ),
+                            hi: BytePos(
+                                220,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 1.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "xb",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                241,
+                            ),
+                            hi: BytePos(
+                                242,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 2.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "xc",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                277,
+                            ),
+                            hi: BytePos(
+                                278,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 1.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "xd",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                317,
+                            ),
+                            hi: BytePos(
+                                318,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 2.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "xe#3",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                363,
+                            ),
+                            hi: BytePos(
+                                364,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 3.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "xe#4",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                411,
+                            ),
+                            hi: BytePos(
+                                412,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 4.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+    (
+        "xf",
+        Function(
+            Constant(
+                Num(
+                    Number {
+                        span: Span {
+                            lo: BytePos(
+                                411,
+                            ),
+                            hi: BytePos(
+                                412,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: 4.0,
+                    },
+                ),
+            ),
+        ),
+    ),
+]

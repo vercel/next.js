@@ -1,5 +1,35 @@
 [
     (
+        "*anonymous function 65*",
+        Function(
+            FreeVar(
+                Other(
+                    Atom('undefined' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 117*",
+        Function(
+            FreeVar(
+                Other(
+                    Atom('undefined' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 228*",
+        Function(
+            FreeVar(
+                Other(
+                    Atom('undefined' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
         "a",
         Function(
             FreeVar(
@@ -11,16 +41,20 @@
     ),
     (
         "b",
-        Unknown(
-            None,
-            "function expressions are not yet supported",
+        Variable(
+            (
+                Atom('*anonymous function 65*' type=dynamic),
+                #0,
+            ),
         ),
     ),
     (
         "c",
-        Unknown(
-            None,
-            "function expressions are not yet supported",
+        Variable(
+            (
+                Atom('*arrow function 117*' type=dynamic),
+                #0,
+            ),
         ),
     ),
     (
@@ -42,9 +76,11 @@
     ),
     (
         "f",
-        Unknown(
-            None,
-            "function expressions are not yet supported",
+        Variable(
+            (
+                Atom('e' type=inline),
+                #7,
+            ),
         ),
     ),
     (

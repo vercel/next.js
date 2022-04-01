@@ -1,12 +1,26 @@
+*anonymous function 65* = (...) => (???*0*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+*arrow function 117* = (...) => (???*0*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+*arrow function 228* = (...) => (???*0*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
 a = (...) => (???*0*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
-b = ???*0*
-- *0* function expressions are not yet supported
+b = (...) => (???*0*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
 
-c = ???*0*
-- *0* function expressions are not yet supported
+c = (...) => (???*0*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
 
 d = ???*0*
 - *0* unsupported expression
@@ -15,8 +29,9 @@ e = (...) => (???*0*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
-f = ???*0*
-- *0* function expressions are not yet supported
+f = (...) => (???*0*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
 
 x#2 = 1
 
@@ -56,5 +71,6 @@ z#7 = (...) => (???*0*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
-z2 = ???*0*
-- *0* function expressions are not yet supported
+z2 = (...) => (???*0*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global

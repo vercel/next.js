@@ -1,5 +1,50 @@
 [
     (
+        "*anonymous function 65*",
+        Function(
+            Unknown(
+                Some(
+                    FreeVar(
+                        Other(
+                            Atom('undefined' type=static),
+                        ),
+                    ),
+                ),
+                "unknown global",
+            ),
+        ),
+    ),
+    (
+        "*arrow function 117*",
+        Function(
+            Unknown(
+                Some(
+                    FreeVar(
+                        Other(
+                            Atom('undefined' type=static),
+                        ),
+                    ),
+                ),
+                "unknown global",
+            ),
+        ),
+    ),
+    (
+        "*arrow function 228*",
+        Function(
+            Unknown(
+                Some(
+                    FreeVar(
+                        Other(
+                            Atom('undefined' type=static),
+                        ),
+                    ),
+                ),
+                "unknown global",
+            ),
+        ),
+    ),
+    (
         "a",
         Function(
             Unknown(
@@ -16,16 +61,32 @@
     ),
     (
         "b",
-        Unknown(
-            None,
-            "function expressions are not yet supported",
+        Function(
+            Unknown(
+                Some(
+                    FreeVar(
+                        Other(
+                            Atom('undefined' type=static),
+                        ),
+                    ),
+                ),
+                "unknown global",
+            ),
         ),
     ),
     (
         "c",
-        Unknown(
-            None,
-            "function expressions are not yet supported",
+        Function(
+            Unknown(
+                Some(
+                    FreeVar(
+                        Other(
+                            Atom('undefined' type=static),
+                        ),
+                    ),
+                ),
+                "unknown global",
+            ),
         ),
     ),
     (
@@ -52,9 +113,17 @@
     ),
     (
         "f",
-        Unknown(
-            None,
-            "function expressions are not yet supported",
+        Function(
+            Unknown(
+                Some(
+                    FreeVar(
+                        Other(
+                            Atom('undefined' type=static),
+                        ),
+                    ),
+                ),
+                "unknown global",
+            ),
         ),
     ),
     (
@@ -331,9 +400,17 @@
     ),
     (
         "z2",
-        Unknown(
-            None,
-            "function expressions are not yet supported",
+        Function(
+            Unknown(
+                Some(
+                    FreeVar(
+                        Other(
+                            Atom('undefined' type=static),
+                        ),
+                    ),
+                ),
+                "unknown global",
+            ),
         ),
     ),
 ]

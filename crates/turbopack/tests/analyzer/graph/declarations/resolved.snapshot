@@ -1,5 +1,20 @@
 [
     (
+        "*anonymous function 24*",
+        Function(
+            Unknown(
+                Some(
+                    FreeVar(
+                        Other(
+                            Atom('undefined' type=static),
+                        ),
+                    ),
+                ),
+                "unknown global",
+            ),
+        ),
+    ),
+    (
         "a",
         Function(
             Unknown(
@@ -31,16 +46,32 @@
     ),
     (
         "b",
-        Unknown(
-            None,
-            "function expressions are not yet supported",
+        Function(
+            Unknown(
+                Some(
+                    FreeVar(
+                        Other(
+                            Atom('undefined' type=static),
+                        ),
+                    ),
+                ),
+                "unknown global",
+            ),
         ),
     ),
     (
         "bb",
-        Unknown(
-            None,
-            "function expressions are not yet supported",
+        Function(
+            Unknown(
+                Some(
+                    FreeVar(
+                        Other(
+                            Atom('undefined' type=static),
+                        ),
+                    ),
+                ),
+                "unknown global",
+            ),
         ),
     ),
     (

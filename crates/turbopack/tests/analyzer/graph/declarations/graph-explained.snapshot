@@ -1,9 +1,10 @@
+*anonymous function 24* = (...) => (FreeVar(undefined))
+
 a = (...) => (FreeVar(undefined))
 
 aa = a
 
-b = ???*0*
-- *0* function expressions are not yet supported
+b = *anonymous function 24*
 
 bb = b
 
