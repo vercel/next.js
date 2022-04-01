@@ -62,11 +62,11 @@ pub async fn module(source: AssetRef) -> Result<AssetRef> {
                     &ModuleType::Ecmascript
                 }
             })
-            .unwrap_or_else(|| &ModuleType::Ecmascript)
+            .unwrap_or_else(|| &ModuleType::Raw)
         {
             ModuleType::Ecmascript => ecmascript::ModuleAssetRef::new(source.clone()).into(),
             ModuleType::Json => json::ModuleAssetRef::new(source.clone()).into(),
-            ModuleType::Raw => todo!(),
+            ModuleType::Raw => source,
             ModuleType::Css => todo!(),
             ModuleType::Custom(_) => todo!(),
         },
