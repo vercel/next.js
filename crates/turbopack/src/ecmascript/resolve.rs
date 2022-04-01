@@ -85,7 +85,7 @@ async fn specific_resolve(
                     println!(
                         "unable to resolve esm request {} in {}",
                         request.to_string().await?,
-                        context.get().await?
+                        context.to_string().await?
                     );
                 }
                 _ => {}
@@ -97,7 +97,7 @@ async fn specific_resolve(
             println!(
                 "fatal error during resolving esm request {} in {}: {}",
                 request.to_string().await?,
-                context.get().await?,
+                context.to_string().await?,
                 err
             );
             ResolveResult::Unresolveable(None).into()
