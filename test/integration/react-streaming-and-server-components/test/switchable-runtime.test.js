@@ -106,7 +106,7 @@ describe('Switchable runtime (prod)', () => {
     expect(renderedAt1).toBe(renderedAt2)
 
     // Trigger a revalidation after 3s.
-    await new Promise((resolve) => setTimeout(resolve, 3500))
+    await new Promise((resolve) => setTimeout(resolve, 4000))
     await renderViaHTTP(context.appPort, '/node-rsc-isr')
 
     const html3 = await renderViaHTTP(context.appPort, '/node-rsc-isr')
@@ -166,6 +166,8 @@ describe('Switchable runtime (prod)', () => {
         })
       },
     })
+
+    await browser.eval('window.beforeNav = 1')
 
     for (const data of [
       'node-rsc.json',
