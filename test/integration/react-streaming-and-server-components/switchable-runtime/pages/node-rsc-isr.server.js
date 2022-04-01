@@ -18,7 +18,7 @@ export function getStaticProps() {
     props: {
       type: 'ISR',
     },
-    revalidate: 3,
+    revalidate: 2,
   }
 }
 
