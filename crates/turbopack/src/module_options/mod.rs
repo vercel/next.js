@@ -22,6 +22,18 @@ pub async fn the_module_options() -> ModuleOptionsRef {
                 vec![ModuleRuleCondition::ResourcePathEndsWith(".js".to_string())],
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript)],
             ),
+            ModuleRule::new(
+                vec![ModuleRuleCondition::ResourcePathEndsWith(
+                    ".mjs".to_string(),
+                )],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript)],
+            ),
+            ModuleRule::new(
+                vec![ModuleRuleCondition::ResourcePathEndsWith(
+                    ".cjs".to_string(),
+                )],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript)],
+            ),
         ],
     })
 }

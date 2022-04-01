@@ -285,7 +285,7 @@ impl Pattern {
             }
             Pattern::Dynamic => {
                 lazy_static! {
-                    static ref FORBIDDEN: Regex = Regex::new(r"((/|^)..(/|$)|(/|^).)").unwrap();
+                    static ref FORBIDDEN: Regex = Regex::new(r"(/|^)\.").unwrap();
                 };
                 if let Some(m) = FORBIDDEN.find(value) {
                     MatchResult::Consumed(value, Some(m.start()))
@@ -514,4 +514,69 @@ pub async fn read_matches(
         results.extend(nested.await?.iter().cloned());
     }
     Ok(Promise::slot(results))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Pattern;
+    use rstest::*;
+
+    #[test]
+    fn is_match() {
+        let pat = Pattern::Concatenation(vec![
+            Pattern::Constant(".".to_string()),
+            Pattern::Constant("/".to_string()),
+            Pattern::Dynamic,
+            Pattern::Constant(".js".to_string()),
+        ]);
+        assert!(pat.could_match(""));
+        assert!(pat.could_match("./"));
+        assert!(!pat.is_match("./"));
+        assert!(pat.is_match("./index.js"));
+        assert!(!pat.is_match("./index"));
+
+        // forbidden:
+        assert!(!pat.is_match("./../index.js"));
+        assert!(!pat.is_match("././index.js"));
+        assert!(!pat.is_match("./.git/index.js"));
+        assert!(!pat.is_match("./inner/../index.js"));
+        assert!(!pat.is_match("./inner/./index.js"));
+        assert!(!pat.is_match("./inner/.git/index.js"));
+        assert!(!pat.could_match("./../"));
+        assert!(!pat.could_match("././"));
+        assert!(!pat.could_match("./.git/"));
+        assert!(!pat.could_match("./inner/../"));
+        assert!(!pat.could_match("./inner/./"));
+        assert!(!pat.could_match("./inner/.git/"));
+    }
+
+    #[rstest]
+    #[case::dynamic(Pattern::Dynamic)]
+    #[case::dynamic_concat(Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(".js".to_string())]))]
+    fn dynamic_match(#[case] pat: Pattern) {
+        assert!(pat.could_match(""));
+        assert!(pat.is_match("index.js"));
+
+        // forbidden:
+        assert!(!pat.could_match("./"));
+        assert!(!pat.is_match("./"));
+        assert!(!pat.could_match("."));
+        assert!(!pat.is_match("."));
+        assert!(!pat.could_match("../"));
+        assert!(!pat.is_match("../"));
+        assert!(!pat.could_match(".."));
+        assert!(!pat.is_match(".."));
+        assert!(!pat.is_match("./../index.js"));
+        assert!(!pat.is_match("././index.js"));
+        assert!(!pat.is_match("./.git/index.js"));
+        assert!(!pat.is_match("./inner/../index.js"));
+        assert!(!pat.is_match("./inner/./index.js"));
+        assert!(!pat.is_match("./inner/.git/index.js"));
+        assert!(!pat.could_match("./../"));
+        assert!(!pat.could_match("././"));
+        assert!(!pat.could_match("./.git/"));
+        assert!(!pat.could_match("./inner/../"));
+        assert!(!pat.could_match("./inner/./"));
+        assert!(!pat.could_match("./inner/.git/"));
+    }
 }

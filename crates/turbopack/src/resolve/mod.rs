@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use json::JsonValue;
-use turbo_tasks::{trace::TraceSlotRefs, util::try_join_all, Value};
+use turbo_tasks::{trace::TraceSlotRefs, util::try_join_all, Value, ValueToString};
 use turbo_tasks_fs::{
     glob::GlobRef,
     util::{join_path, normalize_path, normalize_request},
@@ -522,17 +522,34 @@ pub async fn resolve_raw(
     }
     let mut results = Vec::new();
     let pat = path.get().await?;
-    if pat.could_match("/") {
+    if pat.could_match("/") && !pat.could_match("/fsd8nz8og54z") {
         let matches =
             read_matches(context.clone().root(), "/".to_string(), true, path.clone()).await?;
-        for m in matches.iter() {
-            if let PatternMatch::File(_, path) = m {
-                results.push(to_result(&path));
+        if matches.len() > 10000 {
+            println!(
+                "WARN: resolving abs pattern {} in {} leads to {} results",
+                pat.to_string(),
+                context.clone().to_string().await?,
+                matches.len()
+            );
+        } else {
+            for m in matches.iter() {
+                if let PatternMatch::File(_, path) = m {
+                    results.push(to_result(&path));
+                }
             }
         }
     }
     {
-        let matches = read_matches(context, "".to_string(), force_in_context, path).await?;
+        let matches = read_matches(context.clone(), "".to_string(), force_in_context, path).await?;
+        if matches.len() > 10000 {
+            println!(
+                "WARN: resolving pattern {} in {} leads to {} results",
+                pat.to_string(),
+                context.clone().to_string().await?,
+                matches.len()
+            );
+        }
         for m in matches.iter() {
             if let PatternMatch::File(_, path) = m {
                 results.push(to_result(&path));
