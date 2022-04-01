@@ -1,55 +1,47 @@
 import React, { useState, useEffect } from 'react'
 import { onEntryChange } from '../sdk-plugin/index'
 import RenderComponents from '../components/render-components'
-import { getHomeRes } from '../helper/index'
+import { getPageRes } from '../helper'
 
-export default function Home(props) {
-  const { result, entryUrl } = props
-  const [getEntry, setEntry] = useState(result)
-
-  async function fetchData() {
-    try {
-      console.info('fetching page entry live preview data...')
-      const entryRes = await getHomeRes(entryUrl)
-      setEntry(entryRes)
-    } catch (error) {
-      console.error(error)
-    }
-  }
+export default function Home({ page }) {
+  const [getEntry, setEntry] = useState(page)
 
   useEffect(() => {
-    onEntryChange(() => {
-      fetchData()
-    })
+    async function fetchData() {
+      try {
+        const entryRes = await getPageRes('/')
+        setEntry(entryRes)
+      } catch (error) {
+        console.error(error)
+      }
+    }
+    onEntryChange(() => fetchData())
   }, [])
 
   return (
-    // <Layout header={getHeader} footer={getFooter} page={result}>
-    getEntry?.page_components ? (
+    getEntry && (
       <RenderComponents
         pageComponents={getEntry.page_components}
         contentTypeUid="page"
         entryUid={getEntry.uid}
         locale={getEntry.locale}
       />
-    ) : (
-      ''
     )
-    // </Layout>
   )
 }
 
-export async function getServerSideProps(context) {
+export const getStaticProps = async () => {
   try {
-    const entryRes = await getHomeRes(context.resolvedUrl)
+    const res = await getPageRes('/')
+    if (!res) throw new Error('Not found')
 
     return {
-      props: {
-        entryUrl: context.resolvedUrl,
-        result: entryRes,
-      },
+      props: { page: res, entryUrl: '/' },
     }
   } catch (error) {
-    return { notFound: true }
+    console.error(error)
+    return {
+      notFound: true,
+    }
   }
 }

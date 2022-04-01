@@ -10,7 +10,6 @@ export default function Footer({ footer }) {
 
   async function fetchData() {
     try {
-      console.info('fetching footer component live preview data...')
       const footerRes = await getFooterRes()
       setFooter(footerRes)
     } catch (error) {
@@ -27,7 +26,7 @@ export default function Footer({ footer }) {
       <div className="max-width footer-div">
         <div className="col-quarter">
           <Link href="/" className="logo-tag">
-            <a>
+            <a {...getFooter.logo.$?.url}>
               <Image
                 height={26}
                 width={130}
@@ -44,7 +43,11 @@ export default function Footer({ footer }) {
           <nav>
             <ul className="nav-ul">
               {getFooter.navigation?.link.map((menu) => (
-                <li className="footer-nav-li" key={menu.title}>
+                <li
+                  className="footer-nav-li"
+                  key={menu.title}
+                  {...menu.$?.title}
+                >
                   <Link href={menu.href}>{menu.title}</Link>
                 </li>
               ))}
@@ -55,12 +58,14 @@ export default function Footer({ footer }) {
           <div className="social-nav">
             {getFooter.social?.social_share.map((social) => (
               <a
+                {...social.link.$?.href}
                 href={social.link.href}
                 title={social.link.title}
                 key={social.link.title}
               >
                 {social.icon && (
                   <Image
+                    {...social.icon.$?.url}
                     height={20}
                     width={20}
                     layout="fixed"
@@ -73,7 +78,7 @@ export default function Footer({ footer }) {
           </div>
         </div>
       </div>
-      <div className="copyright">
+      <div className="copyright" {...getFooter.$?.copyright}>
         {typeof getFooter.copyright === 'string' && parse(getFooter.copyright)}
       </div>
     </footer>

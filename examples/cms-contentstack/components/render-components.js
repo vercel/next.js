@@ -10,9 +10,14 @@ import SectionBucket from './section-bucket'
 import AboutSectionBucket from './about-section-bucket'
 import SectionWithHtmlCode from './section-with-html-code'
 
-export default function RenderComponents(props) {
-  const { pageComponents, blogsPage, about, entryUid, contentTypeUid, locale } =
-    props
+export default function RenderComponents({
+  pageComponents,
+  blogsPage,
+  about,
+  entryUid,
+  contentTypeUid,
+  locale,
+}) {
   return (
     <div
       data-pageref={entryUid}
@@ -28,7 +33,7 @@ export default function RenderComponents(props) {
             />
           ) : (
             <HeroBanner
-              hero_banner={component.hero_banner}
+              banner={component.hero_banner}
               title={about ? 'about' : 'home'}
               key={`component-${key}`}
             />
@@ -54,7 +59,10 @@ export default function RenderComponents(props) {
         }
         if (component.from_blog) {
           return (
-            <BlogSection blogs={component.from_blog} key={`component-${key}`} />
+            <BlogSection
+              fromBlog={component.from_blog}
+              key={`component-${key}`}
+            />
           )
         }
         if (component.section_with_cards) {

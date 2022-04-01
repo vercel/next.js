@@ -2,12 +2,11 @@ import React from 'react'
 import parse from 'html-react-parser'
 import Image from 'next/image'
 
-export default function AboutSectionBucket(props) {
-  const { sectionWithBuckets } = props
+export default function AboutSectionBucket({ sectionWithBuckets }) {
   function bucketContent(bucket, index) {
     return (
       <div className="mission-content-section" key={index}>
-        <div className="mission-icon">
+        <div className="mission-icon" {...bucket.icon.$?.url}>
           {bucket.icon && (
             <Image
               src={bucket.icon.url}
@@ -19,9 +18,11 @@ export default function AboutSectionBucket(props) {
           )}
         </div>
         <div className="mission-section-content">
-          {bucket.title_h3 && <h3>{bucket.title_h3}</h3>}
+          {bucket.title_h3 && (
+            <h3 {...bucket.$?.title_h3}>{bucket.title_h3}</h3>
+          )}
           {typeof bucket.description === 'string' && (
-            <div> {parse(bucket.description)}</div>
+            <div {...bucket.$?.description}> {parse(bucket.description)}</div>
           )}
         </div>
       </div>
@@ -31,7 +32,11 @@ export default function AboutSectionBucket(props) {
   return (
     <div className="member-main-section">
       <div className="member-head">
-        {sectionWithBuckets.title_h2 && <h2>{sectionWithBuckets.title_h2}</h2>}
+        {sectionWithBuckets.title_h2 && (
+          <h2 {...sectionWithBuckets.$?.title_h2}>
+            {sectionWithBuckets.title_h2}
+          </h2>
+        )}
       </div>
       <div className="mission-section">
         <div className="mission-content-top">
