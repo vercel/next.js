@@ -73,6 +73,7 @@ import {
   eventTypeCheckCompleted,
   EVENT_BUILD_FEATURE_USAGE,
   EventBuildFeatureUsage,
+  eventPackageUsedInGetServerSideProps,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { CompilerResult, runCompiler } from './compiler'
@@ -1974,6 +1975,7 @@ export default async function build(
     if (telemetryPlugin) {
       const events = eventBuildFeatureUsage(telemetryPlugin)
       telemetry.record(events)
+      telemetry.record(eventPackageUsedInGetServerSideProps(telemetryPlugin))
     }
 
     if (ssgPages.size > 0) {
