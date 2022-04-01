@@ -10,7 +10,7 @@ use std::{
 use anyhow::{anyhow, Context, Result};
 use async_std::{future::timeout, process::Command, task::block_on};
 use difference::{Changeset, Difference};
-use testing::fixture;
+use rstest::*;
 use turbo_tasks::{TurboTasks, ValueToString};
 use turbo_tasks_fs::{DiskFileSystemRef, FileSystemPathRef};
 use turbopack::{
@@ -18,108 +18,106 @@ use turbopack::{
     source_asset::SourceAssetRef,
 };
 
-#[fixture("tests/node-file-trace/integration/analytics-node.js")]
-#[fixture("tests/node-file-trace/integration/apollo.js")]
-// #[fixture("tests/node-file-trace/integration/argon2.js")] // can't find *.node binding
-#[fixture("tests/node-file-trace/integration/auth0.js")]
-#[fixture("tests/node-file-trace/integration/aws-sdk.js")]
-#[fixture("tests/node-file-trace/integration/axios.js")]
-#[fixture("tests/node-file-trace/integration/azure-cosmos.js")]
-#[fixture("tests/node-file-trace/integration/azure-storage.js")]
-// #[fixture("tests/node-file-trace/integration/bcrypt.js")] // can't find *.node binding
-// #[fixture("tests/node-file-trace/integration/bindings-failure.js")] // Cannot find module 'bindings'
-// #[fixture("tests/node-file-trace/integration/browserify-middleware.js")] // node_modules/uglify-es/tools/node.js is weird
-#[fixture("tests/node-file-trace/integration/bugsnag-js.js")]
-// #[fixture("tests/node-file-trace/integration/bull.js")] // Skipping bull integration test
-// #[fixture("tests/node-file-trace/integration/camaro.js")] // can't find node_modules/piscina/dist/src/worker.js
-// #[fixture("tests/node-file-trace/integration/canvas.js")] // can't find *.node binding
-#[fixture("tests/node-file-trace/integration/chromeless.js")]
-#[fixture("tests/node-file-trace/integration/core-js.js")]
-// #[fixture("tests/node-file-trace/integration/cowsay.js")] // can't find node_modules/cowsay/cows/default.cow
-// #[fixture("tests/node-file-trace/integration/dogfood.js")] // can't find node-file-trace
-#[fixture("tests/node-file-trace/integration/dynamic-in-package.js")]
-#[fixture("tests/node-file-trace/integration/empty.js")]
-#[fixture("tests/node-file-trace/integration/env-var.js")]
-#[fixture("tests/node-file-trace/integration/es-get-iterator.js")]
-// #[fixture("tests/node-file-trace/integration/esbuild.js")] // hanging in execution
-// #[fixture("tests/node-file-trace/integration/esm.js")] // Cannot destructure property 'dir' of 'T.package' as it is undefined.
-// #[fixture("tests/node-file-trace/integration/express-consolidate.js")] // Cannot read property 'startsWith' of undefined
-#[fixture("tests/node-file-trace/integration/express-template-engine.js")]
-#[fixture("tests/node-file-trace/integration/express-template.js")]
-#[fixture("tests/node-file-trace/integration/express.js")]
-#[fixture("tests/node-file-trace/integration/fast-glob.js")]
-#[fixture("tests/node-file-trace/integration/fetch-h2.js")]
-// #[fixture("tests/node-file-trace/integration/ffmpeg.js")] // Could not find ffmpeg executable
-// #[fixture("tests/node-file-trace/integration/firebase-admin.js")] // hanging
-// #[fixture("tests/node-file-trace/integration/firebase.js")] // Cannot find module 'firebase/app'
-#[fixture("tests/node-file-trace/integration/firestore.js")]
-#[fixture("tests/node-file-trace/integration/fluent-ffmpeg.js")]
-// #[fixture("tests/node-file-trace/integration/geo-tz.js")] // can't find node_modules/geo-tz/data/geo.dat
-#[fixture("tests/node-file-trace/integration/google-bigquery.js")]
-#[fixture("tests/node-file-trace/integration/got.js")]
-// #[fixture("tests/node-file-trace/integration/highlights.js")] // unable to resolve esm request module 'highlights' in node-file-trace/integration
-// #[fixture("tests/node-file-trace/integration/hot-shots.js")] // unable to resolve esm request module 'hot-shots' in node-file-trace/integration
-#[fixture("tests/node-file-trace/integration/ioredis.js")]
-#[fixture("tests/node-file-trace/integration/isomorphic-unfetch.js")]
-#[fixture("tests/node-file-trace/integration/jimp.js")]
-// #[fixture("tests/node-file-trace/integration/jugglingdb.js")] doesn't understand define
-#[fixture("tests/node-file-trace/integration/koa.js")]
-// #[fixture("tests/node-file-trace/integration/leveldown.js")] // can't find *.node binding
-// #[fixture("tests/node-file-trace/integration/lighthouse.js")] // fs.readFileSync(require.resolve('js-library-detector/library/libraries.js'), 'utf8')
-// #[fixture("tests/node-file-trace/integration/loopback.js")] // node_modules/strong-globalize/cldr folder missing
-#[fixture("tests/node-file-trace/integration/mailgun.js")]
-#[fixture("tests/node-file-trace/integration/mariadb.js")]
-#[fixture("tests/node-file-trace/integration/memcached.js")]
-// #[fixture("tests/node-file-trace/integration/mongoose.js")] // Cannot find module './drivers/node-mongodb-native/connection'
-#[fixture("tests/node-file-trace/integration/mysql.js")]
-// #[fixture("tests/node-file-trace/integration/npm.js")] // unable to resolve esm request module 'spdx-license-ids' in node-file-trace/node_modules/npm/node_modules/spdx-correct
-// #[fixture("tests/node-file-trace/integration/oracledb.js")] // NJS-045: cannot load a node-oracledb binary for Node.js 14.19.0 (win32 x64)
-#[fixture("tests/node-file-trace/integration/paraphrase.js")]
-#[fixture("tests/node-file-trace/integration/passport-trakt.js")]
-#[fixture("tests/node-file-trace/integration/passport.js")]
-#[fixture("tests/node-file-trace/integration/path-platform.js")]
-// #[fixture("tests/node-file-trace/integration/pdf2json.js")] // fs.readFileSync(_basePath + fieldName, 'utf8') )
-// #[fixture("tests/node-file-trace/integration/pdfkit.js")] // fs.readFileSync(__dirname + '/data.trie')
-#[fixture("tests/node-file-trace/integration/pg.js")]
-#[fixture("tests/node-file-trace/integration/playwright-core.js")]
-// #[fixture("tests/node-file-trace/integration/polyfill-library.js")] // directory polyfill-library/polyfills/__dist missing
-#[fixture("tests/node-file-trace/integration/pug.js")]
-#[fixture("tests/node-file-trace/integration/react.js")]
-#[fixture("tests/node-file-trace/integration/redis.js")]
-// #[fixture("tests/node-file-trace/integration/remark-prism.mjs")] // need to copy *.node extra files
-#[fixture("tests/node-file-trace/integration/request.js")]
-#[fixture("tests/node-file-trace/integration/rxjs.js")]
-// #[fixture("tests/node-file-trace/integration/saslprep.js")] // fs.readFileSync(path.resolve(__dirname, '../code-points.mem'))
-#[fixture("tests/node-file-trace/integration/semver.js")]
-#[fixture("tests/node-file-trace/integration/sentry.js")]
-#[fixture("tests/node-file-trace/integration/sequelize.js")]
-// #[fixture("tests/node-file-trace/integration/sharp.js")] // can't find *.node binding
-#[fixture("tests/node-file-trace/integration/simple.js")]
-#[fixture("tests/node-file-trace/integration/socket.io.js")]
-#[fixture("tests/node-file-trace/integration/sparql-builder.js")]
-#[fixture("tests/node-file-trace/integration/stripe.js")]
-// #[fixture("tests/node-file-trace/integration/tensorflow.js")] // unable to resolve esm request module '@tensorflow/tfjs-node' in node-file-trace/integration
-#[fixture("tests/node-file-trace/integration/tiny-json-http.js")]
-#[fixture("tests/node-file-trace/integration/twilio.js")]
-// #[fixture("tests/node-file-trace/integration/typescript.js")] // Cannot find module 'typescript/bin/tsc'
-// #[fixture("tests/node-file-trace/integration/uglify.js")] // node_modules/uglify-es/tools/node.js is weird
-// #[fixture("tests/node-file-trace/integration/vm2.js")] // fs.readFileSync(`${__dirname}/setup-sandbox.js`, 'utf8')
-#[fixture("tests/node-file-trace/integration/vue.js")]
-// #[fixture("tests/node-file-trace/integration/when.js")] // doesn't understand define
-fn integration_test(input: PathBuf) {
+#[rstest]
+#[case::analytics_node("integration/analytics-node.js", true)]
+#[case::apollo("integration/apollo.js", true)]
+#[case::argon2("integration/argon2.js", false)] // can't find *.node binding
+#[case::auth0("integration/auth0.js", true)]
+#[case::aws_sdk("integration/aws-sdk.js", true)]
+#[case::axios("integration/axios.js", true)]
+#[case::azure_cosmos("integration/azure-cosmos.js", true)]
+#[case::azure_storage("integration/azure-storage.js", true)]
+#[case::bcrypt("integration/bcrypt.js", false)] // can't find *.node binding
+#[case::bindings_failure("integration/bindings-failure.js", false)] // Cannot find module 'bindings'
+#[case::browserify_middleware("integration/browserify-middleware.js", false)] // node_modules/uglify-es/tools/node.js is weird
+#[case::bugsnag_js("integration/bugsnag-js.js", true)]
+// #[case::bull("integration/bull.js", false)] // Skipping bull integration test
+#[case::camaro("integration/camaro.js", false)] // can't find node_modules/piscina/dist/src/worker.js
+#[case::canvas("integration/canvas.js", true)]
+#[case::chromeless("integration/chromeless.js", true)]
+#[case::core_js("integration/core-js.js", true)]
+#[case::cowsay("integration/cowsay.js", false)] // can't find node_modules/cowsay/cows/default.cow
+#[case::dogfood("integration/dogfood.js", false)] // can't find node-file-trace
+#[case::dynamic_in_package("integration/dynamic-in-package.js", true)]
+#[case::empty("integration/empty.js", true)]
+#[case::env_var("integration/env-var.js", true)]
+#[case::es_get_iterator("integration/es-get-iterator.js", true)]
+// #[case::esbuild("integration/esbuild.js", false)] // hanging in execution
+#[case::esm("integration/esm.js", false)] // Cannot destructure property 'dir' of 'T.package' as it is undefined.
+#[case::express_consolidate("integration/express-consolidate.js", false)] // Cannot read property 'startsWith' of undefined
+#[case::express_template_engine("integration/express-template-engine.js", true)]
+#[case::express_template("integration/express-template.js", true)]
+#[case::express("integration/express.js", true)]
+#[case::fast_glob("integration/fast-glob.js", true)]
+#[case::fetch_h2("integration/fetch-h2.js", true)]
+#[case::ffmpeg("integration/ffmpeg.js", false)]
+// Could not find ffmpeg executable
+// #[case::firebase_admin("integration/firebase-admin.js", false)] // hanging
+// #[case::firebase("integration/firebase.js", false)] // hanging
+#[case::firestore("integration/firestore.js", true)]
+#[case::fluent_ffmpeg("integration/fluent-ffmpeg.js", true)]
+#[case::geo_tz("integration/geo-tz.js", false)] // can't find node_modules/geo-tz/data/geo.dat
+#[case::google_bigquery("integration/google-bigquery.js", true)]
+#[case::got("integration/got.js", true)]
+#[case::highlights("integration/highlights.js", false)] // unable to resolve esm request module 'highlights' in node-file-trace/integration
+#[case::hot_shots("integration/hot-shots.js", false)] // unable to resolve esm request module 'hot-shots' in node-file-trace/integration
+#[case::ioredis("integration/ioredis.js", true)]
+#[case::isomorphic_unfetch("integration/isomorphic-unfetch.js", true)]
+#[case::jimp("integration/jimp.js", true)]
+#[case::jugglingdb("integration/jugglingdb.js", false)] // doesn't understand define
+#[case::koa("integration/koa.js", true)]
+#[case::leveldown("integration/leveldown.js", false)] // can't find *.node binding
+#[case::lighthouse("integration/lighthouse.js", true)]
+#[case::loopback("integration/loopback.js", false)] // node_modules/strong-globalize/cldr folder missing
+#[case::mailgun("integration/mailgun.js", true)]
+#[case::mariadb("integration/mariadb.js", true)]
+#[case::memcached("integration/memcached.js", true)]
+#[case::mongoose("integration/mongoose.js", false)] // Cannot find module './drivers/node-mongodb-native/connection'
+#[case::mysql("integration/mysql.js", true)]
+#[case::npm("integration/npm.js", false)]
+// unable to resolve esm request module 'spdx-license-ids' in node-file-trace/node_modules/npm/node_modules/spdx-correct
+#[case::oracledb("integration/oracledb.js", true)]
+#[case::paraphrase("integration/paraphrase.js", true)]
+#[case::passport_trakt("integration/passport-trakt.js", true)]
+#[case::passport("integration/passport.js", true)]
+#[case::path_platform("integration/path-platform.js", true)]
+#[case::pdf2json("integration/pdf2json.js", true)]
+#[case::pdfkit("integration/pdfkit.js", false)] // fs.readFileSync(__dirname + '/data.trie')
+#[case::pg("integration/pg.js", true)]
+#[case::playwright_core("integration/playwright-core.js", true)]
+#[case::polyfill_library("integration/polyfill-library.js", false)] // directory polyfill-library/polyfills/__dist missing
+#[case::pug("integration/pug.js", true)]
+#[case::react("integration/react.js", true)]
+#[case::redis("integration/redis.js", true)]
+// #[case::remark_prism("integration/remark-prism.mjs", false)] // need to copy *.node extra files
+#[case::request("integration/request.js", true)]
+#[case::rxjs("integration/rxjs.js", true)]
+#[case::saslprep("integration/saslprep.js", false)] // fs.readFileSync(path.resolve(__dirname, '../code-points.mem'))
+#[case::semver("integration/semver.js", true)]
+#[case::sentry("integration/sentry.js", true)]
+#[case::sequelize("integration/sequelize.js", true)]
+#[case::sharp("integration/sharp.js", false)] // can't find *.node binding
+#[case::simple("integration/simple.js", true)]
+#[case::socket_io("integration/socket.io.js", true)]
+#[case::sparql_builder("integration/sparql-builder.js", true)]
+#[case::stripe("integration/stripe.js", true)]
+#[case::tensorflow("integration/tensorflow.js", false)] // unable to resolve esm request module '@tensorflow/tfjs-node' in node-file-trace/integration
+#[case::tiny_json_http("integration/tiny-json-http.js", true)]
+#[case::twilio("integration/twilio.js", true)]
+#[case::typescript("integration/typescript.js", true)]
+// #[case::uglify("integration/uglify.js", false)] // node_modules/uglify-es/tools/node.js is weird
+#[case::vm2("integration/vm2.js", true)]
+#[case::vue("integration/vue.js", true)]
+#[case::when("integration/when.js", false)] // doesn't understand define
+fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let mut tests_root = package_root.clone();
     tests_root.push("tests");
     let mut tests_output_root = package_root.clone();
     tests_output_root.push("tests_output");
     let tests_root = tests_root.to_string_lossy().to_string();
-    let mut input = input.to_string_lossy().to_string();
-    if input.starts_with("\\\\?\\") {
-        input.replace_range(0..4, "");
-    }
-    let input = input.strip_prefix(&tests_root).unwrap()[1..].to_string();
+    let input = format!("node-file-trace/{input}");
     let directory = tests_output_root.join(&input).to_string_lossy().to_string();
-    let input = input.replace('\\', "/");
 
     remove_dir_all(&directory)
         .or_else(|err| {
@@ -132,37 +130,44 @@ fn integration_test(input: PathBuf) {
         .unwrap();
 
     let tt = TurboTasks::new();
-    let output = block_on(timeout(Duration::from_secs(120), tt.run_once(async move {
-        let input_fs = DiskFileSystemRef::new("tests".to_string(), tests_root.clone());
-        let input = FileSystemPathRef::new(input_fs.into(), &input);
+    let output = block_on(timeout(
+        Duration::from_secs(120),
+        tt.run_once(async move {
+            let input_fs = DiskFileSystemRef::new("tests".to_string(), tests_root.clone());
+            let input = FileSystemPathRef::new(input_fs.into(), &input);
 
-        let original_output = exec_node(tests_root.clone(), input.clone());
+            let original_output = exec_node(tests_root.clone(), input.clone());
 
-        let input_dir = input.clone().parent().parent();
-        let output_fs = DiskFileSystemRef::new("output".to_string(), directory.clone());
-        let output_dir = FileSystemPathRef::new(output_fs.into(), "");
+            let input_dir = input.clone().parent().parent();
+            let output_fs = DiskFileSystemRef::new("output".to_string(), directory.clone());
+            let output_dir = FileSystemPathRef::new(output_fs.into(), "");
 
-        let source = SourceAssetRef::new(input);
-        let module = module(source.into());
-        let rebased = RebasedAssetRef::new(module, input_dir, output_dir);
+            let source = SourceAssetRef::new(input);
+            let module = module(source.into());
+            let rebased = RebasedAssetRef::new(module, input_dir, output_dir);
 
-        let output_path = rebased.path();
-        emit_with_completion(rebased.into()).await?;
+            let output_path = rebased.path();
+            emit_with_completion(rebased.into()).await?;
 
-        let output = exec_node(directory.clone(), output_path);
+            let output = exec_node(directory.clone(), output_path);
 
-        let output = asset_output(original_output, output);
+            let output = asset_output(original_output, output);
 
-        Ok(output.await?)
-    })))
+            Ok(output.await?)
+        }),
+    ))
     .unwrap();
 
     match output {
         Ok(output) => {
-            assert!(
-                output.is_empty(),
-                "emitted files behave differently when executed via node.js\n{output}"
-            );
+            if should_succeed {
+                assert!(
+                    output.is_empty(),
+                    "emitted files behave differently when executed via node.js\n{output}"
+                );
+            } else {
+                assert!(!output.is_empty(), "test case works now! enable it");
+            }
         }
         Err(err) => {
             let mut pending_tasks = 0_usize;
