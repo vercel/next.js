@@ -1,0 +1,825 @@
+[
+    (
+        "*arrow function 1783*",
+        Function(
+            Alternatives(
+                [
+                    Array(
+                        [
+                            Constant(
+                                Str(
+                                    Str {
+                                        span: Span {
+                                            lo: BytePos(
+                                                2634,
+                                            ),
+                                            hi: BytePos(
+                                                2640,
+                                            ),
+                                            ctxt: #0,
+                                        },
+                                        value: Atom('node' type=inline),
+                                        has_escape: false,
+                                        kind: Normal {
+                                            contains_quote: true,
+                                        },
+                                    },
+                                ),
+                            ),
+                            Array(
+                                [
+                                    Call(
+                                        Member(
+                                            FreeVar(
+                                                Other(
+                                                    Atom('path2' type=inline),
+                                                ),
+                                            ),
+                                            Constant(
+                                                Str(
+                                                    Str {
+                                                        span: Span {
+                                                            lo: BytePos(
+                                                                0,
+                                                            ),
+                                                            hi: BytePos(
+                                                                0,
+                                                            ),
+                                                            ctxt: #0,
+                                                        },
+                                                        value: Atom('join' type=inline),
+                                                        has_escape: false,
+                                                        kind: Synthesized,
+                                                    },
+                                                ),
+                                            ),
+                                        ),
+                                        [
+                                            FreeVar(
+                                                Dirname,
+                                            ),
+                                            Constant(
+                                                Str(
+                                                    Str {
+                                                        span: Span {
+                                                            lo: BytePos(
+                                                                2665,
+                                                            ),
+                                                            hi: BytePos(
+                                                                2669,
+                                                            ),
+                                                            ctxt: #0,
+                                                        },
+                                                        value: Atom('..' type=inline),
+                                                        has_escape: false,
+                                                        kind: Normal {
+                                                            contains_quote: true,
+                                                        },
+                                                    },
+                                                ),
+                                            ),
+                                            Constant(
+                                                Str(
+                                                    Str {
+                                                        span: Span {
+                                                            lo: BytePos(
+                                                                2671,
+                                                            ),
+                                                            hi: BytePos(
+                                                                2676,
+                                                            ),
+                                                            ctxt: #0,
+                                                        },
+                                                        value: Atom('bin' type=inline),
+                                                        has_escape: false,
+                                                        kind: Normal {
+                                                            contains_quote: true,
+                                                        },
+                                                    },
+                                                ),
+                                            ),
+                                            Constant(
+                                                Str(
+                                                    Str {
+                                                        span: Span {
+                                                            lo: BytePos(
+                                                                2678,
+                                                            ),
+                                                            hi: BytePos(
+                                                                2687,
+                                                            ),
+                                                            ctxt: #0,
+                                                        },
+                                                        value: Atom('esbuild' type=inline),
+                                                        has_escape: false,
+                                                        kind: Normal {
+                                                            contains_quote: true,
+                                                        },
+                                                    },
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                        ],
+                    ),
+                    Array(
+                        [
+                            Call(
+                                Variable(
+                                    (
+                                        Atom('generateBinPath' type=dynamic),
+                                        #1,
+                                    ),
+                                ),
+                                [],
+                            ),
+                            Array(
+                                [],
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+        ),
+    ),
+    (
+        "binPath",
+        Alternatives(
+            [
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('binPath' type=inline),
+                                #3,
+                            ),
+                        ),
+                    ),
+                    "pattern without value",
+                ),
+                Call(
+                    Member(
+                        FreeVar(
+                            Require,
+                        ),
+                        Constant(
+                            Str(
+                                Str {
+                                    span: Span {
+                                        lo: BytePos(
+                                            0,
+                                        ),
+                                        hi: BytePos(
+                                            0,
+                                        ),
+                                        ctxt: #0,
+                                    },
+                                    value: Atom('resolve' type=inline),
+                                    has_escape: false,
+                                    kind: Synthesized,
+                                },
+                            ),
+                        ),
+                    ),
+                    [
+                        Concat(
+                            [
+                                Variable(
+                                    (
+                                        Atom('pkg' type=inline),
+                                        #3,
+                                    ),
+                                ),
+                                Constant(
+                                    Str(
+                                        Str {
+                                            span: Span {
+                                                lo: BytePos(
+                                                    742,
+                                                ),
+                                                hi: BytePos(
+                                                    743,
+                                                ),
+                                                ctxt: #0,
+                                            },
+                                            value: Atom('/' type=inline),
+                                            has_escape: false,
+                                            kind: Normal {
+                                                contains_quote: false,
+                                            },
+                                        },
+                                    ),
+                                ),
+                                Variable(
+                                    (
+                                        Atom('subpath' type=inline),
+                                        #3,
+                                    ),
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+                Call(
+                    FreeVar(
+                        Other(
+                            Atom('downloadedBinPath' type=dynamic),
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('pkg' type=inline),
+                                #3,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('subpath' type=inline),
+                                #3,
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "binTargetPath",
+        Call(
+            Member(
+                Variable(
+                    (
+                        Atom('path' type=inline),
+                        #1,
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    0,
+                                ),
+                                hi: BytePos(
+                                    0,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('join' type=inline),
+                            has_escape: false,
+                            kind: Synthesized,
+                        },
+                    ),
+                ),
+            ),
+            [
+                Variable(
+                    (
+                        Atom('esbuildLibDir' type=dynamic),
+                        #6,
+                    ),
+                ),
+                Concat(
+                    [
+                        Constant(
+                            Str(
+                                Str {
+                                    span: Span {
+                                        lo: BytePos(
+                                            1523,
+                                        ),
+                                        hi: BytePos(
+                                            1530,
+                                        ),
+                                        ctxt: #0,
+                                    },
+                                    value: Atom('pnpapi-' type=inline),
+                                    has_escape: false,
+                                    kind: Normal {
+                                        contains_quote: false,
+                                    },
+                                },
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('pkg' type=inline),
+                                #3,
+                            ),
+                        ),
+                        Constant(
+                            Str(
+                                Str {
+                                    span: Span {
+                                        lo: BytePos(
+                                            1536,
+                                        ),
+                                        hi: BytePos(
+                                            1537,
+                                        ),
+                                        ctxt: #0,
+                                    },
+                                    value: Atom('-' type=inline),
+                                    has_escape: false,
+                                    kind: Normal {
+                                        contains_quote: false,
+                                    },
+                                },
+                            ),
+                        ),
+                        Call(
+                            Member(
+                                Variable(
+                                    (
+                                        Atom('path' type=inline),
+                                        #1,
+                                    ),
+                                ),
+                                Constant(
+                                    Str(
+                                        Str {
+                                            span: Span {
+                                                lo: BytePos(
+                                                    0,
+                                                ),
+                                                hi: BytePos(
+                                                    0,
+                                                ),
+                                                ctxt: #0,
+                                            },
+                                            value: Atom('basename' type=dynamic),
+                                            has_escape: false,
+                                            kind: Synthesized,
+                                        },
+                                    ),
+                                ),
+                            ),
+                            [
+                                Variable(
+                                    (
+                                        Atom('subpath' type=inline),
+                                        #3,
+                                    ),
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "e#4",
+        Unknown(
+            Some(
+                Variable(
+                    (
+                        Atom('e' type=inline),
+                        #4,
+                    ),
+                ),
+            ),
+            "pattern without value",
+        ),
+    ),
+    (
+        "e#5",
+        Unknown(
+            Some(
+                Variable(
+                    (
+                        Atom('e' type=inline),
+                        #5,
+                    ),
+                ),
+            ),
+            "pattern without value",
+        ),
+    ),
+    (
+        "esbuildCommandAndArgs",
+        Variable(
+            (
+                Atom('*arrow function 1783*' type=dynamic),
+                #0,
+            ),
+        ),
+    ),
+    (
+        "esbuildLibDir",
+        Call(
+            Member(
+                Variable(
+                    (
+                        Atom('path' type=inline),
+                        #1,
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    0,
+                                ),
+                                hi: BytePos(
+                                    0,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('dirname' type=inline),
+                            has_escape: false,
+                            kind: Synthesized,
+                        },
+                    ),
+                ),
+            ),
+            [
+                Call(
+                    Member(
+                        FreeVar(
+                            Require,
+                        ),
+                        Constant(
+                            Str(
+                                Str {
+                                    span: Span {
+                                        lo: BytePos(
+                                            0,
+                                        ),
+                                        hi: BytePos(
+                                            0,
+                                        ),
+                                        ctxt: #0,
+                                    },
+                                    value: Atom('resolve' type=inline),
+                                    has_escape: false,
+                                    kind: Synthesized,
+                                },
+                            ),
+                        ),
+                    ),
+                    [
+                        Constant(
+                            Str(
+                                Str {
+                                    span: Span {
+                                        lo: BytePos(
+                                            1445,
+                                        ),
+                                        hi: BytePos(
+                                            1454,
+                                        ),
+                                        ctxt: #0,
+                                    },
+                                    value: Atom('esbuild' type=inline),
+                                    has_escape: false,
+                                    kind: Normal {
+                                        contains_quote: true,
+                                    },
+                                },
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "generateBinPath",
+        Function(
+            Alternatives(
+                [
+                    FreeVar(
+                        Other(
+                            Atom('ESBUILD_BINARY_PATH' type=dynamic),
+                        ),
+                    ),
+                    Variable(
+                        (
+                            Atom('binTargetPath' type=dynamic),
+                            #6,
+                        ),
+                    ),
+                    Variable(
+                        (
+                            Atom('binPath' type=inline),
+                            #3,
+                        ),
+                    ),
+                ],
+            ),
+        ),
+    ),
+    (
+        "isYarnPnP",
+        Alternatives(
+            [
+                Constant(
+                    Bool(
+                        Bool {
+                            span: Span {
+                                lo: BytePos(
+                                    1294,
+                                ),
+                                hi: BytePos(
+                                    1299,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: false,
+                        },
+                    ),
+                ),
+                Constant(
+                    Bool(
+                        Bool {
+                            span: Span {
+                                lo: BytePos(
+                                    1348,
+                                ),
+                                hi: BytePos(
+                                    1352,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: true,
+                        },
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "path",
+        Call(
+            FreeVar(
+                Require,
+            ),
+            [
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    19,
+                                ),
+                                hi: BytePos(
+                                    25,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('path' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "pkg",
+        Alternatives(
+            [
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('pkg' type=inline),
+                                #2,
+                            ),
+                        ),
+                    ),
+                    "pattern without value",
+                ),
+                Member(
+                    FreeVar(
+                        Other(
+                            Atom('knownWindowsPackages' type=dynamic),
+                        ),
+                    ),
+                    Variable(
+                        (
+                            Atom('platformKey' type=dynamic),
+                            #2,
+                        ),
+                    ),
+                ),
+                Member(
+                    FreeVar(
+                        Other(
+                            Atom('knownUnixlikePackages' type=dynamic),
+                        ),
+                    ),
+                    Variable(
+                        (
+                            Atom('platformKey' type=dynamic),
+                            #2,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "pkgAndSubpathForCurrentPlatform",
+        Function(
+            Unknown(
+                None,
+                "unsupported expression",
+            ),
+        ),
+    ),
+    (
+        "platformKey",
+        Concat(
+            [
+                Member(
+                    FreeVar(
+                        Other(
+                            Atom('process' type=static),
+                        ),
+                    ),
+                    Constant(
+                        Str(
+                            Str {
+                                span: Span {
+                                    lo: BytePos(
+                                        0,
+                                    ),
+                                    hi: BytePos(
+                                        0,
+                                    ),
+                                    ctxt: #0,
+                                },
+                                value: Atom('platform' type=dynamic),
+                                has_escape: false,
+                                kind: Synthesized,
+                            },
+                        ),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    139,
+                                ),
+                                hi: BytePos(
+                                    140,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom(' ' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: false,
+                            },
+                        },
+                    ),
+                ),
+                Call(
+                    Member(
+                        FreeVar(
+                            Other(
+                                Atom('os' type=inline),
+                            ),
+                        ),
+                        Constant(
+                            Str(
+                                Str {
+                                    span: Span {
+                                        lo: BytePos(
+                                            0,
+                                        ),
+                                        hi: BytePos(
+                                            0,
+                                        ),
+                                        ctxt: #0,
+                                    },
+                                    value: Atom('arch' type=inline),
+                                    has_escape: false,
+                                    kind: Synthesized,
+                                },
+                            ),
+                        ),
+                    ),
+                    [],
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    152,
+                                ),
+                                hi: BytePos(
+                                    153,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom(' ' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: false,
+                            },
+                        },
+                    ),
+                ),
+                Call(
+                    Member(
+                        FreeVar(
+                            Other(
+                                Atom('os' type=inline),
+                            ),
+                        ),
+                        Constant(
+                            Str(
+                                Str {
+                                    span: Span {
+                                        lo: BytePos(
+                                            0,
+                                        ),
+                                        hi: BytePos(
+                                            0,
+                                        ),
+                                        ctxt: #0,
+                                    },
+                                    value: Atom('endianness' type=dynamic),
+                                    has_escape: false,
+                                    kind: Synthesized,
+                                },
+                            ),
+                        ),
+                    ),
+                    [],
+                ),
+            ],
+        ),
+    ),
+    (
+        "subpath",
+        Alternatives(
+            [
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('subpath' type=inline),
+                                #2,
+                            ),
+                        ),
+                    ),
+                    "pattern without value",
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    278,
+                                ),
+                                hi: BytePos(
+                                    291,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('esbuild.exe' type=dynamic),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    406,
+                                ),
+                                hi: BytePos(
+                                    419,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('bin/esbuild' type=dynamic),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+            ],
+        ),
+    ),
+]

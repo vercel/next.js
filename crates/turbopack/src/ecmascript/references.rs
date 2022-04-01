@@ -380,6 +380,7 @@ async fn value_visitor(source: &AssetRef, v: JsValue) -> Result<(JsValue, bool)>
             JsValue::FreeVar(FreeVarKind::Import) => {
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Import)
             }
+            JsValue::FreeVar(_) => JsValue::Unknown(Some(Arc::new(v)), "unknown global"),
             JsValue::Module(ref name) => match &**name {
                 // TODO check externals
                 "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),

@@ -794,63 +794,74 @@ impl JsValue {
         self.normalize_shallow();
     }
 
-    fn similar(&self, other: &JsValue) -> bool {
-        fn all_similar(a: &[JsValue], b: &[JsValue]) -> bool {
+    fn similar(&self, other: &JsValue, depth: usize) -> bool {
+        if depth == 0 {
+            return false;
+        }
+        fn all_similar(a: &[JsValue], b: &[JsValue], depth: usize) -> bool {
             if a.len() != b.len() {
                 return false;
             }
-            a.iter().zip(b.iter()).all(|(a, b)| a.similar(b))
+            a.iter().zip(b.iter()).all(|(a, b)| a.similar(b, depth))
         }
         match (self, other) {
             (JsValue::Constant(l), JsValue::Constant(r)) => l == r,
-            (JsValue::Array(l), JsValue::Array(r)) => all_similar(l, r),
+            (JsValue::Array(l), JsValue::Array(r)) => all_similar(l, r, depth - 1),
             (JsValue::Url(l), JsValue::Url(r)) => l == r,
-            (JsValue::Alternatives(l), JsValue::Alternatives(r)) => all_similar(l, r),
+            (JsValue::Alternatives(l), JsValue::Alternatives(r)) => all_similar(l, r, depth - 1),
             (JsValue::FreeVar(l), JsValue::FreeVar(r)) => l == r,
             (JsValue::Variable(l), JsValue::Variable(r)) => l == r,
-            (JsValue::Concat(l), JsValue::Concat(r)) => all_similar(l, r),
-            (JsValue::Add(l), JsValue::Add(r)) => all_similar(l, r),
-            (JsValue::Call(lf, la), JsValue::Call(rf, ra)) => lf.similar(rf) && all_similar(la, ra),
-            (JsValue::Member(lo, lp), JsValue::Member(ro, rp)) => lo.similar(ro) && lp.similar(rp),
+            (JsValue::Concat(l), JsValue::Concat(r)) => all_similar(l, r, depth - 1),
+            (JsValue::Add(l), JsValue::Add(r)) => all_similar(l, r, depth - 1),
+            (JsValue::Call(lf, la), JsValue::Call(rf, ra)) => {
+                lf.similar(rf, depth - 1) && all_similar(la, ra, depth - 1)
+            }
+            (JsValue::Member(lo, lp), JsValue::Member(ro, rp)) => {
+                lo.similar(ro, depth - 1) && lp.similar(rp, depth - 1)
+            }
             (JsValue::Module(l), JsValue::Module(r)) => l == r,
             (JsValue::WellKnownObject(l), JsValue::WellKnownObject(r)) => l == r,
             (JsValue::WellKnownFunction(l), JsValue::WellKnownFunction(r)) => l == r,
             (JsValue::Unknown(_, l), JsValue::Unknown(_, r)) => l == r,
-            (JsValue::Function(l), JsValue::Function(r)) => l.similar(r),
+            (JsValue::Function(l), JsValue::Function(r)) => l.similar(r, depth - 1),
             (JsValue::Argument(l), JsValue::Argument(r)) => l == r,
             _ => false,
         }
     }
 
-    fn similar_hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        fn all_similar_hash<H: std::hash::Hasher>(slice: &[JsValue], state: &mut H) {
+    fn similar_hash<H: std::hash::Hasher>(&self, state: &mut H, depth: usize) {
+        if depth == 0 {
+            return;
+        }
+
+        fn all_similar_hash<H: std::hash::Hasher>(slice: &[JsValue], state: &mut H, depth: usize) {
             for item in slice {
-                item.similar_hash(state);
+                item.similar_hash(state, depth);
             }
         }
 
         match self {
             JsValue::Constant(v) => Hash::hash(v, state),
-            JsValue::Array(v) => all_similar_hash(v, state),
+            JsValue::Array(v) => all_similar_hash(v, state, depth - 1),
             JsValue::Url(v) => Hash::hash(v, state),
-            JsValue::Alternatives(v) => all_similar_hash(v, state),
+            JsValue::Alternatives(v) => all_similar_hash(v, state, depth - 1),
             JsValue::FreeVar(v) => Hash::hash(v, state),
             JsValue::Variable(v) => Hash::hash(v, state),
-            JsValue::Concat(v) => all_similar_hash(v, state),
-            JsValue::Add(v) => all_similar_hash(v, state),
+            JsValue::Concat(v) => all_similar_hash(v, state, depth - 1),
+            JsValue::Add(v) => all_similar_hash(v, state, depth - 1),
             JsValue::Call(a, b) => {
-                a.similar_hash(state);
-                all_similar_hash(b, state);
+                a.similar_hash(state, depth - 1);
+                all_similar_hash(b, state, depth - 1);
             }
             JsValue::Member(o, p) => {
-                o.similar_hash(state);
-                p.similar_hash(state);
+                o.similar_hash(state, depth - 1);
+                p.similar_hash(state, depth - 1);
             }
             JsValue::Module(v) => Hash::hash(v, state),
             JsValue::WellKnownObject(v) => Hash::hash(v, state),
             JsValue::WellKnownFunction(v) => Hash::hash(v, state),
             JsValue::Unknown(_, v) => Hash::hash(v, state),
-            JsValue::Function(v) => v.similar_hash(state),
+            JsValue::Function(v) => v.similar_hash(state, depth - 1),
             JsValue::Argument(v) => Hash::hash(v, state),
         }
     }
@@ -860,7 +871,7 @@ struct SimilarJsValue(JsValue);
 
 impl PartialEq for SimilarJsValue {
     fn eq(&self, other: &Self) -> bool {
-        self.0.similar(&other.0)
+        self.0.similar(&other.0, 3)
     }
 }
 
@@ -868,7 +879,7 @@ impl Eq for SimilarJsValue {}
 
 impl Hash for SimilarJsValue {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.similar_hash(state)
+        self.0.similar_hash(state, 3)
     }
 }
 
@@ -930,6 +941,7 @@ mod tests {
     use std::{
         path::PathBuf,
         sync::{Arc, Mutex},
+        time::Instant,
     };
 
     use anyhow::Result;
@@ -993,7 +1005,7 @@ mod tests {
                 values
                     .iter()
                     .map(|(id, value)| {
-                        let (explainer, hints) = value.explain(usize::MAX, usize::MAX);
+                        let (explainer, hints) = value.explain(10, 5);
                         format!("{id} = {explainer}{hints}")
                     })
                     .collect::<Vec<_>>()
@@ -1055,11 +1067,13 @@ mod tests {
                     ))
                 }
 
+                let start = Instant::now();
                 let cache = Mutex::new(LinkCache::new());
                 let resolved = named_values
                     .iter()
                     .map(|(id, val)| {
                         let val = val.clone();
+                        let start = Instant::now();
                         let mut res = block_on(link(
                             &var_graph,
                             val,
@@ -1067,16 +1081,28 @@ mod tests {
                             &cache,
                         ))
                         .unwrap();
+                        let time = start.elapsed().as_millis();
+                        if time > 1 {
+                            println!("linking {} {id} took {} ms", input.display(), time);
+                        }
                         res.normalize();
 
                         (id.clone(), res)
                     })
                     .collect::<Vec<_>>();
+                let time = start.elapsed().as_millis();
+                if time > 1 {
+                    println!("linking {} took {} ms", input.display(), time);
+                }
 
-                NormalizedOutput::from(format!("{:#?}", resolved))
-                    .compare_to_file(&resolved_snapshot_path)
-                    .unwrap();
-                NormalizedOutput::from(explain_all(&resolved))
+                let start = Instant::now();
+                let time = start.elapsed().as_millis();
+                let explainer = explain_all(&resolved);
+                if time > 1 {
+                    println!("explaining {} took {} ms", input.display(), time);
+                }
+
+                NormalizedOutput::from(explainer)
                     .compare_to_file(&resolved_explained_snapshot_path)
                     .unwrap();
             }

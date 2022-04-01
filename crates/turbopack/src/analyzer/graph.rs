@@ -12,7 +12,7 @@ use crate::analyzer::{is_unresolved, FreeVarKind};
 
 use super::{ImportMap, JsValue};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Effect {
     Call {
         func: JsValue,

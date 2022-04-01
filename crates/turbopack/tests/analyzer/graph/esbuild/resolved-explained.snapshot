@@ -1,0 +1,232 @@
+*arrow function 1783* = (...) => ((["node", [???*0*]] | [(???*3* | ???*4* | ???*14* | ???*15* | ???*19*), []]))
+- *0* ???*1*("__dirname", "..", "bin", "esbuild")
+  ⚠️  call of unknown function
+- *1* ???*2*["join"]
+  ⚠️  property on unknown
+- *2* FreeVar(path2)
+  ⚠️  unknown global
+- *3* FreeVar(ESBUILD_BINARY_PATH)
+  ⚠️  unknown global
+- *4* path.join*5*(???*6*, `pnpapi-${???*9*}-${???*10*}`)
+  ⚠️  only constants are supported
+- *5* path.join: The Node.js path.join method: https://nodejs.org/api/path.html#pathjoinpaths
+- *6* ???*7*(""esbuild" (resolved)")
+  ⚠️  call of unknown function
+- *7* path*8*["dirname"]
+  ⚠️  unsupported property on Node.js path module
+- *8* path: The Node.js path module: https://nodejs.org/api/path.html
+- *9* pkg
+  ⚠️  no value of this variable analysed
+- *10* ???*11*(???*13*)
+  ⚠️  call of unknown function
+- *11* path*12*["basename"]
+  ⚠️  unsupported property on Node.js path module
+- *12* path: The Node.js path module: https://nodejs.org/api/path.html
+- *13* subpath
+  ⚠️  no value of this variable analysed
+- *14* binPath
+  ⚠️  pattern without value
+- *15* require.resolve*16*(`${???*17*}/${???*18*}`)
+  ⚠️  resolve.resolve non constant
+- *16* require.resolve: The require.resolve method from CommonJS
+- *17* pkg
+  ⚠️  no value of this variable analysed
+- *18* subpath
+  ⚠️  no value of this variable analysed
+- *19* ???*20*(???*21*, ???*22*)
+  ⚠️  call of unknown function
+- *20* FreeVar(downloadedBinPath)
+  ⚠️  unknown global
+- *21* pkg
+  ⚠️  no value of this variable analysed
+- *22* subpath
+  ⚠️  no value of this variable analysed
+
+binPath = (???*0* | ???*1* | ???*5*)
+- *0* binPath
+  ⚠️  pattern without value
+- *1* require.resolve*2*(`${???*3*}/${???*4*}`)
+  ⚠️  resolve.resolve non constant
+- *2* require.resolve: The require.resolve method from CommonJS
+- *3* pkg
+  ⚠️  no value of this variable analysed
+- *4* subpath
+  ⚠️  no value of this variable analysed
+- *5* ???*6*(???*7*, ???*8*)
+  ⚠️  call of unknown function
+- *6* FreeVar(downloadedBinPath)
+  ⚠️  unknown global
+- *7* pkg
+  ⚠️  no value of this variable analysed
+- *8* subpath
+  ⚠️  no value of this variable analysed
+
+binTargetPath = ???*0*
+- *0* path.join*1*(???*2*, `pnpapi-${???*5*}-${???*6*}`)
+  ⚠️  only constants are supported
+- *1* path.join: The Node.js path.join method: https://nodejs.org/api/path.html#pathjoinpaths
+- *2* ???*3*(""esbuild" (resolved)")
+  ⚠️  call of unknown function
+- *3* path*4*["dirname"]
+  ⚠️  unsupported property on Node.js path module
+- *4* path: The Node.js path module: https://nodejs.org/api/path.html
+- *5* pkg
+  ⚠️  no value of this variable analysed
+- *6* ???*7*(???*9*)
+  ⚠️  call of unknown function
+- *7* path*8*["basename"]
+  ⚠️  unsupported property on Node.js path module
+- *8* path: The Node.js path module: https://nodejs.org/api/path.html
+- *9* subpath
+  ⚠️  no value of this variable analysed
+
+e#4 = ???*0*
+- *0* e
+  ⚠️  pattern without value
+
+e#5 = ???*0*
+- *0* e
+  ⚠️  pattern without value
+
+esbuildCommandAndArgs = (...) => ((["node", [???*0*]] | [(???*3* | ???*4* | ???*14* | ???*15* | ???*19*), []]))
+- *0* ???*1*("__dirname", "..", "bin", "esbuild")
+  ⚠️  call of unknown function
+- *1* ???*2*["join"]
+  ⚠️  property on unknown
+- *2* FreeVar(path2)
+  ⚠️  unknown global
+- *3* FreeVar(ESBUILD_BINARY_PATH)
+  ⚠️  unknown global
+- *4* path.join*5*(???*6*, `pnpapi-${???*9*}-${???*10*}`)
+  ⚠️  only constants are supported
+- *5* path.join: The Node.js path.join method: https://nodejs.org/api/path.html#pathjoinpaths
+- *6* ???*7*(""esbuild" (resolved)")
+  ⚠️  call of unknown function
+- *7* path*8*["dirname"]
+  ⚠️  unsupported property on Node.js path module
+- *8* path: The Node.js path module: https://nodejs.org/api/path.html
+- *9* pkg
+  ⚠️  no value of this variable analysed
+- *10* ???*11*(???*13*)
+  ⚠️  call of unknown function
+- *11* path*12*["basename"]
+  ⚠️  unsupported property on Node.js path module
+- *12* path: The Node.js path module: https://nodejs.org/api/path.html
+- *13* subpath
+  ⚠️  no value of this variable analysed
+- *14* binPath
+  ⚠️  pattern without value
+- *15* require.resolve*16*(`${???*17*}/${???*18*}`)
+  ⚠️  resolve.resolve non constant
+- *16* require.resolve: The require.resolve method from CommonJS
+- *17* pkg
+  ⚠️  no value of this variable analysed
+- *18* subpath
+  ⚠️  no value of this variable analysed
+- *19* ???*20*(???*21*, ???*22*)
+  ⚠️  call of unknown function
+- *20* FreeVar(downloadedBinPath)
+  ⚠️  unknown global
+- *21* pkg
+  ⚠️  no value of this variable analysed
+- *22* subpath
+  ⚠️  no value of this variable analysed
+
+esbuildLibDir = ???*0*
+- *0* ???*1*(""esbuild" (resolved)")
+  ⚠️  call of unknown function
+- *1* path*2*["dirname"]
+  ⚠️  unsupported property on Node.js path module
+- *2* path: The Node.js path module: https://nodejs.org/api/path.html
+
+generateBinPath = (...) => ((???*0* | ???*1* | ???*11* | ???*12* | ???*16*))
+- *0* FreeVar(ESBUILD_BINARY_PATH)
+  ⚠️  unknown global
+- *1* path.join*2*(???*3*, `pnpapi-${???*6*}-${???*7*}`)
+  ⚠️  only constants are supported
+- *2* path.join: The Node.js path.join method: https://nodejs.org/api/path.html#pathjoinpaths
+- *3* ???*4*(""esbuild" (resolved)")
+  ⚠️  call of unknown function
+- *4* path*5*["dirname"]
+  ⚠️  unsupported property on Node.js path module
+- *5* path: The Node.js path module: https://nodejs.org/api/path.html
+- *6* pkg
+  ⚠️  no value of this variable analysed
+- *7* ???*8*(???*10*)
+  ⚠️  call of unknown function
+- *8* path*9*["basename"]
+  ⚠️  unsupported property on Node.js path module
+- *9* path: The Node.js path module: https://nodejs.org/api/path.html
+- *10* subpath
+  ⚠️  no value of this variable analysed
+- *11* binPath
+  ⚠️  pattern without value
+- *12* require.resolve*13*(`${???*14*}/${???*15*}`)
+  ⚠️  resolve.resolve non constant
+- *13* require.resolve: The require.resolve method from CommonJS
+- *14* pkg
+  ⚠️  no value of this variable analysed
+- *15* subpath
+  ⚠️  no value of this variable analysed
+- *16* ???*17*(???*18*, ???*19*)
+  ⚠️  call of unknown function
+- *17* FreeVar(downloadedBinPath)
+  ⚠️  unknown global
+- *18* pkg
+  ⚠️  no value of this variable analysed
+- *19* subpath
+  ⚠️  no value of this variable analysed
+
+isYarnPnP = (false | true)
+
+path = path*0*
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
+
+pkg = (???*0* | ???*1*)
+- *0* pkg
+  ⚠️  pattern without value
+- *1* ???*2*[`${???*3*} ${???*5*} ${???*8*}`]
+  ⚠️  property on unknown
+- *2* FreeVar(knownWindowsPackages)
+  ⚠️  unknown global
+- *3* ???*4*["platform"]
+  ⚠️  property on unknown
+- *4* FreeVar(process)
+  ⚠️  unknown global
+- *5* ???*6*()
+  ⚠️  call of unknown function
+- *6* ???*7*["arch"]
+  ⚠️  property on unknown
+- *7* FreeVar(os)
+  ⚠️  unknown global
+- *8* ???*9*()
+  ⚠️  call of unknown function
+- *9* ???*10*["endianness"]
+  ⚠️  property on unknown
+- *10* FreeVar(os)
+  ⚠️  unknown global
+
+pkgAndSubpathForCurrentPlatform = (...) => (???*0*)
+- *0* unsupported expression
+
+platformKey = `${???*0*} ${???*2*} ${???*5*}`
+- *0* ???*1*["platform"]
+  ⚠️  property on unknown
+- *1* FreeVar(process)
+  ⚠️  unknown global
+- *2* ???*3*()
+  ⚠️  call of unknown function
+- *3* ???*4*["arch"]
+  ⚠️  property on unknown
+- *4* FreeVar(os)
+  ⚠️  unknown global
+- *5* ???*6*()
+  ⚠️  call of unknown function
+- *6* ???*7*["endianness"]
+  ⚠️  property on unknown
+- *7* FreeVar(os)
+  ⚠️  unknown global
+
+subpath = (???*0* | "esbuild.exe" | "bin/esbuild")
+- *0* subpath
+  ⚠️  pattern without value
