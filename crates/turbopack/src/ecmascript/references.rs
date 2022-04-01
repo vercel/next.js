@@ -13,7 +13,7 @@ use crate::{
     resolve::{
         find_package_json,
         parse::RequestRef,
-        pattern::{Pattern, PatternRef},
+        pattern::{PatternRef},
         resolve, resolve_options, resolve_raw, FindPackageJsonResult, ResolveResult,
         ResolveResultRef,
     },
@@ -45,8 +45,7 @@ use super::{
     resolve::{apply_cjs_specific_options, cjs_resolve, esm_resolve},
     webpack::{
         parse::{is_webpack_runtime, WebpackRuntime, WebpackRuntimeRef},
-        PotentialWebpackRuntimeAssetReference, WebpackChunkAssetReference,
-        WebpackEntryAssetReference,
+        WebpackChunkAssetReference, WebpackEntryAssetReference, WebpackRuntimeAssetReference,
     },
 };
 
@@ -72,17 +71,63 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
             let buf = Buffer::new();
             let handler =
                 Handler::with_emitter_writer(Box::new(buf.clone()), Some(source_map.clone()));
-            let var_graph = HANDLER.set(&handler, || {
-                GLOBALS.set(globals, || {
-                    let var_graph = create_graph(&module, eval_context);
+            let (var_graph, webpack_runtime, webpack_entry, webpack_chunks) =
+                HANDLER.set(&handler, || {
+                    GLOBALS.set(globals, || {
+                        let var_graph = create_graph(&module, eval_context);
 
-                    // TODO migrate to effects
-                    let mut visitor = AssetReferencesVisitor::new(&source, &mut references);
-                    module.visit_with(&mut visitor);
+                        // TODO migrate to effects
+                        let mut visitor = AssetReferencesVisitor::new(&source, &mut references);
+                        module.visit_with(&mut visitor);
 
-                    var_graph
-                })
-            });
+                        (
+                            var_graph,
+                            visitor.webpack_runtime,
+                            visitor.webpack_entry,
+                            visitor.webpack_chunks,
+                        )
+                    })
+                });
+
+            let mut ignore_effect_span = None;
+            // Check if it was a webpack entry
+            if let Some((request, span)) = webpack_runtime {
+                let request = RequestRef::parse(Value::new(request.clone().into()));
+                let runtime = resolve_as_webpack_runtime(source.path().parent(), request.clone());
+                match &*runtime.get().await? {
+                    WebpackRuntime::Webpack5 { .. } => {
+                        ignore_effect_span = Some(span);
+                        references.push(
+                            WebpackRuntimeAssetReference {
+                                source: source.clone(),
+                                request: request,
+                                runtime: runtime.clone(),
+                            }
+                            .into(),
+                        );
+                        if webpack_entry {
+                            references.push(
+                                WebpackEntryAssetReference {
+                                    source: source.clone(),
+                                    runtime: runtime.clone(),
+                                }
+                                .into(),
+                            );
+                        }
+                        for chunk in webpack_chunks {
+                            references.push(
+                                WebpackChunkAssetReference {
+                                    chunk_id: chunk,
+                                    runtime: runtime.clone(),
+                                }
+                                .into(),
+                            );
+                        }
+                    }
+                    WebpackRuntime::None => {}
+                }
+            }
+
             fn handle_call_boxed<
                 'a,
                 TF: Future<Output = Result<JsValue>> + Send + 'a,
@@ -304,6 +349,11 @@ pub async fn module_references(source: AssetRef) -> Result<AssetReferencesSetRef
                         args,
                         span,
                     } => {
+                        if let Some(ignored) = &ignore_effect_span {
+                            if ignored == span {
+                                continue;
+                            }
+                        }
                         let func = link(&var_graph, func.clone(), &linker, &cache).await?;
                         let this = || link(&var_graph, this.clone(), &linker, &cache);
                         let args = || {
@@ -464,7 +514,9 @@ struct AssetReferencesVisitor<'a> {
     source: &'a AssetRef,
     old_analyser: StaticAnalyser,
     references: &'a mut Vec<AssetReferenceRef>,
-    webpack_runtime: Option<WebpackRuntimeRef>,
+    webpack_runtime: Option<(String, Span)>,
+    webpack_entry: bool,
+    webpack_chunks: Vec<Lit>,
 }
 impl<'a> AssetReferencesVisitor<'a> {
     fn new(source: &'a AssetRef, references: &'a mut Vec<AssetReferenceRef>) -> Self {
@@ -473,6 +525,8 @@ impl<'a> AssetReferencesVisitor<'a> {
             old_analyser: StaticAnalyser::default(),
             references,
             webpack_runtime: None,
+            webpack_entry: false,
+            webpack_chunks: Vec::new(),
         }
     }
 }
@@ -558,22 +612,10 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
                                     if let [ExprOrSpread { spread: None, expr }] = &call.args[..] {
                                         if let Some(lit) = expr.as_lit() {
                                             if let Lit::Str(str) = lit {
-                                                self.webpack_runtime =
-                                                    Some(resolve_as_webpack_runtime(
-                                                        self.source.path().parent(),
-                                                        RequestRef::parse(Value::new(
-                                                            str.value.to_string().into(),
-                                                        )),
-                                                    ));
-                                                self.references.push(
-                                                    PotentialWebpackRuntimeAssetReference {
-                                                        source: self.source.clone(),
-                                                        request: RequestRef::parse(Value::new(
-                                                            str.value.to_string().into(),
-                                                        )),
-                                                    }
-                                                    .into(),
-                                                );
+                                                self.webpack_runtime = Some((
+                                                    str.value.to_string(),
+                                                    call.span.clone(),
+                                                ));
                                                 return;
                                             }
                                         }
@@ -595,37 +637,21 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
                     [webpack_require, property]
                         if webpack_require == "__webpack_require__" && property == "C" =>
                     {
-                        if let Some(runtime) = self.webpack_runtime.as_ref() {
-                            self.references.push(
-                                WebpackEntryAssetReference {
-                                    source: self.source.clone(),
-                                    runtime: runtime.clone(),
-                                }
-                                .into(),
-                            );
-                        }
+                        self.webpack_entry = true;
                     }
                     [webpack_require, property]
                         if webpack_require == "__webpack_require__" && property == "X" =>
                     {
-                        if let Some(runtime) = self.webpack_runtime.as_ref() {
-                            if let [_, ExprOrSpread {
-                                spread: None,
-                                expr: chunk_ids,
-                            }, _] = &call.args[..]
-                            {
-                                if let Some(array) = chunk_ids.as_array() {
-                                    for elem in array.elems.iter() {
-                                        if let Some(ExprOrSpread { spread: None, expr }) = elem {
-                                            if let Some(lit) = expr.as_lit() {
-                                                self.references.push(
-                                                    WebpackChunkAssetReference {
-                                                        chunk_id: lit.clone(),
-                                                        runtime: runtime.clone(),
-                                                    }
-                                                    .into(),
-                                                );
-                                            }
+                        if let [_, ExprOrSpread {
+                            spread: None,
+                            expr: chunk_ids,
+                        }, _] = &call.args[..]
+                        {
+                            if let Some(array) = chunk_ids.as_array() {
+                                for elem in array.elems.iter() {
+                                    if let Some(ExprOrSpread { spread: None, expr }) = elem {
+                                        if let Some(lit) = expr.as_lit() {
+                                            self.webpack_chunks.push(lit.clone());
                                         }
                                     }
                                 }

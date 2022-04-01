@@ -10,11 +10,11 @@ use crate::{
 };
 
 use self::{
-    parse::{is_webpack_runtime, WebpackRuntime, WebpackRuntimeRef},
+    parse::{WebpackRuntime, WebpackRuntimeRef},
     references::module_references,
 };
 
-use super::resolve::{apply_cjs_specific_options, cjs_resolve};
+use super::resolve::apply_cjs_specific_options;
 
 pub mod parse;
 mod references;
@@ -103,13 +103,14 @@ impl AssetReference for WebpackEntryAssetReference {
 
 #[turbo_tasks::value(shared, AssetReference)]
 #[derive(PartialEq, Eq)]
-pub struct PotentialWebpackRuntimeAssetReference {
+pub struct WebpackRuntimeAssetReference {
     pub source: AssetRef,
     pub request: RequestRef,
+    pub runtime: WebpackRuntimeRef,
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for PotentialWebpackRuntimeAssetReference {
+impl AssetReference for WebpackRuntimeAssetReference {
     async fn resolve_reference(&self) -> Result<ResolveResultRef> {
         let context = self.source.path().parent();
 
@@ -120,17 +121,13 @@ impl AssetReference for PotentialWebpackRuntimeAssetReference {
         let resolved = resolve(context.clone(), self.request.clone(), options);
 
         if let ResolveResult::Single(source, refs) = &*resolved.await? {
-            let runtime = is_webpack_runtime(source.clone());
-
-            if let WebpackRuntime::Webpack5 { .. } = &*runtime.get().await? {
-                return Ok(ResolveResult::Single(
-                    ModuleAssetRef::new(source.clone(), runtime).into(),
-                    refs.clone(),
-                )
-                .into());
-            }
+            return Ok(ResolveResult::Single(
+                ModuleAssetRef::new(source.clone(), self.runtime.clone()).into(),
+                refs.clone(),
+            )
+            .into());
         }
 
-        Ok(cjs_resolve(self.request.clone(), context))
+        Ok(ResolveResult::Unresolveable(None).into())
     }
 }
