@@ -219,6 +219,13 @@ When `eager`, load the image immediately.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-loading)
 
+> **Attention**: The image is not guaranteed to always be lazy loaded when the
+> `loading` is set to `lazy`
+>
+> For example, once the image is visible in the viewport then navigate to a
+> different page, although the "new" image will receive a new `src` prop and it is
+> not visible in the viewport yet, it will still be loaded.
+
 ### blurDataURL
 
 A [Data URL](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs) to
