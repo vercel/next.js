@@ -155,7 +155,9 @@ class Container extends React.Component<{
     hash = hash && hash.substring(1)
     if (!hash) return
 
-    const el: HTMLElement | null = document.getElementById(hash)
+    const el: HTMLElement | null = document.getElementById(
+      decodeURIComponent(hash)
+    )
     if (!el) return
 
     // If we call scrollIntoView() in here without a setTimeout

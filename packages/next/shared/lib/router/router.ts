@@ -1674,7 +1674,7 @@ export default class Router implements BaseRouter {
     }
 
     // First we check if the element by id is found
-    const idEl = document.getElementById(hash)
+    const idEl = document.getElementById(decodeURIComponent(hash))
     if (idEl) {
       idEl.scrollIntoView()
       return
