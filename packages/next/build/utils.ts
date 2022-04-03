@@ -1,3 +1,5 @@
+import type { NextConfigComplete, PageRuntime } from '../server/config-shared'
+
 import '../server/node-polyfill-fetch'
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
@@ -37,7 +39,6 @@ import * as Log from './output/log'
 import { loadComponents } from '../server/load-components'
 import { trace } from '../trace'
 import { setHttpAgentOptions } from '../server/config'
-import { NextConfigComplete } from '../server/config-shared'
 import isError from '../lib/is-error'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
@@ -77,11 +78,11 @@ export interface PageInfo {
   totalSize: number
   static: boolean
   isSsg: boolean
-  isWebSsr: boolean
   ssgPageRoutes: string[] | null
   initialRevalidateSeconds: number | false
   pageDuration: number | undefined
   ssgPageDurations: number[] | undefined
+  runtime: PageRuntime
 }
 
 export async function printTreeView(
@@ -195,12 +196,12 @@ export async function printTreeView(
         ? ' '
         : item.endsWith('/_middleware')
         ? 'ƒ'
-        : pageInfo?.isWebSsr
-        ? 'ℇ'
         : pageInfo?.static
         ? '○'
         : pageInfo?.isSsg
         ? '●'
+        : pageInfo?.runtime === 'edge'
+        ? 'ℇ'
         : 'λ'
 
     usedSymbols.add(symbol)
@@ -858,7 +859,6 @@ export async function isPageStatic(
   isStatic?: boolean
   isAmpOnly?: boolean
   isHybridAmp?: boolean
-  hasFlightData?: boolean
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderRoutes?: string[]
@@ -881,7 +881,6 @@ export async function isPageStatic(
         throw new Error('INVALID_DEFAULT_EXPORT')
       }
 
-      const hasFlightData = !!(mod as any).__next_rsc__
       const hasGetInitialProps = !!(Comp as any).getInitialProps
       const hasStaticProps = !!mod.getStaticProps
       const hasStaticPaths = !!mod.getStaticPaths
@@ -969,11 +968,7 @@ export async function isPageStatic(
       const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
       const config: PageConfig = mod.pageConfig
       return {
-        isStatic:
-          !hasStaticProps &&
-          !hasGetInitialProps &&
-          !hasServerProps &&
-          !hasFlightData,
+        isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
         isHybridAmp: config.amp === 'hybrid',
         isAmpOnly: config.amp === true,
         prerenderRoutes,
@@ -981,7 +976,6 @@ export async function isPageStatic(
         encodedPrerenderRoutes,
         hasStaticProps,
         hasServerProps,
-        hasFlightData,
         isNextImageImported,
         traceIncludes: config.unstable_includeFiles || [],
         traceExcludes: config.unstable_excludeFiles || [],

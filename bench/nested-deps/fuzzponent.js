@@ -137,37 +137,37 @@ if (require.main === module) {
     .option('minLen', {
       demandOption: false,
       default: MIN_COMPONENT_NAME_LEN,
-      describe: 'the smallest acceptible component name length',
+      describe: 'the smallest acceptable component name length',
       type: 'number',
     })
     .option('maxLen', {
       demandOption: false,
       default: MAX_COMPONENT_NAME_LEN,
-      describe: 'the largest acceptible component name length',
+      describe: 'the largest acceptable component name length',
       type: 'number',
     })
     .option('minLen', {
       demandOption: false,
       default: MIN_COMPONENT_NAME_LEN,
-      describe: 'the smallest acceptible component name length',
+      describe: 'the smallest acceptable component name length',
       type: 'number',
     })
     .option('maxLen', {
       demandOption: false,
       default: MAX_COMPONENT_NAME_LEN,
-      describe: 'the largest acceptible component name length',
+      describe: 'the largest acceptable component name length',
       type: 'number',
     })
     .option('minChild', {
       demandOption: false,
       default: MIN_CHILDREN,
-      describe: 'the smallest number of acceptible component children',
+      describe: 'the smallest number of acceptable component children',
       type: 'number',
     })
     .option('maxChild', {
       demandOption: false,
       default: MAX_CHILDREN,
-      describe: 'the largest number of acceptible component children',
+      describe: 'the largest number of acceptable component children',
       type: 'number',
     })
     .option('extension', {

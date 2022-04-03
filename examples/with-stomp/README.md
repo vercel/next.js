@@ -14,6 +14,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-stomp with-stomp-app
 # or
 yarn create next-app --example with-stomp with-stomp-app
+# or
+pnpm create next-app -- --example with-stomp with-stomp-app
 ```
 
 You'll need to provide the STOMP url of your server before running the app. Open [`.env`](.env) and update the `NEXT_PUBLIC_STOMP_SERVER` environment variable.

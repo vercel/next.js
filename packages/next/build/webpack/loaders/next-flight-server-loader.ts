@@ -1,5 +1,6 @@
 import { parse } from '../../swc'
 import { getRawPageExtensions } from '../../utils'
+import { buildExports } from './utils'
 
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
 
@@ -24,7 +25,7 @@ const createServerComponentFilter = (pageExtensions: string[]) => {
   return (importSource: string) => regex.test(importSource)
 }
 
-async function parseImportsInfo({
+async function parseModuleInfo({
   resourcePath,
   source,
   isClientCompilation,
@@ -39,18 +40,27 @@ async function parseImportsInfo({
 }): Promise<{
   source: string
   imports: string
+  isEsm: boolean
+  __N_SSP: boolean
+  pageRuntime: 'edge' | 'nodejs' | null
 }> {
-  const ast = await parse(source, { filename: resourcePath, isModule: true })
-  const { body } = ast
-
+  const ast = await parse(source, {
+    filename: resourcePath,
+    isModule: 'unknown',
+  })
+  const { type, body } = ast
   let transformedSource = ''
   let lastIndex = 0
   let imports = ''
+  let __N_SSP = false
+  let pageRuntime = null
+
+  const isEsm = type === 'Module'
 
   for (let i = 0; i < body.length; i++) {
     const node = body[i]
     switch (node.type) {
-      case 'ImportDeclaration': {
+      case 'ImportDeclaration':
         const importSource = node.source.value
         if (!isClientCompilation) {
           // Server compilation for .server.js.
@@ -107,7 +117,32 @@ async function parseImportsInfo({
 
         lastIndex = node.source.span.end
         break
-      }
+      case 'ExportDeclaration':
+        if (isClientCompilation) {
+          // Keep `__N_SSG` and `__N_SSP` exports.
+          if (node.declaration?.type === 'VariableDeclaration') {
+            for (const declaration of node.declaration.declarations) {
+              if (declaration.type === 'VariableDeclarator') {
+                if (declaration.id?.type === 'Identifier') {
+                  const value = declaration.id.value
+                  if (value === '__N_SSP') {
+                    __N_SSP = true
+                  } else if (value === 'config') {
+                    const props = declaration.init.properties
+                    const runtimeKeyValue = props.find(
+                      (prop: any) => prop.key.value === 'runtime'
+                    )
+                    const runtime = runtimeKeyValue?.value?.value
+                    if (runtime === 'nodejs' || runtime === 'edge') {
+                      pageRuntime = runtime
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        break
       default:
         break
     }
@@ -117,7 +152,7 @@ async function parseImportsInfo({
     transformedSource += source.substring(lastIndex)
   }
 
-  return { source: transformedSource, imports }
+  return { source: transformedSource, imports, isEsm, __N_SSP, pageRuntime }
 }
 
 export default async function transformSource(
@@ -152,7 +187,13 @@ export default async function transformSource(
     }
   }
 
-  const { source: transformedSource, imports } = await parseImportsInfo({
+  const {
+    source: transformedSource,
+    imports,
+    isEsm,
+    __N_SSP,
+    pageRuntime,
+  } = await parseModuleInfo({
     resourcePath,
     source,
     isClientCompilation,
@@ -172,14 +213,31 @@ export default async function transformSource(
    *   export const __next_rsc__ = { __webpack_require__, _: () => { ... } }
    */
 
-  let rscExports = `export const __next_rsc__={
-    __webpack_require__,
-    _: () => {${imports}}
-  }`
-
-  if (isClientCompilation) {
-    rscExports += '\nexport default function RSC () {}'
+  const rscExports: any = {
+    __next_rsc__: `{
+      __webpack_require__,
+      _: () => {\n${imports}\n}
+    }`,
+    __next_rsc_server__: isServerComponent(resourcePath) ? 'true' : 'false',
   }
 
-  return transformedSource + '\n' + rscExports
+  if (isClientCompilation) {
+    rscExports.default = 'function RSC() {}'
+
+    if (pageRuntime === 'edge') {
+      // Currently for the Edge runtime, we treat all RSC pages as SSR pages.
+      rscExports.__N_SSP = 'true'
+    } else {
+      if (__N_SSP) {
+        rscExports.__N_SSP = 'true'
+      } else {
+        // Server component pages are always considered as SSG by default because
+        // the flight data is needed for client navigation.
+        rscExports.__N_SSG = 'true'
+      }
+    }
+  }
+
+  const output = transformedSource + '\n' + buildExports(rscExports, isEsm)
+  return output
 }
