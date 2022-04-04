@@ -28,9 +28,9 @@ export default async function middlewareSSRLoader(this: any) {
 
     import { getRender } from 'next/dist/build/webpack/loaders/next-middleware-ssr-loader/render'
 
-    import App from ${stringifiedAppPath}
     import Document from ${stringifiedDocumentPath}
 
+    const appMod = require(${stringifiedAppPath})
     const pageMod = require(${stringifiedPagePath})
     const errorMod = require(${stringifiedErrorPath})
     const error500Mod = ${stringified500Path} ? require(${stringified500Path}) : null
@@ -48,15 +48,14 @@ export default async function middlewareSSRLoader(this: any) {
     const render = getRender({
       dev: ${dev},
       page: ${JSON.stringify(page)},
+      appMod,
       pageMod,
       errorMod,
       error500Mod,
-      App,
       Document,
       buildManifest,
       reactLoadableManifest,
       serverComponentManifest: ${isServerComponent} ? rscManifest : null,
-      isServerComponent: ${isServerComponent},
       config: ${stringifiedConfig},
       buildId: ${JSON.stringify(buildId)},
     })

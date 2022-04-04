@@ -30,6 +30,7 @@ import loadCustomRoutes, {
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyAndLint } from '../lib/verifyAndLint'
+import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_ID_FILE,
@@ -72,10 +73,15 @@ import {
   eventTypeCheckCompleted,
   EVENT_BUILD_FEATURE_USAGE,
   EventBuildFeatureUsage,
+  eventPackageUsedInGetServerSideProps,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { CompilerResult, runCompiler } from './compiler'
-import { createEntrypoints, createPagesMapping } from './entries'
+import {
+  createEntrypoints,
+  createPagesMapping,
+  getPageRuntime,
+} from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
@@ -93,6 +99,7 @@ import {
   copyTracedFiles,
   isReservedPage,
   isCustomErrorPage,
+  isFlightPage,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -104,6 +111,7 @@ import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { recursiveCopy } from '../lib/recursive-copy'
+import { shouldUseReactRoot } from '../server/config'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -151,13 +159,12 @@ export default async function build(
     setGlobal('phase', PHASE_PRODUCTION_BUILD)
     setGlobal('distDir', distDir)
 
-    // Currently, when the runtime option is set (either `nodejs` or `edge`),
-    // we enable concurrent features (Fizz-related rendering architecture).
-    const runtime = config.experimental.runtime
-    const hasConcurrentFeatures = !!runtime
-
+    // We enable concurrent features (Fizz-related rendering architecture) when
+    // using React 18 or experimental.
+    const hasReactRoot = shouldUseReactRoot()
+    const hasConcurrentFeatures = hasReactRoot
     const hasServerComponents =
-      hasConcurrentFeatures && !!config.experimental.serverComponents
+      hasReactRoot && !!config.experimental.serverComponents
 
     const { target } = config
     const buildId: string = await nextBuildSpan
@@ -281,6 +288,7 @@ export default async function build(
       .traceAsyncFn(() => collectPages(pagesDir, config.pageExtensions))
     // needed for static exporting since we want to replace with HTML
     // files
+
     const allStaticPages = new Set<string>()
     let allPageInfos = new Map<string, PageInfo>()
 
@@ -296,20 +304,20 @@ export default async function build(
         createPagesMapping(pagePaths, config.pageExtensions, {
           isDev: false,
           hasServerComponents,
-          runtime,
         })
       )
 
-    const entrypoints = nextBuildSpan
+    const entrypoints = await nextBuildSpan
       .traceChild('create-entrypoints')
-      .traceFn(() =>
+      .traceAsyncFn(() =>
         createEntrypoints(
           mappedPages,
           target,
           buildId,
           previewProps,
           config,
-          loadedEnvFiles
+          loadedEnvFiles,
+          pagesDir
         )
       )
     const pageKeys = Object.keys(mappedPages)
@@ -441,12 +449,18 @@ export default async function build(
         namedRegex?: string
         routeKeys?: { [key: string]: string }
       }>
-      dynamicRoutes: Array<{
-        page: string
-        regex: string
-        namedRegex?: string
-        routeKeys?: { [key: string]: string }
-      }>
+      dynamicRoutes: Array<
+        | {
+            page: string
+            regex: string
+            namedRegex?: string
+            routeKeys?: { [key: string]: string }
+          }
+        | {
+            page: string
+            isMiddleware: true
+          }
+      >
       dataRoutes: Array<{
         page: string
         routeKeys?: { [key: string]: string }
@@ -465,14 +479,14 @@ export default async function build(
         localeDetection?: false
       }
     } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => ({
-      version: 3,
+      version: 4,
       pages404: true,
       basePath: config.basePath,
       redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
       headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
       dynamicRoutes: getSortedRoutes(pageKeys)
-        .filter((page) => isDynamicRoute(page) && !page.match(MIDDLEWARE_ROUTE))
-        .map(pageToRoute),
+        .filter((page) => isDynamicRoute(page))
+        .map(pageToRouteOrMiddleware),
       staticRoutes: getSortedRoutes(pageKeys)
         .filter(
           (page) =>
@@ -576,13 +590,15 @@ export default async function build(
           BUILD_MANIFEST,
           PRERENDER_MANIFEST,
           path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
-          hasServerComponents
-            ? path.join(
-                SERVER_DIRECTORY,
-                MIDDLEWARE_FLIGHT_MANIFEST +
-                  (runtime === 'edge' ? '.js' : '.json')
-              )
-            : null,
+          ...(hasServerComponents
+            ? [
+                path.join(SERVER_DIRECTORY, MIDDLEWARE_FLIGHT_MANIFEST + '.js'),
+                path.join(
+                  SERVER_DIRECTORY,
+                  MIDDLEWARE_FLIGHT_MANIFEST + '.json'
+                ),
+              ]
+            : []),
           REACT_LOADABLE_MANIFEST,
           config.optimizeFonts
             ? path.join(
@@ -617,6 +633,7 @@ export default async function build(
               entrypoints: entrypoints.client,
               rewrites,
               runWebpackSpan,
+              hasReactRoot,
             }),
             getBaseWebpackConfig(dir, {
               buildId,
@@ -628,8 +645,9 @@ export default async function build(
               entrypoints: entrypoints.server,
               rewrites,
               runWebpackSpan,
+              hasReactRoot,
             }),
-            runtime === 'edge'
+            hasReactRoot
               ? getBaseWebpackConfig(dir, {
                   buildId,
                   reactProductionProfiling,
@@ -641,6 +659,7 @@ export default async function build(
                   entrypoints: entrypoints.edgeServer,
                   rewrites,
                   runWebpackSpan,
+                  hasReactRoot,
                 })
               : null,
           ])
@@ -945,14 +964,31 @@ export default async function build(
 
             let isSsg = false
             let isStatic = false
+            let isServerComponent = false
             let isHybridAmp = false
             let ssgPageRoutes: string[] | null = null
             let isMiddlewareRoute = !!page.match(MIDDLEWARE_ROUTE)
 
+            const pagePath = pagePaths.find(
+              (p) =>
+                p.startsWith(actualPage + '.') ||
+                p.startsWith(actualPage + '/index.')
+            )
+            const pageRuntime = pagePath
+              ? await getPageRuntime(join(pagesDir, pagePath), config)
+              : undefined
+
+            if (hasServerComponents && pagePath) {
+              if (isFlightPage(config, pagePath)) {
+                isServerComponent = true
+              }
+            }
+
             if (
               !isMiddlewareRoute &&
               !isReservedPage(page) &&
-              !hasConcurrentFeatures
+              // We currently don't support static optimization in the Edge runtime.
+              pageRuntime !== 'edge'
             ) {
               try {
                 let isPageStaticSpan =
@@ -1017,11 +1053,16 @@ export default async function build(
                   serverPropsPages.add(page)
                 } else if (
                   workerResult.isStatic &&
-                  !workerResult.hasFlightData &&
+                  !isServerComponent &&
                   (await customAppGetInitialPropsPromise) === false
                 ) {
                   staticPages.add(page)
                   isStatic = true
+                } else if (isServerComponent) {
+                  // This is a static server component page that doesn't have
+                  // gSP or gSSP. We still treat it as a SSG page.
+                  ssgPages.add(page)
+                  isSsg = true
                 }
 
                 if (hasPages404 && page === '/404') {
@@ -1061,14 +1102,13 @@ export default async function build(
               totalSize: allSize,
               static: isStatic,
               isSsg,
-              isWebSsr:
-                hasConcurrentFeatures &&
-                !isMiddlewareRoute &&
-                !isReservedPage(page) &&
-                !isCustomErrorPage(page),
               isHybridAmp,
               ssgPageRoutes,
               initialRevalidateSeconds: false,
+              runtime:
+                !isReservedPage(page) && !isCustomErrorPage(page)
+                  ? pageRuntime
+                  : undefined,
               pageDuration: undefined,
               ssgPageDurations: undefined,
             })
@@ -1364,9 +1404,7 @@ export default async function build(
     // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
     // Only export the static 404 when there is no /_error present
     const useStatic404 =
-      !hasConcurrentFeatures &&
-      !customAppGetInitialProps &&
-      (!hasNonStaticErrorPage || hasPages404)
+      !customAppGetInitialProps && (!hasNonStaticErrorPage || hasPages404)
 
     if (invalidPages.size > 0) {
       const err = new Error(
@@ -1478,10 +1516,7 @@ export default async function build(
 
     const combinedPages = [...staticPages, ...ssgPages]
 
-    if (
-      !hasConcurrentFeatures &&
-      (combinedPages.length > 0 || useStatic404 || useDefaultStatic500)
-    ) {
+    if (combinedPages.length > 0 || useStatic404 || useDefaultStatic500) {
       const staticGenerationSpan = nextBuildSpan.traceChild('static-generation')
       await staticGenerationSpan.traceAsyncFn(async () => {
         detectConflictingPaths(
@@ -1654,7 +1689,7 @@ export default async function build(
                       // strip leading / and then recurse number of nested dirs
                       // to place from base folder
                       originPage
-                        .substr(1)
+                        .slice(1)
                         .split('/')
                         .map(() => '..')
                         .join('/')
@@ -1704,7 +1739,7 @@ export default async function build(
                 for (const locale of i18n.locales) {
                   const curPath = `/${locale}${page === '/' ? '' : page}`
                   const localeExt = page === '/' ? path.extname(file) : ''
-                  const relativeDestNoPages = relativeDest.substr(
+                  const relativeDestNoPages = relativeDest.slice(
                     'pages/'.length
                   )
 
@@ -1940,6 +1975,7 @@ export default async function build(
     if (telemetryPlugin) {
       const events = eventBuildFeatureUsage(telemetryPlugin)
       telemetry.record(events)
+      telemetry.record(eventPackageUsedInGetServerSideProps(telemetryPlugin))
     }
 
     if (ssgPages.size > 0) {
@@ -2108,6 +2144,17 @@ export default async function build(
       console.log('')
     }
 
+    if (Boolean(config.experimental.nextScriptWorkers)) {
+      await nextBuildSpan
+        .traceChild('verify-partytown-setup')
+        .traceAsyncFn(async () => {
+          await verifyPartytownSetup(
+            dir,
+            join(distDir, CLIENT_STATIC_FILES_PATH)
+          )
+        })
+    }
+
     await nextBuildSpan
       .traceChild('telemetry-flush')
       .traceAsyncFn(() => telemetry.flush())
@@ -2157,4 +2204,15 @@ function pageToRoute(page: string) {
     routeKeys: routeRegex.routeKeys,
     namedRegex: routeRegex.namedRegex,
   }
+}
+
+function pageToRouteOrMiddleware(page: string) {
+  if (page.match(MIDDLEWARE_ROUTE)) {
+    return {
+      page: page.replace(/\/_middleware$/, '') || '/',
+      isMiddleware: true as const,
+    }
+  }
+
+  return pageToRoute(page)
 }

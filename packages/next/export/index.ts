@@ -384,6 +384,7 @@ export default async function exportApp(
       runtime: nextConfig.experimental.runtime,
       crossOrigin: nextConfig.crossOrigin,
       optimizeCss: nextConfig.experimental.optimizeCss,
+      nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts,
       reactRoot: nextConfig.experimental.reactRoot || false,
     }
@@ -587,6 +588,7 @@ export default async function exportApp(
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
+            serverComponents: nextConfig.experimental.serverComponents,
           })
 
           for (const validation of result.ampValidations || []) {
@@ -645,7 +647,7 @@ export default async function exportApp(
             // strip leading / and then recurse number of nested dirs
             // to place from base folder
             pageName
-              .substr(1)
+              .slice(1)
               .split('/')
               .map(() => '..')
               .join('/')

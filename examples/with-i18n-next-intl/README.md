@@ -10,15 +10,9 @@ This example uses [next-intl](https://github.com/amannn/next-intl), a minimal, b
 - 💡 A hooks-only API ensures that you can use the same API for `children` as well as for attributes which expect strings.
 - 🚀 Integrates with both static as well as server side rendering.
 
-## Preview
-
-Preview the example live on [StackBlitz](http://stackblitz.com/):
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-i18n-next-intl)
-
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-i18n-next-intl)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-i18n-next-intl)
 
@@ -30,6 +24,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-i18n-next-intl
 # or
 yarn create next-app --example with-i18n-next-intl
+# or
+pnpm create next-app -- --example with-i18n-next-intl
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

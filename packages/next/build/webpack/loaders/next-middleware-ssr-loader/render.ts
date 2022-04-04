@@ -17,29 +17,27 @@ process.cwd = () => ''
 export function getRender({
   dev,
   page,
+  appMod,
   pageMod,
   errorMod,
   error500Mod,
   Document,
-  App,
   buildManifest,
   reactLoadableManifest,
   serverComponentManifest,
-  isServerComponent,
   config,
   buildId,
 }: {
   dev: boolean
   page: string
+  appMod: any
   pageMod: any
   errorMod: any
   error500Mod: any
   Document: DocumentType
-  App: AppType
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   serverComponentManifest: any | null
-  isServerComponent: boolean
   config: NextConfig
   buildId: string
 }) {
@@ -48,7 +46,8 @@ export function getRender({
     buildManifest,
     reactLoadableManifest,
     Document,
-    App,
+    App: appMod.default as AppType,
+    AppMod: appMod,
   }
 
   const server = new WebServer({
@@ -108,10 +107,6 @@ export function getRender({
   const requestHandler = server.getRequestHandler()
 
   return async function render(request: NextRequest) {
-    const { nextUrl: url } = request
-    const { searchParams } = url
-    const query = Object.fromEntries(searchParams)
-
     // Preflight request
     if (request.method === 'HEAD') {
       // Hint the client that the matched route is a SSR page.
@@ -121,21 +116,6 @@ export function getRender({
         },
       })
     }
-
-    const renderServerComponentData = isServerComponent
-      ? query.__flight__ !== undefined
-      : false
-
-    const serverComponentProps =
-      isServerComponent && query.__props__
-        ? JSON.parse(query.__props__)
-        : undefined
-
-    // Extend the render options.
-    server.updateRenderOpts({
-      renderServerComponentData,
-      serverComponentProps,
-    })
 
     const extendedReq = new WebNextRequest(request)
     const extendedRes = new WebNextResponse()

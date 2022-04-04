@@ -1,7 +1,7 @@
 # Streaming SSR (Alpha)
 
 React 18 will include architectural improvements to React server-side rendering (SSR) performance. This means you can use `Suspense` in your React components in streaming SSR mode and React will render them on the server and send them through HTTP streams.
-It's worth noting that another experimental feature, React Server Components, is based on streaming. You can read more about server components related streaming APIs in [`next/streaming`](docs/api-reference/next/streaming.md). However, this guide focuses on basic React 18 streaming.
+It's worth noting that another experimental feature, React Server Components, is based on streaming. You can read more about server components related streaming APIs in [`next/streaming`](/docs/api-reference/next/streaming.md). However, this guide focuses on basic React 18 streaming.
 
 ## Enable Streaming SSR
 
@@ -68,4 +68,6 @@ Currently, data fetching within `Suspense` boundaries on the server side is not 
 
 #### Styling
 
-The Next.js team is working on support for `styled-jsx` and CSS modules in streaming SSR. Stay tuned for updates.
+Inline styles, Global CSS, CSS modules and Next.js built-in `styled-jsx` are supported with streaming. The Next.js team is working on the guide of integrating other CSS-in-JS solutions in streaming SSR. Stay tuned for updates.
+
+> Note: The styling code should be only placed in client components, not server components, when using React Server Components

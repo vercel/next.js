@@ -1,4 +1,4 @@
-import dynamic from "next/dynamic";
+import dynamic from 'next/dynamic';
 const DynamicComponent = dynamic(null, {
     loadableGenerated: {
         modules: [
