@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import { findPort, killApp, renderViaHTTP } from 'next-test-utils'
+import { findPort, killApp, renderViaHTTP, waitFor } from 'next-test-utils'
 import { nextBuild, nextDev, nextStart } from './utils'
 
 const appDir = join(__dirname, '../switchable-runtime')
@@ -118,9 +118,10 @@ describe('Switchable runtime (prod)', () => {
 
     expect(renderedAt1).toBe(renderedAt2)
 
-    // Trigger a revalidation after 3s.
-    await new Promise((resolve) => setTimeout(resolve, 3000))
+    // Trigger a revalidation after 2s.
+    await new Promise((resolve) => setTimeout(resolve, 2000))
     await renderViaHTTP(context.appPort, '/node-rsc-isr')
+    await new Promise((resolve) => setTimeout(resolve, 2000))
 
     const html3 = await renderViaHTTP(context.appPort, '/node-rsc-isr')
     const renderedAt3 = +html3.match(/Time: (\d+)/)[1]

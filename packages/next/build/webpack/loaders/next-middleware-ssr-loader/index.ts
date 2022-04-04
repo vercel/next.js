@@ -27,8 +27,6 @@ export default async function middlewareSSRLoader(this: any) {
     ? stringifyRequest(this, absolute500Path)
     : null
 
-  console.log('stringifiedAppServerPath', stringifiedAppServerPath)
-
   const transformed = `
     import { adapter } from 'next/dist/server/web/adapter'
     import { RouterContext } from 'next/dist/shared/lib/router-context'
@@ -47,7 +45,7 @@ export default async function middlewareSSRLoader(this: any) {
       stringified500Path ? `require(${stringified500Path})` : 'null'
     }
 
-    
+
     const buildManifest = self.__BUILD_MANIFEST
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
     const rscManifest = self.__RSC_MANIFEST
@@ -57,7 +55,7 @@ export default async function middlewareSSRLoader(this: any) {
       page: ${JSON.stringify(page)},
       buildId: ${JSON.stringify(buildId)},
     }
-  
+
     const render = getRender({
       dev: ${dev},
       page: ${JSON.stringify(page)},
