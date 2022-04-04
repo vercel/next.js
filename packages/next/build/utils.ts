@@ -198,7 +198,7 @@ export async function printTreeView(
       (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
 
     const symbol =
-      item === '/_app'
+      item === '/_app' || item === '/_app.server'
         ? ' '
         : item.endsWith('/_middleware')
         ? 'ƒ'

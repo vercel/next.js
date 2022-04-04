@@ -152,7 +152,7 @@ describe('Switchable runtime (prod)', () => {
     )
     const expectedOutputLines = splitLines(`
   ┌   /_app
-  ├ λ /_app.server
+  ├   /_app.server
   ├ ○ /404
   ├ ℇ /edge
   ├ ℇ /edge-rsc

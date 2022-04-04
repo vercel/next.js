@@ -168,12 +168,6 @@ export default async function transformSource(
   const isServerComponent = createServerComponentFilter(pageExtensions)
   const isClientComponent = createClientComponentFilter(pageExtensions)
 
-  // We currently assume that all components are shared components (unsuffixed)
-  // from node_modules.
-  if (resourcePath.includes('/node_modules/')) {
-    return source
-  }
-
   if (!isClientCompilation) {
     // We only apply the loader to server components, or shared components that
     // are imported by a server component.
