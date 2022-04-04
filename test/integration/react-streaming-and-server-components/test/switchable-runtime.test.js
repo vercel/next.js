@@ -1,7 +1,13 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import { check, findPort, killApp, renderViaHTTP, waitFor } from 'next-test-utils'
+import {
+  check,
+  findPort,
+  killApp,
+  renderViaHTTP,
+  waitFor,
+} from 'next-test-utils'
 import { nextBuild, nextDev, nextStart } from './utils'
 
 const appDir = join(__dirname, '../switchable-runtime')
