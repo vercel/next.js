@@ -477,9 +477,6 @@ export default async function getBaseWebpackConfig(
   const serverComponentsRegex = new RegExp(
     `\\.server\\.(${rawPageExtensions.join('|')})$`
   )
-  const clientComponentsRegex = new RegExp(
-    `\\.client\\.(${rawPageExtensions.join('|')})$`
-  )
 
   const babelIncludeRegexes: RegExp[] = [
     /next[\\/]dist[\\/]shared[\\/]lib/,

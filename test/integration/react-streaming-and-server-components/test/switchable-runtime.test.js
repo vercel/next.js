@@ -119,9 +119,9 @@ describe('Switchable runtime (prod)', () => {
     expect(renderedAt1).toBe(renderedAt2)
 
     // Trigger a revalidation after 2s.
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    await waitFor(2000)
     await renderViaHTTP(context.appPort, '/node-rsc-isr')
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    await waitFor(2000)
 
     const html3 = await renderViaHTTP(context.appPort, '/node-rsc-isr')
     const renderedAt3 = +html3.match(/Time: (\d+)/)[1]
