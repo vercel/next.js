@@ -44,8 +44,7 @@ describe('Interpolate dynamic path with search param', () => {
 
   it('should work', async () => {
     browser = await webdriver(next.appPort, '/')
-    await browser.elementByCss('a').click()
-    const path = await browser.elementByCss('p').text()
-    expect(path).toBe('/days/foo?foo=bar')
+    const href = await browser.elementByCss('a').getAttribute('href')
+    expect(href).toBe('/days/foo?foo=bar')
   })
 })
