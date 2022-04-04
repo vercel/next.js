@@ -1,5 +1,7 @@
 import fs from 'fs'
 import path from 'path'
+// eslint-disable-next-line
+import next from 'next'
 import { useRouter } from 'next/router'
 
 export async function getServerSideProps({ res }) {

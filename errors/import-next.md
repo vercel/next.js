@@ -1,0 +1,17 @@
+# Invalid "next" Import
+
+#### Why This Error Occurred
+
+Somewhere in your application in imported `next` directly which is only meant to be used with legacy custom servers.
+
+You should not need to import `next` inside of pages or components.
+
+#### Possible Ways to Fix It
+
+Ensure any usage of `import next from "next"` is specific to custom server usage and isn't included in your pages or components.
+
+Also ensure any type imports are kept inside of TypeScript files.
+
+### Useful Links
+
+- [Custom Server Documentation](https://nextjs.org/docs/advanced-features/custom-server)
