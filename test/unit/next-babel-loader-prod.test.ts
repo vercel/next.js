@@ -390,7 +390,7 @@ describe('next-babel-loader', () => {
         }
       )
       expect(code).toMatchInlineSnapshot(
-        `"var _res$status, _res$nullVal, _res$nullVal2;const res = {  status: 0,  nullVal: null,  statusText: ''};const status = (_res$status = res.status) !== null && _res$status !== void 0 ? _res$status : 999;const nullVal = (_res$nullVal = res.nullVal) !== null && _res$nullVal !== void 0 ? _res$nullVal : 'another';const statusText = (_res$nullVal2 = res.nullVal) !== null && _res$nullVal2 !== void 0 ? _res$nullVal2 : 'not found';export default (() => 'hello');"`
+        `"const res = {  status: 0,  nullVal: null,  statusText: ''};const status = res.status ?? 999;const nullVal = res.nullVal ?? 'another';const statusText = res.nullVal ?? 'not found';export default (() => 'hello');"`
       )
     })
   })
