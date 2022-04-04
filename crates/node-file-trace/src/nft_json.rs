@@ -32,11 +32,15 @@ impl Asset for NftJsonAsset {
 
     async fn content(&self) -> Result<FileContentVc> {
         let context = self.entry.path().parent().await?;
+        let self_path = context.get_relative_path_to(&*self.entry.path().await?);
         let mut result = Vec::new();
         let set = all_assets(self.entry.clone());
         for asset in set.await?.assets.iter() {
             let path = asset.path().await?;
-            result.push(context.get_relative_path_to(&path));
+            let rel_path = context.get_relative_path_to(&path);
+            if rel_path != self_path {
+                result.push(rel_path);
+            }
         }
         result.sort();
         result.dedup();
