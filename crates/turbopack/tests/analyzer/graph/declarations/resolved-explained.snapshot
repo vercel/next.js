@@ -1,20 +1,20 @@
-*anonymous function 24* = (...) => (???*0*)
+*anonymous function 24* = (...) => ???*0*
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
-a = (...) => (???*0*)
+a = (...) => ???*0*
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
-aa = (...) => (???*0*)
+aa = (...) => ???*0*
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
-b = (...) => (???*0*)
+b = (...) => ???*0*
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
-bb = (...) => (???*0*)
+bb = (...) => ???*0*
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 

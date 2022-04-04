@@ -4,7 +4,26 @@ a#11 = arguments[0]
 
 a#12 = arguments[0]
 
-a#4 = (1732584193 | md5ff(a, b, c, d, x[i], 7, ???*0*) | md5ff(a, b, c, d, x[(i + 4)], 7, ???*1*) | md5ff(a, b, c, d, x[(i + 8)], 7, 1770035416) | md5ff(a, b, c, d, x[(i + 12)], 7, 1804603682) | md5gg(a, b, c, d, x[(i + 1)], 5, ???*2*) | md5gg(a, b, c, d, x[(i + 5)], 5, ???*3*) | md5gg(a, b, c, d, x[(i + 9)], 5, 568446438) | md5gg(a, b, c, d, x[(i + 13)], 5, ???*4*) | md5hh(a, b, c, d, x[(i + 5)], 4, ???*5*) | md5hh(a, b, c, d, x[(i + 1)], 4, ???*6*) | md5hh(a, b, c, d, x[(i + 13)], 4, 681279174) | md5hh(a, b, c, d, x[(i + 9)], 4, ???*7*) | md5ii(a, b, c, d, x[i], 6, ???*8*) | md5ii(a, b, c, d, x[(i + 12)], 6, 1700485571) | md5ii(a, b, c, d, x[(i + 8)], 6, 1873313359) | md5ii(a, b, c, d, x[(i + 4)], 6, ???*9*) | safeAdd(a, olda))
+a#4 = (
+  | 1732584193
+  | md5ff(a, b, c, d, x[i], 7, ???*0*)
+  | md5ff(a, b, c, d, x[(i + 4)], 7, ???*1*)
+  | md5ff(a, b, c, d, x[(i + 8)], 7, 1770035416)
+  | md5ff(a, b, c, d, x[(i + 12)], 7, 1804603682)
+  | md5gg(a, b, c, d, x[(i + 1)], 5, ???*2*)
+  | md5gg(a, b, c, d, x[(i + 5)], 5, ???*3*)
+  | md5gg(a, b, c, d, x[(i + 9)], 5, 568446438)
+  | md5gg(a, b, c, d, x[(i + 13)], 5, ???*4*)
+  | md5hh(a, b, c, d, x[(i + 5)], 4, ???*5*)
+  | md5hh(a, b, c, d, x[(i + 1)], 4, ???*6*)
+  | md5hh(a, b, c, d, x[(i + 13)], 4, 681279174)
+  | md5hh(a, b, c, d, x[(i + 9)], 4, ???*7*)
+  | md5ii(a, b, c, d, x[i], 6, ???*8*)
+  | md5ii(a, b, c, d, x[(i + 12)], 6, 1700485571)
+  | md5ii(a, b, c, d, x[(i + 8)], 6, 1873313359)
+  | md5ii(a, b, c, d, x[(i + 4)], 6, ???*9*)
+  | safeAdd(a, olda)
+)
 - *0* unsupported expression
 - *1* unsupported expression
 - *2* unsupported expression
@@ -26,7 +45,26 @@ b#11 = arguments[1]
 
 b#12 = arguments[1]
 
-b#4 = (???*0* | md5ff(b, c, d, a, x[(i + 3)], 22, ???*1*) | md5ff(b, c, d, a, x[(i + 7)], 22, ???*2*) | md5ff(b, c, d, a, x[(i + 11)], 22, ???*3*) | md5ff(b, c, d, a, x[(i + 15)], 22, 1236535329) | md5gg(b, c, d, a, x[i], 20, ???*4*) | md5gg(b, c, d, a, x[(i + 4)], 20, ???*5*) | md5gg(b, c, d, a, x[(i + 8)], 20, 1163531501) | md5gg(b, c, d, a, x[(i + 12)], 20, ???*6*) | md5hh(b, c, d, a, x[(i + 14)], 23, ???*7*) | md5hh(b, c, d, a, x[(i + 10)], 23, ???*8*) | md5hh(b, c, d, a, x[(i + 6)], 23, 76029189) | md5hh(b, c, d, a, x[(i + 2)], 23, ???*9*) | md5ii(b, c, d, a, x[(i + 5)], 21, ???*10*) | md5ii(b, c, d, a, x[(i + 1)], 21, ???*11*) | md5ii(b, c, d, a, x[(i + 13)], 21, 1309151649) | md5ii(b, c, d, a, x[(i + 9)], 21, ???*12*) | safeAdd(b, oldb))
+b#4 = (
+  | ???*0*
+  | md5ff(b, c, d, a, x[(i + 3)], 22, ???*1*)
+  | md5ff(b, c, d, a, x[(i + 7)], 22, ???*2*)
+  | md5ff(b, c, d, a, x[(i + 11)], 22, ???*3*)
+  | md5ff(b, c, d, a, x[(i + 15)], 22, 1236535329)
+  | md5gg(b, c, d, a, x[i], 20, ???*4*)
+  | md5gg(b, c, d, a, x[(i + 4)], 20, ???*5*)
+  | md5gg(b, c, d, a, x[(i + 8)], 20, 1163531501)
+  | md5gg(b, c, d, a, x[(i + 12)], 20, ???*6*)
+  | md5hh(b, c, d, a, x[(i + 14)], 23, ???*7*)
+  | md5hh(b, c, d, a, x[(i + 10)], 23, ???*8*)
+  | md5hh(b, c, d, a, x[(i + 6)], 23, 76029189)
+  | md5hh(b, c, d, a, x[(i + 2)], 23, ???*9*)
+  | md5ii(b, c, d, a, x[(i + 5)], 21, ???*10*)
+  | md5ii(b, c, d, a, x[(i + 1)], 21, ???*11*)
+  | md5ii(b, c, d, a, x[(i + 13)], 21, 1309151649)
+  | md5ii(b, c, d, a, x[(i + 9)], 21, ???*12*)
+  | safeAdd(b, oldb)
+)
 - *0* unsupported expression
 - *1* unsupported expression
 - *2* unsupported expression
@@ -45,13 +83,13 @@ b#8 = arguments[2]
 
 b#9 = arguments[1]
 
-bitRotateLeft = (...) => (???*0*)
+bitRotateLeft = (...) => ???*0*
 - *0* unsupported expression
 
 bytes = (arguments[0] | ???*0*)
 - *0* new expression are not supported
 
-bytesToWords = (...) => (output)
+bytesToWords = (...) => output
 
 c#10 = arguments[2]
 
@@ -59,7 +97,26 @@ c#11 = arguments[2]
 
 c#12 = arguments[2]
 
-c#4 = (???*0* | md5ff(c, d, a, b, x[(i + 2)], 17, 606105819) | md5ff(c, d, a, b, x[(i + 6)], 17, ???*1*) | md5ff(c, d, a, b, x[(i + 10)], 17, ???*2*) | md5ff(c, d, a, b, x[(i + 14)], 17, ???*3*) | md5gg(c, d, a, b, x[(i + 11)], 14, 643717713) | md5gg(c, d, a, b, x[(i + 15)], 14, ???*4*) | md5gg(c, d, a, b, x[(i + 3)], 14, ???*5*) | md5gg(c, d, a, b, x[(i + 7)], 14, 1735328473) | md5hh(c, d, a, b, x[(i + 11)], 16, 1839030562) | md5hh(c, d, a, b, x[(i + 7)], 16, ???*6*) | md5hh(c, d, a, b, x[(i + 3)], 16, ???*7*) | md5hh(c, d, a, b, x[(i + 15)], 16, 530742520) | md5ii(c, d, a, b, x[(i + 14)], 15, ???*8*) | md5ii(c, d, a, b, x[(i + 10)], 15, ???*9*) | md5ii(c, d, a, b, x[(i + 6)], 15, ???*10*) | md5ii(c, d, a, b, x[(i + 2)], 15, 718787259) | safeAdd(c, oldc))
+c#4 = (
+  | ???*0*
+  | md5ff(c, d, a, b, x[(i + 2)], 17, 606105819)
+  | md5ff(c, d, a, b, x[(i + 6)], 17, ???*1*)
+  | md5ff(c, d, a, b, x[(i + 10)], 17, ???*2*)
+  | md5ff(c, d, a, b, x[(i + 14)], 17, ???*3*)
+  | md5gg(c, d, a, b, x[(i + 11)], 14, 643717713)
+  | md5gg(c, d, a, b, x[(i + 15)], 14, ???*4*)
+  | md5gg(c, d, a, b, x[(i + 3)], 14, ???*5*)
+  | md5gg(c, d, a, b, x[(i + 7)], 14, 1735328473)
+  | md5hh(c, d, a, b, x[(i + 11)], 16, 1839030562)
+  | md5hh(c, d, a, b, x[(i + 7)], 16, ???*6*)
+  | md5hh(c, d, a, b, x[(i + 3)], 16, ???*7*)
+  | md5hh(c, d, a, b, x[(i + 15)], 16, 530742520)
+  | md5ii(c, d, a, b, x[(i + 14)], 15, ???*8*)
+  | md5ii(c, d, a, b, x[(i + 10)], 15, ???*9*)
+  | md5ii(c, d, a, b, x[(i + 6)], 15, ???*10*)
+  | md5ii(c, d, a, b, x[(i + 2)], 15, 718787259)
+  | safeAdd(c, oldc)
+)
 - *0* unsupported expression
 - *1* unsupported expression
 - *2* unsupported expression
@@ -82,7 +139,26 @@ d#11 = arguments[3]
 
 d#12 = arguments[3]
 
-d#4 = (271733878 | md5ff(d, a, b, c, x[(i + 1)], 12, ???*0*) | md5ff(d, a, b, c, x[(i + 5)], 12, 1200080426) | md5ff(d, a, b, c, x[(i + 9)], 12, ???*1*) | md5ff(d, a, b, c, x[(i + 13)], 12, ???*2*) | md5gg(d, a, b, c, x[(i + 6)], 9, ???*3*) | md5gg(d, a, b, c, x[(i + 10)], 9, 38016083) | md5gg(d, a, b, c, x[(i + 14)], 9, ???*4*) | md5gg(d, a, b, c, x[(i + 2)], 9, ???*5*) | md5hh(d, a, b, c, x[(i + 8)], 11, ???*6*) | md5hh(d, a, b, c, x[(i + 4)], 11, 1272893353) | md5hh(d, a, b, c, x[i], 11, ???*7*) | md5hh(d, a, b, c, x[(i + 12)], 11, ???*8*) | md5ii(d, a, b, c, x[(i + 7)], 10, 1126891415) | md5ii(d, a, b, c, x[(i + 3)], 10, ???*9*) | md5ii(d, a, b, c, x[(i + 15)], 10, ???*10*) | md5ii(d, a, b, c, x[(i + 11)], 10, ???*11*) | safeAdd(d, oldd))
+d#4 = (
+  | 271733878
+  | md5ff(d, a, b, c, x[(i + 1)], 12, ???*0*)
+  | md5ff(d, a, b, c, x[(i + 5)], 12, 1200080426)
+  | md5ff(d, a, b, c, x[(i + 9)], 12, ???*1*)
+  | md5ff(d, a, b, c, x[(i + 13)], 12, ???*2*)
+  | md5gg(d, a, b, c, x[(i + 6)], 9, ???*3*)
+  | md5gg(d, a, b, c, x[(i + 10)], 9, 38016083)
+  | md5gg(d, a, b, c, x[(i + 14)], 9, ???*4*)
+  | md5gg(d, a, b, c, x[(i + 2)], 9, ???*5*)
+  | md5hh(d, a, b, c, x[(i + 8)], 11, ???*6*)
+  | md5hh(d, a, b, c, x[(i + 4)], 11, 1272893353)
+  | md5hh(d, a, b, c, x[i], 11, ???*7*)
+  | md5hh(d, a, b, c, x[(i + 12)], 11, ???*8*)
+  | md5ii(d, a, b, c, x[(i + 7)], 10, 1126891415)
+  | md5ii(d, a, b, c, x[(i + 3)], 10, ???*9*)
+  | md5ii(d, a, b, c, x[(i + 15)], 10, ???*10*)
+  | md5ii(d, a, b, c, x[(i + 11)], 10, ???*11*)
+  | safeAdd(d, oldd)
+)
 - *0* unsupported expression
 - *1* unsupported expression
 - *2* unsupported expression
@@ -98,7 +174,13 @@ d#4 = (271733878 | md5ff(d, a, b, c, x[(i + 1)], 12, ???*0*) | md5ff(d, a, b, c,
 
 d#9 = arguments[3]
 
-hex = (???*0* | FreeVar(parseInt)((hexTab["charAt"](???*1*) + hexTab["charAt"](???*2*)), 16))
+hex = (
+  | ???*0*
+  | FreeVar(parseInt)(
+        (hexTab["charAt"](???*1*) + hexTab["charAt"](???*2*)),
+        16
+    )
+)
 - *0* hex
   ⚠️  pattern without value
 - *1* unsupported expression
@@ -136,23 +218,26 @@ lsw = (???*0* + ???*1*)
 - *0* unsupported expression
 - *1* unsupported expression
 
-md5 = (...) => (md5ToHexEncodedArray(wordsToMd5(bytesToWords(bytes), ???*0*)))
+md5 = (...) => md5ToHexEncodedArray(wordsToMd5(bytesToWords(bytes), ???*0*))
 - *0* unsupported expression
 
-md5ToHexEncodedArray = (...) => (output)
+md5ToHexEncodedArray = (...) => output
 
-md5cmn = (...) => (safeAdd(bitRotateLeft(safeAdd(safeAdd(a, q), safeAdd(x, t)), s), b))
+md5cmn = (...) => safeAdd(
+    bitRotateLeft(safeAdd(safeAdd(a, q), safeAdd(x, t)), s),
+    b
+)
 
-md5ff = (...) => (md5cmn(???*0*, a, b, x, s, t))
+md5ff = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
 
-md5gg = (...) => (md5cmn(???*0*, a, b, x, s, t))
+md5gg = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
 
-md5hh = (...) => (md5cmn(???*0*, a, b, x, s, t))
+md5hh = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
 
-md5ii = (...) => (md5cmn(???*0*, a, b, x, s, t))
+md5ii = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
 
 msg = FreeVar(unescape)(FreeVar(encodeURIComponent)(bytes))
@@ -196,7 +281,7 @@ s#8 = arguments[4]
 
 s#9 = arguments[5]
 
-safeAdd = (...) => (???*0*)
+safeAdd = (...) => ???*0*
 - *0* unsupported expression
 
 t#10 = arguments[6]
@@ -209,7 +294,7 @@ t#8 = arguments[5]
 
 t#9 = arguments[6]
 
-wordsToMd5 = (...) => ([a, b, c, d])
+wordsToMd5 = (...) => [a, b, c, d]
 
 x#10 = arguments[4]
 

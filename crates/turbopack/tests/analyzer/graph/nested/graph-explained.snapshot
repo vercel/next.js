@@ -1,10 +1,10 @@
-*anonymous function 65* = (...) => (FreeVar(undefined))
+*anonymous function 65* = (...) => FreeVar(undefined)
 
-*arrow function 117* = (...) => (FreeVar(undefined))
+*arrow function 117* = (...) => FreeVar(undefined)
 
-*arrow function 228* = (...) => (FreeVar(undefined))
+*arrow function 228* = (...) => FreeVar(undefined)
 
-a = (...) => (FreeVar(undefined))
+a = (...) => FreeVar(undefined)
 
 b = *anonymous function 65*
 
@@ -13,7 +13,7 @@ c = *arrow function 117*
 d = ???*0*
 - *0* unsupported expression
 
-e = (...) => (FreeVar(undefined))
+e = (...) => FreeVar(undefined)
 
 f = e
 

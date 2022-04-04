@@ -160,6 +160,46 @@ impl Display for JsValue {
     }
 }
 
+fn pretty_join(
+    items: &[String],
+    indent_depth: usize,
+    single_line_separator: &str,
+    multi_line_separator_end: &str,
+    multi_line_separator_start: &str,
+) -> String {
+    let multi_line = items
+        .iter()
+        .any(|item| item.len() > 50 || item.contains('\n'))
+        || items
+            .iter()
+            .map(|item| item.len() + single_line_separator.len())
+            .sum::<usize>()
+            > 100;
+    if !multi_line {
+        items.join(single_line_separator)
+    } else if multi_line_separator_start.is_empty() {
+        format!(
+            "\n{}{}\n{}",
+            "    ".repeat(indent_depth + 1),
+            items.join(&format!(
+                "{multi_line_separator_end}\n{}",
+                "    ".repeat(indent_depth + 1)
+            )),
+            "    ".repeat(indent_depth)
+        )
+    } else {
+        format!(
+            "\n{}{multi_line_separator_start}{}\n{}",
+            " ".repeat(indent_depth * 4 + 4 - multi_line_separator_start.len()),
+            items.join(&format!(
+                "{multi_line_separator_end}\n{}{multi_line_separator_start}",
+                " ".repeat(indent_depth * 4 + 4 - multi_line_separator_start.len())
+            )),
+            "    ".repeat(indent_depth)
+        )
+    }
+}
+
 impl JsValue {
     pub fn explain_args(
         args: &Vec<JsValue>,
@@ -167,11 +207,11 @@ impl JsValue {
         unknown_depth: usize,
     ) -> (String, String) {
         let mut hints = Vec::new();
-        let explainer = args
+        let args = args
             .iter()
-            .map(|arg| arg.explain_internal(&mut hints, depth, unknown_depth))
-            .collect::<Vec<_>>()
-            .join(", ");
+            .map(|arg| arg.explain_internal(&mut hints, 1, depth, unknown_depth))
+            .collect::<Vec<_>>();
+        let explainer = pretty_join(&args, 0, ", ", ",", "");
         (
             explainer,
             hints
@@ -183,7 +223,7 @@ impl JsValue {
 
     pub fn explain(&self, depth: usize, unknown_depth: usize) -> (String, String) {
         let mut hints = Vec::new();
-        let explainer = self.explain_internal(&mut hints, depth, unknown_depth);
+        let explainer = self.explain_internal(&mut hints, 0, depth, unknown_depth);
         (
             explainer,
             hints
@@ -196,6 +236,7 @@ impl JsValue {
     fn explain_internal_inner(
         &self,
         hints: &mut Vec<String>,
+        indent_depth: usize,
         depth: usize,
         unknown_depth: usize,
     ) -> String {
@@ -203,7 +244,7 @@ impl JsValue {
             return "...".to_string();
         }
         let i = hints.len();
-        let explainer = self.explain_internal(hints, depth - 1, unknown_depth);
+        let explainer = self.explain_internal(hints, indent_depth, depth - 1, unknown_depth);
         if explainer.len() < 100 {
             return explainer;
         }
@@ -212,7 +253,7 @@ impl JsValue {
         hints[i] = format!(
             "- *{}* {}",
             i,
-            self.explain_internal(hints, depth - 1, unknown_depth)
+            self.explain_internal(hints, 1, depth - 1, unknown_depth)
         );
         format!("*{}*", i)
     }
@@ -220,6 +261,7 @@ impl JsValue {
     fn explain_internal(
         &self,
         hints: &mut Vec<String>,
+        indent_depth: usize,
         depth: usize,
         unknown_depth: usize,
     ) -> String {
@@ -227,19 +269,40 @@ impl JsValue {
             JsValue::Constant(lit) => format!("{}", lit_to_string(lit)),
             JsValue::Array(elems) => format!(
                 "[{}]",
-                elems
-                    .iter()
-                    .map(|v| v.explain_internal_inner(hints, depth, unknown_depth))
-                    .collect::<Vec<_>>()
-                    .join(", ")
+                pretty_join(
+                    &elems
+                        .iter()
+                        .map(|v| v.explain_internal_inner(
+                            hints,
+                            indent_depth + 1,
+                            depth,
+                            unknown_depth
+                        ))
+                        .collect::<Vec<_>>(),
+                    indent_depth,
+                    ", ",
+                    ",",
+                    ""
+                )
             ),
             JsValue::Url(url) => format!("{}", url),
             JsValue::Alternatives(list) => format!(
                 "({})",
-                list.iter()
-                    .map(|v| v.explain_internal_inner(hints, depth, unknown_depth))
-                    .collect::<Vec<_>>()
-                    .join(" | ")
+                pretty_join(
+                    &list
+                        .iter()
+                        .map(|v| v.explain_internal_inner(
+                            hints,
+                            indent_depth + 1,
+                            depth,
+                            unknown_depth
+                        ))
+                        .collect::<Vec<_>>(),
+                    indent_depth,
+                    " | ",
+                    "",
+                    "| "
+                )
             ),
             JsValue::FreeVar(FreeVarKind::Other(name)) => format!("FreeVar({})", name),
             JsValue::FreeVar(name) => format!("FreeVar({:?})", name),
@@ -256,7 +319,7 @@ impl JsValue {
                         JsValue::Constant(Lit::Str(str)) => str.value.to_string(),
                         _ => format!(
                             "${{{}}}",
-                            v.explain_internal_inner(hints, depth, unknown_depth)
+                            v.explain_internal_inner(hints, indent_depth + 1, depth, unknown_depth)
                         ),
                     })
                     .collect::<Vec<_>>()
@@ -264,26 +327,48 @@ impl JsValue {
             ),
             JsValue::Add(list) => format!(
                 "({})",
-                list.iter()
-                    .map(|v| v.explain_internal_inner(hints, depth, unknown_depth))
-                    .collect::<Vec<_>>()
-                    .join(" + ")
+                pretty_join(
+                    &list
+                        .iter()
+                        .map(|v| v.explain_internal_inner(
+                            hints,
+                            indent_depth + 1,
+                            depth,
+                            unknown_depth
+                        ))
+                        .collect::<Vec<_>>(),
+                    indent_depth,
+                    " + ",
+                    "",
+                    "+ "
+                )
             ),
             JsValue::Call(callee, list) => {
                 format!(
                     "{}({})",
-                    callee.explain_internal_inner(hints, depth, unknown_depth),
-                    list.iter()
-                        .map(|v| v.explain_internal_inner(hints, depth, unknown_depth))
-                        .collect::<Vec<_>>()
-                        .join(", ")
+                    callee.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
+                    pretty_join(
+                        &list
+                            .iter()
+                            .map(|v| v.explain_internal_inner(
+                                hints,
+                                indent_depth + 1,
+                                depth,
+                                unknown_depth
+                            ))
+                            .collect::<Vec<_>>(),
+                        indent_depth,
+                        ", ",
+                        ",",
+                        ""
+                    )
                 )
             }
             JsValue::Member(obj, prop) => {
                 format!(
                     "{}[{}]",
-                    obj.explain_internal_inner(hints, depth, unknown_depth),
-                    prop.explain_internal_inner(hints, depth, unknown_depth)
+                    obj.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
+                    prop.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
                 )
             }
             JsValue::Module(name) => {
@@ -298,7 +383,7 @@ impl JsValue {
                     hints[i] = format!(
                         "- *{}* {}\n  ⚠️  {}",
                         i,
-                        inner.explain_internal(hints, depth, unknown_depth - 1),
+                        inner.explain_internal(hints, 1, depth, unknown_depth - 1),
                         explainer,
                     );
                     format!("???*{}*", i)
@@ -372,11 +457,16 @@ impl JsValue {
             JsValue::Function(return_value) => {
                 if depth > 0 {
                     format!(
-                        "(...) => ({})",
-                        return_value.explain_internal(hints, depth - 1, unknown_depth)
+                        "(...) => {}",
+                        return_value.explain_internal(
+                            hints,
+                            indent_depth,
+                            depth - 1,
+                            unknown_depth
+                        )
                     )
                 } else {
-                    format!("(...) => (...)")
+                    format!("(...) => ...")
                 }
             }
         }

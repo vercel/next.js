@@ -24,13 +24,13 @@ b#8 = arguments[2]
 
 b#9 = arguments[1]
 
-bitRotateLeft = (...) => (???*0*)
+bitRotateLeft = (...) => ???*0*
 - *0* unsupported expression
 
 bytes = (arguments[0] | ???*0*)
 - *0* new expression are not supported
 
-bytesToWords = (...) => ([])
+bytesToWords = (...) => []
 
 c#10 = arguments[2]
 
@@ -106,23 +106,23 @@ lsw = (???*0* + ???*1*)
 - *0* unsupported expression
 - *1* unsupported expression
 
-md5 = (...) => ([])
+md5 = (...) => []
 
-md5ToHexEncodedArray = (...) => ([])
+md5ToHexEncodedArray = (...) => []
 
-md5cmn = (...) => (???*0*)
+md5cmn = (...) => ???*0*
 - *0* unsupported expression
 
-md5ff = (...) => (???*0*)
+md5ff = (...) => ???*0*
 - *0* unsupported expression
 
-md5gg = (...) => (???*0*)
+md5gg = (...) => ???*0*
 - *0* unsupported expression
 
-md5hh = (...) => (???*0*)
+md5hh = (...) => ???*0*
 - *0* unsupported expression
 
-md5ii = (...) => (???*0*)
+md5ii = (...) => ???*0*
 - *0* unsupported expression
 
 msg = ???*0*
@@ -179,7 +179,7 @@ s#8 = arguments[4]
 
 s#9 = arguments[5]
 
-safeAdd = (...) => (???*0*)
+safeAdd = (...) => ???*0*
 - *0* unsupported expression
 
 t#10 = arguments[6]
@@ -192,7 +192,7 @@ t#8 = arguments[5]
 
 t#9 = arguments[6]
 
-wordsToMd5 = (...) => ([(1732584193 | ???*0*), ???*1*, ???*2*, (271733878 | ???*3*)])
+wordsToMd5 = (...) => [(1732584193 | ???*0*), ???*1*, ???*2*, (271733878 | ???*3*)]
 - *0* unsupported expression
 - *1* unsupported expression
 - *2* unsupported expression

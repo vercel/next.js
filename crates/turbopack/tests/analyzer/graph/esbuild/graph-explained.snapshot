@@ -1,6 +1,16 @@
-*arrow function 1813* = (...) => ((["node", [path2["join"](FreeVar(Dirname), "..", "bin", "esbuild")]] | [generateBinPath(), []]))
+*arrow function 1813* = (...) => (*0* | [generateBinPath(), []])
+- *0* [
+        "node",
+        [
+            path2["join"](FreeVar(Dirname), "..", "bin", "esbuild")
+        ]
+    ]
 
-binPath = (???*0* | FreeVar(Require)["resolve"](`${pkg}/${subpath}`) | FreeVar(downloadedBinPath)(pkg, subpath))
+binPath = (
+  | ???*0*
+  | FreeVar(Require)["resolve"](`${pkg}/${subpath}`)
+  | FreeVar(downloadedBinPath)(pkg, subpath)
+)
 - *0* binPath
   ⚠️  pattern without value
 
@@ -18,7 +28,7 @@ esbuildCommandAndArgs = *arrow function 1813*
 
 esbuildLibDir = path["dirname"](FreeVar(Require)["resolve"]("esbuild"))
 
-generateBinPath = (...) => ((FreeVar(ESBUILD_BINARY_PATH) | binTargetPath | binPath))
+generateBinPath = (...) => (FreeVar(ESBUILD_BINARY_PATH) | binTargetPath | binPath)
 
 isYarnPnP = (false | true)
 
@@ -30,7 +40,7 @@ pkg = (???*0* | FreeVar(knownWindowsPackages)[platformKey] | FreeVar(knownUnixli
 - *0* pkg
   ⚠️  pattern without value
 
-pkgAndSubpathForCurrentPlatform = (...) => (???*0*)
+pkgAndSubpathForCurrentPlatform = (...) => ???*0*
 - *0* unsupported expression
 
 platformKey = `${FreeVar(process)["platform"]} ${FreeVar(os)["arch"]()} ${FreeVar(os)["endianness"]()}`
