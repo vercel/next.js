@@ -1170,6 +1170,7 @@ export default async function getBaseWebpackConfig(
         'next-image-loader',
         'next-style-loader',
         'next-flight-client-loader',
+        'next-flight-client-entrypoint-loader',
         'next-flight-server-loader',
         'noop-loader',
         'next-middleware-loader',

@@ -16,7 +16,12 @@ import { warn } from './output/log'
 import { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import { parse } from '../build/swc'
-import { isCustomErrorPage, isFlightPage, isReservedPage } from './utils'
+import {
+  isCustomErrorPage,
+  isServerComponentPage,
+  isClientComponentPage,
+  isReservedPage,
+} from './utils'
 import { ssrEntries } from './webpack/plugins/middleware-plugin'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -258,7 +263,8 @@ export async function createEntrypoints(
 
       const isReserved = isReservedPage(page)
       const isCustomError = isCustomErrorPage(page)
-      const isFlight = isFlightPage(config, absolutePagePath)
+      const isServerComponent = isServerComponentPage(config, absolutePagePath)
+      const isClientComponent = isClientComponentPage(config, absolutePagePath)
       const isEdgeRuntime =
         (await getPageRuntime(
           join(dir, absolutePagePath.slice(PAGES_DIR_ALIAS.length + 1)),
@@ -278,7 +284,9 @@ export async function createEntrypoints(
       }
 
       if (isEdgeRuntime && !isReserved && !isCustomError && !isApiRoute) {
-        ssrEntries.set(clientBundlePath, { requireFlightManifest: isFlight })
+        ssrEntries.set(clientBundlePath, {
+          requireFlightManifest: isServerComponent,
+        })
         edgeServer[serverBundlePath] = finalizeEntrypoint({
           name: '[name].js',
           value: `next-middleware-ssr-loader?${stringify({
@@ -291,7 +299,7 @@ export async function createEntrypoints(
             absoluteAppPath: pages['/_app'],
             absoluteDocumentPath: pages['/_document'],
             absoluteErrorPath: pages['/_error'],
-            isServerComponent: isFlight,
+            isServerComponent,
           } as any)}!`,
           isServer: false,
           isEdgeServer: true,
@@ -299,14 +307,20 @@ export async function createEntrypoints(
       }
 
       if (!isEdgeRuntime || isReserved || isCustomError) {
-        server[serverBundlePath] = [absolutePagePath]
+        server[serverBundlePath] = isClientComponent
+          ? [
+              `next-flight-client-entrypoint-loader?${stringify({
+                absolutePagePath,
+              })}!`,
+            ]
+          : [absolutePagePath]
       }
 
       if (page === '/_document') {
         return
       }
 
-      if (!isApiRoute && !isRoot) {
+      if (!isApiRoute) {
         const pageLoaderOpts: ClientPagesLoaderOptions = {
           page,
           absolutePagePath,

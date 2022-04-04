@@ -1106,7 +1106,23 @@ export function getRawPageExtensions(pageExtensions: string[]): string[] {
   )
 }
 
-export function isFlightPage(
+export function isClientComponentPage(
+  nextConfig: NextConfigComplete,
+  filePath: string
+): boolean {
+  if (!nextConfig.experimental.serverComponents) {
+    return false
+  }
+
+  const rawPageExtensions = getRawPageExtensions(
+    nextConfig.pageExtensions || []
+  )
+  return rawPageExtensions.some((ext) => {
+    return filePath.endsWith(`.client.${ext}`)
+  })
+}
+
+export function isServerComponentPage(
   nextConfig: NextConfigComplete,
   filePath: string
 ): boolean {
