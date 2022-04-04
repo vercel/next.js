@@ -357,7 +357,10 @@ export function resolveHref(
       finalUrl.searchParams &&
       resolveAs
     ) {
-      const query = searchParamsToUrlQuery(finalUrl.searchParams)
+      let query = searchParamsToUrlQuery(finalUrl.searchParams)
+      if (typeof href !== 'string') {
+        query = { ...query, ...(href.query as ParsedUrlQuery) }
+      }
 
       const { result, params } = interpolateAs(
         finalUrl.pathname,
