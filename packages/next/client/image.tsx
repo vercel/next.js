@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useContext, useMemo } from 'react'
+import React, { useRef, useEffect, useContext, useMemo, useState } from 'react'
 import Head from '../shared/lib/head'
 import {
   ImageConfigComplete,
@@ -274,7 +274,11 @@ function handleLoading(
   src: string,
   layout: LayoutValue,
   placeholder: PlaceholderValue,
-  onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
+  onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>,
+  onErrorRef: React.MutableRefObject<
+    React.ReactEventHandler<HTMLImageElement> | undefined
+  >,
+  setBlurComplete: (b: boolean) => void
 ) {
   const handleLoad = () => {
     const img = imgRef.current
@@ -289,10 +293,7 @@ function handleLoading(
         }
         loadedImageURLs.add(src)
         if (placeholder === 'blur') {
-          img.style.filter = ''
-          img.style.backgroundSize = ''
-          img.style.backgroundImage = ''
-          img.style.backgroundPosition = ''
+          setBlurComplete(true)
         }
         if (onLoadingCompleteRef.current) {
           const { naturalWidth, naturalHeight } = img
@@ -325,14 +326,17 @@ function handleLoading(
     }
   }
   if (imgRef.current) {
-    if (imgRef.current.complete) {
+    imgRef.current.onerror = (event) => {
       // If the real image fails to load, this will still remove the placeholder.
-      // This is the desired behavior for now, and will be revisited when error
-      // handling is worked on for the image component itself.
-      handleLoad()
-    } else {
-      imgRef.current.onload = handleLoad
+      if (placeholder === 'blur') {
+        setBlurComplete(true)
+      }
+      if (onErrorRef.current) {
+        // The types between Event and React.SyntheticEvent don't match perfectly
+        onErrorRef.current(event as any)
+      }
     }
+    imgRef.current.onload = handleLoad
   }
 }
 
@@ -352,6 +356,7 @@ export default function Image({
   objectFit,
   objectPosition,
   onLoadingComplete,
+  onError,
   loader = defaultImageLoader,
   placeholder = 'empty',
   blurDataURL,
@@ -417,6 +422,7 @@ export default function Image({
     isLazy = false
   }
 
+  const [blurComplete, setBlurComplete] = useState(false)
   const [setIntersection, isIntersected, resetIntersected] =
     useIntersection<HTMLImageElement>({
       rootRef: lazyRoot,
@@ -641,7 +647,7 @@ export default function Image({
       : layoutStyle
   )
   const blurStyle =
-    placeholder === 'blur'
+    placeholder === 'blur' && !blurComplete
       ? {
           filter: 'blur(20px)',
           backgroundSize: objectFit || 'cover',
@@ -742,12 +748,14 @@ export default function Image({
   const useLayoutEffect =
     typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
   const onLoadingCompleteRef = useRef(onLoadingComplete)
+  const onErrorRef = useRef(onError)
 
   const previousImageSrc = useRef<string | StaticImport>(src)
   const imgRef = useRef<HTMLImageElement>(null)
   useEffect(() => {
     onLoadingCompleteRef.current = onLoadingComplete
-  }, [onLoadingComplete])
+    onErrorRef.current = onError
+  }, [onLoadingComplete, onError])
 
   useLayoutEffect(() => {
     if (previousImageSrc.current !== src) {
@@ -759,8 +767,16 @@ export default function Image({
   }, [setIntersection, resetIntersected, src])
 
   useEffect(() => {
-    handleLoading(imgRef, srcString, layout, placeholder, onLoadingCompleteRef)
-  }, [srcString, layout, placeholder, isVisible])
+    handleLoading(
+      imgRef,
+      srcString,
+      layout,
+      placeholder,
+      onLoadingCompleteRef,
+      onErrorRef,
+      setBlurComplete
+    )
+  }, [srcString, layout, placeholder, isVisible, setBlurComplete])
   const imgElementArgs = {
     isLazy,
     imgAttributes,
