@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-Somewhere in your application in imported `next` directly which is only meant to be used with legacy custom servers.
+Somewhere in your application, you imported `next` directly which is only meant to be used with legacy custom servers.
 
 You should not need to import `next` inside of pages or components.
 
