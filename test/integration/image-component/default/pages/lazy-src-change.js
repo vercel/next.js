@@ -8,10 +8,7 @@ const Page = () => {
       <p>Home Page</p>
       <div id="spacer" style={{ height: '150vh' }} />
       <Image id="basic-image" src={src} width="400" height="400"></Image>
-      <button
-        id="button-change-image-src"
-        onClick={() => setSrc('/test.jpg?new')}
-      >
+      <button id="button-change-image-src" onClick={() => setSrc('/test.png')}>
         Change Image
       </button>
     </div>

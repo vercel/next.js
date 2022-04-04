@@ -1209,6 +1209,11 @@ function runTests(mode) {
         return 'result-correct'
       }, /result-correct/)
 
+      await check(
+        () => browser.eval(`document.getElementById("basic-image").currentSrc`),
+        /test\.jpg/
+      )
+
       // Make image out of viewport again
       await browser.eval(
         'document.getElementById("spacer").style.display = "block"'
@@ -1247,6 +1252,11 @@ function runTests(mode) {
 
         return 'result-correct'
       }, /result-correct/)
+
+      await check(
+        () => browser.eval(`document.getElementById("basic-image").currentSrc`),
+        /test\.png/
+      )
     } finally {
       if (browser) {
         await browser.close()
