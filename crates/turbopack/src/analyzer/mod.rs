@@ -1026,6 +1026,51 @@ fn is_unresolved(i: &Ident, bindings: &AHashSet<Id>, top_level_mark: Mark) -> bo
     !bindings.contains(&i.to_id())
 }
 
+#[doc(hidden)]
+pub mod test_utils {
+    use std::sync::Arc;
+
+    use super::{
+        well_known::replace_well_known, FreeVarKind, JsValue, WellKnownFunctionKind,
+        WellKnownObjectKind,
+    };
+    use crate::{analyzer::builtin::replace_builtin, ecmascript::utils::lit_to_string};
+    use anyhow::Result;
+
+    pub async fn visitor(v: JsValue) -> Result<(JsValue, bool)> {
+        Ok((
+            match v {
+                JsValue::Call(
+                    box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
+                    ref args,
+                ) => match &args[0] {
+                    JsValue::Constant(lit) => {
+                        JsValue::Constant((lit_to_string(&lit) + " (resolved)").into())
+                    }
+                    _ => JsValue::Unknown(Some(Arc::new(v)), "resolve.resolve non constant"),
+                },
+                JsValue::FreeVar(FreeVarKind::Require) => {
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
+                }
+                JsValue::FreeVar(FreeVarKind::Dirname) => JsValue::Constant("__dirname".into()),
+                JsValue::FreeVar(kind) => {
+                    JsValue::Unknown(Some(Arc::new(JsValue::FreeVar(kind))), "unknown global")
+                }
+                JsValue::Module(ref name) => match &**name {
+                    "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
+                    _ => return Ok((v, false)),
+                },
+                _ => {
+                    let (v, m1) = replace_well_known(v);
+                    let (v, m2) = replace_builtin(v);
+                    return Ok((v, m1 || m2));
+                }
+            },
+            true,
+        ))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -1034,20 +1079,16 @@ mod tests {
         time::Instant,
     };
 
-    use anyhow::Result;
     use async_std::task::block_on;
     use swc_common::Mark;
     use swc_ecma_transforms_base::resolver::resolver_with_mark;
     use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_module, visit::VisitMutWith};
     use testing::NormalizedOutput;
 
-    use crate::{analyzer::builtin::replace_builtin, ecmascript::utils::lit_to_string};
-
     use super::{
         graph::{create_graph, EvalContext},
         linker::{link, LinkCache},
-        well_known::replace_well_known,
-        FreeVarKind, JsValue, WellKnownFunctionKind, WellKnownObjectKind,
+        JsValue,
     };
 
     #[testing::fixture("tests/analyzer/graph/**/input.js")]
@@ -1116,47 +1157,6 @@ mod tests {
             {
                 // Dump snapshot of resolved
 
-                async fn visitor(v: JsValue) -> Result<(JsValue, bool)> {
-                    Ok((
-                        match v {
-                            JsValue::Call(
-                                box JsValue::WellKnownFunction(
-                                    WellKnownFunctionKind::RequireResolve,
-                                ),
-                                ref args,
-                            ) => match &args[0] {
-                                JsValue::Constant(lit) => {
-                                    JsValue::Constant((lit_to_string(&lit) + " (resolved)").into())
-                                }
-                                _ => JsValue::Unknown(
-                                    Some(Arc::new(v)),
-                                    "resolve.resolve non constant",
-                                ),
-                            },
-                            JsValue::FreeVar(FreeVarKind::Require) => {
-                                JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
-                            }
-                            JsValue::FreeVar(FreeVarKind::Dirname) => {
-                                JsValue::Constant("__dirname".into())
-                            }
-                            JsValue::FreeVar(kind) => JsValue::Unknown(
-                                Some(Arc::new(JsValue::FreeVar(kind))),
-                                "unknown global",
-                            ),
-                            JsValue::Module(ref name) => match &**name {
-                                "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
-                                _ => return Ok((v, false)),
-                            },
-                            _ => {
-                                let (v, m1) = replace_well_known(v);
-                                let (v, m2) = replace_builtin(v);
-                                return Ok((v, m1 || m2));
-                            }
-                        },
-                        true,
-                    ))
-                }
-
                 let start = Instant::now();
                 let cache = Mutex::new(LinkCache::new());
                 let resolved = named_values
@@ -1167,7 +1167,7 @@ mod tests {
                         let mut res = block_on(link(
                             &var_graph,
                             val,
-                            &(|val| Box::pin(visitor(val))),
+                            &(|val| Box::pin(super::test_utils::visitor(val))),
                             &cache,
                         ))
                         .unwrap();
