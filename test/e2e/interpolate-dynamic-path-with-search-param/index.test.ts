@@ -1,5 +1,4 @@
 import { createNext } from 'e2e-utils'
-import { waitFor } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { BrowserInterface } from 'test/lib/browsers/base'
 import { NextInstance } from 'test/lib/next-modes/base'
