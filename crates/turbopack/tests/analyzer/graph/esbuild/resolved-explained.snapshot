@@ -1,4 +1,7 @@
-*arrow function 1813* = (...) => ((["node", ["bin/esbuild"]] | [(???*0* | ???*1* | ???*11* | ???*12* | ???*16*), []]))
+*arrow function 1813* = (...) => (
+  | ["node", ["bin/esbuild"]]
+  | [(???*0* | ???*1* | ???*11* | ???*12* | ???*16*), []]
+)
 - *0* FreeVar(ESBUILD_BINARY_PATH)
   ⚠️  unknown global
 - *1* path.join*2*(???*3*, `pnpapi-${???*6*}-${???*7*}`)
@@ -82,7 +85,10 @@ e#5 = ???*0*
 - *0* e
   ⚠️  pattern without value
 
-esbuildCommandAndArgs = (...) => ((["node", ["bin/esbuild"]] | [(???*0* | ???*1* | ???*11* | ???*12* | ???*16*), []]))
+esbuildCommandAndArgs = (...) => (
+  | ["node", ["bin/esbuild"]]
+  | [(???*0* | ???*1* | ???*11* | ???*12* | ???*16*), []]
+)
 - *0* FreeVar(ESBUILD_BINARY_PATH)
   ⚠️  unknown global
 - *1* path.join*2*(???*3*, `pnpapi-${???*6*}-${???*7*}`)
@@ -127,7 +133,7 @@ esbuildLibDir = ???*0*
   ⚠️  unsupported property on Node.js path module
 - *2* path: The Node.js path module: https://nodejs.org/api/path.html
 
-generateBinPath = (...) => ((???*0* | ???*1* | ???*11* | ???*12* | ???*16*))
+generateBinPath = (...) => (???*0* | ???*1* | ???*11* | ???*12* | ???*16*)
 - *0* FreeVar(ESBUILD_BINARY_PATH)
   ⚠️  unknown global
 - *1* path.join*2*(???*3*, `pnpapi-${???*6*}-${???*7*}`)
@@ -197,7 +203,7 @@ pkg = (???*0* | ???*1*)
 - *10* FreeVar(os)
   ⚠️  unknown global
 
-pkgAndSubpathForCurrentPlatform = (...) => (???*0*)
+pkgAndSubpathForCurrentPlatform = (...) => ???*0*
 - *0* unsupported expression
 
 platformKey = `${???*0*} ${???*2*} ${???*5*}`

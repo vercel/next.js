@@ -1,51 +1,51 @@
-*anonymous function 115* = (...) => (3)
+*anonymous function 115* = (...) => 3
 
-*anonymous function 338* = (...) => (3)
+*anonymous function 338* = (...) => 3
 
-*arrow function 10* = (...) => (1)
+*arrow function 10* = (...) => 1
 
-*arrow function 213* = (...) => (1)
+*arrow function 213* = (...) => 1
 
-*arrow function 235* = (...) => (2)
+*arrow function 235* = (...) => 2
 
-*arrow function 258* = (...) => (1)
+*arrow function 258* = (...) => 1
 
-*arrow function 29* = (...) => (2)
+*arrow function 29* = (...) => 2
 
-*arrow function 298* = (...) => (2)
+*arrow function 298* = (...) => 2
 
-*arrow function 49* = (...) => (1)
+*arrow function 49* = (...) => 1
 
-*arrow function 82* = (...) => (2)
+*arrow function 82* = (...) => 2
 
-a = (...) => (1)
+a = (...) => 1
 
-b = (...) => (2)
+b = (...) => 2
 
-c = (...) => (1)
+c = (...) => 1
 
-d = (...) => (2)
+d = (...) => 2
 
-e#1 = (...) => (3)
+e#1 = (...) => 3
 
-e#2 = (...) => (4)
+e#2 = (...) => 4
 
-f = (...) => (4)
+f = (...) => 4
 
-x = (...) => (???*0*)
+x = (...) => ???*0*
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
-xa = (...) => (1)
+xa = (...) => 1
 
-xb = (...) => (2)
+xb = (...) => 2
 
-xc = (...) => (1)
+xc = (...) => 1
 
-xd = (...) => (2)
+xd = (...) => 2
 
-xe#3 = (...) => (3)
+xe#3 = (...) => 3
 
-xe#4 = (...) => (4)
+xe#4 = (...) => 4
 
-xf = (...) => (4)
+xf = (...) => 4

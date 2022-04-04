@@ -1,18 +1,18 @@
-*anonymous function 180* = (...) => (crypt["endian"]([a, b, c, d]))
+*anonymous function 180* = (...) => crypt["endian"]([a, b, c, d])
 
-*anonymous function 5012* = (...) => ((???*0* + b))
+*anonymous function 5012* = (...) => (???*0* + b)
 - *0* unsupported expression
 
-*anonymous function 5162* = (...) => ((???*0* + b))
+*anonymous function 5162* = (...) => (???*0* + b)
 - *0* unsupported expression
 
-*anonymous function 5312* = (...) => ((???*0* + b))
+*anonymous function 5312* = (...) => (???*0* + b)
 - *0* unsupported expression
 
-*anonymous function 5453* = (...) => ((???*0* + b))
+*anonymous function 5453* = (...) => (???*0* + b)
 - *0* unsupported expression
 
-*anonymous function 5684* = (...) => (???*0*)
+*anonymous function 5684* = (...) => ???*0*
 - *0* unsupported expression
 
 FF = md5["_ff"]
@@ -23,7 +23,26 @@ HH = md5["_hh"]
 
 II = md5["_ii"]
 
-a#3 = (1732584193 | FF(a, b, c, d, m[(i + 0)], 7, ???*0*) | FF(a, b, c, d, m[(i + 4)], 7, ???*1*) | FF(a, b, c, d, m[(i + 8)], 7, 1770035416) | FF(a, b, c, d, m[(i + 12)], 7, 1804603682) | GG(a, b, c, d, m[(i + 1)], 5, ???*2*) | GG(a, b, c, d, m[(i + 5)], 5, ???*3*) | GG(a, b, c, d, m[(i + 9)], 5, 568446438) | GG(a, b, c, d, m[(i + 13)], 5, ???*4*) | HH(a, b, c, d, m[(i + 5)], 4, ???*5*) | HH(a, b, c, d, m[(i + 1)], 4, ???*6*) | HH(a, b, c, d, m[(i + 13)], 4, 681279174) | HH(a, b, c, d, m[(i + 9)], 4, ???*7*) | II(a, b, c, d, m[(i + 0)], 6, ???*8*) | II(a, b, c, d, m[(i + 12)], 6, 1700485571) | II(a, b, c, d, m[(i + 8)], 6, 1873313359) | II(a, b, c, d, m[(i + 4)], 6, ???*9*) | ???*10*)
+a#3 = (
+  | 1732584193
+  | FF(a, b, c, d, m[(i + 0)], 7, ???*0*)
+  | FF(a, b, c, d, m[(i + 4)], 7, ???*1*)
+  | FF(a, b, c, d, m[(i + 8)], 7, 1770035416)
+  | FF(a, b, c, d, m[(i + 12)], 7, 1804603682)
+  | GG(a, b, c, d, m[(i + 1)], 5, ???*2*)
+  | GG(a, b, c, d, m[(i + 5)], 5, ???*3*)
+  | GG(a, b, c, d, m[(i + 9)], 5, 568446438)
+  | GG(a, b, c, d, m[(i + 13)], 5, ???*4*)
+  | HH(a, b, c, d, m[(i + 5)], 4, ???*5*)
+  | HH(a, b, c, d, m[(i + 1)], 4, ???*6*)
+  | HH(a, b, c, d, m[(i + 13)], 4, 681279174)
+  | HH(a, b, c, d, m[(i + 9)], 4, ???*7*)
+  | II(a, b, c, d, m[(i + 0)], 6, ???*8*)
+  | II(a, b, c, d, m[(i + 12)], 6, 1700485571)
+  | II(a, b, c, d, m[(i + 8)], 6, 1873313359)
+  | II(a, b, c, d, m[(i + 4)], 6, ???*9*)
+  | ???*10*
+)
 - *0* unsupported expression
 - *1* unsupported expression
 - *2* unsupported expression
@@ -46,7 +65,25 @@ a#7 = arguments[0]
 
 aa = a
 
-b#3 = (???*0* | FF(b, c, d, a, m[(i + 3)], 22, ???*1*) | FF(b, c, d, a, m[(i + 7)], 22, ???*2*) | FF(b, c, d, a, m[(i + 11)], 22, ???*3*) | FF(b, c, d, a, m[(i + 15)], 22, 1236535329) | GG(b, c, d, a, m[(i + 0)], 20, ???*4*) | GG(b, c, d, a, m[(i + 4)], 20, ???*5*) | GG(b, c, d, a, m[(i + 8)], 20, 1163531501) | GG(b, c, d, a, m[(i + 12)], 20, ???*6*) | HH(b, c, d, a, m[(i + 14)], 23, ???*7*) | HH(b, c, d, a, m[(i + 10)], 23, ???*8*) | HH(b, c, d, a, m[(i + 6)], 23, 76029189) | HH(b, c, d, a, m[(i + 2)], 23, ???*9*) | II(b, c, d, a, m[(i + 5)], 21, ???*10*) | II(b, c, d, a, m[(i + 1)], 21, ???*11*) | II(b, c, d, a, m[(i + 13)], 21, 1309151649) | II(b, c, d, a, m[(i + 9)], 21, ???*12*))
+b#3 = (
+  | ???*0*
+  | FF(b, c, d, a, m[(i + 3)], 22, ???*1*)
+  | FF(b, c, d, a, m[(i + 7)], 22, ???*2*)
+  | FF(b, c, d, a, m[(i + 11)], 22, ???*3*)
+  | FF(b, c, d, a, m[(i + 15)], 22, 1236535329)
+  | GG(b, c, d, a, m[(i + 0)], 20, ???*4*)
+  | GG(b, c, d, a, m[(i + 4)], 20, ???*5*)
+  | GG(b, c, d, a, m[(i + 8)], 20, 1163531501)
+  | GG(b, c, d, a, m[(i + 12)], 20, ???*6*)
+  | HH(b, c, d, a, m[(i + 14)], 23, ???*7*)
+  | HH(b, c, d, a, m[(i + 10)], 23, ???*8*)
+  | HH(b, c, d, a, m[(i + 6)], 23, 76029189)
+  | HH(b, c, d, a, m[(i + 2)], 23, ???*9*)
+  | II(b, c, d, a, m[(i + 5)], 21, ???*10*)
+  | II(b, c, d, a, m[(i + 1)], 21, ???*11*)
+  | II(b, c, d, a, m[(i + 13)], 21, 1309151649)
+  | II(b, c, d, a, m[(i + 9)], 21, ???*12*)
+)
 - *0* unsupported expression
 - *1* unsupported expression
 - *2* unsupported expression
@@ -73,7 +110,25 @@ bb = b
 
 bin = FreeVar(Require)("charenc")["bin"]
 
-c#3 = (???*0* | FF(c, d, a, b, m[(i + 2)], 17, 606105819) | FF(c, d, a, b, m[(i + 6)], 17, ???*1*) | FF(c, d, a, b, m[(i + 10)], 17, ???*2*) | FF(c, d, a, b, m[(i + 14)], 17, ???*3*) | GG(c, d, a, b, m[(i + 11)], 14, 643717713) | GG(c, d, a, b, m[(i + 15)], 14, ???*4*) | GG(c, d, a, b, m[(i + 3)], 14, ???*5*) | GG(c, d, a, b, m[(i + 7)], 14, 1735328473) | HH(c, d, a, b, m[(i + 11)], 16, 1839030562) | HH(c, d, a, b, m[(i + 7)], 16, ???*6*) | HH(c, d, a, b, m[(i + 3)], 16, ???*7*) | HH(c, d, a, b, m[(i + 15)], 16, 530742520) | II(c, d, a, b, m[(i + 14)], 15, ???*8*) | II(c, d, a, b, m[(i + 10)], 15, ???*9*) | II(c, d, a, b, m[(i + 6)], 15, ???*10*) | II(c, d, a, b, m[(i + 2)], 15, 718787259))
+c#3 = (
+  | ???*0*
+  | FF(c, d, a, b, m[(i + 2)], 17, 606105819)
+  | FF(c, d, a, b, m[(i + 6)], 17, ???*1*)
+  | FF(c, d, a, b, m[(i + 10)], 17, ???*2*)
+  | FF(c, d, a, b, m[(i + 14)], 17, ???*3*)
+  | GG(c, d, a, b, m[(i + 11)], 14, 643717713)
+  | GG(c, d, a, b, m[(i + 15)], 14, ???*4*)
+  | GG(c, d, a, b, m[(i + 3)], 14, ???*5*)
+  | GG(c, d, a, b, m[(i + 7)], 14, 1735328473)
+  | HH(c, d, a, b, m[(i + 11)], 16, 1839030562)
+  | HH(c, d, a, b, m[(i + 7)], 16, ???*6*)
+  | HH(c, d, a, b, m[(i + 3)], 16, ???*7*)
+  | HH(c, d, a, b, m[(i + 15)], 16, 530742520)
+  | II(c, d, a, b, m[(i + 14)], 15, ???*8*)
+  | II(c, d, a, b, m[(i + 10)], 15, ???*9*)
+  | II(c, d, a, b, m[(i + 6)], 15, ???*10*)
+  | II(c, d, a, b, m[(i + 2)], 15, 718787259)
+)
 - *0* unsupported expression
 - *1* unsupported expression
 - *2* unsupported expression
@@ -98,7 +153,26 @@ cc = c
 
 crypt = FreeVar(Require)("crypt")
 
-d#3 = (271733878 | FF(d, a, b, c, m[(i + 1)], 12, ???*0*) | FF(d, a, b, c, m[(i + 5)], 12, 1200080426) | FF(d, a, b, c, m[(i + 9)], 12, ???*1*) | FF(d, a, b, c, m[(i + 13)], 12, ???*2*) | GG(d, a, b, c, m[(i + 6)], 9, ???*3*) | GG(d, a, b, c, m[(i + 10)], 9, 38016083) | GG(d, a, b, c, m[(i + 14)], 9, ???*4*) | GG(d, a, b, c, m[(i + 2)], 9, ???*5*) | HH(d, a, b, c, m[(i + 8)], 11, ???*6*) | HH(d, a, b, c, m[(i + 4)], 11, 1272893353) | HH(d, a, b, c, m[(i + 0)], 11, ???*7*) | HH(d, a, b, c, m[(i + 12)], 11, ???*8*) | II(d, a, b, c, m[(i + 7)], 10, 1126891415) | II(d, a, b, c, m[(i + 3)], 10, ???*9*) | II(d, a, b, c, m[(i + 15)], 10, ???*10*) | II(d, a, b, c, m[(i + 11)], 10, ???*11*) | ???*12*)
+d#3 = (
+  | 271733878
+  | FF(d, a, b, c, m[(i + 1)], 12, ???*0*)
+  | FF(d, a, b, c, m[(i + 5)], 12, 1200080426)
+  | FF(d, a, b, c, m[(i + 9)], 12, ???*1*)
+  | FF(d, a, b, c, m[(i + 13)], 12, ???*2*)
+  | GG(d, a, b, c, m[(i + 6)], 9, ???*3*)
+  | GG(d, a, b, c, m[(i + 10)], 9, 38016083)
+  | GG(d, a, b, c, m[(i + 14)], 9, ???*4*)
+  | GG(d, a, b, c, m[(i + 2)], 9, ???*5*)
+  | HH(d, a, b, c, m[(i + 8)], 11, ???*6*)
+  | HH(d, a, b, c, m[(i + 4)], 11, 1272893353)
+  | HH(d, a, b, c, m[(i + 0)], 11, ???*7*)
+  | HH(d, a, b, c, m[(i + 12)], 11, ???*8*)
+  | II(d, a, b, c, m[(i + 7)], 10, 1126891415)
+  | II(d, a, b, c, m[(i + 3)], 10, ???*9*)
+  | II(d, a, b, c, m[(i + 15)], 10, ???*10*)
+  | II(d, a, b, c, m[(i + 11)], 10, ???*11*)
+  | ???*12*
+)
 - *0* unsupported expression
 - *1* unsupported expression
 - *2* unsupported expression
@@ -136,7 +210,13 @@ m = crypt["bytesToWords"](message)
 
 md5 = *anonymous function 180*
 
-message#3 = (arguments[0] | bin["stringToBytes"](message) | utf8["stringToBytes"](message) | FreeVar(Array)["prototype"]["slice"]["call"](message, 0) | message["toString"]())
+message#3 = (
+  | arguments[0]
+  | bin["stringToBytes"](message)
+  | utf8["stringToBytes"](message)
+  | FreeVar(Array)["prototype"]["slice"]["call"](message, 0)
+  | message["toString"]()
+)
 
 message#8 = arguments[0]
 
