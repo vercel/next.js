@@ -68,11 +68,13 @@ function getFilesMapFromReasons(
 
   for (const file of fileList!) {
     const reason = reasons!.get(file)
+    const isInitial =
+      reason?.type.length === 1 && reason.type.includes('initial')
 
     if (
       !reason ||
       !reason.parents ||
-      (reason.type === 'initial' && reason.parents.size === 0)
+      (isInitial && reason.parents.size === 0)
     ) {
       continue
     }
@@ -358,10 +360,17 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
                   fileList,
                   reasons,
                   (file) => {
+                    // if a file was imported and a loader handled it
+                    // we don't include it in the trace e.g.
+                    // static image imports, CSS imports
                     file = nodePath.join(this.tracingRoot, file)
                     const depMod = depModMap.get(file)
+                    const isAsset = reasons
+                      .get(nodePath.relative(this.tracingRoot, file))
+                      ?.type.includes('asset')
 
                     return (
+                      !isAsset &&
                       Array.isArray(depMod?.loaders) &&
                       depMod.loaders.length > 0
                     )
@@ -532,7 +541,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
                       ) {
                         requestPath = (
                           resContext.descriptionFileRoot +
-                          request.substr(getPkgName(request)?.length || 0) +
+                          request.slice(getPkgName(request)?.length || 0) +
                           nodePath.sep +
                           'package.json'
                         )
@@ -546,7 +555,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
                         (separatorIndex = requestPath.lastIndexOf('/')) >
                         rootSeparatorIndex
                       ) {
-                        requestPath = requestPath.substr(0, separatorIndex)
+                        requestPath = requestPath.slice(0, separatorIndex)
                         const curPackageJsonPath = `${requestPath}/package.json`
                         if (await job.isFile(curPackageJsonPath)) {
                           await job.emitFile(

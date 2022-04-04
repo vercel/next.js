@@ -27,6 +27,8 @@ You can create a TypeScript project with [`create-next-app`](https://nextjs.org/
 npx create-next-app@latest --ts
 # or
 yarn create next-app --typescript
+# or
+pnpm create next-app -- --ts
 ```
 
 ## Existing projects

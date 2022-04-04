@@ -20,7 +20,6 @@ export default function (context, { runtime, env }) {
     expect(homeHTML).toContain('env:env_var_test')
     expect(homeHTML).toContain('header:test-util')
     expect(homeHTML).toContain('path:/')
-    expect(homeHTML).toContain('foo.client')
   })
 
   it('should reuse the inline flight response without sending extra requests', async () => {
@@ -70,9 +69,12 @@ export default function (context, { runtime, env }) {
 
   it('should support next/link in server components', async () => {
     const linkHTML = await renderViaHTTP(context.appPort, '/next-api/link')
-    const linkText = getNodeBySelector(linkHTML, '#__next > a[href="/"]').text()
+    const linkText = getNodeBySelector(
+      linkHTML,
+      '#__next > div > a[href="/"]'
+    ).text()
 
-    expect(linkText).toContain('go home')
+    expect(linkText).toContain('home')
 
     const browser = await webdriver(context.appPort, '/next-api/link')
 
@@ -92,9 +94,36 @@ export default function (context, { runtime, env }) {
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
+  it('should be able to navigate between rsc pages', async () => {
+    let content
+    const browser = await webdriver(context.appPort, '/')
+
+    await browser.waitForElementByCss('#goto-next-link').click()
+    await new Promise((res) => setTimeout(res, 1000))
+    expect(await browser.url()).toBe(
+      `http://localhost:${context.appPort}/next-api/link`
+    )
+    await browser.waitForElementByCss('#goto-home').click()
+    await new Promise((res) => setTimeout(res, 1000))
+    expect(await browser.url()).toBe(`http://localhost:${context.appPort}/`)
+    content = await browser.elementByCss('#__next').text()
+    expect(content).toContain('component:index.server')
+
+    await browser.waitForElementByCss('#goto-streaming-rsc').click()
+    await new Promise((res) => setTimeout(res, 1500))
+    expect(await browser.url()).toBe(
+      `http://localhost:${context.appPort}/streaming-rsc`
+    )
+
+    content = await browser.elementByCss('#content').text()
+    expect(content).toContain('next_streaming_data')
+  })
+
   it('should handle streaming server components correctly', async () => {
     const browser = await webdriver(context.appPort, '/streaming-rsc')
-    const content = await browser.eval(`window.document.body.innerText`)
+    const content = await browser.eval(
+      `document.querySelector('#content').innerText`
+    )
     expect(content).toMatchInlineSnapshot('"next_streaming_data"')
   })
 
@@ -113,7 +142,7 @@ export default function (context, { runtime, env }) {
 
   it('should refresh correctly with next/link', async () => {
     // Select the button which is not hidden but rendered
-    const selector = '#__next #refresh'
+    const selector = '#__next #goto-next-link'
     let hasFlightRequest = false
     const browser = await webdriver(context.appPort, '/', {
       beforePageLoad(page) {
@@ -138,7 +167,7 @@ export default function (context, { runtime, env }) {
       expect(hasFlightRequest).toBe(true)
     }
     const refreshText = await browser.elementByCss(selector).text()
-    expect(refreshText).toBe('refresh')
+    expect(refreshText).toBe('next link')
   })
 
   if (env === 'dev') {
@@ -157,6 +186,11 @@ export default function (context, { runtime, env }) {
     })
   }
 
+  it('should not pick browser field from package.json for external libraries', async () => {
+    const html = await renderViaHTTP(context.appPort, '/external-imports')
+    expect(html).toContain('isomorphic-export')
+  })
+
   it('should handle various kinds of exports correctly', async () => {
     const html = await renderViaHTTP(context.appPort, '/various-exports')
     const content = getNodeBySelector(html, '#__next').text()
@@ -171,6 +205,8 @@ export default function (context, { runtime, env }) {
     expect(hydratedContent).toContain('abcde')
     expect(hydratedContent).toContain('default-export-arrow.client')
     expect(hydratedContent).toContain('named.client')
+    expect(hydratedContent).toContain('cjs-shared')
+    expect(hydratedContent).toContain('cjs-client')
   })
 
   it('should handle 404 requests and missing routes correctly', async () => {

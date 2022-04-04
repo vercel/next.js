@@ -1,8 +1,8 @@
 import type { PathLocale } from '../../shared/lib/i18n/normalize-locale-path'
 import type { DomainLocale, I18NConfig } from '../config-shared'
 import { getLocaleMetadata } from '../../shared/lib/i18n/get-locale-metadata'
-import { replaceBasePath } from '../router'
 import cookie from 'next/dist/compiled/cookie'
+import { replaceBasePath } from '../router-utils'
 
 interface Options {
   base?: string | URL

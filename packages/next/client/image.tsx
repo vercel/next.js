@@ -849,7 +849,6 @@ const ImageElement = ({
   imgRef,
   placeholder,
   loading,
-  sizes,
   srcString,
   config,
   unoptimized,
@@ -861,7 +860,7 @@ const ImageElement = ({
       <img
         {...rest}
         {...imgAttributes}
-        {...(layout === 'raw' && !sizes
+        {...(layout === 'raw' && !imgAttributes.sizes
           ? { height: heightInt, width: widthInt }
           : {})}
         decoding="async"
@@ -881,10 +880,10 @@ const ImageElement = ({
               layout,
               width: widthInt,
               quality: qualityInt,
-              sizes,
+              sizes: imgAttributes.sizes,
               loader,
             })}
-            {...(layout === 'raw' && !sizes
+            {...(layout === 'raw' && !imgAttributes.sizes
               ? { height: heightInt, width: widthInt }
               : {})}
             decoding="async"

@@ -31,7 +31,8 @@ export default class NextWebServer extends BaseServer {
     }
   }
   protected handleCompression() {
-    // @TODO
+    // For the web server layer, compression is automatically handled by the
+    // upstream proxy (edge runtime or node server) and we can simply skip here.
   }
   protected getRoutesManifest() {
     return {
@@ -49,14 +50,15 @@ export default class NextWebServer extends BaseServer {
     return ''
   }
   protected getPublicDir() {
-    // @TODO
+    // Public files are not handled by the web server.
     return ''
   }
   protected getBuildId() {
     return (globalThis as any).__server_context.buildId
   }
   protected loadEnvConfig() {
-    // @TODO
+    // The web server does not need to load the env config. This is done by the
+    // runtime already.
   }
   protected getHasStaticDir() {
     return false
@@ -79,7 +81,10 @@ export default class NextWebServer extends BaseServer {
   protected getMiddleware() {
     return []
   }
-  protected generateCatchAllMiddlewareRoute() {
+  protected generateCatchAllStaticMiddlewareRoute() {
+    return undefined
+  }
+  protected generateCatchAllDynamicMiddlewareRoute() {
     return undefined
   }
   protected getFontManifest() {
@@ -200,9 +205,5 @@ export default class NextWebServer extends BaseServer {
       },
       components: result,
     }
-  }
-
-  public updateRenderOpts(renderOpts: Partial<BaseServer['renderOpts']>) {
-    Object.assign(this.renderOpts, renderOpts)
   }
 }
