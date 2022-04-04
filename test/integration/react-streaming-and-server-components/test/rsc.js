@@ -20,7 +20,6 @@ export default function (context, { runtime, env }) {
     expect(homeHTML).toContain('env:env_var_test')
     expect(homeHTML).toContain('header:test-util')
     expect(homeHTML).toContain('path:/')
-    expect(homeHTML).toContain('foo.client')
   })
 
   it('should reuse the inline flight response without sending extra requests', async () => {
@@ -206,6 +205,8 @@ export default function (context, { runtime, env }) {
     expect(hydratedContent).toContain('abcde')
     expect(hydratedContent).toContain('default-export-arrow.client')
     expect(hydratedContent).toContain('named.client')
+    expect(hydratedContent).toContain('cjs-shared')
+    expect(hydratedContent).toContain('cjs-client')
   })
 
   it('should handle 404 requests and missing routes correctly', async () => {

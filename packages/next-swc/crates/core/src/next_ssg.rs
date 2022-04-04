@@ -1,6 +1,8 @@
 use easy_error::{bail, Error};
 use fxhash::FxHashSet;
+use std::cell::RefCell;
 use std::mem::take;
+use std::rc::Rc;
 use swc_common::pass::{Repeat, Repeated};
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::*;
@@ -12,9 +14,12 @@ use swc_ecmascript::{
 };
 
 /// Note: This paths requires running `resolver` **before** running this.
-pub fn next_ssg() -> impl Fold {
+pub fn next_ssg(eliminated_packages: Rc<RefCell<FxHashSet<String>>>) -> impl Fold {
     Repeat::new(NextSsg {
-        state: Default::default(),
+        state: State {
+            eliminated_packages,
+            ..Default::default()
+        },
         in_lhs_of_var: false,
     })
 }
@@ -41,6 +46,10 @@ struct State {
     done: bool,
 
     should_run_again: bool,
+
+    /// Track the import packages which are eliminated in the
+    /// `getServerSideProps`
+    pub eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
 }
 
 impl State {
@@ -288,7 +297,7 @@ impl Fold for Analyzer<'_> {
 
 /// Actual implementation of the transform.
 struct NextSsg {
-    state: State,
+    pub state: State,
     in_lhs_of_var: bool,
 }
 
@@ -344,11 +353,23 @@ impl Fold for NextSsg {
             return i;
         }
 
+        let import_src = &i.src.value;
+
         i.specifiers.retain(|s| match s {
             ImportSpecifier::Named(ImportNamedSpecifier { local, .. })
             | ImportSpecifier::Default(ImportDefaultSpecifier { local, .. })
             | ImportSpecifier::Namespace(ImportStarAsSpecifier { local, .. }) => {
                 if self.should_remove(local.to_id()) {
+                    if self.state.is_server_props
+                        // filter out non-packages import
+                        // third part packages must start with `a-z` or `@`
+                        && import_src.starts_with(|c: char| c.is_ascii_lowercase() || c == '@')
+                    {
+                        self.state
+                            .eliminated_packages
+                            .borrow_mut()
+                            .insert(import_src.to_string());
+                    }
                     tracing::trace!(
                         "Dropping import `{}{:?}` because it should be removed",
                         local.sym,

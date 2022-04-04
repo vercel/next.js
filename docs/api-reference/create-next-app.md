@@ -10,6 +10,8 @@ The easiest way to get started with Next.js is by using `create-next-app`. This 
 npx create-next-app@latest
 # or
 yarn create next-app
+# or
+pnpm create next-app
 ```
 
 You can create a [TypeScript project](https://github.com/vercel/next.js/blob/canary/docs/basic-features/typescript.md) with the `--ts, --typescript` flag:
@@ -18,6 +20,8 @@ You can create a [TypeScript project](https://github.com/vercel/next.js/blob/can
 npx create-next-app@latest --ts
 # or
 yarn create next-app --typescript
+# or
+pnpm create next-app -- --ts
 ```
 
 ### Options

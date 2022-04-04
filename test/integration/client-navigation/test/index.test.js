@@ -60,6 +60,14 @@ describe('Client Navigation', () => {
       await browser.close()
     })
 
+    it('should have proper error when no children are provided', async () => {
+      const browser = await webdriver(context.appPort, '/link-no-child')
+      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        'No children were passed to <Link> with `href` of `/about` but one child is required'
+      )
+    })
+
     it('should navigate back after reload', async () => {
       const browser = await webdriver(context.appPort, '/nav')
       await browser.elementByCss('#about-link').click()

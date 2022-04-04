@@ -154,6 +154,7 @@ export default class HotReloader {
   private config: NextConfigComplete
   private runtime?: 'nodejs' | 'edge'
   private hasServerComponents: boolean
+  private hasReactRoot: boolean
   public clientStats: webpack5.Stats | null
   public serverStats: webpack5.Stats | null
   private clientError: Error | null = null
@@ -197,7 +198,9 @@ export default class HotReloader {
 
     this.config = config
     this.runtime = config.experimental.runtime
-    this.hasServerComponents = !!config.experimental.serverComponents
+    this.hasReactRoot = shouldUseReactRoot()
+    this.hasServerComponents =
+      this.hasReactRoot && !!config.experimental.serverComponents
     this.previewProps = previewProps
     this.rewrites = rewrites
     this.hotReloaderSpan = trace('hot-reloader', undefined, {
@@ -340,8 +343,6 @@ export default class HotReloader {
           )
         )
 
-      const hasReactRoot = shouldUseReactRoot()
-
       return webpackConfigSpan
         .traceChild('generate-webpack-config')
         .traceAsyncFn(() =>
@@ -356,6 +357,7 @@ export default class HotReloader {
                 rewrites: this.rewrites,
                 entrypoints: entrypoints.client,
                 runWebpackSpan: this.hotReloaderSpan,
+                hasReactRoot: this.hasReactRoot,
               }),
               getBaseWebpackConfig(this.dir, {
                 dev: true,
@@ -366,9 +368,10 @@ export default class HotReloader {
                 rewrites: this.rewrites,
                 entrypoints: entrypoints.server,
                 runWebpackSpan: this.hotReloaderSpan,
+                hasReactRoot: this.hasReactRoot,
               }),
               // The edge runtime is only supported with React root.
-              hasReactRoot
+              this.hasReactRoot
                 ? getBaseWebpackConfig(this.dir, {
                     dev: true,
                     isServer: true,
@@ -379,6 +382,7 @@ export default class HotReloader {
                     rewrites: this.rewrites,
                     entrypoints: entrypoints.edgeServer,
                     runWebpackSpan: this.hotReloaderSpan,
+                    hasReactRoot: this.hasReactRoot,
                   })
                 : null,
             ].filter(Boolean) as webpack.Configuration[]
@@ -417,6 +421,7 @@ export default class HotReloader {
           this.pagesDir
         )
       ).client,
+      hasReactRoot: this.hasReactRoot,
     })
     const fallbackCompiler = webpack(fallbackConfig)
 
@@ -504,7 +509,7 @@ export default class HotReloader {
 
             const pageRuntimeConfig = await getPageRuntime(
               absolutePagePath,
-              this.runtime
+              this.config
             )
             const isEdgeSSRPage = pageRuntimeConfig === 'edge' && !isApiRoute
 
@@ -733,7 +738,7 @@ export default class HotReloader {
         this.send({
           event: 'serverOnlyChanges',
           pages: serverOnlyChanges.map((pg) =>
-            denormalizePagePath(pg.substr('pages'.length))
+            denormalizePagePath(pg.slice('pages'.length))
           ),
         })
       }

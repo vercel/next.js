@@ -1,6 +1,6 @@
 import _JSXStyle from "styled-jsx/style";
 export default (()=>{
-    const Element = "div";
+    const Element = 'div';
     return <div className={"jsx-abb4c2202db1a207"}>
 
       <div {...test.test} className={"jsx-abb4c2202db1a207" + " " + (test.test && test.test.className != null && test.test.className || "test")}/>
@@ -11,28 +11,28 @@ export default (()=>{
 
       <div data-test="test" className={"jsx-abb4c2202db1a207"}/>
 
-      <div className={"jsx-abb4c2202db1a207" + " " + "test"}/>
+      <div className={"jsx-abb4c2202db1a207" + " " + 'test'}/>
 
       <div className={"jsx-abb4c2202db1a207" + " " + `test`}/>
 
-      <div className={"jsx-abb4c2202db1a207" + " " + `test${true ? " test2" : ""}`}/>
+      <div className={"jsx-abb4c2202db1a207" + " " + `test${true ? ' test2' : ''}`}/>
 
-      <div className={"jsx-abb4c2202db1a207" + " " + ("test " + test || "")}/>
+      <div className={"jsx-abb4c2202db1a207" + " " + ('test ' + test || "")}/>
 
       <div className={"jsx-abb4c2202db1a207" + " " + ([
-        "test",
-        "test2"
-    ].join(" ") || "")}/>
+        'test',
+        'test2'
+    ].join(' ') || "")}/>
 
-      <div className={"jsx-abb4c2202db1a207" + " " + (true && "test" || "")}/>
+      <div className={"jsx-abb4c2202db1a207" + " " + (true && 'test' || "")}/>
 
-      <div className={"jsx-abb4c2202db1a207" + " " + ((test ? "test" : null) || "")}/>
+      <div className={"jsx-abb4c2202db1a207" + " " + ((test ? 'test' : null) || "")}/>
 
       <div className={"jsx-abb4c2202db1a207" + " " + (test || "")}/>
 
-      <div className={"jsx-abb4c2202db1a207" + " " + (test && "test" || "")}/>
+      <div className={"jsx-abb4c2202db1a207" + " " + (test && 'test' || "")}/>
 
-      <div className={"jsx-abb4c2202db1a207" + " " + (test && test("test") || "")}/>
+      <div className={"jsx-abb4c2202db1a207" + " " + (test && test('test') || "")}/>
 
       <div className={"jsx-abb4c2202db1a207" + " " + (undefined || "")}/>
 
@@ -40,29 +40,29 @@ export default (()=>{
 
       <div className={"jsx-abb4c2202db1a207" + " " + (false || "")}/>
 
-      <div data-test className={"jsx-abb4c2202db1a207" + " " + "test"}/>
+      <div data-test className={"jsx-abb4c2202db1a207" + " " + 'test'}/>
 
-      <div data-test className={"jsx-abb4c2202db1a207" + " " + "test"}/>
+      <div data-test className={"jsx-abb4c2202db1a207" + " " + 'test'}/>
 
-      <div data-test="test" className={"jsx-abb4c2202db1a207" + " " + "test"}/>
+      <div data-test="test" className={"jsx-abb4c2202db1a207" + " " + 'test'}/>
 
-      <div {...props} className={"jsx-abb4c2202db1a207" + " " + (props && props.className != null && props.className || "test")}/>
+      <div {...props} className={"jsx-abb4c2202db1a207" + " " + (props && props.className != null && props.className || 'test')}/>
 
-      <div {...props} {...rest} className={"jsx-abb4c2202db1a207" + " " + (rest && rest.className != null && rest.className || props && props.className != null && props.className || "test")}/>
+      <div {...props} {...rest} className={"jsx-abb4c2202db1a207" + " " + (rest && rest.className != null && rest.className || props && props.className != null && props.className || 'test')}/>
 
-      <div {...props} className={"jsx-abb4c2202db1a207" + " " + (props && props.className != null && props.className || `test ${test ? "test" : ""}`)}/>
+      <div {...props} className={"jsx-abb4c2202db1a207" + " " + (props && props.className != null && props.className || `test ${test ? 'test' : ''}`)}/>
 
-      <div {...props} className={"jsx-abb4c2202db1a207" + " " + (props && props.className != null && props.className || test && test("test") || "")}/>
+      <div {...props} className={"jsx-abb4c2202db1a207" + " " + (props && props.className != null && props.className || test && test('test') || "")}/>
 
-      <div {...props} className={"jsx-abb4c2202db1a207" + " " + (props && props.className != null && props.className || test && test("test") && "test" || "")}/>
+      <div {...props} className={"jsx-abb4c2202db1a207" + " " + (props && props.className != null && props.className || test && test('test') && 'test' || "")}/>
 
-      <div {...props} className={"jsx-abb4c2202db1a207" + " " + (props && props.className != null && props.className || test && test("test") && test2("test") || "")}/>
+      <div {...props} className={"jsx-abb4c2202db1a207" + " " + (props && props.className != null && props.className || test && test('test') && test2('test') || "")}/>
 
-      <div {...props} className={"jsx-abb4c2202db1a207" + " " + "test"}/>
+      <div {...props} className={"jsx-abb4c2202db1a207" + " " + 'test'}/>
 
-      <div {...props} {...rest} className={"jsx-abb4c2202db1a207" + " " + "test"}/>
+      <div {...props} {...rest} className={"jsx-abb4c2202db1a207" + " " + 'test'}/>
 
-      <div {...props} {...rest} className={"jsx-abb4c2202db1a207" + " " + (rest && rest.className != null && rest.className || "test")}/>
+      <div {...props} {...rest} className={"jsx-abb4c2202db1a207" + " " + (rest && rest.className != null && rest.className || 'test')}/>
 
       <div {...props} className={"jsx-abb4c2202db1a207" + " " + (props && props.className != null && props.className || "")}/>
 
@@ -70,27 +70,27 @@ export default (()=>{
 
       <div {...props} data-foo {...rest} className={"jsx-abb4c2202db1a207" + " " + (rest && rest.className != null && rest.className || props && props.className != null && props.className || "")}/>
 
-      <div {...props} data-foo {...rest} className={"jsx-abb4c2202db1a207" + " " + (rest && rest.className != null && rest.className || "test")}/>
+      <div {...props} data-foo {...rest} className={"jsx-abb4c2202db1a207" + " " + (rest && rest.className != null && rest.className || 'test')}/>
 
       <div {...{
-        id: "foo"
+        id: 'foo'
     }} className={"jsx-abb4c2202db1a207"}/>
 
-      <div className={"jsx-abb4c2202db1a207" + " " + "foo"}/>
+      <div className={"jsx-abb4c2202db1a207" + " " + 'foo'}/>
 
       <div {...{
-        className: "foo"
+        className: 'foo'
     }} className={"jsx-abb4c2202db1a207" + " " + "test"}/>
 
-      <div className="test" className={"jsx-abb4c2202db1a207" + " " + "foo"}/>
+      <div className="test" className={"jsx-abb4c2202db1a207" + " " + 'foo'}/>
 
-      <div {...bar} className={"jsx-abb4c2202db1a207" + " " + (bar && bar.className != null && bar.className || "foo")}/>
+      <div {...bar} className={"jsx-abb4c2202db1a207" + " " + (bar && bar.className != null && bar.className || 'foo')}/>
 
       <div {...{
-        className: "foo"
+        className: 'foo'
     }} {...bar} className={"jsx-abb4c2202db1a207" + " " + "test"}/>
 
-      <div className="test" {...bar} className={"jsx-abb4c2202db1a207" + " " + (bar && bar.className != null && bar.className || "foo")}/>
+      <div className="test" {...bar} className={"jsx-abb4c2202db1a207" + " " + (bar && bar.className != null && bar.className || 'foo')}/>
 
       <div className="test" className={"jsx-abb4c2202db1a207" + " " + (props.className || "")}/>
 

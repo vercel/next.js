@@ -87,7 +87,8 @@ initialize({ webpackHMR })
                       new URLSearchParams(location.search)
                     )
                   ),
-                router.asPath
+                router.asPath,
+                { scroll: false }
               )
               .finally(clearIndicator)
           }

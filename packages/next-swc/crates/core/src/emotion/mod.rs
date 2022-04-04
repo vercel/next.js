@@ -307,10 +307,14 @@ impl<C: Comments> EmotionTransformer<C> {
             if index % 2 == 0 {
                 if let Some(q) = tagged_tpl.quasis.get_mut(i) {
                     let q = q.take();
-                    let minified =
-                        minify_css_string(&q.raw.value, index == 0, index == args_len - 1);
-                    if !minified.replace(' ', "").is_empty() {
-                        args.push(minified.as_arg());
+                    let minified = minify_css_string(&q.raw, index == 0, index == args_len - 1);
+                    // Compress one more spaces into one space
+                    if minified.replace(' ', "").is_empty() {
+                        if index != 0 && index != args_len - 1 {
+                            args.push(" ".as_arg());
+                        }
+                    } else {
+                        args.push(minified.as_arg())
                     }
                 }
             } else if let Some(e) = tagged_tpl.exprs.get_mut(i) {
@@ -442,7 +446,7 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                                         )));
                                     }
                                     if let Some(cm) = self.create_sourcemap(expr.span.lo()) {
-                                        c.args.push(cm.as_arg());
+                                        expr.args.push(cm.as_arg());
                                     }
                                     c.args.push(
                                         Expr::Object(ObjectLit {
@@ -489,7 +493,7 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                                             );
                                             if let Some(cm) = self.create_sourcemap(expr.span.lo())
                                             {
-                                                args.push(cm.as_arg());
+                                                expr.args.push(cm.as_arg());
                                             }
                                         }
                                         return CallExpr {
@@ -556,9 +560,7 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                                         }),
                                     )));
                                 }
-                                if let Some(cm) = self.create_sourcemap(call.span.lo()) {
-                                    callee.args.push(cm.as_arg());
-                                }
+
                                 callee.args.push(
                                     Expr::Object(ObjectLit {
                                         span: DUMMY_SP,
@@ -569,11 +571,19 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                                 return Expr::Call(CallExpr {
                                     span: DUMMY_SP,
                                     callee: callee.as_callee(),
-                                    args: self
-                                        .create_args_from_tagged_tpl(&mut tagged_tpl.tpl)
-                                        .into_iter()
-                                        .map(|exp| exp.fold_children_with(self))
-                                        .collect(),
+                                    args: {
+                                        let mut args: Vec<ExprOrSpread> = self
+                                            .create_args_from_tagged_tpl(&mut tagged_tpl.tpl)
+                                            .into_iter()
+                                            .map(|exp| exp.fold_children_with(self))
+                                            .collect();
+                                        if let Some(cm) =
+                                            self.create_sourcemap(tagged_tpl.span.lo())
+                                        {
+                                            args.push(cm.as_arg());
+                                        }
+                                        args
+                                    },
                                     type_args: None,
                                 });
                             }
@@ -626,11 +636,13 @@ impl<C: Comments> Fold for EmotionTransformer<C> {
                                         }
                                         let mut args =
                                             self.create_args_from_tagged_tpl(&mut tagged_tpl.tpl);
+
                                         if let Some(cm) =
-                                            self.create_sourcemap(member_expr.span.lo())
+                                            self.create_sourcemap(tagged_tpl.span.lo())
                                         {
                                             args.push(cm.as_arg());
                                         }
+
                                         self.comments.add_pure_comment(member_expr.span.lo());
                                         return Expr::Call(CallExpr {
                                             span: DUMMY_SP,
@@ -742,7 +754,7 @@ fn minify_css_string(input: &str, is_first_item: bool, is_last_item: bool) -> Co
     let pattern_trim_spaces = |c| c == ' ' || c == '\n';
     SPACE_AROUND_COLON.replace_all(
         input
-            .trim_matches(if is_first_item {
+            .trim_start_matches(if is_first_item {
                 pattern_trim_spaces
             } else {
                 pattern
@@ -754,4 +766,22 @@ fn minify_css_string(input: &str, is_first_item: bool, is_last_item: bool) -> Co
             }),
         "$s",
     )
+}
+
+#[allow(unused_imports)]
+mod test_emotion {
+    use super::minify_css_string;
+
+    #[test]
+    fn should_not_trim_end_space_in_first_item() {
+        assert_eq!(
+            minify_css_string(
+                r#"
+            box-shadow: inset 0px 0px 0px "#,
+                true,
+                false
+            ),
+            "box-shadow:inset 0px 0px 0px "
+        );
+    }
 }
