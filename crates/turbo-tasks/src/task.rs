@@ -1,5 +1,5 @@
 use crate::{
-    output::Output, slot::Slot, slot_ref::SlotRef, stats, task_input::TaskInput, NativeFunction,
+    output::Output, slot::Slot, slot_ref::SlotVc, stats, task_input::TaskInput, NativeFunction,
     TraitType, TurboTasks,
 };
 use any_key::AnyHash;
@@ -22,7 +22,7 @@ use std::{
         Arc, Mutex, RwLock,
     },
 };
-pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<SlotRef>> + Send>>;
+pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<SlotVc>> + Send>>;
 pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 
 /// Stores previous slot locations for keys or types.
@@ -50,7 +50,7 @@ enum TaskType {
     /// start of the task. It may or may not include invalidations that
     /// happened after that. It may see these invalidations partially
     /// applied.
-    Once(Mutex<Option<Pin<Box<dyn Future<Output = Result<SlotRef>> + Send + 'static>>>>),
+    Once(Mutex<Option<Pin<Box<dyn Future<Output = Result<SlotVc>> + Send + 'static>>>>),
 
     /// A normal task execution a native (rust) function
     Native(&'static NativeFunction, NativeTaskFn),
@@ -118,7 +118,7 @@ struct TaskExecutionData {
     /// might affect this task.
     ///
     /// This back-edge is [Slot] `dependent_tasks`, which is a weak edge.
-    dependencies: HashSet<SlotRef>,
+    dependencies: HashSet<SlotVc>,
 
     /// Mappings from key or data type to slot index, to store the data in the
     /// same slot again.
@@ -252,7 +252,7 @@ impl Task {
     }
 
     pub(crate) fn new_once(
-        functor: impl Future<Output = Result<SlotRef>> + Send + 'static,
+        functor: impl Future<Output = Result<SlotVc>> + Send + 'static,
     ) -> Self {
         Self {
             inputs: Vec::new(),
@@ -389,7 +389,7 @@ impl Task {
         true
     }
 
-    pub(crate) fn execution_result(self: &Arc<Self>, result: Result<SlotRef>) {
+    pub(crate) fn execution_result(self: &Arc<Self>, result: Result<SlotVc>) {
         let mut state = self.state.write().unwrap();
         match state.state_type {
             InProgress => match result {
@@ -586,7 +586,7 @@ impl Task {
         })
     }
 
-    pub(crate) fn add_dependency(&self, node: SlotRef) {
+    pub(crate) fn add_dependency(&self, node: SlotVc) {
         // TODO it's possible to schedule that work instead
         // maybe into a task_local dependencies list that
         // is stored that the end of the execution
@@ -911,7 +911,7 @@ pub(crate) fn match_previous_node_by_key<
 >(
     key: K,
     functor: F,
-) -> SlotRef {
+) -> SlotVc {
     Task::with_current(|task| {
         PREVIOUS_SLOTS.with(|cell| {
             let mut map = PreviousSlotsMap::default();
@@ -928,7 +928,7 @@ pub(crate) fn match_previous_node_by_key<
             });
             functor(&mut state.created_slots[*index]);
             drop(state);
-            let result = SlotRef::TaskCreated(task.clone(), *index);
+            let result = SlotVc::TaskCreated(task.clone(), *index);
             cell.swap(Cell::from_mut(&mut map));
             result
         })
@@ -937,7 +937,7 @@ pub(crate) fn match_previous_node_by_key<
 
 pub(crate) fn match_previous_node_by_type<T: Any + ?Sized, F: FnOnce(&mut Slot)>(
     functor: F,
-) -> SlotRef {
+) -> SlotVc {
     Task::with_current(|task| {
         PREVIOUS_SLOTS.with(|cell| {
             let mut map = PreviousSlotsMap::default();
@@ -960,7 +960,7 @@ pub(crate) fn match_previous_node_by_type<T: Any + ?Sized, F: FnOnce(&mut Slot)>
             functor(&mut state.created_slots[slot_index]);
             drop(state);
             *index += 1;
-            let result = SlotRef::TaskCreated(task.clone(), slot_index);
+            let result = SlotVc::TaskCreated(task.clone(), slot_index);
             cell.swap(Cell::from_mut(&mut map));
             result
         })

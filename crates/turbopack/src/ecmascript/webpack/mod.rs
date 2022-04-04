@@ -1,16 +1,16 @@
 use anyhow::Result;
 use swc_ecmascript::ast::Lit;
-use turbo_tasks_fs::{FileContentRef, FileSystemPathRef};
+use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use crate::{
-    asset::{Asset, AssetRef},
-    reference::{AssetReference, AssetReferenceRef, AssetReferencesSetRef},
-    resolve::{parse::RequestRef, resolve, resolve_options, ResolveResult, ResolveResultRef},
-    source_asset::SourceAssetRef,
+    asset::{Asset, AssetVc},
+    reference::{AssetReference, AssetReferenceVc, AssetReferencesSetVc},
+    resolve::{parse::RequestVc, resolve, resolve_options, ResolveResult, ResolveResultVc},
+    source_asset::SourceAssetVc,
 };
 
 use self::{
-    parse::{WebpackRuntime, WebpackRuntimeRef},
+    parse::{WebpackRuntime, WebpackRuntimeVc},
     references::module_references,
 };
 
@@ -22,26 +22,26 @@ mod references;
 #[turbo_tasks::value(Asset)]
 #[derive(PartialEq, Eq)]
 pub struct ModuleAsset {
-    pub source: AssetRef,
-    pub runtime: WebpackRuntimeRef,
+    pub source: AssetVc,
+    pub runtime: WebpackRuntimeVc,
 }
 
 #[turbo_tasks::value_impl]
-impl ModuleAssetRef {
-    pub fn new(source: AssetRef, runtime: WebpackRuntimeRef) -> Self {
+impl ModuleAssetVc {
+    pub fn new(source: AssetVc, runtime: WebpackRuntimeVc) -> Self {
         Self::slot(ModuleAsset { source, runtime })
     }
 }
 
 #[turbo_tasks::value_impl]
 impl Asset for ModuleAsset {
-    fn path(&self) -> FileSystemPathRef {
+    fn path(&self) -> FileSystemPathVc {
         self.source.clone().path()
     }
-    fn content(&self) -> FileContentRef {
+    fn content(&self) -> FileContentVc {
         self.source.clone().content()
     }
-    async fn references(&self) -> AssetReferencesSetRef {
+    async fn references(&self) -> AssetReferencesSetVc {
         module_references(self.source.clone(), self.runtime.clone())
     }
 }
@@ -51,12 +51,12 @@ impl Asset for ModuleAsset {
 pub struct WebpackChunkAssetReference {
     #[trace_ignore]
     pub chunk_id: Lit,
-    pub runtime: WebpackRuntimeRef,
+    pub runtime: WebpackRuntimeVc,
 }
 
 #[turbo_tasks::value_impl]
 impl AssetReference for WebpackChunkAssetReference {
-    async fn resolve_reference(&self) -> Result<ResolveResultRef> {
+    async fn resolve_reference(&self) -> Result<ResolveResultVc> {
         let runtime = self.runtime.get().await?;
         Ok(match &*runtime {
             WebpackRuntime::Webpack5 {
@@ -70,10 +70,10 @@ impl AssetReference for WebpackChunkAssetReference {
                     _ => todo!(),
                 };
                 let filename = format!("./chunks/{}.js", chunk_id);
-                let source = SourceAssetRef::new(context_path.clone().join(&filename)).into();
+                let source = SourceAssetVc::new(context_path.clone().join(&filename)).into();
 
                 ResolveResult::Single(
-                    ModuleAssetRef::new(source, self.runtime.clone()).into(),
+                    ModuleAssetVc::new(source, self.runtime.clone()).into(),
                     None,
                 )
                 .into()
@@ -86,15 +86,15 @@ impl AssetReference for WebpackChunkAssetReference {
 #[turbo_tasks::value(shared, AssetReference)]
 #[derive(PartialEq, Eq)]
 pub struct WebpackEntryAssetReference {
-    pub source: AssetRef,
-    pub runtime: WebpackRuntimeRef,
+    pub source: AssetVc,
+    pub runtime: WebpackRuntimeVc,
 }
 
 #[turbo_tasks::value_impl]
 impl AssetReference for WebpackEntryAssetReference {
-    fn resolve_reference(&self) -> ResolveResultRef {
+    fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(
-            ModuleAssetRef::new(self.source.clone(), self.runtime.clone()).into(),
+            ModuleAssetVc::new(self.source.clone(), self.runtime.clone()).into(),
             None,
         )
         .into()
@@ -104,14 +104,14 @@ impl AssetReference for WebpackEntryAssetReference {
 #[turbo_tasks::value(shared, AssetReference)]
 #[derive(PartialEq, Eq)]
 pub struct WebpackRuntimeAssetReference {
-    pub source: AssetRef,
-    pub request: RequestRef,
-    pub runtime: WebpackRuntimeRef,
+    pub source: AssetVc,
+    pub request: RequestVc,
+    pub runtime: WebpackRuntimeVc,
 }
 
 #[turbo_tasks::value_impl]
 impl AssetReference for WebpackRuntimeAssetReference {
-    async fn resolve_reference(&self) -> Result<ResolveResultRef> {
+    async fn resolve_reference(&self) -> Result<ResolveResultVc> {
         let context = self.source.path().parent();
 
         let options = resolve_options(context.clone());
@@ -122,7 +122,7 @@ impl AssetReference for WebpackRuntimeAssetReference {
 
         if let ResolveResult::Single(source, refs) = &*resolved.await? {
             return Ok(ResolveResult::Single(
-                ModuleAssetRef::new(source.clone(), self.runtime.clone()).into(),
+                ModuleAssetVc::new(source.clone(), self.runtime.clone()).into(),
                 refs.clone(),
             )
             .into());

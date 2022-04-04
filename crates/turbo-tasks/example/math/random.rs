@@ -3,13 +3,13 @@ use std::{
     time::Duration,
 };
 
-use crate::math::I32ValueRef;
+use crate::math::I32ValueVc;
 use anyhow::Result;
 use rand::Rng;
 use turbo_tasks::Task;
 
 #[turbo_tasks::function]
-pub async fn random(id: RandomIdRef) -> Result<I32ValueRef> {
+pub async fn random(id: RandomIdVc) -> Result<I32ValueVc> {
     let id = id.await?;
     let mut rng = rand::thread_rng();
     let invalidator = Task::get_invalidator();
@@ -21,7 +21,7 @@ pub async fn random(id: RandomIdRef) -> Result<I32ValueRef> {
             invalidator.invalidate();
         });
     }
-    Ok(I32ValueRef::new(rng.gen_range(1..=6)))
+    Ok(I32ValueVc::new(rng.gen_range(1..=6)))
 }
 
 #[turbo_tasks::value]

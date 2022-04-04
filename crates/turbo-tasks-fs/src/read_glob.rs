@@ -2,40 +2,40 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 
-use crate::{glob::GlobRef, DirectoryContent, DirectoryEntry, FileSystemPathRef};
+use crate::{glob::GlobVc, DirectoryContent, DirectoryEntry, FileSystemPathVc};
 
 #[turbo_tasks::value]
 #[derive(PartialEq, Eq, Default, Debug)]
 pub struct ReadGlobResult {
     pub results: HashMap<String, DirectoryEntry>,
-    pub inner: HashMap<String, ReadGlobResultRef>,
+    pub inner: HashMap<String, ReadGlobResultVc>,
 }
 
 #[turbo_tasks::function]
 pub async fn read_glob(
-    directory: FileSystemPathRef,
-    glob: GlobRef,
+    directory: FileSystemPathVc,
+    glob: GlobVc,
     include_dot_files: bool,
-) -> Result<ReadGlobResultRef> {
+) -> Result<ReadGlobResultVc> {
     read_glob_internal("", directory, glob, include_dot_files).await
 }
 
 #[turbo_tasks::function]
 pub async fn read_glob_inner(
     prefix: String,
-    directory: FileSystemPathRef,
-    glob: GlobRef,
+    directory: FileSystemPathVc,
+    glob: GlobVc,
     include_dot_files: bool,
-) -> Result<ReadGlobResultRef> {
+) -> Result<ReadGlobResultVc> {
     read_glob_internal(&prefix, directory, glob, include_dot_files).await
 }
 
 async fn read_glob_internal(
     prefix: &str,
-    directory: FileSystemPathRef,
-    glob: GlobRef,
+    directory: FileSystemPathVc,
+    glob: GlobVc,
     include_dot_files: bool,
-) -> Result<ReadGlobResultRef> {
+) -> Result<ReadGlobResultVc> {
     let dir = directory.read_dir().await?;
     let mut result = ReadGlobResult::default();
     let glob_value = glob.get().await?;
@@ -74,5 +74,5 @@ async fn read_glob_internal(
         }
         DirectoryContent::NotFound => {}
     }
-    Ok(ReadGlobResultRef::slot(result))
+    Ok(ReadGlobResultVc::slot(result))
 }

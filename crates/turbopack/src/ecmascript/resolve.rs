@@ -1,18 +1,18 @@
 use anyhow::Result;
 use turbo_tasks::ValueToString;
-use turbo_tasks_fs::FileSystemPathRef;
+use turbo_tasks_fs::FileSystemPathVc;
 
 use crate::{
     module,
     resolve::{
-        options::{ConditionValue, ResolveIntoPackage, ResolveOptions, ResolveOptionsRef},
-        parse::RequestRef,
-        resolve, resolve_options, ResolveResult, ResolveResultRef,
+        options::{ConditionValue, ResolveIntoPackage, ResolveOptions, ResolveOptionsVc},
+        parse::RequestVc,
+        resolve, resolve_options, ResolveResult, ResolveResultVc,
     },
 };
 
 #[turbo_tasks::function]
-pub async fn apply_esm_specific_options(options: ResolveOptionsRef) -> Result<ResolveOptionsRef> {
+pub async fn apply_esm_specific_options(options: ResolveOptionsVc) -> Result<ResolveOptionsVc> {
     let mut options: ResolveOptions = options.await?.clone();
     for item in options.into_package.iter_mut() {
         match item {
@@ -27,7 +27,7 @@ pub async fn apply_esm_specific_options(options: ResolveOptionsRef) -> Result<Re
 }
 
 #[turbo_tasks::function]
-pub async fn apply_cjs_specific_options(options: ResolveOptionsRef) -> Result<ResolveOptionsRef> {
+pub async fn apply_cjs_specific_options(options: ResolveOptionsVc) -> Result<ResolveOptionsVc> {
     let mut options: ResolveOptions = options.await?.clone();
     for item in options.into_package.iter_mut() {
         match item {
@@ -43,25 +43,25 @@ pub async fn apply_cjs_specific_options(options: ResolveOptionsRef) -> Result<Re
 
 #[turbo_tasks::function]
 pub async fn esm_resolve(
-    request: RequestRef,
-    context: FileSystemPathRef,
-) -> Result<ResolveResultRef> {
+    request: RequestVc,
+    context: FileSystemPathVc,
+) -> Result<ResolveResultVc> {
     specific_resolve(request, context, apply_esm_specific_options).await
 }
 
 #[turbo_tasks::function]
 pub async fn cjs_resolve(
-    request: RequestRef,
-    context: FileSystemPathRef,
-) -> Result<ResolveResultRef> {
+    request: RequestVc,
+    context: FileSystemPathVc,
+) -> Result<ResolveResultVc> {
     specific_resolve(request, context, apply_cjs_specific_options).await
 }
 
 async fn specific_resolve(
-    request: RequestRef,
-    context: FileSystemPathRef,
-    apply_specific_options: fn(ResolveOptionsRef) -> ResolveOptionsRef,
-) -> Result<ResolveResultRef> {
+    request: RequestVc,
+    context: FileSystemPathVc,
+    apply_specific_options: fn(ResolveOptionsVc) -> ResolveOptionsVc,
+) -> Result<ResolveResultVc> {
     let options = resolve_options(context.clone());
 
     let options = apply_specific_options(options);

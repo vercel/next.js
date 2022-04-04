@@ -19,8 +19,8 @@ use chashmap::CHashMap;
 use event_listener::Event;
 
 use crate::{
-    output::OutputContent, slot_ref::SlotRef, task::NativeTaskFuture, task_input::TaskInput,
-    NativeFunction, NothingRef, Task, TraitType,
+    output::OutputContent, slot_ref::SlotVc, task::NativeTaskFuture, task_input::TaskInput,
+    NativeFunction, NothingVc, Task, TraitType,
 };
 
 pub struct TurboTasks {
@@ -79,7 +79,7 @@ impl TurboTasks {
     /// Dependencies will not invalidate the task.
     pub fn spawn_once_task(
         self: &Arc<Self>,
-        future: impl Future<Output = Result<SlotRef>> + Send + 'static,
+        future: impl Future<Output = Result<SlotVc>> + Send + 'static,
     ) -> Arc<Task> {
         let task = Arc::new(Task::new_once(future));
         self.clone().schedule(task.clone());
@@ -95,7 +95,7 @@ impl TurboTasks {
         let task = self.spawn_once_task(async move {
             let result = future.await;
             *exchange_clone.lock().unwrap() = Some(result);
-            Ok(NothingRef::new().into())
+            Ok(NothingVc::new().into())
         });
         task.with_done_output(move |output| match &output.content {
             OutputContent::Empty => Err(anyhow!(
@@ -119,7 +119,7 @@ impl TurboTasks {
         map: &CHashMap<K, Arc<Task>>,
         key: K,
         create_new: impl FnOnce() -> Task,
-    ) -> SlotRef {
+    ) -> SlotVc {
         if let Some(cached) = map.get(&key) {
             // fast pass without key lock (only read lock on table)
             let task = cached.clone();
@@ -127,7 +127,7 @@ impl TurboTasks {
             Task::with_current(|parent| task.connect_parent(parent));
             // TODO maybe force (background) scheduling to avoid inactive tasks hanging in
             // "in progress" until they become active
-            SlotRef::TaskOutput(task)
+            SlotVc::TaskOutput(task)
         } else {
             // slow pass with key lock
             let new_task = Arc::new(create_new());
@@ -146,7 +146,7 @@ impl TurboTasks {
             });
             let task = result_task;
             Task::with_current(|parent| task.connect_parent(parent));
-            SlotRef::TaskOutput(task)
+            SlotVc::TaskOutput(task)
         }
     }
 
@@ -156,7 +156,7 @@ impl TurboTasks {
         self: &Arc<Self>,
         func: &'static NativeFunction,
         inputs: Vec<TaskInput>,
-    ) -> SlotRef {
+    ) -> SlotVc {
         debug_assert!(inputs.iter().all(|i| i.is_resolved() && !i.is_nothing()));
         self.cached_call(&self.native_task_cache, (func, inputs.clone()), || {
             Task::new_native(inputs, func)
@@ -169,7 +169,7 @@ impl TurboTasks {
         self: &Arc<Self>,
         func: &'static NativeFunction,
         inputs: Vec<TaskInput>,
-    ) -> SlotRef {
+    ) -> SlotVc {
         if inputs.iter().all(|i| i.is_resolved() && !i.is_nothing()) {
             self.native_call(func, inputs)
         } else {
@@ -186,7 +186,7 @@ impl TurboTasks {
         trait_type: &'static TraitType,
         trait_fn_name: String,
         inputs: Vec<TaskInput>,
-    ) -> SlotRef {
+    ) -> SlotVc {
         self.cached_call(
             &self.trait_task_cache,
             (trait_type, trait_fn_name.clone(), inputs.clone()),
@@ -343,7 +343,7 @@ impl TurboTasks {
 }
 
 /// see [TurboTasks] `dynamic_call`
-pub fn dynamic_call(func: &'static NativeFunction, inputs: Vec<TaskInput>) -> SlotRef {
+pub fn dynamic_call(func: &'static NativeFunction, inputs: Vec<TaskInput>) -> SlotVc {
     TurboTasks::with_current(|tt| tt.dynamic_call(func, inputs))
 }
 
@@ -352,6 +352,6 @@ pub fn trait_call(
     trait_type: &'static TraitType,
     trait_fn_name: String,
     inputs: Vec<TaskInput>,
-) -> SlotRef {
+) -> SlotVc {
     TurboTasks::with_current(|tt| tt.trait_call(trait_type, trait_fn_name, inputs))
 }

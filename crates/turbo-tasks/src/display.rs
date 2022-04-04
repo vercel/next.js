@@ -1,8 +1,8 @@
 use crate::{self as turbo_tasks};
 
-use crate::Promise;
+use crate::Vc;
 
 #[turbo_tasks::value_trait]
 pub trait ValueToString {
-    fn to_string(&self) -> Promise<String>;
+    fn to_string(&self) -> Vc<String>;
 }

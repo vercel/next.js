@@ -11,7 +11,7 @@ use any_key::AnyHash;
 use anyhow::{anyhow, Result};
 
 use crate::{
-    slot::CloneableData, util::try_join_all, value::Value, NativeFunction, SlotRef, SlotValueType,
+    slot::CloneableData, util::try_join_all, value::Value, NativeFunction, SlotVc, SlotValueType,
     Task, TraitType,
 };
 
@@ -58,14 +58,14 @@ impl TaskInput {
                 TaskInput::TaskOutput(ref task) => task
                     .with_done_output(|output| {
                         Task::with_current(|reader| {
-                            reader.add_dependency(SlotRef::TaskOutput(task.clone()));
+                            reader.add_dependency(SlotVc::TaskOutput(task.clone()));
                             output.read(reader.clone())
                         })
                     })
                     .await?
                     .into(),
                 TaskInput::TaskCreated(ref task, index) => Task::with_current(|reader| {
-                    reader.add_dependency(SlotRef::TaskCreated(task.clone(), index));
+                    reader.add_dependency(SlotVc::TaskCreated(task.clone(), index));
                     task.with_created_slot_mut(index, |slot| slot.resolve(reader.clone()))
                 })?,
                 _ => return Ok(current),
@@ -80,7 +80,7 @@ impl TaskInput {
                 TaskInput::TaskOutput(ref task) => task
                     .with_done_output(|output| {
                         Task::with_current(|reader| {
-                            reader.add_dependency(SlotRef::TaskOutput(task.clone()));
+                            reader.add_dependency(SlotVc::TaskOutput(task.clone()));
                             output.read(reader.clone())
                         })
                     })
@@ -190,11 +190,11 @@ impl PartialEq for TaskInput {
 
 impl Eq for TaskInput {}
 
-impl From<SlotRef> for TaskInput {
-    fn from(slot_ref: SlotRef) -> Self {
+impl From<SlotVc> for TaskInput {
+    fn from(slot_ref: SlotVc) -> Self {
         match slot_ref {
-            SlotRef::TaskOutput(task) => TaskInput::TaskOutput(task),
-            SlotRef::TaskCreated(task, i) => TaskInput::TaskCreated(task, i),
+            SlotVc::TaskOutput(task) => TaskInput::TaskOutput(task),
+            SlotVc::TaskCreated(task, i) => TaskInput::TaskCreated(task, i),
         }
     }
 }
@@ -377,13 +377,13 @@ impl<T: Any + Clone + Hash + Eq + Send + Sync + 'static> TryFrom<&TaskInput> for
     }
 }
 
-impl TryFrom<&TaskInput> for SlotRef {
+impl TryFrom<&TaskInput> for SlotVc {
     type Error = anyhow::Error;
 
     fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
         match value {
-            TaskInput::TaskOutput(task) => Ok(SlotRef::TaskOutput(task.clone())),
-            TaskInput::TaskCreated(task, index) => Ok(SlotRef::TaskCreated(task.clone(), *index)),
+            TaskInput::TaskOutput(task) => Ok(SlotVc::TaskOutput(task.clone())),
+            TaskInput::TaskCreated(task, index) => Ok(SlotVc::TaskCreated(task.clone(), *index)),
             _ => Err(anyhow!("invalid task input type, expected slot ref")),
         }
     }

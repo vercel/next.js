@@ -1,7 +1,7 @@
 use anyhow::Result;
-use turbo_tasks::trace::TraceSlotRefs;
+use turbo_tasks::trace::TraceSlotVcs;
 
-#[derive(PartialEq, Eq, Debug, Clone, TraceSlotRefs)]
+#[derive(PartialEq, Eq, Debug, Clone, TraceSlotVcs)]
 enum GlobPart {
     /// `/**/`: Matches any path of directories
     AnyDirectories,
@@ -254,7 +254,7 @@ impl TryFrom<&str> for Glob {
 }
 
 #[turbo_tasks::value_impl]
-impl GlobRef {
+impl GlobVc {
     pub fn new(glob: &str) -> Result<Self> {
         Ok(Self::slot(Glob::try_from(glob)?))
     }

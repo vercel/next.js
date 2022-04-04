@@ -1,8 +1,8 @@
 use std::{any::Any, hash::Hash};
 
-use crate::{slot::Slot, SlotRef};
+use crate::{slot::Slot, SlotVc};
 
-pub use crate::slot_ref::SlotRefReadResult;
+pub use crate::slot_ref::SlotVcReadResult;
 
 /// Internally used by turbo-tasks-macros
 pub fn match_previous_node_by_key<
@@ -12,11 +12,11 @@ pub fn match_previous_node_by_key<
 >(
     key: K,
     functor: F,
-) -> SlotRef {
+) -> SlotVc {
     crate::task::match_previous_node_by_key::<T, K, F>(key, functor)
 }
 
 /// Internally used by turbo-tasks-macros
-pub fn match_previous_node_by_type<T: Any + ?Sized, F: FnOnce(&mut Slot)>(functor: F) -> SlotRef {
+pub fn match_previous_node_by_type<T: Any + ?Sized, F: FnOnce(&mut Slot)>(functor: F) -> SlotVc {
     crate::task::match_previous_node_by_type::<T, F>(functor)
 }

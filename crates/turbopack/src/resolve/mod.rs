@@ -7,30 +7,30 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use json::JsonValue;
-use turbo_tasks::{trace::TraceSlotRefs, util::try_join_all, Value, ValueToString};
+use turbo_tasks::{trace::TraceSlotVcs, util::try_join_all, Value, ValueToString};
 use turbo_tasks_fs::{
-    glob::GlobRef,
+    glob::GlobVc,
     util::{join_path, normalize_path, normalize_request},
-    DirectoryContent, FileContent, FileJsonContent, FileJsonContentRef, FileSystemPathRef,
+    DirectoryContent, FileContent, FileJsonContent, FileJsonContentVc, FileSystemPathVc,
 };
 
 use crate::{
-    asset::AssetRef,
-    reference::{AssetReference, AssetReferenceRef},
+    asset::AssetVc,
+    reference::{AssetReference, AssetReferenceVc},
     resolve::{
-        options::{ConditionValue, ResolvedMapRef},
-        pattern::{read_matches, Pattern, PatternMatch, PatternRef},
+        options::{ConditionValue, ResolvedMapVc},
+        pattern::{read_matches, Pattern, PatternMatch, PatternVc},
     },
-    source_asset::SourceAssetRef,
+    source_asset::SourceAssetVc,
 };
 
 use self::{
     exports::{ExportsField, ExportsValue},
     options::{
         resolve_modules_options, ImportMap, ImportMapResult, ImportMapping, ResolveIntoPackage,
-        ResolveModules, ResolveModulesOptionsRef, ResolveOptions, ResolveOptionsRef, ResolvedMap,
+        ResolveModules, ResolveModulesOptionsVc, ResolveOptions, ResolveOptionsVc, ResolvedMap,
     },
-    parse::{Request, RequestRef},
+    parse::{Request, RequestVc},
     prefix_tree::PrefixTree,
 };
 
@@ -40,7 +40,7 @@ pub mod parse;
 pub mod pattern;
 mod prefix_tree;
 
-#[derive(PartialEq, Eq, Clone, Debug, TraceSlotRefs)]
+#[derive(PartialEq, Eq, Clone, Debug, TraceSlotVcs)]
 pub enum SpecialType {
     OriginalReferenceExternal,
     OriginalRefernceTypeExternal(String),
@@ -52,16 +52,16 @@ pub enum SpecialType {
 #[turbo_tasks::value(shared)]
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ResolveResult {
-    Nested(Vec<AssetReferenceRef>),
-    Single(AssetRef, Option<Vec<AssetReferenceRef>>),
-    Keyed(HashMap<String, AssetRef>, Option<Vec<AssetReferenceRef>>),
-    Alternatives(HashSet<AssetRef>, Option<Vec<AssetReferenceRef>>),
-    Special(SpecialType, Option<Vec<AssetReferenceRef>>),
-    Unresolveable(Option<Vec<AssetReferenceRef>>),
+    Nested(Vec<AssetReferenceVc>),
+    Single(AssetVc, Option<Vec<AssetReferenceVc>>),
+    Keyed(HashMap<String, AssetVc>, Option<Vec<AssetReferenceVc>>),
+    Alternatives(HashSet<AssetVc>, Option<Vec<AssetReferenceVc>>),
+    Special(SpecialType, Option<Vec<AssetReferenceVc>>),
+    Unresolveable(Option<Vec<AssetReferenceVc>>),
 }
 
 impl ResolveResult {
-    pub fn add_reference(&mut self, reference: AssetReferenceRef) {
+    pub fn add_reference(&mut self, reference: AssetReferenceVc) {
         match self {
             ResolveResult::Nested(list) => list.push(reference),
             ResolveResult::Single(_, list)
@@ -75,7 +75,7 @@ impl ResolveResult {
         }
     }
 
-    fn get_references(&self) -> Option<&Vec<AssetReferenceRef>> {
+    fn get_references(&self) -> Option<&Vec<AssetReferenceVc>> {
         match self {
             ResolveResult::Nested(list) => Some(list),
             ResolveResult::Single(_, list)
@@ -167,10 +167,10 @@ impl ResolveResult {
 
     pub async fn map<A, AF, R, RF>(&self, mut asset_fn: A, reference_fn: R) -> Result<Self>
     where
-        A: FnMut(&AssetRef) -> AF,
-        AF: Future<Output = Result<AssetRef>>,
-        R: FnMut(&AssetReferenceRef) -> RF,
-        RF: Future<Output = Result<AssetReferenceRef>>,
+        A: FnMut(&AssetVc) -> AF,
+        AF: Future<Output = Result<AssetVc>>,
+        R: FnMut(&AssetReferenceVc) -> RF,
+        RF: Future<Output = Result<AssetReferenceVc>>,
     {
         Ok(match self {
             ResolveResult::Nested(refs) => {
@@ -231,14 +231,14 @@ impl ResolveResult {
 }
 
 #[turbo_tasks::value_impl]
-impl ResolveResultRef {
-    async fn add_reference(self, reference: AssetReferenceRef) -> Result<Self> {
+impl ResolveResultVc {
+    async fn add_reference(self, reference: AssetReferenceVc) -> Result<Self> {
         let mut this = self.await?.clone();
         this.add_reference(reference);
         Ok(this.into())
     }
 
-    async fn alternatives(results: Vec<ResolveResultRef>) -> Result<Self> {
+    async fn alternatives(results: Vec<ResolveResultVc>) -> Result<Self> {
         if results.len() == 1 {
             return Ok(results.into_iter().next().unwrap());
         }
@@ -256,13 +256,13 @@ impl ResolveResultRef {
 }
 
 #[turbo_tasks::function]
-pub async fn resolve_options(context: FileSystemPathRef) -> Result<ResolveOptionsRef> {
+pub async fn resolve_options(context: FileSystemPathVc) -> Result<ResolveOptionsVc> {
     let parent = context.clone().parent().resolve().await?;
     if parent != context {
         return Ok(resolve_options(parent));
     }
     let context_value = context.get().await?;
-    let root = FileSystemPathRef::new(context_value.fs.clone(), "");
+    let root = FileSystemPathVc::new(context_value.fs.clone(), "");
     let mut direct_mappings = PrefixTree::new();
     for req in [
         "assert",
@@ -323,12 +323,12 @@ pub async fn resolve_options(context: FileSystemPathRef) -> Result<ResolveOption
     let glob_mappings = vec![
         (
             context.clone(),
-            GlobRef::new("**/*/next/dist/server/next.js").await?.clone(),
+            GlobVc::new("**/*/next/dist/server/next.js").await?.clone(),
             ImportMapping::Ignore,
         ),
         (
             context.clone(),
-            GlobRef::new("**/*/next/dist/bin/next").await?.clone(),
+            GlobVc::new("**/*/next/dist/bin/next").await?.clone(),
             ImportMapping::Ignore,
         ),
     ];
@@ -372,7 +372,7 @@ pub async fn resolve_options(context: FileSystemPathRef) -> Result<ResolveOption
     .into())
 }
 
-async fn exists(fs_path: FileSystemPathRef) -> Result<bool> {
+async fn exists(fs_path: FileSystemPathVc) -> Result<bool> {
     Ok(if let FileContent::Content(_) = &*fs_path.read().await? {
         true
     } else {
@@ -380,7 +380,7 @@ async fn exists(fs_path: FileSystemPathRef) -> Result<bool> {
     })
 }
 
-async fn dir_exists(fs_path: FileSystemPathRef) -> Result<bool> {
+async fn dir_exists(fs_path: FileSystemPathVc) -> Result<bool> {
     Ok(
         if let DirectoryContent::Entries(_) = &*fs_path.read_dir().await? {
             true
@@ -399,9 +399,9 @@ enum ExportsFieldResult {
 
 #[turbo_tasks::function]
 async fn exports_field(
-    package_json: FileJsonContentRef,
+    package_json: FileJsonContentVc,
     field: &str,
-) -> Result<ExportsFieldResultRef> {
+) -> Result<ExportsFieldResultVc> {
     if let FileJsonContent::Content(package_json) = &*package_json.await? {
         let field_value = &package_json[field];
         if let JsonValue::Null = field_value {
@@ -430,15 +430,15 @@ async fn exports_field(
 #[turbo_tasks::value(shared)]
 #[derive(PartialEq, Eq)]
 pub enum FindPackageJsonResult {
-    Found(FileSystemPathRef),
+    Found(FileSystemPathVc),
     NotFound,
 }
 
 #[turbo_tasks::function]
-pub async fn find_package_json(context: FileSystemPathRef) -> Result<FindPackageJsonResultRef> {
+pub async fn find_package_json(context: FileSystemPathVc) -> Result<FindPackageJsonResultVc> {
     let context_value = context.get().await?;
     if let Some(new_path) = join_path(&context_value.path, "package.json") {
-        let fs_path = FileSystemPathRef::new_normalized(context_value.fs.clone(), new_path);
+        let fs_path = FileSystemPathVc::new_normalized(context_value.fs.clone(), new_path);
         if exists(fs_path.clone()).await? {
             return Ok(FindPackageJsonResult::Found(fs_path).into());
         }
@@ -452,16 +452,16 @@ pub async fn find_package_json(context: FileSystemPathRef) -> Result<FindPackage
 #[turbo_tasks::value(shared)]
 #[derive(PartialEq, Eq)]
 enum FindPackageResult {
-    Package(FileSystemPathRef),
+    Package(FileSystemPathVc),
     NotFound,
 }
 
 #[turbo_tasks::function]
 async fn find_package(
-    context: FileSystemPathRef,
+    context: FileSystemPathVc,
     package_name: String,
-    options: ResolveModulesOptionsRef,
-) -> Result<FindPackageResultRef> {
+    options: ResolveModulesOptionsVc,
+) -> Result<FindPackageResultVc> {
     let options = options.await?;
     for resolve_modules in &options.modules {
         match resolve_modules {
@@ -472,12 +472,12 @@ async fn find_package(
                     for name in names.iter() {
                         if let Some(nested_path) = join_path(&context_value.path, &name) {
                             if let Some(new_path) = join_path(&nested_path, &package_name) {
-                                let fs_path = FileSystemPathRef::new_normalized(
+                                let fs_path = FileSystemPathVc::new_normalized(
                                     context_value.fs.clone(),
                                     nested_path,
                                 );
                                 if dir_exists(fs_path).await? {
-                                    let fs_path = FileSystemPathRef::new_normalized(
+                                    let fs_path = FileSystemPathVc::new_normalized(
                                         context_value.fs.clone(),
                                         new_path,
                                     );
@@ -503,22 +503,22 @@ async fn find_package(
     Ok(FindPackageResult::NotFound.into())
 }
 
-fn merge_results(results: Vec<ResolveResultRef>) -> ResolveResultRef {
+fn merge_results(results: Vec<ResolveResultVc>) -> ResolveResultVc {
     match results.len() {
         0 => ResolveResult::Unresolveable(None).into(),
         1 => results.into_iter().next().unwrap(),
-        _ => ResolveResultRef::alternatives(results),
+        _ => ResolveResultVc::alternatives(results),
     }
 }
 
 #[turbo_tasks::function]
 pub async fn resolve_raw(
-    context: FileSystemPathRef,
-    path: PatternRef,
+    context: FileSystemPathVc,
+    path: PatternVc,
     force_in_context: bool,
-) -> Result<ResolveResultRef> {
-    fn to_result(path: &FileSystemPathRef) -> ResolveResultRef {
-        ResolveResult::Single(SourceAssetRef::new(path.clone()).into(), None).into()
+) -> Result<ResolveResultVc> {
+    fn to_result(path: &FileSystemPathVc) -> ResolveResultVc {
+        ResolveResult::Single(SourceAssetVc::new(path.clone()).into(), None).into()
     }
     let mut results = Vec::new();
     let pat = path.get().await?;
@@ -561,15 +561,15 @@ pub async fn resolve_raw(
 
 #[turbo_tasks::function]
 pub async fn resolve(
-    context: FileSystemPathRef,
-    request: RequestRef,
-    options: ResolveOptionsRef,
-) -> Result<ResolveResultRef> {
+    context: FileSystemPathVc,
+    request: RequestVc,
+    options: ResolveOptionsVc,
+) -> Result<ResolveResultVc> {
     async fn resolved(
-        fs_path: FileSystemPathRef,
-        resolved_map: &Option<ResolvedMapRef>,
-        options: &ResolveOptionsRef,
-    ) -> Result<ResolveResultRef> {
+        fs_path: FileSystemPathVc,
+        resolved_map: &Option<ResolvedMapVc>,
+        options: &ResolveOptionsVc,
+    ) -> Result<ResolveResultVc> {
         if let Some(resolved_map) = resolved_map {
             match &*resolved_map.clone().lookup(fs_path.clone()).await? {
                 ImportMapResult::Result(result) => {
@@ -585,18 +585,18 @@ pub async fn resolve(
                 ImportMapResult::NoEntry => {}
             }
         }
-        return Ok(ResolveResult::Single(SourceAssetRef::new(fs_path).into(), None).into());
+        return Ok(ResolveResult::Single(SourceAssetVc::new(fs_path).into(), None).into());
     }
 
     fn handle_exports_field(
-        package_path: &FileSystemPathRef,
-        package_json: &FileSystemPathRef,
-        options: &ResolveOptionsRef,
+        package_path: &FileSystemPathVc,
+        package_json: &FileSystemPathVc,
+        options: &ResolveOptionsVc,
         exports_field: &ExportsField,
         path: &str,
         conditions: &BTreeMap<String, ConditionValue>,
         unspecified_conditions: &ConditionValue,
-    ) -> Result<ResolveResultRef> {
+    ) -> Result<ResolveResultVc> {
         let mut results = Vec::new();
         let mut conditions_state = HashMap::new();
         let values = exports_field
@@ -619,22 +619,22 @@ pub async fn resolve(
         let mut resolved_results = Vec::new();
         for path in results {
             if let Some(path) = normalize_path(path) {
-                let request = RequestRef::parse(Value::new(format!("./{}", path).into()));
+                let request = RequestVc::parse(Value::new(format!("./{}", path).into()));
                 resolved_results.push(resolve(package_path.clone(), request, options.clone()));
             }
         }
         // other options do not apply anymore when an exports field exist
         let resolved = merge_results(resolved_results);
         let resolved = resolved
-            .add_reference(AffectingResolvingAssetReferenceRef::new(package_json.clone()).into());
+            .add_reference(AffectingResolvingAssetReferenceVc::new(package_json.clone()).into());
         return Ok(resolved);
     }
 
     async fn resolve_into_folder(
-        package_path: &FileSystemPathRef,
-        package_json: &Option<(FileJsonContentRef, FileSystemPathRef)>,
-        options: &ResolveOptionsRef,
-    ) -> Result<ResolveResultRef> {
+        package_path: &FileSystemPathVc,
+        package_json: &Option<(FileJsonContentVc, FileSystemPathVc)>,
+        options: &ResolveOptionsVc,
+    ) -> Result<ResolveResultVc> {
         let options_value = options.get().await?;
         for resolve_into_package in options_value.into_package.iter() {
             match resolve_into_package {
@@ -646,7 +646,7 @@ pub async fn resolve(
                                  escapes the current directory"
                             )
                         })?;
-                    let request = RequestRef::parse(Value::new(str.into()));
+                    let request = RequestVc::parse(Value::new(str.into()));
                     return Ok(resolve(package_path.clone(), request, options.clone()));
                 }
                 ResolveIntoPackage::MainField(name) => {
@@ -654,7 +654,7 @@ pub async fn resolve(
                         if let FileJsonContent::Content(package_json) = &*package_json.get().await?
                         {
                             if let Some(field_value) = package_json[name].as_str() {
-                                let request = RequestRef::parse(Value::new(
+                                let request = RequestVc::parse(Value::new(
                                     normalize_request(&field_value).into(),
                                 ));
                                 let result =
@@ -664,7 +664,7 @@ pub async fn resolve(
                                 if !result.is_unresolveable() {
                                     let mut result = result.clone();
                                     result.add_reference(
-                                        AffectingResolvingAssetReferenceRef::new(
+                                        AffectingResolvingAssetReferenceVc::new(
                                             package_json_path.clone(),
                                         )
                                         .into(),
@@ -736,7 +736,7 @@ pub async fn resolve(
                 context,
                 "".to_string(),
                 *force_in_context,
-                PatternRef::new(path.clone()),
+                PatternVc::new(path.clone()),
             )
             .get()
             .await?;
@@ -751,7 +751,7 @@ pub async fn resolve(
                         let path_value = path.get().await?;
                         let package_json = {
                             if let Some(new_path) = join_path(&path_value.path, "package.json") {
-                                let fs_path = FileSystemPathRef::new_normalized(
+                                let fs_path = FileSystemPathVc::new_normalized(
                                     path_value.fs.clone(),
                                     new_path,
                                 );
@@ -781,7 +781,7 @@ pub async fn resolve(
 
             resolve(
                 context,
-                RequestRef::raw(Value::new(new_pat), *force_in_context),
+                RequestVc::raw(Value::new(new_pat), *force_in_context),
                 options,
             )
         }
@@ -797,7 +797,7 @@ pub async fn resolve(
                     let package_json = {
                         if let Some(new_path) = join_path(&package_path_value.path, "package.json")
                         {
-                            let fs_path = FileSystemPathRef::new_normalized(
+                            let fs_path = FileSystemPathVc::new_normalized(
                                 package_path_value.fs.clone(),
                                 new_path,
                             );
@@ -856,7 +856,7 @@ pub async fn resolve(
                         }
                         let mut new_pat = path.clone();
                         new_pat.push_front(".".to_string().into());
-                        let relative = RequestRef::relative(Value::new(new_pat), true);
+                        let relative = RequestVc::relative(Value::new(new_pat), true);
                         results.push(resolve(package_path.clone(), relative, options.clone()));
                     }
                     merge_results(results)
@@ -879,18 +879,18 @@ pub async fn resolve(
 #[turbo_tasks::value(AssetReference)]
 #[derive(PartialEq, Eq)]
 struct AffectingResolvingAssetReference {
-    file: FileSystemPathRef,
+    file: FileSystemPathVc,
 }
 
-impl AffectingResolvingAssetReferenceRef {
-    fn new(file: FileSystemPathRef) -> Self {
+impl AffectingResolvingAssetReferenceVc {
+    fn new(file: FileSystemPathVc) -> Self {
         Self::slot(AffectingResolvingAssetReference { file })
     }
 }
 
 #[turbo_tasks::value_impl]
 impl AssetReference for AffectingResolvingAssetReference {
-    fn resolve_reference(&self) -> ResolveResultRef {
-        ResolveResult::Single(SourceAssetRef::new(self.file.clone()).into(), None).into()
+    fn resolve_reference(&self) -> ResolveResultVc {
+        ResolveResult::Single(SourceAssetVc::new(self.file.clone()).into(), None).into()
     }
 }

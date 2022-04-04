@@ -7,11 +7,10 @@ use async_std::task::{block_on, spawn};
 use sha2::{Digest, Sha256};
 use std::time::Instant;
 use std::{collections::BTreeMap, env::current_dir};
-use turbo_tasks::{NothingRef, TurboTasks};
+use turbo_tasks::{NothingVc, TurboTasks};
 
 use turbo_tasks_fs::{
-    DirectoryContent, DirectoryEntry, DiskFileSystemRef, FileContent, FileSystemPathRef,
-    FileSystemRef,
+    DirectoryContent, DirectoryEntry, DiskFileSystemVc, FileContent, FileSystemPathVc, FileSystemVc,
 };
 
 fn main() {
@@ -22,15 +21,15 @@ fn main() {
         tt.spawn_root_task(|| {
             Box::pin(async {
                 let root = current_dir().unwrap().to_str().unwrap().to_string();
-                let disk_fs = DiskFileSystemRef::new("project".to_string(), root);
+                let disk_fs = DiskFileSystemVc::new("project".to_string(), root);
                 disk_fs.get().await?.start_watching()?;
 
                 // Smart Pointer cast
-                let fs: FileSystemRef = disk_fs.into();
-                let input = FileSystemPathRef::new(fs.clone(), "demo");
+                let fs: FileSystemVc = disk_fs.into();
+                let input = FileSystemPathVc::new(fs.clone(), "demo");
                 let dir_hash = hash_directory(input);
                 print_hash(dir_hash);
-                Ok(NothingRef::new().into())
+                Ok(NothingVc::new().into())
             })
         });
         spawn({
@@ -63,19 +62,19 @@ struct ContentHash {
     value: String,
 }
 
-impl ContentHashRef {
+impl ContentHashVc {
     pub fn new(value: String) -> Self {
         Self::slot(ContentHash { value })
     }
 }
 
 #[turbo_tasks::function]
-async fn print_hash(dir_hash: ContentHashRef) -> Result<()> {
+async fn print_hash(dir_hash: ContentHashVc) -> Result<()> {
     println!("DIR HASH: {}", dir_hash.await?.value);
     Ok(())
 }
 
-async fn filename(path: &FileSystemPathRef) -> Result<String> {
+async fn filename(path: &FileSystemPathVc) -> Result<String> {
     Ok(path
         .get()
         .await?
@@ -87,7 +86,7 @@ async fn filename(path: &FileSystemPathRef) -> Result<String> {
 }
 
 #[turbo_tasks::function]
-async fn hash_directory(directory: FileSystemPathRef) -> Result<ContentHashRef> {
+async fn hash_directory(directory: FileSystemPathVc) -> Result<ContentHashVc> {
     let dir_path = directory.get().await?.path.clone();
     let content = directory.clone().read_dir();
     let mut hashes = BTreeMap::new();
@@ -117,21 +116,21 @@ async fn hash_directory(directory: FileSystemPathRef) -> Result<ContentHashRef> 
 }
 
 #[turbo_tasks::function]
-async fn hash_file(file_path: FileSystemPathRef) -> Result<ContentHashRef> {
+async fn hash_file(file_path: FileSystemPathVc) -> Result<ContentHashVc> {
     let content = file_path.clone().read().await?;
     Ok(match &*content {
         FileContent::Content(bytes) => hash_content(bytes),
         FileContent::NotFound => {
             // report error
-            ContentHashRef::new("".to_string())
+            ContentHashVc::new("".to_string())
         }
     })
 }
 
-fn hash_content(content: impl AsRef<[u8]>) -> ContentHashRef {
+fn hash_content(content: impl AsRef<[u8]>) -> ContentHashVc {
     let mut hasher = Sha256::new();
     hasher.update(content);
     let result = format!("{:x}", hasher.finalize());
 
-    ContentHashRef::new(result)
+    ContentHashVc::new(result)
 }

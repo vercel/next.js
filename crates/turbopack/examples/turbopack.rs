@@ -8,13 +8,13 @@ use std::time::Instant;
 use std::{env::current_dir, time::Duration};
 use turbo_tasks::stats::Stats;
 use turbo_tasks::viz::{visualize_stats_tree, wrap_html};
-use turbo_tasks::{NothingRef, TurboTasks};
-use turbopack::ecmascript::ModuleAssetRef;
+use turbo_tasks::{NothingVc, TurboTasks};
+use turbopack::ecmascript::ModuleAssetVc;
 use turbopack::emit;
-use turbopack::rebase::RebasedAssetRef;
-use turbopack::source_asset::SourceAssetRef;
+use turbopack::rebase::RebasedAssetVc;
+use turbopack::source_asset::SourceAssetVc;
 
-use turbo_tasks_fs::{DiskFileSystemRef, FileSystemPathRef, FileSystemRef};
+use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 
 fn main() {
     let tt = TurboTasks::new();
@@ -24,21 +24,21 @@ fn main() {
         let task = tt.spawn_root_task(|| {
             Box::pin(async {
                 let root = current_dir().unwrap().to_str().unwrap().to_string();
-                let disk_fs = DiskFileSystemRef::new("project".to_string(), root);
+                let disk_fs = DiskFileSystemVc::new("project".to_string(), root);
                 disk_fs.get().await?.start_watching()?;
 
                 // Smart Pointer cast
-                let fs: FileSystemRef = disk_fs.into();
-                let input = FileSystemPathRef::new(fs.clone(), "demo");
-                let output = FileSystemPathRef::new(fs.clone(), "out");
-                let entry = FileSystemPathRef::new(fs.clone(), "demo/index.js");
+                let fs: FileSystemVc = disk_fs.into();
+                let input = FileSystemPathVc::new(fs.clone(), "demo");
+                let output = FileSystemPathVc::new(fs.clone(), "out");
+                let entry = FileSystemPathVc::new(fs.clone(), "demo/index.js");
 
-                let source = SourceAssetRef::new(entry);
-                let module = ModuleAssetRef::new(source.into());
-                let rebased = RebasedAssetRef::new(module.into(), input, output);
+                let source = SourceAssetVc::new(entry);
+                let module = ModuleAssetVc::new(source.into());
+                let rebased = RebasedAssetVc::new(module.into(), input, output);
                 emit(rebased.into());
 
-                Ok(NothingRef::new().into())
+                Ok(NothingVc::new().into())
             })
         });
         spawn({

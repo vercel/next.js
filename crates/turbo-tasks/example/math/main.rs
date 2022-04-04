@@ -6,23 +6,23 @@ use anyhow::Result;
 use async_std::task::{block_on, sleep, spawn};
 use log::LoggingOptions;
 use math::{add, max_new};
-use random::RandomIdRef;
+use random::RandomIdVc;
 use std::fs;
 use std::time::Instant;
 use std::{env::current_dir, time::Duration};
-use turbopack::ecmascript::ModuleAssetRef;
+use turbopack::ecmascript::ModuleAssetVc;
 use turbopack::emit;
-use turbopack::rebase::RebasedAssetRef;
-use turbopack::source_asset::SourceAssetRef;
+use turbopack::rebase::RebasedAssetVc;
+use turbopack::source_asset::SourceAssetVc;
 use turbo_tasks::viz::GraphViz;
-use turbo_tasks::{NothingRef, TurboTasks};
+use turbo_tasks::{NothingVc, TurboTasks};
 
 use turbo_tasks_fs::{
-    DirectoryContent, DirectoryEntry, DiskFileSystemRef, FileContent, FileContentRef,
-    FileSystemPathRef, FileSystemRef,
+    DirectoryContent, DirectoryEntry, DiskFileSystemVc, FileContent, FileContentVc,
+    FileSystemPathVc, FileSystemVc,
 };
 
-use crate::{log::log, math::I32ValueRef, random::random};
+use crate::{log::log, math::I32ValueVc, random::random};
 
 mod log;
 mod math;
@@ -39,7 +39,7 @@ fn main() {
             Box::pin(async {
                 make_math().await;
 
-                Ok(NothingRef::new().into())
+                Ok(NothingVc::new().into())
             })
         });
         spawn({
@@ -94,11 +94,11 @@ fn main() {
 
 #[turbo_tasks::function]
 fn make_math() {
-    let r1 = random(RandomIdRef::new(Duration::from_secs(5), 4));
-    let r2 = random(RandomIdRef::new(Duration::from_secs(7), 3));
+    let r1 = random(RandomIdVc::new(Duration::from_secs(5), 4));
+    let r2 = random(RandomIdVc::new(Duration::from_secs(7), 3));
     let max = max_new(r1.clone(), r2);
-    let a = add(I32ValueRef::new(42), I32ValueRef::new(1));
-    let b = add(I32ValueRef::new(2), I32ValueRef::new(3));
+    let a = add(I32ValueVc::new(42), I32ValueVc::new(1));
+    let b = add(I32ValueVc::new(2), I32ValueVc::new(3));
     log(
         a.clone(),
         LoggingOptions {

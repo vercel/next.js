@@ -1,36 +1,36 @@
 use anyhow::Result;
 use json::object;
-use turbo_tasks_fs::{FileContent, FileContentRef, FileSystemPathRef};
+use turbo_tasks_fs::{FileContent, FileContentVc, FileSystemPathVc};
 use turbopack::{
     all_assets,
-    asset::{Asset, AssetRef},
-    reference::AssetReferencesSetRef,
+    asset::{Asset, AssetVc},
+    reference::AssetReferencesSetVc,
 };
 
 #[turbo_tasks::value(shared, Asset)]
 #[derive(PartialEq, Eq)]
 pub struct NftJsonAsset {
-    entry: AssetRef,
+    entry: AssetVc,
 }
 
 #[turbo_tasks::value_impl]
-impl NftJsonAssetRef {
-    pub fn new(entry: AssetRef) -> Self {
+impl NftJsonAssetVc {
+    pub fn new(entry: AssetVc) -> Self {
         Self::slot(NftJsonAsset { entry })
     }
 }
 
 #[turbo_tasks::value_impl]
 impl Asset for NftJsonAsset {
-    async fn path(&self) -> Result<FileSystemPathRef> {
+    async fn path(&self) -> Result<FileSystemPathVc> {
         let path = self.entry.path().await?;
-        Ok(FileSystemPathRef::new(
+        Ok(FileSystemPathVc::new(
             path.fs.clone(),
             &format!("{}.nft.json", path.path),
         ))
     }
 
-    async fn content(&self) -> Result<FileContentRef> {
+    async fn content(&self) -> Result<FileContentVc> {
         let context = self.entry.path().parent().await?;
         let mut result = Vec::new();
         let set = all_assets(self.entry.clone());
@@ -47,7 +47,7 @@ impl Asset for NftJsonAsset {
         Ok(FileContent::Content(Vec::from(json.dump().as_bytes())).into())
     }
 
-    fn references(&self) -> AssetReferencesSetRef {
-        AssetReferencesSetRef::empty()
+    fn references(&self) -> AssetReferencesSetVc {
+        AssetReferencesSetVc::empty()
     }
 }

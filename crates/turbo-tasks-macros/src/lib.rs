@@ -21,7 +21,7 @@ use syn::{
 };
 
 fn get_ref_ident(ident: &Ident) -> Ident {
-    Ident::new(&(ident.to_string() + "Ref"), ident.span())
+    Ident::new(&(ident.to_string() + "Vc"), ident.span())
 }
 
 fn get_internal_function_ident(ident: &Ident) -> Ident {
@@ -166,16 +166,16 @@ impl Parse for ValueArguments {
     }
 }
 
-/// Creates a ValueRef struct for a `struct` or `enum` that represent
+/// Creates a ValueVc struct for a `struct` or `enum` that represent
 /// that type placed into a slot in a [Task].
 ///
-/// That ValueRef object can be `.await?`ed to get a readonly reference
+/// That ValueVc object can be `.await?`ed to get a readonly reference
 /// to the original value.
 ///
 /// `into` argument (`#[turbo_tasks::value(into: xxx)]`)
 ///
-/// When provided the ValueRef implement `From<Value>` to allow to convert
-/// a Value to a ValueRef by placing it into a slot in a Task.
+/// When provided the ValueVc implement `From<Value>` to allow to convert
+/// a Value to a ValueVc by placing it into a slot in a Task.
 ///
 /// `into: new`: Always overrides the value in the slot. Invalidating all
 /// dependent tasks.
@@ -226,7 +226,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
             #(impl From<#ident> for #trait_refs {
                 fn from(content: #ident) -> Self {
-                    std::convert::From::<turbo_tasks::SlotRef>::from(turbo_tasks::macro_helpers::match_previous_node_by_type::<dyn #traits, _>(
+                    std::convert::From::<turbo_tasks::SlotVc>::from(turbo_tasks::macro_helpers::match_previous_node_by_type::<dyn #traits, _>(
                         |__slot| {
                             __slot.update_shared(&#slot_value_type_ident, content);
                         }
@@ -247,7 +247,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
             #(impl From<#ident> for #trait_refs {
                 fn from(content: #ident) -> Self {
-                    std::convert::From::<turbo_tasks::SlotRef>::from(turbo_tasks::macro_helpers::match_previous_node_by_type::<dyn #traits, _>(
+                    std::convert::From::<turbo_tasks::SlotVc>::from(turbo_tasks::macro_helpers::match_previous_node_by_type::<dyn #traits, _>(
                         |__slot| {
                             __slot.compare_and_update_cloneable(&#slot_value_type_ident, content);
                         }
@@ -270,7 +270,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
             #(impl From<#ident> for #trait_refs {
                 fn from(content: #ident) -> Self {
-                    std::convert::From::<turbo_tasks::SlotRef>::from(turbo_tasks::macro_helpers::match_previous_node_by_type::<dyn #traits, _>(
+                    std::convert::From::<turbo_tasks::SlotVc>::from(turbo_tasks::macro_helpers::match_previous_node_by_type::<dyn #traits, _>(
                         |__slot| {
                             __slot.compare_and_update_shared(&#slot_value_type_ident, content);
                         }
@@ -366,7 +366,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         })
         .collect();
     let expanded = quote! {
-        #[derive(turbo_tasks::trace::TraceSlotRefs)]
+        #[derive(turbo_tasks::trace::TraceSlotVcs)]
         #item
 
         turbo_tasks::lazy_static! {
@@ -388,7 +388,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         /// A reference is equal to another reference with it points to the same thing. No resolving is applied on comparision.
         #[derive(Clone, Debug, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq)]
         #vis struct #ref_ident {
-            node: turbo_tasks::SlotRef,
+            node: turbo_tasks::SlotVc,
         }
 
         impl #ref_ident {
@@ -400,7 +400,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             ///
             /// Reading the value will make the current task depend on the slot and the task outputs.
             /// This will lead to invalidation of the current task when one of these changes.
-            pub async fn get(&self) -> turbo_tasks::Result<turbo_tasks::SlotRefReadResult<#ident>> {
+            pub async fn get(&self) -> turbo_tasks::Result<turbo_tasks::SlotVcReadResult<#ident>> {
                 self.node.clone().into_read::<#ident>().await
             }
 
@@ -414,8 +414,8 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
         // #[cfg(feature = "into_future")]
         impl std::future::IntoFuture for #ref_ident {
-            type Output = turbo_tasks::Result<turbo_tasks::macro_helpers::SlotRefReadResult<#ident>>;
-            type IntoFuture = std::pin::Pin<std::boxed::Box<dyn std::future::Future<Output = turbo_tasks::Result<turbo_tasks::macro_helpers::SlotRefReadResult<#ident>>> + Send + Sync + 'static>>;
+            type Output = turbo_tasks::Result<turbo_tasks::macro_helpers::SlotVcReadResult<#ident>>;
+            type IntoFuture = std::pin::Pin<std::boxed::Box<dyn std::future::Future<Output = turbo_tasks::Result<turbo_tasks::macro_helpers::SlotVcReadResult<#ident>>> + Send + Sync + 'static>>;
             fn into_future(self) -> Self::IntoFuture {
                 Box::pin(self.node.clone().into_read::<#ident>())
             }
@@ -429,19 +429,19 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
 
-        impl From<turbo_tasks::SlotRef> for #ref_ident {
-            fn from(node: turbo_tasks::SlotRef) -> Self {
+        impl From<turbo_tasks::SlotVc> for #ref_ident {
+            fn from(node: turbo_tasks::SlotVc) -> Self {
                 Self { node }
             }
         }
 
-        impl From<#ref_ident> for turbo_tasks::SlotRef {
+        impl From<#ref_ident> for turbo_tasks::SlotVc {
             fn from(node_ref: #ref_ident) -> Self {
                 node_ref.node
             }
         }
 
-        impl From<&#ref_ident> for turbo_tasks::SlotRef {
+        impl From<&#ref_ident> for turbo_tasks::SlotVc {
             fn from(node_ref: &#ref_ident) -> Self {
                 node_ref.node.clone()
             }
@@ -461,15 +461,15 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
         #(impl From<#ref_ident> for #trait_refs {
             fn from(node_ref: #ref_ident) -> Self {
-                std::convert::From::<turbo_tasks::SlotRef>::from(node_ref.into())
+                std::convert::From::<turbo_tasks::SlotVc>::from(node_ref.into())
             }
         })*
 
         #into
 
-        impl turbo_tasks::trace::TraceSlotRefs for #ref_ident {
-            fn trace_node_refs(&self, context: &mut turbo_tasks::trace::TraceSlotRefsContext) {
-                turbo_tasks::trace::TraceSlotRefs::trace_node_refs(&self.node, context);
+        impl turbo_tasks::trace::TraceSlotVcs for #ref_ident {
+            fn trace_node_refs(&self, context: &mut turbo_tasks::trace::TraceSlotVcsContext) {
+                turbo_tasks::trace::TraceSlotVcs::trace_node_refs(&self.node, context);
             }
         }
     };
@@ -653,7 +653,7 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
             let convert_result_code = if is_empty_type(&output_type) {
                 quote! {}
             } else {
-                quote! { std::convert::From::<turbo_tasks::SlotRef>::from(result) }
+                quote! { std::convert::From::<turbo_tasks::SlotVc>::from(result) }
             };
             trait_fns.push(quote! {
                 fn #method_ident(#(#method_args),*) -> #output_type {
@@ -688,7 +688,7 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
 
         #[derive(Clone, Debug, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq)]
         #vis struct #ref_ident {
-            node: turbo_tasks::SlotRef,
+            node: turbo_tasks::SlotVc,
         }
 
         impl #ref_ident {
@@ -705,7 +705,7 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
 
         #(impl From<#ref_ident> for #supertrait_refs {
             fn from(node_ref: #ref_ident) -> Self {
-                std::convert::From::<turbo_tasks::SlotRef>::from(node_ref.into())
+                std::convert::From::<turbo_tasks::SlotVc>::from(node_ref.into())
             }
         })*
 
@@ -717,19 +717,19 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
 
-        impl From<turbo_tasks::SlotRef> for #ref_ident {
-            fn from(node: turbo_tasks::SlotRef) -> Self {
+        impl From<turbo_tasks::SlotVc> for #ref_ident {
+            fn from(node: turbo_tasks::SlotVc) -> Self {
                 Self { node }
             }
         }
 
-        impl From<#ref_ident> for turbo_tasks::SlotRef {
+        impl From<#ref_ident> for turbo_tasks::SlotVc {
             fn from(node_ref: #ref_ident) -> Self {
                 node_ref.node
             }
         }
 
-        impl From<&#ref_ident> for turbo_tasks::SlotRef {
+        impl From<&#ref_ident> for turbo_tasks::SlotVc {
             fn from(node_ref: &#ref_ident) -> Self {
                 node_ref.node.clone()
             }
@@ -747,9 +747,9 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
 
-        impl turbo_tasks::trace::TraceSlotRefs for #ref_ident {
-            fn trace_node_refs(&self, context: &mut turbo_tasks::trace::TraceSlotRefsContext) {
-                turbo_tasks::trace::TraceSlotRefs::trace_node_refs(&self.node, context);
+        impl turbo_tasks::trace::TraceSlotVcs for #ref_ident {
+            fn trace_node_refs(&self, context: &mut turbo_tasks::trace::TraceSlotVcsContext) {
+                turbo_tasks::trace::TraceSlotVcs::trace_node_refs(&self.node, context);
             }
         }
 
@@ -977,7 +977,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                             Token![->](raw_output_type.span()),
                             Box::new(raw_output_type.clone()),
                         );
-                        quote! { std::convert::From::<turbo_tasks::SlotRef>::from(result) }
+                        quote! { std::convert::From::<turbo_tasks::SlotVc>::from(result) }
                     };
 
                     functions.push(quote! {
@@ -1068,7 +1068,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                             Token![->](raw_output_type.span()),
                             Box::new(raw_output_type.clone()),
                         );
-                        quote! { std::convert::From::<turbo_tasks::SlotRef>::from(result) }
+                        quote! { std::convert::From::<turbo_tasks::SlotVc>::from(result) }
                     };
 
                     trait_functions.push(quote!{
@@ -1112,7 +1112,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
             {
                 match &item.trait_ {
                     None => {
-                        if ident.to_string().ends_with("Ref") {
+                        if ident.to_string().ends_with("Vc") {
                             let code = generate_for_self_ref_impl(ident, &item.items);
                             return quote! {
                                 #code
@@ -1204,7 +1204,7 @@ pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
             Token![->](raw_output_type.span()),
             Box::new(raw_output_type.clone()),
         );
-        quote! { std::convert::From::<turbo_tasks::SlotRef>::from(result) }
+        quote! { std::convert::From::<turbo_tasks::SlotVc>::from(result) }
     };
 
     return quote! {
@@ -1378,12 +1378,12 @@ fn gen_native_function_code(
     let (raw_output_type, is_result) = unwrap_result_type(output_type);
     let original_call_code = match (is_result, is_empty_type(raw_output_type)) {
         (true, true) => quote! {
-            (#original_call_code).map(|_| turbo_tasks::NothingRef::new().into())
+            (#original_call_code).map(|_| turbo_tasks::NothingVc::new().into())
         },
         (true, false) => quote! { #original_call_code.map(|v| v.into()) },
         (false, true) => quote! {
             #original_call_code;
-            Ok(turbo_tasks::NothingRef::new().into())
+            Ok(turbo_tasks::NothingVc::new().into())
         },
         (false, false) => quote! { Ok(#original_call_code.into()) },
     };
@@ -1416,7 +1416,7 @@ pub fn constructor(_args: TokenStream, input: TokenStream) -> TokenStream {
     input
 }
 
-#[proc_macro_derive(TraceSlotRefs, attributes(trace_ignore))]
+#[proc_macro_derive(TraceSlotVcs, attributes(trace_ignore))]
 pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
     fn ignore_field(field: &Field) -> bool {
         field
@@ -1455,7 +1455,7 @@ pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
                         quote! {
                             #ident::#variant_ident{ #(#ident_pats),* } => {
                                 #(
-                                    turbo_tasks::trace::TraceSlotRefs::trace_node_refs(#idents, context);
+                                    turbo_tasks::trace::TraceSlotVcs::trace_node_refs(#idents, context);
                                 )*
                             }
                         }
@@ -1475,7 +1475,7 @@ pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
                         quote! {
                             #ident::#variant_ident( #(#idents),* ) => {
                                 #(
-                                    turbo_tasks::trace::TraceSlotRefs::trace_node_refs(#active_idents, context);
+                                    turbo_tasks::trace::TraceSlotVcs::trace_node_refs(#active_idents, context);
                                 )*
                             }
                         }
@@ -1508,7 +1508,7 @@ pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
                         .collect();
                     quote! {
                         #(
-                            turbo_tasks::trace::TraceSlotRefs::trace_node_refs(&self.#idents, context);
+                            turbo_tasks::trace::TraceSlotVcs::trace_node_refs(&self.#idents, context);
                         )*
                     }
                 }
@@ -1521,7 +1521,7 @@ pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
                         .collect();
                     quote! {
                         #(
-                            turbo_tasks::trace::TraceSlotRefs::trace_node_refs(&self.#indicies, context);
+                            turbo_tasks::trace::TraceSlotVcs::trace_node_refs(&self.#indicies, context);
                         )*
                     }
                 }
@@ -1536,8 +1536,8 @@ pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
     };
     let generics_params = &generics.params.iter().collect::<Vec<_>>();
     quote! {
-        impl #generics turbo_tasks::trace::TraceSlotRefs for #ident #generics #(where #generics_params: turbo_tasks::trace::TraceSlotRefs)* {
-            fn trace_node_refs(&self, context: &mut turbo_tasks::trace::TraceSlotRefsContext) {
+        impl #generics turbo_tasks::trace::TraceSlotVcs for #ident #generics #(where #generics_params: turbo_tasks::trace::TraceSlotVcs)* {
+            fn trace_node_refs(&self, context: &mut turbo_tasks::trace::TraceSlotVcsContext) {
                 #trace_items
             }
         }
