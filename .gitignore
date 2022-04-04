@@ -46,3 +46,6 @@ test-timings.json
 # Cache
 *.tsbuildinfo
 .swc/
+
+# Netlify
+.netlify

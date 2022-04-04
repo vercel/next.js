@@ -66,6 +66,7 @@ You can also use **Client-side Rendering** along with Static Generation or Serve
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-builder-io">Builder.io Example</a> (<a href="https://cms-builder-io.vercel.app/">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-tina">TinaCMS Example</a> (<a href="https://cms-tina-example.vercel.app/">Demo</a>)</li>
     <li><a href="https://static-tweet.vercel.app/">Static Tweet (Demo)</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-enterspeed">Enterspeed Example</a> (<a href="https://next-blog-demo.enterspeed.com/">Demo</a>)</li>
   </ul>
 </details>
 

@@ -29,6 +29,7 @@ Once you have [configured the Next.js module for Drupal](https://next-drupal.org
 - [Ghost](/examples/cms-ghost)
 - [GraphCMS](/examples/cms-graphcms)
 - [Blog Starter](/examples/blog-starter)
+- [Enterspeed](/examples/with-enterspeed)
 
 ## How to use
 
