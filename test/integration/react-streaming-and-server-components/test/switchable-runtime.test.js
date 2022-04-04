@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import { findPort, killApp, renderViaHTTP } from 'next-test-utils'
+import { check, findPort, killApp, renderViaHTTP } from 'next-test-utils'
 import { nextBuild, nextDev, nextStart } from './utils'
 
 const appDir = join(__dirname, '../switchable-runtime')
@@ -109,11 +109,13 @@ describe('Switchable runtime (prod)', () => {
     await new Promise((resolve) => setTimeout(resolve, 4000))
     await renderViaHTTP(context.appPort, '/node-rsc-isr')
 
-    const html3 = await renderViaHTTP(context.appPort, '/node-rsc-isr')
-    const renderedAt3 = +html3.match(/Time: (\d+)/)[1]
-    expect(html3).toContain('Runtime: Node.js')
-
-    expect(renderedAt2).toBeLessThan(renderedAt3)
+    await check(async () => {
+      const html3 = await renderViaHTTP(context.appPort, '/node-rsc-isr')
+      const renderedAt3 = +html3.match(/Time: (\d+)/)[1]
+      return renderedAt2 < renderedAt3
+        ? 'success'
+        : `${renderedAt2} should be less than ${renderedAt3}`
+    }, 'success')
   })
 
   it('should build /edge as a dynamic page with the edge runtime', async () => {
