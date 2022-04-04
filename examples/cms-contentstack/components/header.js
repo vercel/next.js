@@ -14,7 +14,6 @@ export default function Header({ header }) {
 
   async function fetchData() {
     try {
-      console.info('fetching header component live preview data...')
       const headerRes = await getHeaderRes()
       setHeader(headerRes)
     } catch (error) {
@@ -32,14 +31,16 @@ export default function Header({ header }) {
         {getHeader?.notification_bar.show_announcement
           ? typeof getHeader.notification_bar.announcement_text ===
               'string' && (
-              <div>{parse(getHeader.notification_bar.announcement_text)}</div>
+              <div {...getHeader.notification_bar.$?.announcement_text}>
+                {parse(getHeader.notification_bar.announcement_text)}
+              </div>
             )
           : null}
       </div>
       <div className="max-width header-div">
         <div className="wrapper-logo">
           <Link href="/" className="logo-tag" title="Contentstack">
-            <div className="logo">
+            <div className="logo" {...getHeader.logo.$?.url}>
               <Image
                 height={26}
                 width={130}
@@ -53,7 +54,7 @@ export default function Header({ header }) {
         </div>
         <input className="menu-btn" type="checkbox" id="menu-btn" />
         <label className="menu-icon" htmlFor="menu-btn">
-          <span className="navicon" />
+          <span className="nav-icon" />
         </label>
         <nav className="menu">
           <ul className="nav-ul header-ul">
@@ -61,6 +62,7 @@ export default function Header({ header }) {
               <li key={list.label} className="nav-li">
                 <Link href={list.page_reference[0].url}>
                   <a
+                    {...list.$?.label}
                     className={
                       router.pathname === list.page_reference[0].url
                         ? 'active'

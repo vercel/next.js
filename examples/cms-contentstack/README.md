@@ -4,7 +4,7 @@ This example demonstrates how you can set up and run a server side example using
 
 ## Demo
 
-[https://cms-contentstack-starter](https://cms-contentstack-starter.vercel.app/)
+[https://cms-contentstack-starter.vercel.app/](https://cms-contentstack-starter.vercel.app/)
 
 ## Deploy on Your Own
 

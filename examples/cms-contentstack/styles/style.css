@@ -351,7 +351,7 @@ footer a {
   color: #ffffff;
 }
 
-.blogpost-readmore {
+.blogpost-read-more {
   color: #715cdd;
 }
 
@@ -836,7 +836,7 @@ footer a {
     user-select: none;
   }
 
-  .header .menu-icon .navicon {
+  .header .menu-icon .nav-icon {
     background: #333;
     display: block;
     height: 2px;
@@ -845,8 +845,8 @@ footer a {
     width: 18px;
   }
 
-  .header .menu-icon .navicon:before,
-  .header .menu-icon .navicon:after {
+  .header .menu-icon .nav-icon:before,
+  .header .menu-icon .nav-icon:after {
     background: #333;
     content: '';
     display: block;
@@ -856,11 +856,11 @@ footer a {
     width: 100%;
   }
 
-  .header .menu-icon .navicon:before {
+  .header .menu-icon .nav-icon:before {
     top: 5px;
   }
 
-  .header .menu-icon .navicon:after {
+  .header .menu-icon .nav-icon:after {
     top: -5px;
   }
 
@@ -869,20 +869,20 @@ footer a {
     overflow: auto;
   }
 
-  .header .menu-btn:checked ~ .menu-icon .navicon {
+  .header .menu-btn:checked ~ .menu-icon .nav-icon {
     background: transparent;
   }
 
-  .header .menu-btn:checked ~ .menu-icon .navicon:before {
+  .header .menu-btn:checked ~ .menu-icon .nav-icon:before {
     transform: rotate(-45deg);
   }
 
-  .header .menu-btn:checked ~ .menu-icon .navicon:after {
+  .header .menu-btn:checked ~ .menu-icon .nav-icon:after {
     transform: rotate(45deg);
   }
 
-  .header .menu-btn:checked ~ .menu-icon:not(.steps) .navicon:before,
-  .header .menu-btn:checked ~ .menu-icon:not(.steps) .navicon:after {
+  .header .menu-btn:checked ~ .menu-icon:not(.steps) .nav-icon:before,
+  .header .menu-btn:checked ~ .menu-icon:not(.steps) .nav-icon:after {
     top: 0;
   }
 

@@ -8,6 +8,7 @@ function filterObject(inputObject) {
   const unWantedProps = [
     '_version',
     'ACL',
+    '_owner',
     '_in_progress',
     'created_at',
     'created_by',

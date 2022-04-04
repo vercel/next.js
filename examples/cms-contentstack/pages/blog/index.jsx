@@ -2,83 +2,84 @@ import React, { useState, useEffect } from 'react'
 import { onEntryChange } from '../../sdk-plugin/index'
 import RenderComponents from '../../components/render-components'
 import BlogList from '../../components/blog-list'
-import { getBlogBannerRes, getBlogListRes } from '../../helper/index'
+import { getPageRes, getBlogListRes } from '../../helper'
 
 import ArchiveRelative from '../../components/archive-relative'
 
-export default function Blog(props) {
-  const { archived, result, blogList, entryUrl } = props
-  const [getArchived] = useState(archived)
-  const [getList] = useState(blogList)
-  const [getBanner, setBanner] = useState(result)
-
-  async function fetchData() {
-    try {
-      console.info('fetching live preview data...')
-      const bannerRes = await getBlogBannerRes(entryUrl)
-      setBanner(bannerRes)
-    } catch (error) {
-      console.error(error)
-    }
-  }
+export default function Blog({ archivePost, page, blogLists }) {
+  const [getEntry, setEntry] = useState(page)
 
   useEffect(() => {
-    onEntryChange(() => {
-      fetchData()
-    })
+    async function fetchData() {
+      try {
+        const bannerRes = await getPageRes('/blog')
+        setEntry(bannerRes)
+      } catch (error) {
+        console.error(error)
+      }
+    }
+    onEntryChange(() => fetchData())
   }, [])
 
   return (
     <>
-      {getBanner.page_components && (
+      {getEntry && (
         <RenderComponents
-          pageComponents={getBanner.page_components}
+          pageComponents={getEntry.page_components}
           blogsPage
           contentTypeUid="page"
-          entryUid={getBanner.uid}
-          locale={getBanner.locale}
+          entryUid={getEntry.uid}
+          locale={getEntry.locale}
         />
       )}
       <div className="blog-container">
         <div className="blog-column-left">
-          {getList?.map((bloglist, index) => (
-            <BlogList bloglist={bloglist} key={index} />
+          {blogLists?.map((blogList, index) => (
+            <BlogList blogList={blogList} key={index} />
           ))}
         </div>
         <div className="blog-column-right">
-          {getBanner.page_components[1].widget && (
-            <h2>{getBanner.page_components[1].widget.title_h2}</h2>
+          {getEntry.page_components[1].widget && (
+            <h2 {...getEntry.page_components[1].widget.$?.title_h2}>
+              {getEntry.page_components[1].widget.title_h2}
+            </h2>
           )}
-          <ArchiveRelative blogs={getArchived} />
+          <ArchiveRelative blogs={archivePost} />
         </div>
       </div>
     </>
   )
 }
 
-export async function getServerSideProps(context) {
+export const getStaticProps = async () => {
   try {
-    const blog = await getBlogBannerRes(context.resolvedUrl)
-    const result = await getBlogListRes()
+    const resPage = await getPageRes('/blog')
+    const resBlog = await getBlogListRes()
+
+    if (!resPage || !resBlog) throw new Error('Not found')
     const archived = []
-    const blogList = []
-    result.forEach((blogs) => {
+    const blogLists = []
+
+    resBlog.forEach((blogs) => {
       if (blogs.is_archived) {
         archived.push(blogs)
       } else {
-        blogList.push(blogs)
+        blogLists.push(blogs)
       }
     })
+
     return {
       props: {
-        entryUrl: context.resolvedUrl,
-        result: blog,
-        blogList,
-        archived,
+        page: resPage,
+        blogLists,
+        archivePost: archived,
       },
+      revalidate: 1000,
     }
   } catch (error) {
     console.error(error)
-    return { notFound: true }
+    return {
+      notFound: true,
+    }
   }
 }

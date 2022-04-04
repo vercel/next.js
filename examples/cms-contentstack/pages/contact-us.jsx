@@ -1,30 +1,25 @@
 import React, { useState, useEffect } from 'react'
 import { onEntryChange } from '../sdk-plugin/index'
 import RenderComponents from '../components/render-components'
-import { getContactRes } from '../helper/index'
+import { getPageRes } from '../helper/index'
 
-export default function Contact(props) {
-  const { result, entryUrl } = props
-  const [getEntry, setEntry] = useState(result)
-
-  async function fetchData() {
-    try {
-      console.info('fetching page entry live preview data...')
-      const entryRes = await getContactRes(entryUrl)
-      setEntry(entryRes)
-    } catch (error) {
-      console.error(error)
-    }
-  }
+export default function Contact({ page }) {
+  const [getEntry, setEntry] = useState(page)
 
   useEffect(() => {
-    onEntryChange(() => {
-      fetchData()
-    })
+    async function fetchData() {
+      try {
+        const entryRes = await getPageRes('/contact-us')
+        setEntry(entryRes)
+      } catch (error) {
+        console.error(error)
+      }
+    }
+    onEntryChange(() => fetchData())
   }, [])
 
   return (
-    getEntry.page_components && (
+    getEntry && (
       <RenderComponents
         pageComponents={getEntry.page_components}
         contentTypeUid="page"
@@ -34,16 +29,19 @@ export default function Contact(props) {
     )
   )
 }
-export async function getServerSideProps(context) {
+
+export const getStaticProps = async () => {
   try {
-    const entryRes = await getContactRes(context.resolvedUrl)
+    const res = await getPageRes('/contact-us')
+    if (!res) throw new Error('Not found')
+
     return {
-      props: {
-        entryUrl: context.resolvedUrl,
-        result: entryRes,
-      },
+      props: { page: res },
     }
   } catch (error) {
-    return { notFound: true }
+    console.error(error)
+    return {
+      notFound: true,
+    }
   }
 }
