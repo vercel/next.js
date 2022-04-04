@@ -43,7 +43,7 @@ impl Effect {
 
 #[derive(Debug)]
 pub struct VarGraph {
-    pub(crate) values: HashMap<Id, JsValue>,
+    pub values: HashMap<Id, JsValue>,
 
     pub effects: Vec<Effect>,
 }

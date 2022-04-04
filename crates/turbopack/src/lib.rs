@@ -21,7 +21,7 @@ use reference::all_referenced_assets;
 use turbo_tasks::CompletionVc;
 
 // TODO move into ecmascript?
-mod analyzer;
+pub mod analyzer;
 pub mod asset;
 pub mod ecmascript;
 mod errors;
@@ -271,4 +271,9 @@ pub async fn all_assets(asset: AssetVc) -> Result<AssetsSetVc> {
         assets: assets.into_iter().collect(),
     }
     .into())
+}
+
+#[doc(hidden)]
+pub mod __internals {
+    pub use super::analyzer::test_utils;
 }

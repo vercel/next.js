@@ -52,7 +52,7 @@ impl LinkCache {
     }
 }
 
-pub(crate) async fn link<'a, F, R>(
+pub async fn link<'a, F, R>(
     graph: &VarGraph,
     mut val: JsValue,
     visitor: &F,
