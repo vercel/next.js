@@ -182,12 +182,12 @@ export function middleware(request: NextRequest) {
     request.nextUrl.locale === 'default'
 
   if (shouldHandleLocale) {
-    const url = request.nextUrl.clone();
-    url.pathname = `/en${stripDefaultLocale(request.nextUrl.pathname)}`;
-    return NextResponse.redirect(url);
+    const url = request.nextUrl.clone()
+    url.pathname = `/en${stripDefaultLocale(request.nextUrl.pathname)}`
+    return NextResponse.redirect(url)
   }
 
-  return undefined;
+  return undefined
 }
 ```
 
