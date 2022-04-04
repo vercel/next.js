@@ -1,4 +1,5 @@
 import { createNext } from 'e2e-utils'
+import { waitFor } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { BrowserInterface } from 'test/lib/browsers/base'
 import { NextInstance } from 'test/lib/next-modes/base'
@@ -31,7 +32,7 @@ describe('Interpolate dynamic path with search param', () => {
 
           export default function Page() {
             const router = useRouter()
-            return <p>{router.asPath}</p>
+            return <p id="days">{router.asPath}</p>
           }`,
       },
       dependencies: {},
@@ -44,7 +45,8 @@ describe('Interpolate dynamic path with search param', () => {
 
   it('should work', async () => {
     browser = await webdriver(next.appPort, '/')
-    const href = await browser.elementByCss('a').getAttribute('href')
-    expect(href).toBe('/days/foo?foo=bar')
+    await browser.elementByCss('a').click()
+    const text = await browser.waitForElementByCss('#days').text()
+    expect(text).toBe('/days/foo?foo=bar')
   })
 })
