@@ -1187,7 +1187,6 @@ function runTests(mode) {
     let browser
     try {
       browser = await webdriver(appPort, '/lazy-src-change')
-
       // image should not be loaded as it is out of viewport
       await check(async () => {
         const result = await browser.eval(
@@ -1232,7 +1231,6 @@ function runTests(mode) {
       await browser.eval(
         'document.getElementById("button-change-image-src").click()'
       )
-
       // "new" image should be lazy loaded
       await check(async () => {
         const result = await browser.eval(
@@ -1256,7 +1254,7 @@ function runTests(mode) {
           `document.getElementById('basic-image').naturalWidth`
         )
 
-        if (result >= 400) {
+        if (result < 400) {
           throw new Error('Incorrectly loaded image')
         }
 
