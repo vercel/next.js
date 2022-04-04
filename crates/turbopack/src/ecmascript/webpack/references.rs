@@ -6,18 +6,18 @@ use swc_ecmascript::{
 };
 
 use crate::{
-    asset::AssetRef,
+    asset::AssetVc,
     ecmascript::parse::{parse, Buffer, ParseResult},
-    reference::{AssetReferenceRef, AssetReferencesSet, AssetReferencesSetRef},
+    reference::{AssetReferenceVc, AssetReferencesSet, AssetReferencesSetVc},
 };
 
-use super::{parse::WebpackRuntimeRef, WebpackChunkAssetReference};
+use super::{parse::WebpackRuntimeVc, WebpackChunkAssetReference};
 
 #[turbo_tasks::function]
 pub async fn module_references(
-    source: AssetRef,
-    runtime: WebpackRuntimeRef,
-) -> Result<AssetReferencesSetRef> {
+    source: AssetVc,
+    runtime: WebpackRuntimeVc,
+) -> Result<AssetReferencesSetVc> {
     let parsed = parse(source).await?;
     match &*parsed {
         ParseResult::Ok {
@@ -40,13 +40,13 @@ pub async fn module_references(
             }
             Ok(AssetReferencesSet { references }.into())
         }
-        ParseResult::Unparseable | ParseResult::NotFound => Ok(AssetReferencesSetRef::empty()),
+        ParseResult::Unparseable | ParseResult::NotFound => Ok(AssetReferencesSetVc::empty()),
     }
 }
 
 struct AssetReferencesVisitor<'a> {
-    runtime: WebpackRuntimeRef,
-    references: &'a mut Vec<AssetReferenceRef>,
+    runtime: WebpackRuntimeVc,
+    references: &'a mut Vec<AssetReferenceVc>,
 }
 
 impl<'a> Visit for AssetReferencesVisitor<'a> {

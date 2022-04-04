@@ -9,71 +9,71 @@ use anyhow::Result;
 
 use crate::{slot::SlotReadResult, Task, TurboTasks};
 
-/// The result of reading a ValueRef.
+/// The result of reading a ValueVc.
 /// Can be dereferenced to the concrete type.
 ///
 /// This type is needed because the content of the slot can change
 /// concurrently, so we can't return a reference to the data directly.
 /// Instead the data or an [Arc] to the data is cloned out of the slot
 /// and hold by this type.
-pub struct SlotRefReadResult<T: Any + Send + Sync> {
-    inner: SlotRefReadResultInner<T>,
+pub struct SlotVcReadResult<T: Any + Send + Sync> {
+    inner: SlotVcReadResultInner<T>,
 }
 
-pub enum SlotRefReadResultInner<T: Any + Send + Sync> {
+pub enum SlotVcReadResultInner<T: Any + Send + Sync> {
     SharedReference(Arc<T>),
     ClonedData(Box<T>),
 }
 
-impl<T: Any + Send + Sync> SlotRefReadResult<T> {
+impl<T: Any + Send + Sync> SlotVcReadResult<T> {
     pub(crate) fn shared_reference(shared_ref: Arc<T>) -> Self {
         Self {
-            inner: SlotRefReadResultInner::SharedReference(shared_ref),
+            inner: SlotVcReadResultInner::SharedReference(shared_ref),
         }
     }
     pub(crate) fn cloned_data(data: Box<T>) -> Self {
         Self {
-            inner: SlotRefReadResultInner::ClonedData(data),
+            inner: SlotVcReadResultInner::ClonedData(data),
         }
     }
 }
 
-impl<T: Any + Send + Sync> std::ops::Deref for SlotRefReadResult<T> {
+impl<T: Any + Send + Sync> std::ops::Deref for SlotVcReadResult<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
         match &self.inner {
-            SlotRefReadResultInner::SharedReference(a) => a,
-            SlotRefReadResultInner::ClonedData(a) => a,
+            SlotVcReadResultInner::SharedReference(a) => a,
+            SlotVcReadResultInner::ClonedData(a) => a,
         }
     }
 }
 
-impl<T: Display + Any + Send + Sync> Display for SlotRefReadResult<T> {
+impl<T: Display + Any + Send + Sync> Display for SlotVcReadResult<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Display::fmt(&**self, f)
     }
 }
 
-impl<T: Debug + Any + Send + Sync> Debug for SlotRefReadResult<T> {
+impl<T: Debug + Any + Send + Sync> Debug for SlotVcReadResult<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Debug::fmt(&**self, f)
     }
 }
 
 #[derive(Clone)]
-pub enum SlotRef {
+pub enum SlotVc {
     TaskOutput(Arc<Task>),
     TaskCreated(Arc<Task>, usize),
 }
 
-impl SlotRef {
-    pub async fn into_read<T: Any + Send + Sync>(self) -> Result<SlotRefReadResult<T>> {
+impl SlotVc {
+    pub async fn into_read<T: Any + Send + Sync>(self) -> Result<SlotVcReadResult<T>> {
         TurboTasks::notify_scheduled_tasks();
         let mut current = self;
         loop {
             match match current {
-                SlotRef::TaskOutput(ref task) => SlotReadResult::Link(
+                SlotVc::TaskOutput(ref task) => SlotReadResult::Link(
                     task.with_done_output(|output| {
                         Task::with_current(|reader| {
                             reader.add_dependency(current.clone());
@@ -82,7 +82,7 @@ impl SlotRef {
                     })
                     .await?,
                 ),
-                SlotRef::TaskCreated(ref task, index) => Task::with_current(|reader| {
+                SlotVc::TaskCreated(ref task, index) => Task::with_current(|reader| {
                     reader.add_dependency(current.clone());
                     task.with_created_slot_mut(index, |slot| slot.read(reader.clone()))
                 })?,
@@ -95,12 +95,12 @@ impl SlotRef {
         }
     }
 
-    pub async fn resolve(self) -> Result<SlotRef> {
+    pub async fn resolve(self) -> Result<SlotVc> {
         let mut current = self;
         let mut notified = false;
         loop {
             current = match current {
-                SlotRef::TaskOutput(ref task) => {
+                SlotVc::TaskOutput(ref task) => {
                     if !notified {
                         TurboTasks::notify_scheduled_tasks();
                         notified = true;
@@ -113,19 +113,19 @@ impl SlotRef {
                     })
                     .await?
                 }
-                SlotRef::TaskCreated(_, _) => return Ok(current.clone()),
+                SlotVc::TaskCreated(_, _) => return Ok(current.clone()),
             }
         }
     }
 
     pub(crate) fn remove_dependent_task(&self, reader: &Arc<Task>) {
         match self {
-            SlotRef::TaskOutput(task) => {
+            SlotVc::TaskOutput(task) => {
                 task.with_output_mut(|slot| {
                     slot.dependent_tasks.remove(reader);
                 });
             }
-            SlotRef::TaskCreated(task, index) => {
+            SlotVc::TaskCreated(task, index) => {
                 task.with_created_slot_mut(*index, |slot| {
                     slot.dependent_tasks.remove(reader);
                 });
@@ -135,20 +135,20 @@ impl SlotRef {
 
     pub fn is_resolved(&self) -> bool {
         match self {
-            SlotRef::TaskOutput(_) => false,
-            SlotRef::TaskCreated(_, _) => true,
+            SlotVc::TaskOutput(_) => false,
+            SlotVc::TaskCreated(_, _) => true,
         }
     }
 
     pub(crate) fn get_task(&self) -> Arc<Task> {
         match self {
-            SlotRef::TaskOutput(t) | SlotRef::TaskCreated(t, _) => t.clone(),
+            SlotVc::TaskOutput(t) | SlotVc::TaskCreated(t, _) => t.clone(),
         }
     }
 }
 
-impl PartialEq<SlotRef> for SlotRef {
-    fn eq(&self, other: &SlotRef) -> bool {
+impl PartialEq<SlotVc> for SlotVc {
+    fn eq(&self, other: &SlotVc) -> bool {
         match (self, other) {
             (Self::TaskOutput(a), Self::TaskOutput(b)) => Arc::ptr_eq(a, b),
             (Self::TaskCreated(a, ai), Self::TaskCreated(b, bi)) => Arc::ptr_eq(a, b) && ai == bi,
@@ -157,30 +157,30 @@ impl PartialEq<SlotRef> for SlotRef {
     }
 }
 
-impl Eq for SlotRef {}
+impl Eq for SlotVc {}
 
-impl Display for SlotRef {
+impl Display for SlotVc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SlotRef::TaskOutput(task) => {
+            SlotVc::TaskOutput(task) => {
                 write!(f, "task output {}", task)
             }
-            SlotRef::TaskCreated(task, index) => {
+            SlotVc::TaskCreated(task, index) => {
                 write!(f, "task created {} {}", task, index)
             }
         }
     }
 }
 
-impl Debug for SlotRef {
+impl Debug for SlotVc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SlotRef::TaskOutput(task) => f
-                .debug_struct("SlotRef::TaskOutput")
+            SlotVc::TaskOutput(task) => f
+                .debug_struct("SlotVc::TaskOutput")
                 .field("task", task)
                 .finish(),
-            SlotRef::TaskCreated(task, index) => f
-                .debug_struct("SlotRef::TaskCreated")
+            SlotVc::TaskCreated(task, index) => f
+                .debug_struct("SlotVc::TaskCreated")
                 .field("task", task)
                 .field("index", index)
                 .finish(),
@@ -188,13 +188,13 @@ impl Debug for SlotRef {
     }
 }
 
-impl Hash for SlotRef {
+impl Hash for SlotVc {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
-            SlotRef::TaskOutput(task) => {
+            SlotVc::TaskOutput(task) => {
                 Hash::hash(&Arc::as_ptr(task), state);
             }
-            SlotRef::TaskCreated(task, index) => {
+            SlotVc::TaskCreated(task, index) => {
                 Hash::hash(&Arc::as_ptr(task), state);
                 Hash::hash(&index, state);
             }

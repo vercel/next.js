@@ -12,10 +12,9 @@ use async_std::{future::timeout, process::Command, task::block_on};
 use difference::{Changeset, Difference};
 use rstest::*;
 use turbo_tasks::{TurboTasks, ValueToString};
-use turbo_tasks_fs::{DiskFileSystemRef, FileSystemPathRef};
+use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc};
 use turbopack::{
-    asset::Asset, emit_with_completion, module, rebase::RebasedAssetRef,
-    source_asset::SourceAssetRef,
+    asset::Asset, emit_with_completion, module, rebase::RebasedAssetVc, source_asset::SourceAssetVc,
 };
 
 #[rstest]
@@ -133,18 +132,18 @@ fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
     let output = block_on(timeout(
         Duration::from_secs(120),
         tt.run_once(async move {
-            let input_fs = DiskFileSystemRef::new("tests".to_string(), tests_root.clone());
-            let input = FileSystemPathRef::new(input_fs.into(), &input);
+            let input_fs = DiskFileSystemVc::new("tests".to_string(), tests_root.clone());
+            let input = FileSystemPathVc::new(input_fs.into(), &input);
 
             let original_output = exec_node(tests_root.clone(), input.clone());
 
             let input_dir = input.clone().parent().parent();
-            let output_fs = DiskFileSystemRef::new("output".to_string(), directory.clone());
-            let output_dir = FileSystemPathRef::new(output_fs.into(), "");
+            let output_fs = DiskFileSystemVc::new("output".to_string(), directory.clone());
+            let output_dir = FileSystemPathVc::new(output_fs.into(), "");
 
-            let source = SourceAssetRef::new(input);
+            let source = SourceAssetVc::new(input);
             let module = module(source.into());
-            let rebased = RebasedAssetRef::new(module, input_dir, output_dir);
+            let rebased = RebasedAssetVc::new(module, input_dir, output_dir);
 
             let output_path = rebased.path();
             emit_with_completion(rebased.into()).await?;
@@ -206,7 +205,7 @@ impl Display for CommandOutput {
 }
 
 #[turbo_tasks::function]
-async fn exec_node(directory: String, path: FileSystemPathRef) -> Result<CommandOutputRef> {
+async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandOutputVc> {
     let mut cmd = Command::new("node");
 
     let p = path.get().await?;
@@ -227,7 +226,7 @@ async fn exec_node(directory: String, path: FileSystemPathRef) -> Result<Command
 
     println!("File: {}\n{}", f.display(), output,);
 
-    Ok(CommandOutputRef::slot(output))
+    Ok(CommandOutputVc::slot(output))
 }
 
 fn diff(expected: &str, actual: &str) -> String {
@@ -283,12 +282,12 @@ fn diff(expected: &str, actual: &str) -> String {
 
 #[turbo_tasks::function]
 async fn asset_output(
-    expected: CommandOutputRef,
-    actual: CommandOutputRef,
-) -> Result<CommandOutputRef> {
+    expected: CommandOutputVc,
+    actual: CommandOutputVc,
+) -> Result<CommandOutputVc> {
     let expected = expected.await?;
     let actual = actual.await?;
-    Ok(CommandOutputRef::slot(CommandOutput {
+    Ok(CommandOutputVc::slot(CommandOutput {
         stdout: diff(&expected.stdout, &actual.stdout),
         stderr: diff(&expected.stderr, &actual.stderr),
     }))

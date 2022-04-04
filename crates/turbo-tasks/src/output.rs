@@ -5,7 +5,7 @@ use std::{
 };
 use weak_table::WeakHashSet;
 
-use crate::{error::SharedError, SlotRef, Task, TurboTasks};
+use crate::{error::SharedError, SlotVc, Task, TurboTasks};
 
 #[derive(Default, Debug)]
 pub struct Output {
@@ -17,7 +17,7 @@ pub struct Output {
 #[derive(Clone, Debug)]
 pub enum OutputContent {
     Empty,
-    Link(SlotRef),
+    Link(SlotVc),
     Error(SharedError),
 }
 
@@ -38,7 +38,7 @@ impl Display for OutputContent {
 }
 
 impl Output {
-    pub fn read(&mut self, reader: Arc<Task>) -> Result<SlotRef> {
+    pub fn read(&mut self, reader: Arc<Task>) -> Result<SlotVc> {
         self.dependent_tasks.insert(reader);
         match &self.content {
             OutputContent::Empty => Err(anyhow!("Output it empty")),
@@ -47,18 +47,18 @@ impl Output {
         }
     }
 
-    pub fn link(&mut self, target: SlotRef) {
+    pub fn link(&mut self, target: SlotVc) {
         let change;
         let mut _type_change = false;
         match &self.content {
             OutputContent::Link(old_target) => {
                 if match (old_target, &target) {
-                    (SlotRef::TaskOutput(old_task), SlotRef::TaskOutput(new_task)) => {
+                    (SlotVc::TaskOutput(old_task), SlotVc::TaskOutput(new_task)) => {
                         Arc::ptr_eq(old_task, new_task)
                     }
                     (
-                        SlotRef::TaskCreated(old_task, old_index),
-                        SlotRef::TaskCreated(new_task, new_index),
+                        SlotVc::TaskCreated(old_task, old_index),
+                        SlotVc::TaskCreated(new_task, new_index),
                     ) => Arc::ptr_eq(old_task, new_task) && *old_index == *new_index,
                     _ => false,
                 } {

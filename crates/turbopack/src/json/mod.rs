@@ -1,18 +1,18 @@
 use crate::{
-    asset::{Asset, AssetRef},
-    reference::AssetReferencesSetRef,
+    asset::{Asset, AssetVc},
+    reference::AssetReferencesSetVc,
 };
-use turbo_tasks_fs::{FileContentRef, FileSystemPathRef};
+use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 #[turbo_tasks::value(Asset)]
 #[derive(PartialEq, Eq)]
 pub struct ModuleAsset {
-    pub source: AssetRef,
+    pub source: AssetVc,
 }
 
 #[turbo_tasks::value_impl]
-impl ModuleAssetRef {
-    pub fn new(source: AssetRef) -> Self {
+impl ModuleAssetVc {
+    pub fn new(source: AssetVc) -> Self {
         Self::slot(ModuleAsset {
             source: source.clone(),
         })
@@ -21,13 +21,13 @@ impl ModuleAssetRef {
 
 #[turbo_tasks::value_impl]
 impl Asset for ModuleAsset {
-    fn path(&self) -> FileSystemPathRef {
+    fn path(&self) -> FileSystemPathVc {
         self.source.clone().path()
     }
-    fn content(&self) -> FileContentRef {
+    fn content(&self) -> FileContentVc {
         self.source.clone().content()
     }
-    async fn references(&self) -> AssetReferencesSetRef {
-        AssetReferencesSetRef::empty()
+    async fn references(&self) -> AssetReferencesSetVc {
+        AssetReferencesSetVc::empty()
     }
 }

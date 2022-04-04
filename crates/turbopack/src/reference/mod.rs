@@ -3,25 +3,25 @@ use std::collections::VecDeque;
 use anyhow::Result;
 
 use crate::{
-    asset::{AssetRef, AssetsSet, AssetsSetRef},
-    resolve::{ResolveResult, ResolveResultRef},
+    asset::{AssetVc, AssetsSet, AssetsSetVc},
+    resolve::{ResolveResult, ResolveResultVc},
 };
 
 #[turbo_tasks::value_trait]
 pub trait AssetReference {
-    fn resolve_reference(&self) -> ResolveResultRef;
+    fn resolve_reference(&self) -> ResolveResultVc;
     // TODO think about different types
-    // fn kind(&self) -> AssetReferenceTypeRef;
+    // fn kind(&self) -> AssetReferenceTypeVc;
 }
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, PartialEq, Eq)]
 pub struct AssetReferencesSet {
-    pub references: Vec<AssetReferenceRef>,
+    pub references: Vec<AssetReferenceVc>,
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReferencesSetRef {
+impl AssetReferencesSetVc {
     pub fn empty() -> Self {
         Self::slot(AssetReferencesSet {
             references: Vec::new(),
@@ -30,7 +30,7 @@ impl AssetReferencesSetRef {
 }
 
 #[turbo_tasks::function]
-pub async fn all_referenced_assets(asset: AssetRef) -> Result<AssetsSetRef> {
+pub async fn all_referenced_assets(asset: AssetVc) -> Result<AssetsSetVc> {
     let references_set = asset.references().await?;
     let mut assets = Vec::new();
     let mut queue = VecDeque::new();

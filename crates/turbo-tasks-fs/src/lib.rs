@@ -9,7 +9,7 @@ mod read_glob;
 pub mod util;
 
 use read_glob::read_glob;
-pub use read_glob::{ReadGlobResult, ReadGlobResultRef};
+pub use read_glob::{ReadGlobResult, ReadGlobResultVc};
 
 use std::{
     collections::HashMap,
@@ -25,21 +25,21 @@ use std::{
 
 use anyhow::{anyhow, bail, Context, Result};
 use async_std::task::block_on;
-use glob::GlobRef;
+use glob::GlobVc;
 use invalidator_map::InvalidatorMap;
 use json::{parse, JsonValue};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use threadpool::ThreadPool;
-use turbo_tasks::{trace::TraceSlotRefs, CompletionRef, Promise, Task, ValueToString};
+use turbo_tasks::{trace::TraceSlotVcs, CompletionVc, Task, ValueToString, Vc};
 use util::{join_path, normalize_path};
 
 #[turbo_tasks::value_trait]
 pub trait FileSystem {
-    fn read(&self, fs_path: FileSystemPathRef) -> FileContentRef;
-    fn read_dir(&self, fs_path: FileSystemPathRef) -> DirectoryContentRef;
-    fn parent_path(&self, fs_path: FileSystemPathRef) -> FileSystemPathRef;
-    fn write(&self, from: FileSystemPathRef, content: FileContentRef) -> CompletionRef;
-    fn to_string(&self) -> Promise<String>;
+    fn read(&self, fs_path: FileSystemPathVc) -> FileContentVc;
+    fn read_dir(&self, fs_path: FileSystemPathVc) -> DirectoryContentVc;
+    fn parent_path(&self, fs_path: FileSystemPathVc) -> FileSystemPathVc;
+    fn write(&self, from: FileSystemPathVc, content: FileContentVc) -> CompletionVc;
+    fn to_string(&self) -> Vc<String>;
 }
 
 #[turbo_tasks::value(slot: new, FileSystem)]
@@ -187,7 +187,7 @@ fn path_to_key(path: &Path) -> String {
 }
 
 #[turbo_tasks::value_impl]
-impl DiskFileSystemRef {
+impl DiskFileSystemVc {
     pub fn new(name: String, root: String) -> Result<Self> {
         let pool = Mutex::new(ThreadPool::new(30));
         println!("creating {}...", root);
@@ -227,7 +227,7 @@ impl fmt::Debug for DiskFileSystem {
 
 #[turbo_tasks::value_impl]
 impl FileSystem for DiskFileSystem {
-    async fn read(&self, fs_path: FileSystemPathRef) -> Result<FileContentRef> {
+    async fn read(&self, fs_path: FileSystemPathVc) -> Result<FileContentVc> {
         let full_path = Path::new(&self.root).join(
             &fs_path
                 .get()
@@ -246,7 +246,7 @@ impl FileSystem for DiskFileSystem {
         }
         .into())
     }
-    async fn read_dir(&self, fs_path: FileSystemPathRef) -> Result<DirectoryContentRef> {
+    async fn read_dir(&self, fs_path: FileSystemPathVc) -> Result<DirectoryContentVc> {
         let fs_path = fs_path.await?;
         let full_path =
             Path::new(&self.root).join(&fs_path.path.replace("/", &MAIN_SEPARATOR.to_string()));
@@ -262,7 +262,7 @@ impl FileSystem for DiskFileSystem {
             })
             .await;
         Ok(match result {
-            Ok(res) => DirectoryContentRef::new(
+            Ok(res) => DirectoryContentVc::new(
                 res.filter_map(|e| -> Option<Result<(String, DirectoryEntry)>> {
                     match e {
                         Ok(e) => {
@@ -276,7 +276,7 @@ impl FileSystem for DiskFileSystem {
                             };
                             Some(Ok((filename, {
                                 let fs_path =
-                                    FileSystemPathRef::new(fs_path.fs.clone(), &path_to_root);
+                                    FileSystemPathVc::new(fs_path.fs.clone(), &path_to_root);
                                 let file_type = match e.file_type() {
                                     Err(e) => {
                                         return Some(Err(e.into()));
@@ -300,14 +300,14 @@ impl FileSystem for DiskFileSystem {
                 })
                 .collect::<Result<HashMap<String, _>>>()?,
             ),
-            Err(_) => DirectoryContentRef::not_found(),
+            Err(_) => DirectoryContentVc::not_found(),
         })
     }
     async fn write(
         &self,
-        fs_path: FileSystemPathRef,
-        content: FileContentRef,
-    ) -> Result<CompletionRef> {
+        fs_path: FileSystemPathVc,
+        content: FileContentVc,
+    ) -> Result<CompletionVc> {
         let full_path = Path::new(&self.root).join(
             &fs_path
                 .get()
@@ -349,9 +349,9 @@ impl FileSystem for DiskFileSystem {
             })
             .await?;
         }
-        Ok(CompletionRef::new())
+        Ok(CompletionVc::new())
     }
-    async fn parent_path(&self, fs_path: FileSystemPathRef) -> Result<FileSystemPathRef> {
+    async fn parent_path(&self, fs_path: FileSystemPathVc) -> Result<FileSystemPathVc> {
         let fs_path_value = fs_path.get().await?;
         if fs_path_value.path.is_empty() {
             return Ok(fs_path.clone());
@@ -361,17 +361,17 @@ impl FileSystem for DiskFileSystem {
             Some(index) => p.replace_range(index.., ""),
             None => p.clear(),
         }
-        Ok(FileSystemPathRef::new(fs_path_value.fs.clone(), &p))
+        Ok(FileSystemPathVc::new(fs_path_value.fs.clone(), &p))
     }
-    fn to_string(&self) -> Promise<String> {
-        Promise::slot(self.name.clone())
+    fn to_string(&self) -> Vc<String> {
+        Vc::slot(self.name.clone())
     }
 }
 
 #[turbo_tasks::value]
 #[derive(Debug, PartialEq, Eq)]
 pub struct FileSystemPath {
-    pub fs: FileSystemRef,
+    pub fs: FileSystemVc,
     pub path: String,
 }
 
@@ -426,19 +426,19 @@ impl FileSystemPath {
 }
 
 #[turbo_tasks::value_impl]
-impl FileSystemPathRef {
-    pub fn new(fs: FileSystemRef, path: &str) -> Result<Self> {
+impl FileSystemPathVc {
+    pub fn new(fs: FileSystemVc, path: &str) -> Result<Self> {
         if let Some(path) = normalize_path(path) {
-            Ok(FileSystemPathRef::new_normalized(fs, path))
+            Ok(FileSystemPathVc::new_normalized(fs, path))
         } else {
             bail!(
-                "FileSystemPathRef::new(fs, \"{}\") leaves the filesystem root",
+                "FileSystemPathVc::new(fs, \"{}\") leaves the filesystem root",
                 path
             );
         }
     }
 
-    pub fn new_normalized(fs: FileSystemRef, path: String) -> Self {
+    pub fn new_normalized(fs: FileSystemVc, path: String) -> Self {
         Self::slot(FileSystemPath { fs, path })
     }
 
@@ -448,14 +448,14 @@ impl FileSystemPathRef {
             Ok(Self::new_normalized(this.fs.clone(), path))
         } else {
             bail!(
-                "FileSystemPathRef(\"{}\").join(\"{}\") leaves the filesystem root",
+                "FileSystemPathVc(\"{}\").join(\"{}\") leaves the filesystem root",
                 this.path,
                 path
             );
         }
     }
 
-    pub async fn read_glob(self, glob: GlobRef, include_dot_files: bool) -> ReadGlobResultRef {
+    pub async fn read_glob(self, glob: GlobVc, include_dot_files: bool) -> ReadGlobResultVc {
         read_glob(self, glob, include_dot_files)
     }
 
@@ -473,10 +473,10 @@ impl Display for FileSystemPath {
 
 #[turbo_tasks::function]
 pub async fn rebase(
-    fs_path: FileSystemPathRef,
-    old_base: FileSystemPathRef,
-    new_base: FileSystemPathRef,
-) -> Result<FileSystemPathRef> {
+    fs_path: FileSystemPathVc,
+    old_base: FileSystemPathVc,
+    new_base: FileSystemPathVc,
+) -> Result<FileSystemPathVc> {
     let fs_path = &*fs_path.await?;
     let old_base = &*old_base.await?;
     let new_base = &*new_base.await?;
@@ -496,17 +496,17 @@ pub async fn rebase(
             new_path = [new_base.path.as_str(), &fs_path.path[old_base.path.len()..]].concat();
         }
     }
-    Ok(FileSystemPathRef::new(new_base.fs.clone(), &new_path))
+    Ok(FileSystemPathVc::new(new_base.fs.clone(), &new_path))
 }
 
 #[turbo_tasks::value_impl]
-impl FileSystemPathRef {
-    pub async fn read(self) -> Result<FileContentRef> {
+impl FileSystemPathVc {
+    pub async fn read(self) -> Result<FileContentVc> {
         let this = self.get().await?;
         Ok(this.fs.read(self))
     }
 
-    pub async fn read_json(self) -> Result<FileJsonContentRef> {
+    pub async fn read_json(self) -> Result<FileJsonContentVc> {
         let this = self.get().await?;
         let content = this.fs.read(self).await?;
         Ok(match &*content {
@@ -521,36 +521,36 @@ impl FileSystemPathRef {
         })
     }
 
-    pub async fn read_dir(self) -> Result<DirectoryContentRef> {
+    pub async fn read_dir(self) -> Result<DirectoryContentVc> {
         let this = self.get().await?;
         Ok(this.fs.read_dir(self))
     }
 
-    pub async fn write(self, content: FileContentRef) -> Result<CompletionRef> {
+    pub async fn write(self, content: FileContentVc) -> Result<CompletionVc> {
         let this = self.get().await?;
         Ok(this.fs.write(self, content))
     }
 
-    pub async fn parent(self) -> Result<FileSystemPathRef> {
+    pub async fn parent(self) -> Result<FileSystemPathVc> {
         let this = self.get().await?;
         Ok(this.fs.parent_path(self))
     }
 }
 
-impl FileSystemPathRef {
+impl FileSystemPathVc {
     pub fn rebase(
-        fs_path: FileSystemPathRef,
-        old_base: FileSystemPathRef,
-        new_base: FileSystemPathRef,
-    ) -> FileSystemPathRef {
+        fs_path: FileSystemPathVc,
+        old_base: FileSystemPathVc,
+        new_base: FileSystemPathVc,
+    ) -> FileSystemPathVc {
         rebase(fs_path, old_base, new_base)
     }
 }
 
 #[turbo_tasks::value_impl]
 impl ValueToString for FileSystemPath {
-    async fn to_string(&self) -> Result<Promise<String>> {
-        Ok(Promise::slot(format!(
+    async fn to_string(&self) -> Result<Vc<String>> {
+        Ok(Vc::slot(format!(
             "[{}]/{}",
             self.fs.to_string().await?,
             self.path
@@ -593,11 +593,11 @@ pub enum FileJsonContent {
     NotFound,
 }
 
-#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceSlotRefs)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceSlotVcs)]
 pub enum DirectoryEntry {
-    File(FileSystemPathRef),
-    Directory(FileSystemPathRef),
-    Other(FileSystemPathRef),
+    File(FileSystemPathVc),
+    Directory(FileSystemPathVc),
+    Other(FileSystemPathVc),
     Error,
 }
 
@@ -608,7 +608,7 @@ pub enum DirectoryContent {
     NotFound,
 }
 
-impl DirectoryContentRef {
+impl DirectoryContentVc {
     pub fn new(entries: HashMap<String, DirectoryEntry>) -> Self {
         Self::slot(DirectoryContent::Entries(entries))
     }

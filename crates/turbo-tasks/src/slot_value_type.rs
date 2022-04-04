@@ -10,7 +10,7 @@ use crate::NativeFunction;
 
 // TODO this type need some refactoring when multiple languages are added to
 // turbo-task In this case a trait_method might be of a different function type.
-// It probably need to be a FunctionRef.
+// It probably need to be a FunctionVc.
 // That's also needed in a distributed world, where the function might be only
 // available on a remote instance.
 

@@ -7,17 +7,17 @@ use std::{
     collections::BTreeSet, env::current_dir, fs, future::Future, path::PathBuf, pin::Pin,
     sync::Arc, time::Instant,
 };
-use turbo_tasks::{stats::Stats, viz, NothingRef, Task, TurboTasks};
+use turbo_tasks::{stats::Stats, viz, NothingVc, Task, TurboTasks};
 use turbo_tasks_fs::{
-    glob::GlobRef, DirectoryEntry, DiskFileSystemRef, FileSystemPathRef, FileSystemRef,
-    ReadGlobResultRef,
+    glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemPathVc, FileSystemVc,
+    ReadGlobResultVc,
 };
 use turbopack::{
-    all_assets, asset::AssetRef, emit, module, rebase::RebasedAssetRef,
-    source_asset::SourceAssetRef,
+    all_assets, asset::AssetVc, emit, module, rebase::RebasedAssetVc,
+    source_asset::SourceAssetVc,
 };
 
-use crate::nft_json::NftJsonAssetRef;
+use crate::nft_json::NftJsonAssetVc;
 
 #[derive(clap::Args, Debug, Clone)]
 struct CommonArgs {
@@ -95,22 +95,22 @@ impl Args {
     }
 }
 
-fn create_fs(name: &str, context: &str) -> FileSystemRef {
-    DiskFileSystemRef::new(name.to_string(), context.to_string()).into()
+fn create_fs(name: &str, context: &str) -> FileSystemVc {
+    DiskFileSystemVc::new(name.to_string(), context.to_string()).into()
 }
 
-async fn create_watched_fs(name: &str, context: &str) -> Result<FileSystemRef> {
-    let fs = DiskFileSystemRef::new(name.to_string(), context.to_string());
+async fn create_watched_fs(name: &str, context: &str) -> Result<FileSystemVc> {
+    let fs = DiskFileSystemVc::new(name.to_string(), context.to_string());
     fs.get().await?.start_watching()?;
     Ok(fs.into())
 }
 
-async fn add_glob_results(result: ReadGlobResultRef, list: &mut Vec<AssetRef>) -> Result<()> {
+async fn add_glob_results(result: ReadGlobResultVc, list: &mut Vec<AssetVc>) -> Result<()> {
     let result = result.await?;
     for entry in result.results.values() {
         match entry {
             DirectoryEntry::File(path) => {
-                let source = SourceAssetRef::new(path.clone()).into();
+                let source = SourceAssetVc::new(path.clone()).into();
                 list.push(module(source));
             }
             _ => {}
@@ -118,8 +118,8 @@ async fn add_glob_results(result: ReadGlobResultRef, list: &mut Vec<AssetRef>) -
     }
     for result in result.inner.values() {
         fn recurse<'a>(
-            result: ReadGlobResultRef,
-            list: &'a mut Vec<AssetRef>,
+            result: ReadGlobResultVc,
+            list: &'a mut Vec<AssetVc>,
         ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
             Box::pin(add_glob_results(result, list))
         }
@@ -130,13 +130,13 @@ async fn add_glob_results(result: ReadGlobResultRef, list: &mut Vec<AssetRef>) -
 }
 
 async fn input_to_modules<'a>(
-    fs: &'a FileSystemRef,
+    fs: &'a FileSystemVc,
     input: &'a Vec<String>,
-) -> Result<Vec<AssetRef>> {
-    let root = FileSystemPathRef::new(fs.clone(), "");
+) -> Result<Vec<AssetVc>> {
+    let root = FileSystemPathVc::new(fs.clone(), "");
     let mut list = Vec::new();
     for input in input.iter() {
-        let glob = GlobRef::new(input);
+        let glob = GlobVc::new(input);
         add_glob_results(root.clone().read_glob(glob, false), &mut list).await?;
     }
     Ok(list)
@@ -227,7 +227,7 @@ fn main() {
                 for path in result {
                     println!("{}", path);
                 }
-                Ok(NothingRef::new().into())
+                Ok(NothingVc::new().into())
             });
             block_on(tt.wait_done());
             println!("done in {} ms", start.elapsed().as_millis());
@@ -245,10 +245,10 @@ fn main() {
             let task = tt.spawn_once_task(async move {
                 let fs = create_fs("context directory", &context);
                 for module in input_to_modules(&fs, &input).await? {
-                    let nft_asset = NftJsonAssetRef::new(module).into();
+                    let nft_asset = NftJsonAssetVc::new(module).into();
                     emit(nft_asset)
                 }
-                Ok(NothingRef::new().into())
+                Ok(NothingVc::new().into())
             });
             block_on(tt.wait_done());
             println!("done in {} ms", start.elapsed().as_millis());
@@ -268,14 +268,14 @@ fn main() {
             let task = tt.spawn_once_task(async move {
                 let fs = create_fs("context directory", &context);
                 let out_fs = create_fs("output directory", &output);
-                let input_dir = FileSystemPathRef::new(fs.clone(), "");
-                let output_dir = FileSystemPathRef::new(out_fs, "");
+                let input_dir = FileSystemPathVc::new(fs.clone(), "");
+                let output_dir = FileSystemPathVc::new(out_fs, "");
                 for module in input_to_modules(&fs, &input).await? {
                     let rebased =
-                        RebasedAssetRef::new(module, input_dir.clone(), output_dir.clone()).into();
+                        RebasedAssetVc::new(module, input_dir.clone(), output_dir.clone()).into();
                     emit(rebased);
                 }
-                Ok(NothingRef::new().into())
+                Ok(NothingVc::new().into())
             });
             block_on(tt.wait_done());
             println!("done in {} ms", start.elapsed().as_millis());
@@ -313,14 +313,14 @@ fn main() {
             tt.spawn_once_task(async move {
                 let fs = create_watched_fs("context directory", &context).await?;
                 let out_fs = create_watched_fs("output directory", &output).await?;
-                let input_dir = FileSystemPathRef::new(fs.clone(), "");
-                let output_dir = FileSystemPathRef::new(out_fs, "");
+                let input_dir = FileSystemPathVc::new(fs.clone(), "");
+                let output_dir = FileSystemPathVc::new(out_fs, "");
                 for module in input_to_modules(&fs, &input).await? {
                     let rebased =
-                        RebasedAssetRef::new(module, input_dir.clone(), output_dir.clone()).into();
+                        RebasedAssetVc::new(module, input_dir.clone(), output_dir.clone()).into();
                     emit(rebased);
                 }
-                Ok(NothingRef::new().into())
+                Ok(NothingVc::new().into())
             });
 
             block_on(handle);

@@ -15,7 +15,7 @@ use swc_ecmascript::visit::VisitMutWith;
 use turbo_tasks_fs::FileContent;
 
 use crate::analyzer::graph::EvalContext;
-use crate::asset::AssetRef;
+use crate::asset::AssetVc;
 
 #[turbo_tasks::value(shared)]
 pub enum ParseResult {
@@ -102,7 +102,7 @@ impl Write for Buffer {
 }
 
 #[turbo_tasks::function]
-pub async fn parse(source: AssetRef) -> Result<ParseResultRef> {
+pub async fn parse(source: AssetVc) -> Result<ParseResultVc> {
     let content = source.content();
     let fs_path = source.path().await?;
     Ok(match &*content.await? {

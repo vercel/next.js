@@ -3,8 +3,8 @@ use std::{fmt::Display, mem::take};
 use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
-use turbo_tasks::{Promise, Value};
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPathRef};
+use turbo_tasks::{Value, Vc};
+use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPathVc};
 
 #[turbo_tasks::value(shared)]
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
@@ -318,14 +318,14 @@ impl Pattern {
     }
 }
 
-impl PatternRef {
+impl PatternVc {
     pub fn new(pattern: Pattern) -> Self {
-        PatternRef::new_internal(Value::new(pattern))
+        PatternVc::new_internal(Value::new(pattern))
     }
 }
 
 #[turbo_tasks::value_impl]
-impl PatternRef {
+impl PatternVc {
     fn new_internal(pattern: Value<Pattern>) -> Self {
         Self::slot(pattern.into_value())
     }
@@ -413,17 +413,17 @@ impl Display for Pattern {
 
 #[derive(PartialEq, Eq, Clone)]
 pub enum PatternMatch {
-    File(String, FileSystemPathRef),
-    Directory(String, FileSystemPathRef),
+    File(String, FileSystemPathVc),
+    Directory(String, FileSystemPathVc),
 }
 
 #[turbo_tasks::function]
 pub async fn read_matches(
-    context: FileSystemPathRef,
+    context: FileSystemPathVc,
     prefix: String,
     force_in_context: bool,
-    pattern: PatternRef,
-) -> Result<Promise<Vec<PatternMatch>>> {
+    pattern: PatternVc,
+) -> Result<Vc<Vec<PatternMatch>>> {
     let context_name = turbo_tasks::ValueToString::to_string(&context).await?;
     let pat = pattern.get().await?;
     let mut results = Vec::new();
@@ -513,7 +513,7 @@ pub async fn read_matches(
     for nested in nested.into_iter() {
         results.extend(nested.await?.iter().cloned());
     }
-    Ok(Promise::slot(results))
+    Ok(Vc::slot(results))
 }
 
 #[cfg(test)]

@@ -144,7 +144,7 @@ impl Stats {
             } else {
                 Vec::new()
             }
-        };
+        }
         fn find_common<'a>(p1: Vec<&'a TaskType>, p2: Vec<&'a TaskType>) -> Option<&'a TaskType> {
             let mut i = cmp::min(p1.len(), p2.len());
             loop {

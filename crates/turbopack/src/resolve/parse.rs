@@ -3,7 +3,7 @@ use std::future::IntoFuture;
 use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
-use turbo_tasks::{util::try_join_all, Promise, Value, ValueToString, ValueToStringRef};
+use turbo_tasks::{util::try_join_all, Value, ValueToString, ValueToStringVc, Vc};
 
 use super::pattern::Pattern;
 
@@ -41,7 +41,7 @@ pub enum Request {
     },
     Dynamic,
     Alternatives {
-        requests: Vec<RequestRef>,
+        requests: Vec<RequestVc>,
     },
 }
 
@@ -170,7 +170,7 @@ impl Request {
             Pattern::Alternatives(list) => Request::Alternatives {
                 requests: list
                     .into_iter()
-                    .map(|p| RequestRef::parse(Value::new(p)))
+                    .map(|p| RequestVc::parse(Value::new(p)))
                     .collect(),
             },
         }
@@ -178,7 +178,7 @@ impl Request {
 }
 
 #[turbo_tasks::value_impl]
-impl RequestRef {
+impl RequestVc {
     pub fn parse(request: Value<Pattern>) -> Self {
         Self::slot(Request::parse(request.into_value()))
     }
@@ -204,8 +204,8 @@ impl RequestRef {
 
 #[turbo_tasks::value_impl]
 impl ValueToString for Request {
-    async fn to_string(&self) -> Result<Promise<String>> {
-        Ok(Promise::slot(match self {
+    async fn to_string(&self) -> Result<Vc<String>> {
+        Ok(Vc::slot(match self {
             Request::Raw {
                 path,
                 force_in_context,

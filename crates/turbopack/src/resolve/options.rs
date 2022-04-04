@@ -1,34 +1,34 @@
 use std::collections::BTreeMap;
 
 use anyhow::Result;
-use turbo_tasks::{trace::TraceSlotRefs, Value};
-use turbo_tasks_fs::{glob::Glob, FileSystemPathRef};
+use turbo_tasks::{trace::TraceSlotVcs, Value};
+use turbo_tasks_fs::{glob::Glob, FileSystemPathVc};
 
-use crate::resolve::parse::RequestRef;
+use crate::resolve::parse::RequestVc;
 
 use super::{
     prefix_tree::{PrefixTree, WildcardReplacable},
-    ResolveResult, ResolveResultRef, SpecialType,
+    ResolveResult, ResolveResultVc, SpecialType,
 };
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, PartialEq, Eq, Debug)]
 pub struct LockedVersions {}
 
-#[derive(TraceSlotRefs, Hash, PartialEq, Eq, Clone, Debug)]
+#[derive(TraceSlotVcs, Hash, PartialEq, Eq, Clone, Debug)]
 pub enum ResolveModules {
     /// when inside of path, use the list of directories to
     /// resolve inside these
-    Nested(FileSystemPathRef, Vec<String>),
+    Nested(FileSystemPathVc, Vec<String>),
     /// look into that directory
-    Path(FileSystemPathRef),
+    Path(FileSystemPathVc),
     /// lookup versions based on lockfile in the registry filesystem
     /// registry filesystem is assumed to have structure like
     /// @scope/module/version/<path-in-package>
-    Registry(FileSystemPathRef, LockedVersionsRef),
+    Registry(FileSystemPathVc, LockedVersionsVc),
 }
 
-#[derive(TraceSlotRefs, Hash, PartialEq, Eq, Clone, Debug)]
+#[derive(TraceSlotVcs, Hash, PartialEq, Eq, Clone, Debug)]
 pub enum ConditionValue {
     Set,
     Unset,
@@ -45,7 +45,7 @@ impl From<bool> for ConditionValue {
     }
 }
 
-#[derive(TraceSlotRefs, Hash, PartialEq, Eq, Clone, Debug)]
+#[derive(TraceSlotVcs, Hash, PartialEq, Eq, Clone, Debug)]
 pub enum ResolveIntoPackage {
     ExportsField {
         field: String,
@@ -56,7 +56,7 @@ pub enum ResolveIntoPackage {
     Default(String),
 }
 
-#[derive(TraceSlotRefs, Hash, PartialEq, Eq, Clone, Debug)]
+#[derive(TraceSlotVcs, Hash, PartialEq, Eq, Clone, Debug)]
 pub enum ImportMapping {
     External(Option<String>),
     Alias(String),
@@ -115,18 +115,18 @@ pub struct ImportMap {
 #[turbo_tasks::value(shared)]
 #[derive(PartialEq, Eq, Clone, Debug, Default)]
 pub struct ResolvedMap {
-    pub by_glob: Vec<(FileSystemPathRef, Glob, ImportMapping)>,
+    pub by_glob: Vec<(FileSystemPathVc, Glob, ImportMapping)>,
 }
 
 #[turbo_tasks::value(shared)]
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ImportMapResult {
-    Result(ResolveResultRef),
-    Alias(RequestRef),
+    Result(ResolveResultVc),
+    Alias(RequestVc),
     NoEntry,
 }
 
-fn import_mapping_to_result(mapping: &ImportMapping) -> ImportMapResultRef {
+fn import_mapping_to_result(mapping: &ImportMapping) -> ImportMapResultVc {
     match mapping {
         ImportMapping::External(name) => ImportMapResult::Result(
             ResolveResult::Special(
@@ -146,7 +146,7 @@ fn import_mapping_to_result(mapping: &ImportMapping) -> ImportMapResultRef {
             ImportMapResult::Result(ResolveResult::Special(SpecialType::Empty, None).into()).into()
         }
         ImportMapping::Alias(name) => {
-            let request = RequestRef::parse(Value::new(name.to_string().into()));
+            let request = RequestVc::parse(Value::new(name.to_string().into()));
 
             ImportMapResult::Alias(request).into()
         }
@@ -154,8 +154,8 @@ fn import_mapping_to_result(mapping: &ImportMapping) -> ImportMapResultRef {
 }
 
 #[turbo_tasks::value_impl]
-impl ImportMapRef {
-    pub async fn lookup(self, request: RequestRef) -> Result<ImportMapResultRef> {
+impl ImportMapVc {
+    pub async fn lookup(self, request: RequestVc) -> Result<ImportMapResultVc> {
         let this = self.await?;
         // TODO lookup pattern
         if let Some(request_string) = request.await?.request() {
@@ -178,8 +178,8 @@ impl ImportMapRef {
 }
 
 #[turbo_tasks::value_impl]
-impl ResolvedMapRef {
-    pub async fn lookup(self, resolved: FileSystemPathRef) -> Result<ImportMapResultRef> {
+impl ResolvedMapVc {
+    pub async fn lookup(self, resolved: FileSystemPathVc) -> Result<ImportMapResultVc> {
         let this = self.await?;
         let resolved = resolved.await?;
         for (root, glob, mapping) in this.by_glob.iter() {
@@ -200,13 +200,13 @@ pub struct ResolveOptions {
     pub extensions: Vec<String>,
     pub modules: Vec<ResolveModules>,
     pub into_package: Vec<ResolveIntoPackage>,
-    pub import_map: Option<ImportMapRef>,
-    pub resolved_map: Option<ResolvedMapRef>,
+    pub import_map: Option<ImportMapVc>,
+    pub resolved_map: Option<ResolvedMapVc>,
 }
 
 #[turbo_tasks::value_impl]
-impl ResolveOptionsRef {
-    pub async fn modules(self) -> Result<ResolveModulesOptionsRef> {
+impl ResolveOptionsVc {
+    pub async fn modules(self) -> Result<ResolveModulesOptionsVc> {
         Ok(ResolveModulesOptions {
             modules: self.await?.modules.clone(),
         }
@@ -221,9 +221,7 @@ pub struct ResolveModulesOptions {
 }
 
 #[turbo_tasks::function]
-pub async fn resolve_modules_options(
-    options: ResolveOptionsRef,
-) -> Result<ResolveModulesOptionsRef> {
+pub async fn resolve_modules_options(options: ResolveOptionsVc) -> Result<ResolveModulesOptionsVc> {
     Ok(ResolveModulesOptions {
         modules: options.await?.modules.clone(),
     }

@@ -1,16 +1,16 @@
 use regex::Regex;
 use std::collections::HashMap;
-use turbo_tasks::trace::TraceSlotRefs;
-use turbo_tasks_fs::FileSystemPathRef;
+use turbo_tasks::trace::TraceSlotVcs;
+use turbo_tasks_fs::FileSystemPathVc;
 
 #[turbo_tasks::function]
-pub async fn module_options(_context: FileSystemPathRef) -> ModuleOptionsRef {
+pub async fn module_options(_context: FileSystemPathVc) -> ModuleOptionsVc {
     the_module_options()
 }
 
 #[turbo_tasks::function]
-pub async fn the_module_options() -> ModuleOptionsRef {
-    ModuleOptionsRef::slot(ModuleOptions {
+pub async fn the_module_options() -> ModuleOptionsVc {
+    ModuleOptionsVc::slot(ModuleOptions {
         rules: vec![
             ModuleRule::new(
                 vec![ModuleRuleCondition::ResourcePathEndsWith(
@@ -43,7 +43,7 @@ pub struct ModuleOptions {
     pub rules: Vec<ModuleRule>,
 }
 
-#[derive(TraceSlotRefs)]
+#[derive(TraceSlotVcs)]
 pub struct ModuleRule {
     pub conditions: Vec<ModuleRuleCondition>,
     pub effects: HashMap<ModuleRuleEffectKey, ModuleRuleEffect>,
@@ -58,19 +58,19 @@ impl ModuleRule {
     }
 }
 
-#[derive(TraceSlotRefs)]
+#[derive(TraceSlotVcs)]
 pub enum ModuleRuleCondition {
     ResourcePathEndsWith(String),
     ResourcePathRegex(#[trace_ignore] Regex),
 }
 
-#[derive(TraceSlotRefs)]
+#[derive(TraceSlotVcs)]
 pub enum ModuleRuleEffect {
     ModuleType(ModuleType),
     Custom,
 }
 
-#[derive(TraceSlotRefs)]
+#[derive(TraceSlotVcs)]
 pub enum ModuleType {
     Ecmascript,
     Json,
@@ -89,7 +89,7 @@ impl ModuleRuleEffect {
     }
 }
 
-#[derive(TraceSlotRefs, PartialEq, Eq, Hash)]
+#[derive(TraceSlotVcs, PartialEq, Eq, Hash)]
 pub enum ModuleRuleEffectKey {
     ModuleType,
     Custom,
