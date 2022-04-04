@@ -285,12 +285,13 @@ impl Pattern {
             }
             Pattern::Dynamic => {
                 lazy_static! {
-                    static ref FORBIDDEN: Regex = Regex::new(r"(/|^)\.").unwrap();
+                    static ref FORBIDDEN: Regex =
+                        Regex::new(r"(/|^)(\.|(node_modules|__tests?__)(/|$))").unwrap();
                     static ref FORBIDDEN_MATCH: Regex = Regex::new(r"\.d\.ts$|\.map$").unwrap();
                 };
                 if let Some(m) = FORBIDDEN.find(value) {
                     MatchResult::Consumed(value, Some(m.start()))
-                } else if let Some(m) = FORBIDDEN_MATCH.find(value) {
+                } else if let Some(_) = FORBIDDEN_MATCH.find(value) {
                     MatchResult::Partial(None)
                 } else {
                     MatchResult::Consumed(value, Some(value.len()))
@@ -581,6 +582,11 @@ mod tests {
         assert!(!pat.could_match("./inner/../"));
         assert!(!pat.could_match("./inner/./"));
         assert!(!pat.could_match("./inner/.git/"));
+
+        assert!(!pat.could_match("node_modules"));
+        assert!(!pat.could_match("node_modules/package"));
+        assert!(!pat.could_match("nested/node_modules"));
+        assert!(!pat.could_match("nested/node_modules/package"));
 
         // forbidden match
         assert!(pat.could_match("file.map"));
