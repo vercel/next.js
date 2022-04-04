@@ -219,6 +219,9 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     }
   }, [router, props.href, props.as])
 
+  const previousHref = React.useRef<string>(href)
+  const previousAs = React.useRef<string>(as)
+
   let { children, replace, shallow, scroll, locale } = props
 
   if (typeof children === 'string') {
@@ -248,11 +251,19 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   }
   const childRef: any = child && typeof child === 'object' && child.ref
 
-  const [setIntersectionRef, isVisible] = useIntersection({
+  const [setIntersectionRef, isVisible, resetVisible] = useIntersection({
     rootMargin: '200px',
   })
+
   const setRef = React.useCallback(
     (el: Element) => {
+      // Before the link getting observed, check if visible state need to be reset
+      if (previousAs.current !== as || previousHref.current !== href) {
+        resetVisible()
+        previousAs.current = as
+        previousHref.current = href
+      }
+
       setIntersectionRef(el)
       if (childRef) {
         if (typeof childRef === 'function') childRef(el)
@@ -261,7 +272,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         }
       }
     },
-    [childRef, setIntersectionRef]
+    [as, childRef, href, resetVisible, setIntersectionRef]
   )
   React.useEffect(() => {
     const shouldPrefetch = isVisible && p && isLocalURL(href)

@@ -1183,6 +1183,95 @@ function runTests(mode) {
     }
   })
 
+  it('should re-lazyload images after src changes', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/lazy-src-change')
+      // image should not be loaded as it is out of viewport
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('basic-image').naturalWidth`
+        )
+
+        if (result >= 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      // Move image into viewport
+      await browser.eval(
+        'document.getElementById("spacer").style.display = "none"'
+      )
+
+      // image should be loaded by now
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('basic-image').naturalWidth`
+        )
+
+        if (result < 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      await check(
+        () => browser.eval(`document.getElementById("basic-image").currentSrc`),
+        /test\.jpg/
+      )
+
+      // Make image out of viewport again
+      await browser.eval(
+        'document.getElementById("spacer").style.display = "block"'
+      )
+      // Toggle image's src
+      await browser.eval(
+        'document.getElementById("button-change-image-src").click()'
+      )
+      // "new" image should be lazy loaded
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('basic-image').naturalWidth`
+        )
+
+        if (result >= 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      // Move image into viewport again
+      await browser.eval(
+        'document.getElementById("spacer").style.display = "none"'
+      )
+      // "new" image should be loaded by now
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('basic-image').naturalWidth`
+        )
+
+        if (result < 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      await check(
+        () => browser.eval(`document.getElementById("basic-image").currentSrc`),
+        /test\.png/
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
   it('should initially load only two of four images using lazyroot', async () => {
     let browser
     try {
