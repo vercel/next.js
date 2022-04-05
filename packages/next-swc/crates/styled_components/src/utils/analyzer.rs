@@ -116,7 +116,7 @@ impl Visit for Analyzer<'_> {
                                     ModuleExportName::Ident(v) => &*v.sym,
                                     ModuleExportName::Str(v) => &*v.value,
                                 })
-                                .unwrap_or(&&*s.local.sym)
+                                .unwrap_or(&*s.local.sym)
                                 == "styled"
                         {
                             self.state.imported_local_name = Some(s.local.to_id());

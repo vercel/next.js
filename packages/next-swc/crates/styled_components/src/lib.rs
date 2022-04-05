@@ -64,7 +64,7 @@ pub fn styled_components(file: Arc<SourceFile>, config: Config) -> impl Fold + V
 
     chain!(
         analyzer(config.clone(), state.clone()),
-        display_name_and_id(file.clone(), config.clone(), state.clone()),
+        display_name_and_id(file, config, state),
         transpile_css_prop()
     )
 }

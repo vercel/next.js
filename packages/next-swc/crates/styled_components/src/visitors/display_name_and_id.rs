@@ -53,7 +53,7 @@ impl DisplayNameAndId {
         } else {
         }
 
-        self.get_block_name(&p.parent().expect("/index/index/index?"))
+        self.get_block_name(p.parent().expect("/index/index/index?"))
     }
 
     fn get_display_name(&mut self, _: &Expr) -> JsWord {
@@ -141,9 +141,9 @@ impl DisplayNameAndId {
         get_existing_config(e, |e| {
             if let Expr::Call(CallExpr { args, .. }) = e {
                 if let Some(Expr::Object(existing_config)) = args.get_mut(0).map(|v| &mut *v.expr) {
-                    if !already_has(&existing_config) {
+                    if !already_has(existing_config) {
                         existing_config.props.extend(with_config_props.take());
-                        return;
+                        
                     }
                 }
             }
@@ -267,22 +267,22 @@ impl VisitMut for DisplayNameAndId {
                 (
                     // styled()
                     self.state.borrow().is_styled(&*callee)
-                        && get_property_as_ident(&callee)
+                        && get_property_as_ident(callee)
                             .map(|v| v == "withConfig")
                             .unwrap_or(false)
                 ) || (
                     // styled(x)({})
                     self.state.borrow().is_styled(&*callee)
-                        && !get_callee(&callee)
+                        && !get_callee(callee)
                             .map(|callee| callee.is_member())
                             .unwrap_or(false)
                 ) || (
                     // styled(x).attrs()({})
                     self.state.borrow().is_styled(callee)
-                        && get_callee(&callee)
+                        && get_callee(callee)
                             .map(|callee| {
                                 callee.is_member()
-                                    && get_property_as_ident(&callee)
+                                    && get_property_as_ident(callee)
                                         .map(|v| v == "withConfig")
                                         .unwrap_or(false)
                             })
@@ -290,19 +290,19 @@ impl VisitMut for DisplayNameAndId {
                 ) || (
                     // styled(x).withConfig({})
                     self.state.borrow().is_styled(&*callee)
-                        && get_callee(&callee)
+                        && get_callee(callee)
                             .map(|callee| {
                                 callee.is_member()
-                                    && get_property_as_ident(&callee)
+                                    && get_property_as_ident(callee)
                                         .map(|v| v == "withConfig")
                                         .unwrap_or(false)
-                                    && args.len() > 0
+                                    && !args.is_empty()
                                     && args[0].spread.is_none()
                                     && match &*args[0].expr {
                                         Expr::Object(first_arg) => {
                                             !first_arg.props.iter().any(|prop| match prop {
                                                 PropOrSpread::Prop(prop) => {
-                                                    match get_prop_name(&prop) {
+                                                    match get_prop_name(prop) {
                                                         Some(PropName::Ident(prop_name)) => {
                                                             match &*prop_name.sym {
                                                                 "componentId" | "displayName" => {
@@ -338,7 +338,7 @@ impl VisitMut for DisplayNameAndId {
         };
 
         let display_name = if self.config.display_name {
-            Some(self.get_display_name(&expr))
+            Some(self.get_display_name(expr))
         } else {
             None
         };
@@ -396,7 +396,7 @@ fn get_callee(e: &Expr) -> Option<&Expr> {
         Expr::Call(CallExpr {
             callee: Callee::Expr(callee),
             ..
-        }) => Some(&callee),
+        }) => Some(callee),
         _ => None,
     }
 }
@@ -467,7 +467,7 @@ where
                                 ..
                             }) => {
                                 if &*prop.sym == "withConfig" {
-                                    return op(obj);
+                                    op(obj)
                                 }
                             }
 

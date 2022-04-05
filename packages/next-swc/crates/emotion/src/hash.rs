@@ -46,8 +46,8 @@ mod test {
         let s2 = "abcdeg";
         for i in 0..5 {
             assert_eq!(
-                murmurhash2(&s1[i..5].as_bytes(), 0),
-                murmurhash2(&s2[i..5].as_bytes(), 0)
+                murmurhash2(s1[i..5].as_bytes(), 0),
+                murmurhash2(s2[i..5].as_bytes(), 0)
             );
         }
     }

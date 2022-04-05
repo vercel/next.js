@@ -26,7 +26,7 @@ pub(crate) fn prop_name_to_expr(p: &PropName) -> Cow<Expr> {
     match p {
         PropName::Ident(p) => Cow::Owned(Expr::Ident(p.clone())),
         PropName::Str(p) => Cow::Owned(Expr::Lit(Lit::Str(p.clone()))),
-        PropName::Num(p) => Cow::Owned(Expr::Lit(Lit::Num(p.clone()))),
+        PropName::Num(p) => Cow::Owned(Expr::Lit(Lit::Num(*p))),
         PropName::BigInt(p) => Cow::Owned(Expr::Lit(Lit::BigInt(p.clone()))),
         PropName::Computed(e) => Cow::Borrowed(&e.expr),
     }
@@ -78,7 +78,7 @@ impl State {
                     ..
                 }) => {
                     if prop.sym != js_word!("default") {
-                        return self.is_styled(&obj);
+                        return self.is_styled(obj);
                     }
                 }
                 _ => {}
@@ -108,7 +108,7 @@ impl State {
                 ..
             }) => match &**callee {
                 Expr::Ident(callee) => {
-                    if Some(callee.to_id()) == self.import_local_name("default", Some(&callee)) {
+                    if Some(callee.to_id()) == self.import_local_name("default", Some(callee)) {
                         return true;
                     }
                 }
@@ -322,7 +322,7 @@ impl State {
 pub fn prefix_leading_digit(s: &str) -> Cow<str> {
     static REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(\d)").unwrap());
 
-    REGEX.replace(&s, |s: &Captures| {
+    REGEX.replace(s, |s: &Captures| {
         //
         format!("sc-{}", s.get(0).unwrap().as_str())
     })

@@ -93,7 +93,7 @@ impl VisitMut for TranspileCssProp {
                                 callee: import_name.as_callee(),
                                 args: vec![Lit::Str(Str {
                                     span: DUMMY_SP,
-                                    value: name.sym.into(),
+                                    value: name.sym,
                                     raw: None,
                                 })
                                 .as_arg()],
@@ -364,7 +364,7 @@ impl VisitMut for TranspileCssProp {
         }
 
         let mut serialized_body: Vec<ModuleItem> = vec![];
-        let body = std::mem::replace(&mut n.body, vec![]);
+        let body = std::mem::take(&mut n.body);
         for item in body {
             serialized_body.push(item.clone());
             match &item {
@@ -385,7 +385,7 @@ impl VisitMut for TranspileCssProp {
         }
         n.body = serialized_body;
 
-        let mut remaining = std::mem::replace(&mut self.interleaved_injections, Default::default())
+        let mut remaining = std::mem::take(&mut self.interleaved_injections)
             .into_iter()
             .collect::<Vec<_>>();
         remaining.sort_by_key(|x| x.0.clone());
@@ -450,7 +450,7 @@ impl PropertyReducer<'_> {
                 } else {
                     self.replace_object_with_prop_function = true;
 
-                    let identifier = get_local_identifier(&mut self.identifier_idx, &prop.expr);
+                    let identifier = get_local_identifier(self.identifier_idx, &prop.expr);
 
                     self.extra_attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
                         span: DUMMY_SP,
@@ -467,7 +467,7 @@ impl PropertyReducer<'_> {
                 acc.push(property);
             }
             PropOrSpread::Prop(ref mut prop) => {
-                let key = get_prop_key_as_expr(&prop);
+                let key = get_prop_key_as_expr(prop);
                 let key_pn = get_prop_name(prop);
 
                 if key.is_member()
@@ -479,7 +479,7 @@ impl PropertyReducer<'_> {
                 {
                     self.replace_object_with_prop_function = true;
 
-                    let identifier = get_local_identifier(&mut self.identifier_idx, &key);
+                    let identifier = get_local_identifier(self.identifier_idx, &key);
 
                     self.extra_attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
                         span: DUMMY_SP,
@@ -510,7 +510,7 @@ impl PropertyReducer<'_> {
 
                     self.replace_object_with_prop_function = true;
 
-                    let identifier = get_local_identifier(&mut self.identifier_idx, &value);
+                    let identifier = get_local_identifier(self.identifier_idx, &value);
 
                     self.extra_attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
                         span: DUMMY_SP,
@@ -521,7 +521,7 @@ impl PropertyReducer<'_> {
                         })),
                     }));
 
-                    let key = get_prop_name2(&prop);
+                    let key = get_prop_name2(prop);
 
                     acc.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
                         key,
