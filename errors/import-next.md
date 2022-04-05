@@ -10,7 +10,7 @@ You should not need to import `next` inside of pages or components.
 
 Ensure any usage of `import next from "next"` is specific to custom server usage and isn't included in your pages or components.
 
-Also ensure any type imports are kept inside of TypeScript files.
+Also ensure any type imports are kept inside of TypeScript files e.g. ensure `import { PageConfig } from 'next'` isn't used in JavaScript files.
 
 ### Useful Links
 
