@@ -10,7 +10,6 @@ Simply fill the environmental variables defined below and your serverless functi
 
 ## Docs
 - ### [What the Bot Does](#what-this-bot-does)
-- ### [Configuring Upstash](#configure-upstash)
 - ### [Configuring Slack Bot - 1](#configure-slack-bot-1)
 - ### [Deploying on Vercel](#deploy-on-vercel)
 - ### [Configuring Slack Bot - 2](#configure-slack-bot-2)
@@ -48,17 +47,6 @@ Simply fill the environmental variables defined below and your serverless functi
 
 * P.S: 
     * All of the commands mentioned can be implemented as slackbot mentions rather than slash commands. For demonstration purposes, slash commands are also used. Use cases may differ. 
-
-***
-### Configuring Upstash 
-<a id="configure-upstash"></a>
-1. Go to the [Upstash Console](https://console.upstash.com/) and create a new database
-
-    #### Upstash environment
-    Find the variables in the database details page in Upstash Console:
-    `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` 
-
-    (These will be the env variables for vercel deployment) 
 
 ***
 ### Configuring Slack Bot - 1 
