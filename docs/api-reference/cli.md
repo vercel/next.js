@@ -108,7 +108,7 @@ PORT=4000 npx next start
 
 ### Working with Load-balancer Timeouts
 
-When deploying Next.js behind an upstream proxy (e.g. a load-balancer like AWS ELB/ALB) it's important to configure Next's underlying http-server with [keep-alive timeouts](https://nodejs.org/api/http.html#http_server_keepalivetimeout) that are _smaller_ than the upstream proxies' timeouts. Otherwise, once a keep-alive timeout is reached for a given TCP connection, Node.js will immediately terminate that connection without notifying the upstream proxies. This results in the upstream proxies throwing intermittent 5xx errors whenever they attempt to reuse a connection that Node.js has already terminated.
+When deploying Next.js behind a downstream proxy (e.g. a load-balancer like AWS ELB/ALB) it's important to configure Next's underlying http-server with [keep-alive timeouts](https://nodejs.org/api/http.html#http_server_keepalivetimeout) that are _larger_ than the downstream proxies' timeouts. Otherwise, once a keep-alive timeout is reached for a given TCP connection, Node.js will immediately terminate that connection without notifying the downstream proxies. This results in the downstream proxies throwing intermittent 5xx errors whenever they attempt to reuse a connection that Node.js has already terminated.
 
 To configure the timeout values for the production Next.js server, pass `--keepAliveTimeout` (in milliseconds) to `next start`, like so:
 
