@@ -4,7 +4,7 @@ description: Control page initialization and add a layout that persists for all 
 
 # Custom `App`
 
-Next.js uses the `App` component to initialize pages. You can override it and control the page initialization. Which allows you to do amazing things like:
+Next.js uses the `App` component to initialize pages. You can override it and control the page initialization. It allows you to do amazing things like:
 
 - Persisting layout between page changes
 - Keeping state when navigating pages
@@ -12,7 +12,7 @@ Next.js uses the `App` component to initialize pages. You can override it and co
 - Inject additional data into pages
 - [Add global CSS](/docs/basic-features/built-in-css-support.md#adding-a-global-stylesheet)
 
-To override the default `App`, create the file `./pages/_app.js` as shown below:
+Next.js applications created with [`create-next-app`](/docs/api-reference/create-next-app) already comes with the file `_app.js` inside the `pages` directory. To override the default `App`, modify the file as shown below:
 
 ```jsx
 // import App from 'next/app'
