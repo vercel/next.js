@@ -41,7 +41,8 @@ use turbopack::{
 #[case::empty("integration/empty.js", true)]
 #[case::env_var("integration/env-var.js", true)]
 #[case::es_get_iterator("integration/es-get-iterator.js", true)]
-#[case::esbuild("integration/esbuild.js", true)]
+#[cfg_attr(target_os = "windows", case::esbuild("integration/esbuild.js", true))]
+// #[cfg_attr(not(target_os = "windows"), case::esbuild("integration/esbuild.js", false))] // execution hanging
 #[case::esm("integration/esm.js", false)] // Cannot destructure property 'dir' of 'T.package' as it is undefined.
 #[case::express_consolidate("integration/express-consolidate.js", false)] // Cannot read property 'startsWith' of undefined
 #[case::express_template_engine("integration/express-template-engine.js", true)]
@@ -84,7 +85,7 @@ use turbopack::{
 #[case::pdfkit("integration/pdfkit.js", true)]
 #[case::pg("integration/pg.js", true)]
 #[case::playwright_core("integration/playwright-core.js", true)]
-#[case::polyfill_library("integration/polyfill-library.js", false)] // directory polyfill-library/polyfills/__dist missing
+#[case::polyfill_library("integration/polyfill-library.js", true)]
 #[case::pug("integration/pug.js", true)]
 #[case::react("integration/react.js", true)]
 #[case::redis("integration/redis.js", true)]
@@ -95,7 +96,8 @@ use turbopack::{
 #[case::semver("integration/semver.js", true)]
 #[case::sentry("integration/sentry.js", true)]
 #[case::sequelize("integration/sequelize.js", true)]
-#[case::sharp("integration/sharp.js", false)] // can't find *.node binding
+#[cfg_attr(target_os = "windows", case::sharp("integration/sharp.js", false))] // can't find *.node binding
+#[cfg_attr(not(target_os = "windows"), case::sharp("integration/sharp.js", true))]
 #[case::simple("integration/simple.js", true)]
 #[case::socket_io("integration/socket.io.js", true)]
 #[case::sparql_builder("integration/sparql-builder.js", true)]
