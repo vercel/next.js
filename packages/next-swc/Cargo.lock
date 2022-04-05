@@ -1017,6 +1017,7 @@ name = "next-swc"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "easy-error",
  "either",
  "emotion",
  "fxhash",

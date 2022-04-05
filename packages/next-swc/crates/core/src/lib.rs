@@ -57,7 +57,6 @@ pub mod react_remove_properties;
 pub mod relay;
 pub mod remove_console;
 pub mod shake_exports;
-pub mod styled_jsx;
 mod top_level_binding_collector;
 
 #[derive(Clone, Debug, Deserialize)]
