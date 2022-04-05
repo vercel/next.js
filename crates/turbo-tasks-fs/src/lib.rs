@@ -30,7 +30,7 @@ use invalidator_map::InvalidatorMap;
 use json::{parse, JsonValue};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use threadpool::ThreadPool;
-use turbo_tasks::{trace::TraceSlotVcs, CompletionVc, Task, ValueToString, Vc};
+use turbo_tasks::{trace::TraceSlotVcs, Completion, CompletionVc, Task, ValueToString, Vc};
 use util::{join_path, normalize_path};
 
 #[turbo_tasks::value_trait]
@@ -38,7 +38,7 @@ pub trait FileSystem {
     fn read(&self, fs_path: FileSystemPathVc) -> FileContentVc;
     fn read_dir(&self, fs_path: FileSystemPathVc) -> DirectoryContentVc;
     fn parent_path(&self, fs_path: FileSystemPathVc) -> FileSystemPathVc;
-    fn write(&self, from: FileSystemPathVc, content: FileContentVc) -> CompletionVc;
+    fn write(&self, fs_path: FileSystemPathVc, content: FileContentVc) -> CompletionVc;
     fn to_string(&self) -> Vc<String>;
 }
 
@@ -190,7 +190,6 @@ fn path_to_key(path: &Path) -> String {
 impl DiskFileSystemVc {
     pub fn new(name: String, root: String) -> Result<Self> {
         let pool = Mutex::new(ThreadPool::new(30));
-        println!("creating {}...", root);
         // create the directory for the filesystem on disk, if it doesn't exist
         create_dir_all(&root)?;
 
@@ -493,6 +492,10 @@ impl FileSystemPathVc {
         let fs = self.await?.fs.clone();
         Ok(Self::new_normalized(fs, "".to_string()))
     }
+
+    pub async fn fs(self) -> Result<FileSystemVc> {
+        Ok(self.await?.fs.clone())
+    }
 }
 
 impl Display for FileSystemPath {
@@ -645,5 +648,32 @@ impl DirectoryContentVc {
 
     pub fn not_found() -> Self {
         Self::slot(DirectoryContent::NotFound)
+    }
+}
+
+#[turbo_tasks::value(shared, FileSystem)]
+#[derive(PartialEq, Eq)]
+pub struct NullFileSystem;
+
+#[turbo_tasks::value_impl]
+impl FileSystem for NullFileSystem {
+    fn read(&self, _fs_path: FileSystemPathVc) -> FileContentVc {
+        FileContent::NotFound.into()
+    }
+
+    fn read_dir(&self, _fs_path: FileSystemPathVc) -> DirectoryContentVc {
+        DirectoryContentVc::not_found()
+    }
+
+    fn parent_path(&self, fs_path: FileSystemPathVc) -> FileSystemPathVc {
+        FileSystemPathVc::new_normalized(fs_path.fs(), "".to_string())
+    }
+
+    fn write(&self, _fs_path: FileSystemPathVc, _content: FileContentVc) -> CompletionVc {
+        CompletionVc::new()
+    }
+
+    fn to_string(&self) -> Vc<String> {
+        Vc::slot(String::from("null"))
     }
 }
