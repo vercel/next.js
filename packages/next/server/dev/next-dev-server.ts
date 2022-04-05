@@ -988,6 +988,7 @@ export default class DevServer extends Server {
       // Wrap build errors so that they don't get logged again
       throw new WrappedBuildError(compilationErr)
     }
+
     try {
       await this.hotReloader!.ensurePage(pathname)
 

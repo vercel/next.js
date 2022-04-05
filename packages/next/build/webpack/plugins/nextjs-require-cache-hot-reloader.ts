@@ -62,7 +62,7 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
           compilation.outputOptions.path!,
           `${name}.js`
         )
-        deleteCache(runtimeChunkPath)
+        // deleteCache(runtimeChunkPath)
       })
 
       // we need to make sure to clear all server entries from cache

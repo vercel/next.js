@@ -33,7 +33,9 @@ export async function findPageFile(
       pathsToCheck.push(`${page}.${extension}`)
     }
 
-    pathsToCheck.push(join(page, `index.${extension}`))
+    if (normalizedPagePath.endsWith('/index') || !isRootPaths) {
+      pathsToCheck.push(join(page, `index.${extension}`))
+    }
 
     for (const pathToCheck of pathsToCheck) {
       const pagePathWithIndex = join(rootDir, pathToCheck)

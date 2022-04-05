@@ -31,9 +31,10 @@ import { ssrEntries } from '../../build/webpack/plugins/middleware-plugin'
 import { stringify } from 'querystring'
 import {
   difference,
+  isClientComponentPage,
   isCustomErrorPage,
-  isFlightPage,
   isReservedPage,
+  isServerComponentPage,
 } from '../../build/utils'
 import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
@@ -505,7 +506,10 @@ export default class HotReloader {
             const isReserved = isReservedPage(page)
             const isServerComponent =
               this.hasServerComponents &&
-              isFlightPage(this.config, absolutePagePath)
+              isServerComponentPage(this.config, absolutePagePath)
+            const isClientComponent =
+              this.hasServerComponents &&
+              isClientComponentPage(this.config, absolutePagePath)
 
             const pageRuntimeConfig = await getPageRuntime(
               absolutePagePath,
@@ -576,16 +580,29 @@ export default class HotReloader {
                 })
               }
             } else if (isNodeServerCompilation) {
-              let request = relative(config.context!, absolutePagePath)
-              if (!isAbsolute(request) && !request.startsWith('../')) {
-                request = `./${request}`
-              }
+              if (isClientComponent) {
+                entrypoints[bundlePath] = {
+                  name: bundlePath,
+                  publicPath: '',
+                  runtime: 'webpack-runtime',
+                  layer: undefined,
+                  import: `next-flight-client-entrypoint-loader?${stringify({
+                    absolutePagePath,
+                  })}!`,
+                  isServer: true,
+                }
+              } else {
+                let request = relative(config.context!, absolutePagePath)
+                if (!isAbsolute(request) && !request.startsWith('../')) {
+                  request = `./${request}`
+                }
 
-              entrypoints[bundlePath] = finalizeEntrypoint({
-                name: bundlePath,
-                value: request,
-                isServer: true,
-              })
+                entrypoints[bundlePath] = finalizeEntrypoint({
+                  name: bundlePath,
+                  value: request,
+                  isServer: true,
+                })
+              }
             }
           })
         )
