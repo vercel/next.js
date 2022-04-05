@@ -81,7 +81,7 @@ use turbopack::{
 #[case::passport("integration/passport.js", true)]
 #[case::path_platform("integration/path-platform.js", true)]
 #[case::pdf2json("integration/pdf2json.js", true)]
-#[case::pdfkit("integration/pdfkit.js", false)] // fs.readFileSync(__dirname + '/data.trie')
+#[case::pdfkit("integration/pdfkit.js", true)]
 #[case::pg("integration/pg.js", true)]
 #[case::playwright_core("integration/playwright-core.js", true)]
 #[case::polyfill_library("integration/polyfill-library.js", false)] // directory polyfill-library/polyfills/__dist missing
