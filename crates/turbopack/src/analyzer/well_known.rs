@@ -76,7 +76,11 @@ pub fn path_join(args: Vec<JsValue>) -> JsValue {
     for item in parts {
         if let Some(str) = item.as_str() {
             match str {
-                "" | "." => {}
+                "" | "." => {
+                    if results_final.is_empty() && results.is_empty() {
+                        results_final.push(item);
+                    }
+                }
                 ".." => {
                     if results.pop().is_none() {
                         results_final.push(item);

@@ -41,7 +41,7 @@ use turbopack::{
 #[case::empty("integration/empty.js", true)]
 #[case::env_var("integration/env-var.js", true)]
 #[case::es_get_iterator("integration/es-get-iterator.js", true)]
-// #[case::esbuild("integration/esbuild.js", false)] // hanging in execution
+#[case::esbuild("integration/esbuild.js", true)]
 #[case::esm("integration/esm.js", false)] // Cannot destructure property 'dir' of 'T.package' as it is undefined.
 #[case::express_consolidate("integration/express-consolidate.js", false)] // Cannot read property 'startsWith' of undefined
 #[case::express_template_engine("integration/express-template-engine.js", true)]

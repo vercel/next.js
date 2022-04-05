@@ -66,16 +66,20 @@ path = FreeVar(Require)("path")
 
 path2 = FreeVar(Require)("path")
 
-pkg = (???*0* | knownWindowsPackages[platformKey] | knownUnixlikePackages[platformKey])
+pkg#2 = (???*0* | knownWindowsPackages[platformKey] | knownUnixlikePackages[platformKey])
 - *0* pkg
   ⚠️  pattern without value
+
+pkg#3 = pkgAndSubpathForCurrentPlatform()["pkg"]
 
 pkgAndSubpathForCurrentPlatform = (...) => {"pkg": pkg, "subpath": subpath}
 
 platformKey = `${FreeVar(process)["platform"]} ${FreeVar(os)["arch"]()} ${FreeVar(os)["endianness"]()}`
 
-subpath = (???*0* | "esbuild.exe" | "bin/esbuild")
+subpath#2 = (???*0* | "esbuild.exe" | "bin/esbuild")
 - *0* subpath
   ⚠️  pattern without value
+
+subpath#3 = pkgAndSubpathForCurrentPlatform()["subpath"]
 
 x = args["concat"]("--service=0.14.12", "--ping")

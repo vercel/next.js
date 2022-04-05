@@ -503,10 +503,14 @@ async fn value_visitor_inner(source: &AssetVc, v: JsValue) -> Result<(JsValue, b
             ) => {
                 if args.len() == 1 {
                     let pat = js_value_to_pattern(&args[0]);
-                    let request = RequestVc::parse(Value::new(pat));
+                    let request = RequestVc::parse(Value::new(pat.clone()));
                     let resolved = cjs_resolve(request, source.path().parent()).await?;
                     match &*resolved {
                         ResolveResult::Single(asset, _) => as_abs_path(asset.path()).await?,
+                        ResolveResult::Alternatives(assets, _) => JsValue::Alternatives(
+                            try_join_all(assets.iter().map(|asset| as_abs_path(asset.path())))
+                                .await?,
+                        ),
                         _ => JsValue::Unknown(
                             Some(Arc::new(JsValue::Call(
                                 box JsValue::WellKnownFunction(
@@ -514,7 +518,7 @@ async fn value_visitor_inner(source: &AssetVc, v: JsValue) -> Result<(JsValue, b
                                 ),
                                 args,
                             ))),
-                            "unresolveable request",
+                            Box::leak(Box::new(format!("unresolveable request {pat}"))),
                         ),
                     }
                 } else {
@@ -541,11 +545,18 @@ async fn value_visitor_inner(source: &AssetVc, v: JsValue) -> Result<(JsValue, b
                 "fs/promises" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
                 "fs" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
                 "child_process" => JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess),
-                _ => return Ok((v, false)),
+                _ => JsValue::Unknown(
+                    Some(Arc::new(v)),
+                    "cross module analyzing is not yet supported",
+                ),
             },
+            JsValue::Argument(_) => JsValue::Unknown(
+                Some(Arc::new(v)),
+                "cross function analyzing is not yet supported",
+            ),
             _ => {
-                let (v, m1) = replace_well_known(v);
-                let (v, m2) = replace_builtin(v);
+                let (mut v, m1) = replace_well_known(v);
+                let m2 = replace_builtin(&mut v);
                 return Ok((v, m1 || m2));
             }
         },

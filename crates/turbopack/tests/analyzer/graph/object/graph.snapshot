@@ -1,5 +1,21 @@
 [
     (
+        "a",
+        Member(
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('a' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
         "a1",
         Member(
             Variable(
@@ -59,6 +75,38 @@
             Constant(
                 Str(
                     Atom('a' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "a5",
+        Member(
+            Variable(
+                (
+                    Atom('unknown_spread' type=dynamic),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('a' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "b",
+        Member(
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('b' type=inline),
                 ),
             ),
         ),
@@ -128,6 +176,38 @@
         ),
     ),
     (
+        "b5",
+        Member(
+            Variable(
+                (
+                    Atom('unknown_spread' type=dynamic),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('b' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "c",
+        Member(
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('c' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
         "c1",
         Member(
             Variable(
@@ -187,6 +267,38 @@
             Constant(
                 Str(
                     Atom('c' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "c5",
+        Member(
+            Variable(
+                (
+                    Atom('unknown_spread' type=dynamic),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('c' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "d",
+        Member(
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('d' type=inline),
                 ),
             ),
         ),
@@ -340,6 +452,48 @@
                         Num(
                             ConstantNumber(
                                 22.0,
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "unknown_spread",
+        Object(
+            [
+                KeyValue(
+                    Constant(
+                        Str(
+                            Atom('a' type=inline),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                1.0,
+                            ),
+                        ),
+                    ),
+                ),
+                Spread(
+                    FreeVar(
+                        Other(
+                            Atom('global' type=static),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        Str(
+                            Atom('b' type=inline),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                2.0,
                             ),
                         ),
                     ),

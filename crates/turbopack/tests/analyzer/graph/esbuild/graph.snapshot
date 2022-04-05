@@ -621,7 +621,7 @@
         ),
     ),
     (
-        "pkg",
+        "pkg#2",
         Alternatives(
             [
                 Unknown(
@@ -664,6 +664,25 @@
                     ),
                 ),
             ],
+        ),
+    ),
+    (
+        "pkg#3",
+        Member(
+            Call(
+                Variable(
+                    (
+                        Atom('pkgAndSubpathForCurrentPlatform' type=dynamic),
+                        #1,
+                    ),
+                ),
+                [],
+            ),
+            Constant(
+                Str(
+                    Atom('pkg' type=inline),
+                ),
+            ),
         ),
     ),
     (
@@ -757,7 +776,7 @@
         ),
     ),
     (
-        "subpath",
+        "subpath#2",
         Alternatives(
             [
                 Unknown(
@@ -782,6 +801,25 @@
                     ),
                 ),
             ],
+        ),
+    ),
+    (
+        "subpath#3",
+        Member(
+            Call(
+                Variable(
+                    (
+                        Atom('pkgAndSubpathForCurrentPlatform' type=dynamic),
+                        #1,
+                    ),
+                ),
+                [],
+            ),
+            Constant(
+                Str(
+                    Atom('subpath' type=inline),
+                ),
+            ),
         ),
     ),
     (

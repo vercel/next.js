@@ -163,6 +163,7 @@ impl Pattern {
                                     combined.push(alt)
                                 }
                             }
+                            new_alternatives = combined;
                         } else {
                             // part is [Concatenation] -> ...
                             for alt in new_alternatives.iter_mut() {
@@ -473,7 +474,6 @@ pub async fn read_matches(
     force_in_context: bool,
     pattern: PatternVc,
 ) -> Result<Vc<Vec<PatternMatch>>> {
-    let context_name = turbo_tasks::ValueToString::to_string(&context).await?;
     let pat = pattern.get().await?;
     let mut results = Vec::new();
     let mut nested = Vec::new();
@@ -569,6 +569,52 @@ pub async fn read_matches(
 mod tests {
     use super::Pattern;
     use rstest::*;
+
+    #[test]
+    fn normalize() {
+        let a = Pattern::Constant("a".to_string());
+        let b = Pattern::Constant("b".to_string());
+        let c = Pattern::Constant("c".to_string());
+        let s = Pattern::Constant("/".to_string());
+        let d = Pattern::Dynamic;
+        {
+            let mut p = Pattern::Concatenation(vec![
+                Pattern::Alternatives(vec![a.clone(), b.clone()]),
+                s.clone(),
+                c.clone(),
+            ]);
+            p.normalize();
+            assert_eq!(
+                p,
+                Pattern::Alternatives(vec![
+                    Pattern::Concatenation(vec![a.clone(), s.clone(), c.clone()]),
+                    Pattern::Concatenation(vec![b.clone(), s.clone(), c.clone()]),
+                ])
+            );
+        }
+        {
+            let mut p = Pattern::Concatenation(vec![
+                Pattern::Alternatives(vec![a.clone(), b.clone(), d.clone()]),
+                s.clone(),
+                Pattern::Alternatives(vec![b.clone(), c.clone(), d.clone()]),
+            ]);
+            p.normalize();
+            assert_eq!(
+                p,
+                Pattern::Alternatives(vec![
+                    Pattern::Concatenation(vec![a.clone(), s.clone(), b.clone()]),
+                    Pattern::Concatenation(vec![b.clone(), s.clone(), b.clone()]),
+                    Pattern::Concatenation(vec![d.clone(), s.clone(), b.clone()]),
+                    Pattern::Concatenation(vec![a.clone(), s.clone(), c.clone()]),
+                    Pattern::Concatenation(vec![b.clone(), s.clone(), c.clone()]),
+                    Pattern::Concatenation(vec![d.clone(), s.clone(), c.clone()]),
+                    Pattern::Concatenation(vec![a.clone(), s.clone(), d.clone()]),
+                    Pattern::Concatenation(vec![b.clone(), s.clone(), d.clone()]),
+                    Pattern::Concatenation(vec![d.clone(), s.clone(), d.clone()]),
+                ])
+            );
+        }
+    }
 
     #[test]
     fn is_match() {

@@ -19,3 +19,10 @@ const d3 = object_spread.d;
 
 // prettier-ignore
 const { a: a4, 'b': b4, ['c']: c4, d: d4 } = object;
+const { a, b, c, d } = object;
+
+const unknown_spread = { a: 1, ...global, b: 2 };
+
+const a5 = unknown_spread.a;
+const b5 = unknown_spread.b;
+const c5 = unknown_spread.c;

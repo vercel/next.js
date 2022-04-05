@@ -710,6 +710,46 @@ impl JsValue {
             None
         }
     }
+
+    pub fn make_unknown(&mut self, reason: &'static str) {
+        *self = JsValue::Unknown(Some(Arc::new(take(self))), reason);
+    }
+
+    pub fn has_placeholder(&self) -> bool {
+        match self {
+            // These are leafs and not placeholders
+            JsValue::Constant(_)
+            | JsValue::Url(_)
+            | JsValue::WellKnownObject(_)
+            | JsValue::WellKnownFunction(_)
+            | JsValue::Unknown(_, _)
+            | JsValue::Function(_) => false,
+
+            // These must be optimized reduced if they don't contain placeholders
+            // So when we see them, they contain placeholders
+            JsValue::Call(_, _) | JsValue::MemberCall(_, _, _) | JsValue::Member(_, _) => true,
+
+            // These are nested structures, where we look into children
+            // to see placeholders
+            JsValue::Array(_)
+            | JsValue::Object(_)
+            | JsValue::Alternatives(_)
+            | JsValue::Concat(_)
+            | JsValue::Add(_) => {
+                let mut result = false;
+                self.for_each_children(&mut |child| {
+                    result = result || child.has_placeholder();
+                });
+                result
+            }
+
+            // These are placeholders
+            JsValue::Argument(_)
+            | JsValue::Variable(_)
+            | JsValue::Module(_)
+            | JsValue::FreeVar(_) => true,
+        }
+    }
 }
 
 macro_rules! for_each_children_async {
@@ -1632,8 +1672,8 @@ pub mod test_utils {
                 _ => return Ok((v, false)),
             },
             _ => {
-                let (v, m1) = replace_well_known(v);
-                let (v, m2) = replace_builtin(v);
+                let (mut v, m1) = replace_well_known(v);
+                let m2 = replace_builtin(&mut v);
                 return Ok((v, m1 || m2));
             }
         };
@@ -1666,7 +1706,6 @@ mod tests {
     fn fixture(input: PathBuf) {
         let graph_snapshot_path = input.with_file_name("graph.snapshot");
         let graph_explained_snapshot_path = input.with_file_name("graph-explained.snapshot");
-        let resolved_snapshot_path = input.with_file_name("resolved.snapshot");
         let resolved_explained_snapshot_path = input.with_file_name("resolved-explained.snapshot");
 
         testing::run_test(false, |cm, handler| {

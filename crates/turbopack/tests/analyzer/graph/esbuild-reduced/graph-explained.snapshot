@@ -1,0 +1,35 @@
+binPath = (???*0* | FreeVar(Require)["resolve"](`${pkg}/${subpath}`))
+- *0* binPath
+  ⚠️  pattern without value
+
+e = ???*0*
+- *0* e
+  ⚠️  pattern without value
+
+generateBinPath = (...) => binPath
+
+knownWindowsPackages = {
+    "win32 arm64 LE": "esbuild-windows-arm64",
+    "win32 ia32 LE": "esbuild-windows-32",
+    "win32 x64 LE": "esbuild-windows-64"
+}
+
+path = FreeVar(Require)("path")
+
+path2 = FreeVar(Require)("path")
+
+pkg#2 = (???*0* | knownWindowsPackages[FreeVar(platformKey)])
+- *0* pkg
+  ⚠️  pattern without value
+
+pkg#3 = pkgAndSubpathForCurrentPlatform()["pkg"]
+
+pkgAndSubpathForCurrentPlatform = (...) => {"pkg": pkg, "subpath": subpath}
+
+subpath#2 = (???*0* | "esbuild.exe")
+- *0* subpath
+  ⚠️  pattern without value
+
+subpath#3 = pkgAndSubpathForCurrentPlatform()["subpath"]
+
+x = generateBinPath()

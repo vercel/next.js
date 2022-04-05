@@ -161,9 +161,7 @@ impl EvalContext {
 
     pub fn eval(&self, e: &Expr) -> JsValue {
         match e {
-            Expr::Lit(e @ Lit::Str(..) | e @ Lit::Num(..) | e @ Lit::Bool(..)) => {
-                return JsValue::Constant(e.clone().into())
-            }
+            Expr::Lit(e) => return JsValue::Constant(e.clone().into()),
             Expr::Ident(i) => {
                 let id = i.to_id();
                 if let Some(imported) = self.imports.get_import(&id) {
@@ -738,6 +736,29 @@ impl Visit for Analyzer<'_> {
                                         box current_value.clone(),
                                         box key_value,
                                     ));
+                                    value.visit_with(self);
+                                }
+                                ObjectPatProp::Assign(AssignPatProp { key, value, .. }) => {
+                                    let key_value = key.sym.clone().into();
+                                    key.visit_with(self);
+                                    self.add_value(
+                                        key.to_id(),
+                                        if let Some(box value) = value {
+                                            let value = self.eval_context.eval(value);
+                                            JsValue::Alternatives(vec![
+                                                JsValue::Member(
+                                                    box current_value.clone(),
+                                                    box key_value,
+                                                ),
+                                                value,
+                                            ])
+                                        } else {
+                                            JsValue::Member(
+                                                box current_value.clone(),
+                                                box key_value,
+                                            )
+                                        },
+                                    );
                                     value.visit_with(self);
                                 }
                                 _ => prop.visit_with(self),

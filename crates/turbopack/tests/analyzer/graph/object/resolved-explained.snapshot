@@ -1,12 +1,20 @@
+a = 1
+
 a1 = 1
 
 a2 = 1
 
-a3 = ???*0*
-- *0* {...{"a": 1, "b": 2, "c": 3}}["a"]
-  ⚠️  spreaded object
+a3 = 1
 
 a4 = 1
+
+a5 = ???*0*
+- *0* {"a": 1, ...???*1*, "b": 2}["a"]
+  ⚠️  spreaded object
+- *1* FreeVar(global)
+  ⚠️  unknown global
+
+b = 2
 
 b1 = 2
 
@@ -16,15 +24,27 @@ b3 = 22
 
 b4 = 2
 
+b5 = 2
+
+c = 3
+
 c1 = 3
 
 c2 = 3
 
-c3 = ???*0*
-- *0* {...{"a": 1, "b": 2, "c": 3}}["c"]
-  ⚠️  spreaded object
+c3 = 3
 
 c4 = 3
+
+c5 = ???*0*
+- *0* {"a": 1, ...???*1*, "b": 2}["c"]
+  ⚠️  spreaded object
+- *1* FreeVar(global)
+  ⚠️  unknown global
+
+d = ???*0*
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
 
 d1 = ???*0*
 - *0* FreeVar(undefined)
@@ -35,8 +55,8 @@ d2 = ???*0*
   ⚠️  unknown global
 
 d3 = ???*0*
-- *0* {...{"a": 1, "b": 2, "c": 3}}["d"]
-  ⚠️  spreaded object
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
 
 d4 = ???*0*
 - *0* FreeVar(undefined)
@@ -44,4 +64,8 @@ d4 = ???*0*
 
 object = {"a": 1, "b": 2, "c": 3}
 
-object_spread = {"a": 11, ...{"a": 1, "b": 2, "c": 3}, "b": 22}
+object_spread = {"a": 11, "a": 1, "b": 2, "c": 3, "b": 22}
+
+unknown_spread = {"a": 1, ...???*0*, "b": 2}
+- *0* FreeVar(global)
+  ⚠️  unknown global
