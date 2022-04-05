@@ -34,6 +34,10 @@ pub async fn the_module_options() -> ModuleOptionsVc {
                 )],
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript)],
             ),
+            ModuleRule::new(
+                vec![ModuleRuleCondition::ResourcePathHasNoExtension],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript)],
+            ),
         ],
     })
 }
@@ -60,6 +64,7 @@ impl ModuleRule {
 
 #[derive(TraceSlotVcs)]
 pub enum ModuleRuleCondition {
+    ResourcePathHasNoExtension,
     ResourcePathEndsWith(String),
     ResourcePathRegex(#[trace_ignore] Regex),
 }

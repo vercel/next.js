@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{mem::take, sync::Arc};
 
 use swc_ecmascript::ast::Lit;
 use url::Url;
@@ -32,6 +32,7 @@ pub fn well_known_function_call(
 ) -> JsValue {
     match kind {
         WellKnownFunctionKind::PathJoin => path_join(args),
+        WellKnownFunctionKind::PathDirname => path_dirname(args),
         WellKnownFunctionKind::Import => JsValue::Unknown(
             Some(Arc::new(JsValue::Call(
                 box JsValue::WellKnownFunction(kind),
@@ -59,58 +60,83 @@ pub fn well_known_function_call(
 }
 
 pub fn path_join(args: Vec<JsValue>) -> JsValue {
-    // Currently we only support constants.
-    if args.iter().any(|arg| !matches!(arg, JsValue::Constant(..))) {
-        JsValue::Unknown(
-            Some(Arc::new(JsValue::Call(
-                box JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
-                args,
-            ))),
-            "only constants are supported",
-        )
-    } else {
-        let mut str_args = vec![];
-
-        for arg in args.iter() {
-            match arg {
-                JsValue::Constant(v) => match v {
-                    Lit::Str(v) => {
-                        str_args.push(&*v.value);
-                    }
-                    _ => {
-                        todo!()
-                    }
-                },
-                _ => {}
-            }
-        }
-
-        let joined = str_args.join("/");
-
-        let mut res: Vec<&str> = vec![];
-
-        for comp in joined.split("/") {
-            match comp {
-                "." => {}
-                ".." => {
-                    if let Some(last) = res.last() {
-                        if &**last != ".." {
-                            res.pop();
-                            continue;
-                        }
-                    }
-
-                    // leftmost `..`
-                    res.push("..");
-                }
-                _ => {
-                    res.push(comp);
-                }
-            }
-        }
-
-        res.join("/").into()
+    if args.len() == 0 {
+        return JsValue::Constant(".".into());
     }
+    let mut parts = Vec::new();
+    for item in args {
+        if let Some(str) = item.as_str() {
+            let splitted = str.split("/");
+            parts.extend(splitted.map(|s| JsValue::Constant(s.into())));
+        } else {
+            parts.push(item);
+        }
+    }
+    let mut results_final = Vec::new();
+    let mut results: Vec<JsValue> = Vec::new();
+    for item in parts {
+        if let Some(str) = item.as_str() {
+            match str {
+                "" | "." => {}
+                ".." => {
+                    if results.pop().is_none() {
+                        results_final.push(item);
+                    }
+                }
+                _ => results.push(item),
+            }
+        } else {
+            results_final.extend(results.drain(..));
+            results_final.push(item);
+        }
+    }
+    results_final.extend(results.drain(..));
+    let mut iter = results_final.into_iter();
+    let first = iter.next().unwrap();
+    let mut last_is_str = first.as_str().is_some();
+    results.push(first);
+    for part in iter {
+        let is_str = part.as_str().is_some();
+        if last_is_str && is_str {
+            results.push(JsValue::Constant("/".into()));
+        } else {
+            results.push(JsValue::Alternatives(vec![
+                JsValue::Constant("/".into()),
+                JsValue::Constant("".into()),
+            ]));
+        }
+        results.push(part);
+        last_is_str = is_str;
+    }
+    JsValue::Concat(results)
+}
+
+pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
+    if let Some(arg) = args.iter_mut().next() {
+        if let Some(str) = arg.as_str() {
+            if let Some(i) = str.rfind("/") {
+                return JsValue::Constant(Lit::Str(str[..i].to_string().into()));
+            } else {
+                return JsValue::Constant(Lit::Str("".into()));
+            }
+        } else if let JsValue::Concat(items) = arg {
+            if let Some(last) = items.last_mut() {
+                if let Some(str) = last.as_str() {
+                    if let Some(i) = str.rfind("/") {
+                        *last = JsValue::Constant(Lit::Str(str[..i].to_string().into()));
+                        return take(arg);
+                    }
+                }
+            }
+        }
+    }
+    JsValue::Unknown(
+        Some(Arc::new(JsValue::Call(
+            box JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
+            args,
+        ))),
+        "path.dirname with unsupported arguments",
+    )
 }
 
 pub fn require(args: Vec<JsValue>) -> JsValue {
@@ -191,6 +217,7 @@ pub fn well_known_object_member(kind: WellKnownObjectKind, prop: JsValue) -> JsV
         WellKnownObjectKind::FsModule => fs_module_member(prop),
         WellKnownObjectKind::UrlModule => url_module_member(prop),
         WellKnownObjectKind::ChildProcess => child_process_module_member(prop),
+        #[allow(unreachable_patterns)]
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::Member(
                 box JsValue::WellKnownObject(kind),
@@ -204,6 +231,7 @@ pub fn well_known_object_member(kind: WellKnownObjectKind, prop: JsValue) -> JsV
 pub fn path_module_member(prop: JsValue) -> JsValue {
     match prop.as_str() {
         Some("join") => JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
+        Some("dirname") => JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::Member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
@@ -251,7 +279,12 @@ pub fn url_module_member(prop: JsValue) -> JsValue {
 
 pub fn child_process_module_member(prop: JsValue) -> JsValue {
     match prop.as_str() {
-        Some("spawn") => JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawn),
+        Some("spawn") | Some("spawnSync") | Some("execFile") | Some("execFileSync") => {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawnMethod(
+                prop.as_word().unwrap().clone(),
+            ))
+        }
+        Some("fork") => JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessFork),
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::Member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess),

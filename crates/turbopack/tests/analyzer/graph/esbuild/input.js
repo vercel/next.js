@@ -73,3 +73,5 @@ More information: The file containing the code for esbuild's JavaScript API (${_
   }
   return [generateBinPath(), []];
 };
+let [command, args] = esbuildCommandAndArgs();
+let x = args.concat(`--service=${'0.14.12'}`, '--ping');

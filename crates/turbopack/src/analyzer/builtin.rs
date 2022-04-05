@@ -90,6 +90,7 @@ pub fn replace_builtin(mut value: JsValue) -> (JsValue, bool) {
                         | JsValue::FreeVar(_)
                         | JsValue::Variable(_)
                         | JsValue::Call(_, _)
+                        | JsValue::MemberCall(..)
                         | JsValue::Member(_, _)
                         | JsValue::WellKnownObject(_)
                         | JsValue::Argument(_)
@@ -102,6 +103,7 @@ pub fn replace_builtin(mut value: JsValue) -> (JsValue, bool) {
                     JsValue::FreeVar(_)
                     | JsValue::Variable(_)
                     | JsValue::Call(_, _)
+                    | JsValue::MemberCall(..)
                     | JsValue::Member(_, _)
                     | JsValue::WellKnownObject(_)
                     | JsValue::Argument(_)
@@ -111,6 +113,70 @@ pub fn replace_builtin(mut value: JsValue) -> (JsValue, bool) {
                         return (value, false);
                     }
                 }
+            }
+            JsValue::MemberCall(box ref mut obj, box ref mut prop, ref mut args) => {
+                match obj {
+                    JsValue::Array(items) => match prop {
+                        JsValue::Constant(Lit::Str(str)) => match &*str.value {
+                            "concat" => {
+                                if args.iter().all(|arg| {
+                                    matches!(
+                                        arg,
+                                        JsValue::Array(_)
+                                            | JsValue::Constant(_)
+                                            | JsValue::Url(_)
+                                            | JsValue::Concat(_)
+                                            | JsValue::Add(_)
+                                            | JsValue::WellKnownObject(_)
+                                            | JsValue::WellKnownFunction(_)
+                                            | JsValue::Function(_)
+                                    )
+                                }) {
+                                    for arg in args {
+                                        match arg {
+                                            JsValue::Array(inner) => {
+                                                items.extend(take(inner));
+                                            }
+                                            JsValue::Constant(_)
+                                            | JsValue::Url(_)
+                                            | JsValue::Concat(_)
+                                            | JsValue::Add(_)
+                                            | JsValue::WellKnownObject(_)
+                                            | JsValue::WellKnownFunction(_)
+                                            | JsValue::Function(_) => {
+                                                items.push(take(arg));
+                                            }
+                                            _ => {
+                                                unreachable!();
+                                            }
+                                        }
+                                    }
+                                    return (take(obj), true);
+                                }
+                            }
+                            _ => {}
+                        },
+                        _ => {}
+                    },
+                    JsValue::Alternatives(alts) => {
+                        return (
+                            JsValue::Alternatives(
+                                take(alts)
+                                    .into_iter()
+                                    .map(|alt| {
+                                        JsValue::MemberCall(box alt, box prop.clone(), args.clone())
+                                    })
+                                    .collect(),
+                            ),
+                            true,
+                        )
+                    }
+                    _ => {}
+                }
+                JsValue::Call(
+                    box JsValue::Member(box take(obj), box take(prop)),
+                    take(args),
+                )
             }
             JsValue::Call(box ref mut callee, ref mut args) => {
                 match callee {
@@ -177,6 +243,7 @@ pub fn replace_builtin(mut value: JsValue) -> (JsValue, bool) {
                     JsValue::FreeVar(_)
                     | JsValue::Variable(_)
                     | JsValue::Call(_, _)
+                    | JsValue::MemberCall(..)
                     | JsValue::Member(_, _)
                     | JsValue::WellKnownObject(_)
                     | JsValue::Argument(_)

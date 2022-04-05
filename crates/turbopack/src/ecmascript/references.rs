@@ -11,11 +11,8 @@ use crate::{
     errors,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesSet, AssetReferencesSetVc},
     resolve::{
-        find_package_json,
-        parse::RequestVc,
-        pattern::{PatternVc},
-        resolve, resolve_options, resolve_raw, FindPackageJsonResult, ResolveResult,
-        ResolveResultVc,
+        find_package_json, parse::RequestVc, pattern::PatternVc, resolve, resolve_options,
+        resolve_raw, FindPackageJsonResult, ResolveResult, ResolveResultVc,
     },
     source_asset::SourceAssetVc,
 };
@@ -130,50 +127,51 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
 
             fn handle_call_boxed<
                 'a,
-                TF: Future<Output = Result<JsValue>> + Send + 'a,
-                T: Fn() -> TF + Sync,
-                FF: Future<Output = Result<Vec<JsValue>>> + Send + 'a,
-                F: Fn() -> FF + Sync,
+                FF: Future<Output = Result<JsValue>> + Send + 'a,
+                F: Fn(JsValue) -> FF + Sync + 'a,
             >(
                 handler: &'a Handler,
                 source: &'a AssetVc,
                 span: &'a Span,
-                func: JsValue,
-                this: &'a T,
-                args: &'a F,
+                func: &'a JsValue,
+                this: &'a JsValue,
+                args: &'a Vec<JsValue>,
+                link_value: &'a F,
                 references: &'a mut Vec<AssetReferenceVc>,
             ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
                 Box::pin(handle_call(
-                    handler, source, span, func, this, args, references,
+                    handler, source, span, func, this, args, link_value, references,
                 ))
             }
 
             async fn handle_call<
-                TF: Future<Output = Result<JsValue>> + Send,
-                T: Fn() -> TF + Sync,
-                FF: Future<Output = Result<Vec<JsValue>>> + Send,
-                F: Fn() -> FF + Sync,
+                FF: Future<Output = Result<JsValue>> + Send,
+                F: Fn(JsValue) -> FF + Sync,
             >(
                 handler: &Handler,
                 source: &AssetVc,
                 span: &Span,
-                func: JsValue,
-                this: &T,
-                args: &F,
+                func: &JsValue,
+                this: &JsValue,
+                args: &Vec<JsValue>,
+                link_value: &F,
                 references: &mut Vec<AssetReferenceVc>,
             ) -> Result<()> {
                 fn explain_args(args: &Vec<JsValue>) -> (String, String) {
                     JsValue::explain_args(&args, 10, 2)
                 }
+                let linked_args = || try_join_all(args.iter().map(|arg| link_value(arg.clone())));
                 match func {
                     JsValue::Alternatives(alts) => {
                         for alt in alts {
-                            handle_call_boxed(handler, source, span, alt, this, args, references)
-                                .await?;
+                            handle_call_boxed(
+                                handler, source, span, alt, this, args, link_value, references,
+                            )
+                            .await?;
                         }
                     }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Import) => {
-                        let args = args().await?;
+                        let args = linked_args().await?;
                         if args.len() == 1 {
                             let pat = js_value_to_pattern(&args[0]);
                             if !pat.has_constant_parts() {
@@ -206,7 +204,7 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
                         )
                     }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Require) => {
-                        let args = args().await?;
+                        let args = linked_args().await?;
                         if args.len() == 1 {
                             let pat = js_value_to_pattern(&args[0]);
                             if !pat.has_constant_parts() {
@@ -238,7 +236,7 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
                         )
                     }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve) => {
-                        let args = args().await?;
+                        let args = linked_args().await?;
                         if args.len() == 1 {
                             let pat = js_value_to_pattern(&args[0]);
                             if !pat.has_constant_parts() {
@@ -273,7 +271,7 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
                         )
                     }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(name)) => {
-                        let args = args().await?;
+                        let args = linked_args().await?;
                         if args.len() >= 1 {
                             let pat = js_value_to_pattern(&args[0]);
                             if !pat.has_constant_parts() {
@@ -301,15 +299,57 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
                             ),
                         )
                     }
-                    JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawn) => {
-                        let args = args().await?;
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin) => {
+                        let linked_func_call = link_value(JsValue::Call(
+                            box JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
+                            args.clone(),
+                        ))
+                        .await?;
+                        let pat = js_value_to_pattern(&linked_func_call);
+                        if !pat.has_constant_parts() {
+                            let (args, hints) = explain_args(&linked_args().await?);
+                            handler.span_warn_with_code(
+                                *span,
+                                &format!("path.join({args}) is very dynamic{hints}",),
+                                DiagnosticId::Lint(
+                                    errors::failed_to_analyse::ecmascript::PATH_METHOD.to_string(),
+                                ),
+                            )
+                        }
+                        references
+                            .push(SourceAssetReferenceVc::new(source.clone(), pat.into()).into());
+                        return Ok(());
+                    }
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawnMethod(
+                        name,
+                    )) => {
+                        let args = linked_args().await?;
                         if args.len() >= 1 {
+                            let mut show_dynamic_warning = false;
                             let pat = js_value_to_pattern(&args[0]);
-                            if !pat.has_constant_parts() {
+                            if pat.is_match("node") && args.len() >= 2 {
+                                let first_arg = JsValue::Member(
+                                    box args[1].clone(),
+                                    box JsValue::Constant(0.into()),
+                                );
+                                let first_arg = link_value(first_arg).await?;
+                                let pat = js_value_to_pattern(&first_arg);
+                                if !pat.has_constant_parts() {
+                                    show_dynamic_warning = true;
+                                }
+                                references.push(
+                                    CjsAssetReferenceVc::new(
+                                        source.clone(),
+                                        RequestVc::parse(Value::new(pat)),
+                                    )
+                                    .into(),
+                                );
+                            }
+                            if show_dynamic_warning || !pat.has_constant_parts() {
                                 let (args, hints) = explain_args(&args);
                                 handler.span_warn_with_code(
                                     *span,
-                                    &format!("child_process.spawn({args}) is very dynamic{hints}",),
+                                    &format!("child_process.{name}({args}) is very dynamic{hints}",),
                                     DiagnosticId::Lint(
                                         errors::failed_to_analyse::ecmascript::CHILD_PROCESS_SPAWN
                                             .to_string(),
@@ -325,7 +365,44 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
                         handler.span_warn_with_code(
                             *span,
                             &format!(
-                                "child_process.spawn({args}) is not statically analyse-able{hints}",
+                                "child_process.{name}({args}) is not statically \
+                                 analyse-able{hints}",
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::CHILD_PROCESS_SPAWN
+                                    .to_string(),
+                            ),
+                        )
+                    }
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessFork) => {
+                        if args.len() >= 1 {
+                            let first_arg = link_value(args[0].clone()).await?;
+                            let pat = js_value_to_pattern(&first_arg);
+                            if !pat.has_constant_parts() {
+                                let (args, hints) = explain_args(&linked_args().await?);
+                                handler.span_warn_with_code(
+                                    *span,
+                                    &format!("child_process.fork({args}) is very dynamic{hints}",),
+                                    DiagnosticId::Lint(
+                                        errors::failed_to_analyse::ecmascript::CHILD_PROCESS_SPAWN
+                                            .to_string(),
+                                    ),
+                                );
+                            }
+                            references.push(
+                                CjsAssetReferenceVc::new(
+                                    source.clone(),
+                                    RequestVc::parse(Value::new(pat)),
+                                )
+                                .into(),
+                            );
+                            return Ok(());
+                        }
+                        let (args, hints) = explain_args(&linked_args().await?);
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "child_process.fork({args}) is not statically analyse-able{hints}",
                             ),
                             DiagnosticId::Error(
                                 errors::failed_to_analyse::ecmascript::CHILD_PROCESS_SPAWN
@@ -338,14 +415,36 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
                 Ok(())
             }
 
-            let linker = |value| value_visitor(&source, value);
-
             let cache = Mutex::new(LinkCache::new());
+
+            let linker = |value| value_visitor(&source, value);
+            let link_value = |value| link(&var_graph, value, &linker, &cache);
+
             for effect in var_graph.effects.iter() {
                 match effect {
-                    Effect::Call {
-                        func,
-                        this,
+                    Effect::Call { func, args, span } => {
+                        if let Some(ignored) = &ignore_effect_span {
+                            if ignored == span {
+                                continue;
+                            }
+                        }
+                        let func = link_value(func.clone()).await?;
+
+                        handle_call(
+                            &handler,
+                            &source,
+                            &span,
+                            &func,
+                            &JsValue::Unknown(None, "no this provided"),
+                            &args,
+                            &link_value,
+                            &mut references,
+                        )
+                        .await?;
+                    }
+                    Effect::MemberCall {
+                        obj,
+                        prop,
                         args,
                         span,
                     } => {
@@ -354,22 +453,23 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
                                 continue;
                             }
                         }
-                        let func = link(&var_graph, func.clone(), &linker, &cache).await?;
-                        let this = || link(&var_graph, this.clone(), &linker, &cache);
-                        let args = || {
-                            try_join_all(
-                                args.iter()
-                                    .map(|arg| link(&var_graph, arg.clone(), &linker, &cache)),
-                            )
-                        };
+                        let obj = link(&var_graph, obj.clone(), &linker, &cache).await?;
+                        let func = link(
+                            &var_graph,
+                            JsValue::Member(box obj.clone(), box prop.clone()),
+                            &linker,
+                            &cache,
+                        )
+                        .await?;
 
                         handle_call(
                             &handler,
                             &source,
                             &span,
-                            func,
-                            &this,
+                            &func,
+                            &obj,
                             &args,
+                            &link_value,
                             &mut references,
                         )
                         .await?;
@@ -391,6 +491,12 @@ async fn as_abs_path(path: FileSystemPathVc) -> Result<JsValue> {
 }
 
 async fn value_visitor(source: &AssetVc, v: JsValue) -> Result<(JsValue, bool)> {
+    let (mut v, m) = value_visitor_inner(source, v).await?;
+    v.normalize_shallow();
+    Ok((v, m))
+}
+
+async fn value_visitor_inner(source: &AssetVc, v: JsValue) -> Result<(JsValue, bool)> {
     Ok((
         match v {
             JsValue::Call(

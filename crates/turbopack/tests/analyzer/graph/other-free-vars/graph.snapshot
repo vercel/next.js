@@ -9,30 +9,28 @@
     ),
     (
         "a",
-        Call(
-            Member(
-                FreeVar(
-                    Other(
-                        Atom('Object' type=static),
-                    ),
+        MemberCall(
+            FreeVar(
+                Other(
+                    Atom('Object' type=static),
                 ),
-                Constant(
-                    Str(
-                        Str {
-                            span: Span {
-                                lo: BytePos(
-                                    0,
-                                ),
-                                hi: BytePos(
-                                    0,
-                                ),
-                                ctxt: #0,
-                            },
-                            value: Atom('keys' type=inline),
-                            has_escape: false,
-                            kind: Synthesized,
+            ),
+            Constant(
+                Str(
+                    Str {
+                        span: Span {
+                            lo: BytePos(
+                                0,
+                            ),
+                            hi: BytePos(
+                                0,
+                            ),
+                            ctxt: #0,
                         },
-                    ),
+                        value: Atom('keys' type=inline),
+                        has_escape: false,
+                        kind: Synthesized,
+                    },
                 ),
             ),
             [
@@ -47,31 +45,29 @@
     ),
     (
         "b",
-        Call(
-            Member(
-                Variable(
-                    (
-                        Atom('O' type=inline),
-                        #1,
-                    ),
+        MemberCall(
+            Variable(
+                (
+                    Atom('O' type=inline),
+                    #1,
                 ),
-                Constant(
-                    Str(
-                        Str {
-                            span: Span {
-                                lo: BytePos(
-                                    0,
-                                ),
-                                hi: BytePos(
-                                    0,
-                                ),
-                                ctxt: #0,
-                            },
-                            value: Atom('keys' type=inline),
-                            has_escape: false,
-                            kind: Synthesized,
+            ),
+            Constant(
+                Str(
+                    Str {
+                        span: Span {
+                            lo: BytePos(
+                                0,
+                            ),
+                            hi: BytePos(
+                                0,
+                            ),
+                            ctxt: #0,
                         },
-                    ),
+                        value: Atom('keys' type=inline),
+                        has_escape: false,
+                        kind: Synthesized,
+                    },
                 ),
             ),
             [

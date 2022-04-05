@@ -1,10 +1,14 @@
-*arrow function 1813* = (...) => (*0* | [generateBinPath(), []])
-- *0* [
+*arrow function 1813* = (...) => (
+  | [
         "node",
         [
             path2["join"](FreeVar(Dirname), "..", "bin", "esbuild")
         ]
     ]
+  | [generateBinPath(), []]
+)
+
+args = esbuildCommandAndArgs()[1]
 
 binPath = (
   | ???*0*
@@ -15,6 +19,8 @@ binPath = (
   ⚠️  pattern without value
 
 binTargetPath = path["join"](esbuildLibDir, `pnpapi-${pkg}-${path["basename"](subpath)}`)
+
+command = esbuildCommandAndArgs()[0]
 
 e#4 = ???*0*
 - *0* e
@@ -48,3 +54,5 @@ platformKey = `${FreeVar(process)["platform"]} ${FreeVar(os)["arch"]()} ${FreeVa
 subpath = (???*0* | "esbuild.exe" | "bin/esbuild")
 - *0* subpath
   ⚠️  pattern without value
+
+x = args["concat"]("--service=0.14.12", "--ping")

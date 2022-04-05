@@ -1,6 +1,13 @@
-use swc_ecmascript::ast::Lit;
+use swc_ecmascript::ast::{Expr, Lit};
 
 use crate::{analyzer::JsValue, resolve::pattern::Pattern};
+
+pub fn unparen(expr: &Expr) -> &Expr {
+    if let Some(expr) = expr.as_paren() {
+        return unparen(&expr.expr);
+    }
+    expr
+}
 
 pub fn lit_to_string(lit: &Lit) -> String {
     match lit {
@@ -15,7 +22,7 @@ pub fn lit_to_string(lit: &Lit) -> String {
 }
 
 pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
-    match value {
+    let mut result = match value {
         JsValue::Constant(lit) => Pattern::Constant(match lit {
             Lit::Str(str) => str.value.to_string(),
             Lit::Bool(b) => b.value.to_string(),
@@ -39,5 +46,7 @@ pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
             Pattern::Dynamic
         }
         _ => Pattern::Dynamic,
-    }
+    };
+    result.normalize();
+    result
 }

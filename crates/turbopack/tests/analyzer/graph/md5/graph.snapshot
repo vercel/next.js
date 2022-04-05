@@ -6119,31 +6119,29 @@
                     [
                         Add(
                             [
-                                Call(
-                                    Member(
-                                        Variable(
-                                            (
-                                                Atom('hexTab' type=inline),
-                                                #3,
-                                            ),
+                                MemberCall(
+                                    Variable(
+                                        (
+                                            Atom('hexTab' type=inline),
+                                            #3,
                                         ),
-                                        Constant(
-                                            Str(
-                                                Str {
-                                                    span: Span {
-                                                        lo: BytePos(
-                                                            0,
-                                                        ),
-                                                        hi: BytePos(
-                                                            0,
-                                                        ),
-                                                        ctxt: #0,
-                                                    },
-                                                    value: Atom('charAt' type=inline),
-                                                    has_escape: false,
-                                                    kind: Synthesized,
+                                    ),
+                                    Constant(
+                                        Str(
+                                            Str {
+                                                span: Span {
+                                                    lo: BytePos(
+                                                        0,
+                                                    ),
+                                                    hi: BytePos(
+                                                        0,
+                                                    ),
+                                                    ctxt: #0,
                                                 },
-                                            ),
+                                                value: Atom('charAt' type=inline),
+                                                has_escape: false,
+                                                kind: Synthesized,
+                                            },
                                         ),
                                     ),
                                     [
@@ -6153,31 +6151,29 @@
                                         ),
                                     ],
                                 ),
-                                Call(
-                                    Member(
-                                        Variable(
-                                            (
-                                                Atom('hexTab' type=inline),
-                                                #3,
-                                            ),
+                                MemberCall(
+                                    Variable(
+                                        (
+                                            Atom('hexTab' type=inline),
+                                            #3,
                                         ),
-                                        Constant(
-                                            Str(
-                                                Str {
-                                                    span: Span {
-                                                        lo: BytePos(
-                                                            0,
-                                                        ),
-                                                        hi: BytePos(
-                                                            0,
-                                                        ),
-                                                        ctxt: #0,
-                                                    },
-                                                    value: Atom('charAt' type=inline),
-                                                    has_escape: false,
-                                                    kind: Synthesized,
+                                    ),
+                                    Constant(
+                                        Str(
+                                            Str {
+                                                span: Span {
+                                                    lo: BytePos(
+                                                        0,
+                                                    ),
+                                                    hi: BytePos(
+                                                        0,
+                                                    ),
+                                                    ctxt: #0,
                                                 },
-                                            ),
+                                                value: Atom('charAt' type=inline),
+                                                has_escape: false,
+                                                kind: Synthesized,
+                                            },
                                         ),
                                     ),
                                     [

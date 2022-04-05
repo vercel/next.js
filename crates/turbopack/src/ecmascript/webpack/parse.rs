@@ -14,6 +14,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 use crate::{
     analyzer::{graph::EvalContext, JsValue},
     asset::AssetVc,
+    ecmascript::utils::unparen,
 };
 
 use crate::ecmascript::parse::{parse, ParseResult};
@@ -29,13 +30,6 @@ pub enum WebpackRuntime {
         context_path: FileSystemPathVc,
     },
     None,
-}
-
-fn unparen(expr: &Expr) -> &Expr {
-    if let Some(expr) = expr.as_paren() {
-        return unparen(&expr.expr);
-    }
-    expr
 }
 
 fn iife(stmt: &Stmt) -> Option<&Vec<Stmt>> {

@@ -8,7 +8,10 @@ use swc_ecmascript::{
     visit::{Visit, VisitWith},
 };
 
-use crate::analyzer::{is_unresolved, FreeVarKind};
+use crate::{
+    analyzer::{is_unresolved, FreeVarKind},
+    ecmascript::utils::unparen,
+};
 
 use super::{ImportMap, JsValue};
 
@@ -16,7 +19,12 @@ use super::{ImportMap, JsValue};
 pub enum Effect {
     Call {
         func: JsValue,
-        this: JsValue,
+        args: Vec<JsValue>,
+        span: Span,
+    },
+    MemberCall {
+        obj: JsValue,
+        prop: JsValue,
         args: Vec<JsValue>,
         span: Span,
     },
@@ -27,12 +35,22 @@ impl Effect {
         match self {
             Effect::Call {
                 func,
-                this,
                 args,
-                span,
+                span: _,
             } => {
                 func.normalize();
-                this.normalize();
+                for arg in args.iter_mut() {
+                    arg.normalize();
+                }
+            }
+            Effect::MemberCall {
+                obj,
+                prop,
+                args,
+                span: _,
+            } => {
+                obj.normalize();
+                prop.normalize();
                 for arg in args.iter_mut() {
                     arg.normalize();
                 }
@@ -240,7 +258,7 @@ impl EvalContext {
             }
 
             Expr::Call(CallExpr {
-                callee: Callee::Expr(callee),
+                callee: Callee::Expr(box callee),
                 args,
                 ..
             }) => {
@@ -249,10 +267,25 @@ impl EvalContext {
                     return JsValue::Unknown(None, "spread in function calls is not supported");
                 }
                 let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
+                if let Expr::Member(MemberExpr { obj, prop, .. }) = unparen(callee) {
+                    let obj = box self.eval(&obj);
+                    let prop = box match prop {
+                        // TODO avoid clone
+                        MemberProp::Ident(i) => JsValue::Constant(i.sym.clone().into()),
+                        MemberProp::PrivateName(_) => {
+                            return JsValue::Unknown(
+                                None,
+                                "private names in function calls is not supported",
+                            );
+                        }
+                        MemberProp::Computed(ComputedPropName { expr, .. }) => self.eval(&expr),
+                    };
+                    return JsValue::MemberCall(obj, prop, args);
+                } else {
+                    let callee = box self.eval(&callee);
 
-                let callee = box self.eval(&callee);
-
-                return JsValue::Call(callee, args);
+                    return JsValue::Call(callee, args);
+                }
             }
 
             Expr::Call(CallExpr {
@@ -423,31 +456,37 @@ impl Analyzer<'_> {
             Callee::Import(_) => {
                 self.data.effects.push(Effect::Call {
                     func: JsValue::FreeVar(FreeVarKind::Import),
-                    // TODO should be undefined instead
-                    this: JsValue::Unknown(None, "this is not analysed yet"),
-                    args,
-                    span: n.span(),
-                });
-            }
-            Callee::Expr(box expr @ Expr::Member(MemberExpr { obj, .. })) => {
-                let this_value = self.eval_context.eval(obj);
-                let fn_value = self.eval_context.eval(expr);
-                self.data.effects.push(Effect::Call {
-                    func: fn_value,
-                    this: this_value,
                     args,
                     span: n.span(),
                 });
             }
             Callee::Expr(box expr) => {
-                let fn_value = self.eval_context.eval(expr);
-                self.data.effects.push(Effect::Call {
-                    func: fn_value,
-                    // TODO should be undefined instead
-                    this: JsValue::Unknown(None, "this is not analysed yet"),
-                    args,
-                    span: n.span(),
-                });
+                if let Expr::Member(MemberExpr { obj, prop, .. }) = unparen(expr) {
+                    let obj_value = self.eval_context.eval(obj);
+                    let prop_value = match prop {
+                        // TODO avoid clone
+                        MemberProp::Ident(i) => JsValue::Constant(i.sym.clone().into()),
+                        MemberProp::PrivateName(_) => {
+                            return;
+                        }
+                        MemberProp::Computed(ComputedPropName { expr, .. }) => {
+                            self.eval_context.eval(&expr)
+                        }
+                    };
+                    self.data.effects.push(Effect::MemberCall {
+                        obj: obj_value,
+                        prop: prop_value,
+                        args,
+                        span: n.span(),
+                    });
+                } else {
+                    let fn_value = self.eval_context.eval(expr);
+                    self.data.effects.push(Effect::Call {
+                        func: fn_value,
+                        args,
+                        span: n.span(),
+                    });
+                }
             }
             _ => {}
         }

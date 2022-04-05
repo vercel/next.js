@@ -11,10 +11,10 @@
                         Str {
                             span: Span {
                                 lo: BytePos(
-                                    20,
+                                    18,
                                 ),
                                 hi: BytePos(
-                                    25,
+                                    23,
                                 ),
                                 ctxt: #0,
                             },
@@ -41,10 +41,10 @@
                         Str {
                             span: Span {
                                 lo: BytePos(
-                                    88,
+                                    86,
                                 ),
                                 hi: BytePos(
-                                    94,
+                                    92,
                                 ),
                                 ctxt: #0,
                             },
@@ -60,32 +60,30 @@
         ),
     ),
     (
-        "z_joined",
-        Call(
-            Member(
-                Variable(
-                    (
-                        Atom('path' type=inline),
-                        #1,
-                    ),
+        "z1_joined",
+        MemberCall(
+            Variable(
+                (
+                    Atom('path' type=inline),
+                    #1,
                 ),
-                Constant(
-                    Str(
-                        Str {
-                            span: Span {
-                                lo: BytePos(
-                                    0,
-                                ),
-                                hi: BytePos(
-                                    0,
-                                ),
-                                ctxt: #0,
-                            },
-                            value: Atom('join' type=inline),
-                            has_escape: false,
-                            kind: Synthesized,
+            ),
+            Constant(
+                Str(
+                    Str {
+                        span: Span {
+                            lo: BytePos(
+                                0,
+                            ),
+                            hi: BytePos(
+                                0,
+                            ),
+                            ctxt: #0,
                         },
-                    ),
+                        value: Atom('join' type=inline),
+                        has_escape: false,
+                        kind: Synthesized,
+                    },
                 ),
             ),
             [
@@ -94,10 +92,10 @@
                         Str {
                             span: Span {
                                 lo: BytePos(
-                                    126,
+                                    124,
                                 ),
                                 hi: BytePos(
-                                    131,
+                                    129,
                                 ),
                                 ctxt: #0,
                             },
@@ -114,14 +112,383 @@
                         Str {
                             span: Span {
                                 lo: BytePos(
-                                    133,
+                                    131,
                                 ),
                                 hi: BytePos(
-                                    138,
+                                    136,
                                 ),
                                 ctxt: #0,
                             },
                             value: Atom('bar' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "z2_joined",
+        MemberCall(
+            Variable(
+                (
+                    Atom('path' type=inline),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Str {
+                        span: Span {
+                            lo: BytePos(
+                                0,
+                            ),
+                            hi: BytePos(
+                                0,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: Atom('join' type=inline),
+                        has_escape: false,
+                        kind: Synthesized,
+                    },
+                ),
+            ),
+            [
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    167,
+                                ),
+                                hi: BytePos(
+                                    173,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('foo/' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    175,
+                                ),
+                                hi: BytePos(
+                                    180,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('bar' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "z3_joined",
+        MemberCall(
+            Variable(
+                (
+                    Atom('path' type=inline),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Str {
+                        span: Span {
+                            lo: BytePos(
+                                0,
+                            ),
+                            hi: BytePos(
+                                0,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: Atom('join' type=inline),
+                        has_escape: false,
+                        kind: Synthesized,
+                    },
+                ),
+            ),
+            [
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    211,
+                                ),
+                                hi: BytePos(
+                                    216,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('foo' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    218,
+                                ),
+                                hi: BytePos(
+                                    224,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('/bar' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "z4_joined",
+        MemberCall(
+            Variable(
+                (
+                    Atom('path' type=inline),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Str {
+                        span: Span {
+                            lo: BytePos(
+                                0,
+                            ),
+                            hi: BytePos(
+                                0,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: Atom('join' type=inline),
+                        has_escape: false,
+                        kind: Synthesized,
+                    },
+                ),
+            ),
+            [
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    255,
+                                ),
+                                hi: BytePos(
+                                    261,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('foo/' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    263,
+                                ),
+                                hi: BytePos(
+                                    269,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('/bar' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "z5_joined",
+        MemberCall(
+            Variable(
+                (
+                    Atom('path' type=inline),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Str {
+                        span: Span {
+                            lo: BytePos(
+                                0,
+                            ),
+                            hi: BytePos(
+                                0,
+                            ),
+                            ctxt: #0,
+                        },
+                        value: Atom('join' type=inline),
+                        has_escape: false,
+                        kind: Synthesized,
+                    },
+                ),
+            ),
+            [
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    300,
+                                ),
+                                hi: BytePos(
+                                    305,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('foo' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    307,
+                                ),
+                                hi: BytePos(
+                                    312,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('bar' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    314,
+                                ),
+                                hi: BytePos(
+                                    318,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('..' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    320,
+                                ),
+                                hi: BytePos(
+                                    325,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('baz' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+                FreeVar(
+                    Other(
+                        Atom('global' type=static),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    335,
+                                ),
+                                hi: BytePos(
+                                    339,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('..' type=inline),
+                            has_escape: false,
+                            kind: Normal {
+                                contains_quote: true,
+                            },
+                        },
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    341,
+                                ),
+                                hi: BytePos(
+                                    346,
+                                ),
+                                ctxt: #0,
+                            },
+                            value: Atom('foo' type=inline),
                             has_escape: false,
                             kind: Normal {
                                 contains_quote: true,
