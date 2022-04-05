@@ -35,7 +35,7 @@ use turbopack::{
 #[case::canvas("integration/canvas.js", true)]
 #[case::chromeless("integration/chromeless.js", true)]
 #[case::core_js("integration/core-js.js", true)]
-#[case::cowsay("integration/cowsay.js", false)] // can't find node_modules/cowsay/cows/default.cow
+#[case::cowsay("integration/cowsay.js", true)]
 #[case::dogfood("integration/dogfood.js", false)] // can't find node-file-trace
 #[case::dynamic_in_package("integration/dynamic-in-package.js", true)]
 #[case::empty("integration/empty.js", true)]
