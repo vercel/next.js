@@ -50,18 +50,9 @@
         "c",
         Constant(
             Num(
-                Number {
-                    span: Span {
-                        lo: BytePos(
-                            48,
-                        ),
-                        hi: BytePos(
-                            51,
-                        ),
-                        ctxt: #0,
-                    },
-                    value: 123.0,
-                },
+                ConstantNumber(
+                    123.0,
+                ),
             ),
         ),
     ),
@@ -78,22 +69,7 @@
         "d",
         Constant(
             Str(
-                Str {
-                    span: Span {
-                        lo: BytePos(
-                            63,
-                        ),
-                        hi: BytePos(
-                            70,
-                        ),
-                        ctxt: #0,
-                    },
-                    value: Atom('hello' type=inline),
-                    has_escape: false,
-                    kind: Normal {
-                        contains_quote: true,
-                    },
-                },
+                Atom('hello' type=inline),
             ),
         ),
     ),

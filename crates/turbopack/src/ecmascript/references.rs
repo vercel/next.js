@@ -328,10 +328,8 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
                             let mut show_dynamic_warning = false;
                             let pat = js_value_to_pattern(&args[0]);
                             if pat.is_match("node") && args.len() >= 2 {
-                                let first_arg = JsValue::Member(
-                                    box args[1].clone(),
-                                    box JsValue::Constant(0.into()),
-                                );
+                                let first_arg =
+                                    JsValue::Member(box args[1].clone(), box 0_f64.into());
                                 let first_arg = link_value(first_arg).await?;
                                 let pat = js_value_to_pattern(&first_arg);
                                 if !pat.has_constant_parts() {

@@ -1,10 +1,8 @@
 use std::{mem::take, sync::Arc};
 
-use swc_ecmascript::ast::Lit;
-
 use crate::analyzer::FreeVarKind;
 
-use super::JsValue;
+use super::{ConstantNumber, ConstantValue, JsValue, ObjectPart};
 
 pub fn replace_builtin(mut value: JsValue) -> (JsValue, bool) {
     (
@@ -52,9 +50,9 @@ pub fn replace_builtin(mut value: JsValue) -> (JsValue, bool) {
                             ));
                             JsValue::Alternatives(take(array))
                         }
-                        JsValue::Constant(Lit::Num(num)) => {
-                            let index: usize = num.value as usize;
-                            if index as f64 == num.value && index < array.len() {
+                        JsValue::Constant(ConstantValue::Num(ConstantNumber(num))) => {
+                            let index: usize = *num as usize;
+                            if index as f64 == *num && index < array.len() {
                                 array.swap_remove(index)
                             } else {
                                 JsValue::Unknown(
@@ -71,6 +69,10 @@ pub fn replace_builtin(mut value: JsValue) -> (JsValue, bool) {
                             Some(Arc::new(JsValue::Member(box take(obj), take(prop)))),
                             "array property on array",
                         ),
+                        JsValue::Object(_) => JsValue::Unknown(
+                            Some(Arc::new(JsValue::Member(box take(obj), take(prop)))),
+                            "object property on array",
+                        ),
                         JsValue::Url(_) => JsValue::Unknown(
                             Some(Arc::new(JsValue::Member(box take(obj), take(prop)))),
                             "url property on array",
@@ -78,6 +80,95 @@ pub fn replace_builtin(mut value: JsValue) -> (JsValue, bool) {
                         JsValue::Function(_) => JsValue::Unknown(
                             Some(Arc::new(JsValue::Member(box take(obj), take(prop)))),
                             "function property on array",
+                        ),
+                        JsValue::Alternatives(alts) => JsValue::Alternatives(
+                            take(alts)
+                                .into_iter()
+                                .map(|alt| JsValue::Member(box obj.clone(), box alt))
+                                .collect(),
+                        ),
+                        JsValue::Concat(_)
+                        | JsValue::Add(_)
+                        | JsValue::FreeVar(_)
+                        | JsValue::Variable(_)
+                        | JsValue::Call(_, _)
+                        | JsValue::MemberCall(..)
+                        | JsValue::Member(_, _)
+                        | JsValue::WellKnownObject(_)
+                        | JsValue::Argument(_)
+                        | JsValue::WellKnownFunction(_)
+                        | JsValue::Module(_) => {
+                            // keep the member infact since it might be handled later
+                            return (value, false);
+                        }
+                    },
+                    JsValue::Object(parts) => match &mut **prop {
+                        JsValue::Unknown(_, _) => {
+                            let mut values = Vec::new();
+                            for part in parts {
+                                match part {
+                                    ObjectPart::KeyValue(_, value) => {
+                                        values.push(take(value));
+                                    }
+                                    ObjectPart::Spread(value) => {
+                                        values.push(JsValue::Unknown(
+                                            Some(Arc::new(JsValue::Member(
+                                                box JsValue::Object(vec![take(part)]),
+                                                prop.clone(),
+                                            ))),
+                                            "spreaded object",
+                                        ));
+                                    }
+                                }
+                            }
+                            values.push(JsValue::Unknown(
+                                Some(Arc::new(JsValue::Member(
+                                    box JsValue::Object(Vec::new()),
+                                    box take(prop),
+                                ))),
+                                "unknown object prototype methods or values",
+                            ));
+                            JsValue::Alternatives(values)
+                        }
+                        JsValue::Constant(_) => {
+                            for part in parts.into_iter().rev() {
+                                match part {
+                                    ObjectPart::KeyValue(key, value) => {
+                                        if key == &**prop {
+                                            return (take(value), true);
+                                        }
+                                    }
+                                    ObjectPart::Spread(_) => {
+                                        return (
+                                            JsValue::Unknown(
+                                                Some(Arc::new(JsValue::Member(
+                                                    box JsValue::Object(vec![take(part)]),
+                                                    prop.clone(),
+                                                ))),
+                                                "spreaded object",
+                                            ),
+                                            true,
+                                        )
+                                    }
+                                }
+                            }
+                            JsValue::FreeVar(FreeVarKind::Other("undefined".into()))
+                        }
+                        JsValue::Array(_) => JsValue::Unknown(
+                            Some(Arc::new(JsValue::Member(box take(obj), take(prop)))),
+                            "array property on object",
+                        ),
+                        JsValue::Object(_) => JsValue::Unknown(
+                            Some(Arc::new(JsValue::Member(box take(obj), take(prop)))),
+                            "object property on object",
+                        ),
+                        JsValue::Url(_) => JsValue::Unknown(
+                            Some(Arc::new(JsValue::Member(box take(obj), take(prop)))),
+                            "url property on object",
+                        ),
+                        JsValue::Function(_) => JsValue::Unknown(
+                            Some(Arc::new(JsValue::Member(box take(obj), take(prop)))),
+                            "function property on object",
                         ),
                         JsValue::Alternatives(alts) => JsValue::Alternatives(
                             take(alts)
@@ -117,7 +208,7 @@ pub fn replace_builtin(mut value: JsValue) -> (JsValue, bool) {
             JsValue::MemberCall(box ref mut obj, box ref mut prop, ref mut args) => {
                 match obj {
                     JsValue::Array(items) => match prop {
-                        JsValue::Constant(Lit::Str(str)) => match &*str.value {
+                        JsValue::Constant(ConstantValue::Str(str)) => match &**str {
                             "concat" => {
                                 if args.iter().all(|arg| {
                                     matches!(
@@ -190,6 +281,10 @@ pub fn replace_builtin(mut value: JsValue) -> (JsValue, bool) {
                     JsValue::Array(_) => JsValue::Unknown(
                         Some(Arc::new(JsValue::Call(box take(callee), take(args)))),
                         "call of array",
+                    ),
+                    JsValue::Object(_) => JsValue::Unknown(
+                        Some(Arc::new(JsValue::Call(box take(callee), take(args)))),
+                        "call of object",
                     ),
                     JsValue::Constant(_) => JsValue::Unknown(
                         Some(Arc::new(JsValue::Call(box take(callee), take(args)))),

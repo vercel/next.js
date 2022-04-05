@@ -3,18 +3,9 @@
         "a",
         Constant(
             Num(
-                Number {
-                    span: Span {
-                        lo: BytePos(
-                            16,
-                        ),
-                        hi: BytePos(
-                            17,
-                        ),
-                        ctxt: #0,
-                    },
-                    value: 1.0,
-                },
+                ConstantNumber(
+                    1.0,
+                ),
             ),
         ),
     ),
@@ -22,22 +13,7 @@
         "b",
         Constant(
             Str(
-                Str {
-                    span: Span {
-                        lo: BytePos(
-                            19,
-                        ),
-                        hi: BytePos(
-                            24,
-                        ),
-                        ctxt: #0,
-                    },
-                    value: Atom('foo' type=inline),
-                    has_escape: false,
-                    kind: Normal {
-                        contains_quote: true,
-                    },
-                },
+                Atom('foo' type=inline),
             ),
         ),
     ),
@@ -48,38 +24,14 @@
                 [
                     Constant(
                         Num(
-                            Number {
-                                span: Span {
-                                    lo: BytePos(
-                                        39,
-                                    ),
-                                    hi: BytePos(
-                                        40,
-                                    ),
-                                    ctxt: #0,
-                                },
-                                value: 1.0,
-                            },
+                            ConstantNumber(
+                                1.0,
+                            ),
                         ),
                     ),
                     Constant(
                         Str(
-                            Str {
-                                span: Span {
-                                    lo: BytePos(
-                                        42,
-                                    ),
-                                    hi: BytePos(
-                                        47,
-                                    ),
-                                    ctxt: #0,
-                                },
-                                value: Atom('foo' type=inline),
-                                has_escape: false,
-                                kind: Normal {
-                                    contains_quote: true,
-                                },
-                            },
+                            Atom('foo' type=inline),
                         ),
                     ),
                 ],
@@ -92,20 +44,7 @@
                 ),
                 Constant(
                     Str(
-                        Str {
-                            span: Span {
-                                lo: BytePos(
-                                    0,
-                                ),
-                                hi: BytePos(
-                                    0,
-                                ),
-                                ctxt: #0,
-                            },
-                            value: Atom('index' type=inline),
-                            has_escape: false,
-                            kind: Synthesized,
-                        },
+                        Atom('index' type=inline),
                     ),
                 ),
             ),
@@ -117,38 +56,14 @@
             [
                 Constant(
                     Num(
-                        Number {
-                            span: Span {
-                                lo: BytePos(
-                                    77,
-                                ),
-                                hi: BytePos(
-                                    78,
-                                ),
-                                ctxt: #0,
-                            },
-                            value: 1.0,
-                        },
+                        ConstantNumber(
+                            1.0,
+                        ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Str {
-                            span: Span {
-                                lo: BytePos(
-                                    80,
-                                ),
-                                hi: BytePos(
-                                    85,
-                                ),
-                                ctxt: #0,
-                            },
-                            value: Atom('foo' type=inline),
-                            has_escape: false,
-                            kind: Normal {
-                                contains_quote: true,
-                            },
-                        },
+                        Atom('foo' type=inline),
                     ),
                 ),
             ],
@@ -171,20 +86,7 @@
                 ),
                 Constant(
                     Str(
-                        Str {
-                            span: Span {
-                                lo: BytePos(
-                                    0,
-                                ),
-                                hi: BytePos(
-                                    0,
-                                ),
-                                ctxt: #0,
-                            },
-                            value: Atom('index' type=inline),
-                            has_escape: false,
-                            kind: Synthesized,
-                        },
+                        Atom('index' type=inline),
                     ),
                 ),
             ),
@@ -201,18 +103,9 @@
             ),
             Constant(
                 Num(
-                    Number {
-                        span: Span {
-                            lo: BytePos(
-                                131,
-                            ),
-                            hi: BytePos(
-                                132,
-                            ),
-                            ctxt: #0,
-                        },
-                        value: 1.0,
-                    },
+                    ConstantNumber(
+                        1.0,
+                    ),
                 ),
             ),
         ),
@@ -228,18 +121,9 @@
             ),
             Constant(
                 Num(
-                    Number {
-                        span: Span {
-                            lo: BytePos(
-                                149,
-                            ),
-                            hi: BytePos(
-                                150,
-                            ),
-                            ctxt: #0,
-                        },
-                        value: 2.0,
-                    },
+                    ConstantNumber(
+                        2.0,
+                    ),
                 ),
             ),
         ),

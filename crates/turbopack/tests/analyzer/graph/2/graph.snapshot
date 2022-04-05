@@ -5,18 +5,9 @@
             [
                 Constant(
                     Num(
-                        Number {
-                            span: Span {
-                                lo: BytePos(
-                                    8,
-                                ),
-                                hi: BytePos(
-                                    9,
-                                ),
-                                ctxt: #0,
-                            },
-                            value: 1.0,
-                        },
+                        ConstantNumber(
+                            1.0,
+                        ),
                     ),
                 ),
                 Variable(

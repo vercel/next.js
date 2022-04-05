@@ -13,7 +13,7 @@ use crate::{
     ecmascript::utils::unparen,
 };
 
-use super::{ImportMap, JsValue};
+use super::{ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart};
 
 #[derive(Debug, Clone)]
 pub enum Effect {
@@ -113,6 +113,16 @@ impl EvalContext {
         }
     }
 
+    fn eval_prop_name(&self, prop: &PropName) -> JsValue {
+        match prop {
+            PropName::Ident(ident) => ident.sym.clone().into(),
+            PropName::Str(str) => str.value.clone().into(),
+            PropName::Num(num) => num.value.clone().into(),
+            PropName::Computed(ComputedPropName { expr, .. }) => self.eval(expr),
+            PropName::BigInt(bigint) => bigint.value.clone().into(),
+        }
+    }
+
     fn eval_tpl(&self, e: &Tpl, raw: bool) -> JsValue {
         debug_assert!(e.quasis.len() == e.exprs.len() + 1);
 
@@ -152,7 +162,7 @@ impl EvalContext {
     pub fn eval(&self, e: &Expr) -> JsValue {
         match e {
             Expr::Lit(e @ Lit::Str(..) | e @ Lit::Num(..) | e @ Lit::Bool(..)) => {
-                return JsValue::Constant(e.clone())
+                return JsValue::Constant(e.clone().into())
             }
             Expr::Ident(i) => {
                 let id = i.to_id();
@@ -241,10 +251,7 @@ impl EvalContext {
                 ..
             }) => {
                 let obj = self.eval(&obj);
-                return JsValue::Member(
-                    box obj,
-                    box JsValue::Constant(Lit::Str(prop.sym.clone().into())),
-                );
+                return JsValue::Member(box obj, box prop.sym.clone().into());
             }
 
             Expr::Member(MemberExpr {
@@ -271,7 +278,7 @@ impl EvalContext {
                     let obj = box self.eval(&obj);
                     let prop = box match prop {
                         // TODO avoid clone
-                        MemberProp::Ident(i) => JsValue::Constant(i.sym.clone().into()),
+                        MemberProp::Ident(i) => i.sym.clone().into(),
                         MemberProp::PrivateName(_) => {
                             return JsValue::Unknown(
                                 None,
@@ -318,6 +325,31 @@ impl EvalContext {
                     })
                     .collect();
                 return JsValue::Array(arr);
+            }
+
+            Expr::Object(obj) => {
+                return JsValue::Object(
+                    obj.props
+                        .iter()
+                        .map(|prop| match prop {
+                            PropOrSpread::Spread(SpreadElement { expr, .. }) => {
+                                ObjectPart::Spread(self.eval(expr))
+                            }
+                            PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
+                                key,
+                                box value,
+                            })) => ObjectPart::KeyValue(self.eval_prop_name(key), self.eval(value)),
+                            PropOrSpread::Prop(box Prop::Shorthand(ident)) => ObjectPart::KeyValue(
+                                ident.sym.clone().into(),
+                                self.eval(&Expr::Ident(ident.clone())),
+                            ),
+                            _ => ObjectPart::Spread(JsValue::Unknown(
+                                None,
+                                "unsupported object part",
+                            )),
+                        })
+                        .collect(),
+                )
             }
 
             _ => JsValue::Unknown(None, "unsupported expression"),
@@ -465,7 +497,7 @@ impl Analyzer<'_> {
                     let obj_value = self.eval_context.eval(obj);
                     let prop_value = match prop {
                         // TODO avoid clone
-                        MemberProp::Ident(i) => JsValue::Constant(i.sym.clone().into()),
+                        MemberProp::Ident(i) => i.sym.clone().into(),
                         MemberProp::PrivateName(_) => {
                             return;
                         }
@@ -680,9 +712,36 @@ impl Visit for Analyzer<'_> {
                         for (idx, elem) in arr.elems.iter().enumerate() {
                             self.current_value = Some(JsValue::Member(
                                 box value.clone(),
-                                box JsValue::Constant(Lit::Num(idx.into())),
+                                box JsValue::Constant(ConstantValue::Num(ConstantNumber(
+                                    idx as f64,
+                                ))),
                             ));
                             elem.visit_with(self);
+                        }
+                        // We should not call visit_children_with
+                        return;
+                    }
+
+                    None => {}
+                }
+            }
+
+            Pat::Object(obj) => {
+                match &value {
+                    Some(current_value) => {
+                        for prop in obj.props.iter() {
+                            match prop {
+                                ObjectPatProp::KeyValue(KeyValuePatProp { key, value }) => {
+                                    let key_value = self.eval_context.eval_prop_name(key);
+                                    key.visit_with(self);
+                                    self.current_value = Some(JsValue::Member(
+                                        box current_value.clone(),
+                                        box key_value,
+                                    ));
+                                    value.visit_with(self);
+                                }
+                                _ => prop.visit_with(self),
+                            }
                         }
                         // We should not call visit_children_with
                         return;

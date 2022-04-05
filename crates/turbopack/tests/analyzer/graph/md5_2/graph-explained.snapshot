@@ -199,7 +199,7 @@ dd = d
 
 digestbytes = crypt["wordsToBytes"](md5(message, options))
 
-i = (0 | 0)
+i = 0
 
 isBuffer = FreeVar(Require)("is-buffer")
 

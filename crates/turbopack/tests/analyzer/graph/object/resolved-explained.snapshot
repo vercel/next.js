@@ -1,0 +1,47 @@
+a1 = 1
+
+a2 = 1
+
+a3 = ???*0*
+- *0* {...{"a": 1, "b": 2, "c": 3}}["a"]
+  ⚠️  spreaded object
+
+a4 = 1
+
+b1 = 2
+
+b2 = 2
+
+b3 = 22
+
+b4 = 2
+
+c1 = 3
+
+c2 = 3
+
+c3 = ???*0*
+- *0* {...{"a": 1, "b": 2, "c": 3}}["c"]
+  ⚠️  spreaded object
+
+c4 = 3
+
+d1 = ???*0*
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+d2 = ???*0*
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+d3 = ???*0*
+- *0* {...{"a": 1, "b": 2, "c": 3}}["d"]
+  ⚠️  spreaded object
+
+d4 = ???*0*
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+
+object = {"a": 1, "b": 2, "c": 3}
+
+object_spread = {"a": 11, ...{"a": 1, "b": 2, "c": 3}, "b": 22}

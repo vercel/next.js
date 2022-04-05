@@ -1,9 +1,8 @@
 use std::{mem::take, sync::Arc};
 
-use swc_ecmascript::ast::Lit;
 use url::Url;
 
-use super::{JsValue, WellKnownFunctionKind, WellKnownObjectKind};
+use super::{ConstantValue, JsValue, WellKnownFunctionKind, WellKnownObjectKind};
 
 pub fn replace_well_known(value: JsValue) -> (JsValue, bool) {
     match value {
@@ -61,13 +60,13 @@ pub fn well_known_function_call(
 
 pub fn path_join(args: Vec<JsValue>) -> JsValue {
     if args.len() == 0 {
-        return JsValue::Constant(".".into());
+        return ".".into();
     }
     let mut parts = Vec::new();
     for item in args {
         if let Some(str) = item.as_str() {
             let splitted = str.split("/");
-            parts.extend(splitted.map(|s| JsValue::Constant(s.into())));
+            parts.extend(splitted.map(|s| s.into()));
         } else {
             parts.push(item);
         }
@@ -98,12 +97,9 @@ pub fn path_join(args: Vec<JsValue>) -> JsValue {
     for part in iter {
         let is_str = part.as_str().is_some();
         if last_is_str && is_str {
-            results.push(JsValue::Constant("/".into()));
+            results.push("/".into());
         } else {
-            results.push(JsValue::Alternatives(vec![
-                JsValue::Constant("/".into()),
-                JsValue::Constant("".into()),
-            ]));
+            results.push(JsValue::Alternatives(vec!["/".into(), "".into()]));
         }
         results.push(part);
         last_is_str = is_str;
@@ -115,15 +111,15 @@ pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
     if let Some(arg) = args.iter_mut().next() {
         if let Some(str) = arg.as_str() {
             if let Some(i) = str.rfind("/") {
-                return JsValue::Constant(Lit::Str(str[..i].to_string().into()));
+                return JsValue::Constant(ConstantValue::Str(str[..i].to_string().into()));
             } else {
-                return JsValue::Constant(Lit::Str("".into()));
+                return JsValue::Constant(ConstantValue::Str("".into()));
             }
         } else if let JsValue::Concat(items) = arg {
             if let Some(last) = items.last_mut() {
                 if let Some(str) = last.as_str() {
                     if let Some(i) = str.rfind("/") {
-                        *last = JsValue::Constant(Lit::Str(str[..i].to_string().into()));
+                        *last = JsValue::Constant(ConstantValue::Str(str[..i].to_string().into()));
                         return take(arg);
                     }
                 }
@@ -142,7 +138,7 @@ pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
 pub fn require(args: Vec<JsValue>) -> JsValue {
     if args.len() == 1 {
         match &args[0] {
-            JsValue::Constant(Lit::Str(s)) => JsValue::Module(s.value.clone()),
+            JsValue::Constant(ConstantValue::Str(s)) => JsValue::Module(s.clone()),
             _ => JsValue::Unknown(
                 Some(Arc::new(JsValue::Call(
                     box JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
@@ -165,7 +161,7 @@ pub fn require(args: Vec<JsValue>) -> JsValue {
 pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
     if args.len() == 1 {
         match &args[0] {
-            JsValue::Constant(Lit::Str(path)) => Url::from_file_path(&*path.value)
+            JsValue::Constant(ConstantValue::Str(path)) => Url::from_file_path(&**path)
                 .map(JsValue::Url)
                 .unwrap_or_else(|_err| {
                     JsValue::Unknown(

@@ -198,7 +198,7 @@ i#4 = (???*0* | 0)
 - *0* i
   ⚠️  pattern without value
 
-i#5 = (???*0* | 0 | 0)
+i#5 = (???*0* | 0)
 - *0* i
   ⚠️  pattern without value
 

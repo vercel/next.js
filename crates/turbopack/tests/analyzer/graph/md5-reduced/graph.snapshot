@@ -5,18 +5,9 @@
             [
                 Constant(
                     Num(
-                        Number {
-                            span: Span {
-                                lo: BytePos(
-                                    281,
-                                ),
-                                hi: BytePos(
-                                    291,
-                                ),
-                                ctxt: #0,
-                            },
-                            value: 1732584193.0,
-                        },
+                        ConstantNumber(
+                            1732584193.0,
+                        ),
                     ),
                 ),
                 Call(
@@ -67,18 +58,9 @@
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            489,
-                                        ),
-                                        hi: BytePos(
-                                            490,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 7.0,
-                                },
+                                ConstantNumber(
+                                    7.0,
+                                ),
                             ),
                         ),
                         Unknown(
@@ -136,18 +118,9 @@
                                     ),
                                     Constant(
                                         Num(
-                                            Number {
-                                                span: Span {
-                                                    lo: BytePos(
-                                                        696,
-                                                    ),
-                                                    hi: BytePos(
-                                                        697,
-                                                    ),
-                                                    ctxt: #0,
-                                                },
-                                                value: 4.0,
-                                            },
+                                            ConstantNumber(
+                                                4.0,
+                                            ),
                                         ),
                                     ),
                                 ],
@@ -155,18 +128,9 @@
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            700,
-                                        ),
-                                        hi: BytePos(
-                                            701,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 7.0,
-                                },
+                                ConstantNumber(
+                                    7.0,
+                                ),
                             ),
                         ),
                         Unknown(
@@ -224,18 +188,9 @@
                                     ),
                                     Constant(
                                         Num(
-                                            Number {
-                                                span: Span {
-                                                    lo: BytePos(
-                                                        907,
-                                                    ),
-                                                    hi: BytePos(
-                                                        908,
-                                                    ),
-                                                    ctxt: #0,
-                                                },
-                                                value: 8.0,
-                                            },
+                                            ConstantNumber(
+                                                8.0,
+                                            ),
                                         ),
                                     ),
                                 ],
@@ -243,34 +198,16 @@
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            911,
-                                        ),
-                                        hi: BytePos(
-                                            912,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 7.0,
-                                },
+                                ConstantNumber(
+                                    7.0,
+                                ),
                             ),
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            914,
-                                        ),
-                                        hi: BytePos(
-                                            924,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 1770035416.0,
-                                },
+                                ConstantNumber(
+                                    1770035416.0,
+                                ),
                             ),
                         ),
                     ],
@@ -324,18 +261,9 @@
                                     ),
                                     Constant(
                                         Num(
-                                            Number {
-                                                span: Span {
-                                                    lo: BytePos(
-                                                        1118,
-                                                    ),
-                                                    hi: BytePos(
-                                                        1120,
-                                                    ),
-                                                    ctxt: #0,
-                                                },
-                                                value: 12.0,
-                                            },
+                                            ConstantNumber(
+                                                12.0,
+                                            ),
                                         ),
                                     ),
                                 ],
@@ -343,34 +271,16 @@
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            1123,
-                                        ),
-                                        hi: BytePos(
-                                            1124,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 7.0,
-                                },
+                                ConstantNumber(
+                                    7.0,
+                                ),
                             ),
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            1126,
-                                        ),
-                                        hi: BytePos(
-                                            1136,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 1804603682.0,
-                                },
+                                ConstantNumber(
+                                    1804603682.0,
+                                ),
                             ),
                         ),
                     ],
@@ -447,18 +357,9 @@
                                     ),
                                     Constant(
                                         Num(
-                                            Number {
-                                                span: Span {
-                                                    lo: BytePos(
-                                                        642,
-                                                    ),
-                                                    hi: BytePos(
-                                                        643,
-                                                    ),
-                                                    ctxt: #0,
-                                                },
-                                                value: 3.0,
-                                            },
+                                            ConstantNumber(
+                                                3.0,
+                                            ),
                                         ),
                                     ),
                                 ],
@@ -466,18 +367,9 @@
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            646,
-                                        ),
-                                        hi: BytePos(
-                                            648,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 22.0,
-                                },
+                                ConstantNumber(
+                                    22.0,
+                                ),
                             ),
                         ),
                         Unknown(
@@ -535,18 +427,9 @@
                                     ),
                                     Constant(
                                         Num(
-                                            Number {
-                                                span: Span {
-                                                    lo: BytePos(
-                                                        855,
-                                                    ),
-                                                    hi: BytePos(
-                                                        856,
-                                                    ),
-                                                    ctxt: #0,
-                                                },
-                                                value: 7.0,
-                                            },
+                                            ConstantNumber(
+                                                7.0,
+                                            ),
                                         ),
                                     ),
                                 ],
@@ -554,18 +437,9 @@
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            859,
-                                        ),
-                                        hi: BytePos(
-                                            861,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 22.0,
-                                },
+                                ConstantNumber(
+                                    22.0,
+                                ),
                             ),
                         ),
                         Unknown(
@@ -623,18 +497,9 @@
                                     ),
                                     Constant(
                                         Num(
-                                            Number {
-                                                span: Span {
-                                                    lo: BytePos(
-                                                        1063,
-                                                    ),
-                                                    hi: BytePos(
-                                                        1065,
-                                                    ),
-                                                    ctxt: #0,
-                                                },
-                                                value: 11.0,
-                                            },
+                                            ConstantNumber(
+                                                11.0,
+                                            ),
                                         ),
                                     ),
                                 ],
@@ -642,18 +507,9 @@
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            1068,
-                                        ),
-                                        hi: BytePos(
-                                            1070,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 22.0,
-                                },
+                                ConstantNumber(
+                                    22.0,
+                                ),
                             ),
                         ),
                         Unknown(
@@ -711,18 +567,9 @@
                                     ),
                                     Constant(
                                         Num(
-                                            Number {
-                                                span: Span {
-                                                    lo: BytePos(
-                                                        1279,
-                                                    ),
-                                                    hi: BytePos(
-                                                        1281,
-                                                    ),
-                                                    ctxt: #0,
-                                                },
-                                                value: 15.0,
-                                            },
+                                            ConstantNumber(
+                                                15.0,
+                                            ),
                                         ),
                                     ),
                                 ],
@@ -730,34 +577,16 @@
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            1284,
-                                        ),
-                                        hi: BytePos(
-                                            1286,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 22.0,
-                                },
+                                ConstantNumber(
+                                    22.0,
+                                ),
                             ),
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            1288,
-                                        ),
-                                        hi: BytePos(
-                                            1298,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 1236535329.0,
-                                },
+                                ConstantNumber(
+                                    1236535329.0,
+                                ),
                             ),
                         ),
                     ],
@@ -834,18 +663,9 @@
                                     ),
                                     Constant(
                                         Num(
-                                            Number {
-                                                span: Span {
-                                                    lo: BytePos(
-                                                        590,
-                                                    ),
-                                                    hi: BytePos(
-                                                        591,
-                                                    ),
-                                                    ctxt: #0,
-                                                },
-                                                value: 2.0,
-                                            },
+                                            ConstantNumber(
+                                                2.0,
+                                            ),
                                         ),
                                     ),
                                 ],
@@ -853,34 +673,16 @@
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            594,
-                                        ),
-                                        hi: BytePos(
-                                            596,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 17.0,
-                                },
+                                ConstantNumber(
+                                    17.0,
+                                ),
                             ),
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            598,
-                                        ),
-                                        hi: BytePos(
-                                            607,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 606105819.0,
-                                },
+                                ConstantNumber(
+                                    606105819.0,
+                                ),
                             ),
                         ),
                     ],
@@ -934,18 +736,9 @@
                                     ),
                                     Constant(
                                         Num(
-                                            Number {
-                                                span: Span {
-                                                    lo: BytePos(
-                                                        801,
-                                                    ),
-                                                    hi: BytePos(
-                                                        802,
-                                                    ),
-                                                    ctxt: #0,
-                                                },
-                                                value: 6.0,
-                                            },
+                                            ConstantNumber(
+                                                6.0,
+                                            ),
                                         ),
                                     ),
                                 ],
@@ -953,18 +746,9 @@
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            805,
-                                        ),
-                                        hi: BytePos(
-                                            807,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 17.0,
-                                },
+                                ConstantNumber(
+                                    17.0,
+                                ),
                             ),
                         ),
                         Unknown(
@@ -1022,18 +806,9 @@
                                     ),
                                     Constant(
                                         Num(
-                                            Number {
-                                                span: Span {
-                                                    lo: BytePos(
-                                                        1013,
-                                                    ),
-                                                    hi: BytePos(
-                                                        1015,
-                                                    ),
-                                                    ctxt: #0,
-                                                },
-                                                value: 10.0,
-                                            },
+                                            ConstantNumber(
+                                                10.0,
+                                            ),
                                         ),
                                     ),
                                 ],
@@ -1041,18 +816,9 @@
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            1018,
-                                        ),
-                                        hi: BytePos(
-                                            1020,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 17.0,
-                                },
+                                ConstantNumber(
+                                    17.0,
+                                ),
                             ),
                         ),
                         Unknown(
@@ -1110,18 +876,9 @@
                                     ),
                                     Constant(
                                         Num(
-                                            Number {
-                                                span: Span {
-                                                    lo: BytePos(
-                                                        1224,
-                                                    ),
-                                                    hi: BytePos(
-                                                        1226,
-                                                    ),
-                                                    ctxt: #0,
-                                                },
-                                                value: 14.0,
-                                            },
+                                            ConstantNumber(
+                                                14.0,
+                                            ),
                                         ),
                                     ),
                                 ],
@@ -1129,18 +886,9 @@
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            1229,
-                                        ),
-                                        hi: BytePos(
-                                            1231,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 17.0,
-                                },
+                                ConstantNumber(
+                                    17.0,
+                                ),
                             ),
                         ),
                         Unknown(
@@ -1164,18 +912,9 @@
             [
                 Constant(
                     Num(
-                        Number {
-                            span: Span {
-                                lo: BytePos(
-                                    349,
-                                ),
-                                hi: BytePos(
-                                    358,
-                                ),
-                                ctxt: #0,
-                            },
-                            value: 271733878.0,
-                        },
+                        ConstantNumber(
+                            271733878.0,
+                        ),
                     ),
                 ),
                 Call(
@@ -1227,18 +966,9 @@
                                     ),
                                     Constant(
                                         Num(
-                                            Number {
-                                                span: Span {
-                                                    lo: BytePos(
-                                                        537,
-                                                    ),
-                                                    hi: BytePos(
-                                                        538,
-                                                    ),
-                                                    ctxt: #0,
-                                                },
-                                                value: 1.0,
-                                            },
+                                            ConstantNumber(
+                                                1.0,
+                                            ),
                                         ),
                                     ),
                                 ],
@@ -1246,18 +976,9 @@
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            541,
-                                        ),
-                                        hi: BytePos(
-                                            543,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 12.0,
-                                },
+                                ConstantNumber(
+                                    12.0,
+                                ),
                             ),
                         ),
                         Unknown(
@@ -1315,18 +1036,9 @@
                                     ),
                                     Constant(
                                         Num(
-                                            Number {
-                                                span: Span {
-                                                    lo: BytePos(
-                                                        748,
-                                                    ),
-                                                    hi: BytePos(
-                                                        749,
-                                                    ),
-                                                    ctxt: #0,
-                                                },
-                                                value: 5.0,
-                                            },
+                                            ConstantNumber(
+                                                5.0,
+                                            ),
                                         ),
                                     ),
                                 ],
@@ -1334,34 +1046,16 @@
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            752,
-                                        ),
-                                        hi: BytePos(
-                                            754,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 12.0,
-                                },
+                                ConstantNumber(
+                                    12.0,
+                                ),
                             ),
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            756,
-                                        ),
-                                        hi: BytePos(
-                                            766,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 1200080426.0,
-                                },
+                                ConstantNumber(
+                                    1200080426.0,
+                                ),
                             ),
                         ),
                     ],
@@ -1415,18 +1109,9 @@
                                     ),
                                     Constant(
                                         Num(
-                                            Number {
-                                                span: Span {
-                                                    lo: BytePos(
-                                                        959,
-                                                    ),
-                                                    hi: BytePos(
-                                                        960,
-                                                    ),
-                                                    ctxt: #0,
-                                                },
-                                                value: 9.0,
-                                            },
+                                            ConstantNumber(
+                                                9.0,
+                                            ),
                                         ),
                                     ),
                                 ],
@@ -1434,18 +1119,9 @@
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            963,
-                                        ),
-                                        hi: BytePos(
-                                            965,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 12.0,
-                                },
+                                ConstantNumber(
+                                    12.0,
+                                ),
                             ),
                         ),
                         Unknown(
@@ -1503,18 +1179,9 @@
                                     ),
                                     Constant(
                                         Num(
-                                            Number {
-                                                span: Span {
-                                                    lo: BytePos(
-                                                        1171,
-                                                    ),
-                                                    hi: BytePos(
-                                                        1173,
-                                                    ),
-                                                    ctxt: #0,
-                                                },
-                                                value: 13.0,
-                                            },
+                                            ConstantNumber(
+                                                13.0,
+                                            ),
                                         ),
                                     ),
                                 ],
@@ -1522,18 +1189,9 @@
                         ),
                         Constant(
                             Num(
-                                Number {
-                                    span: Span {
-                                        lo: BytePos(
-                                            1176,
-                                        ),
-                                        hi: BytePos(
-                                            1178,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: 12.0,
-                                },
+                                ConstantNumber(
+                                    12.0,
+                                ),
                             ),
                         ),
                         Unknown(
@@ -1568,18 +1226,9 @@
                 ),
                 Constant(
                     Num(
-                        Number {
-                            span: Span {
-                                lo: BytePos(
-                                    372,
-                                ),
-                                hi: BytePos(
-                                    373,
-                                ),
-                                ctxt: #0,
-                            },
-                            value: 0.0,
-                        },
+                        ConstantNumber(
+                            0.0,
+                        ),
                     ),
                 ),
             ],
