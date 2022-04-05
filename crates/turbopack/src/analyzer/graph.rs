@@ -79,7 +79,7 @@ impl VarGraph {
 
 /// You should use same [Mark] for this function and
 /// [swc_ecma_transforms_base::resolver::resolver_with_mark]
-pub fn create_graph(m: &Module, eval_context: &EvalContext) -> VarGraph {
+pub fn create_graph(m: &Program, eval_context: &EvalContext) -> VarGraph {
     let mut graph = VarGraph {
         values: Default::default(),
         effects: Default::default(),
@@ -105,7 +105,7 @@ pub struct EvalContext {
 }
 
 impl EvalContext {
-    pub fn new(module: &Module, top_level_mark: Mark) -> Self {
+    pub fn new(module: &Program, top_level_mark: Mark) -> Self {
         Self {
             top_level_mark,
             bindings: collect_decls(module),

@@ -8,7 +8,7 @@ use swc_common::input::StringInput;
 use swc_common::sync::Lrc;
 use swc_common::{FileName, Globals, Mark, SourceMap, GLOBALS};
 use swc_ecma_transforms_base::resolver::resolver_with_mark;
-use swc_ecmascript::ast::Module;
+use swc_ecmascript::ast::{EsVersion, Module, Program};
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, Parser, Syntax};
 use swc_ecmascript::visit::VisitMutWith;
@@ -21,7 +21,7 @@ use crate::asset::AssetVc;
 pub enum ParseResult {
     Ok {
         #[trace_ignore]
-        module: Module,
+        program: Program,
         #[trace_ignore]
         eval_context: EvalContext,
         #[trace_ignore]
@@ -130,7 +130,7 @@ pub async fn parse(source: AssetVc) -> Result<ParseResultVc> {
                             private_in_object: true,
                             allow_super_outside_method: true,
                         }),
-                        Default::default(),
+                        EsVersion::latest(),
                         StringInput::from(&*fm),
                         None,
                     );
@@ -150,23 +150,23 @@ pub async fn parse(source: AssetVc) -> Result<ParseResultVc> {
                         return Err(anyhow!("{}", buf));
                     }
 
-                    match parser.parse_module() {
+                    match parser.parse_program() {
                         Err(e) => {
                             // TODO report in in a stream
                             e.into_diagnostic(&handler).emit();
                             return Err(anyhow!("{}", buf));
                             // ParseResult::Unparseable.into()
                         }
-                        Ok(mut parsed_module) => {
+                        Ok(mut parsed_program) => {
                             let globals = Globals::new();
                             let eval_context = GLOBALS.set(&globals, || {
                                 let top_level_mark = Mark::fresh(Mark::root());
                                 HANDLER.set(&handler, || {
-                                    parsed_module
+                                    parsed_program
                                         .visit_mut_with(&mut resolver_with_mark(top_level_mark));
                                 });
 
-                                EvalContext::new(&parsed_module, top_level_mark)
+                                EvalContext::new(&parsed_program, top_level_mark)
                             });
 
                             if !buf.is_empty() {
@@ -176,7 +176,7 @@ pub async fn parse(source: AssetVc) -> Result<ParseResultVc> {
                             }
 
                             ParseResult::Ok {
-                                module: parsed_module,
+                                program: parsed_program,
                                 eval_context,
                                 globals,
                                 source_map: cm.clone(),

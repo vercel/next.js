@@ -19,7 +19,7 @@ use std::{
     mem::take,
     path::{Path, PathBuf, MAIN_SEPARATOR},
     sync::{mpsc::channel, Arc, Mutex},
-    thread,
+    thread::{self, sleep},
     time::Duration,
 };
 
@@ -30,7 +30,7 @@ use invalidator_map::InvalidatorMap;
 use json::{parse, JsonValue};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use threadpool::ThreadPool;
-use turbo_tasks::{trace::TraceSlotVcs, CompletionVc, Task, ValueToString, Vc};
+use turbo_tasks::{trace::TraceSlotVcs, Completion, CompletionVc, Task, ValueToString, Vc};
 use util::{join_path, normalize_path};
 
 #[turbo_tasks::value_trait]
@@ -38,7 +38,7 @@ pub trait FileSystem {
     fn read(&self, fs_path: FileSystemPathVc) -> FileContentVc;
     fn read_dir(&self, fs_path: FileSystemPathVc) -> DirectoryContentVc;
     fn parent_path(&self, fs_path: FileSystemPathVc) -> FileSystemPathVc;
-    fn write(&self, from: FileSystemPathVc, content: FileContentVc) -> CompletionVc;
+    fn write(&self, fs_path: FileSystemPathVc, content: FileContentVc) -> CompletionVc;
     fn to_string(&self) -> Vc<String>;
 }
 
@@ -190,7 +190,6 @@ fn path_to_key(path: &Path) -> String {
 impl DiskFileSystemVc {
     pub fn new(name: String, root: String) -> Result<Self> {
         let pool = Mutex::new(ThreadPool::new(30));
-        println!("creating {}...", root);
         // create the directory for the filesystem on disk, if it doesn't exist
         create_dir_all(&root)?;
 
@@ -219,6 +218,33 @@ impl DiskFileSystem {
     }
 }
 
+fn with_retry<T>(func: impl Fn() -> Result<T, std::io::Error>) -> Result<T, std::io::Error> {
+    fn can_retry(err: &std::io::Error) -> bool {
+        matches!(
+            err.kind(),
+            ErrorKind::PermissionDenied | ErrorKind::WouldBlock
+        )
+    }
+    let mut result = func();
+    if let Err(e) = &result {
+        if can_retry(e) {
+            for i in 0..10 {
+                sleep(Duration::from_millis(10 + i * 100));
+                result = func();
+                match &result {
+                    Ok(_) => break,
+                    Err(e) => {
+                        if !can_retry(e) {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    result
+}
+
 impl fmt::Debug for DiskFileSystem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "name: {}, root: {}", self.name, self.root)
@@ -240,7 +266,10 @@ impl FileSystem for DiskFileSystem {
             self.invalidators
                 .insert(path_to_key(full_path.as_path()), invalidator);
         }
-        Ok(match self.execute(move || fs::read(&full_path)).await {
+        Ok(match self
+            .execute(move || with_retry(move || fs::read(&full_path)))
+            .await
+        {
             Ok(content) => FileContent::new(content),
             Err(_) => FileContent::not_found(),
         }
@@ -258,7 +287,7 @@ impl FileSystem for DiskFileSystem {
         let result = self
             .execute({
                 let full_path = full_path.clone();
-                move || fs::read_dir(&full_path)
+                move || with_retry(move || fs::read_dir(&full_path))
             })
             .await;
         Ok(match result {
@@ -323,7 +352,7 @@ impl FileSystem for DiskFileSystem {
                 FileContent::Content(buffer) => {
                     if create_directory {
                         if let Some(parent) = full_path.parent() {
-                            fs::create_dir_all(parent).with_context(|| {
+                            with_retry(move || fs::create_dir_all(parent)).with_context(|| {
                                 format!(
                                     "failed to create directory {} for write to {}",
                                     parent.display(),
@@ -333,12 +362,12 @@ impl FileSystem for DiskFileSystem {
                         }
                     }
                     // println!("write {} bytes to {}", buffer.len(), full_path.display());
-                    fs::write(full_path.clone(), buffer)
+                    with_retry(|| fs::write(full_path.clone(), buffer))
                         .with_context(|| format!("failed to write to {}", full_path.display()))
                 }
                 FileContent::NotFound => {
                     // println!("remove {}", full_path.display());
-                    fs::remove_file(&full_path).or_else(move |err| {
+                    with_retry(|| fs::remove_file(&full_path)).or_else(|err| {
                         if err.kind() == ErrorKind::NotFound {
                             Ok(())
                         } else {
@@ -462,6 +491,10 @@ impl FileSystemPathVc {
     pub async fn root(self) -> Result<Self> {
         let fs = self.await?.fs.clone();
         Ok(Self::new_normalized(fs, "".to_string()))
+    }
+
+    pub async fn fs(self) -> Result<FileSystemVc> {
+        Ok(self.await?.fs.clone())
     }
 }
 
@@ -615,5 +648,32 @@ impl DirectoryContentVc {
 
     pub fn not_found() -> Self {
         Self::slot(DirectoryContent::NotFound)
+    }
+}
+
+#[turbo_tasks::value(shared, FileSystem)]
+#[derive(PartialEq, Eq)]
+pub struct NullFileSystem;
+
+#[turbo_tasks::value_impl]
+impl FileSystem for NullFileSystem {
+    fn read(&self, _fs_path: FileSystemPathVc) -> FileContentVc {
+        FileContent::NotFound.into()
+    }
+
+    fn read_dir(&self, _fs_path: FileSystemPathVc) -> DirectoryContentVc {
+        DirectoryContentVc::not_found()
+    }
+
+    fn parent_path(&self, fs_path: FileSystemPathVc) -> FileSystemPathVc {
+        FileSystemPathVc::new_normalized(fs_path.fs(), "".to_string())
+    }
+
+    fn write(&self, _fs_path: FileSystemPathVc, _content: FileContentVc) -> CompletionVc {
+        CompletionVc::new()
+    }
+
+    fn to_string(&self) -> Vc<String> {
+        Vc::slot(String::from("null"))
     }
 }
