@@ -1905,10 +1905,12 @@ export default class Router implements BaseRouter {
       return { type: 'next' }
     }
 
+    const preflightHref = addLocale(options.as, options.locale)
+
     let preflight: PreflightData | undefined
     try {
       preflight = await this._getPreflightData({
-        preflightHref: options.as,
+        preflightHref,
         shouldCache: options.cache,
         isPreview: options.isPreview,
       })
