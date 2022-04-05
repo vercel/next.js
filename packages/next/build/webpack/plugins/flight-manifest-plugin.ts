@@ -64,7 +64,7 @@ export class FlightManifestPlugin {
 
   createAsset(assets: any, compilation: any) {
     const manifest: any = {}
-    const { pageExtensions } = this
+    const isClientComponent = createClientComponentFilter(this.pageExtensions)
     compilation.chunkGroups.forEach((chunkGroup: any) => {
       function recordModule(id: string, _chunk: any, mod: any) {
         const resource = mod.resource?.replace(/\?__sc_client__$/, '')
@@ -72,12 +72,9 @@ export class FlightManifestPlugin {
         // TODO: Hook into deps instead of the target module.
         // That way we know by the type of dep whether to include.
         // It also resolves conflicts when the same module is in multiple chunks.
-
-        const isClientComponent = createClientComponentFilter(pageExtensions)
         if (!isClientComponent(resource)) {
           return
         }
-
         const moduleExports: any = manifest[resource] || {}
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)

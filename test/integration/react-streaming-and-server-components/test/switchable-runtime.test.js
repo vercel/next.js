@@ -124,8 +124,8 @@ describe('Switchable runtime (prod)', () => {
 
     expect(renderedAt1).toBe(renderedAt2)
 
-    // Trigger a revalidation after 2s.
-    await waitFor(3000)
+    // Trigger a revalidation after 3s.
+    await waitFor(4000)
     await renderViaHTTP(context.appPort, '/node-rsc-isr')
 
     await check(async () => {

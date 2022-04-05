@@ -40,7 +40,6 @@ export function getRender({
   reactLoadableManifest: ReactLoadableManifest
   serverComponentManifest: any
   appServerMod: any
-  isServerComponent: boolean
   config: NextConfig
   buildId: string
 }) {
