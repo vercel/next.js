@@ -1,7 +1,6 @@
 use next_swc::{
     amp_attributes::amp_attributes,
     emotion::{self, EmotionOptions},
-    modularize_imports::modularize_imports,
     next_dynamic::next_dynamic,
     next_ssg::next_ssg,
     page_config::page_config_test,
@@ -308,49 +307,6 @@ fn next_emotion_fixture(input: PathBuf) {
                 ),
                 jsx
             )
-        },
-        &input,
-        &output,
-    );
-}
-
-#[fixture("tests/fixture/modularize-imports/**/input.js")]
-fn modularize_imports_fixture(input: PathBuf) {
-    use next_swc::modularize_imports::PackageConfig;
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| {
-            modularize_imports(next_swc::modularize_imports::Config {
-                packages: vec![
-                    (
-                        "react-bootstrap".to_string(),
-                        PackageConfig {
-                            transform: "react-bootstrap/lib/{{member}}".into(),
-                            prevent_full_import: false,
-                            skip_default_conversion: false,
-                        },
-                    ),
-                    (
-                        "my-library/?(((\\w*)?/?)*)".to_string(),
-                        PackageConfig {
-                            transform: "my-library/{{ matches.[1] }}/{{member}}".into(),
-                            prevent_full_import: false,
-                            skip_default_conversion: false,
-                        },
-                    ),
-                    (
-                        "my-library-2".to_string(),
-                        PackageConfig {
-                            transform: "my-library-2/{{ camelCase member }}".into(),
-                            prevent_full_import: false,
-                            skip_default_conversion: true,
-                        },
-                    ),
-                ]
-                .into_iter()
-                .collect(),
-            })
         },
         &input,
         &output,

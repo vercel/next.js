@@ -29,6 +29,8 @@ DEALINGS IN THE SOFTWARE.
 #![recursion_limit = "2048"]
 #![deny(clippy::all)]
 
+pub extern crate modularize_imports;
+
 use auto_cjs::contains_cjs;
 use either::Either;
 use fxhash::FxHashSet;
@@ -50,7 +52,6 @@ mod auto_cjs;
 pub mod disallow_re_export_all_in_page;
 pub mod emotion;
 pub mod hook_optimizer;
-pub mod modularize_imports;
 pub mod next_dynamic;
 pub mod next_ssg;
 pub mod page_config;
