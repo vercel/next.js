@@ -1,9 +1,12 @@
 use std::path::PathBuf;
 
 use emotion::EmotionOptions;
-use swc_common::{Mark, comments::SingleThreadedComments, chain};
+use swc_common::{chain, comments::SingleThreadedComments, Mark};
 use swc_ecma_transforms_testing::test_fixture;
-use swc_ecmascript::{transforms::react::{Runtime, jsx}, parser::{Syntax, TsConfig}};
+use swc_ecmascript::{
+    parser::{Syntax, TsConfig},
+    transforms::react::{jsx, Runtime},
+};
 use testing::fixture;
 
 fn ts_syntax() -> Syntax {

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use modularize_imports::{modularize_imports, PackageConfig};
 use swc_ecma_transforms_testing::test_fixture;
-use swc_ecmascript::parser::{Syntax, EsConfig};
+use swc_ecmascript::parser::{EsConfig, Syntax};
 use testing::fixture;
 
 fn syntax() -> Syntax {
