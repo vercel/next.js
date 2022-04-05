@@ -417,11 +417,12 @@ export default function Image({
     isLazy = false
   }
 
-  const [setIntersection, isIntersected] = useIntersection<HTMLImageElement>({
-    rootRef: lazyRoot,
-    rootMargin: lazyBoundary,
-    disabled: !isLazy,
-  })
+  const [setIntersection, isIntersected, resetIntersected] =
+    useIntersection<HTMLImageElement>({
+      rootRef: lazyRoot,
+      rootMargin: lazyBoundary,
+      disabled: !isLazy,
+    })
   const isVisible = !isLazy || isIntersected
 
   const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
@@ -639,7 +640,6 @@ export default function Image({
       ? { aspectRatio: `${widthInt} / ${heightInt}` }
       : layoutStyle
   )
-
   const blurStyle =
     placeholder === 'blur'
       ? {
@@ -743,14 +743,20 @@ export default function Image({
     typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
   const onLoadingCompleteRef = useRef(onLoadingComplete)
 
+  const previousImageSrc = useRef<string | StaticImport>(src)
   const imgRef = useRef<HTMLImageElement>(null)
   useEffect(() => {
     onLoadingCompleteRef.current = onLoadingComplete
   }, [onLoadingComplete])
 
   useLayoutEffect(() => {
+    if (previousImageSrc.current !== src) {
+      resetIntersected()
+      previousImageSrc.current = src
+    }
+
     setIntersection(imgRef.current)
-  }, [setIntersection])
+  }, [setIntersection, resetIntersected, src])
 
   useEffect(() => {
     handleLoading(imgRef, srcString, layout, placeholder, onLoadingCompleteRef)
