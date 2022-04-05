@@ -1,6 +1,9 @@
-use swc_ecmascript::ast::{Expr, Lit};
+use swc_ecmascript::ast::Expr;
 
-use crate::{analyzer::JsValue, resolve::pattern::Pattern};
+use crate::{
+    analyzer::{ConstantNumber, ConstantValue, JsValue},
+    resolve::pattern::Pattern,
+};
 
 pub fn unparen(expr: &Expr) -> &Expr {
     if let Some(expr) = expr.as_paren() {
@@ -9,30 +12,17 @@ pub fn unparen(expr: &Expr) -> &Expr {
     expr
 }
 
-pub fn lit_to_string(lit: &Lit) -> String {
-    match lit {
-        Lit::Str(str) => format!("\"{}\"", &*str.value),
-        Lit::Bool(b) => b.value.to_string(),
-        Lit::Null(_) => "null".to_string(),
-        Lit::Num(n) => n.to_string(),
-        Lit::BigInt(n) => n.value.to_string(),
-        Lit::Regex(r) => format!("/{}/{}", r.exp, r.flags),
-        Lit::JSXText(text) => text.value.to_string(),
-    }
-}
-
 pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
     let mut result = match value {
-        JsValue::Constant(lit) => Pattern::Constant(match lit {
-            Lit::Str(str) => str.value.to_string(),
-            Lit::Bool(b) => b.value.to_string(),
-            Lit::Null(_) => "null".to_string(),
-            Lit::Num(n) => n.to_string(),
-            Lit::BigInt(n) => n.value.to_string(),
-            Lit::Regex(r) => format!("/{}/{}", r.exp, r.flags),
-            Lit::JSXText(_) => {
-                return Pattern::Dynamic;
-            }
+        JsValue::Constant(v) => Pattern::Constant(match v {
+            ConstantValue::Str(str) => str.to_string(),
+            ConstantValue::True => "true".to_string(),
+            ConstantValue::False => "false".to_string(),
+            ConstantValue::Null => "null".to_string(),
+            ConstantValue::Num(ConstantNumber(n)) => n.to_string(),
+            ConstantValue::BigInt(n) => n.to_string(),
+            ConstantValue::Regex(exp, flags) => format!("/{exp}/{flags}"),
+            ConstantValue::Undefined => "undefined".to_string(),
         }),
         JsValue::Alternatives(alts) => {
             Pattern::Alternatives(alts.iter().map(|alt| js_value_to_pattern(alt)).collect())

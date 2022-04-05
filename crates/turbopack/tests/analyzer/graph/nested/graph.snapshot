@@ -87,18 +87,9 @@
         "x#2",
         Constant(
             Num(
-                Number {
-                    span: Span {
-                        lo: BytePos(
-                            25,
-                        ),
-                        hi: BytePos(
-                            26,
-                        ),
-                        ctxt: #0,
-                    },
-                    value: 1.0,
-                },
+                ConstantNumber(
+                    1.0,
+                ),
             ),
         ),
     ),
@@ -106,18 +97,9 @@
         "x#3",
         Constant(
             Num(
-                Number {
-                    span: Span {
-                        lo: BytePos(
-                            89,
-                        ),
-                        hi: BytePos(
-                            90,
-                        ),
-                        ctxt: #0,
-                    },
-                    value: 1.0,
-                },
+                ConstantNumber(
+                    1.0,
+                ),
             ),
         ),
     ),
@@ -125,18 +107,9 @@
         "x#4",
         Constant(
             Num(
-                Number {
-                    span: Span {
-                        lo: BytePos(
-                            135,
-                        ),
-                        hi: BytePos(
-                            136,
-                        ),
-                        ctxt: #0,
-                    },
-                    value: 1.0,
-                },
+                ConstantNumber(
+                    1.0,
+                ),
             ),
         ),
     ),
@@ -144,18 +117,9 @@
         "x#5",
         Constant(
             Num(
-                Number {
-                    span: Span {
-                        lo: BytePos(
-                            185,
-                        ),
-                        hi: BytePos(
-                            186,
-                        ),
-                        ctxt: #0,
-                    },
-                    value: 1.0,
-                },
+                ConstantNumber(
+                    1.0,
+                ),
             ),
         ),
     ),
@@ -163,18 +127,9 @@
         "x#6",
         Constant(
             Num(
-                Number {
-                    span: Span {
-                        lo: BytePos(
-                            248,
-                        ),
-                        hi: BytePos(
-                            249,
-                        ),
-                        ctxt: #0,
-                    },
-                    value: 1.0,
-                },
+                ConstantNumber(
+                    1.0,
+                ),
             ),
         ),
     ),
@@ -182,18 +137,9 @@
         "x#7",
         Constant(
             Num(
-                Number {
-                    span: Span {
-                        lo: BytePos(
-                            322,
-                        ),
-                        hi: BytePos(
-                            323,
-                        ),
-                        ctxt: #0,
-                    },
-                    value: 1.0,
-                },
+                ConstantNumber(
+                    1.0,
+                ),
             ),
         ),
     ),

@@ -1,0 +1,350 @@
+[
+    (
+        "a1",
+        Member(
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('a' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "a2",
+        Member(
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('a' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "a3",
+        Member(
+            Variable(
+                (
+                    Atom('object_spread' type=dynamic),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('a' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "a4",
+        Member(
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('a' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "b1",
+        Member(
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('b' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "b2",
+        Member(
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('b' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "b3",
+        Member(
+            Variable(
+                (
+                    Atom('object_spread' type=dynamic),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('b' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "b4",
+        Member(
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('b' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "c1",
+        Member(
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('c' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "c2",
+        Member(
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('c' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "c3",
+        Member(
+            Variable(
+                (
+                    Atom('object_spread' type=dynamic),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('c' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "c4",
+        Member(
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('c' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "d1",
+        Member(
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('d' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "d2",
+        Member(
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('d' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "d3",
+        Member(
+            Variable(
+                (
+                    Atom('object_spread' type=dynamic),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('d' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "d4",
+        Member(
+            Variable(
+                (
+                    Atom('object' type=static),
+                    #1,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom('d' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "object",
+        Object(
+            [
+                KeyValue(
+                    Constant(
+                        Str(
+                            Atom('a' type=inline),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                1.0,
+                            ),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        Str(
+                            Atom('b' type=inline),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                2.0,
+                            ),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        Str(
+                            Atom('c' type=inline),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                3.0,
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "object_spread",
+        Object(
+            [
+                KeyValue(
+                    Constant(
+                        Str(
+                            Atom('a' type=inline),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                11.0,
+                            ),
+                        ),
+                    ),
+                ),
+                Spread(
+                    Variable(
+                        (
+                            Atom('object' type=static),
+                            #1,
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        Str(
+                            Atom('b' type=inline),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                22.0,
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+]

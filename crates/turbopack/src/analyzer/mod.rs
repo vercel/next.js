@@ -1,12 +1,21 @@
-use std::{fmt::Display, future::Future, hash::Hash, mem::take, pin::Pin, sync::Arc};
-
-use crate::ecmascript::utils::lit_to_string;
+use std::{
+    fmt::Display,
+    future::Future,
+    hash::{Hash, Hasher},
+    mem::{self, take},
+    pin::Pin,
+    sync::Arc,
+};
 
 pub(crate) use self::imports::ImportMap;
 use indexmap::IndexSet;
+use num_bigint::BigInt;
 use swc_atoms::{js_word, JsWord};
 use swc_common::{collections::AHashSet, Mark};
-use swc_ecmascript::{ast::*, utils::ident::IdentLike};
+use swc_ecmascript::{
+    ast::{Ident, Lit},
+    utils::{ident::IdentLike, Id},
+};
 use url::Url;
 
 pub mod builtin;
@@ -15,15 +24,113 @@ mod imports;
 pub mod linker;
 pub mod well_known;
 
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum ObjectPart {
+    KeyValue(JsValue, JsValue),
+    Spread(JsValue),
+}
+
+impl Default for ObjectPart {
+    fn default() -> Self {
+        ObjectPart::Spread(Default::default())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstantNumber(pub f64);
+
+fn integer_decode(val: f64) -> (u64, i16, i8) {
+    let bits: u64 = unsafe { mem::transmute(val) };
+    let sign: i8 = if bits >> 63 == 0 { 1 } else { -1 };
+    let mut exponent: i16 = ((bits >> 52) & 0x7ff) as i16;
+    let mantissa = if exponent == 0 {
+        (bits & 0xfffffffffffff) << 1
+    } else {
+        (bits & 0xfffffffffffff) | 0x10000000000000
+    };
+
+    exponent -= 1023 + 52;
+    (mantissa, exponent, sign)
+}
+
+impl Hash for ConstantNumber {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        integer_decode(self.0).hash(state);
+    }
+}
+
+impl PartialEq for ConstantNumber {
+    fn eq(&self, other: &Self) -> bool {
+        integer_decode(self.0) == integer_decode(other.0)
+    }
+}
+
+impl Eq for ConstantNumber {}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum ConstantValue {
+    Undefined,
+    Str(JsWord),
+    Num(ConstantNumber),
+    True,
+    False,
+    Null,
+    BigInt(BigInt),
+    Regex(JsWord, JsWord),
+}
+
+impl Default for ConstantValue {
+    fn default() -> Self {
+        ConstantValue::Undefined
+    }
+}
+
+impl From<Lit> for ConstantValue {
+    fn from(v: Lit) -> Self {
+        match v {
+            Lit::Str(v) => ConstantValue::Str(v.value),
+            Lit::Bool(v) => {
+                if v.value {
+                    ConstantValue::True
+                } else {
+                    ConstantValue::False
+                }
+            }
+            Lit::Null(_) => ConstantValue::Null,
+            Lit::Num(v) => ConstantValue::Num(ConstantNumber(v.value)),
+            Lit::BigInt(v) => ConstantValue::BigInt(v.value),
+            Lit::Regex(v) => ConstantValue::Regex(v.exp, v.flags),
+            Lit::JSXText(v) => ConstantValue::Str(v.value),
+        }
+    }
+}
+
+impl Display for ConstantValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConstantValue::Undefined => write!(f, "undefined"),
+            ConstantValue::Str(str) => write!(f, "\"{str}\""),
+            ConstantValue::True => write!(f, "true"),
+            ConstantValue::False => write!(f, "false"),
+            ConstantValue::Null => write!(f, "null"),
+            ConstantValue::Num(ConstantNumber(n)) => write!(f, "{n}"),
+            ConstantValue::BigInt(n) => write!(f, "{n}"),
+            ConstantValue::Regex(exp, flags) => write!(f, "/{exp}/{flags}"),
+        }
+    }
+}
+
 /// TODO: Use `Arc`
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum JsValue {
     /// Denotes a single string literal, which does not have any unknown value.
     ///
     /// TODO: Use a type without span
-    Constant(Lit),
+    Constant(ConstantValue),
 
     Array(Vec<JsValue>),
+
+    Object(Vec<ObjectPart>),
 
     Url(Url),
 
@@ -71,24 +178,42 @@ pub enum JsValue {
 
 impl From<&'_ str> for JsValue {
     fn from(v: &str) -> Self {
-        Str::from(v).into()
+        ConstantValue::Str(v.into()).into()
+    }
+}
+
+impl From<JsWord> for JsValue {
+    fn from(v: JsWord) -> Self {
+        ConstantValue::Str(v.into()).into()
+    }
+}
+
+impl From<BigInt> for JsValue {
+    fn from(v: BigInt) -> Self {
+        ConstantValue::BigInt(v.into()).into()
+    }
+}
+
+impl From<f64> for JsValue {
+    fn from(v: f64) -> Self {
+        ConstantValue::Num(ConstantNumber(v)).into()
     }
 }
 
 impl From<String> for JsValue {
     fn from(v: String) -> Self {
-        Str::from(v).into()
+        ConstantValue::Str(v.into()).into()
     }
 }
 
-impl From<Str> for JsValue {
-    fn from(v: Str) -> Self {
-        Lit::Str(v).into()
+impl From<swc_ecmascript::ast::Str> for JsValue {
+    fn from(v: swc_ecmascript::ast::Str) -> Self {
+        ConstantValue::Str(v.value).into()
     }
 }
 
-impl From<Lit> for JsValue {
-    fn from(v: Lit) -> Self {
+impl From<ConstantValue> for JsValue {
+    fn from(v: ConstantValue) -> Self {
         JsValue::Constant(v)
     }
 }
@@ -99,10 +224,19 @@ impl Default for JsValue {
     }
 }
 
+impl Display for ObjectPart {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ObjectPart::KeyValue(key, value) => write!(f, "{key}: {value}"),
+            ObjectPart::Spread(value) => write!(f, "...{value}"),
+        }
+    }
+}
+
 impl Display for JsValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            JsValue::Constant(lit) => write!(f, "{}", lit_to_string(lit)),
+            JsValue::Constant(v) => write!(f, "{v}"),
             JsValue::Url(url) => write!(f, "{}", url),
             JsValue::Array(elems) => write!(
                 f,
@@ -111,7 +245,16 @@ impl Display for JsValue {
                     .iter()
                     .map(|v| v.to_string())
                     .collect::<Vec<_>>()
-                    .join(". ")
+                    .join(", ")
+            ),
+            JsValue::Object(parts) => write!(
+                f,
+                "{{{}}}",
+                parts
+                    .iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
             ),
             JsValue::Alternatives(list) => write!(
                 f,
@@ -128,7 +271,7 @@ impl Display for JsValue {
                 "`{}`",
                 list.iter()
                     .map(|v| match v {
-                        JsValue::Constant(Lit::Str(str)) => str.value.to_string(),
+                        JsValue::Constant(ConstantValue::Str(str)) => str.to_string(),
                         _ => format!("${{{}}}", v),
                     })
                     .collect::<Vec<_>>()
@@ -278,7 +421,7 @@ impl JsValue {
         unknown_depth: usize,
     ) -> String {
         match self {
-            JsValue::Constant(lit) => format!("{}", lit_to_string(lit)),
+            JsValue::Constant(v) => format!("{v}"),
             JsValue::Array(elems) => format!(
                 "[{}]",
                 pretty_join(
@@ -290,6 +433,44 @@ impl JsValue {
                             depth,
                             unknown_depth
                         ))
+                        .collect::<Vec<_>>(),
+                    indent_depth,
+                    ", ",
+                    ",",
+                    ""
+                )
+            ),
+            JsValue::Object(parts) => format!(
+                "{{{}}}",
+                pretty_join(
+                    &parts
+                        .iter()
+                        .map(|v| match v {
+                            ObjectPart::KeyValue(key, value) => format!(
+                                "{}: {}",
+                                key.explain_internal_inner(
+                                    hints,
+                                    indent_depth + 1,
+                                    depth,
+                                    unknown_depth
+                                ),
+                                value.explain_internal_inner(
+                                    hints,
+                                    indent_depth + 1,
+                                    depth,
+                                    unknown_depth
+                                )
+                            ),
+                            ObjectPart::Spread(value) => format!(
+                                "...{}",
+                                value.explain_internal_inner(
+                                    hints,
+                                    indent_depth + 1,
+                                    depth,
+                                    unknown_depth
+                                )
+                            ),
+                        })
                         .collect::<Vec<_>>(),
                     indent_depth,
                     ", ",
@@ -328,7 +509,7 @@ impl JsValue {
                 "`{}`",
                 list.iter()
                     .map(|v| match v {
-                        JsValue::Constant(Lit::Str(str)) => str.value.to_string(),
+                        JsValue::Constant(ConstantValue::Str(str)) => str.to_string(),
                         _ => format!(
                             "${{{}}}",
                             v.explain_internal_inner(hints, indent_depth + 1, depth, unknown_depth)
@@ -515,16 +696,16 @@ impl JsValue {
     }
 
     pub fn as_str(&self) -> Option<&str> {
-        if let JsValue::Constant(Lit::Str(str)) = self {
-            Some(&*str.value)
+        if let JsValue::Constant(ConstantValue::Str(str)) = self {
+            Some(&*str)
         } else {
             None
         }
     }
 
     pub fn as_word(&self) -> Option<&JsWord> {
-        if let JsValue::Constant(Lit::Str(str)) = self {
-            Some(&str.value)
+        if let JsValue::Constant(ConstantValue::Str(str)) = self {
+            Some(&str)
         } else {
             None
         }
@@ -545,6 +726,34 @@ macro_rules! for_each_children_async {
                     if m {
                         modified = true
                     }
+                }
+                ($value, modified)
+            }
+            JsValue::Object(list) => {
+                let mut modified = false;
+                for item in list.iter_mut() {
+                    match item {
+                        ObjectPart::KeyValue(key, value) => {
+                            let (v, m) = $visit_fn(take(key), $($args),+).await?;
+                            *key = v;
+                            if m {
+                                modified = true
+                            }
+                            let (v, m) = $visit_fn(take(value), $($args),+).await?;
+                            *value = v;
+                            if m {
+                                modified = true
+                            }
+                        }
+                        ObjectPart::Spread(value) => {
+                            let (v, m) = $visit_fn(take(value), $($args),+).await?;
+                            *value = v;
+                            if m {
+                                modified = true
+                            }
+                        }
+                    }
+
                 }
                 ($value, modified)
             }
@@ -646,7 +855,7 @@ impl JsValue {
         {
             Box::pin(value.visit_async_until_settled(visitor))
         }
-        let (v, m) = for_each_children_async!(self, visit_async_until_settled_box, visitor)?;
+        let (v, _) = for_each_children_async!(self, visit_async_until_settled_box, visitor)?;
         Ok(v)
     }
 
@@ -705,6 +914,33 @@ impl JsValue {
                     *item = v;
                     if m {
                         modified = true
+                    }
+                }
+                (self, modified)
+            }
+            JsValue::Object(list) => {
+                let mut modified = false;
+                for item in list.iter_mut() {
+                    match item {
+                        ObjectPart::KeyValue(key, value) => {
+                            let (v, m) = visitor(take(key)).await?;
+                            *key = v;
+                            if m {
+                                modified = true
+                            }
+                            let (v, m) = visitor(take(value)).await?;
+                            *value = v;
+                            if m {
+                                modified = true
+                            }
+                        }
+                        ObjectPart::Spread(value) => {
+                            let (v, m) = visitor(take(value)).await?;
+                            *value = v;
+                            if m {
+                                modified = true
+                            }
+                        }
                     }
                 }
                 (self, modified)
@@ -814,6 +1050,27 @@ impl JsValue {
                 }
                 modified
             }
+            JsValue::Object(list) => {
+                let mut modified = false;
+                for item in list.iter_mut() {
+                    match item {
+                        ObjectPart::KeyValue(key, value) => {
+                            if visitor(key) {
+                                modified = true
+                            }
+                            if visitor(value) {
+                                modified = true
+                            }
+                        }
+                        ObjectPart::Spread(value) => {
+                            if visitor(value) {
+                                modified = true
+                            }
+                        }
+                    }
+                }
+                modified
+            }
             JsValue::Call(callee, list) => {
                 let mut modified = visitor(callee);
                 for item in list.iter_mut() {
@@ -870,6 +1127,19 @@ impl JsValue {
                     visitor(item);
                 }
             }
+            JsValue::Object(list) => {
+                for item in list.iter() {
+                    match item {
+                        ObjectPart::KeyValue(key, value) => {
+                            visitor(key);
+                            visitor(value);
+                        }
+                        ObjectPart::Spread(value) => {
+                            visitor(value);
+                        }
+                    }
+                }
+            }
             JsValue::Call(callee, list) => {
                 visitor(callee);
                 for item in list.iter() {
@@ -904,10 +1174,11 @@ impl JsValue {
 
     pub fn is_string(&self) -> bool {
         match self {
-            JsValue::Constant(Lit::Str(..)) | JsValue::Concat(_) => true,
+            JsValue::Constant(ConstantValue::Str(..)) | JsValue::Concat(_) => true,
 
             JsValue::Constant(..)
             | JsValue::Array(..)
+            | JsValue::Object(..)
             | JsValue::Url(..)
             | JsValue::Module(..)
             | JsValue::Function(..) => false,
@@ -932,7 +1203,7 @@ impl JsValue {
 
     pub fn starts_with(&self, str: &str) -> bool {
         match self {
-            JsValue::Constant(Lit::Str(_)) => {
+            JsValue::Constant(ConstantValue::Str(_)) => {
                 if let Some(s) = self.as_str() {
                     s.starts_with(str)
                 } else {
@@ -959,7 +1230,7 @@ impl JsValue {
 
     pub fn starts_not_with(&self, str: &str) -> bool {
         match self {
-            JsValue::Constant(Lit::Str(_)) => {
+            JsValue::Constant(ConstantValue::Str(_)) => {
                 if let Some(s) = self.as_str() {
                     !s.starts_with(str)
                 } else {
@@ -986,7 +1257,7 @@ impl JsValue {
 
     pub fn ends_with(&self, str: &str) -> bool {
         match self {
-            JsValue::Constant(Lit::Str(_)) => {
+            JsValue::Constant(ConstantValue::Str(_)) => {
                 if let Some(s) = self.as_str() {
                     s.ends_with(str)
                 } else {
@@ -1013,7 +1284,7 @@ impl JsValue {
 
     pub fn ends_not_with(&self, str: &str) -> bool {
         match self {
-            JsValue::Constant(Lit::Str(_)) => {
+            JsValue::Constant(ConstantValue::Str(_)) => {
                 if let Some(s) = self.as_str() {
                     !s.ends_with(str)
                 } else {
@@ -1078,10 +1349,7 @@ impl JsValue {
             JsValue::Concat(v) => {
                 // Remove empty strings
                 v.retain(|v| match v {
-                    JsValue::Constant(Lit::Str(Str {
-                        value: js_word!(""),
-                        ..
-                    })) => false,
+                    JsValue::Constant(ConstantValue::Str(js_word!(""))) => false,
                     _ => true,
                 });
 
@@ -1090,9 +1358,11 @@ impl JsValue {
                 for v in take(v) {
                     match v {
                         JsValue::Concat(v) => new.extend(v),
-                        JsValue::Constant(Lit::Str(ref str)) => {
-                            if let Some(JsValue::Constant(Lit::Str(last))) = new.last_mut() {
-                                *last = [&*last.value, &*str.value].concat().into();
+                        JsValue::Constant(ConstantValue::Str(ref str)) => {
+                            if let Some(JsValue::Constant(ConstantValue::Str(last))) =
+                                new.last_mut()
+                            {
+                                *last = [&**last, &**str].concat().into();
                             } else {
                                 new.push(v);
                             }
@@ -1154,9 +1424,22 @@ impl JsValue {
             }
             a.iter().zip(b.iter()).all(|(a, b)| a.similar(b, depth))
         }
+        fn all_parts_similar(a: &[ObjectPart], b: &[ObjectPart], depth: usize) -> bool {
+            if a.len() != b.len() {
+                return false;
+            }
+            a.iter().zip(b.iter()).all(|(a, b)| match (a, b) {
+                (ObjectPart::KeyValue(lk, lv), ObjectPart::KeyValue(rk, rv)) => {
+                    lk.similar(rk, depth) && lv.similar(rv, depth)
+                }
+                (ObjectPart::Spread(l), ObjectPart::Spread(r)) => l.similar(r, depth),
+                _ => false,
+            })
+        }
         match (self, other) {
             (JsValue::Constant(l), JsValue::Constant(r)) => l == r,
             (JsValue::Array(l), JsValue::Array(r)) => all_similar(l, r, depth - 1),
+            (JsValue::Object(l), JsValue::Object(r)) => all_parts_similar(l, r, depth - 1),
             (JsValue::Url(l), JsValue::Url(r)) => l == r,
             (JsValue::Alternatives(l), JsValue::Alternatives(r)) => all_similar(l, r, depth - 1),
             (JsValue::FreeVar(l), JsValue::FreeVar(r)) => l == r,
@@ -1195,9 +1478,28 @@ impl JsValue {
             }
         }
 
+        fn all_parts_similar_hash<H: std::hash::Hasher>(
+            slice: &[ObjectPart],
+            state: &mut H,
+            depth: usize,
+        ) {
+            for item in slice {
+                match item {
+                    ObjectPart::KeyValue(key, value) => {
+                        key.similar_hash(state, depth);
+                        value.similar_hash(state, depth);
+                    }
+                    ObjectPart::Spread(value) => {
+                        value.similar_hash(state, depth);
+                    }
+                }
+            }
+        }
+
         match self {
             JsValue::Constant(v) => Hash::hash(v, state),
             JsValue::Array(v) => all_similar_hash(v, state, depth - 1),
+            JsValue::Object(v) => all_parts_similar_hash(v, state, depth - 1),
             JsValue::Url(v) => Hash::hash(v, state),
             JsValue::Alternatives(v) => all_similar_hash(v, state, depth - 1),
             JsValue::FreeVar(v) => Hash::hash(v, state),
@@ -1306,7 +1608,7 @@ pub mod test_utils {
         well_known::replace_well_known, FreeVarKind, JsValue, WellKnownFunctionKind,
         WellKnownObjectKind,
     };
-    use crate::{analyzer::builtin::replace_builtin, ecmascript::utils::lit_to_string};
+    use crate::analyzer::builtin::replace_builtin;
     use anyhow::Result;
 
     pub async fn visitor(v: JsValue) -> Result<(JsValue, bool)> {
@@ -1315,15 +1617,13 @@ pub mod test_utils {
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
                 ref args,
             ) => match &args[0] {
-                JsValue::Constant(lit) => {
-                    JsValue::Constant((lit_to_string(&lit) + "/resolved/lib/index.js").into())
-                }
+                JsValue::Constant(v) => (v.to_string() + "/resolved/lib/index.js").into(),
                 _ => JsValue::Unknown(Some(Arc::new(v)), "resolve.resolve non constant"),
             },
             JsValue::FreeVar(FreeVarKind::Require) => {
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
             }
-            JsValue::FreeVar(FreeVarKind::Dirname) => JsValue::Constant("__dirname".into()),
+            JsValue::FreeVar(FreeVarKind::Dirname) => "__dirname".into(),
             JsValue::FreeVar(kind) => {
                 JsValue::Unknown(Some(Arc::new(JsValue::FreeVar(kind))), "unknown global")
             }
@@ -1344,11 +1644,7 @@ pub mod test_utils {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        path::PathBuf,
-        sync::{Arc, Mutex},
-        time::Instant,
-    };
+    use std::{path::PathBuf, sync::Mutex, time::Instant};
 
     use async_std::task::block_on;
     use swc_common::Mark;

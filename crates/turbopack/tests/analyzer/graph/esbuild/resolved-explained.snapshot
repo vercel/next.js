@@ -1,4 +1,4 @@
-*arrow function 1813* = (...) => (
+*arrow function 2641* = (...) => (
   | ["node", ["bin/esbuild"]]
   | [
         (
@@ -199,38 +199,160 @@ generateBinPath = (...) => (
 
 isYarnPnP = (false | true)
 
+knownUnixlikePackages = {
+    "android arm64 LE": "esbuild-android-arm64",
+    "darwin arm64 LE": "esbuild-darwin-arm64",
+    "darwin x64 LE": "esbuild-darwin-64",
+    "freebsd arm64 LE": "esbuild-freebsd-arm64",
+    "freebsd x64 LE": "esbuild-freebsd-64",
+    "linux arm LE": "esbuild-linux-arm",
+    "linux arm64 LE": "esbuild-linux-arm64",
+    "linux ia32 LE": "esbuild-linux-32",
+    "linux mips64el LE": "esbuild-linux-mips64le",
+    "linux ppc64 LE": "esbuild-linux-ppc64le",
+    "linux s390x BE": "esbuild-linux-s390x",
+    "linux x64 LE": "esbuild-linux-64",
+    "netbsd x64 LE": "esbuild-netbsd-64",
+    "openbsd x64 LE": "esbuild-openbsd-64",
+    "sunos x64 LE": "esbuild-sunos-64"
+}
+
+knownWindowsPackages = {
+    "win32 arm64 LE": "esbuild-windows-arm64",
+    "win32 ia32 LE": "esbuild-windows-32",
+    "win32 x64 LE": "esbuild-windows-64"
+}
+
 path = path*0*
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 
 path2 = path*0*
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 
-pkg = (???*0* | ???*1*)
+pkg = (
+  | ???*0*
+  | {
+        "win32 arm64 LE": "esbuild-windows-arm64",
+        "win32 ia32 LE": "esbuild-windows-32",
+        "win32 x64 LE": "esbuild-windows-64"
+    }[`${???*1*} ${???*3*} ${???*6*}`]
+  | {
+        "android arm64 LE": "esbuild-android-arm64",
+        "darwin arm64 LE": "esbuild-darwin-arm64",
+        "darwin x64 LE": "esbuild-darwin-64",
+        "freebsd arm64 LE": "esbuild-freebsd-arm64",
+        "freebsd x64 LE": "esbuild-freebsd-64",
+        "linux arm LE": "esbuild-linux-arm",
+        "linux arm64 LE": "esbuild-linux-arm64",
+        "linux ia32 LE": "esbuild-linux-32",
+        "linux mips64el LE": "esbuild-linux-mips64le",
+        "linux ppc64 LE": "esbuild-linux-ppc64le",
+        "linux s390x BE": "esbuild-linux-s390x",
+        "linux x64 LE": "esbuild-linux-64",
+        "netbsd x64 LE": "esbuild-netbsd-64",
+        "openbsd x64 LE": "esbuild-openbsd-64",
+        "sunos x64 LE": "esbuild-sunos-64"
+    }[`${???*9*} ${???*11*} ${???*14*}`]
+)
 - *0* pkg
   ⚠️  pattern without value
-- *1* ???*2*[`${???*3*} ${???*5*} ${???*8*}`]
+- *1* ???*2*["platform"]
   ⚠️  property on unknown
-- *2* FreeVar(knownWindowsPackages)
+- *2* FreeVar(process)
   ⚠️  unknown global
-- *3* ???*4*["platform"]
-  ⚠️  property on unknown
-- *4* FreeVar(process)
-  ⚠️  unknown global
-- *5* ???*6*()
+- *3* ???*4*()
   ⚠️  call of unknown function
-- *6* ???*7*["arch"]
+- *4* ???*5*["arch"]
   ⚠️  property on unknown
-- *7* FreeVar(os)
+- *5* FreeVar(os)
   ⚠️  unknown global
-- *8* ???*9*()
+- *6* ???*7*()
   ⚠️  call of unknown function
-- *9* ???*10*["endianness"]
+- *7* ???*8*["endianness"]
   ⚠️  property on unknown
-- *10* FreeVar(os)
+- *8* FreeVar(os)
+  ⚠️  unknown global
+- *9* ???*10*["platform"]
+  ⚠️  property on unknown
+- *10* FreeVar(process)
+  ⚠️  unknown global
+- *11* ???*12*()
+  ⚠️  call of unknown function
+- *12* ???*13*["arch"]
+  ⚠️  property on unknown
+- *13* FreeVar(os)
+  ⚠️  unknown global
+- *14* ???*15*()
+  ⚠️  call of unknown function
+- *15* ???*16*["endianness"]
+  ⚠️  property on unknown
+- *16* FreeVar(os)
   ⚠️  unknown global
 
-pkgAndSubpathForCurrentPlatform = (...) => ???*0*
-- *0* unsupported expression
+pkgAndSubpathForCurrentPlatform = (...) => {
+    "pkg": (
+      | ???*0*
+      | {
+            "win32 arm64 LE": "esbuild-windows-arm64",
+            "win32 ia32 LE": "esbuild-windows-32",
+            "win32 x64 LE": "esbuild-windows-64"
+        }[`${???*1*} ${???*3*} ${???*6*}`]
+      | {
+            "android arm64 LE": "esbuild-android-arm64",
+            "darwin arm64 LE": "esbuild-darwin-arm64",
+            "darwin x64 LE": "esbuild-darwin-64",
+            "freebsd arm64 LE": "esbuild-freebsd-arm64",
+            "freebsd x64 LE": "esbuild-freebsd-64",
+            "linux arm LE": "esbuild-linux-arm",
+            "linux arm64 LE": "esbuild-linux-arm64",
+            "linux ia32 LE": "esbuild-linux-32",
+            "linux mips64el LE": "esbuild-linux-mips64le",
+            "linux ppc64 LE": "esbuild-linux-ppc64le",
+            "linux s390x BE": "esbuild-linux-s390x",
+            "linux x64 LE": "esbuild-linux-64",
+            "netbsd x64 LE": "esbuild-netbsd-64",
+            "openbsd x64 LE": "esbuild-openbsd-64",
+            "sunos x64 LE": "esbuild-sunos-64"
+        }[`${???*9*} ${???*11*} ${???*14*}`]
+    ),
+    "subpath": (???*17* | "esbuild.exe" | "bin/esbuild")
+}
+- *0* pkg
+  ⚠️  pattern without value
+- *1* ???*2*["platform"]
+  ⚠️  property on unknown
+- *2* FreeVar(process)
+  ⚠️  unknown global
+- *3* ???*4*()
+  ⚠️  call of unknown function
+- *4* ???*5*["arch"]
+  ⚠️  property on unknown
+- *5* FreeVar(os)
+  ⚠️  unknown global
+- *6* ???*7*()
+  ⚠️  call of unknown function
+- *7* ???*8*["endianness"]
+  ⚠️  property on unknown
+- *8* FreeVar(os)
+  ⚠️  unknown global
+- *9* ???*10*["platform"]
+  ⚠️  property on unknown
+- *10* FreeVar(process)
+  ⚠️  unknown global
+- *11* ???*12*()
+  ⚠️  call of unknown function
+- *12* ???*13*["arch"]
+  ⚠️  property on unknown
+- *13* FreeVar(os)
+  ⚠️  unknown global
+- *14* ???*15*()
+  ⚠️  call of unknown function
+- *15* ???*16*["endianness"]
+  ⚠️  property on unknown
+- *16* FreeVar(os)
+  ⚠️  unknown global
+- *17* subpath
+  ⚠️  pattern without value
 
 platformKey = `${???*0*} ${???*2*} ${???*5*}`
 - *0* ???*1*["platform"]

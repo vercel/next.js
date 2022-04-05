@@ -1,6 +1,28 @@
 var path = require('path');
 var path2 = require('path');
 
+var knownWindowsPackages = {
+  'win32 arm64 LE': 'esbuild-windows-arm64',
+  'win32 ia32 LE': 'esbuild-windows-32',
+  'win32 x64 LE': 'esbuild-windows-64',
+};
+var knownUnixlikePackages = {
+  'android arm64 LE': 'esbuild-android-arm64',
+  'darwin arm64 LE': 'esbuild-darwin-arm64',
+  'darwin x64 LE': 'esbuild-darwin-64',
+  'freebsd arm64 LE': 'esbuild-freebsd-arm64',
+  'freebsd x64 LE': 'esbuild-freebsd-64',
+  'linux arm LE': 'esbuild-linux-arm',
+  'linux arm64 LE': 'esbuild-linux-arm64',
+  'linux ia32 LE': 'esbuild-linux-32',
+  'linux mips64el LE': 'esbuild-linux-mips64le',
+  'linux ppc64 LE': 'esbuild-linux-ppc64le',
+  'linux s390x BE': 'esbuild-linux-s390x',
+  'linux x64 LE': 'esbuild-linux-64',
+  'netbsd x64 LE': 'esbuild-netbsd-64',
+  'openbsd x64 LE': 'esbuild-openbsd-64',
+  'sunos x64 LE': 'esbuild-sunos-64',
+};
 function pkgAndSubpathForCurrentPlatform() {
   let pkg;
   let subpath;

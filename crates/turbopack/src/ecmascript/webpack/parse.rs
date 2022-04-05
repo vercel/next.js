@@ -191,8 +191,10 @@ pub async fn is_webpack_runtime(asset: AssetVc) -> Result<WebpackRuntimeVc> {
 
                     if let (Some(chunk_filename), Some(prefix_path)) = (chunk_filename, prefix_path)
                     {
-                        let value =
-                            JsValue::Concat(vec![JsValue::Constant(prefix_path), chunk_filename]);
+                        let value = JsValue::Concat(vec![
+                            JsValue::Constant(prefix_path.into()),
+                            chunk_filename,
+                        ]);
 
                         return Ok(WebpackRuntime::Webpack5 {
                             chunk_request_expr: value,

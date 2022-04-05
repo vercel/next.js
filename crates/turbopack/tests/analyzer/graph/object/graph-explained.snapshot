@@ -1,0 +1,35 @@
+a1 = object["a"]
+
+a2 = object["a"]
+
+a3 = object_spread["a"]
+
+a4 = object["a"]
+
+b1 = object["b"]
+
+b2 = object["b"]
+
+b3 = object_spread["b"]
+
+b4 = object["b"]
+
+c1 = object["c"]
+
+c2 = object["c"]
+
+c3 = object_spread["c"]
+
+c4 = object["c"]
+
+d1 = object["d"]
+
+d2 = object["d"]
+
+d3 = object_spread["d"]
+
+d4 = object["d"]
+
+object = {"a": 1, "b": 2, "c": 3}
+
+object_spread = {"a": 11, ...object, "b": 22}

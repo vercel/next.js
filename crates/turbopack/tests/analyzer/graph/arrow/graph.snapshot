@@ -4,18 +4,9 @@
         Function(
             Constant(
                 Num(
-                    Number {
-                        span: Span {
-                            lo: BytePos(
-                                138,
-                            ),
-                            hi: BytePos(
-                                139,
-                            ),
-                            ctxt: #0,
-                        },
-                        value: 3.0,
-                    },
+                    ConstantNumber(
+                        3.0,
+                    ),
                 ),
             ),
         ),
@@ -25,18 +16,9 @@
         Function(
             Constant(
                 Num(
-                    Number {
-                        span: Span {
-                            lo: BytePos(
-                                363,
-                            ),
-                            hi: BytePos(
-                                364,
-                            ),
-                            ctxt: #0,
-                        },
-                        value: 3.0,
-                    },
+                    ConstantNumber(
+                        3.0,
+                    ),
                 ),
             ),
         ),
@@ -46,18 +28,9 @@
         Function(
             Constant(
                 Num(
-                    Number {
-                        span: Span {
-                            lo: BytePos(
-                                16,
-                            ),
-                            hi: BytePos(
-                                17,
-                            ),
-                            ctxt: #0,
-                        },
-                        value: 1.0,
-                    },
+                    ConstantNumber(
+                        1.0,
+                    ),
                 ),
             ),
         ),
@@ -67,18 +40,9 @@
         Function(
             Constant(
                 Num(
-                    Number {
-                        span: Span {
-                            lo: BytePos(
-                                219,
-                            ),
-                            hi: BytePos(
-                                220,
-                            ),
-                            ctxt: #0,
-                        },
-                        value: 1.0,
-                    },
+                    ConstantNumber(
+                        1.0,
+                    ),
                 ),
             ),
         ),
@@ -88,18 +52,9 @@
         Function(
             Constant(
                 Num(
-                    Number {
-                        span: Span {
-                            lo: BytePos(
-                                241,
-                            ),
-                            hi: BytePos(
-                                242,
-                            ),
-                            ctxt: #0,
-                        },
-                        value: 2.0,
-                    },
+                    ConstantNumber(
+                        2.0,
+                    ),
                 ),
             ),
         ),
@@ -109,18 +64,9 @@
         Function(
             Constant(
                 Num(
-                    Number {
-                        span: Span {
-                            lo: BytePos(
-                                277,
-                            ),
-                            hi: BytePos(
-                                278,
-                            ),
-                            ctxt: #0,
-                        },
-                        value: 1.0,
-                    },
+                    ConstantNumber(
+                        1.0,
+                    ),
                 ),
             ),
         ),
@@ -130,18 +76,9 @@
         Function(
             Constant(
                 Num(
-                    Number {
-                        span: Span {
-                            lo: BytePos(
-                                35,
-                            ),
-                            hi: BytePos(
-                                36,
-                            ),
-                            ctxt: #0,
-                        },
-                        value: 2.0,
-                    },
+                    ConstantNumber(
+                        2.0,
+                    ),
                 ),
             ),
         ),
@@ -151,18 +88,9 @@
         Function(
             Constant(
                 Num(
-                    Number {
-                        span: Span {
-                            lo: BytePos(
-                                317,
-                            ),
-                            hi: BytePos(
-                                318,
-                            ),
-                            ctxt: #0,
-                        },
-                        value: 2.0,
-                    },
+                    ConstantNumber(
+                        2.0,
+                    ),
                 ),
             ),
         ),
@@ -172,18 +100,9 @@
         Function(
             Constant(
                 Num(
-                    Number {
-                        span: Span {
-                            lo: BytePos(
-                                66,
-                            ),
-                            hi: BytePos(
-                                67,
-                            ),
-                            ctxt: #0,
-                        },
-                        value: 1.0,
-                    },
+                    ConstantNumber(
+                        1.0,
+                    ),
                 ),
             ),
         ),
@@ -193,18 +112,9 @@
         Function(
             Constant(
                 Num(
-                    Number {
-                        span: Span {
-                            lo: BytePos(
-                                99,
-                            ),
-                            hi: BytePos(
-                                100,
-                            ),
-                            ctxt: #0,
-                        },
-                        value: 2.0,
-                    },
+                    ConstantNumber(
+                        2.0,
+                    ),
                 ),
             ),
         ),
@@ -259,18 +169,9 @@
         Function(
             Constant(
                 Num(
-                    Number {
-                        span: Span {
-                            lo: BytePos(
-                                178,
-                            ),
-                            hi: BytePos(
-                                179,
-                            ),
-                            ctxt: #0,
-                        },
-                        value: 4.0,
-                    },
+                    ConstantNumber(
+                        4.0,
+                    ),
                 ),
             ),
         ),
@@ -344,18 +245,9 @@
         Function(
             Constant(
                 Num(
-                    Number {
-                        span: Span {
-                            lo: BytePos(
-                                411,
-                            ),
-                            hi: BytePos(
-                                412,
-                            ),
-                            ctxt: #0,
-                        },
-                        value: 4.0,
-                    },
+                    ConstantNumber(
+                        4.0,
+                    ),
                 ),
             ),
         ),
