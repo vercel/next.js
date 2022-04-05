@@ -1,6 +1,6 @@
 ## Example app using Facebook Pixel
 
-This example shows how to use Next.js along with Facebook Pixel. A custom [\_document](https://nextjs.org/docs/advanced-features/custom-document) is used to inject [base code](https://developers.facebook.com/docs/facebook-pixel/implementation/?locale=en_US). A [\_app](https://nextjs.org/docs/advanced-features/custom-app) is used to track route changes and send page views to Facebook Pixel.
+This example shows how to use Next.js along with Facebook Pixel. A custom [\_document](https://nextjs.org/docs/advanced-features/custom-document) is used to inject [base code](https://developers.facebook.com/docs/facebook-pixel/implementation/?locale=en_US). A [\_app](https://nextjs.org/docs/basic-features/custom-app) is used to track route changes and send page views to Facebook Pixel.
 
 ## Deploy your own
 

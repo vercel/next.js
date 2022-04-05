@@ -8,7 +8,7 @@ Custom documents aren't compiled for the browser and images statically imported 
 
 #### Possible Ways to Fix It
 
-If your image needs to be displayed on every page you can relocate it to your [`pages/_app.js`](https://nextjs.org/docs/advanced-features/custom-app) file.
+If your image needs to be displayed on every page you can relocate it to your [`pages/_app.js`](https://nextjs.org/docs/basic-features/custom-app) file.
 
 #### Example
 
@@ -41,6 +41,6 @@ module.exports = {
 ### Useful Links
 
 - [Custom `Document`](https://nextjs.org/docs/advanced-features/custom-document)
-- [Custom `App`](https://nextjs.org/docs/advanced-features/custom-app)
+- [Custom `App`](https://nextjs.org/docs/basic-features/custom-app)
 - [Static File Serving](https://nextjs.org/docs/basic-features/static-file-serving)
 - [Disable Static Image Imports](https://nextjs.org/docs/api-reference/next/image#disable-static-imports)

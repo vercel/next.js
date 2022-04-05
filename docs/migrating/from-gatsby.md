@@ -56,7 +56,7 @@ Gatsby creates dynamic routes using the `createPages` API inside of `gatsby-node
 
 ## Styling
 
-With Gatsby, global CSS imports are included in `gatsby-browser.js`. With Next, you should create a [custom `_app.js`](/docs/advanced-features/custom-app.md) for global CSS. When migrating, you can copy over your CSS imports directly and update the relative file path, if necessary. Next.js has [built-in CSS support](/docs/basic-features/built-in-css-support.md).
+With Gatsby, global CSS imports are included in `gatsby-browser.js`. With Next, you should create a [custom `_app.js`](/docs/basic-features/custom-app.md) for global CSS. When migrating, you can copy over your CSS imports directly and update the relative file path, if necessary. Next.js has [built-in CSS support](/docs/basic-features/built-in-css-support.md).
 
 ## Links
 

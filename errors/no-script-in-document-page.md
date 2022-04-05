@@ -23,5 +23,5 @@ function MyApp({ Component, pageProps }) {
 export default MyApp
 ```
 
-- [custom-app](https://nextjs.org/docs/advanced-features/custom-app)
+- [custom-app](https://nextjs.org/docs/basic-features/custom-app)
 - [next-script](https://nextjs.org/docs/basic-features/script#usage)

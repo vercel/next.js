@@ -42,7 +42,7 @@ Here's an example `package.json`:
 Create React App uses the `public` directory for the [entry HTML file](https://create-react-app.dev/docs/using-the-public-folder), whereas Next.js uses it for static assets. It's possible to add static assets here, but Create React App recommends importing them directly from JavaScript files.
 
 - Move any images, fonts, or other static assets to `public`.
-- Convert `index.html` (the entry point of your application) to Next.js. Any `<head>` code should be moved to a [custom `_document.js`](/docs/advanced-features/custom-document.md). Any shared layout between all pages should be moved to a [custom `_app.js`](/docs/advanced-features/custom-app.md).
+- Convert `index.html` (the entry point of your application) to Next.js. Any `<head>` code should be moved to a [custom `_document.js`](/docs/advanced-features/custom-document.md). Any shared layout between all pages should be moved to a [custom `_app.js`](/docs/basic-features/custom-app.md).
 - See [Styling](#styling) for CSS/Sass files.
 - Add `.next` to `.gitignore`.
 
@@ -59,7 +59,7 @@ For more information, see [Migrating from React Router](/docs/migrating/from-rea
 
 Next.js has built-in support for [CSS](/docs/basic-features/built-in-css-support.md), [Sass](/docs/basic-features/built-in-css-support.md#sass-support) and [CSS-in-JS](/docs/basic-features/built-in-css-support.md#css-in-js).
 
-With Create React App, you can import `.css` files directly inside React components. Next.js allows you to do the same, but requires these files to be [CSS Modules](/docs/basic-features/built-in-css-support.md). For global styles, you'll need a [custom `_app.js`](/docs/advanced-features/custom-app.md) to add a [global stylesheet](/docs/basic-features/built-in-css-support.md#adding-a-global-stylesheet).
+With Create React App, you can import `.css` files directly inside React components. Next.js allows you to do the same, but requires these files to be [CSS Modules](/docs/basic-features/built-in-css-support.md). For global styles, you'll need a [custom `_app.js`](/docs/basic-features/custom-app.md) to add a [global stylesheet](/docs/basic-features/built-in-css-support.md#adding-a-global-stylesheet).
 
 ## Safely Accessing Web APIs
 

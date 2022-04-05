@@ -44,5 +44,5 @@ And if you add `getServerSideProps` to the page, it will then be JavaScript, lik
 
 ## Caveats
 
-- If you have a [custom `App`](/docs/advanced-features/custom-app.md) with `getInitialProps` then this optimization will be turned off in pages without [Static Generation](/docs/basic-features/data-fetching/get-static-props.md).
+- If you have a [custom `App`](/docs/basic-features/custom-app.md) with `getInitialProps` then this optimization will be turned off in pages without [Static Generation](/docs/basic-features/data-fetching/get-static-props.md).
 - If you have a [custom `Document`](/docs/advanced-features/custom-document.md) with `getInitialProps` be sure you check if `ctx.req` is defined before assuming the page is server-side rendered. `ctx.req` will be `undefined` for pages that are prerendered.

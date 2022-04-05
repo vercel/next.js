@@ -34,7 +34,7 @@ export default function Layout({ children }) {
 
 ### Single Shared Layout with Custom App
 
-If you only have one layout for your entire application, you can create a [Custom App](/docs/advanced-features/custom-app.md) and wrap your application with the layout. Since the `<Layout />` component is re-used when changing pages, its component state will be preserved (e.g. input values).
+If you only have one layout for your entire application, you can create a [Custom App](/docs/basic-features/custom-app.md) and wrap your application with the layout. Since the `<Layout />` component is re-used when changing pages, its component state will be preserved (e.g. input values).
 
 ```jsx
 // pages/_app.js
@@ -178,7 +178,7 @@ For more information on what to do next, we recommend the following sections:
 </div>
 
 <div class="card">
-  <a href="/docs/advanced-features/custom-app.md">
+  <a href="/docs/basic-features/custom-app.md">
     <b>Custom App:</b>
     <small>Learn more about how Next.js initialize pages.</small>
   </a>

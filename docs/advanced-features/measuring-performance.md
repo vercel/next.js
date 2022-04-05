@@ -13,7 +13,7 @@ The rest of this documentation describes the built-in relayer Next.js Analytics 
 
 ## Build Your Own
 
-First, you will need to create a [custom App](/docs/advanced-features/custom-app.md) component and define a `reportWebVitals` function:
+First, you will need to create a [custom App](/docs/basic-features/custom-app.md) component and define a `reportWebVitals` function:
 
 ```js
 // pages/_app.js

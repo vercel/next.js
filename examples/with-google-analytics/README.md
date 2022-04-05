@@ -1,6 +1,6 @@
 # Example app with analytics
 
-This example shows how to use [Next.js](https://github.com/vercel/next.js) along with [Google Analytics](https://developers.google.com/analytics/devguides/collection/gtagjs/). A custom [\_app](https://nextjs.org/docs/advanced-features/custom-app) is used to inject [tracking snippet](https://developers.google.com/analytics/devguides/collection/gtagjs/) and track [pageviews](https://developers.google.com/analytics/devguides/collection/gtagjs/pages) and [event](https://developers.google.com/analytics/devguides/collection/gtagjs/events).
+This example shows how to use [Next.js](https://github.com/vercel/next.js) along with [Google Analytics](https://developers.google.com/analytics/devguides/collection/gtagjs/). A custom [\_app](https://nextjs.org/docs/basic-features/custom-app) is used to inject [tracking snippet](https://developers.google.com/analytics/devguides/collection/gtagjs/) and track [pageviews](https://developers.google.com/analytics/devguides/collection/gtagjs/pages) and [event](https://developers.google.com/analytics/devguides/collection/gtagjs/events).
 
 ## Deploy your own
 
