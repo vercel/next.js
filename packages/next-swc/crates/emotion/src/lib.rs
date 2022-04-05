@@ -6,14 +6,14 @@ use fxhash::FxHashMap;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use swc::sourcemap::{RawToken, SourceMap as RawSourcemap};
+use sourcemap::{RawToken, SourceMap as RawSourcemap};
 use swc_atoms::JsWord;
 use swc_common::comments::Comments;
 use swc_common::util::take::Take;
 use swc_common::{BytePos, SourceMap, DUMMY_SP};
 use swc_ecmascript::ast::{
-    ArrayLit, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElementName, JSXExpr,
-    JSXExprContainer, JSXObject,
+    ArrayLit, CallExpr, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElementName,
+    JSXExpr, JSXExprContainer, JSXObject,
 };
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::utils::{ExprFactory, Id};
@@ -23,7 +23,7 @@ use swc_ecmascript::{
         MemberProp, ObjectLit, Pat, Prop, PropName, PropOrSpread, Tpl, VarDeclarator,
     },
     codegen::util::SourceMapperExt,
-    visit::{swc_ecma_ast::CallExpr, Fold, FoldWith},
+    visit::{Fold, FoldWith},
 };
 
 mod hash;
