@@ -14,7 +14,9 @@ export async function getStaticProps(ctx: {
     preview?: boolean;
     previewData?: PreviewData;
 }) {
-    props: { [key: string]: any }
+    return {
+        props: { [key: string]: any }
+    }
 }
 ```
 
