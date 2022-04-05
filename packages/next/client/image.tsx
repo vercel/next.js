@@ -877,7 +877,7 @@ const ImageElement = ({
         ref={useCallback(
           (img: ImgElementWithDataProp) => {
             setIntersection(img)
-            if (img?.complete && isVisible) {
+            if (img?.complete) {
               handleLoading(
                 img,
                 srcString,
@@ -894,6 +894,7 @@ const ImageElement = ({
             srcString,
             layout,
             placeholder,
+            onLoadingCompleteRef,
             setBlurComplete,
           ]
         )}
