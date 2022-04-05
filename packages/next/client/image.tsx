@@ -890,7 +890,6 @@ const ImageElement = ({
           },
           [
             setIntersection,
-            handleLoading,
             srcString,
             layout,
             placeholder,
