@@ -1,5 +1,5 @@
 [package]
-authors = ["강동윤 <kdy1997.dev@gmail.com>", "next.js developers"]
+authors = ["next.js developers"]
 edition = "2018"
 license = "Apache-2.0"
 name = "modularize_imports"
