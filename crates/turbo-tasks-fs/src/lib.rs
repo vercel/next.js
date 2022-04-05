@@ -19,7 +19,7 @@ use std::{
     mem::take,
     path::{Path, PathBuf, MAIN_SEPARATOR},
     sync::{mpsc::channel, Arc, Mutex},
-    thread,
+    thread::{self, sleep},
     time::Duration,
 };
 
@@ -219,6 +219,33 @@ impl DiskFileSystem {
     }
 }
 
+fn with_retry<T>(func: impl Fn() -> Result<T, std::io::Error>) -> Result<T, std::io::Error> {
+    fn can_retry(err: &std::io::Error) -> bool {
+        matches!(
+            err.kind(),
+            ErrorKind::PermissionDenied | ErrorKind::WouldBlock
+        )
+    }
+    let mut result = func();
+    if let Err(e) = &result {
+        if can_retry(e) {
+            for i in 0..10 {
+                sleep(Duration::from_millis(10 + i * 100));
+                result = func();
+                match &result {
+                    Ok(_) => break,
+                    Err(e) => {
+                        if !can_retry(e) {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    result
+}
+
 impl fmt::Debug for DiskFileSystem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "name: {}, root: {}", self.name, self.root)
@@ -240,7 +267,10 @@ impl FileSystem for DiskFileSystem {
             self.invalidators
                 .insert(path_to_key(full_path.as_path()), invalidator);
         }
-        Ok(match self.execute(move || fs::read(&full_path)).await {
+        Ok(match self
+            .execute(move || with_retry(move || fs::read(&full_path)))
+            .await
+        {
             Ok(content) => FileContent::new(content),
             Err(_) => FileContent::not_found(),
         }
@@ -258,7 +288,7 @@ impl FileSystem for DiskFileSystem {
         let result = self
             .execute({
                 let full_path = full_path.clone();
-                move || fs::read_dir(&full_path)
+                move || with_retry(move || fs::read_dir(&full_path))
             })
             .await;
         Ok(match result {
@@ -323,7 +353,7 @@ impl FileSystem for DiskFileSystem {
                 FileContent::Content(buffer) => {
                     if create_directory {
                         if let Some(parent) = full_path.parent() {
-                            fs::create_dir_all(parent).with_context(|| {
+                            with_retry(move || fs::create_dir_all(parent)).with_context(|| {
                                 format!(
                                     "failed to create directory {} for write to {}",
                                     parent.display(),
@@ -333,12 +363,12 @@ impl FileSystem for DiskFileSystem {
                         }
                     }
                     // println!("write {} bytes to {}", buffer.len(), full_path.display());
-                    fs::write(full_path.clone(), buffer)
+                    with_retry(|| fs::write(full_path.clone(), buffer))
                         .with_context(|| format!("failed to write to {}", full_path.display()))
                 }
                 FileContent::NotFound => {
                     // println!("remove {}", full_path.display());
-                    fs::remove_file(&full_path).or_else(move |err| {
+                    with_retry(|| fs::remove_file(&full_path)).or_else(|err| {
                         if err.kind() == ErrorKind::NotFound {
                             Ok(())
                         } else {
