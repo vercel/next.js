@@ -339,7 +339,8 @@ export default class HotReloader {
             this.previewProps,
             this.config,
             [],
-            this.pagesDir
+            this.pagesDir,
+            true
           )
         )
 
@@ -418,7 +419,8 @@ export default class HotReloader {
           this.previewProps,
           this.config,
           [],
-          this.pagesDir
+          this.pagesDir,
+          true
         )
       ).client,
       hasReactRoot: this.hasReactRoot,
