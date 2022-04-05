@@ -59,6 +59,10 @@
               "path": "/docs/basic-features/built-in-css-support.md"
             },
             {
+              "title": "Custom `App`",
+              "path": "/docs/advanced-features/custom-app.md"
+            },
+            {
               "title": "Layouts",
               "path": "/docs/basic-features/layouts.md"
             },
@@ -238,10 +242,6 @@
             {
               "title": "Custom Server",
               "path": "/docs/advanced-features/custom-server.md"
-            },
-            {
-              "title": "Custom `App`",
-              "path": "/docs/advanced-features/custom-app.md"
             },
             {
               "title": "Custom `Document`",
