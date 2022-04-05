@@ -39,6 +39,8 @@ To begin, execute [`create-next-app`](https://github.com/vercel/next.js/tree/can
 npx create-next-app --example with-sentry nextjs-sentry-example
 # or
 yarn create next-app --example with-sentry nextjs-sentry-example
+# or
+pnpm create next-app -- --example with-sentry nextjs-sentry-example
 ```
 
 Next, run [`sentry-wizard`](https://docs.sentry.io/platforms/javascript/guides/nextjs/#configure), which will create and populate the settings files needed by `@sentry/nextjs` to initialize the SDK and upload source maps to Sentry:

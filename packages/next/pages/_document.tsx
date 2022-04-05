@@ -79,12 +79,14 @@ function hasComponentProps(child: any): child is React.ReactElement {
 function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
   const { assetPrefix, scriptLoader, crossOrigin, nextScriptWorkers } = context
 
-  if (!nextScriptWorkers) return null
+  // disable `nextScriptWorkers` in edge runtime
+  if (!nextScriptWorkers || process.browser) return null
 
   try {
     let {
       partytownSnippet,
-    } = require(/* webpackIgnore: true */ '@builder.io/partytown/integration'!)
+      // @ts-ignore: Prevent webpack from processing this require
+    } = __non_webpack_require__('@builder.io/partytown/integration'!)
 
     const children = Array.isArray(props.children)
       ? props.children
@@ -134,9 +136,11 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
       </>
     )
   } catch (err) {
-    console.warn(
-      `Warning: Partytown could not be instantiated in your application due to an error. ${err}`
-    )
+    if (isError(err) && err.code !== 'MODULE_NOT_FOUND') {
+      console.warn(
+        `Warning: Partytown could not be instantiated in your application due to an error. ${err.message}`
+      )
+    }
     return null
   }
 }
@@ -263,7 +267,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
   }
 }
 
-// Add a speical property to the built-in `Document` component so later we can
+// Add a special property to the built-in `Document` component so later we can
 // identify if a user customized `Document` is used or not.
 ;(Document as any).__next_internal_document =
   function InternalFunctionDocument() {

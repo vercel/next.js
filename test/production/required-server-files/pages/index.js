@@ -8,12 +8,18 @@ if (localConfig.hello !== 'world') {
   throw new Error('oof import order is wrong, _app comes first')
 }
 
-export const getServerSideProps = ({ req }) => {
+let gspCalls = 0
+
+export const getStaticProps = () => {
+  gspCalls += 1
+
   return {
     props: {
       hello: 'world',
       random: Math.random(),
+      gspCalls,
     },
+    revalidate: 1,
   }
 }
 

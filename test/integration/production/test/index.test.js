@@ -26,6 +26,7 @@ import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
 import { promisify } from 'util'
+import { error } from 'console'
 
 const glob = promisify(globOriginal)
 
@@ -53,10 +54,14 @@ describe('Production Usage', () => {
     context.appPort = appPort
     app = await nextStart(appDir, appPort, { cwd: appDir })
     output = (result.stderr || '') + (result.stdout || '')
-    console.log(output)
 
     if (result.code !== 0) {
+      error(output)
       throw new Error(`Failed to build, exited with code ${result.code}`)
+    } else {
+      // Note: jest captures calls to console and only emits when there's assertion fails,
+      // so this won't log anything for normal test execution path.
+      console.log(output)
     }
   })
   afterAll(async () => {
@@ -225,7 +230,7 @@ describe('Production Usage', () => {
       },
       {
         page: '/api',
-        tests: [/webpack-runtime\.js/, /static\/hello\.json/],
+        tests: [/webpack-runtime\.js/, /\/logo\.module\.css/],
         notTests: [
           /next\/dist\/server\/next\.js/,
           /next\/dist\/bin/,

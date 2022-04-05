@@ -1,5 +1,5 @@
-import css from "hell";
-const color = "red";
+import css from 'hell';
+const color = 'red';
 const bar = css`
   div {
     font-size: 3em;

@@ -72,8 +72,10 @@ export function encodeText(input: string) {
   return new TextEncoder().encode(input)
 }
 
-export function decodeText(input?: Uint8Array) {
-  return new TextDecoder().decode(input)
+export function decodeText(input?: Uint8Array, textDecoder?: TextDecoder) {
+  return textDecoder
+    ? textDecoder.decode(input, { stream: true })
+    : new TextDecoder().decode(input)
 }
 
 export function createBufferedTransformStream(): TransformStream<
@@ -97,9 +99,11 @@ export function createBufferedTransformStream(): TransformStream<
     return pendingFlush
   }
 
+  const textDecoder = new TextDecoder()
+
   return new TransformStream({
     transform(chunk, controller) {
-      bufferedString += decodeText(chunk)
+      bufferedString += decodeText(chunk, textDecoder)
       flushBuffer(controller)
     },
 
@@ -121,6 +125,56 @@ export function createFlushEffectStream(
       controller.enqueue(encodeText(extraChunk + decodeText(chunk)))
     },
   })
+}
+
+export async function renderToInitialStream({
+  ReactDOMServer,
+  element,
+}: {
+  ReactDOMServer: typeof import('react-dom/server')
+  element: React.ReactElement
+}): Promise<
+  ReadableStream<Uint8Array> & {
+    allReady?: Promise<void>
+  }
+> {
+  return await (ReactDOMServer as any).renderToReadableStream(element)
+}
+
+export async function continueFromInitialStream({
+  suffix,
+  dataStream,
+  generateStaticHTML,
+  flushEffectHandler,
+  renderStream,
+}: {
+  suffix?: string
+  dataStream?: ReadableStream<Uint8Array>
+  generateStaticHTML: boolean
+  flushEffectHandler?: () => Promise<string>
+  renderStream: ReadableStream<Uint8Array> & {
+    allReady?: Promise<void>
+  }
+}): Promise<ReadableStream<Uint8Array>> {
+  const closeTag = '</body></html>'
+  const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
+
+  if (generateStaticHTML) {
+    await renderStream.allReady
+  }
+
+  const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
+    createBufferedTransformStream(),
+    flushEffectHandler ? createFlushEffectStream(flushEffectHandler) : null,
+    suffixUnclosed != null ? createPrefixStream(suffixUnclosed) : null,
+    dataStream ? createInlineDataStream(dataStream) : null,
+    suffixUnclosed != null ? createSuffixStream(closeTag) : null,
+  ].filter(Boolean) as any
+
+  return transforms.reduce(
+    (readable, transform) => readable.pipeThrough(transform),
+    renderStream
+  )
 }
 
 export async function renderToStream({

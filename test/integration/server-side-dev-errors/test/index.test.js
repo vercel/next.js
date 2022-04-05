@@ -49,7 +49,7 @@ describe('server-side dev errors', () => {
       const browser = await webdriver(appPort, '/gsp')
 
       await check(async () => {
-        const err = stderr.substr(stderrIdx)
+        const err = stderr.slice(stderrIdx)
 
         return err.includes('pages/gsp.js') &&
           err.includes('6:2') &&
@@ -81,7 +81,7 @@ describe('server-side dev errors', () => {
       const browser = await webdriver(appPort, '/gssp')
 
       await check(async () => {
-        const err = stderr.substr(stderrIdx)
+        const err = stderr.slice(stderrIdx)
 
         return err.includes('pages/gssp.js') &&
           err.includes('6:2') &&
@@ -113,7 +113,7 @@ describe('server-side dev errors', () => {
       const browser = await webdriver(appPort, '/blog/first')
 
       await check(async () => {
-        const err = stderr.substr(stderrIdx)
+        const err = stderr.slice(stderrIdx)
 
         return err.includes('pages/blog/[slug].js') &&
           err.includes('6:2') &&
@@ -145,7 +145,7 @@ describe('server-side dev errors', () => {
       const browser = await webdriver(appPort, '/api/hello')
 
       await check(async () => {
-        const err = stderr.substr(stderrIdx)
+        const err = stderr.slice(stderrIdx)
 
         return err.includes('pages/api/hello.js') &&
           err.includes('2:2') &&
@@ -177,7 +177,7 @@ describe('server-side dev errors', () => {
       const browser = await webdriver(appPort, '/api/blog/first')
 
       await check(async () => {
-        const err = stderr.substr(stderrIdx)
+        const err = stderr.slice(stderrIdx)
 
         return err.includes('pages/api/blog/[slug].js') &&
           err.includes('2:2') &&
@@ -202,7 +202,7 @@ describe('server-side dev errors', () => {
     await webdriver(appPort, '/uncaught-rejection')
 
     await check(async () => {
-      const err = stderr.substr(stderrIdx)
+      const err = stderr.slice(stderrIdx)
 
       return err.includes('pages/uncaught-rejection.js') &&
         err.includes('7:19') &&
@@ -218,7 +218,7 @@ describe('server-side dev errors', () => {
     await webdriver(appPort, '/uncaught-exception')
 
     await check(async () => {
-      const err = stderr.substr(stderrIdx)
+      const err = stderr.slice(stderrIdx)
 
       return err.includes('pages/uncaught-exception.js') &&
         err.includes('7:10') &&
