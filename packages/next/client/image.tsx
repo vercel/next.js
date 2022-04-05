@@ -289,6 +289,11 @@ function handleLoading(
       const p = 'decode' in img ? img.decode() : Promise.resolve()
       p.catch(() => {}).then(() => {
         if (!imgRef.current) {
+          // Exit early in case of race condition:
+          // - onload() is called
+          // - decode() is called but incomplete
+          // - unmount is called
+          // - decode() completes
           return
         }
         loadedImageURLs.add(src)
@@ -326,6 +331,11 @@ function handleLoading(
     }
   }
   if (imgRef.current) {
+    if (imgRef.current.complete) {
+      handleLoad()
+    } else {
+      imgRef.current.onload = handleLoad
+    }
     imgRef.current.onerror = (event) => {
       // If the real image fails to load, this will still remove the placeholder.
       if (placeholder === 'blur') {
@@ -336,7 +346,6 @@ function handleLoading(
         onErrorRef.current(event as any)
       }
     }
-    imgRef.current.onload = handleLoad
   }
 }
 
