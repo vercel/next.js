@@ -65,4 +65,11 @@ export default async function basic(context, { env }) {
     expect(content).toMatchInlineSnapshot('"foo.clientbar.client"')
     expect(dynamicIds).toBe(undefined)
   })
+
+  if (env === 'prod') {
+    it(`should not display custom _app or _app.server in treeview if there's not any`, () => {
+      const { stdout } = context
+      expect(stdout).not.toMatch(/\s\/_app(\.server)?/)
+    })
+  }
 }
