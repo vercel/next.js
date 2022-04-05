@@ -28,6 +28,10 @@ describe('Document and App', () => {
     context.server = await launchApp(join(__dirname, '../'), context.appPort, {
       onStdout: collectOutput,
       onStderr: collectOutput,
+      nodeArgs: [
+        '-r',
+        join(__dirname, '../../../lib/react-17-require-hook.js'),
+      ],
     })
 
     // pre-build all pages at the start
