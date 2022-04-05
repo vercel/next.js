@@ -566,6 +566,7 @@ export default class HotReloader {
                     page,
                     stringifiedConfig: JSON.stringify(this.config),
                     absoluteAppPath: this.pagesMapping['/_app'],
+                    absoluteAppServerPath: this.pagesMapping['/_app.server'],
                     absoluteDocumentPath: this.pagesMapping['/_document'],
                     absoluteErrorPath: this.pagesMapping['/_error'],
                     absolute404Path: this.pagesMapping['/404'] || '',
