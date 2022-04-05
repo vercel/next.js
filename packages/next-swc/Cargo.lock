@@ -1017,7 +1017,6 @@ name = "next-swc"
 version = "0.0.0"
 dependencies = [
  "chrono",
- "easy-error",
  "either",
  "emotion",
  "fxhash",
@@ -1028,12 +1027,11 @@ dependencies = [
  "serde",
  "serde_json",
  "styled_components",
+ "styled_jsx",
  "swc",
  "swc_atoms",
  "swc_cached",
  "swc_common",
- "swc_css",
- "swc_css_prefixer",
  "swc_ecma_loader",
  "swc_ecma_transforms_testing",
  "swc_ecmascript",
@@ -1825,6 +1823,20 @@ dependencies = [
  "serde_json",
  "swc_atoms",
  "swc_common",
+ "swc_ecma_transforms_testing",
+ "swc_ecmascript",
+ "testing",
+ "tracing",
+]
+
+[[package]]
+name = "styled_jsx"
+version = "0.1.0"
+dependencies = [
+ "easy-error",
+ "swc_common",
+ "swc_css",
+ "swc_css_prefixer",
  "swc_ecma_transforms_testing",
  "swc_ecmascript",
  "testing",
