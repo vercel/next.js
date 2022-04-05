@@ -84,7 +84,7 @@ where
 pub(crate) async fn link_internal<'a, F, R>(
     graph: &'a VarGraph,
     val: JsValue,
-    visitor: &'a F,
+    mut visitor: &'a F,
     cache: &Mutex<LinkCache>,
     cycle_stack: &'a mut HashSet<Id>,
 ) -> Result<(JsValue, Option<HashMap<Id, bool>>)>
@@ -180,15 +180,10 @@ where
             }
 
             let mut val = val;
-            loop {
-                let m;
-                (val, m) = visitor(val).await?;
-                if m {
-                    val.normalize_shallow();
-                    modified = true
-                } else {
-                    break;
-                }
+            let m;
+            (val, m) = val.visit_async_until_settled(&mut visitor).await?;
+            if m {
+                modified = true;
             }
 
             // TODO: The result can be cached when

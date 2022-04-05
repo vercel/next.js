@@ -61,11 +61,13 @@ i = (???*0* | 0)
 
 len = arguments[1]
 
-md5cmn = (...) => FreeVar(safeAdd)(*0*, b)
-- *0* FreeVar(bitRotateLeft)(
+md5cmn = (...) => FreeVar(safeAdd)(
+    FreeVar(bitRotateLeft)(
         FreeVar(safeAdd)(FreeVar(safeAdd)(a, q), FreeVar(safeAdd)(x, t)),
         s
-    )
+    ),
+    b
+)
 
 md5ff = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression

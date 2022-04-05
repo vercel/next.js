@@ -522,20 +522,23 @@ pub async fn resolve_raw(
     }
     let mut results = Vec::new();
     let pat = path.get().await?;
-    if pat.could_match("/") && !pat.could_match("/fsd8nz8og54z") {
-        let matches =
-            read_matches(context.clone().root(), "/".to_string(), true, path.clone()).await?;
-        if matches.len() > 10000 {
-            println!(
-                "WARN: resolving abs pattern {} in {} leads to {} results",
-                pat.to_string(),
-                context.clone().to_string().await?,
-                matches.len()
-            );
-        } else {
-            for m in matches.iter() {
-                if let PatternMatch::File(_, path) = m {
-                    results.push(to_result(&path));
+    if let Some(pat) = pat.filter_could_match("/") {
+        if let Some(pat) = pat.filter_could_not_match("/fsd8nz8og54z") {
+            let path = PatternVc::new(pat);
+            let matches =
+                read_matches(context.clone().root(), "/".to_string(), true, path.clone()).await?;
+            if matches.len() > 10000 {
+                println!(
+                    "WARN: resolving abs pattern {} in {} leads to {} results",
+                    path.to_string().await?,
+                    context.clone().to_string().await?,
+                    matches.len()
+                );
+            } else {
+                for m in matches.iter() {
+                    if let PatternMatch::File(_, path) = m {
+                        results.push(to_result(&path));
+                    }
                 }
             }
         }
@@ -864,7 +867,12 @@ pub async fn resolve(
                 FindPackageResult::NotFound => ResolveResult::Unresolveable(None).into(),
             }
         }
-        Request::ServerRelative { path: _ } => ResolveResult::Unresolveable(None).into(),
+        Request::ServerRelative { path } => {
+            let mut new_pat = path.clone();
+            new_pat.push_front(".".to_string().into());
+            let relative = RequestVc::relative(Value::new(new_pat), true);
+            resolve(context.root(), relative, options.clone())
+        }
         Request::Windows { path: _ } => ResolveResult::Unresolveable(None).into(),
         Request::Empty => ResolveResult::Unresolveable(None).into(),
         Request::PackageInternal { path: _ } => ResolveResult::Unresolveable(None).into(),

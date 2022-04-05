@@ -2,31 +2,29 @@
     (
         "*anonymous function 180*",
         Function(
-            Call(
-                Member(
-                    Variable(
-                        (
-                            Atom('crypt' type=inline),
-                            #1,
-                        ),
+            MemberCall(
+                Variable(
+                    (
+                        Atom('crypt' type=inline),
+                        #1,
                     ),
-                    Constant(
-                        Str(
-                            Str {
-                                span: Span {
-                                    lo: BytePos(
-                                        0,
-                                    ),
-                                    hi: BytePos(
-                                        0,
-                                    ),
-                                    ctxt: #0,
-                                },
-                                value: Atom('endian' type=inline),
-                                has_escape: false,
-                                kind: Synthesized,
+                ),
+                Constant(
+                    Str(
+                        Str {
+                            span: Span {
+                                lo: BytePos(
+                                    0,
+                                ),
+                                hi: BytePos(
+                                    0,
+                                ),
+                                ctxt: #0,
                             },
-                        ),
+                            value: Atom('endian' type=inline),
+                            has_escape: false,
+                            kind: Synthesized,
+                        },
                     ),
                 ),
                 [
@@ -6425,31 +6423,29 @@
     ),
     (
         "digestbytes",
-        Call(
-            Member(
-                Variable(
-                    (
-                        Atom('crypt' type=inline),
-                        #1,
-                    ),
+        MemberCall(
+            Variable(
+                (
+                    Atom('crypt' type=inline),
+                    #1,
                 ),
-                Constant(
-                    Str(
-                        Str {
-                            span: Span {
-                                lo: BytePos(
-                                    0,
-                                ),
-                                hi: BytePos(
-                                    0,
-                                ),
-                                ctxt: #0,
-                            },
-                            value: Atom('wordsToBytes' type=dynamic),
-                            has_escape: false,
-                            kind: Synthesized,
+            ),
+            Constant(
+                Str(
+                    Str {
+                        span: Span {
+                            lo: BytePos(
+                                0,
+                            ),
+                            hi: BytePos(
+                                0,
+                            ),
+                            ctxt: #0,
                         },
-                    ),
+                        value: Atom('wordsToBytes' type=dynamic),
+                        has_escape: false,
+                        kind: Synthesized,
+                    },
                 ),
             ),
             [
@@ -6556,31 +6552,29 @@
     ),
     (
         "m",
-        Call(
-            Member(
-                Variable(
-                    (
-                        Atom('crypt' type=inline),
-                        #1,
-                    ),
+        MemberCall(
+            Variable(
+                (
+                    Atom('crypt' type=inline),
+                    #1,
                 ),
-                Constant(
-                    Str(
-                        Str {
-                            span: Span {
-                                lo: BytePos(
-                                    0,
-                                ),
-                                hi: BytePos(
-                                    0,
-                                ),
-                                ctxt: #0,
-                            },
-                            value: Atom('bytesToWords' type=dynamic),
-                            has_escape: false,
-                            kind: Synthesized,
+            ),
+            Constant(
+                Str(
+                    Str {
+                        span: Span {
+                            lo: BytePos(
+                                0,
+                            ),
+                            hi: BytePos(
+                                0,
+                            ),
+                            ctxt: #0,
                         },
-                    ),
+                        value: Atom('bytesToWords' type=dynamic),
+                        has_escape: false,
+                        kind: Synthesized,
+                    },
                 ),
             ),
             [
@@ -6609,31 +6603,29 @@
                 Argument(
                     0,
                 ),
-                Call(
-                    Member(
-                        Variable(
-                            (
-                                Atom('bin' type=inline),
-                                #1,
-                            ),
+                MemberCall(
+                    Variable(
+                        (
+                            Atom('bin' type=inline),
+                            #1,
                         ),
-                        Constant(
-                            Str(
-                                Str {
-                                    span: Span {
-                                        lo: BytePos(
-                                            0,
-                                        ),
-                                        hi: BytePos(
-                                            0,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: Atom('stringToBytes' type=dynamic),
-                                    has_escape: false,
-                                    kind: Synthesized,
+                    ),
+                    Constant(
+                        Str(
+                            Str {
+                                span: Span {
+                                    lo: BytePos(
+                                        0,
+                                    ),
+                                    hi: BytePos(
+                                        0,
+                                    ),
+                                    ctxt: #0,
                                 },
-                            ),
+                                value: Atom('stringToBytes' type=dynamic),
+                                has_escape: false,
+                                kind: Synthesized,
+                            },
                         ),
                     ),
                     [
@@ -6645,31 +6637,29 @@
                         ),
                     ],
                 ),
-                Call(
-                    Member(
-                        Variable(
-                            (
-                                Atom('utf8' type=inline),
-                                #1,
-                            ),
+                MemberCall(
+                    Variable(
+                        (
+                            Atom('utf8' type=inline),
+                            #1,
                         ),
-                        Constant(
-                            Str(
-                                Str {
-                                    span: Span {
-                                        lo: BytePos(
-                                            0,
-                                        ),
-                                        hi: BytePos(
-                                            0,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: Atom('stringToBytes' type=dynamic),
-                                    has_escape: false,
-                                    kind: Synthesized,
+                    ),
+                    Constant(
+                        Str(
+                            Str {
+                                span: Span {
+                                    lo: BytePos(
+                                        0,
+                                    ),
+                                    hi: BytePos(
+                                        0,
+                                    ),
+                                    ctxt: #0,
                                 },
-                            ),
+                                value: Atom('stringToBytes' type=dynamic),
+                                has_escape: false,
+                                kind: Synthesized,
+                            },
                         ),
                     ),
                     [
@@ -6681,32 +6671,12 @@
                         ),
                     ],
                 ),
-                Call(
+                MemberCall(
                     Member(
                         Member(
-                            Member(
-                                FreeVar(
-                                    Other(
-                                        Atom('Array' type=static),
-                                    ),
-                                ),
-                                Constant(
-                                    Str(
-                                        Str {
-                                            span: Span {
-                                                lo: BytePos(
-                                                    0,
-                                                ),
-                                                hi: BytePos(
-                                                    0,
-                                                ),
-                                                ctxt: #0,
-                                            },
-                                            value: Atom('prototype' type=dynamic),
-                                            has_escape: false,
-                                            kind: Synthesized,
-                                        },
-                                    ),
+                            FreeVar(
+                                Other(
+                                    Atom('Array' type=static),
                                 ),
                             ),
                             Constant(
@@ -6721,7 +6691,7 @@
                                             ),
                                             ctxt: #0,
                                         },
-                                        value: Atom('slice' type=inline),
+                                        value: Atom('prototype' type=dynamic),
                                         has_escape: false,
                                         kind: Synthesized,
                                     },
@@ -6740,11 +6710,29 @@
                                         ),
                                         ctxt: #0,
                                     },
-                                    value: Atom('call' type=static),
+                                    value: Atom('slice' type=inline),
                                     has_escape: false,
                                     kind: Synthesized,
                                 },
                             ),
+                        ),
+                    ),
+                    Constant(
+                        Str(
+                            Str {
+                                span: Span {
+                                    lo: BytePos(
+                                        0,
+                                    ),
+                                    hi: BytePos(
+                                        0,
+                                    ),
+                                    ctxt: #0,
+                                },
+                                value: Atom('call' type=static),
+                                has_escape: false,
+                                kind: Synthesized,
+                            },
                         ),
                     ),
                     [
@@ -6772,31 +6760,29 @@
                         ),
                     ],
                 ),
-                Call(
-                    Member(
-                        Variable(
-                            (
-                                Atom('message' type=inline),
-                                #3,
-                            ),
+                MemberCall(
+                    Variable(
+                        (
+                            Atom('message' type=inline),
+                            #3,
                         ),
-                        Constant(
-                            Str(
-                                Str {
-                                    span: Span {
-                                        lo: BytePos(
-                                            0,
-                                        ),
-                                        hi: BytePos(
-                                            0,
-                                        ),
-                                        ctxt: #0,
-                                    },
-                                    value: Atom('toString' type=static),
-                                    has_escape: false,
-                                    kind: Synthesized,
+                    ),
+                    Constant(
+                        Str(
+                            Str {
+                                span: Span {
+                                    lo: BytePos(
+                                        0,
+                                    ),
+                                    hi: BytePos(
+                                        0,
+                                    ),
+                                    ctxt: #0,
                                 },
-                            ),
+                                value: Atom('toString' type=static),
+                                has_escape: false,
+                                kind: Synthesized,
+                            },
                         ),
                     ),
                     [],

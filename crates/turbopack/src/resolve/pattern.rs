@@ -3,10 +3,10 @@ use std::{fmt::Display, mem::take};
 use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{Value, ValueToString, ValueToStringVc, Vc};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPathVc};
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, ValueToString)]
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum Pattern {
     Constant(String),
@@ -227,6 +227,44 @@ impl Pattern {
         }
     }
 
+    pub fn filter_could_match(&self, value: &str) -> Option<Pattern> {
+        if let Pattern::Alternatives(list) = self {
+            let new_list = list
+                .iter()
+                .filter(|alt| alt.could_match(value))
+                .cloned()
+                .collect::<Vec<_>>();
+            if new_list.is_empty() {
+                None
+            } else {
+                Some(Pattern::Alternatives(new_list))
+            }
+        } else if self.could_match(value) {
+            Some(self.clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn filter_could_not_match(&self, value: &str) -> Option<Pattern> {
+        if let Pattern::Alternatives(list) = self {
+            let new_list = list
+                .iter()
+                .filter(|alt| !alt.could_match(value))
+                .cloned()
+                .collect::<Vec<_>>();
+            if new_list.is_empty() {
+                None
+            } else {
+                Some(Pattern::Alternatives(new_list))
+            }
+        } else if self.could_match(value) {
+            None
+        } else {
+            Some(self.clone())
+        }
+    }
+
     pub fn is_match(&self, value: &str) -> bool {
         if let Pattern::Alternatives(list) = self {
             list.iter()
@@ -298,7 +336,7 @@ impl Pattern {
                 }
             }
             Pattern::Alternatives(_) => {
-                panic!("could_match must be called on a normalized Pattern")
+                panic!("for matching a Pattern must be normalized")
             }
             Pattern::Concatenation(list) => {
                 let mut iter = list.iter();
@@ -412,6 +450,13 @@ impl Display for Pattern {
                     .join(" ")
             ),
         }
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for Pattern {
+    fn to_string(&self) -> Vc<String> {
+        Vc::slot(self.to_string())
     }
 }
 

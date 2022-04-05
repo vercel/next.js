@@ -1,6 +1,4 @@
-use std::{
-    collections::HashSet, fmt::Display, future::Future, hash::Hash, mem::take, pin::Pin, sync::Arc,
-};
+use std::{fmt::Display, future::Future, hash::Hash, mem::take, pin::Pin, sync::Arc};
 
 use crate::ecmascript::utils::lit_to_string;
 
@@ -46,6 +44,9 @@ pub enum JsValue {
     /// `(callee, args)`
     Call(Box<JsValue>, Vec<JsValue>),
 
+    /// `(obj, prop, args)`
+    MemberCall(Box<JsValue>, Box<JsValue>, Vec<JsValue>),
+
     /// `obj[prop]`
     Member(Box<JsValue>, Box<JsValue>),
 
@@ -53,6 +54,7 @@ pub enum JsValue {
     Module(JsWord),
 
     /// Some kind of well known object
+    /// (must not be an array, otherwise Array.concat need to be changed)
     WellKnownObject(WellKnownObjectKind),
 
     /// Some kind of well known function
@@ -144,6 +146,16 @@ impl Display for JsValue {
                 f,
                 "{}({})",
                 callee,
+                list.iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            JsValue::MemberCall(obj, prop, list) => write!(
+                f,
+                "{}[{}]({})",
+                obj,
+                prop,
                 list.iter()
                     .map(|v| v.to_string())
                     .collect::<Vec<_>>()
@@ -243,19 +255,19 @@ impl JsValue {
         if depth == 0 {
             return "...".to_string();
         }
-        let i = hints.len();
+        // let i = hints.len();
         let explainer = self.explain_internal(hints, indent_depth, depth - 1, unknown_depth);
-        if explainer.len() < 100 {
-            return explainer;
-        }
-        hints.truncate(i);
-        hints.push(String::new());
-        hints[i] = format!(
-            "- *{}* {}",
-            i,
-            self.explain_internal(hints, 1, depth - 1, unknown_depth)
-        );
-        format!("*{}*", i)
+        // if explainer.len() < 100 {
+        return explainer;
+        // }
+        // hints.truncate(i);
+        // hints.push(String::new());
+        // hints[i] = format!(
+        //     "- *{}* {}",
+        //     i,
+        //     self.explain_internal(hints, 1, depth - 1, unknown_depth)
+        // );
+        // format!("*{}*", i)
     }
 
     fn explain_internal(
@@ -364,6 +376,28 @@ impl JsValue {
                     )
                 )
             }
+            JsValue::MemberCall(obj, prop, list) => {
+                format!(
+                    "{}[{}]({})",
+                    obj.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
+                    prop.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
+                    pretty_join(
+                        &list
+                            .iter()
+                            .map(|v| v.explain_internal_inner(
+                                hints,
+                                indent_depth + 1,
+                                depth,
+                                unknown_depth
+                            ))
+                            .collect::<Vec<_>>(),
+                        indent_depth,
+                        ", ",
+                        ",",
+                        ""
+                    )
+                )
+            }
             JsValue::Member(obj, prop) => {
                 format!(
                     "{}[{}]",
@@ -427,6 +461,10 @@ impl JsValue {
                         format!("path.join"),
                         "The Node.js path.join method: https://nodejs.org/api/path.html#pathjoinpaths",
                     ),
+                    WellKnownFunctionKind::PathDirname => (
+                        format!("path.dirname"),
+                        "The Node.js path.dirname method: https://nodejs.org/api/path.html#pathdirnamepath",
+                    ),
                     WellKnownFunctionKind::Import => (
                         format!("import"),
                         "The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports"
@@ -441,9 +479,13 @@ impl JsValue {
                         format!("url.pathToFileURL"),
                         "The Node.js url.pathToFileURL method: https://nodejs.org/api/url.html#urlpathtofileurlpath",
                     ),
-                    WellKnownFunctionKind::ChildProcessSpawn => (
-                        format!("child_process.spawn"),
-                        "The Node.js child_process.spawn method: https://nodejs.org/api/child_process.html#child_processspawncommand-args-options",
+                    WellKnownFunctionKind::ChildProcessSpawnMethod(name) => (
+                        format!("child_process.{name}"),
+                        "A process spawning method from the Node.js child_process module: https://nodejs.org/api/child_process.html",
+                    ),
+                    WellKnownFunctionKind::ChildProcessFork => (
+                        format!("child_process.fork"),
+                        "The Node.js child_process.fork method: https://nodejs.org/api/child_process.html#child_processforkmodulepath-args-options",
                     ),
                 };
                 if depth > 0 {
@@ -487,6 +529,126 @@ impl JsValue {
             None
         }
     }
+}
+
+macro_rules! for_each_children_async {
+    ($value:expr, $visit_fn:expr, $($args:expr),+) => {
+        Ok(match &mut $value {
+            JsValue::Alternatives(list)
+            | JsValue::Concat(list)
+            | JsValue::Add(list)
+            | JsValue::Array(list) => {
+                let mut modified = false;
+                for item in list.iter_mut() {
+                    let (v, m) = $visit_fn(take(item), $($args),+).await?;
+                    *item = v;
+                    if m {
+                        modified = true
+                    }
+                }
+                ($value, modified)
+            }
+            JsValue::Call(box callee, list) => {
+                let (new_callee, mut modified) = $visit_fn(take(callee), $($args),+).await?;
+                *callee = new_callee;
+                for item in list.iter_mut() {
+                    let (v, m) = $visit_fn(take(item), $($args),+).await?;
+                    *item = v;
+                    if m {
+                        modified = true
+                    }
+                }
+                ($value, modified)
+            }
+            JsValue::MemberCall(box obj, box prop, list) => {
+                let (new_callee, m1) = $visit_fn(take(obj), $($args),+).await?;
+                *obj = new_callee;
+                let (new_member, m2) = $visit_fn(take(prop), $($args),+).await?;
+                *prop = new_member;
+                let mut modified = m1 || m2;
+                for item in list.iter_mut() {
+                    let (v, m) = $visit_fn(take(item), $($args),+).await?;
+                    *item = v;
+                    if m {
+                        modified = true
+                    }
+                }
+                ($value, modified)
+            }
+
+            JsValue::Function(box return_value) => {
+                let (new_return_value, modified) = $visit_fn(take(return_value), $($args),+).await?;
+                *return_value = new_return_value;
+
+                ($value, modified)
+            }
+            JsValue::Member(box obj, box prop) => {
+                let (v, m1) = $visit_fn(take(obj), $($args),+).await?;
+                *obj = v;
+                let (v, m2) = $visit_fn(take(prop), $($args),+).await?;
+                *prop = v;
+                ($value, m1 || m2)
+            }
+            JsValue::Constant(_)
+            | JsValue::FreeVar(_)
+            | JsValue::Variable(_)
+            | JsValue::Module(_)
+            | JsValue::Url(_)
+            | JsValue::WellKnownObject(_)
+            | JsValue::WellKnownFunction(_)
+            | JsValue::Unknown(..)
+            | JsValue::Argument(..) => ($value, false),
+        })
+    }
+}
+
+impl JsValue {
+    pub async fn visit_async_until_settled<'a, F, R, E>(
+        self,
+        visitor: &mut F,
+    ) -> Result<(Self, bool), E>
+    where
+        R: 'a + Future<Output = Result<(Self, bool), E>> + Send,
+        F: 'a + FnMut(JsValue) -> R + Send,
+    {
+        let mut modified = false;
+        let mut v = self;
+        loop {
+            let m;
+            (v, m) = visitor(take(&mut v)).await?;
+            if !m {
+                break;
+            }
+            modified = true;
+            v = take(&mut v)
+                .visit_each_children_async_until_settled(visitor)
+                .await?;
+        }
+        Ok((v, modified))
+    }
+
+    pub async fn visit_each_children_async_until_settled<'a, F, R, E>(
+        mut self,
+        visitor: &mut F,
+    ) -> Result<Self, E>
+    where
+        R: 'a + Future<Output = Result<(Self, bool), E>> + Send,
+        F: 'a + FnMut(JsValue) -> R + Send,
+    {
+        fn visit_async_until_settled_box<'a, F, R, E>(
+            value: JsValue,
+            visitor: &'a mut F,
+        ) -> Pin<Box<dyn Future<Output = Result<(JsValue, bool), E>> + Send + 'a>>
+        where
+            R: 'a + Future<Output = Result<(JsValue, bool), E>> + Send,
+            F: 'a + FnMut(JsValue) -> R + Send,
+            E: 'a,
+        {
+            Box::pin(value.visit_async_until_settled(visitor))
+        }
+        let (v, m) = for_each_children_async!(self, visit_async_until_settled_box, visitor)?;
+        Ok(v)
+    }
 
     pub async fn visit_async<'a, F, R, E>(self, visitor: &mut F) -> Result<(Self, bool), E>
     where
@@ -502,18 +664,6 @@ impl JsValue {
         }
     }
 
-    pub fn visit_async_box<'a, F, R, E>(
-        self,
-        visitor: &'a mut F,
-    ) -> Pin<Box<dyn Future<Output = Result<(Self, bool), E>> + 'a>>
-    where
-        R: 'a + Future<Output = Result<(Self, bool), E>>,
-        F: 'a + FnMut(JsValue) -> R,
-        E: 'a,
-    {
-        Box::pin(self.visit_async(visitor))
-    }
-
     pub async fn visit_each_children_async<'a, F, R, E>(
         mut self,
         visitor: &mut F,
@@ -522,58 +672,18 @@ impl JsValue {
         R: 'a + Future<Output = Result<(Self, bool), E>>,
         F: 'a + FnMut(JsValue) -> R,
     {
-        Ok(match &mut self {
-            JsValue::Alternatives(list)
-            | JsValue::Concat(list)
-            | JsValue::Add(list)
-            | JsValue::Array(list) => {
-                let mut modified = false;
-                for item in list.iter_mut() {
-                    let (v, m) = take(item).visit_async_box(visitor).await?;
-                    *item = v;
-                    if m {
-                        modified = true
-                    }
-                }
-                (self, modified)
-            }
-            JsValue::Call(box callee, list) => {
-                let (new_callee, mut modified) = take(callee).visit_async_box(visitor).await?;
-                *callee = new_callee;
-                for item in list.iter_mut() {
-                    let (v, m) = take(item).visit_async_box(visitor).await?;
-                    *item = v;
-                    if m {
-                        modified = true
-                    }
-                }
-                (self, modified)
-            }
-
-            JsValue::Function(box return_value) => {
-                let (new_return_value, modified) =
-                    take(return_value).visit_async_box(visitor).await?;
-                *return_value = new_return_value;
-
-                (self, modified)
-            }
-            JsValue::Member(box obj, box prop) => {
-                let (v, m1) = take(obj).visit_async_box(visitor).await?;
-                *obj = v;
-                let (v, m2) = take(prop).visit_async_box(visitor).await?;
-                *prop = v;
-                (self, m1 || m2)
-            }
-            JsValue::Constant(_)
-            | JsValue::FreeVar(_)
-            | JsValue::Variable(_)
-            | JsValue::Module(_)
-            | JsValue::Url(_)
-            | JsValue::WellKnownObject(_)
-            | JsValue::WellKnownFunction(_)
-            | JsValue::Unknown(..)
-            | JsValue::Argument(..) => (self, false),
-        })
+        fn visit_async_box<'a, F, R, E>(
+            value: JsValue,
+            visitor: &'a mut F,
+        ) -> Pin<Box<dyn Future<Output = Result<(JsValue, bool), E>> + 'a>>
+        where
+            R: 'a + Future<Output = Result<(JsValue, bool), E>>,
+            F: 'a + FnMut(JsValue) -> R,
+            E: 'a,
+        {
+            Box::pin(value.visit_async(visitor))
+        }
+        for_each_children_async!(self, visit_async_box, visitor)
     }
 
     pub async fn for_each_children_async<'a, F, R, E>(
@@ -611,6 +721,21 @@ impl JsValue {
                 }
                 (self, modified)
             }
+            JsValue::MemberCall(box obj, box prop, list) => {
+                let (new_callee, m1) = visitor(take(obj)).await?;
+                *obj = new_callee;
+                let (new_member, m2) = visitor(take(prop)).await?;
+                *prop = new_member;
+                let mut modified = m1 || m2;
+                for item in list.iter_mut() {
+                    let (v, m) = visitor(take(item)).await?;
+                    *item = v;
+                    if m {
+                        modified = true
+                    }
+                }
+                (self, modified)
+            }
 
             JsValue::Function(box return_value) => {
                 let (new_return_value, modified) = visitor(take(return_value)).await?;
@@ -635,6 +760,15 @@ impl JsValue {
             | JsValue::Unknown(..)
             | JsValue::Argument(..) => (self, false),
         })
+    }
+
+    pub fn visit_mut_until_settled(&mut self, visitor: &mut impl FnMut(&mut JsValue) -> bool) {
+        while visitor(self) {
+            self.for_each_children_mut(&mut |value| {
+                value.visit_mut_until_settled(visitor);
+                false
+            });
+        }
     }
 
     pub fn visit_mut(&mut self, visitor: &mut impl FnMut(&mut JsValue) -> bool) -> bool {
@@ -689,6 +823,17 @@ impl JsValue {
                 }
                 modified
             }
+            JsValue::MemberCall(obj, prop, list) => {
+                let m1 = visitor(obj);
+                let m2 = visitor(prop);
+                let mut modified = m1 || m2;
+                for item in list.iter_mut() {
+                    if visitor(item) {
+                        modified = true
+                    }
+                }
+                modified
+            }
             JsValue::Function(return_value) => {
                 let modified = visitor(return_value);
 
@@ -727,6 +872,13 @@ impl JsValue {
             }
             JsValue::Call(callee, list) => {
                 visitor(callee);
+                for item in list.iter() {
+                    visitor(item);
+                }
+            }
+            JsValue::MemberCall(obj, prop, list) => {
+                visitor(obj);
+                visitor(prop);
                 for item in list.iter() {
                     visitor(item);
                 }
@@ -773,8 +925,116 @@ impl JsValue {
             JsValue::Variable(_) | JsValue::Unknown(..) | JsValue::Argument(..) => false,
 
             JsValue::Call(box JsValue::FreeVar(FreeVarKind::RequireResolve), _) => true,
-            JsValue::Call(..) | JsValue::Member(..) => false,
+            JsValue::Call(..) | JsValue::MemberCall(..) | JsValue::Member(..) => false,
             JsValue::WellKnownObject(_) | JsValue::WellKnownFunction(_) => false,
+        }
+    }
+
+    pub fn starts_with(&self, str: &str) -> bool {
+        match self {
+            JsValue::Constant(Lit::Str(_)) => {
+                if let Some(s) = self.as_str() {
+                    s.starts_with(str)
+                } else {
+                    false
+                }
+            }
+            JsValue::Alternatives(alts) => alts.iter().all(|alt| alt.starts_with(str)),
+            JsValue::Concat(list) => {
+                if let Some(item) = list.iter().next() {
+                    item.starts_with(str)
+                } else {
+                    false
+                }
+            }
+
+            // TODO: JsValue::Url(_) => todo!(),
+            JsValue::WellKnownObject(_) | JsValue::WellKnownFunction(_) | JsValue::Function(_) => {
+                false
+            }
+
+            _ => false,
+        }
+    }
+
+    pub fn starts_not_with(&self, str: &str) -> bool {
+        match self {
+            JsValue::Constant(Lit::Str(_)) => {
+                if let Some(s) = self.as_str() {
+                    !s.starts_with(str)
+                } else {
+                    false
+                }
+            }
+            JsValue::Alternatives(alts) => alts.iter().all(|alt| alt.starts_not_with(str)),
+            JsValue::Concat(list) => {
+                if let Some(item) = list.iter().next() {
+                    item.starts_not_with(str)
+                } else {
+                    false
+                }
+            }
+
+            // TODO: JsValue::Url(_) => todo!(),
+            JsValue::WellKnownObject(_) | JsValue::WellKnownFunction(_) | JsValue::Function(_) => {
+                false
+            }
+
+            _ => false,
+        }
+    }
+
+    pub fn ends_with(&self, str: &str) -> bool {
+        match self {
+            JsValue::Constant(Lit::Str(_)) => {
+                if let Some(s) = self.as_str() {
+                    s.ends_with(str)
+                } else {
+                    false
+                }
+            }
+            JsValue::Alternatives(alts) => alts.iter().all(|alt| alt.ends_with(str)),
+            JsValue::Concat(list) => {
+                if let Some(item) = list.last() {
+                    item.ends_with(str)
+                } else {
+                    false
+                }
+            }
+
+            // TODO: JsValue::Url(_) => todo!(),
+            JsValue::WellKnownObject(_) | JsValue::WellKnownFunction(_) | JsValue::Function(_) => {
+                false
+            }
+
+            _ => false,
+        }
+    }
+
+    pub fn ends_not_with(&self, str: &str) -> bool {
+        match self {
+            JsValue::Constant(Lit::Str(_)) => {
+                if let Some(s) = self.as_str() {
+                    !s.ends_with(str)
+                } else {
+                    false
+                }
+            }
+            JsValue::Alternatives(alts) => alts.iter().all(|alt| alt.ends_not_with(str)),
+            JsValue::Concat(list) => {
+                if let Some(item) = list.last() {
+                    item.ends_not_with(str)
+                } else {
+                    false
+                }
+            }
+
+            // TODO: JsValue::Url(_) => todo!(),
+            JsValue::WellKnownObject(_) | JsValue::WellKnownFunction(_) | JsValue::Function(_) => {
+                false
+            }
+
+            _ => false,
         }
     }
 
@@ -906,6 +1166,11 @@ impl JsValue {
             (JsValue::Call(lf, la), JsValue::Call(rf, ra)) => {
                 lf.similar(rf, depth - 1) && all_similar(la, ra, depth - 1)
             }
+            (JsValue::MemberCall(lo, lp, la), JsValue::MemberCall(ro, rp, ra)) => {
+                lo.similar(ro, depth - 1)
+                    && lp.similar(rp, depth - 1)
+                    && all_similar(la, ra, depth - 1)
+            }
             (JsValue::Member(lo, lp), JsValue::Member(ro, rp)) => {
                 lo.similar(ro, depth - 1) && lp.similar(rp, depth - 1)
             }
@@ -942,6 +1207,11 @@ impl JsValue {
             JsValue::Call(a, b) => {
                 a.similar_hash(state, depth - 1);
                 all_similar_hash(b, state, depth - 1);
+            }
+            JsValue::MemberCall(a, b, c) => {
+                a.similar_hash(state, depth - 1);
+                b.similar_hash(state, depth - 1);
+                all_similar_hash(c, state, depth - 1);
             }
             JsValue::Member(o, p) => {
                 o.similar_hash(state, depth - 1);
@@ -1002,12 +1272,14 @@ pub enum WellKnownObjectKind {
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WellKnownFunctionKind {
     PathJoin,
+    PathDirname,
     Import,
     Require,
     RequireResolve,
     FsReadMethod(JsWord),
     PathToFileUrl,
-    ChildProcessSpawn,
+    ChildProcessSpawnMethod(JsWord),
+    ChildProcessFork,
 }
 
 /// TODO(kdy1): Remove this once resolver distinguish between top-level bindings
@@ -1038,36 +1310,35 @@ pub mod test_utils {
     use anyhow::Result;
 
     pub async fn visitor(v: JsValue) -> Result<(JsValue, bool)> {
-        Ok((
-            match v {
-                JsValue::Call(
-                    box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
-                    ref args,
-                ) => match &args[0] {
-                    JsValue::Constant(lit) => {
-                        JsValue::Constant((lit_to_string(&lit) + " (resolved)").into())
-                    }
-                    _ => JsValue::Unknown(Some(Arc::new(v)), "resolve.resolve non constant"),
-                },
-                JsValue::FreeVar(FreeVarKind::Require) => {
-                    JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
+        let mut new_value = match v {
+            JsValue::Call(
+                box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
+                ref args,
+            ) => match &args[0] {
+                JsValue::Constant(lit) => {
+                    JsValue::Constant((lit_to_string(&lit) + "/resolved/lib/index.js").into())
                 }
-                JsValue::FreeVar(FreeVarKind::Dirname) => JsValue::Constant("__dirname".into()),
-                JsValue::FreeVar(kind) => {
-                    JsValue::Unknown(Some(Arc::new(JsValue::FreeVar(kind))), "unknown global")
-                }
-                JsValue::Module(ref name) => match &**name {
-                    "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
-                    _ => return Ok((v, false)),
-                },
-                _ => {
-                    let (v, m1) = replace_well_known(v);
-                    let (v, m2) = replace_builtin(v);
-                    return Ok((v, m1 || m2));
-                }
+                _ => JsValue::Unknown(Some(Arc::new(v)), "resolve.resolve non constant"),
             },
-            true,
-        ))
+            JsValue::FreeVar(FreeVarKind::Require) => {
+                JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
+            }
+            JsValue::FreeVar(FreeVarKind::Dirname) => JsValue::Constant("__dirname".into()),
+            JsValue::FreeVar(kind) => {
+                JsValue::Unknown(Some(Arc::new(JsValue::FreeVar(kind))), "unknown global")
+            }
+            JsValue::Module(ref name) => match &**name {
+                "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
+                _ => return Ok((v, false)),
+            },
+            _ => {
+                let (v, m1) = replace_well_known(v);
+                let (v, m2) = replace_builtin(v);
+                return Ok((v, m1 || m2));
+            }
+        };
+        new_value.normalize_shallow();
+        Ok((new_value, true))
     }
 }
 
