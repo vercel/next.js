@@ -841,6 +841,12 @@ export default async function getBaseWebpackConfig(
       // absolute paths.
       (process.platform === 'win32' && path.win32.isAbsolute(request))
 
+    // make sure import "next" shows a warning when imported
+    // in pages/components
+    if (request === 'next') {
+      return `commonjs next/dist/lib/import-next-warning`
+    }
+
     // Relative requires don't need custom resolution, because they
     // are relative to requests we've already resolved here.
     // Absolute requires (require('/foo')) are extremely uncommon, but
