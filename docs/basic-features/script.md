@@ -171,7 +171,7 @@ npm run dev
 # ...
 ```
 
-Once setup is complete, defining `strategy="worker` will automatically instantiate Partytown in your application and off-load the script to a web worker.
+Once setup is complete, defining `strategy="worker"` will automatically instantiate Partytown in your application and off-load the script to a web worker.
 
 ```jsx
 <Script src="https://example.com/analytics.js" strategy="worker" />

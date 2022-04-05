@@ -10,6 +10,7 @@ description: Learn how to set up Next.js with three commonly used testing tools 
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-cypress">Next.js with Cypress</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-playwright">Next.js with Playwright</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-jest">Next.js with Jest and React Testing Library</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-vitest">Next.js with Vitest</a></li>
   </ul>
 </details>
 

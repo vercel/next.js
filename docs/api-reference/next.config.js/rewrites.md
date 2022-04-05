@@ -327,7 +327,7 @@ If you're using `trailingSlash: true`, you also need to insert a trailing slash 
 
 ```js
 module.exports = {
-  trailingSlash: 'true',
+  trailingSlash: true,
   async rewrites() {
     return [
       {

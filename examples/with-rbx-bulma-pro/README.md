@@ -16,6 +16,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-rbx-bulma-pro with-rbx-bulma-pro-app
 # or
 yarn create next-app --example with-rbx-bulma-pro with-rbx-bulma-pro-app
+# or
+pnpm create next-app -- --example with-rbx-bulma-pro with-rbx-bulma-pro-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

@@ -61,7 +61,7 @@ describe('splitCookiesString', () => {
     })
   })
 
-  describe('with a mutliple cookies', () => {
+  describe('with a multiple cookies', () => {
     it('should parse a plain value', () => {
       const { joined, expected } = generateCookies(
         {

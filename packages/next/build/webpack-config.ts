@@ -52,7 +52,6 @@ import type { Span } from '../trace'
 import { getRawPageExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
-import { shouldUseReactRoot } from '../server/config'
 import { getMiddlewareSourceMapPlugins } from './webpack/plugins/middleware-source-maps-plugin'
 
 const watchOptions = Object.freeze({
@@ -314,6 +313,7 @@ export default async function getBaseWebpackConfig(
     rewrites,
     isDevFallback = false,
     runWebpackSpan,
+    hasReactRoot,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -327,6 +327,7 @@ export default async function getBaseWebpackConfig(
     rewrites: CustomRoutes['rewrites']
     isDevFallback?: boolean
     runWebpackSpan: Span
+    hasReactRoot: boolean
   }
 ): Promise<webpack.Configuration> {
   const { useTypeScript, jsConfig, resolvedBaseUrl } = await loadJsConfig(
@@ -339,10 +340,10 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
   const hasReactRefresh: boolean = dev && !isServer
-  const hasReactRoot = shouldUseReactRoot()
+
   const runtime = config.experimental.runtime
 
-  // Make sure reactRoot is enabled when react 18 is detected
+  // Make sure `reactRoot` is enabled when React 18 or experimental is detected.
   if (hasReactRoot) {
     config.experimental.reactRoot = true
   }
@@ -357,14 +358,14 @@ export default async function getBaseWebpackConfig(
       '`experimental.runtime` requires `experimental.reactRoot` to be enabled along with React 18.'
     )
   }
-  if (config.experimental.serverComponents && !runtime) {
+  if (config.experimental.serverComponents && !hasReactRoot) {
     throw new Error(
-      '`experimental.runtime` is required to be set along with `experimental.serverComponents`.'
+      '`experimental.serverComponents` requires React 18 to be installed.'
     )
   }
 
   const targetWeb = isEdgeRuntime || !isServer
-  const hasConcurrentFeatures = !!runtime && hasReactRoot
+  const hasConcurrentFeatures = hasReactRoot
   const hasServerComponents =
     hasConcurrentFeatures && !!config.experimental.serverComponents
   const disableOptimizedLoading = hasConcurrentFeatures
@@ -476,9 +477,6 @@ export default async function getBaseWebpackConfig(
   const serverComponentsRegex = new RegExp(
     `\\.server\\.(${rawPageExtensions.join('|')})$`
   )
-  const clientComponentsRegex = new RegExp(
-    `\\.client\\.(${rawPageExtensions.join('|')})$`
-  )
 
   const babelIncludeRegexes: RegExp[] = [
     /next[\\/]dist[\\/]shared[\\/]lib/,
@@ -553,11 +551,18 @@ export default async function getBaseWebpackConfig(
 
   if (dev) {
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
-      ...config.pageExtensions.reduce((prev, ext) => {
+      ...rawPageExtensions.reduce((prev, ext) => {
         prev.push(path.join(pagesDir, `_app.${ext}`))
         return prev
       }, [] as string[]),
       'next/dist/pages/_app.js',
+    ]
+    customAppAliases[`${PAGES_DIR_ALIAS}/_app.server`] = [
+      ...rawPageExtensions.reduce((prev, ext) => {
+        prev.push(path.join(pagesDir, `_app.server.${ext}`))
+        return prev
+      }, [] as string[]),
+      'next/dist/pages/_app.server.js',
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
       ...config.pageExtensions.reduce((prev, ext) => {
@@ -840,6 +845,12 @@ export default async function getBaseWebpackConfig(
       // absolute paths.
       (process.platform === 'win32' && path.win32.isAbsolute(request))
 
+    // make sure import "next" shows a warning when imported
+    // in pages/components
+    if (request === 'next') {
+      return `commonjs next/dist/lib/import-next-warning`
+    }
+
     // Relative requires don't need custom resolution, because they
     // are relative to requests we've already resolved here.
     // Absolute requires (require('/foo')) are extremely uncommon, but
@@ -980,6 +991,7 @@ export default async function getBaseWebpackConfig(
           ...(isEdgeRuntime
             ? [
                 {
+                  '@builder.io/partytown': '{}',
                   'next/dist/compiled/etag': '{}',
                   'next/dist/compiled/chalk': '{}',
                   'react-dom': '{}',
@@ -1501,7 +1513,7 @@ export default async function getBaseWebpackConfig(
         }),
       hasServerComponents &&
         !isServer &&
-        new FlightManifestPlugin({ dev, clientComponentsRegex }),
+        new FlightManifestPlugin({ dev, pageExtensions: rawPageExtensions }),
       !dev &&
         !isServer &&
         new TelemetryPlugin(
@@ -1571,7 +1583,6 @@ export default async function getBaseWebpackConfig(
   webpack5Config.module!.parser = {
     javascript: {
       url: 'relative',
-      commonjsMagicComments: true,
     },
   }
   webpack5Config.module!.generator = {

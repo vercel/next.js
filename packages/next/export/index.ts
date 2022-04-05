@@ -239,7 +239,12 @@ export default async function exportApp(
         continue
       }
 
-      if (page === '/_document' || page === '/_app' || page === '/_error') {
+      if (
+        page === '/_document' ||
+        page === '/_app.server' ||
+        page === '/_app' ||
+        page === '/_error'
+      ) {
         continue
       }
 
@@ -588,6 +593,7 @@ export default async function exportApp(
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
+            serverComponents: nextConfig.experimental.serverComponents,
           })
 
           for (const validation of result.ampValidations || []) {
