@@ -1785,17 +1785,18 @@ checksum = "6446ced80d6c486436db5c078dde11a9f73d42b57fb273121e160b84f63d894c"
 
 [[package]]
 name = "styled_components"
-version = "0.23.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a29f0d8eb056b9763d224462594cda0f2dc96aa613fab7ada00ade37d3f05443"
+version = "0.25.0"
 dependencies = [
  "Inflector",
  "once_cell",
  "regex",
  "serde",
+ "serde_json",
  "swc_atoms",
  "swc_common",
+ "swc_ecma_transforms_testing",
  "swc_ecmascript",
+ "testing",
  "tracing",
 ]
 
@@ -1932,9 +1933,9 @@ dependencies = [
 
 [[package]]
 name = "swc_common"
-version = "0.17.18"
+version = "0.17.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "278ad1cbb3fb3b2686c86a7dd5f307ef791918d249a6da60fa6cd3388f4c6a78"
+checksum = "00edee63ed3957d0842ac91f04010b04a5c240c752924fa53e6ebe72888b523a"
 dependencies = [
  "ahash",
  "ast_node",
