@@ -2,6 +2,7 @@
 edition = "2018"
 name = "next-swc"
 version = "0.0.0"
+publish = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
