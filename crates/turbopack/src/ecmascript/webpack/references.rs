@@ -21,7 +21,9 @@ pub async fn module_references(
     let parsed = parse(source).await?;
     match &*parsed {
         ParseResult::Ok {
-            module, source_map, ..
+            program,
+            source_map,
+            ..
         } => {
             let mut references = Vec::new();
             let mut visitor = AssetReferencesVisitor {
@@ -32,7 +34,7 @@ pub async fn module_references(
             let handler =
                 Handler::with_emitter_writer(Box::new(buf.clone()), Some(source_map.clone()));
             HANDLER.set(&handler, || {
-                module.visit_with(&mut visitor);
+                program.visit_with(&mut visitor);
             });
             if !buf.is_empty() {
                 // TODO report them in a stream

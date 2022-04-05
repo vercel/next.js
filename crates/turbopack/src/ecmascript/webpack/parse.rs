@@ -5,7 +5,7 @@ use swc_common::GLOBALS;
 use swc_ecmascript::{
     ast::{
         ArrowExpr, AssignOp, BinExpr, BinaryOp, CallExpr, Callee, Expr, ExprOrSpread, ExprStmt,
-        FnExpr, Lit, Module, ModuleItem, Stmt,
+        FnExpr, Lit, Module, ModuleItem, Program, Script, Stmt,
     },
     visit::{self, Visit, VisitWith},
 };
@@ -51,9 +51,18 @@ fn iife(stmt: &Stmt) -> Option<&Vec<Stmt>> {
     None
 }
 
-fn module_iife(module: &Module) -> Option<&Vec<Stmt>> {
-    if let [ModuleItem::Stmt(stmt)] = &module.body[..] {
-        return iife(stmt);
+fn program_iife(program: &Program) -> Option<&Vec<Stmt>> {
+    match program {
+        Program::Module(Module { body, .. }) => {
+            if let [ModuleItem::Stmt(stmt)] = &body[..] {
+                return iife(stmt);
+            }
+        }
+        Program::Script(Script { body, .. }) => {
+            if let [stmt] = &body[..] {
+                return iife(stmt);
+            }
+        }
     }
     None
 }
@@ -175,12 +184,12 @@ pub async fn is_webpack_runtime(asset: AssetVc) -> Result<WebpackRuntimeVc> {
     let parsed = parse(asset.clone()).await?;
     match &*parsed {
         ParseResult::Ok {
-            module,
+            program,
             eval_context,
             globals,
             ..
         } => {
-            if let Some(stmts) = module_iife(module) {
+            if let Some(stmts) = program_iife(program) {
                 if stmts.iter().any(is_webpack_require_decl) {
                     // extract webpack/runtime/get javascript chunk filename
                     let chunk_filename = GLOBALS.set(globals, || {

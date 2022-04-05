@@ -60,7 +60,7 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
     let parsed = parse(source.clone()).await?;
     match &*parsed {
         ParseResult::Ok {
-            module,
+            program,
             globals,
             eval_context,
             source_map,
@@ -71,11 +71,11 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
             let (var_graph, webpack_runtime, webpack_entry, webpack_chunks) =
                 HANDLER.set(&handler, || {
                     GLOBALS.set(globals, || {
-                        let var_graph = create_graph(&module, eval_context);
+                        let var_graph = create_graph(&program, eval_context);
 
                         // TODO migrate to effects
                         let mut visitor = AssetReferencesVisitor::new(&source, &mut references);
-                        module.visit_with(&mut visitor);
+                        program.visit_with(&mut visitor);
 
                         (
                             var_graph,

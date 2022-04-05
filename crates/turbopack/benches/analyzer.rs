@@ -8,7 +8,11 @@ use async_std::task::block_on;
 use criterion::{black_box, Criterion};
 use swc_common::{FilePathMapping, Mark, SourceMap, GLOBALS};
 use swc_ecma_transforms_base::resolver::resolver_with_mark;
-use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_module, visit::VisitMutWith};
+use swc_ecmascript::{
+    ast::EsVersion,
+    parser::{parse_file_as_module, parse_file_as_program},
+    visit::VisitMutWith,
+};
 use turbopack::{
     __internals::test_utils,
     analyzer::{
@@ -35,7 +39,7 @@ pub fn benchmark(c: &mut Criterion) {
             let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
             let fm = cm.load_file(&input).unwrap();
             GLOBALS.set(&swc_common::Globals::new(), || {
-                let mut m = parse_file_as_module(
+                let mut m = parse_file_as_program(
                     &fm,
                     Default::default(),
                     EsVersion::latest(),

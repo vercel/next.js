@@ -35,7 +35,7 @@ impl ImportMap {
     }
 
     /// Analyze ES import
-    pub(super) fn analyze(m: &Module) -> Self {
+    pub(super) fn analyze(m: &Program) -> Self {
         let mut data = ImportMap::default();
 
         m.visit_with(&mut Analyzer { data: &mut data });

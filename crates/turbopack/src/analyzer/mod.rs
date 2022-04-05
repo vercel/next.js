@@ -1353,7 +1353,11 @@ mod tests {
     use async_std::task::block_on;
     use swc_common::Mark;
     use swc_ecma_transforms_base::resolver::resolver_with_mark;
-    use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_module, visit::VisitMutWith};
+    use swc_ecmascript::{
+        ast::EsVersion,
+        parser::{parse_file_as_module, parse_file_as_program},
+        visit::VisitMutWith,
+    };
     use testing::NormalizedOutput;
 
     use super::{
@@ -1372,7 +1376,7 @@ mod tests {
         testing::run_test(false, |cm, handler| {
             let fm = cm.load_file(&input).unwrap();
 
-            let mut m = parse_file_as_module(
+            let mut m = parse_file_as_program(
                 &fm,
                 Default::default(),
                 EsVersion::latest(),
