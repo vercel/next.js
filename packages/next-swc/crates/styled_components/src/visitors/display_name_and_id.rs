@@ -63,7 +63,7 @@ impl DisplayNameAndId {
             FileName::Real(f) if self.config.file_name => {
                 let block_name = self.get_block_name(f);
 
-                if block_name == &*component_name {
+                if block_name == *component_name {
                     return component_name;
                 }
 
@@ -143,7 +143,6 @@ impl DisplayNameAndId {
                 if let Some(Expr::Object(existing_config)) = args.get_mut(0).map(|v| &mut *v.expr) {
                     if !already_has(existing_config) {
                         existing_config.props.extend(with_config_props.take());
-                        
                     }
                 }
             }
@@ -240,12 +239,8 @@ impl VisitMut for DisplayNameAndId {
     fn visit_mut_class_prop(&mut self, e: &mut ClassProp) {
         let old = self.cur_display_name.take();
 
-        match &e.key {
-            PropName::Ident(i) => {
-                self.cur_display_name = Some(i.sym.clone());
-            }
-
-            _ => {}
+        if let PropName::Ident(i) = &e.key {
+            self.cur_display_name = Some(i.sym.clone());
         }
 
         e.visit_mut_children_with(self);
@@ -363,11 +358,8 @@ impl VisitMut for DisplayNameAndId {
     fn visit_mut_key_value_prop(&mut self, e: &mut KeyValueProp) {
         let old = self.cur_display_name.take();
 
-        match &e.key {
-            PropName::Ident(name) => {
-                self.cur_display_name = Some(name.sym.clone());
-            }
-            _ => {}
+        if let PropName::Ident(name) = &e.key {
+            self.cur_display_name = Some(name.sym.clone());
         }
 
         e.visit_mut_children_with(self);
@@ -378,11 +370,8 @@ impl VisitMut for DisplayNameAndId {
     fn visit_mut_var_declarator(&mut self, v: &mut VarDeclarator) {
         let old = self.cur_display_name.take();
 
-        match &v.name {
-            Pat::Ident(name) => {
-                self.cur_display_name = Some(name.id.sym.clone());
-            }
-            _ => {}
+        if let Pat::Ident(name) = &v.name {
+            self.cur_display_name = Some(name.id.sym.clone());
         }
 
         v.visit_mut_children_with(self);
@@ -402,12 +391,12 @@ fn get_callee(e: &Expr) -> Option<&Expr> {
 }
 
 fn get_property_as_ident(e: &Expr) -> Option<&JsWord> {
-    match e {
-        Expr::Member(MemberExpr {
-            prop: MemberProp::Ident(p),
-            ..
-        }) => return Some(&p.sym),
-        _ => {}
+    if let Expr::Member(MemberExpr {
+        prop: MemberProp::Ident(p),
+        ..
+    }) = e
+    {
+        return Some(&p.sym);
     }
 
     None
@@ -431,57 +420,48 @@ fn get_existing_config<F>(e: &mut Expr, op: F)
 where
     F: FnOnce(&mut Expr),
 {
-    match e {
-        Expr::Call(CallExpr {
-            callee: Callee::Expr(callee),
+    if let Expr::Call(CallExpr {
+        callee: Callee::Expr(callee),
+        ..
+    }) = e
+    {
+        if let Expr::Call(CallExpr {
+            callee: Callee::Expr(callee_callee),
             ..
-        }) => match &mut **callee {
-            Expr::Call(CallExpr {
-                callee: Callee::Expr(callee_callee),
+        }) = &mut **callee
+        {
+            if let Expr::Member(MemberExpr {
+                prop: MemberProp::Ident(prop),
                 ..
-            }) => {
-                match &**callee_callee {
-                    Expr::Member(MemberExpr {
-                        prop: MemberProp::Ident(prop),
-                        ..
-                    }) => {
-                        if &*prop.sym == "withConfig" {
-                            return op(callee);
-                        }
-                    }
-                    _ => {}
-                }
-
-                match &mut **callee_callee {
-                    Expr::Member(MemberExpr {
-                        obj,
-                        prop: MemberProp::Ident(..),
-                        ..
-                    }) => match &**obj {
-                        Expr::Call(CallExpr {
-                            callee: Callee::Expr(callee),
-                            ..
-                        }) => match &**callee {
-                            Expr::Member(MemberExpr {
-                                prop: MemberProp::Ident(prop),
-                                ..
-                            }) => {
-                                if &*prop.sym == "withConfig" {
-                                    op(obj)
-                                }
-                            }
-
-                            _ => {}
-                        },
-                        _ => {}
-                    },
-
-                    _ => {}
+            }) = &**callee_callee
+            {
+                if &*prop.sym == "withConfig" {
+                    return op(callee);
                 }
             }
 
-            _ => {}
-        },
-        _ => {}
+            if let Expr::Member(MemberExpr {
+                obj,
+                prop: MemberProp::Ident(..),
+                ..
+            }) = &mut **callee_callee
+            {
+                if let Expr::Call(CallExpr {
+                    callee: Callee::Expr(callee),
+                    ..
+                }) = &**obj
+                {
+                    if let Expr::Member(MemberExpr {
+                        prop: MemberProp::Ident(prop),
+                        ..
+                    }) = &**callee
+                    {
+                        if &*prop.sym == "withConfig" {
+                            op(obj)
+                        }
+                    }
+                }
+            }
+        }
     }
 }

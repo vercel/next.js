@@ -45,6 +45,7 @@ impl TranspileCssProp {
         *idx += 1;
         *idx
     }
+    #[allow(clippy::wrong_self_convention)]
     fn is_top_level_ident(&mut self, ident: &Ident) -> bool {
         self.top_level_decls
             .as_ref()
@@ -367,20 +368,16 @@ impl VisitMut for TranspileCssProp {
         let body = std::mem::take(&mut n.body);
         for item in body {
             serialized_body.push(item.clone());
-            match &item {
-                ModuleItem::Stmt(Stmt::Decl(Decl::Var(vd))) => {
-                    for decl in &vd.decls {
-                        if let Pat::Ident(ident) = &decl.name {
-                            let id = ident.to_id();
-                            let stmts = self.interleaved_injections.remove(&id);
-                            if let Some(stmts) = stmts {
-                                serialized_body
-                                    .extend(stmts.into_iter().rev().map(ModuleItem::Stmt));
-                            }
+            if let ModuleItem::Stmt(Stmt::Decl(Decl::Var(vd))) = &item {
+                for decl in &vd.decls {
+                    if let Pat::Ident(ident) = &decl.name {
+                        let id = ident.to_id();
+                        let stmts = self.interleaved_injections.remove(&id);
+                        if let Some(stmts) = stmts {
+                            serialized_body.extend(stmts.into_iter().rev().map(ModuleItem::Stmt));
                         }
                     }
                 }
-                _ => {}
             }
         }
         n.body = serialized_body;

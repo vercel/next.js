@@ -67,24 +67,21 @@ pub struct State {
 
 impl State {
     pub(crate) fn is_styled(&self, tag: &Expr) -> bool {
-        match tag {
-            Expr::Call(CallExpr {
-                callee: Callee::Expr(callee),
+        if let Expr::Call(CallExpr {
+            callee: Callee::Expr(callee),
+            ..
+        }) = tag
+        {
+            if let Expr::Member(MemberExpr {
+                obj,
+                prop: MemberProp::Ident(prop),
                 ..
-            }) => match &**callee {
-                Expr::Member(MemberExpr {
-                    obj,
-                    prop: MemberProp::Ident(prop),
-                    ..
-                }) => {
-                    if prop.sym != js_word!("default") {
-                        return self.is_styled(obj);
-                    }
+            }) = &**callee
+            {
+                if prop.sym != js_word!("default") {
+                    return self.is_styled(obj);
                 }
-                _ => {}
-            },
-
-            _ => {}
+            }
         }
 
         match tag {
@@ -92,28 +89,26 @@ impl State {
                 obj,
                 prop: MemberProp::Ident(prop),
                 ..
-            }) => match &**obj {
-                Expr::Ident(obj) => {
+            }) => {
+                if let Expr::Ident(obj) = &**obj {
                     if Some(obj.to_id()) == self.import_local_name("default", Some(obj))
                         && !self.is_helper(&Expr::Ident(prop.clone()))
                     {
                         return true;
                     }
                 }
-                _ => {}
-            },
+            }
 
             Expr::Call(CallExpr {
                 callee: Callee::Expr(callee),
                 ..
-            }) => match &**callee {
-                Expr::Ident(callee) => {
+            }) => {
+                if let Expr::Ident(callee) = &**callee {
                     if Some(callee.to_id()) == self.import_local_name("default", Some(callee)) {
                         return true;
                     }
                 }
-                _ => {}
-            },
+            }
 
             _ => {}
         }
@@ -125,45 +120,42 @@ impl State {
                     obj,
                     prop: MemberProp::Ident(..),
                     ..
-                }) => match &**obj {
-                    Expr::Member(MemberExpr {
+                }) => {
+                    if let Expr::Member(MemberExpr {
                         obj: obj_of_obj,
                         prop: MemberProp::Ident(prop),
                         ..
-                    }) => match &**obj_of_obj {
-                        Expr::Ident(obj_of_obj) => {
+                    }) = &**obj
+                    {
+                        if let Expr::Ident(obj_of_obj) = &**obj_of_obj {
                             if prop.sym == js_word!("default")
                                 && obj_of_obj.to_id() == style_required
                             {
                                 return true;
                             }
                         }
-                        _ => {}
-                    },
-                    _ => {}
-                },
+                    }
+                }
 
                 Expr::Call(CallExpr {
                     callee: Callee::Expr(callee),
                     ..
-                }) => match &**callee {
-                    Expr::Member(MemberExpr {
+                }) => {
+                    if let Expr::Member(MemberExpr {
                         obj: tag_callee_object,
                         prop: MemberProp::Ident(tag_callee_property),
                         ..
-                    }) => match &**tag_callee_object {
-                        Expr::Ident(tag_callee_object) => {
+                    }) = &**callee
+                    {
+                        if let Expr::Ident(tag_callee_object) = &**tag_callee_object {
                             if tag_callee_property.sym == js_word!("default")
                                 && tag_callee_object.to_id() == style_required
                             {
                                 return true;
                             }
                         }
-
-                        _ => {}
-                    },
-                    _ => {}
-                },
+                    }
+                }
 
                 _ => {}
             }
@@ -175,45 +167,42 @@ impl State {
                     obj,
                     prop: MemberProp::Ident(..),
                     ..
-                }) => match &**obj {
-                    Expr::Member(MemberExpr {
+                }) => {
+                    if let Expr::Member(MemberExpr {
                         obj: obj_of_obj,
                         prop: MemberProp::Ident(prop),
                         ..
-                    }) => match &**obj_of_obj {
-                        Expr::Ident(obj_of_obj) => {
+                    }) = &**obj
+                    {
+                        if let Expr::Ident(obj_of_obj) = &**obj_of_obj {
                             if prop.sym == js_word!("default")
                                 && obj_of_obj.to_id() == import_local_name
                             {
                                 return true;
                             }
                         }
-                        _ => {}
-                    },
-                    _ => {}
-                },
+                    }
+                }
 
                 Expr::Call(CallExpr {
                     callee: Callee::Expr(callee),
                     ..
-                }) => match &**callee {
-                    Expr::Member(MemberExpr {
+                }) => {
+                    if let Expr::Member(MemberExpr {
                         obj: tag_callee_object,
                         prop: MemberProp::Ident(tag_callee_property),
                         ..
-                    }) => match &**tag_callee_object {
-                        Expr::Ident(tag_callee_object) => {
+                    }) = &**callee
+                    {
+                        if let Expr::Ident(tag_callee_object) = &**tag_callee_object {
                             if tag_callee_property.sym == js_word!("default")
                                 && tag_callee_object.to_id() == import_local_name
                             {
                                 return true;
                             }
                         }
-
-                        _ => {}
-                    },
-                    _ => {}
-                },
+                    }
+                }
 
                 _ => {}
             }
@@ -248,7 +237,7 @@ impl State {
             Some(if name == "default" {
                 "styled".into()
             } else {
-                name.clone().into()
+                name.into()
             })
         } else {
             None

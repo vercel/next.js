@@ -63,35 +63,29 @@ impl Visit for Analyzer<'_> {
         v.visit_children_with(self);
 
         if let Pat::Ident(name) = &v.name {
-            match v.init.as_deref() {
-                Some(Expr::Call(CallExpr {
-                    callee: Callee::Expr(callee),
-                    args,
-                    ..
-                })) => {
-                    if callee.is_ident_ref_to("require".into())
-                        && args.len() == 1
-                        && args[0].spread.is_none()
-                    {
-                        match &*args[0].expr {
-                            Expr::Lit(Lit::Str(v)) => {
-                                let is_styled = if self.config.top_level_import_paths.is_empty() {
-                                    &*v.value == "styled-components"
-                                        || v.value.starts_with("styled-components/")
-                                } else {
-                                    self.config.top_level_import_paths.contains(&v.value)
-                                };
+            if let Some(Expr::Call(CallExpr {
+                callee: Callee::Expr(callee),
+                args,
+                ..
+            })) = v.init.as_deref()
+            {
+                if callee.is_ident_ref_to("require".into())
+                    && args.len() == 1
+                    && args[0].spread.is_none()
+                {
+                    if let Expr::Lit(Lit::Str(v)) = &*args[0].expr {
+                        let is_styled = if self.config.top_level_import_paths.is_empty() {
+                            &*v.value == "styled-components"
+                                || v.value.starts_with("styled-components/")
+                        } else {
+                            self.config.top_level_import_paths.contains(&v.value)
+                        };
 
-                                if is_styled {
-                                    self.state.styled_required = Some(name.id.to_id());
-                                }
-                            }
-                            _ => {}
+                        if is_styled {
+                            self.state.styled_required = Some(name.id.to_id());
                         }
                     }
                 }
-
-                _ => {}
             }
         }
     }
