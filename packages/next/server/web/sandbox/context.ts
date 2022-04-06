@@ -8,6 +8,10 @@ import {
 } from '../../node-polyfill-web-streams'
 import cookie from 'next/dist/compiled/cookie'
 import * as polyfills from './polyfills'
+import {
+  AbortController,
+  AbortSignal,
+} from 'next/dist/compiled/abort-controller'
 import vm from 'vm'
 import type { WasmBinding } from '../../../build/webpack/loaders/next-middleware-wasm-loader'
 
@@ -201,8 +205,8 @@ function createContext(options: {
       timeLog: console.timeLog.bind(console),
       warn: console.warn.bind(console),
     },
-    AbortController: AbortController,
-    AbortSignal: AbortSignal,
+    AbortController,
+    AbortSignal,
     CryptoKey: polyfills.CryptoKey,
     Crypto: polyfills.Crypto,
     crypto: new polyfills.Crypto(),
