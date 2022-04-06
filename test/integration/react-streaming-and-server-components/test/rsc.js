@@ -93,7 +93,7 @@ export default function (context, { runtime, env }) {
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
-  it.only('should be able to navigate between rsc pages', async () => {
+  it('should be able to navigate between rsc pages', async () => {
     let content
     const browser = await webdriver(context.appPort, '/')
 
