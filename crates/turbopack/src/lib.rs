@@ -5,6 +5,7 @@
 #![feature(map_try_insert)]
 #![feature(option_get_or_insert_default)]
 #![feature(once_cell)]
+#![feature(hash_set_entry)]
 
 use std::{
     collections::{HashMap, HashSet, VecDeque},
