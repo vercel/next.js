@@ -1100,8 +1100,6 @@ function runTests({ dev, serverless }) {
       )
 
       for (const route of manifest.dynamicRoutes) {
-        if (route.isMiddleware) continue
-
         route.regex = normalizeRegEx(route.regex)
 
         // ensure regexes are valid
@@ -1118,7 +1116,7 @@ function runTests({ dev, serverless }) {
       }
 
       expect(manifest).toEqual({
-        version: 4,
+        version: 3,
         pages404: true,
         basePath: '',
         headers: [],
@@ -1265,10 +1263,6 @@ function runTests({ dev, serverless }) {
             routeKeys: {
               slug: 'slug',
             },
-          },
-          {
-            isMiddleware: true,
-            page: '/middleware/[slug]',
           },
           {
             namedRegex: `^/on\\-mount/(?<post>[^/]+?)(?:/)?$`,

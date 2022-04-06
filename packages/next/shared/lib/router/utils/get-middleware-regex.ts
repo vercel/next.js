@@ -1,20 +1,12 @@
 import { getParametrizedRoute, RouteRegex } from './route-regex'
 
-// Identify ^/[param]/ in route string
-const FIRST_SEGMENT_DYNAMIC = /^\/\[[^/]+?\](?=\/|$)/
-
-const NOT_API_ROUTE = '(?!/api(?:/|$))'
-
 export function getMiddlewareRegex(
   normalizedRoute: string,
   catchAll: boolean = true
 ): RouteRegex {
   const result = getParametrizedRoute(normalizedRoute)
-  const notApiRegex = FIRST_SEGMENT_DYNAMIC.test(normalizedRoute)
-    ? NOT_API_ROUTE
-    : ''
 
-  let catchAllRegex = catchAll ? '(?!_next($|/)).*' : ''
+  let catchAllRegex = catchAll ? '(?!_next).*' : ''
   let catchAllGroupedRegex = catchAll ? '(?:(/.*)?)' : ''
 
   if ('routeKeys' in result) {
@@ -29,10 +21,8 @@ export function getMiddlewareRegex(
 
     return {
       groups: result.groups,
-      namedRegex: `^${notApiRegex}${result.namedParameterizedRoute}${catchAllGroupedRegex}$`,
-      re: new RegExp(
-        `^${notApiRegex}${result.parameterizedRoute}${catchAllGroupedRegex}$`
-      ),
+      namedRegex: `^${result.namedParameterizedRoute}${catchAllGroupedRegex}$`,
+      re: new RegExp(`^${result.parameterizedRoute}${catchAllGroupedRegex}$`),
       routeKeys: result.routeKeys,
     }
   }
@@ -46,8 +36,6 @@ export function getMiddlewareRegex(
 
   return {
     groups: {},
-    re: new RegExp(
-      `^${notApiRegex}${result.parameterizedRoute}${catchAllGroupedRegex}$`
-    ),
+    re: new RegExp(`^${result.parameterizedRoute}${catchAllGroupedRegex}$`),
   }
 }
