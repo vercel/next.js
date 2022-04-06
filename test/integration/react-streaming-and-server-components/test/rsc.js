@@ -93,7 +93,7 @@ export default function (context, { runtime, env }) {
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
-  it('should be able to navigate between rsc pages', async () => {
+  it.only('should be able to navigate between rsc pages', async () => {
     let content
     const browser = await webdriver(context.appPort, '/')
 
@@ -109,7 +109,9 @@ export default function (context, { runtime, env }) {
     expect(content).toContain('component:index.server')
 
     await browser.waitForElementByCss('#goto-streaming-rsc').click()
-    await new Promise((res) => setTimeout(res, 1500))
+
+    // Wait for navigation and streaming to finish.
+    await new Promise((res) => setTimeout(res, 2500))
     expect(await browser.url()).toBe(
       `http://localhost:${context.appPort}/streaming-rsc`
     )
