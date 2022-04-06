@@ -128,7 +128,8 @@ const cachedPageRuntimeConfig = new Map<string, [number, PageRuntime]>()
 // could be thousands of pages existing.
 export async function getPageRuntime(
   pageFilePath: string,
-  nextConfig: Partial<NextConfig>
+  nextConfig: Partial<NextConfig>,
+  isDev?: boolean
 ): Promise<PageRuntime> {
   if (!nextConfig.experimental?.reactRoot) return undefined
 
@@ -144,7 +145,7 @@ export async function getPageRuntime(
       encoding: 'utf8',
     })
   } catch (err) {
-    if (process.env.NODE_ENV === 'production') throw err
+    if (!isDev) throw err
     return undefined
   }
 
@@ -235,7 +236,8 @@ export async function createEntrypoints(
   previewMode: __ApiPreviewProps,
   config: NextConfigComplete,
   loadedEnvFiles: LoadedEnvFiles,
-  pagesDir: string
+  pagesDir: string,
+  isDev?: boolean
 ): Promise<Entrypoints> {
   const client: webpack5.EntryObject = {}
   const server: webpack5.EntryObject = {}
@@ -291,7 +293,7 @@ export async function createEntrypoints(
       const pageFilePath = isInternalPages
         ? require.resolve(absolutePagePath)
         : join(pagesDir, absolutePagePath.replace(PAGES_DIR_ALIAS, ''))
-      const pageRuntime = await getPageRuntime(pageFilePath, config)
+      const pageRuntime = await getPageRuntime(pageFilePath, config, isDev)
       const isEdgeRuntime = pageRuntime === 'edge'
 
       if (page.match(MIDDLEWARE_ROUTE)) {

@@ -98,7 +98,10 @@ describe('Custom Server', () => {
   })
 
   describe('with generateEtags enabled', () => {
-    beforeAll(() => startServer({ GENERATE_ETAGS: 'true' }))
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      await startServer({ GENERATE_ETAGS: 'true', NODE_ENV: 'production' })
+    })
     afterAll(() => killApp(server))
 
     it('response includes etag header', async () => {
