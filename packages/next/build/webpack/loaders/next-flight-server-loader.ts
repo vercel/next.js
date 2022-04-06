@@ -3,14 +3,14 @@ import { buildExports } from './utils'
 
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
 
-export const createClientComponentFilter = (pageExtensions: string[]) => {
+export const createClientComponentFilter = (extensions: string[]) => {
   // Special cases for Next.js APIs that are considered as client components:
   // - .client.[ext]
   // - next built-in client components
   // - .[imageExt]
   const regex = new RegExp(
     '(' +
-      `\\.client(\\.(${pageExtensions.join('|')}))?|` +
+      `\\.client(\\.(${extensions.join('|')}))?|` +
       `next/(link|image)(\\.js)?|` +
       `\\.(${imageExtensions.join('|')})` +
       ')$'
@@ -19,18 +19,25 @@ export const createClientComponentFilter = (pageExtensions: string[]) => {
   return (importSource: string) => regex.test(importSource)
 }
 
-export const createServerComponentFilter = (pageExtensions: string[]) => {
-  const regex = new RegExp(`\\.server(\\.(${pageExtensions.join('|')}))?$`)
+export const createServerComponentFilter = (extensions: string[]) => {
+  const regex = new RegExp(`\\.server(\\.(${extensions.join('|')}))?$`)
   return (importSource: string) => regex.test(importSource)
 }
 
-function isRelative(resourcePath: string) {
-  return resourcePath.startsWith('.')
+function createFlightServerRequest(request: string, extensions: string[]) {
+  return `next-flight-server-loader?${JSON.stringify({
+    extensions,
+  })}!${request}`
+}
+
+function hasFlightLoader(request: string, type: 'client' | 'server') {
+  return request.includes(`next-flight-${type}-loader`)
 }
 
 async function parseModuleInfo({
   resourcePath,
   source,
+  extensions,
   isClientCompilation,
   isServerComponent,
   isClientComponent,
@@ -38,6 +45,7 @@ async function parseModuleInfo({
   resourcePath: string
   source: string
   isClientCompilation: boolean
+  extensions: string[]
   isServerComponent: (name: string) => boolean
   isClientComponent: (name: string) => boolean
 }): Promise<{
@@ -77,31 +85,19 @@ async function parseModuleInfo({
           )
 
           if (isClientComponent(importSource)) {
-            // A client component. It should be loaded as module reference.
             transformedSource += importDeclarations
-            transformedSource += JSON.stringify(`${importSource}?__sc_client__`)
+            transformedSource += JSON.stringify(
+              `next-flight-client-loader!${importSource}`
+            )
             imports.push(importSource)
           } else {
-            // FIXME
-            // case: 'react'
-            // Avoid module resolution error like Cannot find `./?__rsc_server__` in react/package.json
-
-            // cases: 'react/jsx-runtime', 'react/jsx-dev-runtime'
-            // This is a special case to avoid the Duplicate React error.
-            // Since we already include React in the SSR runtime,
-            // here we can't create a new module with the ?__rsc_server__ query.
-            if (
-              ['react', 'react/jsx-runtime', 'react/jsx-dev-runtime'].includes(
-                importSource
-              )
-            ) {
-              continue
-            }
-
-            // A shared component. It should be handled as a server
-            // component.
+            // A shared component. It should be handled as a server component.
+            const serverImportSource = createFlightServerRequest(
+              importSource,
+              extensions
+            )
             transformedSource += importDeclarations
-            transformedSource += JSON.stringify(`${importSource}?__sc_server__`)
+            transformedSource += JSON.stringify(serverImportSource)
           }
         } else {
           // For the client compilation, we skip all modules imports but
@@ -114,7 +110,10 @@ async function parseModuleInfo({
           ) {
             // Keep the relative imports but not the absolute imports
             // Treated absolute imports as externals
-            if (isRelative(importSource)) {
+            if (
+              !hasFlightLoader(importSource, 'server') &&
+              !hasFlightLoader(importSource, 'client')
+            ) {
               imports.push(importSource)
             }
             continue
@@ -167,23 +166,24 @@ export default async function transformSource(
   this: any,
   source: string
 ): Promise<string> {
-  const { client: isClientCompilation, pageExtensions } = this.getOptions()
-  const { resourcePath, resourceQuery } = this
+  const { client: isClientCompilation, extensions } = this.getOptions()
+  const { resourcePath } = this
 
   if (typeof source !== 'string') {
     throw new Error('Expected source to have been transformed to a string.')
   }
 
-  const isServerComponent = createServerComponentFilter(pageExtensions)
-  const isClientComponent = createClientComponentFilter(pageExtensions)
+  const isProcessed = source.includes('__next_rsc__')
+  const isServerComponent = createServerComponentFilter(extensions)
+  const isClientComponent = createClientComponentFilter(extensions)
+  const hasAppliedFlightServerLoader = this.loaders.some((loader: any) => {
+    return hasFlightLoader(loader.path, 'server')
+  })
 
   if (!isClientCompilation) {
     // We only apply the loader to server components, or shared components that
     // are imported by a server component.
-    if (
-      !isServerComponent(resourcePath) &&
-      resourceQuery !== '?__sc_server__'
-    ) {
+    if (!isServerComponent(resourcePath) && !hasAppliedFlightServerLoader) {
       return source
     }
   }
@@ -197,6 +197,7 @@ export default async function transformSource(
   } = await parseModuleInfo({
     resourcePath,
     source,
+    extensions,
     isClientCompilation,
     isServerComponent,
     isClientComponent,
@@ -218,9 +219,13 @@ export default async function transformSource(
     __next_rsc__: `{
       __webpack_require__,
       _: () => {
-        ${imports.map((source) => `require('${source}');\n`)}
+        ${imports.map((source) => `require('${source}');`).join('\n')}
       },
-      server: ${isServerComponent(resourcePath) ? 'true' : 'false'}
+      server: ${
+        isServerComponent(resourcePath) || hasAppliedFlightServerLoader
+          ? 'true'
+          : 'false'
+      }
     }`,
   }
 
@@ -241,6 +246,10 @@ export default async function transformSource(
     }
   }
 
-  const output = transformedSource + '\n' + buildExports(rscExports, isEsm)
+  const output =
+    transformedSource +
+    '\n' +
+    (isProcessed ? '' : buildExports(rscExports, isEsm))
+
   return output
 }

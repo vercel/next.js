@@ -87,7 +87,7 @@ async function parseModuleInfo(
         } = node
         // exports.xxx = xxx
         if (
-          left.type === 'MemberExpression' &&
+          left?.type === 'MemberExpression' &&
           left?.object.type === 'Identifier' &&
           left.object?.value === 'exports'
         ) {

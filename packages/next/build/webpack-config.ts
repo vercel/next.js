@@ -1206,15 +1206,8 @@ export default async function getBaseWebpackConfig(
                   use: {
                     loader: 'next-flight-server-loader',
                     options: {
-                      pageExtensions: rawPageExtensions,
+                      extensions: rawPageExtensions,
                     },
-                  },
-                },
-                {
-                  test: codeCondition.test,
-                  resourceQuery: /__sc_client__/,
-                  use: {
-                    loader: 'next-flight-client-loader',
                   },
                 },
               ]
@@ -1227,7 +1220,7 @@ export default async function getBaseWebpackConfig(
                     loader: 'next-flight-server-loader',
                     options: {
                       client: 1,
-                      pageExtensions: rawPageExtensions,
+                      extensions: rawPageExtensions,
                     },
                   },
                 },

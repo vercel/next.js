@@ -18,6 +18,7 @@ export default function (context, { runtime, env }) {
     expect(homeHTML).toContain('component:index.server')
     expect(homeHTML).toContain('env:env_var_test')
     expect(homeHTML).toContain('header:test-util')
+    expect(homeHTML).toContain('nav-title')
     expect(homeHTML).toContain('path:/')
   })
 
