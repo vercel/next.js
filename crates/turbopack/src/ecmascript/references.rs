@@ -886,8 +886,6 @@ impl AssetReference for SourceAssetReference {
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
         let context = self.source.path().parent();
 
-        println!("AssetReference {}", self.path.to_string().await?);
-
         Ok(resolve_raw(context, self.path.clone(), false))
     }
 }

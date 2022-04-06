@@ -8,7 +8,7 @@ use swc_common::input::StringInput;
 use swc_common::sync::Lrc;
 use swc_common::{FileName, Globals, Mark, SourceMap, GLOBALS};
 use swc_ecma_transforms_base::resolver::resolver_with_mark;
-use swc_ecmascript::ast::{EsVersion, Module, Program};
+use swc_ecmascript::ast::{EsVersion, Program};
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, Parser, Syntax};
 use swc_ecmascript::visit::VisitMutWith;

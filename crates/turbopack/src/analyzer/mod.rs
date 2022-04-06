@@ -1689,11 +1689,7 @@ mod tests {
     use async_std::task::block_on;
     use swc_common::Mark;
     use swc_ecma_transforms_base::resolver::resolver_with_mark;
-    use swc_ecmascript::{
-        ast::EsVersion,
-        parser::{parse_file_as_module, parse_file_as_program},
-        visit::VisitMutWith,
-    };
+    use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_program, visit::VisitMutWith};
     use testing::NormalizedOutput;
 
     use super::{
