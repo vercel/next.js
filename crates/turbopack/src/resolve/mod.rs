@@ -522,11 +522,16 @@ pub async fn resolve_raw(
     }
     let mut results = Vec::new();
     let pat = path.get().await?;
-    if let Some(pat) = pat.filter_could_match("/") {
-        if let Some(pat) = pat.filter_could_not_match("/fsd8nz8og54z") {
+    if let Some(pat) = pat.filter_could_match("/ROOT/") {
+        if let Some(pat) = pat.filter_could_not_match("/ROOT/fsd8nz8og54z") {
             let path = PatternVc::new(pat);
-            let matches =
-                read_matches(context.clone().root(), "/".to_string(), true, path.clone()).await?;
+            let matches = read_matches(
+                context.clone().root(),
+                "/ROOT/".to_string(),
+                true,
+                path.clone(),
+            )
+            .await?;
             if matches.len() > 10000 {
                 println!(
                     "WARN: resolving abs pattern {} in {} leads to {} results",

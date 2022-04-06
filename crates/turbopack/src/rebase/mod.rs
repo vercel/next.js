@@ -39,7 +39,7 @@ impl Asset for RebasedAsset {
     }
 
     async fn content(&self) -> FileContentVc {
-        self.source.path().read()
+        self.source.content()
     }
 
     async fn references(&self) -> Result<AssetReferencesSetVc> {

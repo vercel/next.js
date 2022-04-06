@@ -522,7 +522,14 @@ pub async fn rebase(
         }
     } else {
         let base_path = [&old_base.path, "/"].concat();
-        assert!(fs_path.path.starts_with(&base_path));
+        if !fs_path.path.starts_with(&base_path) {
+            bail!(
+                "rebasing {} from {} onto {} doesn't work because it's not part of the source path",
+                fs_path.to_string(),
+                old_base.to_string(),
+                new_base.to_string()
+            );
+        }
         if new_base.path.is_empty() {
             new_path = [&fs_path.path[base_path.len()..]].concat();
         } else {

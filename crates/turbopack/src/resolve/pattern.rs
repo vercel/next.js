@@ -696,6 +696,8 @@ mod tests {
         assert!(!pat.could_match("dir//"));
         assert!(!pat.could_match("dir//dir"));
         assert!(!pat.could_match("dir///dir"));
+        assert!(!pat.could_match("/"));
+        assert!(!pat.could_match("//"));
 
         assert!(!pat.could_match("node_modules"));
         assert!(!pat.could_match("node_modules/package"));
