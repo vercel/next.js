@@ -1,18 +1,17 @@
 import { parse } from '../../swc'
-import { getRawPageExtensions } from '../../utils'
 import { buildExports } from './utils'
 
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
 
-const createClientComponentFilter = (pageExtensions: string[]) => {
+export const createClientComponentFilter = (pageExtensions: string[]) => {
   // Special cases for Next.js APIs that are considered as client components:
   // - .client.[ext]
-  // - next/link, next/image
+  // - next built-in client components
   // - .[imageExt]
   const regex = new RegExp(
     '(' +
       `\\.client(\\.(${pageExtensions.join('|')}))?|` +
-      `next/link|next/image|` +
+      `next/(link|image)(\\.js)?|` +
       `\\.(${imageExtensions.join('|')})` +
       ')$'
   )
@@ -20,7 +19,7 @@ const createClientComponentFilter = (pageExtensions: string[]) => {
   return (importSource: string) => regex.test(importSource)
 }
 
-const createServerComponentFilter = (pageExtensions: string[]) => {
+export const createServerComponentFilter = (pageExtensions: string[]) => {
   const regex = new RegExp(`\\.server(\\.(${pageExtensions.join('|')}))?$`)
   return (importSource: string) => regex.test(importSource)
 }
@@ -166,15 +165,8 @@ export default async function transformSource(
     throw new Error('Expected source to have been transformed to a string.')
   }
 
-  // We currently assume that all components are shared components (unsuffixed)
-  // from node_modules.
-  if (resourcePath.includes('/node_modules/')) {
-    return source
-  }
-
-  const rawRawPageExtensions = getRawPageExtensions(pageExtensions)
-  const isServerComponent = createServerComponentFilter(rawRawPageExtensions)
-  const isClientComponent = createClientComponentFilter(rawRawPageExtensions)
+  const isServerComponent = createServerComponentFilter(pageExtensions)
+  const isClientComponent = createClientComponentFilter(pageExtensions)
 
   if (!isClientCompilation) {
     // We only apply the loader to server components, or shared components that
@@ -206,19 +198,19 @@ export default async function transformSource(
    *
    * Server compilation output:
    *   (The content of the Server Component module will be kept.)
-   *   export const __next_rsc__ = { __webpack_require__, _: () => { ... } }
+   *   export const __next_rsc__ = { __webpack_require__, _: () => { ... }, server: true }
    *
    * Client compilation output:
    *   (The content of the Server Component module will be removed.)
-   *   export const __next_rsc__ = { __webpack_require__, _: () => { ... } }
+   *   export const __next_rsc__ = { __webpack_require__, _: () => { ... }, server: false }
    */
 
   const rscExports: any = {
     __next_rsc__: `{
       __webpack_require__,
-      _: () => {\n${imports}\n}
+      _: () => {\n${imports}\n},
+      server: ${isServerComponent(resourcePath) ? 'true' : 'false'}
     }`,
-    __next_rsc_server__: isServerComponent(resourcePath) ? 'true' : 'false',
   }
 
   if (isClientCompilation) {

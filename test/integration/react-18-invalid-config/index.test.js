@@ -5,11 +5,17 @@ import { join } from 'path'
 import { File, nextBuild } from 'next-test-utils'
 
 const appDir = __dirname
+const nodeArgs = ['-r', join(appDir, '../../lib/react-17-require-hook.js')]
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const reactDomPackagePah = join(appDir, 'node_modules/react-dom')
 
 function writeNextConfig(config) {
-  const content = `module.exports = { experimental: ${JSON.stringify(config)} }`
+  const content = `
+    const path = require('path')
+    module.exports = require(path.join(__dirname, '../../lib/with-react-17.js'))({ experimental: ${JSON.stringify(
+      config
+    )} })
+  `
   nextConfig.write(content)
 }
 
@@ -18,7 +24,7 @@ describe('Invalid react 18 webpack config', () => {
     writeNextConfig({
       runtime: 'edge',
     })
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
+    const { stderr } = await nextBuild(appDir, [], { stderr: true, nodeArgs })
     nextConfig.restore()
 
     expect(stderr).toContain(
@@ -42,7 +48,7 @@ describe('React 17 with React 18 config', () => {
   })
 
   it('should warn user when not using react 18 and `experimental.reactRoot` is enabled', async () => {
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
+    const { stderr } = await nextBuild(appDir, [], { stderr: true, nodeArgs })
     expect(stderr).toContain(
       'You have to use React 18 to use `experimental.reactRoot`.'
     )
@@ -51,6 +57,7 @@ describe('React 17 with React 18 config', () => {
   it('suspense is not allowed in blocking rendering mode', async () => {
     const { stderr, code } = await nextBuild(appDir, [], {
       stderr: true,
+      nodeArgs,
     })
     expect(stderr).toContain(
       'Invalid suspense option usage in next/dynamic. Read more: https://nextjs.org/docs/messages/invalid-dynamic-suspense'
