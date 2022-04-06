@@ -5,7 +5,7 @@ import { requireDependencies } from './require'
 import {
   TransformStream,
   ReadableStream,
-} from 'next/dist/compiled/web-streams-polyfill'
+} from '../../node-polyfill-web-streams'
 import cookie from 'next/dist/compiled/cookie'
 import * as polyfills from './polyfills'
 import vm from 'vm'
