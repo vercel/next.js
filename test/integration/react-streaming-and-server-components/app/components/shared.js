@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import Client from './client.client'
 
-const random = ~~(Math.random() * 10000)
-
 export default function Shared() {
   let isServerComponent
   try {
@@ -14,8 +12,7 @@ export default function Shared() {
 
   return (
     <>
-      <Client />,{' '}
-      {(isServerComponent ? 'shared:server' : 'shared:client') + ':' + random}
+      <Client />, {isServerComponent ? 'shared:server' : 'shared:client'}
     </>
   )
 }

@@ -55,8 +55,8 @@ export default function (context, { runtime, env }) {
 
     // Should have 2 occurrences of "shared:server", and 2 occurrences of
     // "shared:client".
-    const sharedServerModule = [...main.matchAll(/shared:server:(\d+)/g)]
-    const sharedClientModule = [...main.matchAll(/shared:client:(\d+)/g)]
+    const sharedServerModule = [...main.matchAll(/shared:server/g)]
+    const sharedClientModule = [...main.matchAll(/shared:client/g)]
     expect(sharedServerModule.length).toBe(2)
     expect(sharedClientModule.length).toBe(2)
 

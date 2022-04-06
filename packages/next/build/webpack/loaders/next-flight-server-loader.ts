@@ -24,6 +24,10 @@ export const createServerComponentFilter = (pageExtensions: string[]) => {
   return (importSource: string) => regex.test(importSource)
 }
 
+function isRelative(resourcePath: string) {
+  return resourcePath.startsWith('.')
+}
+
 async function parseModuleInfo({
   resourcePath,
   source,
@@ -38,7 +42,7 @@ async function parseModuleInfo({
   isClientComponent: (name: string) => boolean
 }): Promise<{
   source: string
-  imports: string
+  imports: string[]
   isEsm: boolean
   __N_SSP: boolean
   pageRuntime: 'edge' | 'nodejs' | null
@@ -50,7 +54,7 @@ async function parseModuleInfo({
   const { type, body } = ast
   let transformedSource = ''
   let lastIndex = 0
-  let imports = ''
+  let imports = []
   let __N_SSP = false
   let pageRuntime = null
 
@@ -76,7 +80,7 @@ async function parseModuleInfo({
             // A client component. It should be loaded as module reference.
             transformedSource += importDeclarations
             transformedSource += JSON.stringify(`${importSource}?__sc_client__`)
-            imports += `require(${JSON.stringify(importSource)})\n`
+            imports.push(importSource)
           } else {
             // FIXME
             // case: 'react'
@@ -108,10 +112,15 @@ async function parseModuleInfo({
               isClientComponent(importSource) || isServerComponent(importSource)
             )
           ) {
+            // Keep the relative imports but not the absolute imports
+            // Treated absolute imports as externals
+            if (isRelative(importSource)) {
+              imports.push(importSource)
+            }
             continue
           }
 
-          imports += `require(${JSON.stringify(importSource)})\n`
+          imports.push(importSource)
         }
 
         lastIndex = node.source.span.end
@@ -208,7 +217,9 @@ export default async function transformSource(
   const rscExports: any = {
     __next_rsc__: `{
       __webpack_require__,
-      _: () => {\n${imports}\n},
+      _: () => {
+        ${imports.map((source) => `require('${source}');\n`)}
+      },
       server: ${isServerComponent(resourcePath) ? 'true' : 'false'}
     }`,
   }
