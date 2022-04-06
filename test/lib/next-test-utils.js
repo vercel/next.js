@@ -29,10 +29,14 @@ export function initNextServerScript(
   opts
 ) {
   return new Promise((resolve, reject) => {
-    const instance = spawn('node', ['--no-deprecation', scriptPath], {
-      env,
-      cwd: opts && opts.cwd,
-    })
+    const instance = spawn(
+      'node',
+      [...((opts && opts.nodeArgs) || []), '--no-deprecation', scriptPath],
+      {
+        env,
+        cwd: opts && opts.cwd,
+      }
+    )
 
     function handleStdout(data) {
       const message = data.toString()
