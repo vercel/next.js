@@ -15,11 +15,11 @@ npm install next@latest react@latest react-dom@latest
 
 You can now start using React 18's new APIs like `startTransition` and `Suspense` in Next.js.
 
-## Streaming SSR (Alpha)
+## Streaming SSR
 
-Streaming server-rendering (SSR) is an experimental feature in Next.js 12. When enabled, SSR will use the same [Edge Runtime](/docs/api-reference/edge-runtime.md) as [Middleware](/docs/middleware.md).
+Next.js supports React 18's Streaming server-rendering (SSR) out of the box for SSR pages.
 
-[Learn how to enable streaming in Next.js.](/docs/advanced-features/react-18/streaming.md)
+[Learn more about streaming in Next.js.](/docs/advanced-features/react-18/streaming.md)
 
 ## React Server Components (Alpha)
 
