@@ -88,9 +88,8 @@ let warn: typeof import('../build/output/log').warn
 let postProcess: typeof import('../shared/lib/post-process').default
 
 const DOCTYPE = '<!DOCTYPE html>'
-const isEdgeRuntime = !!process.browser
 
-if (!isEdgeRuntime) {
+if (!process.browser) {
   require('./node-polyfill-web-streams')
   optimizeAmp = require('./optimize-amp').default
   getFontDefinitionFromManifest =
@@ -512,7 +511,8 @@ export async function renderToHTML(
   let serverComponentsPageDataTransformStream: TransformStream<
     Uint8Array,
     Uint8Array
-  > | null = isServerComponent && !isEdgeRuntime ? new TransformStream() : null
+  > | null =
+    isServerComponent && !process.browser ? new TransformStream() : null
 
   if (isServerComponent) {
     serverComponentsInlinedTransformStream = new TransformStream()
@@ -693,7 +693,7 @@ export async function renderToHTML(
   let isPreview
   let previewData: PreviewData
 
-  if ((isSSG || getServerSideProps) && !isFallback && !isEdgeRuntime) {
+  if ((isSSG || getServerSideProps) && !isFallback && !process.browser) {
     // Reads of this are cached on the `req` object, so this should resolve
     // instantly. There's no need to pass this data down from a previous
     // invoke, where we'd have to consider server & serverless.
@@ -763,7 +763,7 @@ export async function renderToHTML(
   }
 
   // Disable AMP under the web environment
-  const inAmpMode = !isEdgeRuntime && isInAmpMode(ampState)
+  const inAmpMode = !process.browser && isInAmpMode(ampState)
 
   const reactLoadableModules: string[] = []
 
@@ -1291,7 +1291,7 @@ export async function renderToHTML(
       | typeof Document
       | undefined
 
-    if (isEdgeRuntime && Document.getInitialProps) {
+    if (process.browser && Document.getInitialProps) {
       // In the Edge runtime, `Document.getInitialProps` isn't supported.
       // We throw an error here if it's customized.
       if (!builtinDocument) {
@@ -1301,7 +1301,7 @@ export async function renderToHTML(
       }
     }
 
-    if ((isServerComponent || isEdgeRuntime) && Document.getInitialProps) {
+    if ((isServerComponent || process.browser) && Document.getInitialProps) {
       if (builtinDocument) {
         Document = builtinDocument
       } else {
@@ -1495,7 +1495,7 @@ export async function renderToHTML(
 
       const hasDocumentGetInitialProps = !(
         isServerComponent ||
-        isEdgeRuntime ||
+        process.browser ||
         !Document.getInitialProps
       )
 
@@ -1506,7 +1506,7 @@ export async function renderToHTML(
 
       const { docProps } = (documentInitialPropsRes as any) || {}
       const documentElement = () => {
-        if (isServerComponent || isEdgeRuntime) {
+        if (isServerComponent || process.browser) {
           return (Document as any)()
         }
 
@@ -1707,7 +1707,7 @@ export async function renderToHTML(
                 return html
               }
             : null,
-          !isEdgeRuntime && process.env.__NEXT_OPTIMIZE_FONTS
+          !process.browser && process.env.__NEXT_OPTIMIZE_FONTS
             ? async (html: string) => {
                 return await postProcess(
                   html,
@@ -1718,7 +1718,7 @@ export async function renderToHTML(
                 )
               }
             : null,
-          !isEdgeRuntime && renderOpts.optimizeCss
+          !process.browser && renderOpts.optimizeCss
             ? async (html: string) => {
                 // eslint-disable-next-line import/no-extraneous-dependencies
                 const Critters = require('critters')
