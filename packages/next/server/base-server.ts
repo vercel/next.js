@@ -29,9 +29,10 @@ import {
   TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
 import {
-  getRoutingItems,
+  getRouteMatcher,
+  getRouteRegex,
+  getSortedRoutes,
   isDynamicRoute,
-  RoutingItem,
 } from '../shared/lib/router/utils'
 import {
   setLazyProp,
@@ -68,6 +69,12 @@ import { replaceBasePath } from './router-utils'
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
   query: NextParsedUrlQuery
+}
+
+interface RoutingItem {
+  page: string
+  match: ReturnType<typeof getRouteMatcher>
+  ssr?: boolean
 }
 
 export interface Options {
@@ -170,8 +177,8 @@ export default abstract class Server {
   protected dynamicRoutes?: DynamicRoutes
   protected customRoutes: CustomRoutes
   protected middlewareManifest?: MiddlewareManifest
+  protected middleware?: RoutingItem[]
   protected serverComponentManifest?: any
-  protected allRoutes?: RoutingItem[]
   public readonly hostname?: string
   public readonly port?: number
 
@@ -183,8 +190,7 @@ export default abstract class Server {
   protected abstract generateImageRoutes(): Route[]
   protected abstract generateStaticRoutes(): Route[]
   protected abstract generateFsStaticRoutes(): Route[]
-  protected abstract generateCatchAllStaticMiddlewareRoute(): Route | undefined
-  protected abstract generateCatchAllDynamicMiddlewareRoute(): Route | undefined
+  protected abstract generateCatchAllMiddlewareRoute(): Route | undefined
   protected abstract generateRewrites({
     restrictedRedirectPaths,
   }: {
@@ -195,6 +201,14 @@ export default abstract class Server {
     fallback: Route[]
   }
   protected abstract getFilesystemPaths(): Set<string>
+  protected abstract getMiddleware(): {
+    match: (pathname: string | null | undefined) =>
+      | false
+      | {
+          [paramName: string]: string | string[]
+        }
+    page: string
+  }[]
   protected abstract findPageComponents(
     pathname: string,
     query?: NextParsedUrlQuery,
@@ -640,11 +654,9 @@ export default abstract class Server {
       fallback: Route[]
     }
     fsRoutes: Route[]
-    internalFsRoutes: Route[]
     redirects: Route[]
     catchAllRoute: Route
-    catchAllStaticMiddleware?: Route
-    catchAllDynamicMiddleware?: Route
+    catchAllMiddleware?: Route
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
@@ -654,7 +666,7 @@ export default abstract class Server {
     const imageRoutes = this.generateImageRoutes()
     const staticFilesRoutes = this.generateStaticRoutes()
 
-    const internalFsRoutes: Route[] = [
+    const fsRoutes: Route[] = [
       ...this.generateFsStaticRoutes(),
       {
         match: route('/_next/data/:path*'),
@@ -744,9 +756,9 @@ export default abstract class Server {
           }
         },
       },
+      ...publicRoutes,
+      ...staticFilesRoutes,
     ]
-
-    const fsRoutes: Route[] = [...publicRoutes, ...staticFilesRoutes]
 
     const restrictedRedirectPaths = this.nextConfig.basePath
       ? [`${this.nextConfig.basePath}/_next`]
@@ -766,10 +778,7 @@ export default abstract class Server {
         )
 
     const rewrites = this.generateRewrites({ restrictedRedirectPaths })
-    const catchAllStaticMiddleware =
-      this.generateCatchAllStaticMiddlewareRoute()
-    const catchAllDynamicMiddleware =
-      this.generateCatchAllDynamicMiddlewareRoute()
+    const catchAllMiddleware = this.generateCatchAllMiddlewareRoute()
 
     const catchAllRoute: Route = {
       match: route('/:path*'),
@@ -804,7 +813,7 @@ export default abstract class Server {
           }
         }
 
-        if (isApiRoute(pathname)) {
+        if (pathname === '/api' || pathname.startsWith('/api/')) {
           delete query._nextBubbleNoFallback
 
           const handled = await this.handleApiRequest(req, res, pathname, query)
@@ -833,19 +842,19 @@ export default abstract class Server {
     const { useFileSystemPublicRoutes } = this.nextConfig
 
     if (useFileSystemPublicRoutes) {
-      this.allRoutes = this.getAllRoutes()
       this.dynamicRoutes = this.getDynamicRoutes()
+      if (!this.minimalMode) {
+        this.middleware = this.getMiddleware()
+      }
     }
 
     return {
       headers,
       fsRoutes,
-      internalFsRoutes,
       rewrites,
       redirects,
       catchAllRoute,
-      catchAllStaticMiddleware,
-      catchAllDynamicMiddleware,
+      catchAllMiddleware,
       useFileSystemPublicRoutes,
       dynamicRoutes: this.dynamicRoutes,
       basePath: this.nextConfig.basePath,
@@ -922,34 +931,24 @@ export default abstract class Server {
     return this.runApi(req, res, query, params, page, builtPagePath)
   }
 
-  protected getAllRoutes(): RoutingItem[] {
-    const pages = Object.keys(this.pagesManifest!).map(
-      (page) =>
-        normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
-    )
-    const middlewareMap = this.minimalMode
-      ? {}
-      : this.middlewareManifest?.middleware || {}
-    const middleware = Object.keys(middlewareMap).map((page) => ({
-      page,
-      ssr: !MIDDLEWARE_ROUTE.test(middlewareMap[page].name),
-    }))
-    return getRoutingItems(pages, middleware)
-  }
-
   protected getDynamicRoutes(): Array<RoutingItem> {
     const addedPages = new Set<string>()
 
-    return this.allRoutes!.filter((item) => {
-      if (
-        item.isMiddleware ||
-        addedPages.has(item.page) ||
-        !isDynamicRoute(item.page)
+    return getSortedRoutes(
+      Object.keys(this.pagesManifest!).map(
+        (page) =>
+          normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
       )
-        return false
-      addedPages.add(item.page)
-      return true
-    })
+    )
+      .map((page) => {
+        if (addedPages.has(page) || !isDynamicRoute(page)) return null
+        addedPages.add(page)
+        return {
+          page,
+          match: getRouteMatcher(getRouteRegex(page)),
+        }
+      })
+      .filter((item): item is RoutingItem => Boolean(item))
   }
 
   protected async run(
@@ -1124,14 +1123,25 @@ export default abstract class Server {
     const isLikeServerless =
       typeof components.ComponentMod === 'object' &&
       typeof (components.ComponentMod as any).renderReqToHTML === 'function'
-    const isSSG = !!components.getStaticProps
     const hasServerProps = !!components.getServerSideProps
     const hasStaticPaths = !!components.getStaticPaths
     const hasGetInitialProps = !!components.Component?.getInitialProps
+    const isServerComponent = !!components.ComponentMod?.__next_rsc__
+    const isSSG =
+      !!components.getStaticProps ||
+      // For static server component pages, we currently always consider them
+      // as SSG since we also need to handle the next data (flight JSON).
+      (isServerComponent &&
+        !hasServerProps &&
+        !hasGetInitialProps &&
+        !process.browser)
 
     // Toggle whether or not this is a Data request
-    const isDataReq = !!query._nextDataReq && (isSSG || hasServerProps)
+    const isDataReq =
+      !!query._nextDataReq && (isSSG || hasServerProps || isServerComponent)
+
     delete query._nextDataReq
+
     // Don't delete query.__flight__ yet, it still needs to be used in renderToHTML later
     const isFlightRequest = Boolean(
       this.serverComponentManifest && query.__flight__
@@ -1290,8 +1300,8 @@ export default abstract class Server {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG || opts.supportsDynamicHTML
-        ? null // Preview mode and manual revalidate bypasses the cache
+      isPreviewMode || !isSSG || opts.supportsDynamicHTML || isFlightRequest
+        ? null // Preview mode, manual revalidate, flight request can bypass the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
               ? ''
@@ -1602,7 +1612,10 @@ export default abstract class Server {
       if (isDataReq) {
         return {
           type: 'json',
-          body: RenderResult.fromStatic(JSON.stringify(cachedData.props)),
+          body: RenderResult.fromStatic(
+            // @TODO: Handle flight data.
+            JSON.stringify(cachedData.props)
+          ),
           revalidateOptions,
         }
       } else {
@@ -1926,10 +1939,6 @@ export function prepareServerlessUrl(
 }
 
 export { stringifyQuery } from './server-route-utils'
-
-export function isApiRoute(pathname: string) {
-  return pathname === '/api' || pathname.startsWith('/api/')
-}
 
 class NoFallbackError extends Error {}
 
