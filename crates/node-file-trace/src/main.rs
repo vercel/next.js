@@ -223,21 +223,25 @@ fn main() {
             let context = process_context(&dir, context_directory).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
             let tt = TurboTasks::new();
-            let task = tt.spawn_once_task(async move {
-                let mut result = BTreeSet::new();
-                let fs = create_fs("context directory", &context, watch).await?;
-                let modules = input_to_modules(&fs, &input).await?;
-                for module in modules {
-                    let set = all_assets(module);
-                    for asset in set.await?.assets.iter() {
-                        let path = asset.path().await?;
-                        result.insert(path.path.to_string());
+            let task = tt.spawn_root_task(move || {
+                let context = context.clone();
+                let input = input.clone();
+                Box::pin(async move {
+                    let mut result = BTreeSet::new();
+                    let fs = create_fs("context directory", &context, watch).await?;
+                    let modules = input_to_modules(&fs, &input).await?;
+                    for module in modules {
+                        let set = all_assets(module);
+                        for asset in set.await?.assets.iter() {
+                            let path = asset.path().await?;
+                            result.insert(path.path.to_string());
+                        }
                     }
-                }
-                for path in result {
-                    println!("{}", path);
-                }
-                Ok(NothingVc::new().into())
+                    for path in result {
+                        println!("{}", path);
+                    }
+                    Ok(NothingVc::new().into())
+                })
             });
             finish(tt, task);
         }
@@ -249,13 +253,17 @@ fn main() {
             let context = process_context(&dir, context_directory).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
             let tt = TurboTasks::new();
-            let task = tt.spawn_once_task(async move {
-                let fs = create_fs("context directory", &context, watch).await?;
-                for module in input_to_modules(&fs, &input).await? {
-                    let nft_asset = NftJsonAssetVc::new(module).into();
-                    emit(nft_asset)
-                }
-                Ok(NothingVc::new().into())
+            let task = tt.spawn_root_task(move || {
+                let context = context.clone();
+                let input = input.clone();
+                Box::pin(async move {
+                    let fs = create_fs("context directory", &context, watch).await?;
+                    for module in input_to_modules(&fs, &input).await? {
+                        let nft_asset = NftJsonAssetVc::new(module).into();
+                        emit(nft_asset)
+                    }
+                    Ok(NothingVc::new().into())
+                })
             });
             finish(tt, task);
         }
@@ -269,17 +277,23 @@ fn main() {
             let output = process_context(&dir, Some(output_directory)).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
             let tt = TurboTasks::new();
-            let task = tt.spawn_once_task(async move {
-                let fs = create_fs("context directory", &context, watch).await?;
-                let out_fs = create_fs("output directory", &output, watch).await?;
-                let input_dir = FileSystemPathVc::new(fs.clone(), "");
-                let output_dir = FileSystemPathVc::new(out_fs, "");
-                for module in input_to_modules(&fs, &input).await? {
-                    let rebased =
-                        RebasedAssetVc::new(module, input_dir.clone(), output_dir.clone()).into();
-                    emit(rebased);
-                }
-                Ok(NothingVc::new().into())
+            let task = tt.spawn_root_task(move || {
+                let context = context.clone();
+                let input = input.clone();
+                let output = output.clone();
+                Box::pin(async move {
+                    let fs = create_fs("context directory", &context, watch).await?;
+                    let out_fs = create_fs("output directory", &output, watch).await?;
+                    let input_dir = FileSystemPathVc::new(fs.clone(), "");
+                    let output_dir = FileSystemPathVc::new(out_fs, "");
+                    for module in input_to_modules(&fs, &input).await? {
+                        let rebased =
+                            RebasedAssetVc::new(module, input_dir.clone(), output_dir.clone())
+                                .into();
+                        emit(rebased);
+                    }
+                    Ok(NothingVc::new().into())
+                })
             });
             finish(tt, task);
         }
