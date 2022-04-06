@@ -89,6 +89,7 @@ let postProcess: typeof import('../shared/lib/post-process').default
 const DOCTYPE = '<!DOCTYPE html>'
 
 if (!process.browser) {
+  require('./node-polyfill-web-streams')
   optimizeAmp = require('./optimize-amp').default
   getFontDefinitionFromManifest =
     require('./font-utils').getFontDefinitionFromManifest
