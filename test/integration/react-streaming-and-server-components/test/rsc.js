@@ -111,13 +111,13 @@ export default function (context, { runtime, env }) {
     await browser.waitForElementByCss('#goto-streaming-rsc').click()
 
     // Wait for navigation and streaming to finish.
-    await new Promise((res) => setTimeout(res, 2500))
+    await check(
+      () => browser.elementByCss('#content').text(),
+      'next_streaming_data'
+    )
     expect(await browser.url()).toBe(
       `http://localhost:${context.appPort}/streaming-rsc`
     )
-
-    content = await browser.elementByCss('#content').text()
-    expect(content).toContain('next_streaming_data')
   })
 
   it('should handle streaming server components correctly', async () => {
