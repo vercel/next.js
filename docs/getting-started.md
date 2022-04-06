@@ -84,9 +84,7 @@ Create two directories `pages` and `public` at the root of your application:
 
 Next.js is built around the concept of [pages](/docs/basic-features/pages.md). A page is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.jsx`, `.ts`, or `.tsx` file in the `pages` directory. You can even add [dynamic route](/docs/routing/dynamic-routes) parameters with the filename.
 
-Inside the `pages` directory add the following file to get started:
-
-- `index.js` - This is the page that is rendered when the user visits the root of your application
+Inside the `pages` directory add the `index.js` file to get started. This is the page that is rendered when the user visits the root of your application
 
 Populate `pages/index.js` with the following contents:
 
