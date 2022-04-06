@@ -1,3 +1,5 @@
+import { ReadableStream } from 'next/dist/compiled/web-streams-polyfill'
+
 import { formDataIterator, getBoundary } from '../form-data'
 import { streamToIterator } from '../utils'
 import * as util from '../is'
