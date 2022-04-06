@@ -62,13 +62,27 @@ const nextStart: cliCommand = (argv) => {
     port = 0
   }
 
-  const keepAliveTimeout = args['--keepAliveTimeout']
+  let keepAliveTimeout = args['--keepAliveTimeout']
     ? parseInt(args['--keepAliveTimeout'])
     : undefined
 
-  const headersTimeout = args['--headersTimeout']
+  let headersTimeout = args['--headersTimeout']
     ? parseInt(args['--headersTimeout'])
     : undefined
+
+  if (Number.isNaN(keepAliveTimeout)) {
+    keepAliveTimeout = undefined
+    printAndExit(
+      'Invalid type for --keepAliveTimeout; provide an integer in milliseconds'
+    )
+  }
+
+  if (Number.isNaN(headersTimeout)) {
+    headersTimeout = undefined
+    printAndExit(
+      'Invalid type for --headersTimeout; provide an integer in milliseconds'
+    )
+  }
 
   startServer({
     dir,
