@@ -394,6 +394,30 @@ describe('CLI Usage', () => {
         'Invalid project directory provided, no such directory'
       )
     })
+
+    test('should validate keepAliveTimeout argument', async () => {
+      const output = await runNextCommand(
+        ['start', dir, '--keepAliveTimeout', 'seventy-five-thousand'],
+        {
+          stderr: true,
+        }
+      )
+      expect(output.stderr).toEqual(
+        'Invalid type for --keepAliveTimeout; provide an integer in milliseconds'
+      )
+    })
+
+    test('should validate headersTimeout argument', async () => {
+      const output = await runNextCommand(
+        ['start', dir, '--headersTimeout', 'seventy-five-thousand'],
+        {
+          stderr: true,
+        }
+      )
+      expect(output.stderr).toEqual(
+        'Invalid type for --headersTimeout; provide an integer in milliseconds'
+      )
+    })
   })
 
   describe('export', () => {
