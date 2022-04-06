@@ -94,6 +94,8 @@ export async function streamToString(
   stream: ReadableStream<Uint8Array>
 ): Promise<string> {
   const reader = stream.getReader()
+  const textDecoder = new TextDecoder()
+
   let bufferedString = ''
 
   while (true) {
@@ -103,7 +105,7 @@ export async function streamToString(
       return bufferedString
     }
 
-    bufferedString += decodeText(value)
+    bufferedString += decodeText(value, textDecoder)
   }
 }
 
@@ -230,9 +232,10 @@ export function createFlushEffectStream(
 ): TransformStream<Uint8Array, Uint8Array> {
   return createTransformStream({
     async transform(chunk, controller) {
-      const extraChunk = await handleFlushEffect()
-      // those should flush together at once
-      controller.enqueue(encodeText(extraChunk + decodeText(chunk)))
+      const flushedChunk = encodeText(await handleFlushEffect())
+
+      controller.enqueue(flushedChunk)
+      controller.enqueue(chunk)
     },
   })
 }
@@ -302,28 +305,14 @@ export async function renderToStream({
   generateStaticHTML: boolean
   flushEffectHandler?: () => Promise<string>
 }): Promise<ReadableStream<Uint8Array>> {
-  const closeTag = '</body></html>'
-  const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
-  const renderStream: ReadableStream<Uint8Array> & {
-    allReady?: Promise<void>
-  } = await (ReactDOMServer as any).renderToReadableStream(element)
-
-  if (generateStaticHTML) {
-    await renderStream.allReady
-  }
-
-  const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
-    createBufferedTransformStream(),
-    flushEffectHandler ? createFlushEffectStream(flushEffectHandler) : null,
-    suffixUnclosed != null ? createPrefixStream(suffixUnclosed) : null,
-    dataStream ? createInlineDataStream(dataStream) : null,
-    suffixUnclosed != null ? createSuffixStream(closeTag) : null,
-  ].filter(Boolean) as any
-
-  return transforms.reduce(
-    (readable, transform) => pipeThrough(readable, transform),
-    renderStream
-  )
+  const renderStream = await renderToInitialStream({ ReactDOMServer, element })
+  return continueFromInitialStream({
+    suffix,
+    dataStream,
+    generateStaticHTML,
+    flushEffectHandler,
+    renderStream,
+  })
 }
 
 export function createSuffixStream(

@@ -68,7 +68,9 @@ pub fn transform_sync(s: &str, opts: JsValue) -> Result<JsValue, JsValue> {
                     None,
                     handler,
                     &opts.swc,
-                    |_, comments| custom_before_pass(cm, file, &opts, comments.clone()),
+                    |_, comments| {
+                        custom_before_pass(cm, file, &opts, comments.clone(), Default::default())
+                    },
                     |_, _| noop(),
                 )
                 .context("failed to process js file")?;
