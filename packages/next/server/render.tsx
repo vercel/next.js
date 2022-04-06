@@ -1419,19 +1419,15 @@ export async function renderToHTML(
         }
       }
     } else {
-      let bodyResult
-
-      let renderStream: any
-
       // We start rendering the shell earlier, before returning the head tags
       // to `documentResult`.
       const content = renderContent()
-      renderStream = await renderToInitialStream({
+      const renderStream = await renderToInitialStream({
         ReactDOMServer,
         element: content,
       })
 
-      bodyResult = async (suffix: string) => {
+      const bodyResult = async (suffix: string) => {
         // this must be called inside bodyResult so appWrappers is
         // up to date when getWrappedApp is called
 
