@@ -170,11 +170,6 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const PUBLIC_FILE = /\.(.*)$/
 
-const stripDefaultLocale = (str: string): string => {
-  const stripped = str.replace('/default', '')
-  return stripped
-}
-
 export function middleware(request: NextRequest) {
   const shouldHandleLocale =
     !PUBLIC_FILE.test(request.nextUrl.pathname) &&
@@ -183,7 +178,7 @@ export function middleware(request: NextRequest) {
 
   if (shouldHandleLocale) {
     const url = request.nextUrl.clone()
-    url.pathname = `/en${stripDefaultLocale(request.nextUrl.pathname)}`
+    url.pathname = `/en${request.nextUrl.pathname}`
     return NextResponse.redirect(url)
   }
 
