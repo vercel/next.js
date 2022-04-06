@@ -17,9 +17,7 @@ export default function PostHeader({ title, coverImage, date, author }) {
         <div className="block mb-6 md:hidden">
           {author.length ? <Avatar name={`${author[0].firstName} ${author[0].lastName}`} picture={author[0].profilePhoto} /> : null}
         </div>
-        <div className="mb-6 text-lg">
-          <DateComponent dateString={date} />
-        </div>
+          {date != 'now' ? <div className="mb-6 text-lg"><DateComponent dateString={date} /></div> : null}
       </div>
     </>
   )
