@@ -325,7 +325,7 @@ impl Pattern {
             Pattern::Dynamic => {
                 lazy_static! {
                     static ref FORBIDDEN: Regex =
-                        Regex::new(r"(/|^)(\.|(node_modules|__tests?__)(/|$))").unwrap();
+                        Regex::new(r"(/|^)(\.|/|(node_modules|__tests?__)(/|$))").unwrap();
                     static ref FORBIDDEN_MATCH: Regex = Regex::new(r"\.d\.ts$|\.map$").unwrap();
                 };
                 if let Some(m) = FORBIDDEN.find(value) {
@@ -519,6 +519,25 @@ pub async fn read_matches(
                 pattern.clone(),
             ));
         }
+    } else {
+        let self_path = format!("{prefix}/");
+        if pat.could_match(&self_path) {
+            nested.push(read_matches(
+                context.clone(),
+                self_path.to_string(),
+                false,
+                pattern.clone(),
+            ));
+        }
+        let self_path = format!("{prefix}./");
+        if pat.could_match(&self_path) {
+            nested.push(read_matches(
+                context.clone(),
+                self_path.to_string(),
+                false,
+                pattern.clone(),
+            ));
+        }
     }
     match &*context.read_dir().await? {
         DirectoryContent::Entries(map) => {
@@ -673,6 +692,12 @@ mod tests {
         assert!(!pat.could_match("./inner/../"));
         assert!(!pat.could_match("./inner/./"));
         assert!(!pat.could_match("./inner/.git/"));
+        assert!(!pat.could_match("/"));
+        assert!(!pat.could_match("dir//"));
+        assert!(!pat.could_match("dir//dir"));
+        assert!(!pat.could_match("dir///dir"));
+        assert!(!pat.could_match("/"));
+        assert!(!pat.could_match("//"));
 
         assert!(!pat.could_match("node_modules"));
         assert!(!pat.could_match("node_modules/package"));

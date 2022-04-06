@@ -34,7 +34,7 @@ use swc_ecmascript::{
     },
     visit::{self, Visit, VisitWith},
 };
-use turbo_tasks::{util::try_join_all, Value};
+use turbo_tasks::{util::try_join_all, Value, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
 
 use super::{
@@ -485,7 +485,7 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
 }
 
 async fn as_abs_path(path: FileSystemPathVc) -> Result<JsValue> {
-    Ok(format!("/{}", path.await?.path.as_str()).into())
+    Ok(format!("/ROOT/{}", path.await?.path.as_str()).into())
 }
 
 async fn value_visitor(source: &AssetVc, v: JsValue) -> Result<(JsValue, bool)> {
@@ -883,9 +883,11 @@ impl SourceAssetReferenceVc {
 
 #[turbo_tasks::value_impl]
 impl AssetReference for SourceAssetReference {
-    fn resolve_reference(&self) -> ResolveResultVc {
+    async fn resolve_reference(&self) -> Result<ResolveResultVc> {
         let context = self.source.path().parent();
 
-        resolve_raw(context, self.path.clone(), false)
+        println!("AssetReference {}", self.path.to_string().await?);
+
+        Ok(resolve_raw(context, self.path.clone(), false))
     }
 }

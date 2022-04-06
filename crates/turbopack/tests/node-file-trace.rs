@@ -109,6 +109,7 @@ use turbopack::{
 // #[case::uglify("integration/uglify.js", false)] // node_modules/uglify-es/tools/node.js is weird
 #[case::vm2("integration/vm2.js", true)]
 #[case::vue("integration/vue.js", true)]
+#[case::whatwg_url("integration/whatwg-url.js", true)]
 #[case::when("integration/when.js", false)] // doesn't understand define
 fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
