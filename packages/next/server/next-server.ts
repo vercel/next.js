@@ -658,7 +658,8 @@ export default class NextNodeServer extends BaseServer {
         const components = await loadComponents(
           this.distDir,
           pagePath!,
-          !this.renderOpts.dev && this._isLikeServerless
+          !this.renderOpts.dev && this._isLikeServerless,
+          this.renderOpts.serverComponents
         )
 
         if (

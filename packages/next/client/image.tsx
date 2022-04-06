@@ -1,4 +1,11 @@
-import React, { useRef, useEffect, useContext, useMemo } from 'react'
+import React, {
+  useRef,
+  useEffect,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from 'react'
 import Head from '../shared/lib/head'
 import {
   ImageConfigComplete,
@@ -66,6 +73,10 @@ type OnLoadingComplete = (result: {
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
+type ImgElementWithDataProp = HTMLImageElement & {
+  'data-loaded-src': string | undefined
+}
+
 export interface StaticImageData {
   src: string
   height: number
@@ -131,11 +142,15 @@ type ImageElementProps = Omit<ImageProps, 'src'> & {
   imgStyle: ImgElementStyle
   blurStyle: ImgElementStyle
   isLazy: boolean
-  imgRef: React.RefObject<HTMLImageElement>
   loading: LoadingValue
   config: ImageConfig
   unoptimized: boolean
   loader: ImageLoader
+  placeholder: PlaceholderValue
+  onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
+  setBlurComplete: (b: boolean) => void
+  setIntersection: (img: HTMLImageElement | null) => void
+  isVisible: boolean
 }
 
 function getWidths(
@@ -270,70 +285,59 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
 // See https://stackoverflow.com/q/39777833/266535 for why we use this ref
 // handler instead of the img's onLoad attribute.
 function handleLoading(
-  imgRef: React.RefObject<HTMLImageElement>,
+  img: ImgElementWithDataProp,
   src: string,
   layout: LayoutValue,
   placeholder: PlaceholderValue,
-  onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
+  onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>,
+  setBlurComplete: (b: boolean) => void
 ) {
-  const handleLoad = () => {
-    const img = imgRef.current
-    if (!img) {
+  if (!img || img.src === emptyDataURL || img['data-loaded-src'] === src) {
+    return
+  }
+  img['data-loaded-src'] = src
+  const p = 'decode' in img ? img.decode() : Promise.resolve()
+  p.catch(() => {}).then(() => {
+    if (!img.parentNode) {
+      // Exit early in case of race condition:
+      // - onload() is called
+      // - decode() is called but incomplete
+      // - unmount is called
+      // - decode() completes
       return
     }
-    if (img.src !== emptyDataURL) {
-      const p = 'decode' in img ? img.decode() : Promise.resolve()
-      p.catch(() => {}).then(() => {
-        if (!imgRef.current) {
-          return
-        }
-        loadedImageURLs.add(src)
-        if (placeholder === 'blur') {
-          img.style.filter = ''
-          img.style.backgroundSize = ''
-          img.style.backgroundImage = ''
-          img.style.backgroundPosition = ''
-        }
-        if (onLoadingCompleteRef.current) {
-          const { naturalWidth, naturalHeight } = img
-          // Pass back read-only primitive values but not the
-          // underlying DOM element because it could be misused.
-          onLoadingCompleteRef.current({ naturalWidth, naturalHeight })
-        }
-        if (process.env.NODE_ENV !== 'production') {
-          if (img.parentElement?.parentElement) {
-            const parent = getComputedStyle(img.parentElement.parentElement)
-            if (!parent.position) {
-              // The parent has not been rendered to the dom yet and therefore it has no position. Skip the warnings for such cases.
-            } else if (layout === 'responsive' && parent.display === 'flex') {
-              warnOnce(
-                `Image with src "${src}" may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width.`
-              )
-            } else if (
-              layout === 'fill' &&
-              parent.position !== 'relative' &&
-              parent.position !== 'fixed' &&
-              parent.position !== 'absolute'
-            ) {
-              warnOnce(
-                `Image with src "${src}" may not render properly with a parent using position:"${parent.position}". Consider changing the parent style to position:"relative" with a width and height.`
-              )
-            }
-          }
-        }
-      })
+    loadedImageURLs.add(src)
+    if (placeholder === 'blur') {
+      setBlurComplete(true)
     }
-  }
-  if (imgRef.current) {
-    if (imgRef.current.complete) {
-      // If the real image fails to load, this will still remove the placeholder.
-      // This is the desired behavior for now, and will be revisited when error
-      // handling is worked on for the image component itself.
-      handleLoad()
-    } else {
-      imgRef.current.onload = handleLoad
+    if (onLoadingCompleteRef?.current) {
+      const { naturalWidth, naturalHeight } = img
+      // Pass back read-only primitive values but not the
+      // underlying DOM element because it could be misused.
+      onLoadingCompleteRef.current({ naturalWidth, naturalHeight })
     }
-  }
+    if (process.env.NODE_ENV !== 'production') {
+      if (img.parentElement?.parentElement) {
+        const parent = getComputedStyle(img.parentElement.parentElement)
+        if (!parent.position) {
+          // The parent has not been rendered to the dom yet and therefore it has no position. Skip the warnings for such cases.
+        } else if (layout === 'responsive' && parent.display === 'flex') {
+          warnOnce(
+            `Image with src "${src}" may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width.`
+          )
+        } else if (
+          layout === 'fill' &&
+          parent.position !== 'relative' &&
+          parent.position !== 'fixed' &&
+          parent.position !== 'absolute'
+        ) {
+          warnOnce(
+            `Image with src "${src}" may not render properly with a parent using position:"${parent.position}". Consider changing the parent style to position:"relative" with a width and height.`
+          )
+        }
+      }
+    }
+  })
 }
 
 export default function Image({
@@ -352,6 +356,7 @@ export default function Image({
   objectFit,
   objectPosition,
   onLoadingComplete,
+  onError,
   loader = defaultImageLoader,
   placeholder = 'empty',
   blurDataURL,
@@ -417,11 +422,13 @@ export default function Image({
     isLazy = false
   }
 
-  const [setIntersection, isIntersected] = useIntersection<HTMLImageElement>({
-    rootRef: lazyRoot,
-    rootMargin: lazyBoundary,
-    disabled: !isLazy,
-  })
+  const [blurComplete, setBlurComplete] = useState(false)
+  const [setIntersection, isIntersected, resetIntersected] =
+    useIntersection<HTMLImageElement>({
+      rootRef: lazyRoot,
+      rootMargin: lazyBoundary,
+      disabled: !isLazy,
+    })
   const isVisible = !isLazy || isIntersected
 
   const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
@@ -639,9 +646,8 @@ export default function Image({
       ? { aspectRatio: `${widthInt} / ${heightInt}` }
       : layoutStyle
   )
-
   const blurStyle =
-    placeholder === 'blur'
+    placeholder === 'blur' && !blurComplete
       ? {
           filter: 'blur(20px)',
           backgroundSize: objectFit || 'cover',
@@ -743,18 +749,18 @@ export default function Image({
     typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
   const onLoadingCompleteRef = useRef(onLoadingComplete)
 
-  const imgRef = useRef<HTMLImageElement>(null)
+  const previousImageSrc = useRef<string | StaticImport>(src)
   useEffect(() => {
     onLoadingCompleteRef.current = onLoadingComplete
   }, [onLoadingComplete])
 
   useLayoutEffect(() => {
-    setIntersection(imgRef.current)
-  }, [setIntersection])
+    if (previousImageSrc.current !== src) {
+      resetIntersected()
+      previousImageSrc.current = src
+    }
+  }, [resetIntersected, src])
 
-  useEffect(() => {
-    handleLoading(imgRef, srcString, layout, placeholder, onLoadingCompleteRef)
-  }, [srcString, layout, placeholder, isVisible])
   const imgElementArgs = {
     isLazy,
     imgAttributes,
@@ -765,13 +771,16 @@ export default function Image({
     className,
     imgStyle,
     blurStyle,
-    imgRef,
     loading,
     config,
     unoptimized,
     placeholder,
     loader,
     srcString,
+    onLoadingCompleteRef,
+    setBlurComplete,
+    setIntersection,
+    isVisible,
     ...rest,
   }
   return (
@@ -840,13 +849,17 @@ const ImageElement = ({
   imgStyle,
   blurStyle,
   isLazy,
-  imgRef,
   placeholder,
   loading,
   srcString,
   config,
   unoptimized,
   loader,
+  onLoadingCompleteRef,
+  setBlurComplete,
+  setIntersection,
+  onError,
+  isVisible,
   ...rest
 }: ImageElementProps) => {
   return (
@@ -860,8 +873,50 @@ const ImageElement = ({
         decoding="async"
         data-nimg={layout}
         className={className}
-        ref={imgRef}
         style={{ ...imgStyle, ...blurStyle }}
+        ref={useCallback(
+          (img: ImgElementWithDataProp) => {
+            setIntersection(img)
+            if (img?.complete) {
+              handleLoading(
+                img,
+                srcString,
+                layout,
+                placeholder,
+                onLoadingCompleteRef,
+                setBlurComplete
+              )
+            }
+          },
+          [
+            setIntersection,
+            srcString,
+            layout,
+            placeholder,
+            onLoadingCompleteRef,
+            setBlurComplete,
+          ]
+        )}
+        onLoad={(event) => {
+          const img = event.currentTarget as ImgElementWithDataProp
+          handleLoading(
+            img,
+            srcString,
+            layout,
+            placeholder,
+            onLoadingCompleteRef,
+            setBlurComplete
+          )
+        }}
+        onError={(event) => {
+          if (placeholder === 'blur') {
+            // If the real image fails to load, this will still remove the placeholder.
+            setBlurComplete(true)
+          }
+          if (onError) {
+            onError(event)
+          }
+        }}
       />
       {(isLazy || placeholder === 'blur') && (
         <noscript>

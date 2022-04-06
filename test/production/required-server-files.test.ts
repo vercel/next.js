@@ -19,6 +19,7 @@ describe('should set-up next', () => {
   let server
   let appPort
   let errors = []
+  let stderr = ''
   let requiredFilesManifest
 
   beforeAll(async () => {
@@ -109,6 +110,7 @@ describe('should set-up next', () => {
           if (msg.includes('top-level')) {
             errors.push(msg)
           }
+          stderr += msg
         },
       }
     )
@@ -116,6 +118,14 @@ describe('should set-up next', () => {
   afterAll(async () => {
     await next.destroy()
     if (server) await killApp(server)
+  })
+
+  it('should warn when "next" is imported directly', async () => {
+    await renderViaHTTP(appPort, '/gssp')
+    await check(
+      () => stderr,
+      /"next" should not be imported directly, imported in/
+    )
   })
 
   it('`compress` should be `true` by default', async () => {
