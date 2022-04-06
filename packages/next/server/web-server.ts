@@ -81,10 +81,7 @@ export default class NextWebServer extends BaseServer {
   protected getMiddleware() {
     return []
   }
-  protected generateCatchAllStaticMiddlewareRoute() {
-    return undefined
-  }
-  protected generateCatchAllDynamicMiddlewareRoute() {
+  protected generateCatchAllMiddlewareRoute() {
     return undefined
   }
   protected getFontManifest() {
