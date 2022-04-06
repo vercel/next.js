@@ -177,7 +177,7 @@ const runTests = (isDev = false) => {
     const browser = await webdriver(appPort, '/rewriting-to-auto-export')
     await check(
       () => browser.eval(() => document.documentElement.innerHTML),
-      /auto-export hello/
+      /auto-export.*?hello/
     )
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       rewrite: '1',
@@ -2181,7 +2181,7 @@ describe('Custom routes', () => {
       const browser = await webdriver(appPort, '/auto-export/my-slug')
       await check(
         () => browser.eval(() => document.documentElement.innerHTML),
-        /auto-export my-slug/
+        /auto-export.*?my-slug/
       )
     })
   })
