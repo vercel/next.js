@@ -484,6 +484,25 @@ impl FileSystemPathVc {
         }
     }
 
+    pub async fn try_join(self, path: &str) -> Result<Vc<Option<Self>>> {
+        let this = self.await?;
+        if let Some(path) = join_path(&this.path, path) {
+            Ok(Vc::slot(Some(Self::new_normalized(this.fs.clone(), path))))
+        } else {
+            Ok(Vc::slot(None))
+        }
+    }
+
+    pub async fn try_join_inside(self, path: &str) -> Result<Vc<Option<Self>>> {
+        let this = self.await?;
+        if let Some(path) = join_path(&this.path, path) {
+            if path.starts_with(&this.path) {
+                return Ok(Vc::slot(Some(Self::new_normalized(this.fs.clone(), path))));
+            }
+        }
+        Ok(Vc::slot(None))
+    }
+
     pub async fn read_glob(self, glob: GlobVc, include_dot_files: bool) -> ReadGlobResultVc {
         read_glob(self, glob, include_dot_files)
     }
@@ -575,6 +594,29 @@ impl FileSystemPathVc {
         let this = self.get().await?;
         Ok(this.fs.parent_path(self))
     }
+
+    pub async fn get_type(self) -> Result<Vc<FileSystemEntryType>> {
+        let this = self.get().await?;
+        if this.is_root() {
+            return Ok(Vc::slot(FileSystemEntryType::Directory));
+        }
+        let dir_content = this.fs.read_dir(self.clone().parent()).await?;
+        match &*dir_content {
+            DirectoryContent::NotFound => Ok(Vc::slot(FileSystemEntryType::NotFound)),
+            DirectoryContent::Entries(entries) => {
+                let basename = if let Some(i) = this.path.rfind('/') {
+                    &this.path[i + 1..]
+                } else {
+                    &this.path
+                };
+                if let Some(entry) = entries.get(basename) {
+                    Ok(Vc::slot(entry.into()))
+                } else {
+                    Ok(Vc::slot(FileSystemEntryType::NotFound))
+                }
+            }
+        }
+    }
 }
 
 impl FileSystemPathVc {
@@ -639,6 +681,37 @@ pub enum DirectoryEntry {
     Directory(FileSystemPathVc),
     Other(FileSystemPathVc),
     Error,
+}
+
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceSlotVcs)]
+pub enum FileSystemEntryType {
+    NotFound,
+    File,
+    Directory,
+    Other,
+    Error,
+}
+
+impl From<DirectoryEntry> for FileSystemEntryType {
+    fn from(entry: DirectoryEntry) -> Self {
+        match entry {
+            DirectoryEntry::File(_) => FileSystemEntryType::File,
+            DirectoryEntry::Directory(_) => FileSystemEntryType::Directory,
+            DirectoryEntry::Other(_) => FileSystemEntryType::Other,
+            DirectoryEntry::Error => FileSystemEntryType::Error,
+        }
+    }
+}
+
+impl From<&DirectoryEntry> for FileSystemEntryType {
+    fn from(entry: &DirectoryEntry) -> Self {
+        match entry {
+            DirectoryEntry::File(_) => FileSystemEntryType::File,
+            DirectoryEntry::Directory(_) => FileSystemEntryType::Directory,
+            DirectoryEntry::Other(_) => FileSystemEntryType::Other,
+            DirectoryEntry::Error => FileSystemEntryType::Error,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Debug)]

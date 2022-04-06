@@ -12,7 +12,7 @@ pub fn normalize_path(str: &str) -> Option<String> {
     let mut seqments = Vec::new();
     for seqment in str.split('/') {
         match seqment {
-            "." => {}
+            "." | "" => {}
             ".." => {
                 if seqments.pop().is_none() {
                     return None;

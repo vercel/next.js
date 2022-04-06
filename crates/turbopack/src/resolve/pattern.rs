@@ -1,10 +1,10 @@
-use std::{fmt::Display, mem::take};
+use std::{collections::HashSet, fmt::Display, mem::take};
 
 use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
-use turbo_tasks::{Value, ValueToString, ValueToStringVc, Vc};
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPathVc};
+use turbo_tasks::{trace::TraceSlotVcs, Value, ValueToString, ValueToStringVc, Vc};
+use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 
 #[turbo_tasks::value(shared, ValueToString)]
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
@@ -18,6 +18,43 @@ pub enum Pattern {
 impl Default for Pattern {
     fn default() -> Self {
         Pattern::Dynamic
+    }
+}
+
+fn concatenation_push_or_merge_item(list: &mut Vec<Pattern>, pat: Pattern) {
+    if let Pattern::Constant(ref s) = pat {
+        if let Some(last) = list.last_mut() {
+            if let Pattern::Constant(ref mut last) = last {
+                last.push_str(&s);
+                return;
+            }
+        }
+    }
+    list.push(pat);
+}
+
+fn concatenation_push_front_or_merge_item(list: &mut Vec<Pattern>, pat: Pattern) {
+    if let Pattern::Constant(mut s) = pat {
+        if let Some(first) = list.iter_mut().next() {
+            if let Pattern::Constant(ref mut first) = first {
+                s.push_str(&first);
+                *first = s;
+                return;
+            }
+        }
+        list.insert(0, Pattern::Constant(s));
+    } else {
+        list.insert(0, pat);
+    }
+}
+
+fn concatenation_extend_or_merge_items(
+    list: &mut Vec<Pattern>,
+    mut iter: impl Iterator<Item = Pattern>,
+) {
+    if let Some(first) = iter.next() {
+        concatenation_push_or_merge_item(list, first);
+        list.extend(iter);
     }
 }
 
@@ -42,14 +79,14 @@ impl Pattern {
 
     pub fn extend(&mut self, concatenated: impl Iterator<Item = Self>) {
         if let Pattern::Concatenation(list) = self {
-            list.extend(concatenated);
+            concatenation_extend_or_merge_items(list, concatenated);
         } else {
             let mut vec = vec![take(self)];
             for item in concatenated {
                 if let Pattern::Concatenation(more) = item {
-                    vec.extend(more);
+                    concatenation_extend_or_merge_items(&mut vec, more.into_iter());
                 } else {
-                    vec.push(item);
+                    concatenation_push_or_merge_item(&mut vec, item);
                 }
             }
             *self = Pattern::Concatenation(vec);
@@ -59,11 +96,13 @@ impl Pattern {
     pub fn push(&mut self, pat: Pattern) {
         match (self, pat) {
             (Pattern::Concatenation(list), Pattern::Concatenation(more)) => {
-                list.extend(more);
+                concatenation_extend_or_merge_items(list, more.into_iter());
             }
-            (Pattern::Concatenation(list), pat) => list.push(pat),
+            (Pattern::Concatenation(list), pat) => {
+                concatenation_push_or_merge_item(list, pat);
+            }
             (this, Pattern::Concatenation(mut list)) => {
-                list.insert(0, take(this));
+                concatenation_push_front_or_merge_item(&mut list, take(this));
                 *this = Pattern::Concatenation(list);
             }
             (Pattern::Constant(str), Pattern::Constant(other)) => str.push_str(&other),
@@ -75,12 +114,15 @@ impl Pattern {
 
     pub fn push_front(&mut self, pat: Pattern) {
         match (self, pat) {
-            (Pattern::Concatenation(list), Pattern::Concatenation(more)) => {
-                *list = [more, take(list)].concat()
+            (Pattern::Concatenation(list), Pattern::Concatenation(mut more)) => {
+                concatenation_extend_or_merge_items(&mut more, take(list).into_iter());
+                *list = more;
             }
-            (Pattern::Concatenation(list), pat) => list.insert(0, pat),
+            (Pattern::Concatenation(ref mut list), pat) => {
+                concatenation_push_front_or_merge_item(list, pat);
+            }
             (this, Pattern::Concatenation(mut list)) => {
-                list.push(take(this));
+                concatenation_push_or_merge_item(&mut list, take(this));
                 *this = Pattern::Concatenation(list);
             }
             (Pattern::Constant(str), Pattern::Constant(mut other)) => {
@@ -308,7 +350,7 @@ impl Pattern {
                             MatchResult::None
                         }
                     } else if offset >= value.len() {
-                        MatchResult::Partial(None)
+                        MatchResult::Partial
                     } else {
                         MatchResult::None
                     }
@@ -316,7 +358,7 @@ impl Pattern {
                     if value.starts_with(c) {
                         MatchResult::Consumed(&value[c.len()..], None)
                     } else if c.starts_with(value) {
-                        MatchResult::Partial(None)
+                        MatchResult::Partial
                     } else {
                         MatchResult::None
                     }
@@ -331,7 +373,7 @@ impl Pattern {
                 if let Some(m) = FORBIDDEN.find(value) {
                     MatchResult::Consumed(value, Some(m.start()))
                 } else if let Some(_) = FORBIDDEN_MATCH.find(value) {
-                    MatchResult::Partial(None)
+                    MatchResult::Partial
                 } else {
                     MatchResult::Consumed(value, Some(value.len()))
                 }
@@ -344,11 +386,7 @@ impl Pattern {
                 while let Some(part) = iter.next() {
                     match part.match_internal(value, any_offset) {
                         MatchResult::None => return MatchResult::None,
-                        MatchResult::Partial(new_pat) => {
-                            let mut new = vec![new_pat.unwrap_or_else(|| part.clone())];
-                            new.extend(iter.cloned());
-                            return MatchResult::Partial(Some(Pattern::Concatenation(new)));
-                        }
+                        MatchResult::Partial => return MatchResult::Partial,
                         MatchResult::Consumed(new_value, new_any_offset) => {
                             value = new_value;
                             any_offset = new_any_offset;
@@ -356,6 +394,116 @@ impl Pattern {
                     }
                 }
                 MatchResult::Consumed(value, any_offset)
+            }
+        }
+    }
+
+    pub fn next_constants<'a>(&'a self, value: &str) -> Option<Vec<(&'a str, bool)>> {
+        if let Pattern::Alternatives(list) = self {
+            let mut results = Vec::new();
+            for alt in list.iter() {
+                match alt.next_constants_internal(value, None) {
+                    NextConstantUntilResult::NoMatch => {}
+                    NextConstantUntilResult::PartialDynamic => {
+                        return None;
+                    }
+                    NextConstantUntilResult::Partial(s, end) => {
+                        results.push((s, end));
+                    }
+                    NextConstantUntilResult::Consumed(rem, None) => {
+                        if rem.is_empty() {
+                            results.push(("", true));
+                        }
+                    }
+                    NextConstantUntilResult::Consumed(rem, Some(any)) => {
+                        if any == rem.len() {
+                            // can match anything
+                            // we don't have constant only matches
+                            return None;
+                        }
+                    }
+                }
+            }
+            Some(results)
+        } else {
+            match self.next_constants_internal(value, None) {
+                NextConstantUntilResult::NoMatch => None,
+                NextConstantUntilResult::PartialDynamic => None,
+                NextConstantUntilResult::Partial(s, e) => Some(vec![(s, e)]),
+                NextConstantUntilResult::Consumed(_, _) => None,
+            }
+        }
+    }
+
+    fn next_constants_internal<'a, 'b>(
+        &'a self,
+        mut value: &'b str,
+        mut any_offset: Option<usize>,
+    ) -> NextConstantUntilResult<'a, 'b> {
+        match self {
+            Pattern::Constant(c) => {
+                if let Some(offset) = any_offset {
+                    if let Some(index) = value.find(c) {
+                        if index <= offset {
+                            NextConstantUntilResult::Consumed(&value[index + c.len()..], None)
+                        } else {
+                            NextConstantUntilResult::NoMatch
+                        }
+                    } else if offset >= value.len() {
+                        NextConstantUntilResult::PartialDynamic
+                    } else {
+                        NextConstantUntilResult::NoMatch
+                    }
+                } else {
+                    if value.starts_with(c) {
+                        NextConstantUntilResult::Consumed(&value[c.len()..], None)
+                    } else if c.starts_with(value) {
+                        NextConstantUntilResult::Partial(&c[value.len()..], true)
+                    } else {
+                        NextConstantUntilResult::NoMatch
+                    }
+                }
+            }
+            Pattern::Dynamic => {
+                lazy_static! {
+                    static ref FORBIDDEN: Regex =
+                        Regex::new(r"(/|^)(\.|(node_modules|__tests?__)(/|$))").unwrap();
+                    static ref FORBIDDEN_MATCH: Regex = Regex::new(r"\.d\.ts$|\.map$").unwrap();
+                };
+                if let Some(m) = FORBIDDEN.find(value) {
+                    NextConstantUntilResult::Consumed(value, Some(m.start()))
+                } else if let Some(_) = FORBIDDEN_MATCH.find(value) {
+                    NextConstantUntilResult::PartialDynamic
+                } else {
+                    NextConstantUntilResult::Consumed(value, Some(value.len()))
+                }
+            }
+            Pattern::Alternatives(_) => {
+                panic!("for next_constants() the Pattern must be normalized");
+            }
+            Pattern::Concatenation(list) => {
+                let mut iter = list.iter();
+                while let Some(part) = iter.next() {
+                    match part.next_constants_internal(value, any_offset) {
+                        NextConstantUntilResult::NoMatch => {
+                            return NextConstantUntilResult::NoMatch
+                        }
+                        NextConstantUntilResult::PartialDynamic => {
+                            return NextConstantUntilResult::PartialDynamic
+                        }
+                        NextConstantUntilResult::Partial(r, end) => {
+                            return NextConstantUntilResult::Partial(
+                                r,
+                                end && iter.next().is_none(),
+                            )
+                        }
+                        NextConstantUntilResult::Consumed(new_value, new_any_offset) => {
+                            value = new_value;
+                            any_offset = new_any_offset;
+                        }
+                    }
+                }
+                NextConstantUntilResult::Consumed(value, any_offset)
             }
         }
     }
@@ -377,7 +525,7 @@ impl PatternVc {
 #[derive(PartialEq)]
 enum MatchResult<'a> {
     None,
-    Partial(Option<Pattern>),
+    Partial,
     Consumed(&'a str, Option<usize>),
 }
 
@@ -385,7 +533,7 @@ impl<'a> MatchResult<'a> {
     fn is_match(&self) -> bool {
         match self {
             MatchResult::None => false,
-            MatchResult::Partial(_) => false,
+            MatchResult::Partial => false,
             MatchResult::Consumed(rem, any) => {
                 if let Some(offset) = any {
                     *offset == rem.len()
@@ -398,7 +546,7 @@ impl<'a> MatchResult<'a> {
     fn could_match_others(&self) -> bool {
         match self {
             MatchResult::None => false,
-            MatchResult::Partial(_) => true,
+            MatchResult::Partial => true,
             MatchResult::Consumed(rem, any) => {
                 if let Some(offset) = any {
                     *offset == rem.len()
@@ -411,7 +559,7 @@ impl<'a> MatchResult<'a> {
     fn could_match(&self) -> bool {
         match self {
             MatchResult::None => false,
-            MatchResult::Partial(_) => true,
+            MatchResult::Partial => true,
             MatchResult::Consumed(rem, any) => {
                 if let Some(offset) = any {
                     *offset == rem.len()
@@ -421,6 +569,14 @@ impl<'a> MatchResult<'a> {
             }
         }
     }
+}
+
+#[derive(PartialEq)]
+enum NextConstantUntilResult<'a, 'b> {
+    NoMatch,
+    PartialDynamic,
+    Partial(&'a str, bool),
+    Consumed(&'b str, Option<usize>),
 }
 
 impl From<String> for Pattern {
@@ -461,7 +617,7 @@ impl ValueToString for Pattern {
     }
 }
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, TraceSlotVcs)]
 pub enum PatternMatch {
     File(String, FileSystemPathVc),
     Directory(String, FileSystemPathVc),
@@ -474,114 +630,209 @@ pub async fn read_matches(
     force_in_context: bool,
     pattern: PatternVc,
 ) -> Result<Vc<Vec<PatternMatch>>> {
+    let mut prefix = prefix;
     let pat = pattern.get().await?;
     let mut results = Vec::new();
     let mut nested = Vec::new();
-    if !force_in_context {
-        let parent_path = format!("{prefix}..");
-        if pat.is_match(&parent_path) {
-            results.push(PatternMatch::Directory(
-                parent_path.clone(),
-                context.clone().parent(),
-            ));
-        }
-        let parent_path = format!("{prefix}../");
-        if pat.is_match(&parent_path) {
-            results.push(PatternMatch::Directory(
-                parent_path.clone(),
-                context.clone().parent(),
-            ));
-        }
-        if pat.could_match(&parent_path) {
-            nested.push(read_matches(
-                context.clone().parent(),
-                parent_path.clone(),
-                false,
-                pattern.clone(),
-            ));
-        }
-    }
-    {
-        let self_path = format!("{prefix}.");
-        if pat.is_match(&self_path) {
-            results.push(PatternMatch::Directory(self_path.clone(), context.clone()));
-        }
-    }
-    if prefix.is_empty() {
-        if pat.is_match("./") {
-            results.push(PatternMatch::Directory("./".to_string(), context.clone()));
-        }
-        if pat.could_match("./") {
-            nested.push(read_matches(
-                context.clone(),
-                "./".to_string(),
-                false,
-                pattern.clone(),
-            ));
-        }
-    } else {
-        let self_path = format!("{prefix}/");
-        if pat.could_match(&self_path) {
-            nested.push(read_matches(
-                context.clone(),
-                self_path.to_string(),
-                false,
-                pattern.clone(),
-            ));
-        }
-        let self_path = format!("{prefix}./");
-        if pat.could_match(&self_path) {
-            nested.push(read_matches(
-                context.clone(),
-                self_path.to_string(),
-                false,
-                pattern.clone(),
-            ));
-        }
-    }
-    match &*context.read_dir().await? {
-        DirectoryContent::Entries(map) => {
-            for (key, entry) in map.iter() {
-                match entry {
-                    DirectoryEntry::File(path) => {
-                        let full_path = format!("{prefix}{key}");
-                        if pat.is_match(&full_path) {
-                            results.push(PatternMatch::File(full_path, path.clone()));
+    let slow_path = if let Some(constants) = pat.next_constants(&prefix) {
+        if constants
+            .iter()
+            .all(|(str, until_end)| *until_end || str.contains('/'))
+        {
+            // Fast path: There is a finite list of possible strings that include at least
+            // one path segment We will enumerate the list instead of the
+            // directory
+            let mut handled = HashSet::new();
+            for (str, until_end) in constants {
+                if until_end {
+                    if handled.insert(str) {
+                        if let Some(fs_path) = &*if force_in_context {
+                            context.clone().try_join_inside(str).await?
+                        } else {
+                            context.clone().try_join(str).await?
+                        } {
+                            if !force_in_context
+                                || fs_path.get().await?.is_inside(&*context.get().await?)
+                            {
+                                let len = prefix.len();
+                                prefix.push_str(str);
+                                match *fs_path.clone().get_type().await? {
+                                    FileSystemEntryType::File => results.push(PatternMatch::File(
+                                        prefix.to_string(),
+                                        fs_path.clone(),
+                                    )),
+                                    FileSystemEntryType::Directory => {
+                                        results.push(PatternMatch::Directory(
+                                            prefix.to_string(),
+                                            fs_path.clone(),
+                                        ))
+                                    }
+                                    _ => {}
+                                }
+                                prefix.truncate(len);
+                            }
                         }
                     }
-                    DirectoryEntry::Directory(path) => {
-                        let mut full_path = format!("{prefix}{key}");
-                        if full_path.ends_with("/") {
-                            full_path.pop();
-                        }
-                        if pat.is_match(&full_path) {
-                            results.push(PatternMatch::Directory(full_path, path.clone()));
-                        }
-                        let full_dir_path = format!("{prefix}{key}/");
-                        if pat.is_match(&full_dir_path) {
-                            results
-                                .push(PatternMatch::Directory(full_dir_path.clone(), path.clone()));
-                        }
-                        if pat.could_match(&full_dir_path) {
+                } else {
+                    let subpath = &str[..=str.rfind('/').unwrap()];
+                    if handled.insert(subpath) {
+                        if let Some(fs_path) = &*if force_in_context {
+                            context.clone().try_join_inside(subpath).await?
+                        } else {
+                            context.clone().try_join(subpath).await?
+                        } {
+                            let len = prefix.len();
+                            prefix.push_str(subpath);
                             nested.push(read_matches(
-                                path.clone(),
-                                full_dir_path,
-                                true,
+                                fs_path.clone(),
+                                prefix.to_string(),
+                                force_in_context,
                                 pattern.clone(),
                             ));
+                            prefix.truncate(len);
                         }
                     }
-                    DirectoryEntry::Other(_) => {}
-                    DirectoryEntry::Error => {}
                 }
             }
+            false
+        } else {
+            true
         }
-        DirectoryContent::NotFound => {}
+    } else {
+        true
     };
-    for nested in nested.into_iter() {
-        results.extend(nested.await?.iter().cloned());
+    if slow_path {
+        // Slow path: There are infinite matches for the pattern
+        // We will enumerate the filesystem to find matches
+        if !force_in_context {
+            // {prefix}..
+            prefix.push_str("..");
+            if pat.is_match(&prefix) {
+                results.push(PatternMatch::Directory(
+                    prefix.clone(),
+                    context.clone().parent(),
+                ));
+            }
+
+            // {prefix}../
+            prefix.push('/');
+            if pat.is_match(&prefix) {
+                results.push(PatternMatch::Directory(
+                    prefix.clone(),
+                    context.clone().parent(),
+                ));
+            }
+            if pat.could_match(&prefix) {
+                nested.push(read_matches(
+                    context.clone().parent(),
+                    prefix.clone(),
+                    false,
+                    pattern.clone(),
+                ));
+            }
+            prefix.pop();
+            prefix.pop();
+            prefix.pop();
+        }
+        {
+            prefix.push('.');
+            // {prefix}.
+            if pat.is_match(&prefix) {
+                results.push(PatternMatch::Directory(prefix.clone(), context.clone()));
+            }
+            prefix.pop();
+        }
+        if prefix.is_empty() {
+            if pat.is_match("./") {
+                results.push(PatternMatch::Directory("./".to_string(), context.clone()));
+            }
+            if pat.could_match("./") {
+                nested.push(read_matches(
+                    context.clone(),
+                    "./".to_string(),
+                    false,
+                    pattern.clone(),
+                ));
+            }
+        } else {
+            prefix.push('/');
+            // {prefix}/
+            if pat.could_match(&prefix) {
+                nested.push(read_matches(
+                    context.clone(),
+                    prefix.to_string(),
+                    false,
+                    pattern.clone(),
+                ));
+            }
+            prefix.pop();
+            prefix.push_str("./");
+            // {prefix}./
+            if pat.could_match(&prefix) {
+                nested.push(read_matches(
+                    context.clone(),
+                    prefix.to_string(),
+                    false,
+                    pattern.clone(),
+                ));
+            }
+            prefix.pop();
+            prefix.pop();
+        }
+        match &*context.read_dir().await? {
+            DirectoryContent::Entries(map) => {
+                for (key, entry) in map.iter() {
+                    match entry {
+                        DirectoryEntry::File(path) => {
+                            let len = prefix.len();
+                            prefix.push_str(key);
+                            // {prefix}{key}
+                            if pat.is_match(&prefix) {
+                                results.push(PatternMatch::File(prefix.clone(), path.clone()));
+                            }
+                            prefix.truncate(len)
+                        }
+                        DirectoryEntry::Directory(path) => {
+                            let len = prefix.len();
+                            prefix.push_str(key);
+                            // {prefix}{key}
+                            if prefix.ends_with("/") {
+                                prefix.pop();
+                            }
+                            if pat.is_match(&prefix) {
+                                results.push(PatternMatch::Directory(prefix.clone(), path.clone()));
+                            }
+                            prefix.push('/');
+                            // {prefix}{key}/
+                            if pat.is_match(&prefix) {
+                                results.push(PatternMatch::Directory(prefix.clone(), path.clone()));
+                            }
+                            if pat.could_match(&prefix) {
+                                nested.push(read_matches(
+                                    path.clone(),
+                                    prefix.clone(),
+                                    true,
+                                    pattern.clone(),
+                                ));
+                            }
+                            prefix.truncate(len)
+                        }
+                        DirectoryEntry::Other(_) => {}
+                        DirectoryEntry::Error => {}
+                    }
+                }
+            }
+            DirectoryContent::NotFound => {}
+        };
     }
-    Ok(Vc::slot(results))
+    if results.is_empty() && nested.len() == 1 {
+        Ok(nested.into_iter().next().unwrap())
+    } else {
+        for nested in nested.into_iter() {
+            results.extend(nested.await?.iter().cloned());
+        }
+        Ok(Vc::slot(results))
+    }
 }
 
 #[cfg(test)]
@@ -714,5 +965,33 @@ mod tests {
         assert!(!pat.is_match("dir/file.d.ts.map"));
         assert!(!pat.is_match("dir/inner/file.d.ts.map"));
         assert!(pat.could_match("dir/inner/file.d.ts.map"));
+    }
+
+    #[rstest]
+    #[case::dynamic(Pattern::Dynamic, "feijf", None)]
+    #[case::dynamic_concat(
+        Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(".js".to_string())]),
+        "hello.", None
+    )]
+    #[case::constant(Pattern::Constant("Hello World".to_string()), "Hello ", Some(vec![("World", true)]))]
+    #[case::alternatives(
+        Pattern::Alternatives(vec![
+            Pattern::Constant("Hello World".to_string()),
+            Pattern::Constant("Hello All".to_string())
+        ]), "Hello ", Some(vec![("World", true), ("All", true)])
+    )]
+    #[case::alternatives_non_end(
+        Pattern::Alternatives(vec![
+            Pattern::Constant("Hello World".to_string()),
+            Pattern::Constant("Hello All".to_string()),
+            Pattern::Concatenation(vec![Pattern::Constant("Hello more".to_string()), Pattern::Dynamic])
+        ]), "Hello ", Some(vec![("World", true), ("All", true), ("more", false)])
+    )]
+    fn next_constants(
+        #[case] pat: Pattern,
+        #[case] value: &str,
+        #[case] expected: Option<Vec<(&str, bool)>>,
+    ) {
+        assert_eq!(pat.next_constants(value), expected);
     }
 }
