@@ -19,7 +19,7 @@ import strictMode from './strict-mode'
 import webdriver from 'next-webdriver'
 
 // overrides react and react-dom to v18
-const nodeArgs = ['-r', join(__dirname, 'require-hook.js')]
+const nodeArgs = []
 const appDir = join(__dirname, '../app')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const invalidPage = new File(join(appDir, 'pages/invalid.js'))
