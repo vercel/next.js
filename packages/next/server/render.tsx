@@ -1457,15 +1457,19 @@ export async function renderToHTML(
             // If it's a server component with the Node.js runtime, we also
             // statically generate the page data.
             let data = ''
+
             const readable = serverComponentsPageDataTransformStream.readable
             const reader = readable.getReader()
+            const textDecoder = new TextDecoder()
+
             while (true) {
               const { done, value } = await reader.read()
               if (done) {
                 break
               }
-              data += decodeText(value)
+              data += decodeText(value, textDecoder)
             }
+
             ;(renderOpts as any).pageData = {
               ...(renderOpts as any).pageData,
               __flight__: data,
