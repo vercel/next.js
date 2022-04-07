@@ -98,24 +98,16 @@ async function parseModuleInfo({
             )
             transformedSource += importDeclarations
             transformedSource += JSON.stringify(serverImportSource)
+            imports.push(importSource)
           }
         } else {
           // For the client compilation, we skip all modules imports but
-          // always keep client components in the bundle. All client components
+          // always keep client/shared components in the bundle. All client components
           // have to be imported from either server or client components.
           if (
-            !(
-              isClientComponent(importSource) || isServerComponent(importSource)
-            )
+            isServerComponent(importSource) ||
+            hasFlightLoader(importSource, 'server')
           ) {
-            // Keep the relative imports but not the absolute imports
-            // Treated absolute imports as externals
-            if (
-              !hasFlightLoader(importSource, 'server') &&
-              !hasFlightLoader(importSource, 'client')
-            ) {
-              imports.push(importSource)
-            }
             continue
           }
 
@@ -173,7 +165,6 @@ export default async function transformSource(
     throw new Error('Expected source to have been transformed to a string.')
   }
 
-  const isProcessed = source.includes('__next_rsc__')
   const isServerComponent = createServerComponentFilter(extensions)
   const isClientComponent = createClientComponentFilter(extensions)
   const hasAppliedFlightServerLoader = this.loaders.some((loader: any) => {
@@ -221,11 +212,7 @@ export default async function transformSource(
       _: () => {
         ${imports.map((source) => `require('${source}');`).join('\n')}
       },
-      server: ${
-        isServerComponent(resourcePath) || hasAppliedFlightServerLoader
-          ? 'true'
-          : 'false'
-      }
+      server: ${isServerComponent(resourcePath) ? 'true' : 'false'}
     }`,
   }
 
@@ -246,10 +233,6 @@ export default async function transformSource(
     }
   }
 
-  const output =
-    transformedSource +
-    '\n' +
-    (isProcessed ? '' : buildExports(rscExports, isEsm))
-
+  const output = transformedSource + '\n' + buildExports(rscExports, isEsm)
   return output
 }
