@@ -192,7 +192,7 @@ export default function (context, { runtime, env }) {
         .readFileSync(join(distServerDir, 'external-imports.js'))
         .toString()
 
-      expect(bundle).not.toContain('moment')
+      expect(bundle).not.toContain('non-isomorphic-text')
     })
   }
 
