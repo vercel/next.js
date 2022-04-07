@@ -237,7 +237,9 @@ export default async function transformSource(
     __next_rsc__: `{
       __webpack_require__,
       _: () => {
-        ${imports.map((source) => `require('${source}');`).join('\n')}
+        ${imports
+          .map((importSource) => `require('${importSource}');`)
+          .join('\n')}
       },
       server: ${isServerExt ? 'true' : 'false'}
     }`,
