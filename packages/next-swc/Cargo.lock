@@ -488,7 +488,7 @@ checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 
 [[package]]
 name = "emotion"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "base64 0.13.0",
  "byteorder",
@@ -1821,7 +1821,7 @@ checksum = "6446ced80d6c486436db5c078dde11a9f73d42b57fb273121e160b84f63d894c"
 
 [[package]]
 name = "styled_components"
-version = "0.25.0"
+version = "0.26.0"
 dependencies = [
  "Inflector",
  "once_cell",
