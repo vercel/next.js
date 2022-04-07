@@ -36,8 +36,8 @@ import { searchParamsToUrlQuery } from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
+import { getMiddlewareRegex } from './utils/get-middleware-regex'
 import { formatWithValidation } from './utils/format-url'
-import { getRoutingItems } from './utils/routing-items'
 
 declare global {
   interface Window {
@@ -1888,18 +1888,10 @@ export default class Router implements BaseRouter {
       options.locale
     )
 
-    const middlewareList = await this.pageLoader.getMiddlewareList()
-    const middleware = middlewareList.map(([page, ssr]) => ({ page, ssr }))
-    const routingItems = getRoutingItems(options.pages, middleware)
-    let requiresPreflight = false
-    for (const item of routingItems) {
-      if (item.match(cleanedAs)) {
-        if (item.isMiddleware) {
-          requiresPreflight = true
-        }
-        break
-      }
-    }
+    const fns = await this.pageLoader.getMiddlewareList()
+    const requiresPreflight = fns.some(([middleware, isSSR]) => {
+      return getRouteMatcher(getMiddlewareRegex(middleware, !isSSR))(cleanedAs)
+    })
 
     if (!requiresPreflight) {
       return { type: 'next' }
