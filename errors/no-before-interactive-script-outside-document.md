@@ -11,22 +11,20 @@ If you want a global script, move the script inside `_document.js` page.
 ```jsx
 // In _document.js
 
-export default class MyDocument extends Document {
-  render() {
-    return (
-      <Html>
-        <Head />
-        <body>
-          <Main />
-          <NextScript />
-          <Script
-            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
-            strategy="beforeInteractive"
-          ></Script>
-        </body>
-      </Html>
-    )
-  }
+export default function Document() {
+  return (
+    <Html>
+      <Head />
+      <body>
+        <Main />
+        <NextScript />
+        <Script
+          src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
+          strategy="beforeInteractive"
+        ></Script>
+      </body>
+    </Html>
+  )
 }
 ```
 

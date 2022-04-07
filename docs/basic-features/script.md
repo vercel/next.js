@@ -80,22 +80,20 @@ The reason `beforeInteractive` was designed to work only inside `\_document.js` 
 ```jsx
 // In _document.js
 
-export default class MyDocument extends Document {
-  render() {
-    return (
-      <Html>
-        <Head />
-        <body>
-          <Main />
-          <NextScript />
-          <Script
-            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
-            strategy="beforeInteractive"
-          ></Script>
-        </body>
-      </Html>
-    )
-  }
+export default function Document() {
+  return (
+    <Html>
+      <Head />
+      <body>
+        <Main />
+        <NextScript />
+        <Script
+          src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
+          strategy="beforeInteractive"
+        ></Script>
+      </body>
+    </Html>
+  )
 }
 ```
 

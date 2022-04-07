@@ -129,6 +129,27 @@ describe('Next.js Script - Primary Strategies', () => {
     test('documentBeforeInteractive')
   })
 
+  // Warning - Will be removed in the next major release
+  it('priority beforeInteractive - older version', async () => {
+    const html = await renderViaHTTP(appPort, '/page6')
+    const $ = cheerio.load(html)
+
+    function test(id) {
+      const script = $(`#${id}`)
+
+      // Renders script tag
+      expect(script.length).toBe(1)
+      expect(script.attr('data-nscript')).toBeDefined()
+
+      // Script is inserted before NextScripts
+      expect(
+        $(`#${id} ~ script[src^="/_next/static/chunks/main"]`).length
+      ).toBeGreaterThan(0)
+    }
+
+    test('documentBeforeInteractive')
+  })
+
   it('priority beforeInteractive on navigate', async () => {
     let browser
     try {

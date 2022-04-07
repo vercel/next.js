@@ -44,7 +44,7 @@ module.exports = {
         '@next/next/no-typos': 1,
         '@next/next/no-duplicate-head': 2,
         '@next/next/inline-script-id': 2,
-        '@next/next/no-before-interactive-script-outside-document': 2,
+        '@next/next/no-before-interactive-script-outside-document': 1,
       },
     },
     'core-web-vitals': {
