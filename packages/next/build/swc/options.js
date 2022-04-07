@@ -40,7 +40,7 @@ function getBaseSWCOptions({
   const emitDecoratorMetadata = Boolean(
     jsConfig?.compilerOptions?.emitDecoratorMetadata
   )
-  const emotionOptions = getEmotionOptions(nextConfig, jsConfig, development)
+  const emotionOptions = getEmotionOptions(nextConfig, development)
   return {
     jsc: {
       ...(resolvedBaseUrl && paths
@@ -65,9 +65,9 @@ function getBaseSWCOptions({
         legacyDecorator: enableDecorators,
         decoratorMetadata: emitDecoratorMetadata,
         react: {
-          importSource: nextConfig?.experimental?.emotion
-            ? emotionOptions.jsxImportSource
-            : jsConfig?.compilerOptions?.jsxImportSource || 'react',
+          importSource:
+            jsConfig?.compilerOptions?.jsxImportSource ??
+            (nextConfig?.experimental?.emotion ? '@emotion/react' : 'react'),
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
@@ -109,7 +109,7 @@ function getBaseSWCOptions({
   }
 }
 
-function getEmotionOptions(nextConfig, jsConfig, development) {
+function getEmotionOptions(nextConfig, development) {
   if (!nextConfig?.experimental?.emotion) {
     return null
   }
@@ -127,8 +127,6 @@ function getEmotionOptions(nextConfig, jsConfig, development) {
       break
   }
   return {
-    jsxImportSource:
-      jsConfig?.compilerOptions?.jsxImportSource ?? '@emotion/react',
     enabled: true,
     autoLabel,
     labelFormat: nextConfig?.experimental?.emotion?.labelFormat,
