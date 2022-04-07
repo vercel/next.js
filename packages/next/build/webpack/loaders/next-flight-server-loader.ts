@@ -76,7 +76,9 @@ async function parseModuleInfo({
             // A client component. It should be loaded as module reference.
             transformedSource += importDeclarations
             transformedSource += JSON.stringify(`${importSource}?__sc_client__`)
-            imports += `require(${JSON.stringify(importSource)})\n`
+            imports += `import(/* webpackMode: "eager" */ ${JSON.stringify(
+              importSource
+            )})\n`
           } else {
             // FIXME
             // case: 'react'
@@ -111,7 +113,9 @@ async function parseModuleInfo({
             continue
           }
 
-          imports += `require(${JSON.stringify(importSource)})\n`
+          imports += `import(/* webpackMode: "eager" */ ${JSON.stringify(
+            importSource
+          )})\n`
         }
 
         lastIndex = node.source.span.end
