@@ -147,7 +147,7 @@ describe('Next.js Script - Primary Strategies', () => {
       ).toBeGreaterThan(0)
     }
 
-    test('documentBeforeInteractive')
+    test('scriptBeforePageRenderOld')
   })
 
   it('priority beforeInteractive on navigate', async () => {

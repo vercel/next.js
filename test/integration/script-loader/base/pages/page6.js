@@ -4,7 +4,7 @@ const Page = () => {
   return (
     <div class="container">
       <Script
-        id="scriptBeforePageRender"
+        id="scriptBeforePageRenderOld"
         src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforePageRender"
         strategy="beforeInteractive"
       ></Script>
