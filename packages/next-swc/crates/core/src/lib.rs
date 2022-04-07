@@ -100,7 +100,7 @@ pub struct TransformOptions {
     pub shake_exports: Option<shake_exports::Config>,
 
     #[serde(default)]
-    pub emotion: Option<emotion::EmotionOptions>,
+    pub emotion: Option<swc_emotion::EmotionOptions>,
 
     #[serde(default)]
     pub modularize_imports: Option<modularize_imports::Config>,
@@ -185,7 +185,7 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
                 }
                 if let FileName::Real(path) = &file.name {
                     path.to_str().map(|_| {
-                        Either::Left(emotion::EmotionTransformer::new(
+                        Either::Left(swc_emotion::EmotionTransformer::new(
                             config.clone(),
                             path,
                             cm,

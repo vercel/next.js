@@ -487,25 +487,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 
 [[package]]
-name = "emotion"
-version = "0.2.0"
-dependencies = [
- "base64 0.13.0",
- "byteorder",
- "fxhash",
- "once_cell",
- "radix_fmt",
- "regex",
- "serde",
- "sourcemap",
- "swc_atoms",
- "swc_common",
- "swc_ecma_transforms_testing",
- "swc_ecmascript",
- "testing",
-]
-
-[[package]]
 name = "enum_kind"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1025,7 +1006,6 @@ dependencies = [
  "chrono",
  "easy-error",
  "either",
- "emotion",
  "fxhash",
  "modularize_imports",
  "once_cell",
@@ -1042,6 +1022,7 @@ dependencies = [
  "swc_ecma_loader",
  "swc_ecma_transforms_testing",
  "swc_ecmascript",
+ "swc_emotion",
  "swc_node_base",
  "testing",
  "tracing",
@@ -2560,6 +2541,25 @@ dependencies = [
  "swc_ecma_transforms",
  "swc_ecma_utils",
  "swc_ecma_visit",
+]
+
+[[package]]
+name = "swc_emotion"
+version = "0.2.0"
+dependencies = [
+ "base64 0.13.0",
+ "byteorder",
+ "fxhash",
+ "once_cell",
+ "radix_fmt",
+ "regex",
+ "serde",
+ "sourcemap",
+ "swc_atoms",
+ "swc_common",
+ "swc_ecma_transforms_testing",
+ "swc_ecmascript",
+ "testing",
 ]
 
 [[package]]

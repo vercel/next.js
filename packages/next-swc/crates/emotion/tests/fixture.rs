@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 
-use emotion::EmotionOptions;
 use swc_common::{chain, comments::SingleThreadedComments, Mark};
 use swc_ecma_transforms_testing::test_fixture;
 use swc_ecmascript::{
     parser::{Syntax, TsConfig},
     transforms::react::{jsx, Runtime},
 };
+use swc_emotion::EmotionOptions;
 use testing::fixture;
 
 fn ts_syntax() -> Syntax {
@@ -38,7 +38,7 @@ fn next_emotion_fixture(input: PathBuf) {
                 top_level_mark,
             );
             chain!(
-                emotion::emotion(
+                swc_emotion::emotion(
                     EmotionOptions {
                         enabled: Some(true),
                         sourcemap: Some(true),

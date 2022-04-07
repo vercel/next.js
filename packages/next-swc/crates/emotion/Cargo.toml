@@ -3,7 +3,7 @@ authors = ["next.js developers"]
 edition = "2018"
 description = "AST Transforms for emotion"
 license = "Apache-2.0"
-name = "emotion"
+name = "swc_emotion"
 repository = "https://github.com/vercel/next.js.git"
 version = "0.2.0"
 
