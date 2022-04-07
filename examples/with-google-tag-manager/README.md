@@ -16,6 +16,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-google-tag-manager with-google-tag-manager-app
 # or
 yarn create next-app --example with-google-tag-manager with-google-tag-manager-app
+# or
+pnpm create next-app -- --example with-google-tag-manager with-google-tag-manager-app
 ```
 
 Next, copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):

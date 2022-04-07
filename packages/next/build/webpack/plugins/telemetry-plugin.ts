@@ -1,4 +1,7 @@
-import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
+import {
+  NormalModule,
+  webpack5 as webpack,
+} from 'next/dist/compiled/webpack/webpack'
 
 /**
  * List of target triples next-swc native binary supports.
@@ -86,6 +89,8 @@ const BUILD_FEATURES: Array<Feature> = [
   'swc/target/aarch64-pc-windows-msvc',
 ]
 
+const ELIMINATED_PACKAGES = new Set<string>()
+
 /**
  * Plugin that queries the ModuleGraph to look for modules that correspond to
  * certain features (e.g. next/image and next/script) and record how many times
@@ -137,10 +142,22 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
         callback()
       }
     )
+    if (compiler.options.mode === 'production' && !compiler.watchMode) {
+      compiler.hooks.compilation.tap(TelemetryPlugin.name, (compilation) => {
+        const moduleHooks = NormalModule.getCompilationHooks(compilation)
+        moduleHooks.loader.tap(TelemetryPlugin.name, (loaderContext: any) => {
+          loaderContext.eliminatedPackages = ELIMINATED_PACKAGES
+        })
+      })
+    }
   }
 
   usages(): FeatureUsage[] {
     return [...this.usageTracker.values()]
+  }
+
+  packagesUsedInServerSideProps(): string[] {
+    return Array.from(ELIMINATED_PACKAGES)
   }
 }
 

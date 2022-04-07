@@ -47,7 +47,7 @@ async function parseModuleInfo(
 ): Promise<void> {
   const { body } = await parse(transformedSource, {
     filename: resourcePath,
-    isModule: true,
+    isModule: 'unknown',
   })
   for (let i = 0; i < body.length; i++) {
     const node = body[i]
@@ -115,7 +115,7 @@ export default async function transformSource(
   const names: string[] = []
   await parseModuleInfo(resourcePath, transformedSource, names)
 
-  // next.js/packages/next/<component>.js
+  // Next.js built-in client components
   if (/[\\/]next[\\/](link|image)\.js$/.test(resourcePath)) {
     names.push('default')
   }
