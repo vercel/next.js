@@ -4,9 +4,9 @@ import {
 } from 'next/dist/compiled/web-streams-polyfill'
 
 // Polyfill Web Streams for the Node.js runtime.
-if (!globalThis.ReadableStream) {
-  globalThis.ReadableStream = ReadableStream
+if (!global.ReadableStream) {
+  global.ReadableStream = ReadableStream
 }
-if (!globalThis.TransformStream) {
-  globalThis.TransformStream = TransformStream
+if (!global.TransformStream) {
+  global.TransformStream = TransformStream
 }
