@@ -2,11 +2,11 @@ import type { GetServerSideProps } from 'next'
 import Head from 'next/head'
 import Image from 'next/image'
 import React, { ChangeEvent, useEffect, useRef, useState } from 'react'
-import styled from 'styled-components'
 import Card from '../components/Card'
 import { VideoUploader, VideoUploadResponse } from '@api.video/video-uploader'
 import Status from '../components/Status'
 import { useRouter } from 'next/router'
+import { Button, Footer, GlobalContainer, Header, StatusContainer, Text, TextsContainer } from '../style/common'
 
 const fetcher = async (url: string): Promise<any> => {
   return fetch(url).then(res => res.json())
@@ -166,87 +166,3 @@ export const getServerSideProps: GetServerSideProps = async () => {
   const uploadToken = await fetch('http://localhost:3000/api/uploadToken').then(res => res.json())
   return { props : uploadToken }
 }
-
-export const GlobalContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100vw;
-  gap: 20px;
-  margin-top: 2rem;
-  main {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-  }
-`
-
-export const Header = styled.header`
-  font-size: 2.5rem;
-  span {
-    font-weight: 700;
-    background: -webkit-linear-gradient(45deg, rgb(250, 91, 48) 0%, rgb(128, 54, 255) 26.88%, rgb(213, 63, 255) 50.44%, rgb(235, 137, 82) 73.83%, rgb(247, 181, 0) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-`
-
-const TextsContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding: 3rem 5rem;
-  box-shadow: rgb(0 0 0 / 10%) 0px 2px 4px;
-  border-radius: 5px;
-`
-
-const Text = styled.p`
-  text-align: center;
-  font-size: 1.1rem;
-  letter-spacing: .03rem;
-  a {
-    font-weight: 700;
-  }
-`
-
-const Button = styled.button<{ $upload?: boolean }>`
-  background: ${p => p.$upload 
-    ? '-webkit-linear-gradient(45deg, rgb(250, 91, 48) 0%, rgb(235, 137, 82) 50%, rgb(247, 181, 0) 100%)' 
-    : '-webkit-linear-gradient(45deg, rgb(247, 181, 0) 0%, rgb(235, 137, 82) 50%, rgb(250, 91, 48) 100%)'};
-  border: none;
-  padding: .8rem 1.2rem;
-  border-radius: 5px;
-  color: #FFFFFF;
-  cursor: pointer;
-  font-size: 1.2rem;
-  font-weight: 500;
-`
-
-const StatusContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 2rem;
-  span {
-    width: 35px;
-    height: 5px;
-    border-radius: 5px;
-    background-color: rgb(235, 137, 82);
-    margin-top: 20px;
-  }
-`
-
-const Footer = styled.footer`
-  position: fixed;
-  bottom: 30px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  a:nth-of-type(2) {
-    font-weight: 600;
-    font-size: 1.1rem;
-  }
-`
