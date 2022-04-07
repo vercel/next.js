@@ -2,10 +2,7 @@ import type { Context } from 'vm'
 import { Blob, File, FormData } from 'next/dist/compiled/formdata-node'
 import { readFileSync, promises as fs } from 'fs'
 import { requireDependencies } from './require'
-import {
-  TransformStream,
-  ReadableStream,
-} from '../../node-polyfill-web-streams'
+import '../../node-polyfill-web-streams'
 import cookie from 'next/dist/compiled/cookie'
 import * as polyfills from './polyfills'
 import {
