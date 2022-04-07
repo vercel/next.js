@@ -1,9 +1,10 @@
 import { PlayerSdk, PlayerTheme } from '@api.video/player-sdk'
 import { GetServerSideProps } from 'next'
 import Head from 'next/head'
+import Image from 'next/image'
 import { useRouter } from 'next/router'
 import React, { ChangeEvent, useEffect, useState } from 'react'
-import { Button, GlobalContainer, Header, InputsContainer, PlayerSdkContainer, Text, TextsContainer } from '../style/common'
+import { Button, Footer, GlobalContainer, Header, InputsContainer, PlayerSdkContainer, Text, TextsContainer } from '../style/common'
 
 interface IVideoViewProps {
     children: React.ReactNode
@@ -99,6 +100,26 @@ const VideoView: React.FC<IVideoViewProps> = ({
                     Another video?
                 </Button>
             </main>
+
+            <Footer>
+                <a
+                href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+                target="_blank"
+                rel="noopener noreferrer"
+                >
+                    Powered by{' '}
+                    <span>
+                        <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
+                    </span>
+                </a>
+                <span>and</span>
+                <a href='https://api.video'
+                target="_blank"
+                rel="noopener noreferrer"
+                >
+                    api.video
+                </a>
+            </Footer>
         </GlobalContainer>
     )
 
