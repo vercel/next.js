@@ -40,7 +40,6 @@ function getBaseSWCOptions({
   const emitDecoratorMetadata = Boolean(
     jsConfig?.compilerOptions?.emitDecoratorMetadata
   )
-  const emotionOptions = getEmotionOptions(nextConfig, development)
   return {
     jsc: {
       ...(resolvedBaseUrl && paths
@@ -105,7 +104,7 @@ function getBaseSWCOptions({
     reactRemoveProperties: nextConfig?.compiler?.reactRemoveProperties,
     modularizeImports: nextConfig?.experimental?.modularizeImports,
     relay: nextConfig?.compiler?.relay,
-    emotion: emotionOptions,
+    emotion: getEmotionOptions(nextConfig, development),
   }
 }
 
