@@ -68,7 +68,6 @@ import {
   readableStreamTee,
   encodeText,
   decodeText,
-  pipeThrough,
   streamFromArray,
   streamToString,
   chainStreams,
@@ -1225,16 +1224,13 @@ export async function renderToHTML(
 
   if (renderServerComponentData) {
     return new RenderResult(
-      pipeThrough(
-        renderToReadableStream(
-          renderFlight(AppMod, ComponentMod, {
-            ...props.pageProps,
-            ...serverComponentProps,
-          }),
-          serverComponentManifest
-        ),
-        createBufferedTransformStream()
-      )
+      renderToReadableStream(
+        renderFlight(AppMod, ComponentMod, {
+          ...props.pageProps,
+          ...serverComponentProps,
+        }),
+        serverComponentManifest
+      ).pipeThrough(createBufferedTransformStream())
     )
   }
 

@@ -1,4 +1,6 @@
 import './node-polyfill-fetch'
+import './node-polyfill-web-streams'
+
 import type { Params, Route } from './router'
 import type { CacheFs } from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
@@ -10,18 +12,14 @@ import type { Rewrite } from '../lib/load-custom-routes'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { PayloadOptions } from './send-payload'
-
-import { execOnce } from '../shared/lib/utils'
-import {
-  addRequestMeta,
-  getRequestMeta,
-  NextParsedUrlQuery,
-  NextUrlWithParsedQuery,
-} from './request-meta'
+import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
+
+import { execOnce } from '../shared/lib/utils'
+import { addRequestMeta, getRequestMeta } from './request-meta'
 
 import {
   PAGES_MANIFEST,
