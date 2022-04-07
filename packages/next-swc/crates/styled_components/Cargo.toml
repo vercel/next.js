@@ -1,6 +1,6 @@
 [package]
 authors = ["강동윤 <kdy1997.dev@gmail.com>"]
-description = "AST Transforms for styled-components, without dependency on plugin apis"
+description = "AST Transforms for styled-components"
 edition = "2018"
 license = "Apache-2.0"
 name = "styled_components"

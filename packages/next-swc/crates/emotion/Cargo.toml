@@ -1,6 +1,7 @@
 [package]
 authors = ["next.js developers"]
 edition = "2018"
+description = "AST Transforms for emotion"
 license = "Apache-2.0"
 name = "emotion"
 repository = "https://github.com/vercel/next.js.git"
