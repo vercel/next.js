@@ -85,10 +85,27 @@ export const Footer = styled.footer`
 `
 
 export const PlayerSdkContainer = styled.div<{ $width: number, $height: number }>`
-    margin-top: 2rem;
     width: ${p => p.$width && p.$width <= 800 ? p.$width : '800'}px;
     height: ${p => p.$height && p.$height <= 250 ? p.$height : '250'}px;
     iframe {
         height: ${p => p.$height <= 250 ? p.$height : '250'}px !important;
     }
+`
+
+export const InputsContainer = styled.div`
+  display: flex;
+  gap: 20px;
+  > div {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    label {
+      font-size: .6rem;
+    }
+  }
+  > div:last-child {
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-end;
+  }
 `
