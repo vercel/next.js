@@ -121,9 +121,9 @@ async function parseModuleInfo({
           // have to be imported from either server or client components.
           if (
             isServerComponent(importSource) ||
-            hasFlightLoader(importSource, 'server') // ||
+            hasFlightLoader(importSource, 'server') ||
             // TODO: support handling RSC components from node_modules
-            // isNodeModuleImport
+            isNodeModuleImport
           ) {
             continue
           }
@@ -195,11 +195,12 @@ export default async function transformSource(
   const hasAppliedFlightServerLoader = this.loaders.some((loader: any) => {
     return hasFlightLoader(loader.path, 'server')
   })
+  const isServerExt = isServerComponent(resourcePath)
 
   if (!isClientCompilation) {
     // We only apply the loader to server components, or shared components that
     // are imported by a server component.
-    if (!isServerComponent(resourcePath) && !hasAppliedFlightServerLoader) {
+    if (!isServerExt && !hasAppliedFlightServerLoader) {
       return source
     }
   }
@@ -238,7 +239,7 @@ export default async function transformSource(
       _: () => {
         ${imports.map((source) => `require('${source}');`).join('\n')}
       },
-      server: ${isServerComponent(resourcePath) ? 'true' : 'false'}
+      server: ${isServerExt ? 'true' : 'false'}
     }`,
   }
 
@@ -260,8 +261,5 @@ export default async function transformSource(
   }
 
   const output = transformedSource + '\n' + buildExports(rscExports, isEsm)
-  // if (resourcePath.includes('external-imports')) {
-  //   console.log(isClientCompilation ? 'client' : 'server', '\n' ,output)
-  // }
   return output
 }
