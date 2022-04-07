@@ -73,7 +73,13 @@ fn test(input: &Path, minify: bool) {
                 &handler,
                 &options.swc,
                 |_, comments| {
-                    custom_before_pass(cm.clone(), fm.clone(), &options, comments.clone())
+                    custom_before_pass(
+                        cm.clone(),
+                        fm.clone(),
+                        &options,
+                        comments.clone(),
+                        Default::default(),
+                    )
                 },
                 |_, _| noop(),
             ) {

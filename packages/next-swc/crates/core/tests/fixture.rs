@@ -113,7 +113,7 @@ fn next_ssg_fixture(input: PathBuf) {
                 },
                 top_level_mark,
             );
-            chain!(next_ssg(), jsx)
+            chain!(next_ssg(Default::default()), jsx)
         },
         &input,
         &output,

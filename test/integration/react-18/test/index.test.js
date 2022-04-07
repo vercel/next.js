@@ -19,13 +19,15 @@ import strictMode from './strict-mode'
 import webdriver from 'next-webdriver'
 
 // overrides react and react-dom to v18
-const nodeArgs = ['-r', join(__dirname, 'require-hook.js')]
+const nodeArgs = []
 const appDir = join(__dirname, '../app')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const invalidPage = new File(join(appDir, 'pages/invalid.js'))
 
 describe('Basics', () => {
-  runTests('default setting with react 18', (context) => basics(context))
+  runTests('default setting with react 18', (context, env) =>
+    basics(context, env)
+  )
 })
 
 // React 18 with Strict Mode enabled might cause double invocation of lifecycle methods.

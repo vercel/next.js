@@ -35,6 +35,7 @@ extern crate napi_derive;
 extern crate swc_node_base;
 
 use backtrace::Backtrace;
+use fxhash::FxHashSet;
 use napi::{CallContext, Env, JsObject, JsUndefined};
 use std::{env, panic::set_hook, sync::Arc};
 use swc::{Compiler, TransformOutput};
@@ -86,8 +87,25 @@ fn construct_compiler(ctx: CallContext) -> napi::Result<JsUndefined> {
     ctx.env.get_undefined()
 }
 
-pub fn complete_output(env: &Env, output: TransformOutput) -> napi::Result<JsObject> {
-    env.to_js_value(&output)?.coerce_to_object()
+pub fn complete_output(
+    env: &Env,
+    output: TransformOutput,
+    eliminated_packages: FxHashSet<String>,
+) -> napi::Result<JsObject> {
+    let mut js_output = env.create_object()?;
+    js_output.set_named_property("code", env.create_string_from_std(output.code)?)?;
+    if let Some(map) = output.map {
+        js_output.set_named_property("map", env.create_string_from_std(map)?)?;
+    }
+    if !eliminated_packages.is_empty() {
+        js_output.set_named_property(
+            "eliminatedPackages",
+            env.create_string_from_std(serde_json::to_string(
+                &eliminated_packages.into_iter().collect::<Vec<String>>(),
+            )?)?,
+        )?;
+    }
+    Ok(js_output)
 }
 
 pub type ArcCompiler = Arc<Compiler>;
