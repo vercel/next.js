@@ -1,13 +1,15 @@
 # Streaming SSR
 
-React 18 includes architectural improvements to React server-side rendering (SSR) performance. This means you can use `Suspense` in your React components in streaming SSR mode and React will render them on the server and send them through HTTP streams.
-It's worth noting that the experimental React Server Components feature, is based on streaming. You can read more about server components related streaming APIs in [`next/streaming`](/docs/api-reference/next/streaming.md). However, this guide focuses on basic React 18 streaming.
+React 18 includes architectural improvements to React server-side rendering (SSR) performance. This means you can use `Suspense` in your React components in streaming SSR mode and React will render content on the server and send updates through HTTP streams.
+React Server Components, an experimental feature, is based on streaming. You can read more about Server Components related streaming APIs in [`next/streaming`](/docs/api-reference/next/streaming.md). However, this guide focuses on streaming with React 18.
 
-## Use Streaming SSR
+## Using Streaming Server-Rendering
 
-When you have Suspense in use in a SSR page, there is no extra configuration required to use streaming SSR.
+When you use Suspense in a server-rendered page, there is no extra configuration required to use streaming SSR.
 
-All SSR pages have the ability to render components into streams and the client continues receiving updates from these streams even after the initial SSR response is sent. In other words, when any suspended components resolve down the line, they are rendered on the server and streamed to the client. With this strategy, the app can start emitting HTML even before all the data is ready, improving your app's loading performance. As an added bonus, in streaming SSR mode, the client will also use selective hydration strategy to prioritize component hydration which based on user interaction.
+All SSR pages have the ability to render components into streams and the client continues receiving updates from these streams even after the initial SSR response is sent. When any suspended components resolve down the line, they are rendered on the server and streamed to the client. This means applications can start emitting HTML even _before_ all the data is ready, improving your app's loading performance.
+
+As an added bonus, in streaming SSR mode the client will also use selective hydration to prioritize component hydration based on user interactions, further improving performance.
 
 For non-SSR pages, all Suspense boundaries will still be [statically optimized](/docs/advanced-features/automatic-static-optimization.md).
 
