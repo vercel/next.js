@@ -41,6 +41,7 @@ async function parseModuleInfo({
   isClientCompilation,
   isServerComponent,
   isClientComponent,
+  resolver,
 }: {
   resourcePath: string
   source: string
@@ -48,6 +49,7 @@ async function parseModuleInfo({
   extensions: string[]
   isServerComponent: (name: string) => boolean
   isClientComponent: (name: string) => boolean
+  resolver: (req: string) => Promise<string>
 }): Promise<{
   source: string
   imports: string[]
@@ -73,6 +75,16 @@ async function parseModuleInfo({
     switch (node.type) {
       case 'ImportDeclaration':
         const importSource = node.source.value
+        const resolvedPath = await resolver(importSource)
+        const isNodeModuleImport = resolvedPath.includes('/node_modules/')
+
+        // matching node_module package but excluding react cores since react is required to be shared
+        const isReactImports = [
+          'react',
+          'react/jsx-runtime',
+          'react/jsx-dev-runtime',
+        ].includes(importSource)
+
         if (!isClientCompilation) {
           // Server compilation for .server.js.
           if (isServerComponent(importSource)) {
@@ -92,13 +104,16 @@ async function parseModuleInfo({
             imports.push(importSource)
           } else {
             // A shared component. It should be handled as a server component.
-            const serverImportSource = createFlightServerRequest(
-              importSource,
-              extensions
-            )
+            const serverImportSource = isReactImports
+              ? importSource
+              : createFlightServerRequest(importSource, extensions)
             transformedSource += importDeclarations
             transformedSource += JSON.stringify(serverImportSource)
-            imports.push(importSource)
+
+            // TODO: support handling RSC components from node_modules
+            if (!isNodeModuleImport) {
+              imports.push(importSource)
+            }
           }
         } else {
           // For the client compilation, we skip all modules imports but
@@ -106,11 +121,12 @@ async function parseModuleInfo({
           // have to be imported from either server or client components.
           if (
             isServerComponent(importSource) ||
-            hasFlightLoader(importSource, 'server')
+            hasFlightLoader(importSource, 'server') // ||
+            // TODO: support handling RSC components from node_modules
+            // isNodeModuleImport
           ) {
             continue
           }
-
           imports.push(importSource)
         }
 
@@ -159,7 +175,16 @@ export default async function transformSource(
   source: string
 ): Promise<string> {
   const { client: isClientCompilation, extensions } = this.getOptions()
-  const { resourcePath } = this
+  const { resourcePath, resolve: resolveFn, context } = this
+
+  const resolver = (req: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      resolveFn(context, req, (err: any, result: string) => {
+        if (err) return reject(err)
+        resolve(result)
+      })
+    })
+  }
 
   if (typeof source !== 'string') {
     throw new Error('Expected source to have been transformed to a string.')
@@ -192,6 +217,7 @@ export default async function transformSource(
     isClientCompilation,
     isServerComponent,
     isClientComponent,
+    resolver,
   })
 
   /**
@@ -234,5 +260,8 @@ export default async function transformSource(
   }
 
   const output = transformedSource + '\n' + buildExports(rscExports, isEsm)
+  // if (resourcePath.includes('external-imports')) {
+  //   console.log(isClientCompilation ? 'client' : 'server', '\n' ,output)
+  // }
   return output
 }
