@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "18.0.0",
+    "react": "^18.0.0",
     "react-dom": "18.0.0",
     "supertokens-auth-react": "^0.20.1",
     "supertokens-node": "^9.1.1"
