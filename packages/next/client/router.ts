@@ -5,6 +5,8 @@ import type { NextRouter } from '../shared/lib/router/router'
 import { RouterContext } from '../shared/lib/router-context'
 import isError from '../lib/is-error'
 
+export { RouterContext }
+
 type ClassArguments<T> = T extends new (...args: infer U) => any ? U : any
 
 type RouterArgs = ClassArguments<typeof Router>
