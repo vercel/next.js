@@ -87,9 +87,10 @@ async function parseModuleInfo(
         } = node
         // exports.xxx = xxx
         if (
-          left?.type === 'MemberExpression' &&
-          left?.object.type === 'Identifier' &&
-          left.object?.value === 'exports'
+          left.object &&
+          left.type === 'MemberExpression' &&
+          left.object.type === 'Identifier' &&
+          left.object.value === 'exports'
         ) {
           addExportNames(names, left.property)
         }
