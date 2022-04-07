@@ -1,11 +1,11 @@
 [package]
-authors = ["next.js developers"]
+authors = ["강동윤 <kdy1997.dev@gmail.com>"]
 edition = "2018"
 description = "AST Transforms for emotion"
 license = "Apache-2.0"
 name = "swc_emotion"
 repository = "https://github.com/vercel/next.js.git"
-version = "0.2.0"
+version = "0.2.1"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

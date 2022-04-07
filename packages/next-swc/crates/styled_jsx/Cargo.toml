@@ -1,11 +1,11 @@
 [package]
-authors = ["next.js developers"]
+authors = ["강동윤 <kdy1997.dev@gmail.com>"]
 description = "AST transforms for styled-jsx"
 edition = "2018"
 license = "Apache-2.0"
 name = "styled_jsx"
 repository = "https://github.com/vercel/next.js.git"
-version = "0.1.0"
+version = "0.1.1"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
