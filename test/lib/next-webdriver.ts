@@ -36,6 +36,12 @@ if (typeof afterAll === 'function') {
   })
 }
 
+export const USE_SELENIUM = Boolean(
+  process.env.LEGACY_SAFARI ||
+    process.env.BROWSER_NAME === 'internet explorer' ||
+    process.env.SKIP_LOCAL_SELENIUM_SERVER
+)
+
 /**
  *
  * @param appPort can either be the port or the full URL
@@ -54,6 +60,7 @@ export default async function webdriver(
     retryWaitHydration?: boolean
     disableCache?: boolean
     beforePageLoad?: (page: any) => void
+    locale?: string
   }
 ): Promise<BrowserInterface> {
   let CurrentInterface: typeof BrowserInterface
@@ -64,15 +71,16 @@ export default async function webdriver(
     disableCache: false,
   }
   options = Object.assign(defaultOptions, options)
-  const { waitHydration, retryWaitHydration, disableCache, beforePageLoad } =
-    options
+  const {
+    waitHydration,
+    retryWaitHydration,
+    disableCache,
+    beforePageLoad,
+    locale,
+  } = options
 
   // we import only the needed interface
-  if (
-    process.env.LEGACY_SAFARI ||
-    process.env.BROWSER_NAME === 'internet explorer' ||
-    process.env.SKIP_LOCAL_SELENIUM_SERVER
-  ) {
+  if (USE_SELENIUM) {
     const browserMod = require('./browsers/selenium')
     CurrentInterface = browserMod.default
     browserQuit = browserMod.quit
@@ -84,7 +92,7 @@ export default async function webdriver(
 
   const browser = new CurrentInterface()
   const browserName = process.env.BROWSER_NAME || 'chrome'
-  await browser.setup(browserName)
+  await browser.setup(browserName, locale)
   ;(global as any).browserName = browserName
 
   const fullUrl = getFullUrl(

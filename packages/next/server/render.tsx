@@ -68,7 +68,6 @@ import {
   readableStreamTee,
   encodeText,
   decodeText,
-  pipeThrough,
   streamFromArray,
   streamToString,
   chainStreams,
@@ -255,12 +254,17 @@ export type RenderOptsPartial = {
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
-const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
+const invalidKeysMsg = (
+  methodName: 'getServerSideProps' | 'getStaticProps',
+  invalidKeys: string[]
+) => {
+  const docsPathname = `invalid-${methodName.toLocaleLowerCase()}-value`
+
   return (
     `Additional keys were returned from \`${methodName}\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
     `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
     `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.` +
-    `\nRead more: https://nextjs.org/docs/messages/invalid-getstaticprops-value`
+    `\nRead more: https://nextjs.org/docs/messages/${docsPathname}`
   )
 }
 
@@ -1229,16 +1233,13 @@ export async function renderToHTML(
 
   if (renderServerComponentData) {
     return new RenderResult(
-      pipeThrough(
-        renderToReadableStream(
-          renderFlight(AppMod, ComponentMod, {
-            ...props.pageProps,
-            ...serverComponentProps,
-          }),
-          serverComponentManifest
-        ),
-        createBufferedTransformStream()
-      )
+      renderToReadableStream(
+        renderFlight(AppMod, ComponentMod, {
+          ...props.pageProps,
+          ...serverComponentProps,
+        }),
+        serverComponentManifest
+      ).pipeThrough(createBufferedTransformStream())
     )
   }
 
@@ -1428,19 +1429,15 @@ export async function renderToHTML(
         }
       }
     } else {
-      let bodyResult
-
-      let renderStream: any
-
       // We start rendering the shell earlier, before returning the head tags
       // to `documentResult`.
       const content = renderContent()
-      renderStream = await renderToInitialStream({
+      const renderStream = await renderToInitialStream({
         ReactDOMServer,
         element: content,
       })
 
-      bodyResult = async (suffix: string) => {
+      const bodyResult = async (suffix: string) => {
         // this must be called inside bodyResult so appWrappers is
         // up to date when getWrappedApp is called
 
@@ -1470,15 +1467,19 @@ export async function renderToHTML(
             // If it's a server component with the Node.js runtime, we also
             // statically generate the page data.
             let data = ''
+
             const readable = serverComponentsPageDataTransformStream.readable
             const reader = readable.getReader()
+            const textDecoder = new TextDecoder()
+
             while (true) {
               const { done, value } = await reader.read()
               if (done) {
                 break
               }
-              data += decodeText(value)
+              data += decodeText(value, textDecoder)
             }
+
             ;(renderOpts as any).pageData = {
               ...(renderOpts as any).pageData,
               __flight__: data,

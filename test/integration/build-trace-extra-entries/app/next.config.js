@@ -1,4 +1,5 @@
 const path = require('path')
+let handledServer = false
 
 module.exports = {
   webpack(cfg, { isServer }) {
@@ -7,7 +8,8 @@ module.exports = {
     cfg.entry = async () => {
       const origEntries = await origEntry()
 
-      if (isServer) {
+      if (isServer && !handledServer) {
+        handledServer = true
         const curEntry = origEntries['pages/_app']
         origEntries['pages/_app'] = [
           path.join(__dirname, 'lib/get-data.js'),
