@@ -26,7 +26,7 @@ pub(crate) fn prop_name_to_expr(p: &PropName) -> Cow<Expr> {
     match p {
         PropName::Ident(p) => Cow::Owned(Expr::Ident(p.clone())),
         PropName::Str(p) => Cow::Owned(Expr::Lit(Lit::Str(p.clone()))),
-        PropName::Num(p) => Cow::Owned(Expr::Lit(Lit::Num(*p))),
+        PropName::Num(p) => Cow::Owned(Expr::Lit(Lit::Num(p.clone()))),
         PropName::BigInt(p) => Cow::Owned(Expr::Lit(Lit::BigInt(p.clone()))),
         PropName::Computed(e) => Cow::Borrowed(&e.expr),
     }
