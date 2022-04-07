@@ -65,6 +65,11 @@ const Home: React.FC<IHomeProps> = (
     }
   }
 
+  const handleNavigate = (): void => {
+    if (!video) return
+    router.push(`/${video.videoId}?w=${size?.width}&h=${size?.height}`)
+  }
+  
   const clearState = (): void => {
     setReady(false)
     setStatus({ ingested: false, encoded: false })
@@ -126,7 +131,7 @@ const Home: React.FC<IHomeProps> = (
         )}
 
         {(ready && video) && (
-          <Button onClick={() => router.push(`/${video.videoId}`)}>
+          <Button onClick={handleNavigate}>
             Watch it 🍿
           </Button>
         )}
