@@ -6,6 +6,7 @@ import styled from 'styled-components'
 import Card from '../components/Card'
 import { VideoUploader, VideoUploadResponse } from '@api.video/video-uploader'
 import Status from '../components/Status'
+import { useRouter } from 'next/router'
 
 const fetcher = async (url: string): Promise<any> => {
   return fetch(url).then(res => res.json())
@@ -26,6 +27,7 @@ const Home: React.FC<IHomeProps> = (
   const [size, setSize] = useState<{ width: number, height: number } | undefined>(undefined)
   const inputRef = useRef<HTMLInputElement>(null)
   const { uploadToken: { token } } = uploadToken
+  const router = useRouter()
 
   useEffect(() => {
     if (video) {
@@ -110,7 +112,9 @@ const Home: React.FC<IHomeProps> = (
           <>
             <StatusContainer>
               <Status title="Uploaded" done={uploadProgress >= 100} />
+              <span />
               <Status title="Ingested" done={status.ingested} />
+              <span />
               <Status title="Playable" done={status.encoded} />
             </StatusContainer>
             <Card 
@@ -121,8 +125,8 @@ const Home: React.FC<IHomeProps> = (
           </>
         )}
 
-        {ready && (
-          <Button>
+        {(ready && video) && (
+          <Button onClick={() => router.push(`/${video.videoId}`)}>
             Watch it 🍿
           </Button>
         )}
@@ -158,7 +162,7 @@ export const getServerSideProps: GetServerSideProps = async () => {
   return { props : uploadToken }
 }
 
-const GlobalContainer = styled.div`
+export const GlobalContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -174,7 +178,7 @@ const GlobalContainer = styled.div`
   }
 `
 
-const Header = styled.header`
+export const Header = styled.header`
   font-size: 2.5rem;
   span {
     font-weight: 700;
@@ -219,16 +223,15 @@ const Button = styled.button<{ $upload?: boolean }>`
 const StatusContainer = styled.div`
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 2rem;
-`
-
-const PlayerSdkContainer = styled.div<{ $width: number, $height: number }>`
-    margin-top: 2rem;
-    width: ${p => p.$width <= 800 ? p.$width : '800'}px;
-    height: ${p => p.$height <= 250 ? p.$height : '250'}px;
-    iframe {
-        height: ${p => p.$height <= 250 ? p.$height : '250'}px !important;
-    }
+  span {
+    width: 35px;
+    height: 5px;
+    border-radius: 5px;
+    background-color: rgb(235, 137, 82);
+    margin-top: 20px;
+  }
 `
 
 const Footer = styled.footer`
