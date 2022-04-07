@@ -981,7 +981,7 @@ export default async function getBaseWebpackConfig(
   }
 
   const rscCodeCondition = {
-    test: codeCondition.test,
+    test: serverComponentsRegex,
     // only apply to the pages as the begin process of rsc loaders
     include: [dir, /next[\\/]dist[\\/]pages/],
   }
@@ -1209,7 +1209,6 @@ export default async function getBaseWebpackConfig(
                 // RSC server compilation loaders
                 {
                   ...rscCodeCondition,
-                  test: serverComponentsRegex,
                   use: {
                     loader: 'next-flight-server-loader',
                     options: {
@@ -1222,7 +1221,6 @@ export default async function getBaseWebpackConfig(
                 // RSC client compilation loaders
                 {
                   ...rscCodeCondition,
-                  test: serverComponentsRegex,
                   use: {
                     loader: 'next-flight-server-loader',
                     options: {
