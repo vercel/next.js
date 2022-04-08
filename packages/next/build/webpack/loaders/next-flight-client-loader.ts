@@ -87,9 +87,10 @@ async function parseModuleInfo(
         } = node
         // exports.xxx = xxx
         if (
+          left.object &&
           left.type === 'MemberExpression' &&
-          left?.object.type === 'Identifier' &&
-          left.object?.value === 'exports'
+          left.object.type === 'Identifier' &&
+          left.object.value === 'exports'
         ) {
           addExportNames(names, left.property)
         }
@@ -115,7 +116,7 @@ export default async function transformSource(
   const names: string[] = []
   await parseModuleInfo(resourcePath, transformedSource, names)
 
-  // next.js/packages/next/<component>.js
+  // Next.js built-in client components
   if (/[\\/]next[\\/](link|image)\.js$/.test(resourcePath)) {
     names.push('default')
   }
