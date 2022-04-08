@@ -390,13 +390,15 @@ export default function Image({
   }
 
   let loader = defaultImageLoader as ImageLoader
-  if ('loader' in rest && rest.loader) {
-    const customImageLoader = rest.loader
-    loader = (obj) => {
-      // The config object is internal only so we must
-      // delete before invoking the user-defined loader()
-      delete obj.config
-      return customImageLoader(obj)
+  if ('loader' in rest) {
+    if (rest.loader) {
+      const customImageLoader = rest.loader
+      loader = (obj) => {
+        // The config object is internal only so we must
+        // delete before invoking the user-defined loader()
+        delete obj.config
+        return customImageLoader(obj)
+      }
     }
     // Remove property so it's not spread on <img>
     delete rest.loader
