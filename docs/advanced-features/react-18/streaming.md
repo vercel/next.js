@@ -5,7 +5,7 @@ React Server Components, an experimental feature, is based on streaming. You can
 
 ## Using Streaming Server-Rendering
 
-When you use Suspense in a server-rendered page, there is no extra configuration required to use streaming SSR.
+When you use Suspense in a server-rendered page, there is no extra configuration required to use streaming SSR. When deployed, streaming can be utilized through infrastructure like [Edge Functions](https://vercel.com/edge) on Vercel (with the Edge Runtime) or with a Node.js server (with the Node.js runtime). AWS Lambda Functions do not currently support streaming responses.
 
 All SSR pages have the ability to render components into streams and the client continues receiving updates from these streams even after the initial SSR response is sent. When any suspended components resolve down the line, they are rendered on the server and streamed to the client. This means applications can start emitting HTML even _before_ all the data is ready, improving your app's loading performance.
 
