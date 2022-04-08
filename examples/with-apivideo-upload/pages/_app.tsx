@@ -1,7 +1,7 @@
 import type { AppProps } from 'next/app'
 import '../style/index.css'
 
-function MyApp({ Component, pageProps }: AppProps) {
+function MyApp({ Component, pageProps }: any) {
   return <Component {...pageProps} />
 }
 
