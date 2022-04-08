@@ -3,9 +3,10 @@ import webdriver from 'next-webdriver'
 import { renderViaHTTP, check } from 'next-test-utils'
 import { join } from 'path'
 import fs from 'fs-extra'
-import { distDir, getNodeBySelector } from './utils'
+import { getNodeBySelector } from './utils'
 
 export default function (context, { runtime, env }) {
+  const distDir = join(context.appDir, '.next')
   it('should render server components correctly', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/', null, {
       headers: {
