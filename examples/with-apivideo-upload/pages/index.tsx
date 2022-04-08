@@ -1,7 +1,7 @@
-import type { GetServerSideProps } from 'next'
+import type { GetServerSideProps, NextPage } from 'next'
 import Head from 'next/head'
 import Image from 'next/image'
-import React, { ChangeEvent, useEffect, useRef, useState } from 'react'
+import React, { ChangeEvent, ReactNode, useEffect, useRef, useState } from 'react'
 import Card from '../components/Card'
 import { VideoUploader, VideoUploadResponse } from '@api.video/video-uploader'
 import Status from '../components/Status'
@@ -13,12 +13,13 @@ const fetcher = async (url: string): Promise<any> => {
 }
 
 interface IHomeProps {
+  children: ReactNode
   uploadToken: { token: string }
 }
 
-const Home: React.FC<IHomeProps> = (
-  uploadToken
-) => {
+const Home: NextPage<IHomeProps> = ({
+  uploadToken,
+}) => {
   const [uploadProgress, setUploadProgress] = useState<number | undefined>(undefined)
   const [video, setVideo] = useState<VideoUploadResponse | undefined>(undefined)
   const [ready, setReady] = useState<boolean>(false)
@@ -26,7 +27,7 @@ const Home: React.FC<IHomeProps> = (
   const [interId, setInterId] = useState<number | undefined>(undefined)
   const [size, setSize] = useState<{ width: number, height: number } | undefined>(undefined)
   const inputRef = useRef<HTMLInputElement>(null)
-  const { uploadToken: { token } } = uploadToken
+  const { token } = uploadToken
   const router = useRouter()
 
   useEffect(() => {

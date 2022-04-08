@@ -1,5 +1,5 @@
 import { PlayerSdk, PlayerTheme } from '@api.video/player-sdk'
-import { GetServerSideProps } from 'next'
+import { GetServerSideProps, NextPage } from 'next'
 import Head from 'next/head'
 import Image from 'next/image'
 import { useRouter } from 'next/router'
@@ -12,7 +12,7 @@ interface IVideoViewProps {
     width: string
     height: string
 }
-const VideoView: React.FC<IVideoViewProps> = ({
+const VideoView: NextPage<IVideoViewProps> = ({
     videoId,
     width,
     height
