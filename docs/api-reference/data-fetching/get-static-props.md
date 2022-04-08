@@ -87,7 +87,7 @@ The cache status of a page leveraging ISR can be determined by reading the value
 
 - `MISS` - the is not in the cache (occurs at most once, on the first visit)
 - `STALE` - the path is in the cache but exceeded the revalidate time so it will be updated in the background
--  `HIT` - the path is in the cache and has not exceeded the revalidate time
+- `HIT` - the path is in the cache and has not exceeded the revalidate time
 
 ### `notFound`
 
