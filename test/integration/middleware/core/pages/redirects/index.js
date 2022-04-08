@@ -28,6 +28,10 @@ export default function Home() {
         <a>Redirect me alot (infinite loop)</a>
       </Link>
       <div />
+      <Link href="/redirects/to?pathname=/api/ok" locale="nl">
+        <a id="link-to-api-with-locale">>Redirect me to api with locale</a>
+      </Link>
+      <div />
     </div>
   )
 }
