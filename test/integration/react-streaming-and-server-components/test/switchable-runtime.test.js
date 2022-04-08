@@ -50,7 +50,7 @@ describe('Switchable runtime (prod)', () => {
 
   beforeAll(async () => {
     context.appPort = await findPort()
-    const { stdout, stderr } = await nextBuild(context.appDir, {
+    const { stdout, stderr } = await nextBuild(context.appDir, [], {
       stderr: true,
       stdout: true,
     })
