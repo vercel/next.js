@@ -164,7 +164,9 @@ The introduction of the `307` status code means that the request method is prese
 
 The `redirect()` method uses a `307` by default, instead of a `302` temporary redirect, meaning your requests will _always_ be preserved as `POST` requests.
 
-If you want to cause a `GET` request in response a `POST` request, use [HTTP 303 See Other](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/303)
+If you want to cause a `GET` response to a `POST` request, use `303`.
+
+[Learn more](https://developer.mozilla.org/en-US/docs/Web/HTTP/Redirections) about HTTP Redirects.
 
 ### How do I access Environment Variables?
 
