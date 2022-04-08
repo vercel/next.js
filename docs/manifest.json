@@ -143,10 +143,6 @@
           ]
         },
         {
-          "title": "Middleware",
-          "path": "/docs/middleware.md"
-        },
-        {
           "title": "Going to Production",
           "path": "/docs/going-to-production.md"
         },
@@ -262,6 +258,10 @@
             {
               "title": "Measuring performance",
               "path": "/docs/advanced-features/measuring-performance.md"
+            },
+            {
+              "title": "Middleware (Beta)",
+              "path": "/docs/middleware.md"
             },
             {
               "title": "Debugging",
