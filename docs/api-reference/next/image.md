@@ -424,7 +424,7 @@ Images are optimized dynamically upon request and stored in the `<distDir>/cache
 
 The cache status of an image can be determined by reading the value of the `x-nextjs-cache` response header. The possible values are the following:
 
-- `MISS` - the is not in the cache (occurs at most once, on the first visit)
+- `MISS` - the path is not in the cache (occurs at most once, on the first visit)
 - `STALE` - the path is in the cache but exceeded the revalidate time so it will be updated in the background
 - `HIT` - the path is in the cache and has not exceeded the revalidate time
 
