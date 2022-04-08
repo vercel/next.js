@@ -1439,25 +1439,20 @@ export async function renderToHTML(
 
       const bodyResult = async (suffix: string) => {
         // this must be called inside bodyResult so appWrappers is
-        // up to date when getWrappedApp is called
+        // up to date when `wrapApp` is called
 
-        const flushEffectHandler = async () => {
+        const flushEffectHandler = (): string => {
           const allFlushEffects = [
             styledJsxFlushEffect,
             ...(flushEffects || []),
           ]
-          const flushEffectStream = await renderToStream({
-            ReactDOMServer,
-            element: (
-              <>
-                {allFlushEffects.map((flushEffect, i) => (
-                  <React.Fragment key={i}>{flushEffect()}</React.Fragment>
-                ))}
-              </>
-            ),
-            generateStaticHTML: true,
-          })
-          const flushed = await streamToString(flushEffectStream)
+          const flushed = ReactDOMServer.renderToString(
+            <>
+              {allFlushEffects.map((flushEffect, i) => (
+                <React.Fragment key={i}>{flushEffect()}</React.Fragment>
+              ))}
+            </>
+          )
           return flushed
         }
 
