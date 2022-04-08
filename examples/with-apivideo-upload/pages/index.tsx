@@ -1,25 +1,19 @@
-import type { GetServerSideProps, NextPage } from 'next'
+import type { NextPage } from 'next'
 import Head from 'next/head'
 import Image from 'next/image'
-import React, { ChangeEvent, ReactNode, useEffect, useRef, useState } from 'react'
+import React, { ChangeEvent, useEffect, useRef, useState } from 'react'
 import Card from '../components/Card'
 import { VideoUploader, VideoUploadResponse } from '@api.video/video-uploader'
 import Status from '../components/Status'
 import { useRouter } from 'next/router'
 import { Button, Footer, GlobalContainer, Header, StatusContainer, Text, TextsContainer } from '../style/common'
+import useSWR from 'swr'
 
 const fetcher = async (url: string): Promise<any> => {
   return fetch(url).then(res => res.json())
 }
 
-interface IHomeProps {
-  children: ReactNode
-  uploadToken: { token: string }
-}
-
-const Home: NextPage<IHomeProps> = ({
-  uploadToken,
-}) => {
+const Home: NextPage = () => {
   const [uploadProgress, setUploadProgress] = useState<number | undefined>(undefined)
   const [video, setVideo] = useState<VideoUploadResponse | undefined>(undefined)
   const [ready, setReady] = useState<boolean>(false)
@@ -27,8 +21,12 @@ const Home: NextPage<IHomeProps> = ({
   const [interId, setInterId] = useState<number | undefined>(undefined)
   const [size, setSize] = useState<{ width: number, height: number } | undefined>(undefined)
   const inputRef = useRef<HTMLInputElement>(null)
-  const { token } = uploadToken
   const router = useRouter()
+  
+  const { data: uploadToken } = useSWR<{ token: string }>(
+    '/api/uploadToken',
+    fetcher
+  )
 
   useEffect(() => {
     if (video) {
@@ -45,11 +43,11 @@ const Home: NextPage<IHomeProps> = ({
   const handleSelectFile = async (e: ChangeEvent<HTMLInputElement>): Promise<void> => {
     e.preventDefault()
     clearState()
-    if (!e.target.files || !token) return
+    if (!e.target.files || !uploadToken) return
     const file = e.target.files[0]
     const uploader = new VideoUploader({
       file,
-      uploadToken: token
+      uploadToken: uploadToken.token
     })
     uploader.onProgress(e => setUploadProgress(Math.round(e.uploadedBytes * 100 / e.totalBytes)))
     const video = await uploader.upload()
@@ -164,10 +162,3 @@ const Home: NextPage<IHomeProps> = ({
 }
 
 export default Home
-
-export const getServerSideProps: GetServerSideProps = async () => {
-  const dev = process.env.NODE_ENV !== 'production'
-  const server = dev ? 'http://localhost:3000' : 'https://apivideo-uploader.vercel.app'
-  const uploadToken = await fetch(`${server}/api/uploadToken`).then(res => res.json())
-  return { props : uploadToken }
-}
