@@ -14,7 +14,7 @@ import {
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')
 
-describe('Export Dyanmic Pages', () => {
+describe('Export Dynamic Pages', () => {
   let server
   let port
   beforeAll(async () => {

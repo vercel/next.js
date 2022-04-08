@@ -9,6 +9,8 @@ export default function Gsp(props) {
     <>
       <p id="change">change me</p>
       <p id="props">{JSON.stringify(props)}</p>
+      <div style={{ height: 1000, width: 50, background: 'cyan' }}></div>
+      <p id="scroll-target">bottom</p>
     </>
   )
 }

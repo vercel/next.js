@@ -150,8 +150,8 @@ One of the ways that images most commonly hurt performance is through _layout sh
 Because `next/image` is designed to guarantee good performance results, it cannot be used in a way that will contribute to layout shift, and **must** be sized in one of three ways:
 
 1. Automatically, using a [static import](#local-images)
-2. Explicitly, by including a `height` **and** `width` property
-3. Implicitly, by using `layout="fill"` which causes the image to expand to fill its parent element.
+2. Explicitly, by including a [`width`](/docs/api-reference/next/image.md#width) and [`height`](/docs/api-reference/next/image.md#height) property
+3. Implicitly, by using [`layout="fill"`](/docs/api-reference/next/image.md#layout) which causes the image to expand to fill its parent element.
 
 > ### What if I don't know the size of my images?
 >
@@ -181,15 +181,13 @@ The image component has several different [layout modes](/docs/api-reference/nex
 
 **Target the image with className, not based on DOM structure**
 
-Regardless of the layout mode used, the Image component will have a consistent DOM structure of one `<img>` tag wrapped by exactly one `<span>`. For some modes, it may also have a sibling `<span>` for spacing. These additional `<span>` elements are critical to allow the component to prevent layout shifts.
+For most layout modes, the Image component will have a DOM structure of one `<img>` tag wrapped by exactly one `<span>`. For some modes, it may also have a sibling `<span>` for spacing. These additional `<span>` elements are critical to allow the component to prevent layout shifts.
 
 The recommended way to style the inner `<img>` is to set the `className` prop on the Image component to the value of an imported [CSS Module](/docs/basic-features/built-in-css-support.md#adding-component-level-css). The value of `className` will be automatically applied to the underlying `<img>` element.
 
 Alternatively, you can import a [global stylesheet](/docs/basic-features/built-in-css-support#adding-a-global-stylesheet) and manually set the `className` prop to the same name used in the global stylesheet.
 
 You cannot use [styled-jsx](/docs/basic-features/built-in-css-support.md#css-in-js) because it's scoped to the current component.
-
-You cannot use the `style` prop because the `<Image>` component does not pass it through to the underlying `<img>`.
 
 **When using `layout='fill'`, the parent element must have `position: relative`**
 

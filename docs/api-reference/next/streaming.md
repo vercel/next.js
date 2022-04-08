@@ -88,6 +88,8 @@ export default function Search() {
     <SearchUI
       onChange={() => {
         refresh()
+        // Or refresh with updated props:
+        // refresh(nextProps)
       }}
     />
   )

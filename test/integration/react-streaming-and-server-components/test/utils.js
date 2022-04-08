@@ -5,8 +5,9 @@ import {
   nextBuild as _nextBuild,
   nextStart as _nextStart,
 } from 'next-test-utils'
+import cheerio from 'cheerio'
 
-const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
+const nodeArgs = []
 
 export const appDir = join(__dirname, '../app')
 export const nativeModuleTestAppDir = join(
@@ -43,4 +44,9 @@ export async function nextDev(dir, port) {
     stderr: true,
     nodeArgs,
   })
+}
+
+export function getNodeBySelector(html, selector) {
+  const $ = cheerio.load(html)
+  return $(selector)
 }

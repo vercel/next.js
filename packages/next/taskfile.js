@@ -301,6 +301,23 @@ export async function ncc_react_refresh_utils(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+export async function ncc_use_subscription(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('use-subscription'))
+    )
+    .ncc({
+      packageName: 'use-subscription',
+      externals: {
+        ...externals,
+        react: 'react',
+        'react-dom': 'react-dom',
+      },
+    })
+    .target('compiled/use-subscription')
+}
+
+// eslint-disable-next-line camelcase
 externals['chalk'] = 'next/dist/compiled/chalk'
 export async function ncc_chalk(task, opts) {
   await task
@@ -781,6 +798,7 @@ const babelCorePackages = {
   '@babel/traverse': 'next/dist/compiled/babel/traverse',
   '@babel/types': 'next/dist/compiled/babel/types',
   '@babel/core': 'next/dist/compiled/babel/core',
+  '@babel/parser': 'next/dist/compiled/babel/parser',
   '@babel/core/lib/config': 'next/dist/compiled/babel/core-lib-config',
   '@babel/core/lib/transformation/normalize-file':
     'next/dist/compiled/babel/core-lib-normalize-config',
@@ -815,6 +833,20 @@ export async function ncc_babel_bundle(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function ncc_babel_bundle_packages(task, opts) {
+  const eslintParseFile = join(
+    dirname(require.resolve('@babel/eslint-parser')),
+    './parse.cjs'
+  )
+  const content = fs.readFileSync(eslintParseFile, 'utf-8')
+  // Let parser.cjs require @babel/parser directly
+  const replacedContent = content
+    .replace(
+      `const babelParser = require((`,
+      `function noop(){};\nconst babelParser = require('@babel/parser');noop((`
+    )
+    .replace(/require.resolve/g, 'noop')
+  await fs.writeFile(eslintParseFile, replacedContent)
+
   await task
     .source(opts.src || 'bundles/babel/packages-bundle.js')
     .ncc({
@@ -1603,6 +1635,7 @@ export async function ncc(task, opts) {
         'ncc_node_html_parser',
         'ncc_watchpack',
         'ncc_chalk',
+        'ncc_use_subscription',
         'ncc_napirs_triples',
         'ncc_etag',
         'ncc_p_limit',
@@ -1810,34 +1843,34 @@ export async function nextbuildstatic(task, opts) {
 export async function pages_app(task, opts) {
   await task
     .source('pages/_app.tsx')
-    .swc('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev, keepImportAssertions: true })
+    .target('dist/pages')
+}
+
+export async function pages_app_server(task, opts) {
+  await task
+    .source('pages/_app.server.tsx')
+    .swc('client', { dev: opts.dev, keepImportAssertions: true })
     .target('dist/pages')
 }
 
 export async function pages_error(task, opts) {
   await task
     .source('pages/_error.tsx')
-    .swc('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev, keepImportAssertions: true })
     .target('dist/pages')
 }
 
 export async function pages_document(task, opts) {
   await task
     .source('pages/_document.tsx')
-    .swc('server', { dev: opts.dev })
-    .target('dist/pages')
-}
-
-export async function pages_document_server(task, opts) {
-  await task
-    .source('pages/_document-concurrent.tsx')
-    .swc('client', { dev: opts.dev })
+    .swc('server', { dev: opts.dev, keepImportAssertions: true })
     .target('dist/pages')
 }
 
 export async function pages(task, opts) {
   await task.parallel(
-    ['pages_app', 'pages_error', 'pages_document', 'pages_document_server'],
+    ['pages_app', 'pages_app_server', 'pages_error', 'pages_document'],
     opts
   )
 }

@@ -18,6 +18,7 @@ export function getParserOptions({ filename, jsConfig, ...rest }) {
     decorators: enableDecorators,
     // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
     [isTypeScript ? 'tsx' : 'jsx']: isTSFile ? false : true,
+    importAssertions: true,
   }
 }
 
@@ -48,7 +49,9 @@ function getBaseSWCOptions({
           }
         : {}),
       parser: parserConfig,
-
+      experimental: {
+        keepImportAssertions: true,
+      },
       transform: {
         // Enables https://github.com/swc-project/swc/blob/0359deb4841be743d73db4536d4a22ac797d7f65/crates/swc_ecma_ext_transforms/src/jest.rs
         ...(jest
@@ -61,7 +64,9 @@ function getBaseSWCOptions({
         legacyDecorator: enableDecorators,
         decoratorMetadata: emitDecoratorMetadata,
         react: {
-          importSource: jsConfig?.compilerOptions?.jsxImportSource || 'react',
+          importSource:
+            jsConfig?.compilerOptions?.jsxImportSource ??
+            (nextConfig?.experimental?.emotion ? '@emotion/react' : 'react'),
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
@@ -97,7 +102,36 @@ function getBaseSWCOptions({
       : null,
     removeConsole: nextConfig?.compiler?.removeConsole,
     reactRemoveProperties: nextConfig?.compiler?.reactRemoveProperties,
+    modularizeImports: nextConfig?.experimental?.modularizeImports,
     relay: nextConfig?.compiler?.relay,
+    emotion: getEmotionOptions(nextConfig, development),
+  }
+}
+
+function getEmotionOptions(nextConfig, development) {
+  if (!nextConfig?.experimental?.emotion) {
+    return null
+  }
+  let autoLabel = false
+  switch (nextConfig?.experimental?.emotion?.autoLabel) {
+    case 'never':
+      autoLabel = false
+      break
+    case 'always':
+      autoLabel = true
+      break
+    case 'dev-only':
+    default:
+      autoLabel = !!development
+      break
+  }
+  return {
+    enabled: true,
+    autoLabel,
+    labelFormat: nextConfig?.experimental?.emotion?.labelFormat,
+    sourcemap: development
+      ? nextConfig?.experimental?.emotion?.sourceMap ?? true
+      : false,
   }
 }
 
