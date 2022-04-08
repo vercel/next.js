@@ -17,7 +17,7 @@ export default (({ display  })=><div className={"jsx-ee922fe7eac00c5e " + _JSXSt
             ]
         ],
         [
-            "b29f0adf1035840b",
+            "f297f0e8b24d55b4",
             [
                 darken(color) + 2
             ]
@@ -38,7 +38,7 @@ export default (({ display  })=><div className={"jsx-ee922fe7eac00c5e " + _JSXSt
             ]
         ],
         [
-            "b29f0adf1035840b",
+            "f297f0e8b24d55b4",
             [
                 darken(color) + 2
             ]
@@ -69,7 +69,7 @@ export default (({ display  })=><div className={"jsx-ee922fe7eac00c5e " + _JSXSt
         darken(color)
     ]}>{`p.__jsx-style-dynamic-selector{color:${darken(color)}}`}</_JSXStyle>
 
-    <_JSXStyle id={"b29f0adf1035840b"} dynamic={[
+    <_JSXStyle id={"f297f0e8b24d55b4"} dynamic={[
         darken(color) + 2
     ]}>{`p.__jsx-style-dynamic-selector{color:${darken(color) + 2}}`}</_JSXStyle>
 
