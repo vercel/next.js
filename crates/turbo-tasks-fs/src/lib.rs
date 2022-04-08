@@ -74,7 +74,7 @@ impl DiskFileSystem {
         println!("start watcher {}...", root);
         // Create a watcher object, delivering debounced events.
         // The notification back-end is selected based on the platform.
-        let mut watcher = watcher(tx, Duration::from_millis(20))?;
+        let mut watcher = watcher(tx, Duration::from_millis(1))?;
         // Add a path to be watched. All files and directories at that path and
         // below will be monitored for changes.
         watcher.watch(&root, RecursiveMode::Recursive)?;
