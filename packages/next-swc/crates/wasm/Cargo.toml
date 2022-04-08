@@ -19,6 +19,6 @@ serde_json = "1"
 swc = "0.164.0"
 swc_common = { version = "0.17.19", features = ["concurrent", "sourcemap"] }
 swc_ecmascript = { version = "0.143.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
-tracing = {version = "0.1.28", features = ["release_max_level_off"]}
+tracing = { version = "0.1.32", features = ["release_max_level_off"] }
 wasm-bindgen = {version = "0.2", features = ["serde-serialize"]}
 wasm-bindgen-futures = "0.4.8"

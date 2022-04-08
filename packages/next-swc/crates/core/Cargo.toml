@@ -28,7 +28,7 @@ swc_ecma_loader = { version = "0.29.0", features = ["node", "lru"] }
 swc_ecmascript = { version = "0.143.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
 swc_node_base = "0.5.2"
 swc_cached = "0.1.1"
-tracing = {version = "0.1.28", features = ["release_max_level_off"]}
+tracing = { version = "0.1.32", features = ["release_max_level_off"] }
 
 
 [dev-dependencies]

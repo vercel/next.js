@@ -17,7 +17,7 @@ serde = {version = "1.0.130", features = ["derive"]}
 swc_atoms = "0.2.11"
 swc_common = { version = "0.17.19", features = ["concurrent"] }
 swc_ecmascript = { version = "0.143.0", features = ["utils", "visit"] }
-tracing = "0.1"
+tracing = "0.1.32"
 
 [dev-dependencies]
 serde_json = "1"
