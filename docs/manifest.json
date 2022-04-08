@@ -143,6 +143,14 @@
           ]
         },
         {
+          "title": "Middleware (Beta)",
+          "path": "/docs/advanced-features/middleware.md",
+          "redirect": {
+            "destination": "/docs/advanced-features/middleware",
+            "permanent": true
+          }
+        },
+        {
           "title": "Going to Production",
           "path": "/docs/going-to-production.md"
         },
@@ -258,14 +266,6 @@
             {
               "title": "Measuring performance",
               "path": "/docs/advanced-features/measuring-performance.md"
-            },
-            {
-              "title": "Middleware (Beta)",
-              "path": "/docs/middleware.md",
-              "redirect": {
-                "destination": "/docs/advanced-features/middleware",
-                "permanent": true
-              }
             },
             {
               "title": "Debugging",
