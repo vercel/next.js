@@ -7,12 +7,7 @@ use super::{ExternalStyle, JSXStyle, LocalStyle};
 
 fn tpl_element(value: &str) -> TplElement {
     TplElement {
-        raw: Str {
-            value: value.into(),
-            span: DUMMY_SP,
-            kind: StrKind::Synthesized,
-            has_escape: false,
-        },
+        raw: value.into(),
         cooked: None,
         span: DUMMY_SP,
         tail: false,
@@ -314,10 +309,9 @@ pub fn styled_jsx_import_decl(style_import_name: &str) -> ModuleItem {
             span: DUMMY_SP,
         })],
         src: Str {
-            has_escape: false,
-            kind: StrKind::Synthesized {},
             span: DUMMY_SP,
             value: "styled-jsx/style".into(),
+            raw: None,
         },
     }))
 }
@@ -335,8 +329,7 @@ pub fn string_literal_expr(str: &str) -> Expr {
     Expr::Lit(Lit::Str(Str {
         value: str.into(),
         span: DUMMY_SP,
-        has_escape: false,
-        kind: StrKind::Synthesized {},
+        raw: None,
     }))
 }
 

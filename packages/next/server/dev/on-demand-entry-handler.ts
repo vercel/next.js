@@ -207,7 +207,7 @@ export default function onDemandEntryHandler(
       const isApiRoute = normalizedPage.match(API_ROUTE) && !isMiddleware
       const pageRuntimeConfig = await getPageRuntime(
         absolutePagePath,
-        nextConfig.experimental.runtime
+        nextConfig
       )
       const isEdgeServer = pageRuntimeConfig === 'edge'
 

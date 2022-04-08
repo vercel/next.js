@@ -10,18 +10,16 @@ import {
   killApp,
   launchApp,
   nextBuild,
-  nextServer,
+  nextStart,
   renderViaHTTP,
-  startApp,
-  stopApp,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
 const appDir = join(__dirname, '../')
+const nodeArgs = ['-r', join(appDir, '../../lib/react-17-require-hook.js')]
 let appPort
-let server
 let app
 
 const context = {}
@@ -38,24 +36,21 @@ describe('AMP Usage', () => {
       const result = await nextBuild(appDir, undefined, {
         stdout: true,
         stderr: true,
+        nodeArgs,
       })
       output = result.stdout + result.stderr
 
-      app = nextServer({
-        dir: join(__dirname, '../'),
-        dev: false,
-        quiet: true,
+      appPort = context.appPort = await findPort()
+      app = await nextStart(appDir, context.appPort, {
+        nodeArgs,
       })
-
-      server = await startApp(app)
-      context.appPort = appPort = server.address().port
     })
     afterAll(async () => {
       await rename(
         join(appDir, 'pages/invalid-amp.js.bak'),
         join(appDir, 'pages/invalid-amp.js')
       )
-      return stopApp(server)
+      return killApp(app)
     })
 
     it('should have amp optimizer in trace', async () => {
@@ -281,6 +276,7 @@ describe('AMP Usage', () => {
         onStderr(msg) {
           inspectPayload += msg
         },
+        nodeArgs,
       })
 
       await renderViaHTTP(dynamicAppPort, '/only-amp')
@@ -305,6 +301,7 @@ describe('AMP Usage', () => {
         onStderr(msg) {
           output += msg
         },
+        nodeArgs,
       })
     })
 
@@ -552,6 +549,7 @@ describe('AMP Usage', () => {
         onStderr(msg) {
           inspectPayload += msg
         },
+        nodeArgs,
       })
 
       await renderViaHTTP(dynamicAppPort, '/invalid-amp')

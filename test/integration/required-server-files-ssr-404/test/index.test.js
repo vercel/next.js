@@ -522,7 +522,7 @@ describe('Required Server Files', () => {
     expect($('#index').text()).toBe('index page')
   })
 
-  it('should match the root dyanmic page correctly', async () => {
+  it('should match the root dynamic page correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/index', undefined, {
       headers: {
         'x-matched-path': '/[slug]',

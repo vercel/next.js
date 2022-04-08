@@ -7,6 +7,7 @@ export default async function middlewareSSRLoader(this: any) {
     buildId,
     absolutePagePath,
     absoluteAppPath,
+    absoluteAppServerPath,
     absoluteDocumentPath,
     absolute500Path,
     absoluteErrorPath,
@@ -16,11 +17,15 @@ export default async function middlewareSSRLoader(this: any) {
 
   const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
   const stringifiedAppPath = stringifyRequest(this, absoluteAppPath)
+  const stringifiedAppServerPath = absoluteAppServerPath
+    ? stringifyRequest(this, absoluteAppServerPath)
+    : null
+
   const stringifiedErrorPath = stringifyRequest(this, absoluteErrorPath)
   const stringifiedDocumentPath = stringifyRequest(this, absoluteDocumentPath)
   const stringified500Path = absolute500Path
     ? stringifyRequest(this, absolute500Path)
-    : 'null'
+    : null
 
   const transformed = `
     import { adapter } from 'next/dist/server/web/adapter'
@@ -31,9 +36,15 @@ export default async function middlewareSSRLoader(this: any) {
     import Document from ${stringifiedDocumentPath}
 
     const appMod = require(${stringifiedAppPath})
+    const appServerMod = ${
+      stringifiedAppServerPath ? `require(${stringifiedAppServerPath})` : 'null'
+    }
     const pageMod = require(${stringifiedPagePath})
     const errorMod = require(${stringifiedErrorPath})
-    const error500Mod = ${stringified500Path} ? require(${stringified500Path}) : null
+    const error500Mod = ${
+      stringified500Path ? `require(${stringified500Path})` : 'null'
+    }
+
 
     const buildManifest = self.__BUILD_MANIFEST
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
@@ -44,7 +55,7 @@ export default async function middlewareSSRLoader(this: any) {
       page: ${JSON.stringify(page)},
       buildId: ${JSON.stringify(buildId)},
     }
-  
+
     const render = getRender({
       dev: ${dev},
       page: ${JSON.stringify(page)},
@@ -56,7 +67,7 @@ export default async function middlewareSSRLoader(this: any) {
       buildManifest,
       reactLoadableManifest,
       serverComponentManifest: ${isServerComponent} ? rscManifest : null,
-      isServerComponent: ${isServerComponent},
+      appServerMod,
       config: ${stringifiedConfig},
       buildId: ${JSON.stringify(buildId)},
     })

@@ -39,6 +39,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example cms-umbraco-heartcore cms-umbraco-heartcore-app
 # or
 yarn create next-app --example cms-umbraco-heartcore cms-umbraco-heartcore-app
+# or
+pnpm create next-app -- --example cms-umbraco-heartcore cms-umbraco-heartcore-app
 ```
 
 ## Configuration

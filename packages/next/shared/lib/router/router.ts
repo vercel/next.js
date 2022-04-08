@@ -124,7 +124,7 @@ function addPathPrefix(path: string, prefix?: string) {
 
   return (
     normalizePathTrailingSlash(`${prefix}${pathname}`) +
-    path.substr(pathname.length)
+    path.slice(pathname.length)
   )
 }
 
@@ -180,7 +180,7 @@ export function delLocale(path: string, locale?: string) {
       (pathLower.startsWith('/' + localeLower + '/') ||
         pathLower === '/' + localeLower)
       ? (pathname.length === locale.length + 1 ? '/' : '') +
-          path.substr(locale.length + 1)
+          path.slice(locale.length + 1)
       : path
   }
   return path
@@ -323,7 +323,7 @@ export function resolveHref(
   // invalid and will never match a Next.js page/file
   const urlProtoMatch = urlAsString.match(/^[a-zA-Z]{1,}:\/\//)
   const urlAsStringNoProto = urlProtoMatch
-    ? urlAsString.substr(urlProtoMatch[0].length)
+    ? urlAsString.slice(urlProtoMatch[0].length)
     : urlAsString
 
   const urlParts = urlAsStringNoProto.split('?')
@@ -754,7 +754,7 @@ export default class Router implements BaseRouter {
     if (typeof window !== 'undefined') {
       // make sure "as" doesn't start with double slashes or else it can
       // throw an error as it's considered invalid
-      if (as.substr(0, 2) !== '//') {
+      if (!as.startsWith('//')) {
         // in order for `e.state` to work on the `onpopstate` event
         // we have to register the initial route upon initialization
         const options: TransitionOptions = { locale }
@@ -1549,18 +1549,25 @@ export default class Router implements BaseRouter {
 
       let dataHref: string | undefined
 
+      // For server components, non-SSR pages will have statically optimized
+      // flight data in a production build.
+      // So only development and SSR pages will always have the real-time
+      // generated and streamed flight data.
+      const useStreamedFlightData =
+        (process.env.NODE_ENV !== 'production' || __N_SSP) && __N_RSC
+
       if (__N_SSG || __N_SSP || __N_RSC) {
         dataHref = this.pageLoader.getDataHref({
           href: formatWithValidation({ pathname, query }),
           asPath: resolvedAs,
           ssg: __N_SSG,
-          rsc: __N_RSC,
+          flight: useStreamedFlightData,
           locale,
         })
       }
 
       const props = await this._getData<CompletePrivateRouteInfo>(() =>
-        __N_SSG || __N_SSP
+        (__N_SSG || __N_SSP || __N_RSC) && !useStreamedFlightData
           ? fetchNextData(
               dataHref!,
               this.isSsr,
@@ -1583,13 +1590,23 @@ export default class Router implements BaseRouter {
       )
 
       if (__N_RSC) {
-        const { fresh, data } = (await this._getData(() =>
-          this._getFlightData(dataHref!)
-        )) as { fresh: boolean; data: string }
-        ;(props as any).pageProps = Object.assign((props as any).pageProps, {
-          __flight_serialized__: data,
-          __flight_fresh__: fresh,
-        })
+        if (useStreamedFlightData) {
+          const { data } = (await this._getData(() =>
+            this._getFlightData(dataHref!)
+          )) as { data: string }
+          ;(props as any).pageProps = Object.assign((props as any).pageProps, {
+            __flight__: data,
+          })
+        } else {
+          const { __flight__ } = props as any
+          ;(props as any).pageProps = Object.assign(
+            {},
+            (props as any).pageProps,
+            {
+              __flight__,
+            }
+          )
+        }
       }
 
       routeInfo.props = props
@@ -1854,7 +1871,7 @@ export default class Router implements BaseRouter {
     // Do not cache RSC flight response since it's not a static resource
     return fetchNextData(dataHref, true, true, this.sdc, false).then(
       (serialized) => {
-        return { fresh: true, data: serialized }
+        return { data: serialized }
       }
     )
   }
@@ -1883,10 +1900,12 @@ export default class Router implements BaseRouter {
       return { type: 'next' }
     }
 
+    const preflightHref = addLocale(options.as, options.locale)
+
     let preflight: PreflightData | undefined
     try {
       preflight = await this._getPreflightData({
-        preflightHref: options.as,
+        preflightHref,
         shouldCache: options.cache,
         isPreview: options.isPreview,
       })

@@ -71,9 +71,7 @@ Middleware can be used for anything that shares logic for a set of pages, includ
 - [Redirects and rewrites](https://github.com/vercel/examples/tree/main/edge-functions)
 - [Handling unsupported browsers](https://github.com/vercel/examples/tree/main/edge-functions)
 - [Feature flags and A/B tests](https://github.com/vercel/examples/tree/main/edge-functions)
-- [Server-side analytics](https://github.com/vercel/examples/tree/main/edge-functions)
 - [Advanced i18n routing requirements](https://github.com/vercel/examples/tree/main/edge-functions)
-- [Logging](https://github.com/vercel/examples/tree/main/edge-functions)
 
 ## Execution Order
 

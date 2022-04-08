@@ -12,10 +12,10 @@ use swc_css::codegen::{
 use swc_css::parser::parser::input::ParserInput;
 use swc_css::parser::{parse_str, parse_tokens, parser::ParserConfig};
 use swc_css::visit::{VisitMut, VisitMutWith};
-use swc_ecmascript::ast::{Expr, Str, StrKind, Tpl, TplElement};
+use swc_css_prefixer::prefixer;
+use swc_ecmascript::ast::{Expr, Tpl, TplElement};
 use swc_ecmascript::parser::StringInput;
 use swc_ecmascript::utils::HANDLER;
-use swc_stylis::prefixer::prefixer;
 use tracing::{debug, trace};
 
 use super::{hash_string, string_literal_expr, LocalStyle};
@@ -72,7 +72,7 @@ pub fn transform_css(
 
     let mut s = String::new();
     {
-        let mut wr = BasicCssWriter::new(&mut s, BasicCssWriterConfig { indent: "  " });
+        let mut wr = BasicCssWriter::new(&mut s, None, BasicCssWriterConfig::default());
         let mut gen = CodeGenerator::new(&mut wr, CodegenConfig { minify: true });
 
         gen.emit(&ss).unwrap();
@@ -97,12 +97,7 @@ pub fn transform_css(
             .map(|quasi| {
                 TplElement {
                     cooked: None, // ? Do we need cooked as well
-                    raw: Str {
-                        value: (*quasi).into(),
-                        span: DUMMY_SP,
-                        has_escape: false,
-                        kind: StrKind::Synthesized {},
-                    },
+                    raw: quasi.replace('`', "\\`").into(),
                     span: DUMMY_SP,
                     tail: false,
                 }
@@ -144,7 +139,7 @@ impl VisitMut for Namespacer {
 
             let mut code = String::new();
             {
-                let mut wr = BasicCssWriter::new(&mut code, BasicCssWriterConfig { indent: "  " });
+                let mut wr = BasicCssWriter::new(&mut code, None, BasicCssWriterConfig::default());
                 let mut gen = CodeGenerator::new(&mut wr, CodegenConfig { minify: true });
 
                 gen.emit(&*node).unwrap();
@@ -500,7 +495,7 @@ where
 {
     let mut s = String::new();
     {
-        let mut wr = BasicCssWriter::new(&mut s, BasicCssWriterConfig { indent: "  " });
+        let mut wr = BasicCssWriter::new(&mut s, None, BasicCssWriterConfig::default());
         let mut gen = CodeGenerator::new(&mut wr, CodegenConfig { minify: true });
 
         gen.emit(node).unwrap();

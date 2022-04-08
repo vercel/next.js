@@ -751,6 +751,10 @@ describe('basePath', () => {
     it('should use urls with basepath in router events for hash changes', async () => {
       const browser = await webdriver(next.url, `${basePath}/hello`)
       try {
+        await check(
+          () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
+          'ready'
+        )
         await browser.eval('window._clearEventLog()')
         await browser.elementByCss('#hash-change').click()
 
@@ -775,7 +779,12 @@ describe('basePath', () => {
     it('should use urls with basepath in router events for cancelled routes', async () => {
       const browser = await webdriver(next.url, `${basePath}/hello`)
       try {
+        await check(
+          () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
+          'ready'
+        )
         await browser.eval('window._clearEventLog()')
+
         await browser
           .elementByCss('#slow-route')
           .click()
@@ -821,6 +830,10 @@ describe('basePath', () => {
     it('should use urls with basepath in router events for failed route change', async () => {
       const browser = await webdriver(next.url, `${basePath}/hello`)
       try {
+        await check(
+          () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
+          'ready'
+        )
         await browser.eval('window._clearEventLog()')
         await browser.elementByCss('#error-route').click()
 

@@ -16,6 +16,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-deta-base with-deta-base-app
 # or
 yarn create next-app --example with-deta-base with-deta-base-app
+# or
+pnpm create next-app -- --example with-deta-base with-deta-base-app
 ```
 
 ## Configuration
