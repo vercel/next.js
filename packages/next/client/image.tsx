@@ -40,7 +40,6 @@ type ImageConfig = ImageConfigComplete & { allSizes: number[] }
 export type ImageLoader = (resolverProps: ImageLoaderProps) => string
 
 export type ImageLoaderProps = {
-  config?: Readonly<ImageConfig>
   src: string
   width: number
   quality?: number
@@ -49,6 +48,9 @@ export type ImageLoaderProps = {
 // Do not export - this is an internal type only
 // because `next.config.js` is only meant for the
 // built-in loaders, not for a custom loader() prop.
+type ImageLoaderWithConfig = (
+  resolverProps: ImageLoaderPropsWithConfig
+) => string
 type ImageLoaderPropsWithConfig = ImageLoaderProps & {
   config: Readonly<ImageConfig>
 }
@@ -142,7 +144,7 @@ export type ImageProps = Omit<
   onLoadingComplete?: OnLoadingComplete
 }
 
-type ImageElementProps = Omit<ImageProps, 'src'> & {
+type ImageElementProps = Omit<ImageProps, 'src' | 'loader'> & {
   srcString: string
   imgAttributes: GenImgAttrsResult
   heightInt: number | undefined
@@ -155,7 +157,7 @@ type ImageElementProps = Omit<ImageProps, 'src'> & {
   loading: LoadingValue
   config: ImageConfig
   unoptimized: boolean
-  loader: ImageLoader
+  loader: ImageLoaderWithConfig
   placeholder: PlaceholderValue
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
   setBlurComplete: (b: boolean) => void
@@ -219,7 +221,7 @@ type GenImgAttrsData = {
   src: string
   unoptimized: boolean
   layout: LayoutValue
-  loader: ImageLoader
+  loader: ImageLoaderWithConfig
   width?: number
   quality?: number
   sizes?: string
@@ -389,15 +391,15 @@ export default function Image({
     delete rest.layout
   }
 
-  let loader = defaultImageLoader as ImageLoader
+  let loader: ImageLoaderWithConfig = defaultImageLoader
   if ('loader' in rest) {
     if (rest.loader) {
       const customImageLoader = rest.loader
       loader = (obj) => {
+        const { config: _, ...opts } = obj
         // The config object is internal only so we must
-        // delete before invoking the user-defined loader()
-        delete obj.config
-        return customImageLoader(obj)
+        // not pass it to the user-defined loader()
+        return customImageLoader(opts)
       }
     }
     // Remove property so it's not spread on <img>
