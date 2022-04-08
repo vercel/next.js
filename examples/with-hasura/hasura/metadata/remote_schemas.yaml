@@ -1,0 +1,5 @@
+- name: vercel
+  definition:
+    url: https://graphql-pokemon2.vercel.app/
+    timeout_seconds: 60
+  comment: ""
