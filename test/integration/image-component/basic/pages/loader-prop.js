@@ -9,13 +9,13 @@ const LoaderExample = () => {
         src="foo.jpg"
         width={300}
         height={400}
-        loader={(config, src, width) => {
+        loader={({ config, src, width }) => {
           if (config) {
             return 'https://example.vercel.sh/error-unexpected-config'
           }
           return `https://example.vercel.sh/success/${src}?width=${width}`
         }}
-      ></Image>
+      />
     </div>
   )
 }
