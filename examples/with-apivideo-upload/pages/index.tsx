@@ -167,7 +167,7 @@ export default Home
 
 export const getServerSideProps: GetServerSideProps = async () => {
   const dev = process.env.NODE_ENV !== 'production'
-  const server = dev ? 'http://localhost:3000' : 'https://next-js-video-uploader.vercel.app'
+  const server = dev ? 'http://localhost:3000' : 'https://apivideo-uploader.vercel.app'
   const uploadToken = await fetch(`${server}/api/uploadToken`).then(res => res.json())
   return { props : uploadToken }
 }
