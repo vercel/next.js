@@ -85,7 +85,7 @@ Learn more about [Incremental Static Regeneration](/docs/basic-features/data-fet
 
 The cache status of a page leveraging ISR can be determined by reading the value of the `x-nextjs-cache` response header. The possible values are the following:
 
-- `MISS` - the is not in the cache (occurs at most once, on the first visit)
+- `MISS` - the path is not in the cache (occurs at most once, on the first visit)
 - `STALE` - the path is in the cache but exceeded the revalidate time so it will be updated in the background
 - `HIT` - the path is in the cache and has not exceeded the revalidate time
 
