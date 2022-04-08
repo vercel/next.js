@@ -83,6 +83,8 @@ export async function getStaticProps() {
 
 Learn more about [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md)
 
+The current cache status of a page leveraging ISR can be seen through the `x-nextjs-cache` header. When a path is first generated and not available in the cache the header will be `MISS`, when a path is in the cache but is past the revalidate period it will be updated in the background and the header will be `STALE`, or when a path is in the cache and has not passed the revalidate period the header will be `HIT`.
+
 ### `notFound`
 
 The `notFound` boolean allows the page to return a `404` status and [404 Page](/docs/advanced-features/custom-error-page.md#404-page). With `notFound: true`, the page will return a `404` even if there was a successfully generated page before. This is meant to support use cases like user-generated content getting removed by its author. Note, `notFound` follows the same `revalidate` behavior [described here](/docs/api-reference/data-fetching/get-static-props.md#revalidate)

@@ -422,6 +422,8 @@ The following describes the caching algorithm for the default [loader](#loader).
 
 Images are optimized dynamically upon request and stored in the `<distDir>/cache/images` directory. The optimized image file will be served for subsequent requests until the expiration is reached. When a request is made that matches a cached but expired file, the expired image is served stale immediately. Then the image is optimized again in the background (also called revalidation) and saved to the cache with the new expiration date.
 
+A `x-nextjs-cache` header is exposed which signals if the image was served from cache and not expired (`HIT`), if the image is served from cache but expired and will be updated in the background (`STALE`), or if the image is being requested for the first and was not yet in the cache (`MISS`).
+
 The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](#minimum-cache-ttl) configuration or the upstream server's `Cache-Control` header, whichever is larger. Specifically, the `max-age` value of the `Cache-Control` header is used. If both `s-maxage` and `max-age` are found, then `s-maxage` is preferred.
 
 - You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `Cache-Control` header or the value is very low.
