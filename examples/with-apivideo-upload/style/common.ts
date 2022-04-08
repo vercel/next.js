@@ -1,12 +1,13 @@
 import styled from 'styled-components'
 
 export const GlobalContainer = styled.div`
+  box-sizing: border-box;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100vw;
   gap: 20px;
-  margin-top: 2rem;
   main {
     width: 100%;
     display: flex;
@@ -18,6 +19,7 @@ export const GlobalContainer = styled.div`
 
 export const Header = styled.header`
   font-size: 2.5rem;
+  margin-top: 2rem;
   span {
     font-weight: 700;
     background: -webkit-linear-gradient(45deg, rgb(250, 91, 48) 0%, rgb(128, 54, 255) 26.88%, rgb(213, 63, 255) 50.44%, rgb(235, 137, 82) 73.83%, rgb(247, 181, 0) 100%);
@@ -73,8 +75,8 @@ export const StatusContainer = styled.div`
 `
 
 export const Footer = styled.footer`
-  position: fixed;
-  bottom: 30px;
+  margin-top: auto;
+  margin-bottom: 1rem;
   display: flex;
   align-items: center;
   gap: 5px;
