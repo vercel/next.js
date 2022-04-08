@@ -1,11 +1,31 @@
-[*]
-indent_style = space
-indent_size = 2
+# http://editorconfig.org
+root = true
 
-[*.{js,ts}]
-indent_style = space
+[*]
+charset = utf-8
+end_of_line = lf
 indent_size = 2
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
 
 [Makefile]
 indent_style = tab
-indent_size = 2
+
+[{go.mod,go.sum,*.go}]
+indent_style = tab
+
+[*.{md,mdx}]
+insert_final_newline = true
+
+[*.html]
+insert_final_newline = false
+
+[nginx.conf]
+indent_size = 8
+
+[*.svg]
+insert_final_newline = false
+
+[LICENSE]
+insert_final_newline = false
