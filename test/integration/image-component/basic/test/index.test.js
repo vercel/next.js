@@ -317,15 +317,15 @@ describe('Image Component Tests', () => {
         await browser.elementById('basic-image').getAttribute('data-nimg')
       ).toBe('intrinsic')
     })
-    it('should automatically load images if observer does not exist', async () => {
+    it('should not pass config to custom loader prop', async () => {
       browser = await webdriver(appPort, '/loader-prop')
       expect(
         await browser.elementById('loader-prop-img').getAttribute('src')
-      ).toBe('https://example.vercel.sh/success/foo.jpg?width=300')
+      ).toBe('https://example.vercel.sh/success/foo.jpg?width=1024')
       expect(
-        await browser.elementById('lazy-no-observer').getAttribute('srcset')
+        await browser.elementById('loader-prop-img').getAttribute('srcset')
       ).toBe(
-        'https://example.vercel.sh/success/foo.jpg?width=1024 1x, https://example.vercel.sh/success/foo.jpg?width=2000 2x'
+        'https://example.vercel.sh/success/foo.jpg?width=480 1x, https://example.vercel.sh/success/foo.jpg?width=1024 2x'
       )
     })
   })
