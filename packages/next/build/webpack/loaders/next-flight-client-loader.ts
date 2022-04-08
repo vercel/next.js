@@ -6,6 +6,7 @@
  */
 
 import { parse } from '../../swc'
+import { buildExports } from './utils'
 
 function addExportNames(names: string[], node: any) {
   switch (node.type) {
@@ -39,14 +40,14 @@ function addExportNames(names: string[], node: any) {
   }
 }
 
-async function parseExportNamesInto(
+async function parseModuleInfo(
   resourcePath: string,
   transformedSource: string,
   names: Array<string>
 ): Promise<void> {
   const { body } = await parse(transformedSource, {
     filename: resourcePath,
-    isModule: true,
+    isModule: 'unknown',
   })
   for (let i = 0; i < body.length; i++) {
     const node = body[i]
@@ -56,7 +57,7 @@ async function parseExportNamesInto(
       case 'ExportDefaultExpression':
       case 'ExportDefaultDeclaration':
         names.push('default')
-        continue
+        break
       case 'ExportNamedDeclaration':
         if (node.declaration) {
           if (node.declaration.type === 'VariableDeclaration') {
@@ -74,12 +75,27 @@ async function parseExportNamesInto(
             addExportNames(names, specificers[j].exported)
           }
         }
-        continue
+        break
       case 'ExportDeclaration':
         if (node.declaration?.identifier) {
           addExportNames(names, node.declaration.identifier)
         }
-        continue
+        break
+      case 'ExpressionStatement': {
+        const {
+          expression: { left },
+        } = node
+        // exports.xxx = xxx
+        if (
+          left.object &&
+          left.type === 'MemberExpression' &&
+          left.object.type === 'Identifier' &&
+          left.object.value === 'exports'
+        ) {
+          addExportNames(names, left.property)
+        }
+        break
+      }
       default:
         break
     }
@@ -98,28 +114,28 @@ export default async function transformSource(
   }
 
   const names: string[] = []
-  await parseExportNamesInto(resourcePath, transformedSource, names)
+  await parseModuleInfo(resourcePath, transformedSource, names)
 
-  // next.js/packages/next/<component>.js
+  // Next.js built-in client components
   if (/[\\/]next[\\/](link|image)\.js$/.test(resourcePath)) {
     names.push('default')
   }
 
-  let newSrc =
+  const moduleRefDef =
     "const MODULE_REFERENCE = Symbol.for('react.module.reference');\n"
-  for (let i = 0; i < names.length; i++) {
-    const name = names[i]
-    if (name === 'default') {
-      newSrc += 'export default '
-    } else {
-      newSrc += 'export const ' + name + ' = '
-    }
-    newSrc += '{ $$typeof: MODULE_REFERENCE, filepath: '
-    newSrc += JSON.stringify(resourcePath)
-    newSrc += ', name: '
-    newSrc += JSON.stringify(name)
-    newSrc += '};\n'
-  }
 
-  return newSrc
+  const clientRefsExports = names.reduce((res: any, name) => {
+    const moduleRef =
+      '{ $$typeof: MODULE_REFERENCE, filepath: ' +
+      JSON.stringify(resourcePath) +
+      ', name: ' +
+      JSON.stringify(name) +
+      ' };\n'
+    res[name] = moduleRef
+    return res
+  }, {})
+
+  // still generate module references in ESM
+  const output = moduleRefDef + buildExports(clientRefsExports, true)
+  return output
 }

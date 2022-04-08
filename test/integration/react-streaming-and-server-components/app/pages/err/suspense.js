@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 
 let did = false
-function Error() {
+function MyError() {
   if (!did && typeof window === 'undefined') {
     did = true
     throw new Error('oops')
@@ -12,9 +12,13 @@ export default function page() {
   return (
     <>
       <h1>Hey Error</h1>
-      <Suspense>
-        <Error />
+      <Suspense fallback="error-fallback">
+        <MyError />
       </Suspense>
     </>
   )
+}
+
+export const config = {
+  runtime: 'edge',
 }

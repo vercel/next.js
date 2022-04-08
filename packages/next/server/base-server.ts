@@ -42,7 +42,7 @@ import {
 import * as envConfig from '../shared/lib/runtime-config'
 import { DecodeError, normalizeRepeatedSlashes } from '../shared/lib/utils'
 import { isTargetLikeServerless } from './utils'
-import Router, { replaceBasePath, route } from './router'
+import Router, { route } from './router'
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
@@ -64,6 +64,7 @@ import { addRequestMeta, getRequestMeta } from './request-meta'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
 import { ImageConfigComplete } from '../shared/lib/image-config'
+import { replaceBasePath } from './router-utils'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -155,6 +156,7 @@ export default abstract class Server {
     fontManifest?: FontManifest
     disableOptimizedLoading?: boolean
     optimizeCss: any
+    nextScriptWorkers: any
     locale?: string
     locales?: string[]
     defaultLocale?: string
@@ -315,6 +317,7 @@ export default abstract class Server {
           ? this.getFontManifest()
           : undefined,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
+      nextScriptWorkers: this.nextConfig.experimental.nextScriptWorkers,
       disableOptimizedLoading: this.nextConfig.experimental.runtime
         ? true
         : this.nextConfig.experimental.disableOptimizedLoading,
@@ -1120,14 +1123,25 @@ export default abstract class Server {
     const isLikeServerless =
       typeof components.ComponentMod === 'object' &&
       typeof (components.ComponentMod as any).renderReqToHTML === 'function'
-    const isSSG = !!components.getStaticProps
     const hasServerProps = !!components.getServerSideProps
     const hasStaticPaths = !!components.getStaticPaths
     const hasGetInitialProps = !!components.Component?.getInitialProps
+    const isServerComponent = !!components.ComponentMod?.__next_rsc__
+    const isSSG =
+      !!components.getStaticProps ||
+      // For static server component pages, we currently always consider them
+      // as SSG since we also need to handle the next data (flight JSON).
+      (isServerComponent &&
+        !hasServerProps &&
+        !hasGetInitialProps &&
+        !process.browser)
 
     // Toggle whether or not this is a Data request
-    const isDataReq = !!query._nextDataReq && (isSSG || hasServerProps)
+    const isDataReq =
+      !!query._nextDataReq && (isSSG || hasServerProps || isServerComponent)
+
     delete query._nextDataReq
+
     // Don't delete query.__flight__ yet, it still needs to be used in renderToHTML later
     const isFlightRequest = Boolean(
       this.serverComponentManifest && query.__flight__
@@ -1141,7 +1155,7 @@ export default abstract class Server {
     // ensure correct status is set when visiting a status page
     // directly e.g. /500
     if (STATIC_STATUS_PAGES.includes(pathname)) {
-      res.statusCode = parseInt(pathname.substr(1), 10)
+      res.statusCode = parseInt(pathname.slice(1), 10)
     }
 
     // static pages can only respond to GET/HEAD
@@ -1176,6 +1190,13 @@ export default abstract class Server {
 
     if (opts.supportsDynamicHTML === true) {
       const isBotRequest = isBot(req.headers['user-agent'] || '')
+      const isSupportedDocument =
+        typeof components.Document?.getInitialProps !== 'function' ||
+        // When concurrent features is enabled, the built-in `Document`
+        // component also supports dynamic HTML.
+        (this.renderOpts.reactRoot &&
+          !!(components.Document as any)?.__next_internal_document)
+
       // Disable dynamic HTML in cases that we know it won't be generated,
       // so that we can continue generating a cache key when possible.
       opts.supportsDynamicHTML =
@@ -1183,7 +1204,7 @@ export default abstract class Server {
         !isLikeServerless &&
         !isBotRequest &&
         !query.amp &&
-        typeof components.Document?.getInitialProps !== 'function'
+        isSupportedDocument
     }
 
     const defaultLocale = isSSG
@@ -1279,8 +1300,8 @@ export default abstract class Server {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG || opts.supportsDynamicHTML
-        ? null // Preview mode and manual revalidate bypasses the cache
+      isPreviewMode || !isSSG || opts.supportsDynamicHTML || isFlightRequest
+        ? null // Preview mode, manual revalidate, flight request can bypass the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
               ? ''
@@ -1313,6 +1334,10 @@ export default abstract class Server {
           return seg
         })
         .join('/')
+
+      // ensure /index and / is normalized to one key
+      ssgCacheKey =
+        ssgCacheKey === '/index' && pathname === '/' ? '/' : ssgCacheKey
     }
 
     const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
@@ -1331,6 +1356,7 @@ export default abstract class Server {
           locales,
           defaultLocale,
           optimizeCss: this.renderOpts.optimizeCss,
+          nextScriptWorkers: this.renderOpts.nextScriptWorkers,
           distDir: this.distDir,
           fontManifest: this.renderOpts.fontManifest,
           domainLocales: this.renderOpts.domainLocales,
@@ -1586,7 +1612,10 @@ export default abstract class Server {
       if (isDataReq) {
         return {
           type: 'json',
-          body: RenderResult.fromStatic(JSON.stringify(cachedData.props)),
+          body: RenderResult.fromStatic(
+            // @TODO: Handle flight data.
+            JSON.stringify(cachedData.props)
+          ),
           revalidateOptions,
         }
       } else {

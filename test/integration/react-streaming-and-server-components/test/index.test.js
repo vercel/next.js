@@ -2,7 +2,6 @@
 
 import { join } from 'path'
 import fs from 'fs-extra'
-import webdriver from 'next-webdriver'
 
 import { fetchViaHTTP, findPort, killApp, renderViaHTTP } from 'next-test-utils'
 
@@ -24,7 +23,6 @@ import css from './css'
 import rsc from './rsc'
 import streaming from './streaming'
 import basic from './basic'
-import functions from './functions'
 import runtime from './runtime'
 
 const documentWithGip = `
@@ -79,120 +77,83 @@ describe('Edge runtime - errors', () => {
   })
 })
 
-describe('Edge runtime - prod', () => {
-  const context = { appDir }
+const edgeRuntimeBasicSuite = {
+  runTests: (context, env) => {
+    const options = { runtime: 'edge', env }
+    basic(context, options)
+    streaming(context, options)
+    rsc(context, options)
+    runtime(context, options)
 
-  beforeAll(async () => {
-    error500Page.write(page500)
-    context.appPort = await findPort()
-    const { stderr } = await nextBuild(context.appDir)
-    context.stderr = stderr
-    context.server = await nextStart(context.appDir, context.appPort)
-  })
-  afterAll(async () => {
-    error500Page.delete()
-    await killApp(context.server)
-  })
-
-  it('should warn user for experimental risk with edge runtime and server components', async () => {
-    const edgeRuntimeWarning =
-      'You are using the experimental Edge Runtime with `experimental.runtime`.'
-    const rscWarning = `You have experimental React Server Components enabled. Continue at your own risk.`
-    expect(context.stderr).toContain(edgeRuntimeWarning)
-    expect(context.stderr).toContain(rscWarning)
-  })
-
-  it('should generate middleware SSR manifests for edge runtime', async () => {
-    const distServerDir = join(distDir, 'server')
-    const files = [
-      'middleware-build-manifest.js',
-      'middleware-ssr-runtime.js',
-      'middleware-flight-manifest.js',
-      'middleware-flight-manifest.json',
-      'middleware-manifest.json',
-    ]
-
-    const requiredServerFiles = (
-      await fs.readJSON(join(distDir, 'required-server-files.json'))
-    ).files
-
-    files.forEach((file) => {
-      const filepath = join(distServerDir, file)
-      expect(fs.existsSync(filepath)).toBe(true)
-    })
-
-    requiredServerFiles.forEach((file) => {
-      const requiredFilePath = join(appDir, file)
-      expect(fs.existsSync(requiredFilePath)).toBe(true)
-    })
-  })
-
-  it('should have clientInfo in middleware manifest', async () => {
-    const middlewareManifestPath = join(
-      distDir,
-      'server',
-      'middleware-manifest.json'
-    )
-    const content = JSON.parse(
-      await fs.readFile(middlewareManifestPath, 'utf8')
-    )
-    for (const item of [
-      ['/', true],
-      ['/next-api/image', true],
-      ['/next-api/link', true],
-      ['/routes/[dynamic]', true],
-    ]) {
-      expect(content.clientInfo).toContainEqual(item)
+    if (env === 'dev') {
+      it('should have content-type and content-encoding headers', async () => {
+        const res = await fetchViaHTTP(context.appPort, '/')
+        expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8')
+        expect(res.headers.get('content-encoding')).toBe('gzip')
+      })
     }
-    expect(content.clientInfo).not.toContainEqual([['/404', true]])
-  })
+    if (env === 'prod') {
+      it('should warn user for experimental risk with edge runtime and server components', async () => {
+        const edgeRuntimeWarning =
+          'You are using the experimental Edge Runtime with `experimental.runtime`.'
+        const rscWarning = `You have experimental React Server Components enabled. Continue at your own risk.`
+        expect(context.stderr).toContain(edgeRuntimeWarning)
+        expect(context.stderr).toContain(rscWarning)
+      })
 
-  it('should support React.lazy and dynamic imports', async () => {
-    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
-    expect(html).toContain('foo.client')
-  })
+      it('should generate middleware SSR manifests for edge runtime', async () => {
+        const distServerDir = join(distDir, 'server')
+        const files = [
+          'middleware-build-manifest.js',
+          'middleware-ssr-runtime.js',
+          'middleware-flight-manifest.js',
+          'middleware-flight-manifest.json',
+          'middleware-manifest.json',
+        ]
 
-  const options = { runtime: 'edge', env: 'prod' }
-  basic(context, options)
-  streaming(context, options)
-  rsc(context, options)
-  runtime(context, options)
-})
+        const requiredServerFiles = (
+          await fs.readJSON(join(distDir, 'required-server-files.json'))
+        ).files
 
-describe('Edge runtime - dev', () => {
-  const context = { appDir }
+        files.forEach((file) => {
+          const filepath = join(distServerDir, file)
+          expect(fs.existsSync(filepath)).toBe(true)
+        })
 
-  beforeAll(async () => {
+        requiredServerFiles.forEach((file) => {
+          const requiredFilePath = join(appDir, file)
+          expect(fs.existsSync(requiredFilePath)).toBe(true)
+        })
+      })
+
+      it('should have clientInfo in middleware manifest', async () => {
+        const middlewareManifestPath = join(
+          distDir,
+          'server',
+          'middleware-manifest.json'
+        )
+        const content = JSON.parse(
+          await fs.readFile(middlewareManifestPath, 'utf8')
+        )
+        for (const item of [
+          ['/', true],
+          ['/next-api/image', true],
+          ['/next-api/link', true],
+          ['/routes/[dynamic]', true],
+        ]) {
+          expect(content.clientInfo).toContainEqual(item)
+        }
+        expect(content.clientInfo).not.toContainEqual([['/404', true]])
+      })
+    }
+  },
+  beforeAll: () => {
     error500Page.write(page500)
-    context.appPort = await findPort()
-    context.server = await nextDev(context.appDir, context.appPort)
-  })
-  afterAll(async () => {
+  },
+  afterAll: () => {
     error500Page.delete()
-    await killApp(context.server)
-  })
-
-  it('should support React.lazy and dynamic imports', async () => {
-    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
-    expect(html).toContain('loading...')
-
-    const browser = await webdriver(context.appPort, '/dynamic-imports')
-    const content = await browser.eval(`window.document.body.innerText`)
-    expect(content).toMatchInlineSnapshot('"foo.client"')
-  })
-
-  it('should have content-type and content-encoding headers', async () => {
-    const res = await fetchViaHTTP(context.appPort, '/')
-    expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8')
-    expect(res.headers.get('content-encoding')).toBe('gzip')
-  })
-
-  const options = { runtime: 'edge', env: 'dev' }
-  basic(context, options)
-  streaming(context, options)
-  rsc(context, options)
-  runtime(context, options)
-})
+  },
+}
 
 const nodejsRuntimeBasicSuite = {
   runTests: (context, env) => {
@@ -257,11 +218,17 @@ const cssSuite = {
 }
 
 const documentSuite = {
-  runTests: (context) => {
-    it('should error when custom _document has getInitialProps method', async () => {
-      const res = await fetchViaHTTP(context.appPort, '/')
-      expect(res.status).toBe(500)
-    })
+  runTests: (context, env) => {
+    if (env === 'dev') {
+      it('should error when custom _document has getInitialProps method', async () => {
+        const res = await fetchViaHTTP(context.appPort, '/')
+        expect(res.status).toBe(500)
+      })
+    } else {
+      it('should failed building', async () => {
+        expect(context.code).toBe(1)
+      })
+    }
   },
   beforeAll: () => documentPage.write(documentWithGip),
   afterAll: () => documentPage.delete(),
@@ -269,6 +236,8 @@ const documentSuite = {
 
 runSuite('Node.js runtime', 'dev', nodejsRuntimeBasicSuite)
 runSuite('Node.js runtime', 'prod', nodejsRuntimeBasicSuite)
+runSuite('Edge runtime', 'dev', edgeRuntimeBasicSuite)
+runSuite('Edge runtime', 'prod', edgeRuntimeBasicSuite)
 
 runSuite('Custom App', 'dev', customAppPageSuite)
 runSuite('Custom App', 'prod', customAppPageSuite)
@@ -279,8 +248,6 @@ runSuite('CSS', 'prod', cssSuite)
 runSuite('Custom Document', 'dev', documentSuite)
 runSuite('Custom Document', 'prod', documentSuite)
 
-runSuite('Functions manifest', 'build', { runTests: functions })
-
 function runSuite(suiteName, env, options) {
   const context = { appDir, distDir }
   describe(`${suiteName} ${env}`, () => {
@@ -288,7 +255,10 @@ function runSuite(suiteName, env, options) {
       options.beforeAll?.()
       if (env === 'prod') {
         context.appPort = await findPort()
-        await nextBuild(context.appDir)
+        const { stdout, stderr, code } = await nextBuild(context.appDir)
+        context.stdout = stdout
+        context.stderr = stderr
+        context.code = code
         context.server = await nextStart(context.appDir, context.appPort)
       }
       if (env === 'dev') {

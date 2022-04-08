@@ -16,15 +16,9 @@ StoreProvider.js component is used to instantiate the `Store` both on the server
 
 Both components are using a custom hook `useStore` to pull in the `Store` from the provider.
 
-## Preview
-
-Preview the example live on [StackBlitz](http://stackblitz.com/):
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-mobx-react-lite)
-
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-mobx-react-lite)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-mobx-react-lite&project-name=with-mobx-react-lite&repository-name=with-mobx-react-lite)
 
@@ -36,6 +30,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-mobx-react-lite with-mobx-react-lite-app
 # or
 yarn create next-app --example with-mobx-react-lite with-mobx-react-lite-app
+# or
+pnpm create next-app -- --example with-mobx-react-lite with-mobx-react-lite-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

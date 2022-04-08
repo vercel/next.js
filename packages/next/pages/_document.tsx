@@ -19,6 +19,7 @@ export { DocumentContext, DocumentInitialProps, DocumentProps }
 export type OriginProps = {
   nonce?: string
   crossOrigin?: string
+  children?: React.ReactNode
 }
 
 type DocumentFiles = {
@@ -71,23 +72,105 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
     ))
 }
 
+function hasComponentProps(child: any): child is React.ReactElement {
+  return !!child && !!child.props
+}
+
+function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
+  const { assetPrefix, scriptLoader, crossOrigin, nextScriptWorkers } = context
+
+  // disable `nextScriptWorkers` in edge runtime
+  if (!nextScriptWorkers || process.browser) return null
+
+  try {
+    let {
+      partytownSnippet,
+      // @ts-ignore: Prevent webpack from processing this require
+    } = __non_webpack_require__('@builder.io/partytown/integration'!)
+
+    const children = Array.isArray(props.children)
+      ? props.children
+      : [props.children]
+
+    // Check to see if the user has defined their own Partytown configuration
+    const userDefinedConfig = children.find(
+      (child) =>
+        hasComponentProps(child) &&
+        child?.props?.dangerouslySetInnerHTML?.__html.length &&
+        'data-partytown-config' in child.props
+    )
+
+    return (
+      <>
+        {!userDefinedConfig && (
+          <script
+            data-partytown-config=""
+            dangerouslySetInnerHTML={{
+              __html: `
+            partytown = {
+              lib: "${assetPrefix}/_next/static/~partytown/"
+            };
+          `,
+            }}
+          />
+        )}
+        <script
+          data-partytown=""
+          dangerouslySetInnerHTML={{
+            __html: partytownSnippet(),
+          }}
+        />
+        {(scriptLoader.worker || []).map((file: ScriptProps, index: number) => {
+          const { strategy, ...scriptProps } = file
+          return (
+            <script
+              {...scriptProps}
+              type="text/partytown"
+              key={scriptProps.src || index}
+              nonce={props.nonce}
+              data-nscript="worker"
+              crossOrigin={props.crossOrigin || crossOrigin}
+            />
+          )
+        })}
+      </>
+    )
+  } catch (err) {
+    if (isError(err) && err.code !== 'MODULE_NOT_FOUND') {
+      console.warn(
+        `Warning: Partytown could not be instantiated in your application due to an error. ${err.message}`
+      )
+    }
+    return null
+  }
+}
+
 function getPreNextScripts(context: HtmlProps, props: OriginProps) {
   const { scriptLoader, disableOptimizedLoading, crossOrigin } = context
 
-  return (scriptLoader.beforeInteractive || []).map(
+  const webWorkerScripts = getPreNextWorkerScripts(context, props)
+
+  const beforeInteractiveScripts = (scriptLoader.beforeInteractive || []).map(
     (file: ScriptProps, index: number) => {
       const { strategy, ...scriptProps } = file
       return (
         <script
           {...scriptProps}
           key={scriptProps.src || index}
-          defer={!disableOptimizedLoading}
+          defer={scriptProps.defer ?? !disableOptimizedLoading}
           nonce={props.nonce}
           data-nscript="beforeInteractive"
           crossOrigin={props.crossOrigin || crossOrigin}
         />
       )
     }
+  )
+
+  return (
+    <>
+      {webWorkerScripts}
+      {beforeInteractiveScripts}
+    </>
   )
 }
 
@@ -183,6 +266,21 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
     )
   }
 }
+
+// Add a special property to the built-in `Document` component so later we can
+// identify if a user customized `Document` is used or not.
+;(Document as any).__next_internal_document =
+  function InternalFunctionDocument() {
+    return (
+      <Html>
+        <Head />
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </Html>
+    )
+  }
 
 export function Html(
   props: React.DetailedHTMLProps<
@@ -435,7 +533,9 @@ export class Head extends Component<
           ])
           return
         } else if (
-          ['lazyOnload', 'afterInteractive'].includes(child.props.strategy)
+          ['lazyOnload', 'afterInteractive', 'worker'].includes(
+            child.props.strategy
+          )
         ) {
           scriptLoaderItems.push(child.props)
           return
@@ -494,10 +594,7 @@ export class Head extends Component<
       disableOptimizedLoading,
       optimizeCss,
       optimizeFonts,
-      runtime,
     } = this.context
-
-    const hasConcurrentFeatures = !!runtime
 
     const disableRuntimeJS = unstable_runtimeJS === false
     const disableJsPreload =
@@ -611,7 +708,7 @@ export class Head extends Component<
 
     return (
       <head {...this.props}>
-        {!hasConcurrentFeatures && this.context.isDevelopment && (
+        {this.context.isDevelopment && (
           <>
             <style
               data-next-hide-fouc
