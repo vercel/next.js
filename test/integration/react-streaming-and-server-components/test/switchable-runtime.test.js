@@ -5,10 +5,12 @@ import {
   check,
   findPort,
   killApp,
+  launchApp,
+  nextBuild,
+  nextStart,
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
-import { nextBuild, nextDev, nextStart } from './utils'
 
 const appDir = join(__dirname, '../switchable-runtime')
 
@@ -48,7 +50,10 @@ describe('Switchable runtime (prod)', () => {
 
   beforeAll(async () => {
     context.appPort = await findPort()
-    const { stdout, stderr } = await nextBuild(context.appDir)
+    const { stdout, stderr } = await nextBuild(context.appDir, [], {
+      stderr: true,
+      stdout: true,
+    })
     context.stdout = stdout
     context.stderr = stderr
     context.server = await nextStart(context.appDir, context.appPort)
@@ -252,7 +257,7 @@ describe('Switchable runtime (dev)', () => {
 
   beforeAll(async () => {
     context.appPort = await findPort()
-    context.server = await nextDev(context.appDir, context.appPort)
+    context.server = await launchApp(context.appDir, context.appPort)
   })
   afterAll(async () => {
     await killApp(context.server)
