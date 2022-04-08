@@ -263,7 +263,7 @@
               "title": "Middleware (Beta)",
               "path": "/docs/middleware.md",
               "redirect": {
-                "destination": "/docs/advanced-features/middleware.md",
+                "destination": "/docs/advanced-features/middleware",
                 "permanent": true
               }
             },
