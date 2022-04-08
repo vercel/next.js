@@ -238,7 +238,12 @@ export default async function transformSource(
       __webpack_require__,
       _: () => {
         ${imports
-          .map((importSource) => `require('${importSource}');`)
+          .map(
+            (importSource) =>
+              `import(/* webpackMode: "eager" */ ${JSON.stringify(
+                importSource
+              )});`
+          )
           .join('\n')}
       },
       server: ${isServerExt ? 'true' : 'false'}
