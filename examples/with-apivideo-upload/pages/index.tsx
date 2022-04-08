@@ -105,15 +105,17 @@ const Home: React.FC<IHomeProps> = (
           </Text>
         </TextsContainer>
 
-        <Button
-          $upload
-          onClick={() => inputRef.current?.click()}
-        >
-          Select a file
-        </Button>
-        <input ref={inputRef} hidden type="file" accept="mp4" onChange={handleSelectFile} />
-
-        {uploadProgress && (
+        {!uploadProgress ? (
+          <>
+            <Button
+              $upload
+              onClick={() => inputRef.current?.click()}
+            >
+              Select a file
+            </Button>
+            <input ref={inputRef} hidden type="file" accept="mp4" onChange={handleSelectFile} />
+          </>
+        ) : (
           <>
             <StatusContainer>
               <Status title="Uploaded" done={uploadProgress >= 100} />
