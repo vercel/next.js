@@ -53,7 +53,9 @@ describe('Edge runtime - errors', () => {
   it('should warn user that native node APIs are not supported', async () => {
     const fsImportedErrorMessage =
       'Native Node.js APIs are not supported in the Edge Runtime. Found `dns` imported.'
-    const { stderr } = await nextBuild(nativeModuleTestAppDir, { stderr: true })
+    const { stderr } = await nextBuild(nativeModuleTestAppDir, [], {
+      stderr: true,
+    })
     expect(stderr).toContain(fsImportedErrorMessage)
   })
 })
