@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { renderViaHTTP } from 'next-test-utils'
+import { renderViaHTTP, runDevSuite, runProdSuite } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 
