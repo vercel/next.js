@@ -261,7 +261,11 @@
             },
             {
               "title": "Middleware (Beta)",
-              "path": "/docs/middleware.md"
+              "path": "/docs/middleware.md",
+              "redirect": {
+                "destination": "/docs/advanced-features/middleware.md",
+                "permanent": true
+              }
             },
             {
               "title": "Debugging",
