@@ -218,6 +218,7 @@ export default function (context, { runtime, env }) {
     expect(hydratedContent).toContain('named.client')
     expect(hydratedContent).toContain('cjs-shared')
     expect(hydratedContent).toContain('cjs-client')
+    expect(hydratedContent).toContain('Export All: one, two, two')
   })
 
   it('should handle 404 requests and missing routes correctly', async () => {
