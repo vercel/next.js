@@ -1,7 +1,7 @@
 import _JSXStyle from "styled-jsx/style";
 export default class {
     render() {
-        const Element = "div";
+        const Element = 'div';
         return <Element className={"jsx-f825b24bbab5b83b" + " " + "root"}>
 
         <p className={"jsx-f825b24bbab5b83b"}>dynamic element</p>
@@ -11,7 +11,7 @@ export default class {
       </Element>;
     }
 };
-const Element2 = "div";
+const Element2 = 'div';
 export const Test2 = class {
     render() {
         return <Element2 className="root">

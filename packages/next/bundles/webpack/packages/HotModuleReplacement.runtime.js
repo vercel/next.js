@@ -28,7 +28,8 @@ module.exports = function () {
 	var currentStatus = "idle";
 
 	// while downloading
-	var blockingPromises;
+	var blockingPromises = 0;
+	var blockingPromisesWaiting = [];
 
 	// The update info
 	var currentUpdateApplyHandlers;
@@ -218,17 +219,28 @@ module.exports = function () {
 		return Promise.all(results);
 	}
 
+	function unblock() {
+		if (--blockingPromises === 0) {
+			setStatus("ready").then(function () {
+				if (blockingPromises === 0) {
+					var list = blockingPromisesWaiting;
+					blockingPromisesWaiting = [];
+					for (var i = 0; i < list.length; i++) {
+						list[i]();
+					}
+				}
+			});
+		}
+	}
+
 	function trackBlockingPromise(promise) {
 		switch (currentStatus) {
 			case "ready":
 				setStatus("prepare");
-				blockingPromises.push(promise);
-				waitForBlockingPromises(function () {
-					return setStatus("ready");
-				});
-				return promise;
+			/* fallthrough */
 			case "prepare":
-				blockingPromises.push(promise);
+				blockingPromises++;
+				promise.then(unblock, unblock);
 				return promise;
 			default:
 				return promise;
@@ -236,11 +248,11 @@ module.exports = function () {
 	}
 
 	function waitForBlockingPromises(fn) {
-		if (blockingPromises.length === 0) return fn();
-		var blocker = blockingPromises;
-		blockingPromises = [];
-		return Promise.all(blocker).then(function () {
-			return waitForBlockingPromises(fn);
+		if (blockingPromises === 0) return fn();
+		return new Promise(function (resolve) {
+			blockingPromisesWaiting.push(function () {
+				resolve(fn());
+			});
 		});
 	}
 
@@ -261,7 +273,6 @@ module.exports = function () {
 
 				return setStatus("prepare").then(function () {
 					var updatedModules = [];
-					blockingPromises = [];
 					currentUpdateApplyHandlers = [];
 
 					return Promise.all(
@@ -298,7 +309,11 @@ module.exports = function () {
 	function hotApply(options) {
 		if (currentStatus !== "ready") {
 			return Promise.resolve().then(function () {
-				throw new Error("apply() is only allowed in ready status");
+				throw new Error(
+					"apply() is only allowed in ready status (state: " +
+						currentStatus +
+						")"
+				);
 			});
 		}
 		return internalApply(options);
