@@ -34,13 +34,13 @@ class NodeAttributes {
     })
   }
   hasAny() {
-    return !!Object.keys(this.attributes).length
+    return Boolean(Object.keys(this.attributes)).length
   }
   has(attrName) {
-    return !!this.attributes[attrName]
+    return Boolean(this.attributes)[attrName]
   }
   hasValue(attrName) {
-    return !!this.attributes[attrName].hasValue
+    return Boolean(this.attributes[attrName]).hasValue
   }
   value(attrName) {
     if (!this.attributes[attrName]) {
