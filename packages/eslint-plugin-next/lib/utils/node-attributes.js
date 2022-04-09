@@ -37,7 +37,7 @@ class NodeAttributes {
     return Boolean(Object.keys(this.attributes).length)
   }
   has(attrName) {
-    return Boolean(this.attributes)[attrName]
+    return Boolean(this.attributes[attrName])
   }
   hasValue(attrName) {
     return Boolean(this.attributes[attrName].hasValue)
