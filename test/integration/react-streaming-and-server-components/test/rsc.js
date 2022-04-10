@@ -3,9 +3,10 @@ import webdriver from 'next-webdriver'
 import { renderViaHTTP, check } from 'next-test-utils'
 import { join } from 'path'
 import fs from 'fs-extra'
-import { distDir, getNodeBySelector } from './utils'
+import { getNodeBySelector } from './utils'
 
 export default function (context, { runtime, env }) {
+  const distDir = join(context.appDir, '.next')
   it('should render server components correctly', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/', null, {
       headers: {
@@ -64,6 +65,15 @@ export default function (context, { runtime, env }) {
     expect(sharedServerModule[0][1]).toBe(sharedServerModule[1][1])
     expect(sharedClientModule[0][1]).toBe(sharedClientModule[1][1])
     expect(sharedServerModule[0][1]).not.toBe(sharedClientModule[0][1])
+
+    // Should import 2 module instances for node_modules too.
+    const modFromClient = main.match(
+      /node_modules instance from \.client\.js:(\d+)/
+    )
+    const modFromServer = main.match(
+      /node_modules instance from \.server\.js:(\d+)/
+    )
+    expect(modFromClient[1]).not.toBe(modFromServer[1])
   })
 
   it('should support next/link in server components', async () => {
@@ -183,7 +193,7 @@ export default function (context, { runtime, env }) {
         .readFileSync(join(distServerDir, 'external-imports.js'))
         .toString()
 
-      expect(bundle).not.toContain('moment')
+      expect(bundle).not.toContain('non-isomorphic-text')
     })
   }
 
@@ -208,6 +218,7 @@ export default function (context, { runtime, env }) {
     expect(hydratedContent).toContain('named.client')
     expect(hydratedContent).toContain('cjs-shared')
     expect(hydratedContent).toContain('cjs-client')
+    expect(hydratedContent).toContain('Export All: one, two, two')
   })
 
   it('should handle 404 requests and missing routes correctly', async () => {
