@@ -37,6 +37,7 @@ You can choose to stay in sandbox and have watermark over your videos, or enter 
 
 Once in the dashboard, find your API keys directly in the `/overview` or navigate to `/apikeys` with the "API Keys" button in the side navigation.
 Copy your API key and paste it in `.env.development` as value for `API_KEY`.
+You can now try the application locally by running `npm run dev` from the root directory.
 
 ### 3. Deployment
 
