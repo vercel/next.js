@@ -1,3 +1,9 @@
+import type {
+  PageRuntime,
+  NextConfigComplete,
+  NextConfig,
+} from '../server/config-shared'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import fs from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
@@ -12,11 +18,14 @@ import { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loade
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
-import { NextConfigComplete } from '../server/config-shared'
 import { parse } from '../build/swc'
-import { isCustomErrorPage, isFlightPage, isReservedPage } from './utils'
+import {
+  getRawPageExtensions,
+  isCustomErrorPage,
+  isFlightPage,
+  isReservedPage,
+} from './utils'
 import { ssrEntries } from './webpack/plugins/middleware-plugin'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import {
   MIDDLEWARE_RUNTIME_WEBPACK,
   MIDDLEWARE_SSR_RUNTIME_WEBPACK,
@@ -28,7 +37,14 @@ export type PagesMapping = {
 }
 
 export function getPageFromPath(pagePath: string, extensions: string[]) {
-  let page = pagePath.replace(new RegExp(`\\.+(${extensions.join('|')})$`), '')
+  const rawExtensions = getRawPageExtensions(extensions)
+  const pickedExtensions = pagePath.includes('/_app.server.')
+    ? rawExtensions
+    : extensions
+  let page = pagePath.replace(
+    new RegExp(`\\.+(${pickedExtensions.join('|')})$`),
+    ''
+  )
   page = page.replace(/\\/g, '/').replace(/\/index$/, '')
   return page === '' ? '/' : page
 }
@@ -82,13 +98,20 @@ export function createPagesMapping(
   // allow falling back to the correct source file so
   // that HMR can work properly when a file is added/removed
   if (isDev) {
+    if (hasServerComponents) {
+      pages['/_app.server'] = `${PAGES_DIR_ALIAS}/_app.server`
+    }
     pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
     pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
     pages['/_document'] = `${PAGES_DIR_ALIAS}/_document`
   } else {
+    if (hasServerComponents) {
+      pages['/_app.server'] =
+        pages['/_app.server'] || 'next/dist/pages/_app.server'
+    }
     pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
     pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
-    pages['/_document'] = pages['/_document'] || `next/dist/pages/_document`
+    pages['/_document'] = pages['/_document'] || 'next/dist/pages/_document'
   }
   return pages
 }
@@ -99,17 +122,18 @@ type Entrypoints = {
   edgeServer: webpack5.EntryObject
 }
 
-const cachedPageRuntimeConfig = new Map<
-  string,
-  [number, 'nodejs' | 'edge' | undefined]
->()
+const cachedPageRuntimeConfig = new Map<string, [number, PageRuntime]>()
 
 // @TODO: We should limit the maximum concurrency of this function as there
 // could be thousands of pages existing.
 export async function getPageRuntime(
   pageFilePath: string,
-  globalRuntimeFallback?: 'nodejs' | 'edge'
-): Promise<'nodejs' | 'edge' | undefined> {
+  nextConfig: Partial<NextConfig>,
+  isDev?: boolean
+): Promise<PageRuntime> {
+  if (!nextConfig.experimental?.reactRoot) return undefined
+
+  const globalRuntime = nextConfig.experimental?.runtime
   const cached = cachedPageRuntimeConfig.get(pageFilePath)
   if (cached) {
     return cached[1]
@@ -121,6 +145,7 @@ export async function getPageRuntime(
       encoding: 'utf8',
     })
   } catch (err) {
+    if (!isDev) throw err
     return undefined
   }
 
@@ -129,7 +154,7 @@ export async function getPageRuntime(
   // discussion:
   // https://github.com/vercel/next.js/discussions/34179
   let isRuntimeRequired: boolean = false
-  let pageRuntime: 'nodejs' | 'edge' | undefined = undefined
+  let pageRuntime: PageRuntime = undefined
 
   // Since these configurations should always be static analyzable, we can
   // skip these cases that "runtime" and "gSP", "gSSP" are not included in the
@@ -138,7 +163,7 @@ export async function getPageRuntime(
     try {
       const { body } = await parse(pageContent, {
         filename: pageFilePath,
-        isModule: true,
+        isModule: 'unknown',
       })
 
       for (const node of body) {
@@ -186,10 +211,7 @@ export async function getPageRuntime(
 
   if (!pageRuntime) {
     if (isRuntimeRequired) {
-      pageRuntime = globalRuntimeFallback
-    } else {
-      // @TODO: Remove this branch to fully implement the RFC.
-      pageRuntime = globalRuntimeFallback
+      pageRuntime = globalRuntime
     }
   }
 
@@ -214,7 +236,8 @@ export async function createEntrypoints(
   previewMode: __ApiPreviewProps,
   config: NextConfigComplete,
   loadedEnvFiles: LoadedEnvFiles,
-  pagesDir: string
+  pagesDir: string,
+  isDev?: boolean
 ): Promise<Entrypoints> {
   const client: webpack5.EntryObject = {}
   const server: webpack5.EntryObject = {}
@@ -223,9 +246,11 @@ export async function createEntrypoints(
   const hasRuntimeConfig =
     Object.keys(config.publicRuntimeConfig).length > 0 ||
     Object.keys(config.serverRuntimeConfig).length > 0
+  const hasReactRoot = !!config.experimental.reactRoot
 
   const defaultServerlessOptions = {
     absoluteAppPath: pages['/_app'],
+    absoluteAppServerPath: pages['/_app.server'],
     absoluteDocumentPath: pages['/_document'],
     absoluteErrorPath: pages['/_error'],
     absolute404Path: pages['/404'] || '',
@@ -248,10 +273,8 @@ export async function createEntrypoints(
       'base64'
     ),
     i18n: config.i18n ? JSON.stringify(config.i18n) : '',
-    reactRoot: config.experimental.reactRoot ? 'true' : '',
+    reactRoot: hasReactRoot ? 'true' : '',
   }
-
-  const globalRuntime = config.experimental.runtime
 
   await Promise.all(
     Object.keys(pages).map(async (page) => {
@@ -266,11 +289,12 @@ export async function createEntrypoints(
       const isReserved = isReservedPage(page)
       const isCustomError = isCustomErrorPage(page)
       const isFlight = isFlightPage(config, absolutePagePath)
-      const isEdgeRuntime =
-        (await getPageRuntime(
-          join(pagesDir, absolutePagePath.slice(PAGES_DIR_ALIAS.length + 1)),
-          globalRuntime
-        )) === 'edge'
+      const isInternalPages = !absolutePagePath.startsWith(PAGES_DIR_ALIAS)
+      const pageFilePath = isInternalPages
+        ? require.resolve(absolutePagePath)
+        : join(pagesDir, absolutePagePath.replace(PAGES_DIR_ALIAS, ''))
+      const pageRuntime = await getPageRuntime(pageFilePath, config, isDev)
+      const isEdgeRuntime = pageRuntime === 'edge'
 
       if (page.match(MIDDLEWARE_ROUTE)) {
         const loaderOpts: MiddlewareLoaderOptions = {
@@ -318,6 +342,7 @@ export async function createEntrypoints(
       } else if (
         isLikeServerless &&
         page !== '/_app' &&
+        page !== '/_app.server' &&
         page !== '/_document' &&
         !isEdgeRuntime
       ) {
@@ -331,7 +356,7 @@ export async function createEntrypoints(
         )}!`
       }
 
-      if (page === '/_document') {
+      if (page === '/_document' || page === '/_app.server') {
         return
       }
 

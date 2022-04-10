@@ -26,6 +26,7 @@ import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
 import { promisify } from 'util'
+import { error } from 'console'
 
 const glob = promisify(globOriginal)
 
@@ -53,10 +54,14 @@ describe('Production Usage', () => {
     context.appPort = appPort
     app = await nextStart(appDir, appPort, { cwd: appDir })
     output = (result.stderr || '') + (result.stdout || '')
-    console.log(output)
 
     if (result.code !== 0) {
+      error(output)
       throw new Error(`Failed to build, exited with code ${result.code}`)
+    } else {
+      // Note: jest captures calls to console and only emits when there's assertion fails,
+      // so this won't log anything for normal test execution path.
+      console.log(output)
     }
   })
   afterAll(async () => {
@@ -372,7 +377,9 @@ describe('Production Usage', () => {
       expect(res2.status).toBe(304)
     })
 
-    it('should allow etag header support with getServerSideProps', async () => {
+    // TODO: should we generate weak etags for streaming getServerSideProps?
+    // this is currently not expected to work with react-18
+    it.skip('should allow etag header support with getServerSideProps', async () => {
       const url = `http://localhost:${appPort}`
       const etag = (await fetchViaHTTP(url, '/fully-dynamic')).headers.get(
         'ETag'

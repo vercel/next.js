@@ -19,4 +19,6 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example custom-server-typescript custom-server-typescript-app
 # or
 yarn create next-app --example custom-server-typescript custom-server-typescript-app
+# or
+pnpm create next-app -- --example custom-server-typescript custom-server-typescript-app
 ```

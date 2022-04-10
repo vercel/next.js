@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import Nav from '../components/nav.server'
+import Nav from '../components/nav'
 
 let result
 let promise
@@ -28,4 +28,8 @@ export default function Page() {
       </div>
     </div>
   )
+}
+
+export const config = {
+  runtime: 'edge',
 }
