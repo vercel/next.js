@@ -318,6 +318,10 @@
                 {
                   "title": "React Server Components",
                   "path": "/docs/advanced-features/react-18/server-components.md"
+                },
+                {
+                  "title": "Switchable Runtime",
+                  "path": "/docs/advanced-features/react-18/switchable-runtime.md"
                 }
               ]
             }

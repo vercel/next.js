@@ -15,14 +15,20 @@ npm install next@latest react@latest react-dom@latest
 
 You can now start using React 18's new APIs like `startTransition` and `Suspense` in Next.js.
 
-## Streaming SSR (Alpha)
+## Streaming SSR
 
-Streaming server-rendering (SSR) is an experimental feature in Next.js 12. When enabled, SSR will use the same [Edge Runtime](/docs/api-reference/edge-runtime.md) as [Middleware](/docs/middleware.md).
+Next.js supports React 18 streaming server-rendering (SSR) out of the box.
 
-[Learn how to enable streaming in Next.js.](/docs/advanced-features/react-18/streaming.md)
+[Learn more about streaming in Next.js](/docs/advanced-features/react-18/streaming.md).
 
 ## React Server Components (Alpha)
 
 Server Components are a new feature in React that let you reduce your JavaScript bundle size by separating server and client-side code. Server Components allow developers to build apps that span the server and client, combining the rich interactivity of client-side apps with the improved performance of traditional server rendering.
 
 Server Components are still in research and development. [Learn how to try Server Components](/docs/advanced-features/react-18/server-components.md) as an experimental feature in Next.js.
+
+## Switchable Runtime (Alpha)
+
+Next.js supports changing the runtime of your application between Node.js and the [Edge Runtime](/docs/api-reference/edge-runtime.md) at the page level. For example, you can selectively configure specific pages to be server-side rendered in the Edge Runtime.
+
+This feature is still experimental. [Learn more about the switchable runtime](/docs/advanced-features/react-18/switchable-runtime.md).
