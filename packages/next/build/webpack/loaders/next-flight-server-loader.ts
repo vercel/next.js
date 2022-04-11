@@ -83,23 +83,7 @@ async function parseModuleInfo({
     return [isBuiltinModule, isNodeModuleImport] as const
   }
 
-  function addClientImport(
-    importSource: string,
-    {
-      isNodeModuleImport,
-      isBuiltinModule,
-    }: { isNodeModuleImport: boolean; isBuiltinModule: boolean }
-  ) {
-    // For now we assume there is no .client.js inside node_modules.
-    // TODO: properly handle this.
-    if (isNodeModuleImport) {
-      return false
-    }
-
-    if (isBuiltinModule) {
-      return false
-    }
-
+  function addClientImport(importSource: string) {
     if (
       isServerComponent(importSource) ||
       hasFlightLoader(importSource, 'server')
@@ -113,7 +97,6 @@ async function parseModuleInfo({
       // Shared component.
       imports.push(createFlightServerRequest(importSource, extensions))
     }
-    return true
   }
 
   for (let i = 0; i < body.length; i++) {
@@ -165,14 +148,10 @@ async function parseModuleInfo({
             }
           }
         } else {
-          if (
-            !addClientImport(importSource, {
-              isNodeModuleImport,
-              isBuiltinModule,
-            })
-          ) {
-            continue
-          }
+          // For now we assume there is no .client.js inside node_modules.
+          // TODO: properly handle this.
+          if (isNodeModuleImport || isBuiltinModule) continue
+          addClientImport(importSource)
         }
 
         lastIndex = node.source.span.end
@@ -211,10 +190,9 @@ async function parseModuleInfo({
             const [isBuiltinModule, isNodeModuleImport] = await getModuleType(
               importSource
             )
-            addClientImport(importSource, {
-              isNodeModuleImport,
-              isBuiltinModule,
-            })
+            if (!isBuiltinModule && !isNodeModuleImport) {
+              addClientImport(importSource)
+            }
           }
         }
       default:
