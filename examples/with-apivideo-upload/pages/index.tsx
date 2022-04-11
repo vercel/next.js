@@ -100,6 +100,9 @@ const Home: NextPage = () => {
             This app is built with the <a href="https://github.com/apivideo/api.video-nodejs-client" target="_blank">api.video Node.js client</a> and the <a href="https://github.com/apivideo/api.video-typescript-uploader" target="_blank">Typescript uploader</a>.
           </Text>
           <Text>
+            You can <a href="https://github.com/vercel/next.js/tree/canary/examples/with-apivideo-upload">check the source code on GitHub</a>.
+          </Text>
+          <Text>
             Please add a video to upload and let the power of the API do the rest 🎩
           </Text>
         </TextsContainer>
