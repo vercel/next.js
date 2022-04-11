@@ -12,10 +12,9 @@ import {
   readableStreamTee,
   encodeText,
   decodeText,
-  pipeThrough,
-  streamToString,
+  renderToInitialStream,
   createBufferedTransformStream,
-  renderToStream,
+  continueFromInitialStream,
 } from './node-web-streams-helper'
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
 // @ts-ignore react-dom/client exists when using React 18
@@ -396,16 +395,14 @@ export async function renderToHTML(
 
   const renderServerComponentData = query.__flight__ !== undefined
   if (renderServerComponentData) {
-    const stream: ReadableStream<Uint8Array> = renderToReadableStream(
-      <RootLayout
-        headChildren={headChildren}
-        bodyChildren={<WrappedComponent />}
-      />,
-      serverComponentManifest
-    )
-
     return new RenderResult(
-      pipeThrough(stream, createBufferedTransformStream())
+      renderToReadableStream(
+        <RootLayout
+          headChildren={headChildren}
+          bodyChildren={<WrappedComponent />}
+        />,
+        serverComponentManifest
+      ).pipeThrough(createBufferedTransformStream())
     )
   }
 
@@ -432,27 +429,60 @@ export async function renderToHTML(
         />
       </AppContainer>
     )
-    const flushEffectHandler = async () => {
-      const allFlushEffects = [styledJsxFlushEffect, ...(flushEffects || [])]
-      const flushEffectStream = await renderToStream({
-        ReactDOMServer,
-        element: (
-          <>
-            {allFlushEffects.map((flushEffect, i) => (
-              <React.Fragment key={i}>{flushEffect()}</React.Fragment>
-            ))}
-          </>
-        ),
-        generateStaticHTML: true,
-      })
 
-      const flushed = await streamToString(flushEffectStream)
+    const renderStream = await renderToInitialStream({
+      ReactDOMServer,
+      element: content,
+    })
+
+    const flushEffectHandler = (): string => {
+      const allFlushEffects = [styledJsxFlushEffect, ...(flushEffects || [])]
+      const flushed = ReactDOMServer.renderToString(
+        <>
+          {allFlushEffects.map((flushEffect, i) => (
+            <React.Fragment key={i}>{flushEffect()}</React.Fragment>
+          ))}
+        </>
+      )
       return flushed
     }
 
-    return await renderToStream({
-      ReactDOMServer,
-      element: content,
+    // Handle static data for server components.
+    // async function generateStaticFlightDataIfNeeded() {
+    //   if (serverComponentsPageDataTransformStream) {
+    //     // If it's a server component with the Node.js runtime, we also
+    //     // statically generate the page data.
+    //     let data = ''
+
+    //     const readable = serverComponentsPageDataTransformStream.readable
+    //     const reader = readable.getReader()
+    //     const textDecoder = new TextDecoder()
+
+    //     while (true) {
+    //       const { done, value } = await reader.read()
+    //       if (done) {
+    //         break
+    //       }
+    //       data += decodeText(value, textDecoder)
+    //     }
+
+    //     ;(renderOpts as any).pageData = {
+    //       ...(renderOpts as any).pageData,
+    //       __flight__: data,
+    //     }
+    //     return data
+    //   }
+    // }
+
+    // @TODO: A potential improvement would be to reuse the inlined
+    // data stream, or pass a callback inside as this doesn't need to
+    // be streamed.
+    // Do not use `await` here.
+    // generateStaticFlightDataIfNeeded()
+
+    return await continueFromInitialStream({
+      renderStream,
+      suffix: '',
       dataStream: serverComponentsInlinedTransformStream?.readable,
       generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
       flushEffectHandler,
