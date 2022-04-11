@@ -22,7 +22,7 @@ To develop locally:
    
    If you don't need the whole git history, you can clone with depth 1 to reduce the download size (~1.6GB):
 
-   ```
+   ```sh
    git clone --depth=1 https://github.com/vercel/next.js
    ```
 
