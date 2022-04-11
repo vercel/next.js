@@ -14,7 +14,11 @@ module.exports = function (task) {
     function* (
       file,
       serverOrClient,
-      { stripExtension, keepImportAssertions = false } = {}
+      {
+        stripExtension,
+        keepImportAssertions = false,
+        interopClientDefaultExport = false,
+      } = {}
     ) {
       // Don't compile .d.ts
       if (file.base.endsWith('.d.ts')) return
@@ -112,6 +116,15 @@ module.exports = function (task) {
 
       if (output.map) {
         const map = `${file.base}.map`
+
+        if (interopClientDefaultExport) {
+          output.code += `
+if (typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) {
+  Object.assign(exports.default, exports);
+  module.exports = exports.default;
+}
+`
+        }
 
         output.code += Buffer.from(`\n//# sourceMappingURL=${map}`)
 
