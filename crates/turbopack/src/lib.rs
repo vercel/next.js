@@ -19,7 +19,7 @@ use module_options::{
     module_options, ModuleRuleCondition, ModuleRuleEffect, ModuleRuleEffectKey, ModuleType,
 };
 use reference::all_referenced_assets;
-use turbo_tasks::CompletionVc;
+use turbo_tasks::{CompletionVc, Value};
 
 // TODO move into ecmascript?
 pub mod analyzer;
@@ -76,7 +76,21 @@ pub async fn module(source: AssetVc) -> Result<AssetVc> {
             })
             .unwrap_or_else(|| &ModuleType::Raw)
         {
-            ModuleType::Ecmascript => ecmascript::ModuleAssetVc::new(source.clone()).into(),
+            ModuleType::Ecmascript => ecmascript::ModuleAssetVc::new(
+                source.clone(),
+                Value::new(ecmascript::ModuleAssetType::Ecmascript),
+            )
+            .into(),
+            ModuleType::Typescript => ecmascript::ModuleAssetVc::new(
+                source.clone(),
+                Value::new(ecmascript::ModuleAssetType::Typescript),
+            )
+            .into(),
+            ModuleType::TypescriptDeclaration => ecmascript::ModuleAssetVc::new(
+                source.clone(),
+                Value::new(ecmascript::ModuleAssetType::TypescriptDeclaration),
+            )
+            .into(),
             ModuleType::Json => json::ModuleAssetVc::new(source.clone()).into(),
             ModuleType::Raw => source,
             ModuleType::Css => todo!(),

@@ -12,7 +12,7 @@ use async_std::{future::timeout, process::Command, task::block_on};
 use difference::{Changeset, Difference};
 use rstest::*;
 use turbo_tasks::{TurboTasks, ValueToString};
-use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc};
+use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 use turbopack::{
     asset::Asset, emit_with_completion, module, rebase::RebasedAssetVc, source_asset::SourceAssetVc,
 };
@@ -111,6 +111,8 @@ use turbopack::{
 #[case::vue("integration/vue.js", true)]
 #[case::whatwg_url("integration/whatwg-url.js", true)]
 #[case::when("integration/when.js", false)] // doesn't understand define
+#[case::ts_package("integration/ts-package/index.ts", true)]
+#[case::ts_package_from_js("integration/ts-package-from-js/index.js", true)]
 fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let mut tests_root = package_root.clone();
@@ -135,12 +137,13 @@ fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
     let output = block_on(timeout(
         Duration::from_secs(120),
         tt.run_once(async move {
-            let input_fs = DiskFileSystemVc::new("tests".to_string(), tests_root.clone());
-            let input = FileSystemPathVc::new(input_fs.into(), &input);
+            let input_fs: FileSystemVc =
+                DiskFileSystemVc::new("tests".to_string(), tests_root.clone()).into();
+            let input = FileSystemPathVc::new(input_fs.clone(), &input);
+            let input_dir = FileSystemPathVc::new(input_fs.clone(), "node-file-trace");
 
             let original_output = exec_node(tests_root.clone(), input.clone());
 
-            let input_dir = input.clone().parent().parent();
             let output_fs = DiskFileSystemVc::new("output".to_string(), directory.clone());
             let output_dir = FileSystemPathVc::new(output_fs.into(), "");
 
@@ -213,9 +216,22 @@ async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandO
 
     let p = path.get().await?;
     let f = Path::new(&directory).join(&p.path);
+    let dir = f.parent().unwrap();
     let label = path.to_string().await?;
+    let typescript = p.path.ends_with(".ts");
 
+    if typescript {
+        let mut ts_node = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        ts_node.push("tests");
+        ts_node.push("node-file-trace");
+        ts_node.push("node_modules");
+        ts_node.push("ts-node");
+        ts_node.push("dist");
+        ts_node.push("bin.js");
+        cmd.arg(&ts_node);
+    }
     cmd.arg(&f);
+    cmd.current_dir(dir);
 
     let output = timeout(Duration::from_secs(100), cmd.output())
         .await

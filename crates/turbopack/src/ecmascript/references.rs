@@ -7,16 +7,18 @@ use crate::{
         FreeVarKind, JsValue, WellKnownFunctionKind, WellKnownObjectKind,
     },
     asset::AssetVc,
-    ecmascript::utils::js_value_to_pattern,
+    ecmascript::{utils::js_value_to_pattern, ModuleAssetType},
     errors,
-    reference::{AssetReference, AssetReferenceVc, AssetReferencesSet, AssetReferencesSetVc},
+    reference::{AssetReference, AssetReferenceVc},
     resolve::{
-        find_package_json, parse::RequestVc, pattern::PatternVc, resolve, resolve_options,
-        resolve_raw, FindPackageJsonResult, ResolveResult, ResolveResultVc,
+        find_context_file, parse::RequestVc, pattern::PatternVc, resolve, resolve_options,
+        resolve_raw, FindContextFileResult, ResolveResult, ResolveResultVc,
     },
     source_asset::SourceAssetVc,
 };
 use anyhow::Result;
+use lazy_static::lazy_static;
+use regex::Regex;
 use std::{
     collections::HashMap,
     future::Future,
@@ -24,8 +26,9 @@ use std::{
     sync::{Arc, Mutex},
 };
 use swc_common::{
+    comments::CommentKind,
     errors::{DiagnosticId, Handler, HANDLER},
-    Span, GLOBALS,
+    Span, Spanned, GLOBALS,
 };
 use swc_ecmascript::{
     ast::{
@@ -34,12 +37,17 @@ use swc_ecmascript::{
     },
     visit::{self, Visit, VisitWith},
 };
-use turbo_tasks::{util::try_join_all, Value, ValueToString};
+use turbo_tasks::{util::try_join_all, Value, Vc};
 use turbo_tasks_fs::FileSystemPathVc;
 
 use super::{
     parse::{parse, Buffer, ParseResult},
     resolve::{apply_cjs_specific_options, cjs_resolve, esm_resolve},
+    special_cases::special_cases,
+    typescript::{
+        resolve::{type_resolve, typescript_resolve_options, typescript_types_resolve_options},
+        TsConfigModuleAssetVc,
+    },
     webpack::{
         parse::{is_webpack_runtime, WebpackRuntime, WebpackRuntimeVc},
         WebpackChunkAssetReference, WebpackEntryAssetReference, WebpackRuntimeAssetReference,
@@ -47,24 +55,89 @@ use super::{
 };
 
 #[turbo_tasks::function]
-pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> {
+pub async fn module_references(
+    source: AssetVc,
+    ty: Value<ModuleAssetType>,
+) -> Result<Vc<Vec<AssetReferenceVc>>> {
     let mut references = Vec::new();
+    let path = source.path();
 
-    match &*find_package_json(source.path().parent()).await? {
-        FindPackageJsonResult::Found(package_json) => {
+    match &*find_context_file(path.clone().parent(), "package.json").await? {
+        FindContextFileResult::Found(package_json) => {
             references.push(PackageJsonReferenceVc::new(package_json.clone()).into());
         }
-        FindPackageJsonResult::NotFound => {}
+        FindContextFileResult::NotFound => {}
     };
 
-    let parsed = parse(source.clone()).await?;
+    let is_typescript = match &*ty {
+        ModuleAssetType::Typescript | ModuleAssetType::TypescriptDeclaration => true,
+        ModuleAssetType::Ecmascript => false,
+    };
+
+    if is_typescript {
+        match &*find_context_file(path.clone().parent(), "tsconfig.json").await? {
+            FindContextFileResult::Found(tsconfig) => {
+                references.push(TsConfigReferenceVc::new(tsconfig.clone()).into());
+            }
+            FindContextFileResult::NotFound => {}
+        };
+    }
+
+    special_cases(&path.get().await?.path, &mut references);
+
+    let parsed = parse(source.clone(), ty).await?;
     match &*parsed {
         ParseResult::Ok {
             program,
             globals,
             eval_context,
             source_map,
+            leading_comments,
+            ..
         } => {
+            if is_typescript {
+                let pos = program.span().lo;
+                if let Some(comments) = leading_comments.get(&pos) {
+                    for comment in comments.iter() {
+                        match comment.kind {
+                            CommentKind::Line => {
+                                lazy_static! {
+                                    static ref REFERENCE_PATH: Regex = Regex::new(
+                                        r#"^/\s*<reference\s*path\s*=\s*["'](.+)["']\s*/>\s*$"#
+                                    )
+                                    .unwrap();
+                                    static ref REFERENCE_TYPES: Regex = Regex::new(
+                                        r#"^/\s*<reference\s*types\s*=\s*["'](.+)["']\s*/>\s*$"#
+                                    )
+                                    .unwrap();
+                                }
+                                let text = &comment.text;
+                                if let Some(m) = REFERENCE_PATH.captures(text) {
+                                    let path = &m[1];
+                                    references.push(
+                                        TsReferencePathAssetReferenceVc::new(
+                                            source.clone(),
+                                            path.to_string(),
+                                        )
+                                        .into(),
+                                    );
+                                } else if let Some(m) = REFERENCE_TYPES.captures(text) {
+                                    let types = &m[1];
+                                    references.push(
+                                        TsReferenceTypeAssetReferenceVc::new(
+                                            source.clone(),
+                                            types.to_string(),
+                                        )
+                                        .into(),
+                                    );
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+
             let buf = Buffer::new();
             let handler =
                 Handler::with_emitter_writer(Box::new(buf.clone()), Some(source_map.clone()));
@@ -74,7 +147,8 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
                         let var_graph = create_graph(&program, eval_context);
 
                         // TODO migrate to effects
-                        let mut visitor = AssetReferencesVisitor::new(&source, &mut references);
+                        let mut visitor =
+                            AssetReferencesVisitor::new(&source, is_typescript, &mut references);
                         program.visit_with(&mut visitor);
 
                         (
@@ -137,10 +211,19 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
                 this: &'a JsValue,
                 args: &'a Vec<JsValue>,
                 link_value: &'a F,
+                is_typescript: bool,
                 references: &'a mut Vec<AssetReferenceVc>,
             ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
                 Box::pin(handle_call(
-                    handler, source, span, func, this, args, link_value, references,
+                    handler,
+                    source,
+                    span,
+                    func,
+                    this,
+                    args,
+                    link_value,
+                    is_typescript,
+                    references,
                 ))
             }
 
@@ -155,6 +238,7 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
                 this: &JsValue,
                 args: &Vec<JsValue>,
                 link_value: &F,
+                is_typescript: bool,
                 references: &mut Vec<AssetReferenceVc>,
             ) -> Result<()> {
                 fn explain_args(args: &Vec<JsValue>) -> (String, String) {
@@ -165,7 +249,15 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
                     JsValue::Alternatives(alts) => {
                         for alt in alts {
                             handle_call_boxed(
-                                handler, source, span, alt, this, args, link_value, references,
+                                handler,
+                                source,
+                                span,
+                                alt,
+                                this,
+                                args,
+                                link_value,
+                                is_typescript,
+                                references,
                             )
                             .await?;
                         }
@@ -189,6 +281,7 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
                                 EsmAssetReferenceVc::new(
                                     source.clone(),
                                     RequestVc::parse(Value::new(pat)),
+                                    is_typescript,
                                 )
                                 .into(),
                             );
@@ -221,6 +314,7 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
                                 CjsAssetReferenceVc::new(
                                     source.clone(),
                                     RequestVc::parse(Value::new(pat)),
+                                    is_typescript,
                                 )
                                 .into(),
                             );
@@ -254,6 +348,7 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
                                 CjsAssetReferenceVc::new(
                                     source.clone(),
                                     RequestVc::parse(Value::new(pat)),
+                                    is_typescript,
                                 )
                                 .into(),
                             );
@@ -339,6 +434,7 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
                                     CjsAssetReferenceVc::new(
                                         source.clone(),
                                         RequestVc::parse(Value::new(pat)),
+                                        is_typescript,
                                     )
                                     .into(),
                                 );
@@ -391,6 +487,7 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
                                 CjsAssetReferenceVc::new(
                                     source.clone(),
                                     RequestVc::parse(Value::new(pat)),
+                                    is_typescript,
                                 )
                                 .into(),
                             );
@@ -436,6 +533,7 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
                             &JsValue::Unknown(None, "no this provided"),
                             &args,
                             &link_value,
+                            is_typescript,
                             &mut references,
                         )
                         .await?;
@@ -468,6 +566,7 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
                             &obj,
                             &args,
                             &link_value,
+                            is_typescript,
                             &mut references,
                         )
                         .await?;
@@ -481,7 +580,7 @@ pub async fn module_references(source: AssetVc) -> Result<AssetReferencesSetVc> 
         }
         ParseResult::Unparseable | ParseResult::NotFound => {}
     };
-    Ok(AssetReferencesSet { references }.into())
+    Ok(Vc::slot(references))
 }
 
 async fn as_abs_path(path: FileSystemPathVc) -> Result<JsValue> {
@@ -504,7 +603,9 @@ async fn value_visitor_inner(source: &AssetVc, v: JsValue) -> Result<(JsValue, b
                 if args.len() == 1 {
                     let pat = js_value_to_pattern(&args[0]);
                     let request = RequestVc::parse(Value::new(pat.clone()));
-                    let resolved = cjs_resolve(request, source.path().parent()).await?;
+                    let context = source.path().parent();
+                    let resolve_options = resolve_options(context.clone());
+                    let resolved = cjs_resolve(request, context, resolve_options).await?;
                     match &*resolved {
                         ResolveResult::Single(asset, _) => as_abs_path(asset.path()).await?,
                         ResolveResult::Alternatives(assets, _) => JsValue::Alternatives(
@@ -627,6 +728,7 @@ impl StaticAnalyser {
 
 struct AssetReferencesVisitor<'a> {
     source: &'a AssetVc,
+    is_typescript: bool,
     old_analyser: StaticAnalyser,
     references: &'a mut Vec<AssetReferenceVc>,
     webpack_runtime: Option<(String, Span)>,
@@ -634,9 +736,14 @@ struct AssetReferencesVisitor<'a> {
     webpack_chunks: Vec<Lit>,
 }
 impl<'a> AssetReferencesVisitor<'a> {
-    fn new(source: &'a AssetVc, references: &'a mut Vec<AssetReferenceVc>) -> Self {
+    fn new(
+        source: &'a AssetVc,
+        is_typescript: bool,
+        references: &'a mut Vec<AssetReferenceVc>,
+    ) -> Self {
         Self {
             source,
+            is_typescript,
             old_analyser: StaticAnalyser::default(),
             references,
             webpack_runtime: None,
@@ -653,6 +760,7 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
             EsmAssetReferenceVc::new(
                 self.source.clone(),
                 RequestVc::parse(Value::new(src.clone().into())),
+                self.is_typescript,
             )
             .into(),
         );
@@ -665,6 +773,7 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
                 EsmAssetReferenceVc::new(
                     self.source.clone(),
                     RequestVc::parse(Value::new(src.clone().into())),
+                    self.is_typescript,
                 )
                 .into(),
             );
@@ -677,6 +786,7 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
             EsmAssetReferenceVc::new(
                 self.source.clone(),
                 RequestVc::parse(Value::new(src.clone().into())),
+                self.is_typescript,
             )
             .into(),
         );
@@ -817,7 +927,35 @@ impl PackageJsonReferenceVc {
 #[turbo_tasks::value_impl]
 impl AssetReference for PackageJsonReference {
     fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::Single(SourceAssetVc::new(self.package_json.clone()).into(), None).into()
+        ResolveResult::Single(
+            SourceAssetVc::new(self.package_json.clone()).into(),
+            Vec::new(),
+        )
+        .into()
+    }
+}
+
+#[turbo_tasks::value(AssetReference)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq)]
+pub struct TsConfigReference {
+    pub tsconfig: FileSystemPathVc,
+}
+
+#[turbo_tasks::value_impl]
+impl TsConfigReferenceVc {
+    pub fn new(tsconfig: FileSystemPathVc) -> Self {
+        Self::slot(TsConfigReference { tsconfig })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl AssetReference for TsConfigReference {
+    fn resolve_reference(&self) -> ResolveResultVc {
+        ResolveResult::Single(
+            TsConfigModuleAssetVc::new(SourceAssetVc::new(self.tsconfig.clone()).into()).into(),
+            Vec::new(),
+        )
+        .into()
     }
 }
 
@@ -826,12 +964,17 @@ impl AssetReference for PackageJsonReference {
 pub struct EsmAssetReference {
     pub source: AssetVc,
     pub request: RequestVc,
+    pub from_typescript: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl EsmAssetReferenceVc {
-    pub fn new(source: AssetVc, request: RequestVc) -> Self {
-        Self::slot(EsmAssetReference { source, request })
+    pub fn new(source: AssetVc, request: RequestVc, from_typescript: bool) -> Self {
+        Self::slot(EsmAssetReference {
+            source,
+            request,
+            from_typescript,
+        })
     }
 }
 
@@ -840,7 +983,12 @@ impl AssetReference for EsmAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         let context = self.source.path().parent();
 
-        esm_resolve(self.request.clone(), context)
+        let options = if self.from_typescript {
+            typescript_resolve_options(context.clone())
+        } else {
+            resolve_options(context.clone())
+        };
+        esm_resolve(self.request.clone(), context, options)
     }
 }
 
@@ -849,12 +997,17 @@ impl AssetReference for EsmAssetReference {
 pub struct CjsAssetReference {
     pub source: AssetVc,
     pub request: RequestVc,
+    pub from_typescript: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl CjsAssetReferenceVc {
-    pub fn new(source: AssetVc, request: RequestVc) -> Self {
-        Self::slot(CjsAssetReference { source, request })
+    pub fn new(source: AssetVc, request: RequestVc, from_typescript: bool) -> Self {
+        Self::slot(CjsAssetReference {
+            source,
+            request,
+            from_typescript,
+        })
     }
 }
 
@@ -863,7 +1016,69 @@ impl AssetReference for CjsAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         let context = self.source.path().parent();
 
-        cjs_resolve(self.request.clone(), context)
+        let options = if self.from_typescript {
+            typescript_resolve_options(context.clone())
+        } else {
+            resolve_options(context.clone())
+        };
+        cjs_resolve(self.request.clone(), context, options)
+    }
+}
+
+#[turbo_tasks::value(AssetReference)]
+#[derive(Hash, Debug, PartialEq, Eq)]
+pub struct TsReferencePathAssetReference {
+    pub source: AssetVc,
+    pub path: String,
+}
+
+#[turbo_tasks::value_impl]
+impl TsReferencePathAssetReferenceVc {
+    pub fn new(source: AssetVc, path: String) -> Self {
+        Self::slot(TsReferencePathAssetReference { source, path })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl AssetReference for TsReferencePathAssetReference {
+    async fn resolve_reference(&self) -> Result<ResolveResultVc> {
+        let context = self.source.path().parent();
+        Ok(if let Some(path) = &*context.try_join(&self.path).await? {
+            ResolveResult::Single(
+                crate::module(SourceAssetVc::new(path.clone()).into()),
+                Vec::new(),
+            )
+            .into()
+        } else {
+            ResolveResult::unresolveable().into()
+        })
+    }
+}
+
+#[turbo_tasks::value(AssetReference)]
+#[derive(Hash, Debug, PartialEq, Eq)]
+pub struct TsReferenceTypeAssetReference {
+    pub source: AssetVc,
+    pub module: String,
+}
+
+#[turbo_tasks::value_impl]
+impl TsReferenceTypeAssetReferenceVc {
+    pub fn new(source: AssetVc, module: String) -> Self {
+        Self::slot(TsReferenceTypeAssetReference { source, module })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl AssetReference for TsReferenceTypeAssetReference {
+    fn resolve_reference(&self) -> ResolveResultVc {
+        let context = self.source.path().parent();
+        let options = typescript_types_resolve_options(context.clone());
+        type_resolve(
+            RequestVc::module(self.module.clone(), Value::new("".to_string().into())),
+            context,
+            options,
+        )
     }
 }
 

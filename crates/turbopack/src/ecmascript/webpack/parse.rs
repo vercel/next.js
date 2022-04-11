@@ -9,12 +9,13 @@ use swc_ecmascript::{
     },
     visit::{self, Visit, VisitWith},
 };
+use turbo_tasks::Value;
 use turbo_tasks_fs::FileSystemPathVc;
 
 use crate::{
     analyzer::{graph::EvalContext, JsValue},
     asset::AssetVc,
-    ecmascript::utils::unparen,
+    ecmascript::{utils::unparen, ModuleAssetType},
 };
 
 use crate::ecmascript::parse::{parse, ParseResult};
@@ -181,7 +182,7 @@ fn get_require_prefix(stmts: &Vec<Stmt>) -> Option<Lit> {
 
 #[turbo_tasks::function]
 pub async fn is_webpack_runtime(asset: AssetVc) -> Result<WebpackRuntimeVc> {
-    let parsed = parse(asset.clone()).await?;
+    let parsed = parse(asset.clone(), Value::new(ModuleAssetType::Ecmascript)).await?;
     match &*parsed {
         ParseResult::Ok {
             program,

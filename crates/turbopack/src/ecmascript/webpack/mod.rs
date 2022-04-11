@@ -1,10 +1,11 @@
 use anyhow::Result;
 use swc_ecmascript::ast::Lit;
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use crate::{
     asset::{Asset, AssetVc},
-    reference::{AssetReference, AssetReferenceVc, AssetReferencesSetVc},
+    reference::{AssetReference, AssetReferenceVc},
     resolve::{parse::RequestVc, resolve, resolve_options, ResolveResult, ResolveResultVc},
     source_asset::SourceAssetVc,
 };
@@ -41,7 +42,7 @@ impl Asset for ModuleAsset {
     fn content(&self) -> FileContentVc {
         self.source.clone().content()
     }
-    async fn references(&self) -> AssetReferencesSetVc {
+    async fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
         module_references(self.source.clone(), self.runtime.clone())
     }
 }
@@ -74,11 +75,11 @@ impl AssetReference for WebpackChunkAssetReference {
 
                 ResolveResult::Single(
                     ModuleAssetVc::new(source, self.runtime.clone()).into(),
-                    None,
+                    Vec::new(),
                 )
                 .into()
             }
-            WebpackRuntime::None => ResolveResult::Unresolveable(None).into(),
+            WebpackRuntime::None => ResolveResult::unresolveable().into(),
         })
     }
 }
@@ -95,7 +96,7 @@ impl AssetReference for WebpackEntryAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(
             ModuleAssetVc::new(self.source.clone(), self.runtime.clone()).into(),
-            None,
+            Vec::new(),
         )
         .into()
     }
@@ -128,6 +129,6 @@ impl AssetReference for WebpackRuntimeAssetReference {
             .into());
         }
 
-        Ok(ResolveResult::Unresolveable(None).into())
+        Ok(ResolveResult::unresolveable().into())
     }
 }

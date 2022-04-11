@@ -1,10 +1,11 @@
 use anyhow::Result;
 use json::object;
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileContent, FileContentVc, FileSystemPathVc};
 use turbopack::{
     all_assets,
     asset::{Asset, AssetVc},
-    reference::AssetReferencesSetVc,
+    reference::AssetReferenceVc,
 };
 
 #[turbo_tasks::value(shared, Asset)]
@@ -51,7 +52,7 @@ impl Asset for NftJsonAsset {
         Ok(FileContent::Content(Vec::from(json.dump().as_bytes())).into())
     }
 
-    fn references(&self) -> AssetReferencesSetVc {
-        AssetReferencesSetVc::empty()
+    fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
+        Vc::default()
     }
 }

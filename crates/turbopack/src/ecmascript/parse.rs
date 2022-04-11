@@ -1,8 +1,11 @@
 use std::fmt::Display;
 use std::io::Write;
+use std::mem::take;
+use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
 use anyhow::{anyhow, Result};
+use swc_common::comments::{SingleThreadedComments, SingleThreadedCommentsMapInner};
 use swc_common::errors::{Handler, HANDLER};
 use swc_common::input::StringInput;
 use swc_common::sync::Lrc;
@@ -10,18 +13,25 @@ use swc_common::{FileName, Globals, Mark, SourceMap, GLOBALS};
 use swc_ecma_transforms_base::resolver::resolver_with_mark;
 use swc_ecmascript::ast::{EsVersion, Program};
 use swc_ecmascript::parser::lexer::Lexer;
-use swc_ecmascript::parser::{EsConfig, Parser, Syntax};
+use swc_ecmascript::parser::{EsConfig, Parser, Syntax, TsConfig};
 use swc_ecmascript::visit::VisitMutWith;
+use turbo_tasks::Value;
 use turbo_tasks_fs::FileContent;
 
 use crate::analyzer::graph::EvalContext;
 use crate::asset::AssetVc;
+
+use super::ModuleAssetType;
 
 #[turbo_tasks::value(shared)]
 pub enum ParseResult {
     Ok {
         #[trace_ignore]
         program: Program,
+        #[trace_ignore]
+        leading_comments: SingleThreadedCommentsMapInner,
+        #[trace_ignore]
+        trailing_comments: SingleThreadedCommentsMapInner,
         #[trace_ignore]
         eval_context: EvalContext,
         #[trace_ignore]
@@ -102,9 +112,10 @@ impl Write for Buffer {
 }
 
 #[turbo_tasks::function]
-pub async fn parse(source: AssetVc) -> Result<ParseResultVc> {
+pub async fn parse(source: AssetVc, ty: Value<ModuleAssetType>) -> Result<ParseResultVc> {
     let content = source.content();
     let fs_path = source.path().await?;
+    let ty = ty.into_value();
     Ok(match &*content.await? {
         FileContent::NotFound => ParseResult::NotFound.into(),
         FileContent::Content(buffer) => {
@@ -118,21 +129,38 @@ pub async fn parse(source: AssetVc) -> Result<ParseResultVc> {
 
                     let fm = cm.new_source_file(FileName::Custom(fs_path.path.clone()), string);
 
+                    let comments = SingleThreadedComments::default();
                     let lexer = Lexer::new(
-                        Syntax::Es(EsConfig {
-                            jsx: true,
-                            fn_bind: true,
-                            decorators: true,
-                            decorators_before_export: true,
-                            export_default_from: true,
-                            import_assertions: true,
-                            static_blocks: true,
-                            private_in_object: true,
-                            allow_super_outside_method: true,
-                        }),
+                        match ty {
+                            ModuleAssetType::Ecmascript => Syntax::Es(EsConfig {
+                                jsx: true,
+                                fn_bind: true,
+                                decorators: true,
+                                decorators_before_export: true,
+                                export_default_from: true,
+                                import_assertions: true,
+                                static_blocks: true,
+                                private_in_object: true,
+                                allow_super_outside_method: true,
+                            }),
+                            ModuleAssetType::Typescript => Syntax::Typescript(TsConfig {
+                                decorators: true,
+                                dts: false,
+                                no_early_errors: true,
+                                tsx: true,
+                            }),
+                            ModuleAssetType::TypescriptDeclaration => {
+                                Syntax::Typescript(TsConfig {
+                                    decorators: true,
+                                    dts: true,
+                                    no_early_errors: true,
+                                    tsx: true,
+                                })
+                            }
+                        },
                         EsVersion::latest(),
                         StringInput::from(&*fm),
-                        None,
+                        Some(&comments),
                     );
 
                     let mut parser = Parser::new_from(lexer);
@@ -158,6 +186,7 @@ pub async fn parse(source: AssetVc) -> Result<ParseResultVc> {
                             // ParseResult::Unparseable.into()
                         }
                         Ok(mut parsed_program) => {
+                            drop(parser);
                             let globals = Globals::new();
                             let eval_context = GLOBALS.set(&globals, || {
                                 let top_level_mark = Mark::fresh(Mark::root());
@@ -175,8 +204,11 @@ pub async fn parse(source: AssetVc) -> Result<ParseResultVc> {
                                 return Err(anyhow!("{}", buf));
                             }
 
+                            let (mut leading, mut trailing) = comments.take_all();
                             ParseResult::Ok {
                                 program: parsed_program,
+                                leading_comments: take(Rc::make_mut(&mut leading)).into_inner(),
+                                trailing_comments: take(Rc::make_mut(&mut trailing)).into_inner(),
                                 eval_context,
                                 globals,
                                 source_map: cm.clone(),

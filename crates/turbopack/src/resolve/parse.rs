@@ -200,6 +200,13 @@ impl RequestVc {
             force_in_context,
         })
     }
+
+    pub fn module(module: String, path: Value<Pattern>) -> Self {
+        Self::slot(Request::Module {
+            module,
+            path: path.into_value(),
+        })
+    }
 }
 
 #[turbo_tasks::value_impl]

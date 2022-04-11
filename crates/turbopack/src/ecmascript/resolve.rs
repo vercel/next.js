@@ -7,9 +7,11 @@ use crate::{
     resolve::{
         options::{ConditionValue, ResolveIntoPackage, ResolveOptions, ResolveOptionsVc},
         parse::RequestVc,
-        resolve, resolve_options, ResolveResult, ResolveResultVc,
+        resolve, ResolveResult, ResolveResultVc,
     },
 };
+
+use super::typescript::resolve::TypescriptTypesAssetReferenceVc;
 
 #[turbo_tasks::function]
 pub async fn apply_esm_specific_options(options: ResolveOptionsVc) -> Result<ResolveOptionsVc> {
@@ -45,32 +47,32 @@ pub async fn apply_cjs_specific_options(options: ResolveOptionsVc) -> Result<Res
 pub async fn esm_resolve(
     request: RequestVc,
     context: FileSystemPathVc,
+    options: ResolveOptionsVc,
 ) -> Result<ResolveResultVc> {
-    specific_resolve(request, context, apply_esm_specific_options).await
+    let options = apply_esm_specific_options(options);
+    specific_resolve(request, context, options).await
 }
 
 #[turbo_tasks::function]
 pub async fn cjs_resolve(
     request: RequestVc,
     context: FileSystemPathVc,
+    options: ResolveOptionsVc,
 ) -> Result<ResolveResultVc> {
-    specific_resolve(request, context, apply_cjs_specific_options).await
+    let options = apply_cjs_specific_options(options);
+    specific_resolve(request, context, options).await
 }
 
 async fn specific_resolve(
     request: RequestVc,
     context: FileSystemPathVc,
-    apply_specific_options: fn(ResolveOptionsVc) -> ResolveOptionsVc,
+    options: ResolveOptionsVc,
 ) -> Result<ResolveResultVc> {
-    let options = resolve_options(context.clone());
-
-    let options = apply_specific_options(options);
-
-    let result = resolve(context.clone(), request.clone(), options);
+    let result = resolve(context.clone(), request.clone(), options.clone());
 
     Ok(match result.await {
         Ok(result) => {
-            let result = result
+            let mut result = result
                 .map(
                     |a| module(a.clone()).resolve(),
                     |i| {
@@ -79,11 +81,16 @@ async fn specific_resolve(
                     },
                 )
                 .await?;
+            if *options.clone().resolve_typescript_types().await? {
+                let types_reference =
+                    TypescriptTypesAssetReferenceVc::new(request.clone(), context.clone(), options);
+                result.add_reference(types_reference.into());
+            }
             match &result {
                 ResolveResult::Unresolveable(_) => {
                     // TODO report this to stream
                     println!(
-                        "unable to resolve esm request {} in {}",
+                        "unable to resolve request {} in {}",
                         request.to_string().await?,
                         context.to_string().await?
                     );
@@ -95,12 +102,12 @@ async fn specific_resolve(
         Err(err) => {
             // TODO report this to stream
             println!(
-                "fatal error during resolving esm request {} in {}: {}",
+                "fatal error during resolving request {} in {}: {}",
                 request.to_string().await?,
                 context.to_string().await?,
                 err
             );
-            ResolveResult::Unresolveable(None).into()
+            ResolveResult::unresolveable().into()
         }
     })
 }
