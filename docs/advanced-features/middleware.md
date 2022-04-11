@@ -2,7 +2,7 @@
 description: Learn how to use Middleware in Next.js to run code before a request is completed.
 ---
 
-# Middleware
+# Middleware (Beta)
 
 <details open>
   <summary><b>Version History</b></summary>
