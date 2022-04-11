@@ -39,7 +39,7 @@ Here's an example `package.json`:
 
 ## Static Assets and Compiled Output
 
-Create React App uses the `public` directory for the [entry HTML file](https://create-react-app.dev/docs/using-the-public-folder). It is located at the project's root. Next.js uses it for static assets. When migrating from Create React App, the location of the `public` directory remains same. It's possible to add static assets in this directory, but Create React App recommends importing them directly from JavaScript files.
+Create React App uses the `public` directory for the [entry HTML file](https://create-react-app.dev/docs/using-the-public-folder). It is located at the project's root. Next.js uses it for static assets. When migrating from Create React App, the location of the `public` directory is the same. It's possible to add static assets in this directory, but Create React App recommends importing them directly from JavaScript files.
 
 - Move any images, fonts, or other static assets to `public`.
 - Convert `index.html` (the entry point of your application) to Next.js. Any `<head>` code should be moved to a [custom `_document.js`](/docs/advanced-features/custom-document.md). Any shared layout between all pages should be moved to a [custom `_app.js`](/docs/advanced-features/custom-app.md).
