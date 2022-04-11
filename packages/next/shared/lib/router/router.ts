@@ -871,6 +871,7 @@ export default class Router implements BaseRouter {
    * Go back in history
    */
   back() {
+    this.data = {}
     window.history.back()
   }
 
