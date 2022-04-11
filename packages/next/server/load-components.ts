@@ -77,10 +77,12 @@ export async function loadComponents(
   serverComponents?: boolean
 ): Promise<LoadComponentsReturnType> {
   const [DocumentMod, AppMod, ComponentMod, AppServerMod] = await Promise.all([
-    requirePage('/_document', distDir),
-    requirePage('/_app', distDir),
-    requirePage(pathname, distDir),
-    serverComponents ? requirePage('/_app.server', distDir) : null,
+    requirePage('/_document', distDir, rootDirEnabled),
+    requirePage('/_app', distDir, rootDirEnabled),
+    requirePage(pathname, distDir, rootDirEnabled),
+    serverComponents
+      ? requirePage('/_app.server', distDir, rootDirEnabled)
+      : null,
   ])
 
   const [buildManifest, reactLoadableManifest, serverComponentManifest] =
