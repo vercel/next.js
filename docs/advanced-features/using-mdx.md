@@ -87,11 +87,11 @@ The following steps outline how to setup `@next/mdx` in your Next.js project:
 
 ## next-mdx-remote
 
-On a remote database, use next-mdx-remote https://github.com/hashicorp/next-mdx-remote
+On a remote database, use [next-mdx-remote](https://github.com/hashicorp/next-mdx-remote)
 
 ## @mdx-js/mdx
 
-Handle mdx strings client side, probably @mdx-js/mdx see official docs https://mdxjs.com/docs/getting-started/
+If you are handling mdx strings client side, you should probably use [@mdx-js/mdx](https://mdxjs.com/docs/getting-started/)
 
 ## Using Components, Layouts and Custom Elements
 
