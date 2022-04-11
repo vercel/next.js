@@ -87,6 +87,22 @@ const devtoolRevertWarning = execOnce(
 
 let loggedSwcDisabled = false
 let loggedIgnoredCompilerOptions = false
+let swcTraceFlushGuard: unknown = null
+
+/**
+ * Teardown swc's trace subscriber if there's an initialized flush guard exists.
+ *
+ * This is workaround to amend behavior with process.exit
+ * (https://github.com/vercel/next.js/blob/4db8c49cc31e4fc182391fae6903fb5ef4e8c66e/packages/next/bin/next.ts#L134=)
+ * seems preventing napi's cleanup hook execution (https://github.com/swc-project/swc/blob/main/crates/node/src/util.rs#L48-L51=),
+ *
+ * instead parent process manually drops guard when process gets signal to exit.
+ */
+process.on('exit', () => {
+  if (swcTraceFlushGuard) {
+    require('./swc')?.teardownTraceSubscriber?.(swcTraceFlushGuard)
+  }
+})
 
 function getOptimizedAliases(): { [pkg: string]: string } {
   const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch', 'index.js')
@@ -436,6 +452,20 @@ export default async function getBaseWebpackConfig(
   }
 
   const getBabelOrSwcLoader = () => {
+    if (
+      useSWCLoader &&
+      config?.experimental?.swcTrace?.enabled &&
+      !swcTraceFlushGuard
+    ) {
+      // This will init subscribers once only in a single process lifecycle,
+      // even though it can be called multiple times.
+      // Subscriber need to be initialized _before_ any actual swc's call (transform, etcs)
+      // to collect correct trace spans when they are called.
+      swcTraceFlushGuard = require('./swc')?.initCustomTraceSubscriber?.(
+        config?.experimental?.swcTrace?.traceFileName
+      )
+    }
+
     return useSWCLoader
       ? {
           loader: 'next-swc-loader',

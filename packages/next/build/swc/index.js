@@ -261,6 +261,8 @@ function loadNative() {
       },
 
       getTargetTriple: bindings.getTargetTriple,
+      initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
+      teardownTraceSubscriber: bindings.teardownTraceSubscriber,
     }
     return nativeBindings
   }
@@ -320,3 +322,35 @@ export function getBinaryMetadata() {
     target: bindings?.getTargetTriple?.(),
   }
 }
+
+/**
+ * Initialize trace subscriber to emit traces.
+ *
+ * Returns an internal object to guard async flush emission if subscriber is initialized, caller should manually
+ * tear it down via `teardownTraceSubscriber`.
+ */
+export const initCustomTraceSubscriber = (() => {
+  let guard
+
+  return (filename) => {
+    if (!guard) {
+      // Wasm binary doesn't support trace emission
+      let bindings = loadNative()
+      guard = bindings.initCustomTraceSubscriber(filename)
+    }
+
+    return guard
+  }
+})()
+
+export const teardownTraceSubscriber = (() => {
+  let bindings
+
+  return (guard) => {
+    if (!bindings && !!guard) {
+      // Wasm binary doesn't support trace emission
+      bindings = loadNative()
+      return bindings.teardownTraceSubscriber(guard)
+    }
+  }
+})()
