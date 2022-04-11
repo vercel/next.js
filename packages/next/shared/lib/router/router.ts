@@ -125,8 +125,8 @@ function addPathPrefix(path: string, prefix?: string) {
   )
 }
 
-// NOTE: Does NOT work when path contains ? or #
 function hasPathPrefix(path: string, prefix: string) {
+  path = pathNoQueryHash(path)
   return path === prefix || path.startsWith(prefix + '/')
 }
 
@@ -201,8 +201,7 @@ function pathNoQueryHash(path: string) {
 }
 
 export function hasBasePath(path: string): boolean {
-  path = pathNoQueryHash(path)
-  return path === basePath || path.startsWith(basePath + '/')
+  return hasPathPrefix(path, basePath)
 }
 
 export function addBasePath(path: string): string {
