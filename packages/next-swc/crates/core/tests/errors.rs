@@ -63,5 +63,10 @@ fn styled_jsx_errors(input: PathBuf) {
 #[fixture("tests/errors/next-ssg/**/input.js")]
 fn next_ssg_errors(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    test_fixture_allowing_error(syntax(), &|_tr| next_ssg(), &input, &output);
+    test_fixture_allowing_error(
+        syntax(),
+        &|_tr| next_ssg(Default::default()),
+        &input,
+        &output,
+    );
 }

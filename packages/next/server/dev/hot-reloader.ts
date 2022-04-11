@@ -341,7 +341,8 @@ export default class HotReloader {
             this.pagesMapping,
             this.buildId,
             this.config,
-            this.pagesDir
+            this.pagesDir,
+            true
           )
         )
 
@@ -419,7 +420,8 @@ export default class HotReloader {
           },
           this.buildId,
           this.config,
-          this.pagesDir
+          this.pagesDir,
+          true
         )
       ).client,
       hasReactRoot: this.hasReactRoot,
@@ -513,7 +515,7 @@ export default class HotReloader {
 
             const pageRuntimeConfig = await getPageRuntime(
               absolutePagePath,
-              this.runtime
+              this.config
             )
             const isEdgeSSRPage = pageRuntimeConfig === 'edge' && !isApiRoute
 
@@ -568,6 +570,7 @@ export default class HotReloader {
                     page,
                     stringifiedConfig: JSON.stringify(this.config),
                     absoluteAppPath: this.pagesMapping['/_app'],
+                    absoluteAppServerPath: this.pagesMapping['/_app.server'],
                     absoluteDocumentPath: this.pagesMapping['/_document'],
                     absoluteErrorPath: this.pagesMapping['/_error'],
                     absolute404Path: this.pagesMapping['/404'] || '',

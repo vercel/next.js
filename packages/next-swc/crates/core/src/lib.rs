@@ -31,6 +31,7 @@ DEALINGS IN THE SOFTWARE.
 
 use auto_cjs::contains_cjs;
 use either::Either;
+use fxhash::FxHashSet;
 use serde::Deserialize;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -113,6 +114,7 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
     file: Arc<SourceFile>,
     opts: &'a TransformOptions,
     comments: C,
+    eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
 ) -> impl Fold + 'a {
     #[cfg(target_arch = "wasm32")]
     let relay_plugin = noop();
@@ -148,7 +150,10 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
                 Either::Right(noop())
             }
         },
-        Optional::new(next_ssg::next_ssg(), !opts.disable_next_ssg),
+        Optional::new(
+            next_ssg::next_ssg(eliminated_packages),
+            !opts.disable_next_ssg
+        ),
         amp_attributes::amp_attributes(),
         next_dynamic::next_dynamic(
             opts.is_development,

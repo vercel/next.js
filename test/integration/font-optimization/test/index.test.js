@@ -14,6 +14,10 @@ import {
 import webdriver from 'next-webdriver'
 
 const fixturesDir = join(__dirname, '..', 'fixtures')
+const nodeArgs = [
+  '-r',
+  join(__dirname, '../../../lib/react-17-require-hook.js'),
+]
 
 const fsExists = (file) =>
   fs
@@ -64,7 +68,7 @@ describe('Font Optimization', () => {
       preconnectUrl
     ) => {
       const appDir = join(fixturesDir, `with-${property}`)
-      const nextConfig = join(appDir, 'next.config.js')
+
       let builtServerPagesDir
       let builtPage
       let appPort
@@ -203,7 +207,9 @@ describe('Font Optimization', () => {
 
         // Re-run build to check if it works when build is cached
         it('should work when build is cached', async () => {
-          await nextBuild(appDir)
+          await nextBuild(appDir, undefined, {
+            nodeArgs,
+          })
           const testJson = JSON.parse(
             await fs.readFile(builtPage('font-manifest.json'), {
               encoding: 'utf-8',
@@ -215,18 +221,16 @@ describe('Font Optimization', () => {
 
       describe('Font optimization for SSR apps', () => {
         beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `module.exports = { cleanDistDir: false }`,
-            'utf8'
-          )
-
           if (fs.pathExistsSync(join(appDir, '.next'))) {
             await fs.remove(join(appDir, '.next'))
           }
-          await nextBuild(appDir)
+          await nextBuild(appDir, undefined, {
+            nodeArgs,
+          })
           appPort = await findPort()
-          app = await nextStart(appDir, appPort)
+          app = await nextStart(appDir, appPort, {
+            nodeArgs,
+          })
           builtServerPagesDir = join(appDir, '.next', 'server')
           builtPage = (file) => join(builtServerPagesDir, file)
         })
@@ -236,12 +240,9 @@ describe('Font Optimization', () => {
 
       describe('Font optimization for unreachable font definitions.', () => {
         beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `module.exports = { cleanDistDir: false }`,
-            'utf8'
-          )
-          await nextBuild(appDir)
+          await nextBuild(appDir, undefined, {
+            nodeArgs,
+          })
           await fs.writeFile(
             join(appDir, '.next', 'server', 'font-manifest.json'),
             '[]',

@@ -58,6 +58,10 @@ export default class PagesManifestPlugin implements webpack.Plugin {
             file.endsWith('.js')
         )
 
+      // Skip _app.server entry which is empty
+      if (!files.length) {
+        continue
+      }
       // Write filename, replace any backslashes in path (on windows) with forwardslashes for cross-platform consistency.
       let file = files[files.length - 1]
 

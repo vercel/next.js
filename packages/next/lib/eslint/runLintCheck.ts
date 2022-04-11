@@ -266,10 +266,12 @@ export async function runLintCheck(
 ): ReturnType<typeof lint> {
   try {
     // Find user's .eslintrc file
+    // See: https://eslint.org/docs/user-guide/configuring/configuration-files#configuration-file-formats
     const eslintrcFile =
       (await findUp(
         [
           '.eslintrc.js',
+          '.eslintrc.cjs',
           '.eslintrc.yaml',
           '.eslintrc.yml',
           '.eslintrc.json',

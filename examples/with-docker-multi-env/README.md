@@ -10,6 +10,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-docker-multi-env nextjs-docker-multi-env
 # or
 yarn create next-app --example with-docker-multi-env nextjs-docker-multi-env
+# or
+pnpm create next-app -- --example with-docker-multi-env nextjs-docker-multi-env
 ```
 
 Enter the values in the `.env.development.sample`, `.env.staging.sample`, `.env.production.sample` files to be used for each environments.
