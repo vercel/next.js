@@ -1,3 +1,5 @@
+import { builtinModules } from 'module'
+
 import { parse } from '../../swc'
 import { buildExports } from './utils'
 
@@ -70,13 +72,59 @@ async function parseModuleInfo({
 
   const isEsm = type === 'Module'
 
+  async function getModuleType(importSource: string) {
+    const isBuiltinModule = builtinModules.includes(importSource)
+    const resolvedPath = isBuiltinModule
+      ? importSource
+      : await resolver(importSource)
+
+    const isNodeModuleImport = resolvedPath.includes('/node_modules/')
+
+    return [isBuiltinModule, isNodeModuleImport] as const
+  }
+
+  function addClientImport(
+    importSource: string,
+    {
+      isNodeModuleImport,
+      isBuiltinModule,
+    }: { isNodeModuleImport: boolean; isBuiltinModule: boolean }
+  ) {
+    // For now we assume there is no .client.js inside node_modules.
+    // TODO: properly handle this.
+    if (isNodeModuleImport) {
+      return false
+    }
+
+    if (isBuiltinModule) {
+      return false
+    }
+
+    if (
+      isServerComponent(importSource) ||
+      hasFlightLoader(importSource, 'server')
+    ) {
+      // If it's a server component, we recursively import its dependencies.
+      imports.push(importSource)
+    } else if (isClientComponent(importSource)) {
+      // Client component.
+      imports.push(importSource)
+    } else {
+      // Shared component.
+      imports.push(createFlightServerRequest(importSource, extensions))
+    }
+    return true
+  }
+
   for (let i = 0; i < body.length; i++) {
     const node = body[i]
     switch (node.type) {
       case 'ImportDeclaration':
         const importSource = node.source.value
-        const resolvedPath = await resolver(importSource)
-        const isNodeModuleImport = resolvedPath.includes('/node_modules/')
+
+        const [isBuiltinModule, isNodeModuleImport] = await getModuleType(
+          importSource
+        )
 
         // matching node_module package but excluding react cores since react is required to be shared
         const isReactImports = [
@@ -104,9 +152,10 @@ async function parseModuleInfo({
             imports.push(importSource)
           } else {
             // A shared component. It should be handled as a server component.
-            const serverImportSource = isReactImports
-              ? importSource
-              : createFlightServerRequest(importSource, extensions)
+            const serverImportSource =
+              isReactImports || isBuiltinModule
+                ? importSource
+                : createFlightServerRequest(importSource, extensions)
             transformedSource += importDeclarations
             transformedSource += JSON.stringify(serverImportSource)
 
@@ -116,18 +165,14 @@ async function parseModuleInfo({
             }
           }
         } else {
-          // For the client compilation, we skip all modules imports but
-          // always keep client/shared components in the bundle. All client components
-          // have to be imported from either server or client components.
           if (
-            isServerComponent(importSource) ||
-            hasFlightLoader(importSource, 'server') ||
-            // TODO: support handling RSC components from node_modules
-            isNodeModuleImport
+            !addClientImport(importSource, {
+              isNodeModuleImport,
+              isBuiltinModule,
+            })
           ) {
             continue
           }
-          imports.push(importSource)
         }
 
         lastIndex = node.source.span.end
@@ -158,6 +203,20 @@ async function parseModuleInfo({
           }
         }
         break
+      case 'ExportNamedDeclaration':
+        if (isClientCompilation) {
+          if (node.source) {
+            // export { ... } from '...'
+            const importSource = node.source.value
+            const [isBuiltinModule, isNodeModuleImport] = await getModuleType(
+              importSource
+            )
+            addClientImport(importSource, {
+              isNodeModuleImport,
+              isBuiltinModule,
+            })
+          }
+        }
       default:
         break
     }

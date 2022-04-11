@@ -221,6 +221,21 @@ export default function (context, { runtime, env }) {
     expect(hydratedContent).toContain('Export All: one, two, two')
   })
 
+  it('should support native modules in server component', async () => {
+    const html = await renderViaHTTP(context.appPort, '/native-module')
+    const content = getNodeBySelector(html, '#__next').text()
+
+    expect(content).toContain('fs: function')
+    expect(content).toContain('foo.client')
+  })
+
+  it('should support the re-export syntax in server component', async () => {
+    const html = await renderViaHTTP(context.appPort, '/re-export')
+    const content = getNodeBySelector(html, '#__next').text()
+
+    expect(content).toContain('This should be in red')
+  })
+
   it('should handle 404 requests and missing routes correctly', async () => {
     const id = '#text'
     const content = 'custom-404-page'
