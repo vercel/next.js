@@ -87,6 +87,17 @@ impl<
     }
 }
 
+impl<T: Any + Default + PartialEq + Eq + TraceSlotVcs + Send + Sync> Vc<T> {
+    pub fn default() -> Self {
+        Self {
+            node: match_previous_node_by_type::<T, _>(|__slot| {
+                __slot.compare_and_update_shared(&Self::value_type(), T::default());
+            }),
+            phantom_data: PhantomData,
+        }
+    }
+}
+
 impl<T: Any + TraceSlotVcs + Send + Sync> From<SlotVc> for Vc<T> {
     fn from(node: SlotVc) -> Self {
         Self {

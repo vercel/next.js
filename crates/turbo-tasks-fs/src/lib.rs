@@ -598,17 +598,7 @@ impl FileSystemPathVc {
 
     pub async fn read_json(self) -> Result<FileJsonContentVc> {
         let this = self.get().await?;
-        let content = this.fs.read(self).await?;
-        Ok(match &*content {
-            FileContent::Content(buffer) => match std::str::from_utf8(&buffer) {
-                Ok(string) => match parse(string) {
-                    Ok(data) => FileJsonContent::Content(data).into(),
-                    Err(_) => FileJsonContent::Unparseable.into(),
-                },
-                Err(_) => FileJsonContent::Unparseable.into(),
-            },
-            FileContent::NotFound => FileJsonContent::NotFound.into(),
-        })
+        Ok(this.fs.read(self).parse_json())
     }
 
     pub async fn read_dir(self) -> Result<DirectoryContentVc> {
@@ -695,6 +685,27 @@ impl FileContent {
     #[turbo_tasks::constructor(compare_enum: NotFound)]
     pub fn not_found() -> Self {
         FileContent::NotFound
+    }
+
+    pub fn parse_json(&self) -> FileJsonContent {
+        match self {
+            FileContent::Content(buffer) => match std::str::from_utf8(&buffer) {
+                Ok(string) => match parse(string) {
+                    Ok(data) => FileJsonContent::Content(data),
+                    Err(_) => FileJsonContent::Unparseable,
+                },
+                Err(_) => FileJsonContent::Unparseable,
+            },
+            FileContent::NotFound => FileJsonContent::NotFound,
+        }
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl FileContentVc {
+    pub async fn parse_json(self) -> Result<FileJsonContentVc> {
+        let this = self.await?;
+        Ok(this.parse_json().into())
     }
 }
 

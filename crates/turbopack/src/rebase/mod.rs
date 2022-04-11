@@ -1,11 +1,12 @@
 use std::hash::Hash;
 
 use anyhow::Result;
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use crate::{
     asset::{Asset, AssetVc},
-    reference::{AssetReference, AssetReferenceVc, AssetReferencesSet, AssetReferencesSetVc},
+    reference::{AssetReference, AssetReferenceVc},
     resolve::ResolveResultVc,
 };
 
@@ -42,10 +43,10 @@ impl Asset for RebasedAsset {
         self.source.content()
     }
 
-    async fn references(&self) -> Result<AssetReferencesSetVc> {
+    async fn references(&self) -> Result<Vc<Vec<AssetReferenceVc>>> {
         let input_references = self.source.references().await?;
         let mut references = Vec::new();
-        for reference in input_references.references.iter() {
+        for reference in input_references.iter() {
             references.push(
                 RebasedAssetReference {
                     reference: reference.clone().resolve().await?,
@@ -55,7 +56,7 @@ impl Asset for RebasedAsset {
                 .into(),
             );
         }
-        Ok(AssetReferencesSet { references }.into())
+        Ok(Vc::slot(references))
     }
 }
 

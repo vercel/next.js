@@ -1,28 +1,42 @@
 mod parse;
 mod references;
-mod resolve;
+pub mod resolve;
+mod special_cases;
+pub mod typescript;
 pub mod utils;
 pub mod webpack;
 
 use crate::{
     asset::{Asset, AssetVc},
-    reference::AssetReferencesSetVc,
+    reference::AssetReferenceVc,
 };
 use anyhow::Result;
+use turbo_tasks::{trace::TraceSlotVcs, Value, Vc};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use self::references::module_references;
+
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceSlotVcs)]
+pub enum ModuleAssetType {
+    Ecmascript,
+    Typescript,
+    TypescriptDeclaration,
+}
 
 #[turbo_tasks::value(Asset)]
 #[derive(PartialEq, Eq)]
 pub struct ModuleAsset {
     pub source: AssetVc,
+    pub ty: ModuleAssetType,
 }
 
 #[turbo_tasks::value_impl]
 impl ModuleAssetVc {
-    pub fn new(source: AssetVc) -> Self {
-        Self::slot(ModuleAsset { source })
+    pub fn new(source: AssetVc, ty: Value<ModuleAssetType>) -> Self {
+        Self::slot(ModuleAsset {
+            source,
+            ty: ty.into_value(),
+        })
     }
 }
 
@@ -34,7 +48,7 @@ impl Asset for ModuleAsset {
     fn content(&self) -> FileContentVc {
         self.source.clone().content()
     }
-    async fn references(&self) -> AssetReferencesSetVc {
-        module_references(self.source.clone())
+    fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
+        module_references(self.source.clone(), Value::new(self.ty))
     }
 }

@@ -9,7 +9,6 @@ use std::{env::current_dir, time::Duration};
 use turbo_tasks::stats::Stats;
 use turbo_tasks::viz::{visualize_stats_tree, wrap_html};
 use turbo_tasks::{NothingVc, TurboTasks};
-use turbopack::ecmascript::ModuleAssetVc;
 use turbopack::emit;
 use turbopack::rebase::RebasedAssetVc;
 use turbopack::source_asset::SourceAssetVc;
@@ -34,7 +33,7 @@ fn main() {
                 let entry = FileSystemPathVc::new(fs.clone(), "demo/index.js");
 
                 let source = SourceAssetVc::new(entry);
-                let module = ModuleAssetVc::new(source.into());
+                let module = turbopack::module(source.into());
                 let rebased = RebasedAssetVc::new(module.into(), input, output);
                 emit(rebased.into());
 

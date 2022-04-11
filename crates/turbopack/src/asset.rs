@@ -1,6 +1,7 @@
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
-use crate::reference::AssetReferencesSetVc;
+use crate::reference::AssetReferenceVc;
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, PartialEq, Eq)]
@@ -19,5 +20,5 @@ impl AssetsSetVc {
 pub trait Asset {
     fn path(&self) -> FileSystemPathVc;
     fn content(&self) -> FileContentVc;
-    fn references(&self) -> AssetReferencesSetVc;
+    fn references(&self) -> Vc<Vec<AssetReferenceVc>>;
 }

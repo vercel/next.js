@@ -4,11 +4,15 @@ use swc_ecmascript::{
     ast::{CallExpr, Expr, ExprOrSpread},
     visit::{self, Visit, VisitWith},
 };
+use turbo_tasks::{Value, Vc};
 
 use crate::{
     asset::AssetVc,
-    ecmascript::parse::{parse, Buffer, ParseResult},
-    reference::{AssetReferenceVc, AssetReferencesSet, AssetReferencesSetVc},
+    ecmascript::{
+        parse::{parse, Buffer, ParseResult},
+        ModuleAssetType,
+    },
+    reference::AssetReferenceVc,
 };
 
 use super::{parse::WebpackRuntimeVc, WebpackChunkAssetReference};
@@ -17,8 +21,8 @@ use super::{parse::WebpackRuntimeVc, WebpackChunkAssetReference};
 pub async fn module_references(
     source: AssetVc,
     runtime: WebpackRuntimeVc,
-) -> Result<AssetReferencesSetVc> {
-    let parsed = parse(source).await?;
+) -> Result<Vc<Vec<AssetReferenceVc>>> {
+    let parsed = parse(source, Value::new(ModuleAssetType::Ecmascript)).await?;
     match &*parsed {
         ParseResult::Ok {
             program,
@@ -40,9 +44,9 @@ pub async fn module_references(
                 // TODO report them in a stream
                 println!("{}", buf);
             }
-            Ok(AssetReferencesSet { references }.into())
+            Ok(Vc::slot(references))
         }
-        ParseResult::Unparseable | ParseResult::NotFound => Ok(AssetReferencesSetVc::empty()),
+        ParseResult::Unparseable | ParseResult::NotFound => Ok(Vc::default()),
     }
 }
 

@@ -35,6 +35,18 @@ pub async fn the_module_options() -> ModuleOptionsVc {
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript)],
             ),
             ModuleRule::new(
+                vec![ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string())],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript)],
+            ),
+            ModuleRule::new(
+                vec![ModuleRuleCondition::ResourcePathEndsWith(
+                    ".d.ts".to_string(),
+                )],
+                vec![ModuleRuleEffect::ModuleType(
+                    ModuleType::TypescriptDeclaration,
+                )],
+            ),
+            ModuleRule::new(
                 vec![ModuleRuleCondition::ResourcePathHasNoExtension],
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript)],
             ),
@@ -78,6 +90,8 @@ pub enum ModuleRuleEffect {
 #[derive(TraceSlotVcs)]
 pub enum ModuleType {
     Ecmascript,
+    Typescript,
+    TypescriptDeclaration,
     Json,
     Raw,
     Css,

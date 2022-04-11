@@ -1,7 +1,8 @@
 use crate::{
     asset::{Asset, AssetVc},
-    reference::AssetReferencesSetVc,
+    reference::AssetReferenceVc,
 };
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 #[turbo_tasks::value(Asset)]
@@ -27,7 +28,7 @@ impl Asset for ModuleAsset {
     fn content(&self) -> FileContentVc {
         self.source.clone().content()
     }
-    async fn references(&self) -> AssetReferencesSetVc {
-        AssetReferencesSetVc::empty()
+    fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
+        Vc::default()
     }
 }

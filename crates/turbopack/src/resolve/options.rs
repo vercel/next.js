@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use anyhow::Result;
-use turbo_tasks::{trace::TraceSlotVcs, Value};
+use turbo_tasks::{trace::TraceSlotVcs, Value, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPathVc};
 
 use crate::resolve::parse::RequestVc;
@@ -134,16 +134,18 @@ fn import_mapping_to_result(mapping: &ImportMapping) -> ImportMapResultVc {
                     || SpecialType::OriginalReferenceExternal,
                     |req| SpecialType::OriginalRefernceTypeExternal(req.to_string()),
                 ),
-                None,
+                Vec::new(),
             )
             .into(),
         )
         .into(),
         ImportMapping::Ignore => {
-            ImportMapResult::Result(ResolveResult::Special(SpecialType::Ignore, None).into()).into()
+            ImportMapResult::Result(ResolveResult::Special(SpecialType::Ignore, Vec::new()).into())
+                .into()
         }
         ImportMapping::Empty => {
-            ImportMapResult::Result(ResolveResult::Special(SpecialType::Empty, None).into()).into()
+            ImportMapResult::Result(ResolveResult::Special(SpecialType::Empty, Vec::new()).into())
+                .into()
         }
         ImportMapping::Alias(name) => {
             let request = RequestVc::parse(Value::new(name.to_string().into()));
@@ -202,6 +204,7 @@ pub struct ResolveOptions {
     pub into_package: Vec<ResolveIntoPackage>,
     pub import_map: Option<ImportMapVc>,
     pub resolved_map: Option<ResolvedMapVc>,
+    pub resolve_typescript_types: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -211,6 +214,10 @@ impl ResolveOptionsVc {
             modules: self.await?.modules.clone(),
         }
         .into())
+    }
+
+    pub async fn resolve_typescript_types(self) -> Result<Vc<bool>> {
+        Ok(Vc::slot(self.await?.resolve_typescript_types))
     }
 }
 
