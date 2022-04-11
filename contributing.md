@@ -19,6 +19,13 @@ To develop locally:
 1. [Fork](https://help.github.com/articles/fork-a-repo/) this repository to your
    own GitHub account and then
    [clone](https://help.github.com/articles/cloning-a-repository/) it to your local device.
+   
+   If you don't need the whole git history, you can clone with depth 1 to reduce the download size (~1.6GB):
+
+   ```
+   git clone --depth=1 https://github.com/vercel/next.js
+   ```
+
 2. Create a new branch:
    ```
    git checkout -b MY_BRANCH_NAME
