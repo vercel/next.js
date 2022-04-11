@@ -54,6 +54,7 @@ interface TransitionOptions {
   shallow?: boolean
   locale?: string | false
   scroll?: boolean
+  data?: object
 }
 
 interface NextHistoryState {
@@ -447,6 +448,7 @@ export type BaseRouter = {
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   isLocaleDomain: boolean
+  data: object
 }
 
 export type NextRouter = BaseRouter &
@@ -462,6 +464,7 @@ export type NextRouter = BaseRouter &
     | 'isFallback'
     | 'isReady'
     | 'isPreview'
+    | 'data'
   >
 
 export type PrefetchOptions = {
@@ -608,6 +611,8 @@ export default class Router implements BaseRouter {
   sdr: NextDataCache = {}
   // In-flight middleware preflight requests
   sde: { [asPath: string]: object } = {}
+
+  data: object = {}
 
   sub: Subscription
   clc: ComponentLoadCancel
@@ -876,6 +881,9 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   push(url: Url, as?: Url, options: TransitionOptions = {}) {
+    if (options.data) {
+      this.data = options.data
+    }
     if (process.env.__NEXT_SCROLL_RESTORATION) {
       // TODO: remove in the future when we update history before route change
       // is complete, as the popstate event should handle this capture.
