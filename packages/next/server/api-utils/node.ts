@@ -6,6 +6,7 @@ import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import type { PreviewData } from 'next/types'
 
+import bytes from 'next/dist/compiled/bytes'
 import jsonwebtoken from 'next/dist/compiled/jsonwebtoken'
 import { decryptWithSecret, encryptWithSecret } from '../crypto-utils'
 import generateETag from 'next/dist/compiled/etag'
@@ -28,7 +29,9 @@ import {
   COOKIE_NAME_PRERENDER_BYPASS,
   COOKIE_NAME_PRERENDER_DATA,
   SYMBOL_PREVIEW_DATA,
+  RESPONSE_LIMIT_DEFAULT,
 } from './index'
+import { mockRequest } from '../lib/mock-request'
 
 export function tryGetPreviewData(
   req: IncomingMessage | BaseNextRequest,
@@ -147,16 +150,17 @@ export async function parseBody(
   }
 }
 
+type ApiContext = __ApiPreviewProps & {
+  trustHostHeader?: boolean
+  revalidate?: (_req: IncomingMessage, _res: ServerResponse) => Promise<any>
+}
+
 export async function apiResolver(
   req: IncomingMessage,
   res: ServerResponse,
   query: any,
   resolverModule: any,
-  apiContext: __ApiPreviewProps & {
-    trustHostHeader?: boolean
-    hostname?: string
-    port?: number
-  },
+  apiContext: ApiContext,
   propagateError: boolean,
   dev?: boolean,
   page?: string
@@ -172,6 +176,7 @@ export async function apiResolver(
     }
     const config: PageConfig = resolverModule.config || {}
     const bodyParser = config.api?.bodyParser !== false
+    const responseLimit = config.api?.responseLimit ?? true
     const externalResolver = config.api?.externalResolver || false
 
     // Parsing of cookies
@@ -198,6 +203,7 @@ export async function apiResolver(
     }
 
     let contentLength = 0
+    const maxContentLength = getMaxContentLength(responseLimit)
     const writeData = apiRes.write
     const endResponse = apiRes.end
     apiRes.write = (...args: any[2]) => {
@@ -209,9 +215,11 @@ export async function apiResolver(
         contentLength += Buffer.byteLength(args[0] || '')
       }
 
-      if (contentLength >= 4 * 1024 * 1024) {
+      if (responseLimit && contentLength >= maxContentLength) {
         console.warn(
-          `API response for ${req.url} exceeds 4MB. This will cause the request to fail in a future version. https://nextjs.org/docs/messages/api-routes-body-size-limit`
+          `API response for ${req.url} exceeds ${bytes.format(
+            maxContentLength
+          )}. API Routes are meant to respond quickly. https://nextjs.org/docs/messages/api-routes-response-size-limit`
         )
       }
 
@@ -271,49 +279,59 @@ export async function apiResolver(
 
 async function unstable_revalidate(
   urlPath: string,
-  req: IncomingMessage | BaseNextRequest,
-  context: {
-    hostname?: string
-    port?: number
-    previewModeId: string
-    trustHostHeader?: boolean
-  }
+  req: IncomingMessage,
+  context: ApiContext
 ) {
-  if (!context.trustHostHeader && (!context.hostname || !context.port)) {
-    throw new Error(
-      `"hostname" and "port" must be provided when starting next to use "unstable_revalidate". See more here https://nextjs.org/docs/advanced-features/custom-server`
-    )
-  }
-
   if (typeof urlPath !== 'string' || !urlPath.startsWith('/')) {
     throw new Error(
       `Invalid urlPath provided to revalidate(), must be a path e.g. /blog/post-1, received ${urlPath}`
     )
   }
 
-  const baseUrl = context.trustHostHeader
-    ? `https://${req.headers.host}`
-    : `http://${context.hostname}:${context.port}`
-
-  const extraHeaders: Record<string, string | undefined> = {}
-
-  if (context.trustHostHeader) {
-    extraHeaders.cookie = req.headers.cookie
-  }
-
   try {
-    const res = await fetch(`${baseUrl}${urlPath}`, {
-      headers: {
-        [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
-        ...extraHeaders,
-      },
-    })
+    if (context.trustHostHeader) {
+      const res = await fetch(`https://${req.headers.host}${urlPath}`, {
+        headers: {
+          [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
+          cookie: req.headers.cookie || '',
+        },
+      })
+      // we use the cache header to determine successful revalidate as
+      // a non-200 status code can be returned from a successful revalidate
+      // e.g. notFound: true returns 404 status code but is successful
+      const cacheHeader =
+        res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
 
-    if (!res.ok) {
-      throw new Error(`Invalid response ${res.status}`)
+      if (cacheHeader?.toUpperCase() !== 'REVALIDATED') {
+        throw new Error(`Invalid response ${res.status}`)
+      }
+    } else if (context.revalidate) {
+      const {
+        req: mockReq,
+        res: mockRes,
+        streamPromise,
+      } = mockRequest(
+        urlPath,
+        {
+          [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
+        },
+        'GET'
+      )
+      await context.revalidate(mockReq, mockRes)
+      await streamPromise
+
+      if (mockRes.getHeader('x-nextjs-cache') !== 'REVALIDATED') {
+        throw new Error(`Invalid response ${mockRes.status}`)
+      }
+    } else {
+      throw new Error(
+        `Invariant: required internal revalidate method not passed to api-utils`
+      )
     }
-  } catch (err) {
-    throw new Error(`Failed to revalidate ${urlPath}`)
+  } catch (err: unknown) {
+    throw new Error(
+      `Failed to revalidate ${urlPath}: ${isError(err) ? err.message : err}`
+    )
   }
 }
 
@@ -483,4 +501,11 @@ function setPreviewData<T>(
     }),
   ])
   return res
+}
+
+function getMaxContentLength(responseLimit?: number | string | boolean) {
+  if (responseLimit && typeof responseLimit !== 'boolean') {
+    return bytes.parse(responseLimit)
+  }
+  return RESPONSE_LIMIT_DEFAULT
 }

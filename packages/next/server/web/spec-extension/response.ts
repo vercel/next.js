@@ -87,7 +87,7 @@ export class NextResponse extends Response {
     })
   }
 
-  static rewrite(destination: string | NextURL) {
+  static rewrite(destination: string | NextURL | URL) {
     return new NextResponse(null, {
       headers: {
         'x-middleware-rewrite': validateURL(destination),

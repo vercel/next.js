@@ -14,7 +14,11 @@ import {
   normalizeConfig,
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
-import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
+import {
+  ImageConfig,
+  imageConfigDefault,
+  VALID_LOADERS,
+} from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { hasNextSupport } from '../telemetry/ci-info'
 
@@ -182,6 +186,13 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         result.amp.canonicalBase = result.basePath
       }
     }
+  }
+
+  const hasReactRoot = shouldUseReactRoot()
+  if (hasReactRoot) {
+    // users might not have the `experimental` key in their config
+    result.experimental = result.experimental || {}
+    result.experimental.reactRoot = true
   }
 
   if (result?.images) {
@@ -677,13 +688,6 @@ export default async function loadConfig(
       )
     }
 
-    const hasReactRoot = shouldUseReactRoot()
-    if (hasReactRoot) {
-      // users might not have the `experimental` key in their config
-      userConfig.experimental = userConfig.experimental || {}
-      userConfig.experimental.reactRoot = true
-    }
-
     if (userConfig.amp?.canonicalBase) {
       const { canonicalBase } = userConfig.amp || ({} as any)
       userConfig.amp = userConfig.amp || {}
@@ -723,13 +727,15 @@ export default async function loadConfig(
     }
   }
 
-  const completeConfig = defaultConfig as NextConfigComplete
+  // always call assignDefaults to ensure settings like
+  // reactRoot can be updated correctly even with no next.config.js
+  const completeConfig = assignDefaults(defaultConfig) as NextConfigComplete
   completeConfig.configFileName = configFileName
   setHttpAgentOptions(completeConfig.httpAgentOptions)
   return completeConfig
 }
 
-export function shouldUseReactRoot() {
+export const shouldUseReactRoot = execOnce(() => {
   const reactDomVersion = require('react-dom').version
   const isReactExperimental = Boolean(
     reactDomVersion && /0\.0\.0-experimental/.test(reactDomVersion)
@@ -740,7 +746,7 @@ export function shouldUseReactRoot() {
       semver.coerce(reactDomVersion)?.version === '18.0.0')
 
   return hasReact18 || isReactExperimental
-}
+})
 
 export function setHttpAgentOptions(
   options: NextConfigComplete['httpAgentOptions']

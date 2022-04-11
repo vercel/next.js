@@ -5,15 +5,9 @@ Extract and inline critical css with
 [@emotion/server](https://github.com/emotion-js/emotion/tree/master/packages/server),
 [@emotion/css](https://github.com/emotion-js/emotion/tree/master/packages/css)
 
-## Preview
-
-Preview the example live on [StackBlitz](http://stackblitz.com/):
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-emotion-vanilla)
-
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-emotion-vanilla)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-emotion-vanilla)
 
@@ -25,6 +19,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-emotion-vanilla with-emotion-vanilla-app
 # or
 yarn create next-app --example with-emotion-vanilla with-emotion-vanilla-app
+# or
+pnpm create next-app -- --example with-emotion-vanilla with-emotion-vanilla-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

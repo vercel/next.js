@@ -1,5 +1,4 @@
-import Foo from '../components/foo.client'
-import Link from 'next/link'
+import Nav from '../components/nav'
 
 const envVar = process.env.ENV_VAR_TEST
 const headerKey = 'x-next-test-client'
@@ -11,12 +10,7 @@ export default function Index({ header, router }) {
       <div>{'path:' + router.pathname}</div>
       <div>{'env:' + envVar}</div>
       <div>{'header:' + header}</div>
-      <div>
-        <Foo />
-      </div>
-      <Link href={'/'}>
-        <a id="refresh">refresh</a>
-      </Link>
+      <Nav />
     </div>
   )
 }
@@ -30,10 +24,4 @@ export function getServerSideProps({ req }) {
       header,
     },
   }
-}
-
-export const config = {
-  amp: false,
-  unstable_runtimeJS: false,
-  runtime: 'nodejs',
 }
