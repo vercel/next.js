@@ -12,7 +12,7 @@ describe('experimental.nextScriptWorkers: false with no Partytown dependency', (
       files: {
         'pages/index.js': `
           import Script from 'next/script'
-        
+
           export default function Page() {
             return (
               <>
@@ -68,7 +68,7 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
       files: {
         'pages/index.js': `
           import Script from 'next/script'
-        
+
           export default function Page() {
             return (
               <>
@@ -132,7 +132,7 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
         `document.querySelectorAll('script[type="text/partytown-x"]').length`
       )
 
-      expect(processedWorkerScripts).toEqual(1)
+      expect(processedWorkerScripts).toBeGreaterThan(0)
     } finally {
       if (browser) await browser.close()
     }
@@ -183,7 +183,7 @@ describe('experimental.nextScriptWorkers: true with config override', () => {
         `,
         'pages/index.js': `
           import Script from 'next/script'
-        
+
           export default function Page() {
             return (
               <>
