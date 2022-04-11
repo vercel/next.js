@@ -1881,7 +1881,6 @@ export async function pages(task, opts) {
       'pages_app_server',
       'pages_error',
       'pages_document',
-      'pages_document_server',
       'pages_root',
     ],
     opts
