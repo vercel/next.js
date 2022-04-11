@@ -175,14 +175,14 @@ pub async fn parse(source: AssetVc, ty: Value<ModuleAssetType>) -> Result<ParseR
                     // TODO report them in a stream
                     if has_errors {
                         println!("{}", buf);
-                        return Err(anyhow!("{}", buf));
+                        return Ok(ParseResult::Unparseable.into());
                     }
 
                     match parser.parse_program() {
                         Err(e) => {
                             // TODO report in in a stream
                             e.into_diagnostic(&handler).emit();
-                            return Err(anyhow!("{}", buf));
+                            return Ok(ParseResult::Unparseable.into());
                             // ParseResult::Unparseable.into()
                         }
                         Ok(mut parsed_program) => {

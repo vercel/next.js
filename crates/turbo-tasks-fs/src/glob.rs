@@ -83,7 +83,6 @@ impl Glob {
                     return true;
                 }
                 // backtrace
-                stack.pop();
                 i -= 1;
             }
         }
