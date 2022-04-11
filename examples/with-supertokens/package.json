@@ -12,9 +12,5 @@
     "react-dom": "^18.0.0",
     "supertokens-auth-react": "^0.20.2",
     "supertokens-node": "^9.1.1"
-  },
-  "devDependencies": {
-    "eslint": "8.12.0",
-    "eslint-config-next": "12.1.4"
   }
 }
