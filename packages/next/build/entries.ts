@@ -289,10 +289,23 @@ export async function createEntrypoints(
       const isCustomError = isCustomErrorPage(page)
       const isServerComponent = isServerComponentPage(config, absolutePagePath)
       const isClientComponent = isClientComponentPage(config, absolutePagePath)
-      const isInternalPages = !absolutePagePath.startsWith(PAGES_DIR_ALIAS)
-      const pageFilePath = isInternalPages
-        ? require.resolve(absolutePagePath)
-        : join(pagesDir, absolutePagePath.replace(PAGES_DIR_ALIAS, ''))
+
+      // Handle paths that have aliases
+      const pageFilePath = (() => {
+        if (absolutePagePath.startsWith(PAGES_DIR_ALIAS)) {
+          return absolutePagePath.replace(PAGES_DIR_ALIAS, pagesDir)
+        }
+
+        if (absolutePagePath.startsWith(ROOT_DIR_ALIAS) && rootDir) {
+          return absolutePagePath.replace(ROOT_DIR_ALIAS, rootDir)
+        }
+
+        if (absolutePagePath.startsWith(ROOT_ALIAS) && rootDir) {
+          return absolutePagePath.replace(ROOT_ALIAS, join(rootDir, '..'))
+        }
+
+        return require.resolve(absolutePagePath)
+      })()
       const pageRuntime = await getPageRuntime(pageFilePath, config, isDev)
       const isEdgeRuntime = pageRuntime === 'edge'
 
