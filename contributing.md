@@ -196,6 +196,47 @@ This will use the version of `next` built inside of the Next.js monorepo and the
 main `yarn dev` monorepo command can be running to make changes to the local
 Next.js version at the same time (some changes might require re-running `yarn next-with-deps` to take effect).
 
+## Updating documentation paths
+
+Our documentation currently leverages a [manifest file](/docs/manifest.json) which is how documentation entries are checked.
+
+When adding a new entry under an existing category you only need to add an entry with `{title: '', path: '/docs/path/to/file.md'}`. The "title" is what is shown on the sidebar.
+
+When moving the location/url of an entry the "title" field can be removed from the existing entry and the ".md" extension removed from the "path", then a "redirect" field with the shape of `{permanent: true/false, destination: '/some-url'}` can be added. A new entry should be added with the "title" and "path" fields if the document was renamed within the [`docs` folder](/docs) that points to the new location in the folder e.g. `/docs/some-url.md`
+
+Example of moving documentation file:
+
+Before:
+
+```json
+[
+  {
+    "path": "/docs/original.md",
+    "title": "Hello world"
+  }
+]
+```
+
+After:
+
+```json
+[
+   {
+      "path": "/docs/original",
+      "redirect": {
+         "permanent": false,
+         "destination": "/new"
+      }
+   }
+   {
+      "path": "/docs/new.md",
+      "title": "Hello world"
+   },
+]
+```
+
+Note: the manifest is checked automatically in the "lint" step in CI when opening a PR.
+
 ## Adding warning/error descriptions
 
 In Next.js we have a system to add helpful links to warnings and errors.
