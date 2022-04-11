@@ -84,4 +84,4 @@ The commented lines are the place where you can put the configs allowed by `next
 
 However, none of the configs are required, and it's not necessary to understand what each config does. Instead, search for the features you need to enable or modify in this section and they will show you what to do.
 
-> Avoid using new JavaScript features not available in your target Node.js version. `next.config.js` will not be parsed by Webpack, Babel or TypeScript.
+> Avoid using new JavaScript features not available in your target Node.js version. `next.config.js` will not be parsed by Webpack, the compiler or TypeScript.
