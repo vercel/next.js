@@ -11,15 +11,15 @@ export default function Document() {
           rel="stylesheet"
           href="https://fonts.googleapis.com/css?family=Voces"
         />
-      </Head>
-      <body>
-        <Main />
-        <NextScript />
         <Script
           id="scriptBeforeInteractive"
           src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
           strategy="beforeInteractive"
         ></Script>
+      </Head>
+      <body>
+        <Main />
+        <NextScript />
         <div id="text" />
       </body>
     </Html>

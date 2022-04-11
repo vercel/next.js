@@ -126,7 +126,7 @@ describe('Next.js Script - Primary Strategies', () => {
       ).toBeGreaterThan(0)
     }
 
-    test('documentBeforeInteractive')
+    test('scriptBeforeInteractive')
   })
 
   // Warning - Will be removed in the next major release
@@ -157,7 +157,7 @@ describe('Next.js Script - Primary Strategies', () => {
 
       // beforeInteractive scripts should load once
       let documentBIScripts = await browser.elementsByCss(
-        '[src$="documentBeforeInteractive"]'
+        '[src$="scriptBeforeInteractive"]'
       )
       expect(documentBIScripts.length).toBe(1)
 
@@ -168,7 +168,7 @@ describe('Next.js Script - Primary Strategies', () => {
 
       // Ensure beforeInteractive script isn't duplicated on navigation
       documentBIScripts = await browser.elementsByCss(
-        '[src$="documentBeforeInteractive"]'
+        '[src$="scriptBeforeInteractive"]'
       )
       expect(documentBIScripts.length).toBe(1)
     } finally {
