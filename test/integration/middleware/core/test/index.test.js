@@ -579,6 +579,14 @@ function redirectTests(locale = '') {
       fetchViaHTTP(context.appPort, `${locale}/redirects/infinite-loop`)
     ).rejects.toThrow()
   })
+
+  it(`${locale} should redirect to api route with locale`, async () => {
+    const browser = await webdriver(context.appPort, `${locale}/redirects`)
+    await browser.elementByCss('#link-to-api-with-locale').click()
+    await browser.waitForCondition('window.location.pathname === "/api/ok"')
+    const body = await browser.elementByCss('body').text()
+    expect(body).toBe('ok')
+  })
 }
 
 function responseTests(locale = '') {
