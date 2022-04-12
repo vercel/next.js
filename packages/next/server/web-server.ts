@@ -8,6 +8,7 @@ import type { LoadComponentsReturnType } from './load-components'
 
 import BaseServer, { Options } from './base-server'
 import { renderToHTML } from './render'
+import { byteLength } from './api-utils/web'
 
 interface WebServerConfig {
   loadComponent: (pathname: string) => Promise<LoadComponentsReturnType | null>
@@ -149,6 +150,8 @@ export default class NextWebServer extends BaseServer {
       options?: PayloadOptions | undefined
     }
   ): Promise<void> {
+    res.setHeader('X-Edge-Runtime', '1')
+
     // Add necessary headers.
     // @TODO: Share the isomorphic logic with server/send-payload.ts.
     if (options.poweredByHeader && options.type === 'html') {
@@ -163,12 +166,13 @@ export default class NextWebServer extends BaseServer {
       )
     }
 
-    // @TODO
-    const writer = res.transformStream.writable.getWriter()
-
     if (options.result.isDynamic()) {
+      const writer = res.transformStream.writable.getWriter()
       options.result.pipe({
-        write: (chunk: Uint8Array) => writer.write(chunk),
+        write: (chunk: Uint8Array) => {
+          console.log('write chunk', new TextDecoder().decode(chunk))
+          return writer.write(chunk)
+        },
         end: () => writer.close(),
         destroy: (err: Error) => writer.abort(err),
         cork: () => {},
@@ -176,8 +180,10 @@ export default class NextWebServer extends BaseServer {
         // Not implemented: on/removeListener
       } as any)
     } else {
+      console.log('!!!')
       // TODO: generate Etag
       const payload = await options.result.toUnchunkedString()
+      res.setHeader('Content-Length', String(byteLength(payload)))
       res.body(payload)
     }
 

@@ -1749,7 +1749,9 @@ export async function renderToHTML(
     return new RenderResult(html)
   }
 
-  return new RenderResult(chainStreams(streams))
+  return new RenderResult(
+    chainStreams(streams).pipeThrough(createBufferedTransformStream())
+  )
 }
 
 function errorToJSON(err: Error) {
