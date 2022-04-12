@@ -123,7 +123,7 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
         `document.querySelectorAll('script[type="text/partytown"]').length`
       )
 
-      expect(predefinedWorkerScripts).toEqual(1)
+      expect(predefinedWorkerScripts).toBeGreaterThan(0)
 
       await waitFor(1000)
 
