@@ -1,8 +1,11 @@
+use std::collections::HashMap;
+
 use crate::asset::AssetVc;
 use crate::ecmascript::resolve::cjs_resolve;
 use crate::module;
 use crate::reference::{AssetReference, AssetReferenceVc};
 
+use crate::resolve::options::{ImportMap, ImportMapping};
 use crate::resolve::ResolveResult;
 use crate::resolve::{
     find_context_file,
@@ -131,6 +134,40 @@ async fn apply_tsconfig(
                 .modules
                 .insert(0, ResolveModules::Path(base_url.clone()));
         }
+    }
+    let mut all_paths = HashMap::new();
+    for (content, source) in configs.iter().rev() {
+        if let FileJsonContent::Content(json) = &*content.get().await? {
+            if let JsonValue::Object(paths) = &json["compilerOptions"]["paths"] {
+                let mut context = source.path().parent();
+                if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str() {
+                    if let Some(new_context) = &*context.clone().try_join(base_url).await? {
+                        context = new_context.clone();
+                    }
+                };
+                for (key, value) in paths.iter() {
+                    let entries = value
+                        .members()
+                        .filter_map(|entry| entry.as_str().map(|s| s.to_string()))
+                        .collect();
+                    all_paths.insert(
+                        key.to_string(),
+                        ImportMapping::aliases(entries, Some(context.clone())),
+                    );
+                }
+            }
+        }
+    }
+    if !all_paths.is_empty() {
+        let mut import_map = if let Some(import_map) = resolve_options.import_map {
+            import_map.get().await?.clone()
+        } else {
+            ImportMap::default()
+        };
+        for (key, value) in all_paths {
+            import_map.direct.insert(&key, value)?;
+        }
+        resolve_options.import_map = Some(import_map.into());
     }
     Ok(resolve_options.into())
 }

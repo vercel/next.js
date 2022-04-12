@@ -565,24 +565,45 @@ pub async fn resolve(
     request: RequestVc,
     options: ResolveOptionsVc,
 ) -> Result<ResolveResultVc> {
+    fn resolve_import_map_result(
+        result: &ImportMapResult,
+        context: &FileSystemPathVc,
+        options: &ResolveOptionsVc,
+    ) -> ResolveResultVc {
+        match result {
+            ImportMapResult::Result(result) => {
+                return result.clone();
+            }
+            ImportMapResult::Alias(request, alias_context) => {
+                return resolve(
+                    alias_context.as_ref().unwrap_or(&context).clone(),
+                    request.clone(),
+                    options.clone(),
+                );
+            }
+            ImportMapResult::Alternatives(list) => {
+                return ResolveResultVc::alternatives(
+                    list.iter()
+                        .map(|r| resolve_import_map_result(r, context, options))
+                        .collect(),
+                )
+            }
+            ImportMapResult::NoEntry => unreachable!(),
+        }
+    }
     async fn resolved(
         fs_path: FileSystemPathVc,
         resolved_map: &Option<ResolvedMapVc>,
         options: &ResolveOptionsVc,
     ) -> Result<ResolveResultVc> {
         if let Some(resolved_map) = resolved_map {
-            match &*resolved_map.clone().lookup(fs_path.clone()).await? {
-                ImportMapResult::Result(result) => {
-                    return Ok(result.clone());
-                }
-                ImportMapResult::Alias(request) => {
-                    return Ok(resolve(
-                        fs_path.clone().parent(),
-                        request.clone(),
-                        options.clone(),
-                    ));
-                }
-                ImportMapResult::NoEntry => {}
+            let result = resolved_map.clone().lookup(fs_path.clone()).await?;
+            if !matches!(&*result, ImportMapResult::NoEntry) {
+                return Ok(resolve_import_map_result(
+                    &*result,
+                    &fs_path.clone().parent(),
+                    options,
+                ));
             }
         }
         return Ok(ResolveResult::Single(SourceAssetVc::new(fs_path).into(), Vec::new()).into());
@@ -706,14 +727,9 @@ pub async fn resolve(
 
     // Apply import mappings if provided
     if let Some(import_map) = &options_value.import_map {
-        match &*import_map.clone().lookup(request.clone()).await? {
-            ImportMapResult::Result(result) => {
-                return Ok(result.clone());
-            }
-            ImportMapResult::Alias(request) => {
-                return Ok(resolve(context, request.clone(), options));
-            }
-            ImportMapResult::NoEntry => {}
+        let result = import_map.clone().lookup(request.clone()).await?;
+        if !matches!(&*result, ImportMapResult::NoEntry) {
+            return Ok(resolve_import_map_result(&*result, &context, &options));
         }
     }
 
