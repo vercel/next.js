@@ -81,20 +81,17 @@ async function parseModuleInfo({
     return [isBuiltinModule, isNodeModuleImport] as const
   }
 
-  function addClientImport(importSource: string) {
-    if (
-      isServerComponent(importSource) ||
-      hasFlightLoader(importSource, 'server')
-    ) {
+  function addClientImport(source: string) {
+    if (isServerComponent(source) || hasFlightLoader(source, 'server')) {
       // If it's a server component, we recursively import its dependencies.
-      imports.push(importSource)
-    } else if (isClientComponent(importSource)) {
+      imports.push(source)
+    } else if (isClientComponent(source)) {
       // Client component.
-      imports.push(importSource)
+      imports.push(source)
     } else {
       // Shared component.
       imports.push(
-        createFlightServerRequest(importSource, {
+        createFlightServerRequest(source, {
           extensions,
           client: 1,
         })
@@ -198,6 +195,7 @@ async function parseModuleInfo({
             }
           }
         }
+        break
       default:
         break
     }
