@@ -11,8 +11,17 @@ describe('Type module interop', () => {
     next = await createNext({
       files: {
         'pages/index.js': `
+          import Link from 'next/link'
+
           export default function Page() { 
-            return <p>hello world</p>
+            return (
+              <>
+                <p>hello world</p>
+                <Link href="/modules">
+                  <a id="link-to-module">link to module</a>
+                </Link>
+              </>
+            )
           } 
         `,
         'pages/modules.jsx': `
