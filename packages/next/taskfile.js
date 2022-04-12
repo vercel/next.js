@@ -1826,7 +1826,7 @@ export async function nextbuild(task, opts) {
 export async function client(task, opts) {
   await task
     .source(opts.src || 'client/**/*.+(js|ts|tsx)')
-    .swc('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/client')
   notify('Compiled client files')
 }
