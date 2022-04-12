@@ -245,6 +245,23 @@ export class NextURL {
     return this.href
   }
 
+  [Symbol.for('edge-runtime.inspect.custom')]() {
+    return {
+      href: this.href,
+      origin: this.origin,
+      protocol: this.protocol,
+      username: this.username,
+      password: this.password,
+      host: this.host,
+      hostname: this.hostname,
+      port: this.port,
+      pathname: this.pathname,
+      search: this.search,
+      searchParams: this.searchParams,
+      hash: this.hash,
+    }
+  }
+
   clone() {
     return new NextURL(String(this), this[Internal].options)
   }
