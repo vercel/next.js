@@ -3,15 +3,17 @@ pub mod resolve;
 use anyhow::Result;
 use json::JsonValue;
 use turbo_tasks::{Value, Vc};
-use turbo_tasks_fs::{FileContentVc, FileJsonContent, FileSystemPathVc};
+use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use crate::{
     asset::{Asset, AssetVc},
     reference::{AssetReference, AssetReferenceVc},
-    resolve::{parse::RequestVc, resolve_options, ResolveResultVc},
+    resolve::{parse::RequestVc, resolve_options, ResolveResult, ResolveResultVc},
 };
 
-use self::resolve::{type_resolve, typescript_types_resolve_options};
+use self::resolve::{
+    read_from_tsconfigs, read_tsconfigs, type_resolve, typescript_types_resolve_options,
+};
 
 use super::resolve::cjs_resolve;
 
@@ -38,47 +40,81 @@ impl Asset for TsConfigModuleAsset {
     }
     async fn references(&self) -> Result<Vc<Vec<AssetReferenceVc>>> {
         let mut references = Vec::new();
-        if let FileJsonContent::Content(data) = &*self.source.content().parse_json().await? {
-            {
-                let ts_node = &data["ts-node"];
-                let compiler = ts_node["compiler"].as_str().unwrap_or_else(|| "typescript");
-                references.push(
-                    CompilerReferenceVc::new(
-                        self.source.clone(),
-                        RequestVc::parse(Value::new(compiler.to_string().into())),
+        let configs =
+            read_tsconfigs(self.source.content().parse_json(), self.source.clone()).await?;
+        for (_, config_asset) in configs[1..].iter() {
+            references.push(TsExtendsReferenceVc::new(config_asset.clone()).into());
+        }
+        // ts-node options
+        {
+            let compiler = read_from_tsconfigs(&configs, |json, source| {
+                json["ts-node"]["compiler"]
+                    .as_str()
+                    .map(|s| (source.clone(), s.to_string()))
+            })
+            .await?;
+            let (source, compiler) =
+                compiler.unwrap_or_else(|| (self.source.clone(), "typescript".to_string()));
+            references.push(
+                CompilerReferenceVc::new(
+                    source,
+                    RequestVc::parse(Value::new(compiler.to_string().into())),
+                )
+                .into(),
+            );
+            let require = read_from_tsconfigs(&configs, |json, source| {
+                if let JsonValue::Array(array) = &json["ts-node"]["require"] {
+                    Some(
+                        array
+                            .iter()
+                            .filter_map(|name| {
+                                name.as_str().map(|s| (source.clone(), s.to_string()))
+                            })
+                            .collect::<Vec<_>>(),
                     )
-                    .into(),
-                );
-                let require = &ts_node["require"];
-                for request in require.members() {
-                    if let Some(request) = request.as_str() {
-                        references.push(
-                            TsNodeRequireReferenceVc::new(
-                                self.source.clone(),
-                                RequestVc::parse(Value::new(request.to_string().into())),
-                            )
-                            .into(),
-                        );
-                    }
-                }
-            }
-            {
-                let compiler_options = &data["compilerOptions"];
-                let types = &compiler_options["types"];
-                let list = if let JsonValue::Array(array) = types {
-                    array.iter().filter_map(|name| name.as_str()).collect()
                 } else {
-                    vec!["node"]
-                };
-                for name in list {
+                    None
+                }
+            })
+            .await?;
+            if let Some(require) = require {
+                for (source, request) in require {
                     references.push(
-                        TsConfigTypesReferenceVc::new(
-                            self.source.clone(),
-                            RequestVc::module(name.to_string(), Value::new("".to_string().into())),
+                        TsNodeRequireReferenceVc::new(
+                            source,
+                            RequestVc::parse(Value::new(request.into())),
                         )
                         .into(),
                     );
                 }
+            }
+        }
+        // compilerOptions
+        {
+            let types = read_from_tsconfigs(&configs, |json, source| {
+                if let JsonValue::Array(array) = &json["compilerOptions"]["types"] {
+                    Some(
+                        array
+                            .iter()
+                            .filter_map(|name| {
+                                name.as_str().map(|s| (source.clone(), s.to_string()))
+                            })
+                            .collect::<Vec<_>>(),
+                    )
+                } else {
+                    None
+                }
+            })
+            .await?;
+            let types = types.unwrap_or_else(|| vec![(self.source.clone(), "node".to_string())]);
+            for (source, name) in types {
+                references.push(
+                    TsConfigTypesReferenceVc::new(
+                        source.clone(),
+                        RequestVc::module(name, Value::new("".to_string().into())),
+                    )
+                    .into(),
+                );
             }
         }
         Ok(Vc::slot(references))
@@ -106,6 +142,26 @@ impl AssetReference for CompilerReference {
 
         let options = resolve_options(context.clone());
         cjs_resolve(self.request.clone(), context, options)
+    }
+}
+
+#[turbo_tasks::value(AssetReference)]
+#[derive(Hash, Debug, PartialEq, Eq)]
+pub struct TsExtendsReference {
+    pub config: AssetVc,
+}
+
+#[turbo_tasks::value_impl]
+impl TsExtendsReferenceVc {
+    pub fn new(config: AssetVc) -> Self {
+        Self::slot(TsExtendsReference { config })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl AssetReference for TsExtendsReference {
+    fn resolve_reference(&self) -> ResolveResultVc {
+        ResolveResult::Single(self.config.clone(), Vec::new()).into()
     }
 }
 
