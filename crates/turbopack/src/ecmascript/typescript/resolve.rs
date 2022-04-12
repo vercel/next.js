@@ -141,7 +141,6 @@ pub async fn type_resolve(
     context: FileSystemPathVc,
     options: ResolveOptionsVc,
 ) -> Result<ResolveResultVc> {
-    let options = apply_typescript_types_options(options);
     let types_request = if let Request::Module { module: m, path: p } = &*request.get().await? {
         let m = if m.starts_with("@") {
             m[1..].replace('/', "__")
@@ -196,11 +195,8 @@ pub struct TypescriptTypesAssetReference {
 #[turbo_tasks::value_impl]
 impl AssetReference for TypescriptTypesAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
-        type_resolve(
-            self.request.clone(),
-            self.context.clone(),
-            self.options.clone(),
-        )
+        let options = apply_typescript_types_options(self.options.clone());
+        type_resolve(self.request.clone(), self.context.clone(), options)
     }
 }
 
