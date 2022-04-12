@@ -73,12 +73,12 @@ async function parseModuleInfo({
   const isEsm = type === 'Module'
 
   async function getModuleType(path: string) {
-    const isBuiltinModule = builtinModules.includes(path)
-    const resolvedPath = isBuiltinModule ? path : await resolver(path)
+    const isBuiltinModule_ = builtinModules.includes(path)
+    const resolvedPath = isBuiltinModule_ ? path : await resolver(path)
 
-    const isNodeModuleImport = resolvedPath.includes('/node_modules/')
+    const isNodeModuleImport_ = resolvedPath.includes('/node_modules/')
 
-    return [isBuiltinModule, isNodeModuleImport] as const
+    return [isBuiltinModule_, isNodeModuleImport_] as const
   }
 
   function addClientImport(path: string) {
