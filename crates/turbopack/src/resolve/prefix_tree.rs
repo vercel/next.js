@@ -178,7 +178,7 @@ impl<'a, T: Clone + WildcardReplacable> Iterator for PrefixTreeIterator<'a, T> {
                 }
             } else {
                 if let Some((value, wildcard)) = &entry.wildcard_mapping {
-                    let remaining = self.request_parts[i + 1..].join("/");
+                    let remaining = self.request_parts[i..].join("/");
                     return Some(
                         (if *wildcard {
                             value.replace_wildcard(&remaining)

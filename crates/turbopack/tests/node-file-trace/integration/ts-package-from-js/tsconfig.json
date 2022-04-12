@@ -3,6 +3,10 @@
     "allowJs": true,
     "baseUrl": "./base",
     "module": "CommonJS",
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "paths": {
+      "utils": ["../utils.ts"],
+      "utils/*": ["../utils/*", "../more-utils/*"]
+    }
   }
 }

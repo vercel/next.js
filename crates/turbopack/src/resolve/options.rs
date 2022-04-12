@@ -59,9 +59,26 @@ pub enum ResolveIntoPackage {
 #[derive(TraceSlotVcs, Hash, PartialEq, Eq, Clone, Debug)]
 pub enum ImportMapping {
     External(Option<String>),
-    Alias(String),
+    Alias(String, Option<FileSystemPathVc>),
     Ignore,
     Empty,
+    Alternatives(Vec<ImportMapping>),
+}
+
+impl ImportMapping {
+    pub fn aliases(list: Vec<String>, context: Option<FileSystemPathVc>) -> ImportMapping {
+        if list.is_empty() {
+            ImportMapping::Ignore
+        } else if list.len() == 1 {
+            ImportMapping::Alias(list.into_iter().next().unwrap(), context)
+        } else {
+            ImportMapping::Alternatives(
+                list.into_iter()
+                    .map(|s| ImportMapping::Alias(s, context.clone()))
+                    .collect(),
+            )
+        }
+    }
 }
 
 impl WildcardReplacable for ImportMapping {
@@ -76,10 +93,16 @@ impl WildcardReplacable for ImportMapping {
                     Ok(ImportMapping::External(None))
                 }
             }
-            ImportMapping::Alias(name) => {
-                Ok(ImportMapping::Alias(name.clone().replace("*", value)))
-            }
+            ImportMapping::Alias(name, context) => Ok(ImportMapping::Alias(
+                name.clone().replace("*", value),
+                context.clone(),
+            )),
             ImportMapping::Ignore | ImportMapping::Empty => Ok(self.clone()),
+            ImportMapping::Alternatives(list) => Ok(ImportMapping::Alternatives(
+                list.iter()
+                    .map(|e| e.replace_wildcard(value))
+                    .collect::<Result<Vec<_>>>()?,
+            )),
         }
     }
 
@@ -99,8 +122,15 @@ impl WildcardReplacable for ImportMapping {
                     Ok(ImportMapping::External(None))
                 }
             }
-            ImportMapping::Alias(name) => Ok(ImportMapping::Alias(add(name, value))),
+            ImportMapping::Alias(name, context) => {
+                Ok(ImportMapping::Alias(add(name, value), context.clone()))
+            }
             ImportMapping::Ignore | ImportMapping::Empty => Ok(self.clone()),
+            ImportMapping::Alternatives(list) => Ok(ImportMapping::Alternatives(
+                list.iter()
+                    .map(|e| e.append_to_folder(value))
+                    .collect::<Result<Vec<_>>>()?,
+            )),
         }
     }
 }
@@ -122,11 +152,12 @@ pub struct ResolvedMap {
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ImportMapResult {
     Result(ResolveResultVc),
-    Alias(RequestVc),
+    Alias(RequestVc, Option<FileSystemPathVc>),
+    Alternatives(Vec<ImportMapResult>),
     NoEntry,
 }
 
-fn import_mapping_to_result(mapping: &ImportMapping) -> ImportMapResultVc {
+fn import_mapping_to_result(mapping: &ImportMapping) -> ImportMapResult {
     match mapping {
         ImportMapping::External(name) => ImportMapResult::Result(
             ResolveResult::Special(
@@ -137,21 +168,21 @@ fn import_mapping_to_result(mapping: &ImportMapping) -> ImportMapResultVc {
                 Vec::new(),
             )
             .into(),
-        )
-        .into(),
+        ),
         ImportMapping::Ignore => {
             ImportMapResult::Result(ResolveResult::Special(SpecialType::Ignore, Vec::new()).into())
-                .into()
         }
         ImportMapping::Empty => {
             ImportMapResult::Result(ResolveResult::Special(SpecialType::Empty, Vec::new()).into())
-                .into()
         }
-        ImportMapping::Alias(name) => {
+        ImportMapping::Alias(name, context) => {
             let request = RequestVc::parse(Value::new(name.to_string().into()));
 
-            ImportMapResult::Alias(request).into()
+            ImportMapResult::Alias(request, context.clone())
         }
+        ImportMapping::Alternatives(list) => ImportMapResult::Alternatives(
+            list.iter().map(|e| import_mapping_to_result(e)).collect(),
+        ),
     }
 }
 
@@ -162,7 +193,7 @@ impl ImportMapVc {
         // TODO lookup pattern
         if let Some(request_string) = request.await?.request() {
             if let Some(result) = this.direct.lookup(&request_string).next() {
-                return Ok(import_mapping_to_result(result?.as_ref()));
+                return Ok(import_mapping_to_result(result?.as_ref()).into());
             }
             let request_string_without_slash = if request_string.ends_with('/') {
                 &request_string[..request_string.len() - 1]
@@ -171,7 +202,7 @@ impl ImportMapVc {
             };
             for (glob, mapping) in this.by_glob.iter() {
                 if glob.execute(request_string_without_slash) {
-                    return Ok(import_mapping_to_result(&mapping));
+                    return Ok(import_mapping_to_result(&mapping).into());
                 }
             }
         }
@@ -188,7 +219,7 @@ impl ResolvedMapVc {
             let root = root.get().await?;
             if let Some(path) = root.get_path_to(&resolved) {
                 if glob.execute(path) {
-                    return Ok(import_mapping_to_result(&mapping));
+                    return Ok(import_mapping_to_result(&mapping).into());
                 }
             }
         }
