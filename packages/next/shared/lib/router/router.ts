@@ -126,6 +126,11 @@ function addPathPrefix(path: string, prefix?: string) {
   )
 }
 
+function hasPathPrefix(path: string, prefix: string) {
+  path = pathNoQueryHash(path)
+  return path === prefix || path.startsWith(prefix + '/')
+}
+
 export function getDomainLocale(
   path: string,
   locale?: string | false,
@@ -154,16 +159,18 @@ export function addLocale(
   defaultLocale?: string
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
-    const pathname = pathNoQueryHash(path)
-    const pathLower = pathname.toLowerCase()
-    const localeLower = locale && locale.toLowerCase()
+    if (locale && locale !== defaultLocale) {
+      const pathname = pathNoQueryHash(path)
+      const pathLower = pathname.toLowerCase()
+      const localeLower = locale.toLowerCase()
 
-    return locale &&
-      locale !== defaultLocale &&
-      !pathLower.startsWith('/' + localeLower + '/') &&
-      pathLower !== '/' + localeLower
-      ? addPathPrefix(path, '/' + locale)
-      : path
+      if (
+        !hasPathPrefix(pathLower, '/' + localeLower) &&
+        !hasPathPrefix(pathLower, '/api')
+      ) {
+        return addPathPrefix(path, '/' + locale)
+      }
+    }
   }
   return path
 }
@@ -195,8 +202,7 @@ function pathNoQueryHash(path: string) {
 }
 
 export function hasBasePath(path: string): boolean {
-  path = pathNoQueryHash(path)
-  return path === basePath || path.startsWith(basePath + '/')
+  return hasPathPrefix(path, basePath)
 }
 
 export function addBasePath(path: string): string {
