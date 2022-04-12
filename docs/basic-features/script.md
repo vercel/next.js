@@ -79,6 +79,8 @@ The reason `beforeInteractive` was designed to work only inside `\_document.js` 
 
 ```jsx
 // In _document.js
+import { Html, Head, Main, NextScript } from 'next/document'
+import Script from 'next/script'
 
 export default function Document() {
   return (

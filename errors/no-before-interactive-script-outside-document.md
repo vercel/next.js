@@ -10,6 +10,8 @@ If you want a global script, move the script inside `_document.js` page.
 
 ```jsx
 // In _document.js
+import { Html, Head, Main, NextScript } from 'next/document'
+import Script from 'next/script'
 
 export default function Document() {
   return (
