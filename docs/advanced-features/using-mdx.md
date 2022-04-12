@@ -56,27 +56,6 @@ The following steps outline how to setup `@next/mdx` in your Next.js project:
    })
    ```
 
-   > Using MDX plugins will require using next.config.mjs because all the plugins are [ECMAScript modules](https://nodejs.org/api/esm.html)
-
-   ```js
-   // next.config.mjs
-   import createMDX from '@next/mdx'
-
-   const withMDX = createMDX({
-     extension: /\.mdx?$/,
-     options: {
-       remarkPlugins: [],
-       rehypePlugins: [],
-       // If you use `MDXProvider`, uncomment the following line.
-       // providerImportSource: "@mdx-js/react",
-     },
-   })
-   module.exports = withMDX({
-     // Append the default value with md extensions
-     pageExtensions: ['ts', 'tsx', 'js', 'jsx', 'md', 'mdx'],
-   })
-   ```
-
 3. Create a new MDX page within the `/pages` directory:
 
    ```bash
@@ -84,14 +63,6 @@ The following steps outline how to setup `@next/mdx` in your Next.js project:
        - my-mdx-page.mdx
      - package.json
    ```
-
-## next-mdx-remote
-
-On a remote database, use next-mdx-remote https://github.com/hashicorp/next-mdx-remote
-
-## @mdx-js/mdx
-
-Handle mdx strings client side, probably @mdx-js/mdx see official docs https://mdxjs.com/docs/getting-started/
 
 ## Using Components, Layouts and Custom Elements
 
@@ -115,7 +86,7 @@ Checkout my React component:
 
 ### Frontmatter
 
-Frontmatter is a YAML like key/value pairing that can be used to store data about a page. `@next/mdx` does **not** support frontmatter by default, though there are many solutions for adding frontmatter to your MDX content, such as [gray-matter](https://github.com/jonschlinkert/gray-matter) using [remark-frontmatter](https://github.com/remarkjs/remark-frontmatter).
+Frontmatter is a YAML like key/value pairing that can be used to store data about a page. `@next/mdx` does **not** support frontmatter by default, though there are many solutions for adding frontmatter to your MDX content, such as [gray-matter](https://github.com/jonschlinkert/gray-matter).
 
 To access page metadata with `@next/mdx`, you can export a meta object from within the `.mdx` file:
 
@@ -125,26 +96,6 @@ author: 'Rich Haines'
 }
 
 # My MDX page
-```
-
-```js
-// next.config.mjs
-import createMDX from '@next/mdx'
-import remarkFrontmatter from 'remark-frontmatter'
-
-const withMDX = createMDX({
-  extension: /\.mdx?$/,
-  options: {
-    remarkPlugins: [remarkFrontmatter],
-    rehypePlugins: [],
-    // If you use `MDXProvider`, uncomment the following line.
-    // providerImportSource: "@mdx-js/react",
-  },
-})
-module.exports = withMDX({
-  // Append the default value with md extensions
-  pageExtensions: ['ts', 'tsx', 'js', 'jsx', 'md', 'mdx'],
-})
 ```
 
 ### Layouts
@@ -257,8 +208,5 @@ If you use it across the site you may want to add the provider to `_app.js` so a
 
 - [MDX](https://mdxjs.com)
 - [`@next/mdx`](https://www.npmjs.com/package/@next/mdx)
-- [next-mdx-remote](https://github.com/hashicorp/next-mdx-remote)
-- [next-mdx-remote example](https://github.com/vercel/next.js/tree/canary/examples/with-mdx-remote)
 - [remark](https://github.com/remarkjs/remark)
 - [rehype](https://github.com/rehypejs/rehype)
-- [ECMAScript modules](https://nodejs.org/api/esm.html)
