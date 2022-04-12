@@ -3,7 +3,7 @@ use anyhow::Context as _;
 use napi::{CallContext, Either, Env, JsObject, JsString, JsUndefined, Task};
 use std::sync::Arc;
 use swc::{config::ParseOptions, try_with_handler};
-use swc_common::{comments::Comments, FileName, FilePathMapping, SourceMap};
+use swc_common::{comments::Comments, errors::ColorConfig, FileName, FilePathMapping, SourceMap};
 
 pub struct ParseTask {
     pub filename: FileName,
@@ -31,16 +31,23 @@ impl Task for ParseTask {
         };
         let fm =
             c.cm.new_source_file(self.filename.clone(), self.src.clone());
-        let program = try_with_handler(c.cm.clone(), false, |handler| {
-            c.parse_js(
-                fm,
-                handler,
-                options.target,
-                options.syntax,
-                options.is_module,
-                comments,
-            )
-        })
+        let program = try_with_handler(
+            c.cm.clone(),
+            swc::HandlerOpts {
+                color: ColorConfig::Never,
+                skip_filename: false,
+            },
+            |handler| {
+                c.parse_js(
+                    fm,
+                    handler,
+                    options.target,
+                    options.syntax,
+                    options.is_module,
+                    comments,
+                )
+            },
+        )
         .convert_err()?;
 
         let ast_json = serde_json::to_string(&program)

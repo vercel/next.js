@@ -18,6 +18,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example custom-routes-proxying custom-routes-proxying-app
 # or
 yarn create next-app --example custom-routes-proxying custom-routes-proxying-app
+# or
+pnpm create next-app -- --example custom-routes-proxying custom-routes-proxying-app
 ```
 
 ### Step 4. Run Next.js in development mode

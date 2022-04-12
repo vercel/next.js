@@ -22,7 +22,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 // Modified to be compatible with webpack 4 / Next.js
 
 import React from 'react'
-import { useSubscription } from 'use-subscription'
+import { useSubscription } from 'next/dist/compiled/use-subscription'
 import { LoadableContext } from './loadable-context'
 
 const ALL_INITIALIZERS = []

@@ -87,7 +87,7 @@ let webpackHMR: any
 
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 let CachedComponent: React.ComponentType
-let isAppRSC: boolean
+let isRSCPage: boolean
 
 class Container extends React.Component<{
   fn: (err: Error, info?: any) => void
@@ -288,7 +288,6 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
     const { component: app, exports: mod } = appEntrypoint
     CachedApp = app as AppComponent
-    isAppRSC = !!mod.__next_rsc__
     const exportedReportWebVitals = mod && mod.reportWebVitals
     onPerfEntry = ({
       id,
@@ -333,6 +332,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
       throw pageEntrypoint.error
     }
     CachedComponent = pageEntrypoint.component
+    isRSCPage = !!pageEntrypoint.exports.__next_rsc__
 
     if (process.env.NODE_ENV !== 'production') {
       const { isValidElementType } = require('next/dist/compiled/react-is')
@@ -547,14 +547,17 @@ function renderReactElement(
 
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
   if (process.env.__NEXT_REACT_ROOT) {
-    const ReactDOMClient = require('react-dom/client')
     if (!reactRoot) {
       // Unlike with createRoot, you don't need a separate root.render() call here
-      reactRoot = (ReactDOMClient as any).hydrateRoot(domEl, reactEl)
+      const ReactDOMClient = require('react-dom/client')
+      reactRoot = ReactDOMClient.hydrateRoot(domEl, reactEl)
       // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
       shouldHydrate = false
     } else {
-      reactRoot.render(reactEl)
+      const startTransition = (React as any).startTransition
+      startTransition(() => {
+        reactRoot.render(reactEl)
+      })
     }
   } else {
     // The check for `.hydrate` is there to support React alternatives like preact
@@ -646,7 +649,7 @@ function AppContainer({
 }
 
 function renderApp(App: AppComponent, appProps: AppProps) {
-  if (process.env.__NEXT_RSC && isAppRSC) {
+  if (process.env.__NEXT_RSC && isRSCPage) {
     const { Component, err: _, router: __, ...props } = appProps
     return <Component {...props} />
   } else {
@@ -675,12 +678,13 @@ if (process.env.__NEXT_RSC) {
 
   const {
     createFromFetch,
+    createFromReadableStream,
   } = require('next/dist/compiled/react-server-dom-webpack')
 
   const encoder = new TextEncoder()
 
   let initialServerDataBuffer: string[] | undefined = undefined
-  let initialServerDataWriter: WritableStreamDefaultWriter | undefined =
+  let initialServerDataWriter: ReadableStreamDefaultController | undefined =
     undefined
   let initialServerDataLoaded = false
   let initialServerDataFlushed = false
@@ -693,7 +697,7 @@ if (process.env.__NEXT_RSC) {
         throw new Error('Unexpected server data: missing bootstrap script.')
 
       if (initialServerDataWriter) {
-        initialServerDataWriter.write(encoder.encode(seg[2]))
+        initialServerDataWriter.enqueue(encoder.encode(seg[2]))
       } else {
         initialServerDataBuffer.push(seg[2])
       }
@@ -708,19 +712,19 @@ if (process.env.__NEXT_RSC) {
   // Hence, we use two variables `initialServerDataLoaded` and
   // `initialServerDataFlushed` to make sure the writer will be closed and
   // `initialServerDataBuffer` will be cleared in the right time.
-  function nextServerDataRegisterWriter(writer: WritableStreamDefaultWriter) {
+  function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
     if (initialServerDataBuffer) {
       initialServerDataBuffer.forEach((val) => {
-        writer.write(encoder.encode(val))
+        ctr.enqueue(encoder.encode(val))
       })
       if (initialServerDataLoaded && !initialServerDataFlushed) {
-        writer.close()
+        ctr.close()
         initialServerDataFlushed = true
         initialServerDataBuffer = undefined
       }
     }
 
-    initialServerDataWriter = writer
+    initialServerDataWriter = ctr
   }
 
   // When `DOMContentLoaded`, we can close all pending writers to finish hydration.
@@ -764,22 +768,24 @@ if (process.env.__NEXT_RSC) {
     if (response) return response
 
     if (initialServerDataBuffer) {
-      const t = new TransformStream()
-      const writer = t.writable.getWriter()
-      response = createFromFetch(Promise.resolve({ body: t.readable }))
-      nextServerDataRegisterWriter(writer)
+      const readable = new ReadableStream({
+        start(controller) {
+          nextServerDataRegisterWriter(controller)
+        },
+      })
+      response = createFromReadableStream(readable)
     } else {
-      const fetchPromise = serialized
-        ? (() => {
-            const t = new TransformStream()
-            const writer = t.writable.getWriter()
-            writer.ready.then(() => {
-              writer.write(new TextEncoder().encode(serialized))
-            })
-            return Promise.resolve({ body: t.readable })
-          })()
-        : fetchFlight(getCacheKey())
-      response = createFromFetch(fetchPromise)
+      if (serialized) {
+        const readable = new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(serialized))
+            controller.close()
+          },
+        })
+        response = createFromReadableStream(readable)
+      } else {
+        response = createFromFetch(fetchFlight(getCacheKey()))
+      }
     }
 
     rscCache.set(cacheKey, response)
@@ -797,18 +803,18 @@ if (process.env.__NEXT_RSC) {
       rscCache.delete(cacheKey)
     })
     const response = useServerResponse(cacheKey, serialized)
-    const root = response.readRoot()
-    return root
+    return response.readRoot()
   }
 
   RSCComponent = (props: any) => {
     const cacheKey = getCacheKey()
-    const { __flight_serialized__ } = props
+    const { __flight__ } = props
     const [, dispatch] = useState({})
     const startTransition = (React as any).startTransition
     const rerender = () => dispatch({})
+
     // If there is no cache, or there is serialized data already
-    function refreshCache(nextProps: any) {
+    function refreshCache(nextProps?: any) {
       startTransition(() => {
         const currentCacheKey = getCacheKey()
         const response = createFromFetch(
@@ -822,7 +828,7 @@ if (process.env.__NEXT_RSC) {
 
     return (
       <RefreshContext.Provider value={refreshCache}>
-        <ServerRoot cacheKey={cacheKey} serialized={__flight_serialized__} />
+        <ServerRoot cacheKey={cacheKey} serialized={__flight__} />
       </RefreshContext.Provider>
     )
   }
@@ -1021,6 +1027,14 @@ function Root({
     () => callbacks.forEach((callback) => callback()),
     [callbacks]
   )
+  // We should ask to measure the Web Vitals after rendering completes so we
+  // don't cause any hydration delay:
+  React.useEffect(() => {
+    measureWebVitals(onPerfEntry)
+
+    flushBufferedVitalsMetrics()
+  }, [])
+
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
@@ -1031,13 +1045,6 @@ function Root({
       }
     }, [])
   }
-  // We should ask to measure the Web Vitals after rendering completes so we
-  // don't cause any hydration delay:
-  React.useEffect(() => {
-    measureWebVitals(onPerfEntry)
-
-    flushBufferedVitalsMetrics()
-  }, [])
 
   return children as React.ReactElement
 }

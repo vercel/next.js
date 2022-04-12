@@ -22,7 +22,7 @@ export const getStaticProps = async (
   const posts: Post[] = [
     {
       author: 'Vercel',
-      content: 'hello wolrd',
+      content: 'hello world',
     },
   ]
 

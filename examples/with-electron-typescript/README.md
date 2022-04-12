@@ -18,6 +18,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-electron-typescript with-electron-typescript-app
 # or
 yarn create next-app --example with-electron-typescript with-electron-typescript-app
+# or
+pnpm create next-app -- --example with-electron-typescript with-electron-typescript-app
 ```
 
 Available commands:

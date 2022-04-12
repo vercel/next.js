@@ -64,9 +64,9 @@ function getBaseSWCOptions({
         legacyDecorator: enableDecorators,
         decoratorMetadata: emitDecoratorMetadata,
         react: {
-          importSource: nextConfig?.experimental?.emotion
-            ? '@emotion/react'
-            : jsConfig?.compilerOptions?.jsxImportSource || 'react',
+          importSource:
+            jsConfig?.compilerOptions?.jsxImportSource ??
+            (nextConfig?.experimental?.emotion ? '@emotion/react' : 'react'),
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
@@ -102,6 +102,7 @@ function getBaseSWCOptions({
       : null,
     removeConsole: nextConfig?.compiler?.removeConsole,
     reactRemoveProperties: nextConfig?.compiler?.reactRemoveProperties,
+    modularizeImports: nextConfig?.experimental?.modularizeImports,
     relay: nextConfig?.compiler?.relay,
     emotion: getEmotionOptions(nextConfig, development),
   }
