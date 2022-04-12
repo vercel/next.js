@@ -2008,6 +2008,79 @@ describe('Prerender', () => {
         expect(res4.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
       })
 
+      it('should not manual revalidate for fallback: blocking with ifGenerated if not generated', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/api/manual-revalidate',
+          {
+            pathname: '/blocking-fallback/test-if-generated-1',
+            ifGenerated: '1',
+          },
+          { redirect: 'manual' }
+        )
+
+        expect(res.status).toBe(200)
+        const revalidateData = await res.json()
+        expect(revalidateData.revalidated).toBe(true)
+
+        expect(next.cliOutput).not.toContain(
+          `getStaticProps test-if-generated-1`
+        )
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback/test-if-generated-1'
+        )
+        expect(res2.headers.get('x-nextjs-cache')).toMatch(/(MISS)/)
+        expect(next.cliOutput).toContain(`getStaticProps test-if-generated-1`)
+      })
+
+      it('should manual revalidate for fallback: blocking with ifGenerated if generated', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback/test-if-generated-2'
+        )
+        const html = await res.text()
+        const $ = cheerio.load(html)
+        const initialTime = $('#time').text()
+        expect(res.headers.get('x-nextjs-cache')).toMatch(/MISS/)
+
+        expect($('p').text()).toMatch(/Post:.*?test-if-generated-2/)
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback/test-if-generated-2'
+        )
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+        expect(res2.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
+
+        expect(initialTime).toBe($2('#time').text())
+
+        const res3 = await fetchViaHTTP(
+          next.url,
+          '/api/manual-revalidate',
+          {
+            pathname: '/blocking-fallback/test-if-generated-2',
+            ifGenerated: '1',
+          },
+          { redirect: 'manual' }
+        )
+
+        expect(res2.status).toBe(200)
+        const revalidateData = await res3.json()
+        expect(revalidateData.revalidated).toBe(true)
+
+        const res4 = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback/test-if-generated-2'
+        )
+        const html4 = await res4.text()
+        const $4 = cheerio.load(html4)
+        expect($4('#time').text()).not.toBe(initialTime)
+        expect(res4.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
+      })
+
       it('should manual revalidate for revalidate: false', async () => {
         const html = await renderViaHTTP(
           next.url,

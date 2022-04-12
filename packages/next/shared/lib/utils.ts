@@ -253,7 +253,12 @@ export type NextApiResponse<T = any> = ServerResponse & {
   ) => NextApiResponse<T>
   clearPreviewData: () => NextApiResponse<T>
 
-  unstable_revalidate: (urlPath: string) => Promise<void>
+  unstable_revalidate: (
+    urlPath: string,
+    opts?: {
+      unstable_ifGenerated?: boolean
+    }
+  ) => Promise<void>
 }
 
 /**

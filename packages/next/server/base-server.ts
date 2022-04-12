@@ -1,4 +1,4 @@
-import type { __ApiPreviewProps } from './api-utils'
+import { __ApiPreviewProps } from './api-utils'
 import type { CustomRoutes } from '../lib/load-custom-routes'
 import type { DomainLocale } from './config'
 import type { DynamicRoutes, PageChecker, Params, Route } from './router'
@@ -1228,12 +1228,13 @@ export default abstract class Server {
     }
 
     let isManualRevalidate = false
+    let revalidateIfGenerated = false
 
     if (isSSG) {
-      isManualRevalidate = checkIsManualRevalidate(
+      ;({ isManualRevalidate, revalidateIfGenerated } = checkIsManualRevalidate(
         req,
         this.renderOpts.previewProps
-      )
+      ))
     }
 
     // Compute the iSSG cache key. We use the rewroteUrl since
@@ -1448,6 +1449,13 @@ export default abstract class Server {
           fallbackMode = 'blocking'
         }
 
+        // skip manual revalidate if cache is not present and
+        // revalidate-if-generated is set
+        if (isManualRevalidate && revalidateIfGenerated && !hadCache) {
+          await this.render404(req, res)
+          return null
+        }
+
         // only allow manual revalidate for fallback: true/blocking
         // or for prerendered fallback: false paths
         if (isManualRevalidate && (fallbackMode !== false || hadCache)) {
@@ -1545,7 +1553,7 @@ export default abstract class Server {
     )
 
     if (!cacheEntry) {
-      if (ssgCacheKey) {
+      if (ssgCacheKey && !(isManualRevalidate && revalidateIfGenerated)) {
         // A cache entry might not be generated if a response is written
         // in `getInitialProps` or `getServerSideProps`, but those shouldn't
         // have a cache key. If we do have a cache key but we don't end up
