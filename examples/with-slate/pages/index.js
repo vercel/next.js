@@ -8,7 +8,7 @@ export default function IndexPage() {
   const [value, setValue] = useState([
     {
       children: [
-        { text: 'This is edidtable plain text, just like a <textarea>!' },
+        { text: 'This is editable plain text, just like a <textarea>!' },
       ],
     },
   ])
