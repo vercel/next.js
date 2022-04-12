@@ -71,7 +71,9 @@ class MyDocument extends Document {
     // Run the parent `getInitialProps`, it now includes the custom `renderPage`
     const initialProps = await Document.getInitialProps(ctx)
 
-    return initialProps
+    return (
+        initialProps
+    );
   }
 
   render() {
@@ -103,7 +105,9 @@ class MyDocument extends Document {
   static async getInitialProps(ctx: DocumentContext) {
     const initialProps = await Document.getInitialProps(ctx)
 
-    return initialProps
+    return (
+        initialProps
+    );
   }
 }
 
