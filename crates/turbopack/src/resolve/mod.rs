@@ -94,14 +94,6 @@ impl ResolveResult {
     }
 
     pub fn merge_alternatives(&mut self, other: &ResolveResult) {
-        fn extend_option_list<T: Clone>(list: &mut Option<Vec<T>>, other: Option<&Vec<T>>) {
-            match (list.as_mut(), other) {
-                (Some(list), Some(other)) => list.extend(other.iter().map(|i| i.clone())),
-                (Some(_), None) => {}
-                (None, None) => {}
-                (None, Some(other)) => *list = Some(other.clone()),
-            };
-        }
         match self {
             ResolveResult::Nested(list) => {
                 let list = mem::take(list);
