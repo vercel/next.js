@@ -121,6 +121,7 @@ class ServerRouter implements NextRouter {
   domainLocales?: DomainLocale[]
   isPreview: boolean
   isLocaleDomain: boolean
+  data: object = {}
 
   constructor(
     pathname: string,
