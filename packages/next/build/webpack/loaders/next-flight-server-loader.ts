@@ -67,31 +67,31 @@ async function parseModuleInfo({
   let imports = []
   let __N_SSP = false
   let pageRuntime = null
+  let isBuiltinModule
+  let isNodeModuleImport
 
   const isEsm = type === 'Module'
 
-  async function getModuleType(importSource: string) {
-    const isBuiltinModule = builtinModules.includes(importSource)
-    const resolvedPath = isBuiltinModule
-      ? importSource
-      : await resolver(importSource)
+  async function getModuleType(path: string) {
+    const isBuiltinModule = builtinModules.includes(path)
+    const resolvedPath = isBuiltinModule ? path : await resolver(path)
 
     const isNodeModuleImport = resolvedPath.includes('/node_modules/')
 
     return [isBuiltinModule, isNodeModuleImport] as const
   }
 
-  function addClientImport(source: string) {
-    if (isServerComponent(source) || hasFlightLoader(source, 'server')) {
+  function addClientImport(path: string) {
+    if (isServerComponent(path) || hasFlightLoader(path, 'server')) {
       // If it's a server component, we recursively import its dependencies.
-      imports.push(source)
-    } else if (isClientComponent(source)) {
+      imports.push(path)
+    } else if (isClientComponent(path)) {
       // Client component.
-      imports.push(source)
+      imports.push(path)
     } else {
       // Shared component.
       imports.push(
-        createFlightServerRequest(source, {
+        createFlightServerRequest(path, {
           extensions,
           client: 1,
         })
@@ -105,7 +105,7 @@ async function parseModuleInfo({
       case 'ImportDeclaration':
         const importSource = node.source.value
 
-        const [isBuiltinModule, isNodeModuleImport] = await getModuleType(
+        ;[isBuiltinModule, isNodeModuleImport] = await getModuleType(
           importSource
         )
 
@@ -186,12 +186,10 @@ async function parseModuleInfo({
         if (isClientCompilation) {
           if (node.source) {
             // export { ... } from '...'
-            const importSource = node.source.value
-            const [isBuiltinModule, isNodeModuleImport] = await getModuleType(
-              importSource
-            )
+            const path = node.source.value
+            ;[isBuiltinModule, isNodeModuleImport] = await getModuleType(path)
             if (!isBuiltinModule && !isNodeModuleImport) {
-              addClientImport(importSource)
+              addClientImport(path)
             }
           }
         }
