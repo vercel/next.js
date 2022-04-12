@@ -699,6 +699,112 @@ impl FileContent {
             FileContent::NotFound => FileJsonContent::NotFound,
         }
     }
+
+    pub fn parse_json_with_comments(&self) -> FileJsonContent {
+        match self {
+            FileContent::Content(buffer) => match std::str::from_utf8(&buffer) {
+                Ok(string) => match parse(&skip_json_comments(string)) {
+                    Ok(data) => FileJsonContent::Content(data),
+                    Err(_) => FileJsonContent::Unparseable,
+                },
+                Err(_) => FileJsonContent::Unparseable,
+            },
+            FileContent::NotFound => FileJsonContent::NotFound,
+        }
+    }
+}
+
+fn skip_json_comments(input: &str) -> String {
+    enum Mode {
+        Normal,
+        NormalSlash,
+        String,
+        StringEscaped,
+        SingleLineComment,
+        MultiLineComment,
+        MultiLineCommentStar,
+    }
+    let mut o = String::with_capacity(input.len());
+    let mut mode = Mode::Normal;
+    for c in input.chars() {
+        match mode {
+            Mode::Normal => match c {
+                '/' => {
+                    mode = Mode::NormalSlash;
+                }
+                '#' => {
+                    mode = Mode::SingleLineComment;
+                    continue;
+                }
+                '\"' => {
+                    mode = Mode::String;
+                }
+                _ => {}
+            },
+            Mode::NormalSlash => match c {
+                '/' => {
+                    mode = Mode::SingleLineComment;
+                    o.pop();
+                    continue;
+                }
+                '*' => {
+                    mode = Mode::MultiLineComment;
+                    o.pop();
+                    continue;
+                }
+                '#' => {
+                    mode = Mode::SingleLineComment;
+                    continue;
+                }
+                '\"' => {
+                    mode = Mode::String;
+                }
+                _ => {}
+            },
+            Mode::String => match c {
+                '\\' => {
+                    mode = Mode::StringEscaped;
+                }
+                '\"' => {
+                    mode = Mode::Normal;
+                }
+                _ => {}
+            },
+            Mode::StringEscaped => {
+                mode = Mode::String;
+            }
+            Mode::SingleLineComment => match c {
+                '\n' => {
+                    mode = Mode::Normal;
+                    continue;
+                }
+                _ => continue,
+            },
+            Mode::MultiLineComment => match c {
+                '*' => {
+                    mode = Mode::MultiLineCommentStar;
+                    continue;
+                }
+                _ => continue,
+            },
+            Mode::MultiLineCommentStar => match c {
+                '*' => {
+                    mode = Mode::MultiLineCommentStar;
+                    continue;
+                }
+                '/' => {
+                    mode = Mode::Normal;
+                    continue;
+                }
+                _ => {
+                    mode = Mode::MultiLineComment;
+                    continue;
+                }
+            },
+        }
+        o.push(c);
+    }
+    o
 }
 
 #[turbo_tasks::value_impl]
@@ -706,6 +812,10 @@ impl FileContentVc {
     pub async fn parse_json(self) -> Result<FileJsonContentVc> {
         let this = self.await?;
         Ok(this.parse_json().into())
+    }
+    pub async fn parse_json_with_comments(self) -> Result<FileJsonContentVc> {
+        let this = self.await?;
+        Ok(this.parse_json_with_comments().into())
     }
 }
 

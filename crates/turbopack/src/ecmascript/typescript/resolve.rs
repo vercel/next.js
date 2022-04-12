@@ -42,6 +42,7 @@ pub fn typescript_types_resolve_options(context: FileSystemPathVc) -> ResolveOpt
 async fn apply_typescript_options(resolve_options: ResolveOptionsVc) -> Result<ResolveOptionsVc> {
     let mut resolve_options = resolve_options.await?.clone();
     resolve_options.extensions.insert(0, ".ts".to_string());
+    resolve_options.extensions.push(".d.ts".to_string());
     resolve_options.resolve_typescript_types = true;
     Ok(resolve_options.into())
 }
@@ -75,7 +76,7 @@ pub async fn read_tsconfigs(
                     )
                     .await?;
                     if let ResolveResult::Single(asset, _) = &*result {
-                        data = asset.content().parse_json();
+                        data = asset.content().parse_json_with_comments();
                         tsconfig = asset.clone();
                     } else {
                         // TODO report to stream
@@ -114,7 +115,7 @@ async fn apply_tsconfig(
     tsconfig: FileSystemPathVc,
 ) -> Result<ResolveOptionsVc> {
     let configs = read_tsconfigs(
-        tsconfig.clone().read_json(),
+        tsconfig.clone().read().parse_json_with_comments(),
         SourceAssetVc::new(tsconfig).into(),
     )
     .await?;

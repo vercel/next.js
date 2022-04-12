@@ -40,8 +40,11 @@ impl Asset for TsConfigModuleAsset {
     }
     async fn references(&self) -> Result<Vc<Vec<AssetReferenceVc>>> {
         let mut references = Vec::new();
-        let configs =
-            read_tsconfigs(self.source.content().parse_json(), self.source.clone()).await?;
+        let configs = read_tsconfigs(
+            self.source.content().parse_json_with_comments(),
+            self.source.clone(),
+        )
+        .await?;
         for (_, config_asset) in configs[1..].iter() {
             references.push(TsExtendsReferenceVc::new(config_asset.clone()).into());
         }
