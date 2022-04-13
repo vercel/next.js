@@ -13,7 +13,7 @@
     "@api.video/player-sdk": "1.2.13",
     "@api.video/video-uploader": "1.0.4",
     "@types/styled-components": "5.1.24",
-    "next": "12.1.4",
+    "next": "latest",
     "react": "18.0.0",
     "react-dom": "18.0.0",
     "styled-components": "5.3.5",
