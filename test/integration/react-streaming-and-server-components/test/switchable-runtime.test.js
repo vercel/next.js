@@ -8,6 +8,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
+  fetchViaHTTP,
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
@@ -249,6 +250,16 @@ describe('Switchable runtime (prod)', () => {
     expect(await browser.elementByCss('body').text()).toContain(
       'This is a static RSC page.'
     )
+  })
+
+  it('should support etag header in the web server', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/edge', '', {
+      headers: {
+        // Make sure the result is static so an etag can be generated.
+        'User-Agent': 'Googlebot',
+      },
+    })
+    expect(res.headers.get('ETag')).toBeDefined()
   })
 })
 
