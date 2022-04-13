@@ -125,7 +125,7 @@ export default class NextWebServer extends BaseServer {
   ): Promise<RenderResult | null> {
     return renderToHTML(
       {
-        url: pathname,
+        url: req.url,
         cookies: req.cookies,
         headers: req.headers,
       } as any,

@@ -102,6 +102,22 @@ export default function (context, { runtime, env }) {
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
+  it('should render dynamic routes correctly', async () => {
+    const dynamicRoute1HTML = await renderViaHTTP(
+      context.appPort,
+      '/routes/dynamic1'
+    )
+    const dynamicRoute2HTML = await renderViaHTTP(
+      context.appPort,
+      '/routes/dynamic2'
+    )
+
+    expect(dynamicRoute1HTML).toContain('query: dynamic1')
+    expect(dynamicRoute1HTML).toContain('pathname: /routes/dynamic')
+    expect(dynamicRoute2HTML).toContain('query: dynamic2')
+    expect(dynamicRoute2HTML).toContain('pathname: /routes/dynamic')
+  })
+
   it('should be able to navigate between rsc pages', async () => {
     let content
     const browser = await webdriver(context.appPort, '/')
