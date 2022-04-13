@@ -18,23 +18,23 @@ function addExportNames(names: string[], node: any) {
     case 'Identifier':
       names.push(node.value)
       return
-    case 'ObjectPattern':
+    case 'ObjectExpression':
       for (let i = 0; i < node.properties.length; i++)
         addExportNames(names, node.properties[i])
       return
-    case 'ArrayPattern':
+    case 'ArrayExpressionx':
       for (let i = 0; i < node.elements.length; i++) {
         const element = node.elements[i]
         if (element) addExportNames(names, element)
       }
       return
-    case 'Property':
+    case 'KeyValueProperty':
       addExportNames(names, node.value)
       return
-    case 'AssignmentPattern':
+    case 'AssignmentExpression':
       addExportNames(names, node.left)
       return
-    case 'RestElement':
+    case 'SpreadElement':
       addExportNames(names, node.argument)
       return
     case 'ParenthesizedExpression':
