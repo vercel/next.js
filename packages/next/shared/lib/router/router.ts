@@ -469,6 +469,7 @@ export type NextRouter = BaseRouter &
     | 'isFallback'
     | 'isReady'
     | 'isPreview'
+    | 'key'
   >
 
 export type PrefetchOptions = {
@@ -604,7 +605,7 @@ interface NextDataCache {
 
 type Key = string
 
-function createKey() {
+export function createKey() {
   return Math.random().toString(36).slice(2, 10)
 }
 
@@ -636,6 +637,7 @@ export default class Router implements BaseRouter {
   domainLocales?: DomainLocale[]
   isReady: boolean
   isLocaleDomain: boolean
+  key: Key
 
   private state: Readonly<{
     route: string
@@ -646,8 +648,6 @@ export default class Router implements BaseRouter {
     isFallback: boolean
     isPreview: boolean
   }>
-
-  private key: Key
 
   static events: MittEmitter<RouterEvent> = mitt()
 

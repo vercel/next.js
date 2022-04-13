@@ -82,6 +82,7 @@ import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { interopDefault } from '../lib/interop-default'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
+import { createKey } from '../shared/lib/router/router'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
@@ -127,6 +128,7 @@ class ServerRouter implements NextRouter {
   domainLocales?: DomainLocale[]
   isPreview: boolean
   isLocaleDomain: boolean
+  key: string
 
   constructor(
     pathname: string,
@@ -155,6 +157,7 @@ class ServerRouter implements NextRouter {
     this.domainLocales = domainLocales
     this.isPreview = !!isPreview
     this.isLocaleDomain = !!isLocaleDomain
+    this.key = createKey()
   }
 
   push(): any {

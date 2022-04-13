@@ -52,6 +52,7 @@ The following is the definition of the `router` object returned by both [`useRou
 - `domainLocales`: `Array<{domain, defaultLocale, locales}>` - Any configured domain locales.
 - `isReady`: `boolean` - Whether the router fields are updated client-side and ready for use. Should only be used inside of `useEffect` methods and not for conditionally rendering on the server. See related docs for use case with [automatically statically optimized pages](/docs/advanced-features/automatic-static-optimization.md)
 - `isPreview`: `boolean` - Whether the application is currently in [preview mode](/docs/advanced-features/preview-mode.md).
+- `key`: `string` - String uniquely representing the current history entry. Reloading will reset it.
 
 The following methods are included inside `router`:
 
