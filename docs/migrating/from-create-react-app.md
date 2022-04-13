@@ -51,7 +51,7 @@ Create React App uses the `public` directory for the [entry HTML file](https://c
 With Create React App, you're likely using React Router. Instead of using a third-party library, Next.js includes its own [file-system based routing](/docs/routing/introduction.md).
 
 - Create a [`pages`](/docs/basic-features/pages.md) directory at the root of your project.
-- Then, create an [`index.js`](https://nextjs.org/docs/routing/introduction#index-routes) file inside the `pages` directory. This file is the entry point of your Next.js application. Populate this file with code that is used to display the index route in your Create React App.
+- Then, move the [`index.js`](https://nextjs.org/docs/routing/introduction#index-routes) file inside the `pages` directory. This file is the entry point of your Next.js application. Populate this file with code that is used to display the index route in your Create React App.
 - Convert all other `Route` components to new files in the `pages` directory.
 - For routes that require dynamic content (e.g. `/blog/:slug`), you can use [Dynamic Routes](/docs/routing/dynamic-routes.md) with Next.js (e.g. `pages/blog/[slug].js`). The value of `slug` is accessible through a [query parameter](/docs/routing/dynamic-routes.md). For example, the route `/blog/first-post` would forward the query object `{ 'slug': 'first-post' }` to `pages/blog/[slug].js` ([learn more here](/docs/basic-features/data-fetching/get-static-paths.md)).
 
