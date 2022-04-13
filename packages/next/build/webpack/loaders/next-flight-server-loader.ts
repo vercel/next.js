@@ -1,30 +1,11 @@
 import { builtinModules } from 'module'
 
 import { parse } from '../../swc'
-import { buildExports } from './utils'
-
-const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
-
-export const createClientComponentFilter = (extensions: string[]) => {
-  // Special cases for Next.js APIs that are considered as client components:
-  // - .client.[ext]
-  // - next built-in client components
-  // - .[imageExt]
-  const regex = new RegExp(
-    '(' +
-      `\\.client(\\.(${extensions.join('|')}))?|` +
-      `next/(link|image)(\\.js)?|` +
-      `\\.(${imageExtensions.join('|')})` +
-      ')$'
-  )
-
-  return (importSource: string) => regex.test(importSource)
-}
-
-export const createServerComponentFilter = (extensions: string[]) => {
-  const regex = new RegExp(`\\.server(\\.(${extensions.join('|')}))?$`)
-  return (importSource: string) => regex.test(importSource)
-}
+import {
+  buildExports,
+  createClientComponentFilter,
+  createServerComponentFilter,
+} from './utils'
 
 function createFlightServerRequest(request: string, options: object) {
   return `next-flight-server-loader?${JSON.stringify(options)}!${request}`

@@ -1,4 +1,5 @@
 import Nav from '../components/nav'
+import Script from 'next/script'
 
 const envVar = process.env.ENV_VAR_TEST
 const headerKey = 'x-next-test-client'
@@ -10,6 +11,7 @@ export default function Index({ header }) {
       <div>{'env:' + envVar}</div>
       <div>{'header:' + header}</div>
       <Nav />
+      <Script id="client-script">{`;`}</Script>
     </div>
   )
 }
