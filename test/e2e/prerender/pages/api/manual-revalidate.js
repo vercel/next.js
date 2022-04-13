@@ -4,7 +4,7 @@ export default async function handler(req, res) {
   let revalidated = false
   try {
     await res.unstable_revalidate(req.query.pathname, {
-      unstable_ifGenerated: !!req.query.ifGenerated,
+      unstable_onlyGenerated: !!req.query.onlyGenerated,
     })
     revalidated = true
   } catch (err) {

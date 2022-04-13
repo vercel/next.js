@@ -256,7 +256,7 @@ export type NextApiResponse<T = any> = ServerResponse & {
   unstable_revalidate: (
     urlPath: string,
     opts?: {
-      unstable_ifGenerated?: boolean
+      unstable_onlyGenerated?: boolean
     }
   ) => Promise<void>
 }

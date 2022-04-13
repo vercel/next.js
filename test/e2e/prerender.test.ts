@@ -2008,13 +2008,13 @@ describe('Prerender', () => {
         expect(res4.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
       })
 
-      it('should not manual revalidate for fallback: blocking with ifGenerated if not generated', async () => {
+      it('should not manual revalidate for fallback: blocking with onlyGenerated if not generated', async () => {
         const res = await fetchViaHTTP(
           next.url,
           '/api/manual-revalidate',
           {
             pathname: '/blocking-fallback/test-if-generated-1',
-            ifGenerated: '1',
+            onlyGenerated: '1',
           },
           { redirect: 'manual' }
         )
@@ -2035,7 +2035,7 @@ describe('Prerender', () => {
         expect(next.cliOutput).toContain(`getStaticProps test-if-generated-1`)
       })
 
-      it('should manual revalidate for fallback: blocking with ifGenerated if generated', async () => {
+      it('should manual revalidate for fallback: blocking with onlyGenerated if generated', async () => {
         const res = await fetchViaHTTP(
           next.url,
           '/blocking-fallback/test-if-generated-2'
@@ -2062,7 +2062,7 @@ describe('Prerender', () => {
           '/api/manual-revalidate',
           {
             pathname: '/blocking-fallback/test-if-generated-2',
-            ifGenerated: '1',
+            onlyGenerated: '1',
           },
           { redirect: 'manual' }
         )

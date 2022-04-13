@@ -236,7 +236,7 @@ export async function apiResolver(
     apiRes.unstable_revalidate = (
       urlPath: string,
       opts?: {
-        unstable_ifGenerated?: boolean
+        unstable_onlyGenerated?: boolean
       }
     ) => unstable_revalidate(urlPath, opts || {}, req, apiContext)
 
@@ -284,7 +284,7 @@ export async function apiResolver(
 async function unstable_revalidate(
   urlPath: string,
   opts: {
-    unstable_ifGenerated?: boolean
+    unstable_onlyGenerated?: boolean
   },
   req: IncomingMessage,
   context: ApiContext
@@ -296,7 +296,7 @@ async function unstable_revalidate(
   }
   const revalidateHeaders = {
     [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
-    ...(opts.unstable_ifGenerated
+    ...(opts.unstable_onlyGenerated
       ? {
           [PRERENDER_REVALIDATE_IF_GENERATED_HEADER]: '1',
         }
@@ -319,7 +319,7 @@ async function unstable_revalidate(
 
       if (
         cacheHeader?.toUpperCase() !== 'REVALIDATED' &&
-        !(res.status === 404 && opts.unstable_ifGenerated)
+        !(res.status === 404 && opts.unstable_onlyGenerated)
       ) {
         throw new Error(`Invalid response ${res.status}`)
       }
@@ -334,7 +334,7 @@ async function unstable_revalidate(
 
       if (
         mockRes.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
-        !(mockRes.statusCode === 404 && opts.unstable_ifGenerated)
+        !(mockRes.statusCode === 404 && opts.unstable_onlyGenerated)
       ) {
         throw new Error(`Invalid response ${mockRes.statusCode}`)
       }

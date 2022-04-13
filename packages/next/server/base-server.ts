@@ -1228,13 +1228,11 @@ export default abstract class Server {
     }
 
     let isManualRevalidate = false
-    let revalidateIfGenerated = false
+    let revalidateOnlyGenerated = false
 
     if (isSSG) {
-      ;({ isManualRevalidate, revalidateIfGenerated } = checkIsManualRevalidate(
-        req,
-        this.renderOpts.previewProps
-      ))
+      ;({ isManualRevalidate, revalidateOnlyGenerated } =
+        checkIsManualRevalidate(req, this.renderOpts.previewProps))
     }
 
     // Compute the iSSG cache key. We use the rewroteUrl since
@@ -1451,7 +1449,7 @@ export default abstract class Server {
 
         // skip manual revalidate if cache is not present and
         // revalidate-if-generated is set
-        if (isManualRevalidate && revalidateIfGenerated && !hadCache) {
+        if (isManualRevalidate && revalidateOnlyGenerated && !hadCache) {
           await this.render404(req, res)
           return null
         }
@@ -1553,7 +1551,7 @@ export default abstract class Server {
     )
 
     if (!cacheEntry) {
-      if (ssgCacheKey && !(isManualRevalidate && revalidateIfGenerated)) {
+      if (ssgCacheKey && !(isManualRevalidate && revalidateOnlyGenerated)) {
         // A cache entry might not be generated if a response is written
         // in `getInitialProps` or `getServerSideProps`, but those shouldn't
         // have a cache key. If we do have a cache key but we don't end up

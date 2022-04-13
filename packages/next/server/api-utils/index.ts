@@ -79,12 +79,12 @@ export function checkIsManualRevalidate(
   previewProps: __ApiPreviewProps
 ): {
   isManualRevalidate: boolean
-  revalidateIfGenerated: boolean
+  revalidateOnlyGenerated: boolean
 } {
   return {
     isManualRevalidate:
       req.headers[PRERENDER_REVALIDATE_HEADER] === previewProps.previewModeId,
-    revalidateIfGenerated:
+    revalidateOnlyGenerated:
       !!req.headers[PRERENDER_REVALIDATE_IF_GENERATED_HEADER],
   }
 }
