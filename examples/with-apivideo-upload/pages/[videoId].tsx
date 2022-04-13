@@ -38,9 +38,12 @@ const VideoView: NextPage<IVideoViewProps> = ({
     const player = new PlayerSdk('#player', {
       id: videoId,
     })
-    player.setTheme(playerSettings)
+    player.setTheme({
+      link: 'rgb(235, 137, 82)',
+      linkHover: 'rgb(240, 95, 12)',
+    })
     setPlayer(player)
-  }, [])
+  }, [videoId])
   useEffect(() => {
     player && player?.loadConfig({ id: videoId, hideControls: hideControls })
   }, [hideControls, player, videoId])

@@ -129,7 +129,11 @@ const Home: NextPage = () => {
               api.video
             </a>{' '}
             and powered by{' '}
-            <a href="https://nextjs.org/" target="_blank">
+            <a
+              href="https://nextjs.org/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               Vercel & Next.js
             </a>
             .

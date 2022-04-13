@@ -22,7 +22,14 @@ export const Header = styled.header`
   margin-top: 2rem;
   span {
     font-weight: 700;
-    background: -webkit-linear-gradient(45deg, rgb(250, 91, 48) 0%, rgb(128, 54, 255) 26.88%, rgb(213, 63, 255) 50.44%, rgb(235, 137, 82) 73.83%, rgb(247, 181, 0) 100%);
+    background: -webkit-linear-gradient(
+      45deg,
+      rgb(250, 91, 48) 0%,
+      rgb(128, 54, 255) 26.88%,
+      rgb(213, 63, 255) 50.44%,
+      rgb(235, 137, 82) 73.83%,
+      rgb(247, 181, 0) 100%
+    );
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -41,20 +48,21 @@ export const TextsContainer = styled.div`
 export const Text = styled.p`
   text-align: center;
   font-size: 1.1rem;
-  letter-spacing: .03rem;
+  letter-spacing: 0.03rem;
   a {
     font-weight: 700;
   }
 `
 
 export const Button = styled.button<{ $upload?: boolean }>`
-  background: ${p => p.$upload 
-    ? '-webkit-linear-gradient(45deg, rgb(250, 91, 48) 0%, rgb(235, 137, 82) 50%, rgb(247, 181, 0) 100%)' 
-    : '-webkit-linear-gradient(45deg, rgb(247, 181, 0) 0%, rgb(235, 137, 82) 50%, rgb(250, 91, 48) 100%)'};
+  background: ${(p) =>
+    p.$upload
+      ? '-webkit-linear-gradient(45deg, rgb(250, 91, 48) 0%, rgb(235, 137, 82) 50%, rgb(247, 181, 0) 100%)'
+      : '-webkit-linear-gradient(45deg, rgb(247, 181, 0) 0%, rgb(235, 137, 82) 50%, rgb(250, 91, 48) 100%)'};
   border: none;
-  padding: .8rem 1.2rem;
+  padding: 0.8rem 1.2rem;
   border-radius: 5px;
-  color: #FFFFFF;
+  color: #ffffff;
   cursor: pointer;
   font-size: 1.2rem;
   font-weight: 500;
@@ -86,12 +94,15 @@ export const Footer = styled.footer`
   }
 `
 
-export const PlayerSdkContainer = styled.div<{ $width: number, $height: number }>`
-    width: ${p => p.$width && p.$width <= 800 ? p.$width : '800'}px;
-    height: ${p => p.$height && p.$height <= 250 ? p.$height : '250'}px;
-    iframe {
-        height: ${p => p.$height <= 250 ? p.$height : '250'}px !important;
-    }
+export const PlayerSdkContainer = styled.div<{
+  $width: number
+  $height: number
+}>`
+  width: ${(p) => (p.$width && p.$width <= 800 ? p.$width : '800')}px;
+  height: ${(p) => (p.$height && p.$height <= 250 ? p.$height : '250')}px;
+  iframe {
+    height: ${(p) => (p.$height <= 250 ? p.$height : '250')}px !important;
+  }
 `
 
 export const InputsContainer = styled.div`
@@ -102,7 +113,7 @@ export const InputsContainer = styled.div`
     flex-direction: column;
     gap: 5px;
     label {
-      font-size: .6rem;
+      font-size: 0.6rem;
     }
   }
   > div:last-child {
