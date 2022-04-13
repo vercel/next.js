@@ -2,6 +2,7 @@
     (
         "a",
         Call(
+            3,
             FreeVar(
                 Require,
             ),
@@ -17,6 +18,7 @@
     (
         "path",
         Call(
+            3,
             FreeVar(
                 Require,
             ),
@@ -32,6 +34,7 @@
     (
         "z1_joined",
         MemberCall(
+            5,
             Variable(
                 (
                     Atom('path' type=inline),
@@ -60,6 +63,7 @@
     (
         "z2_joined",
         MemberCall(
+            5,
             Variable(
                 (
                     Atom('path' type=inline),
@@ -88,6 +92,7 @@
     (
         "z3_joined",
         MemberCall(
+            5,
             Variable(
                 (
                     Atom('path' type=inline),
@@ -116,6 +121,7 @@
     (
         "z4_joined",
         MemberCall(
+            5,
             Variable(
                 (
                     Atom('path' type=inline),
@@ -144,6 +150,7 @@
     (
         "z5_joined",
         MemberCall(
+            10,
             Variable(
                 (
                     Atom('path' type=inline),

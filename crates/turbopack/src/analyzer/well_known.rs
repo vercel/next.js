@@ -6,7 +6,7 @@ use super::{ConstantValue, JsValue, WellKnownFunctionKind, WellKnownObjectKind};
 
 pub fn replace_well_known(value: JsValue) -> (JsValue, bool) {
     match value {
-        JsValue::Call(box JsValue::WellKnownFunction(kind), args) => (
+        JsValue::Call(_, box JsValue::WellKnownFunction(kind), args) => (
             well_known_function_call(
                 kind,
                 JsValue::Unknown(None, "this is not analysed yet"),
@@ -14,10 +14,10 @@ pub fn replace_well_known(value: JsValue) -> (JsValue, bool) {
             ),
             true,
         ),
-        JsValue::Member(box JsValue::WellKnownObject(kind), box prop) => {
+        JsValue::Member(_, box JsValue::WellKnownObject(kind), box prop) => {
             (well_known_object_member(kind, prop), true)
         }
-        JsValue::Member(box JsValue::WellKnownFunction(kind), box prop) => {
+        JsValue::Member(_, box JsValue::WellKnownFunction(kind), box prop) => {
             (well_known_function_member(kind, prop), true)
         }
         _ => (value, false),
@@ -33,7 +33,7 @@ pub fn well_known_function_call(
         WellKnownFunctionKind::PathJoin => path_join(args),
         WellKnownFunctionKind::PathDirname => path_dirname(args),
         WellKnownFunctionKind::Import => JsValue::Unknown(
-            Some(Arc::new(JsValue::Call(
+            Some(Arc::new(JsValue::call(
                 box JsValue::WellKnownFunction(kind),
                 args,
             ))),
@@ -41,7 +41,7 @@ pub fn well_known_function_call(
         ),
         WellKnownFunctionKind::Require => require(args),
         WellKnownFunctionKind::RequireResolve => JsValue::Unknown(
-            Some(Arc::new(JsValue::Call(
+            Some(Arc::new(JsValue::call(
                 box JsValue::WellKnownFunction(kind),
                 args,
             ))),
@@ -49,7 +49,7 @@ pub fn well_known_function_call(
         ),
         WellKnownFunctionKind::PathToFileUrl => path_to_file_url(args),
         _ => JsValue::Unknown(
-            Some(Arc::new(JsValue::Call(
+            Some(Arc::new(JsValue::call(
                 box JsValue::WellKnownFunction(kind),
                 args,
             ))),
@@ -103,12 +103,12 @@ pub fn path_join(args: Vec<JsValue>) -> JsValue {
         if last_is_str && is_str {
             results.push("/".into());
         } else {
-            results.push(JsValue::Alternatives(vec!["/".into(), "".into()]));
+            results.push(JsValue::alternatives(vec!["/".into(), "".into()]));
         }
         results.push(part);
         last_is_str = is_str;
     }
-    JsValue::Concat(results)
+    JsValue::concat(results)
 }
 
 pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
@@ -119,7 +119,7 @@ pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
             } else {
                 return JsValue::Constant(ConstantValue::Str("".into()));
             }
-        } else if let JsValue::Concat(items) = arg {
+        } else if let JsValue::Concat(_, items) = arg {
             if let Some(last) = items.last_mut() {
                 if let Some(str) = last.as_str() {
                     if let Some(i) = str.rfind("/") {
@@ -131,7 +131,7 @@ pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
         }
     }
     JsValue::Unknown(
-        Some(Arc::new(JsValue::Call(
+        Some(Arc::new(JsValue::call(
             box JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
             args,
         ))),
@@ -144,7 +144,7 @@ pub fn require(args: Vec<JsValue>) -> JsValue {
         match &args[0] {
             JsValue::Constant(ConstantValue::Str(s)) => JsValue::Module(s.clone()),
             _ => JsValue::Unknown(
-                Some(Arc::new(JsValue::Call(
+                Some(Arc::new(JsValue::call(
                     box JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
                     args,
                 ))),
@@ -153,7 +153,7 @@ pub fn require(args: Vec<JsValue>) -> JsValue {
         }
     } else {
         JsValue::Unknown(
-            Some(Arc::new(JsValue::Call(
+            Some(Arc::new(JsValue::call(
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
                 args,
             ))),
@@ -169,7 +169,7 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
                 .map(JsValue::Url)
                 .unwrap_or_else(|_err| {
                     JsValue::Unknown(
-                        Some(Arc::new(JsValue::Call(
+                        Some(Arc::new(JsValue::call(
                             box JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
                             args,
                         ))),
@@ -178,7 +178,7 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
                     )
                 }),
             _ => JsValue::Unknown(
-                Some(Arc::new(JsValue::Call(
+                Some(Arc::new(JsValue::call(
                     box JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
                     args,
                 ))),
@@ -187,7 +187,7 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
         }
     } else {
         JsValue::Unknown(
-            Some(Arc::new(JsValue::Call(
+            Some(Arc::new(JsValue::call(
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
                 args,
             ))),
@@ -202,7 +202,7 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
             JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)
         }
         _ => JsValue::Unknown(
-            Some(Arc::new(JsValue::Member(
+            Some(Arc::new(JsValue::member(
                 box JsValue::WellKnownFunction(kind),
                 box prop,
             ))),
@@ -219,7 +219,7 @@ pub fn well_known_object_member(kind: WellKnownObjectKind, prop: JsValue) -> JsV
         WellKnownObjectKind::ChildProcess => child_process_module_member(prop),
         #[allow(unreachable_patterns)]
         _ => JsValue::Unknown(
-            Some(Arc::new(JsValue::Member(
+            Some(Arc::new(JsValue::member(
                 box JsValue::WellKnownObject(kind),
                 box prop,
             ))),
@@ -233,7 +233,7 @@ pub fn path_module_member(prop: JsValue) -> JsValue {
         Some("join") => JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
         Some("dirname") => JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
         _ => JsValue::Unknown(
-            Some(Arc::new(JsValue::Member(
+            Some(Arc::new(JsValue::member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
                 box prop,
             ))),
@@ -256,7 +256,7 @@ pub fn fs_module_member(prop: JsValue) -> JsValue {
         }
     }
     JsValue::Unknown(
-        Some(Arc::new(JsValue::Member(
+        Some(Arc::new(JsValue::member(
             box JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
             box prop,
         ))),
@@ -268,7 +268,7 @@ pub fn url_module_member(prop: JsValue) -> JsValue {
     match prop.as_str() {
         Some("pathToFileURL") => JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
         _ => JsValue::Unknown(
-            Some(Arc::new(JsValue::Member(
+            Some(Arc::new(JsValue::member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::UrlModule),
                 box prop,
             ))),
@@ -286,7 +286,7 @@ pub fn child_process_module_member(prop: JsValue) -> JsValue {
         }
         Some("fork") => JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessFork),
         _ => JsValue::Unknown(
-            Some(Arc::new(JsValue::Member(
+            Some(Arc::new(JsValue::member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess),
                 box prop,
             ))),

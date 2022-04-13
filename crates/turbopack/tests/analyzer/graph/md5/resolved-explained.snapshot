@@ -4,8 +4,8 @@ a#11 = arguments[0]
 
 a#12 = arguments[0]
 
-a#4 = (1732584193 | ???*0*)
-- *0* unsupported expression
+a#4 = ???*0*
+- *0* max number of linking steps reached
 
 a#8 = arguments[1]
 
@@ -18,7 +18,7 @@ b#11 = arguments[1]
 b#12 = arguments[1]
 
 b#4 = ???*0*
-- *0* unsupported expression
+- *0* max number of linking steps reached
 
 b#8 = arguments[2]
 
@@ -39,7 +39,7 @@ c#11 = arguments[2]
 c#12 = arguments[2]
 
 c#4 = ???*0*
-- *0* unsupported expression
+- *0* max number of linking steps reached
 
 c#9 = arguments[2]
 
@@ -51,8 +51,8 @@ d#11 = arguments[3]
 
 d#12 = arguments[3]
 
-d#4 = (271733878 | ???*0*)
-- *0* unsupported expression
+d#4 = ???*0*
+- *0* max number of linking steps reached
 
 d#9 = arguments[3]
 
@@ -106,7 +106,8 @@ lsw = (???*0* + ???*1*)
 - *0* unsupported expression
 - *1* unsupported expression
 
-md5 = (...) => []
+md5 = ???*0*
+- *0* max number of linking steps reached
 
 md5ToHexEncodedArray = (...) => []
 
@@ -143,25 +144,17 @@ msw = (???*0* + ???*1* + ???*2*)
 
 num = arguments[0]
 
-olda = (???*0* | 1732584193 | ???*1*)
-- *0* olda
-  ⚠️  pattern without value
-- *1* unsupported expression
+olda = ???*0*
+- *0* max number of linking steps reached
 
-oldb = (???*0* | ???*1*)
-- *0* oldb
-  ⚠️  pattern without value
-- *1* unsupported expression
+oldb = ???*0*
+- *0* max number of linking steps reached
 
-oldc = (???*0* | ???*1*)
-- *0* oldc
-  ⚠️  pattern without value
-- *1* unsupported expression
+oldc = ???*0*
+- *0* max number of linking steps reached
 
-oldd = (???*0* | 271733878 | ???*1*)
-- *0* oldd
-  ⚠️  pattern without value
-- *1* unsupported expression
+oldd = ???*0*
+- *0* max number of linking steps reached
 
 output#3 = []
 
@@ -192,11 +185,8 @@ t#8 = arguments[5]
 
 t#9 = arguments[6]
 
-wordsToMd5 = (...) => [(1732584193 | ???*0*), ???*1*, ???*2*, (271733878 | ???*3*)]
-- *0* unsupported expression
-- *1* unsupported expression
-- *2* unsupported expression
-- *3* unsupported expression
+wordsToMd5 = ???*0*
+- *0* max number of linking steps reached
 
 x#10 = arguments[4]
 

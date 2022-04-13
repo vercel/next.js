@@ -14,9 +14,12 @@
     (
         "c",
         Function(
+            6,
             Array(
+                5,
                 [
                     Concat(
+                        3,
                         [
                             Variable(
                                 (
@@ -45,6 +48,7 @@
     (
         "d",
         Call(
+            4,
             Variable(
                 (
                     Atom('c' type=inline),
@@ -68,6 +72,7 @@
     (
         "e",
         Member(
+            3,
             Variable(
                 (
                     Atom('d' type=inline),
@@ -86,6 +91,7 @@
     (
         "f",
         Member(
+            3,
             Variable(
                 (
                     Atom('d' type=inline),

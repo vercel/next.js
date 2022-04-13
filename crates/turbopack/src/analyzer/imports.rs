@@ -23,7 +23,7 @@ pub(crate) struct ImportMap {
 impl ImportMap {
     pub fn get_import(&self, id: &Id) -> Option<JsValue> {
         if let Some((i_src, i_sym)) = self.imports.get(id) {
-            return Some(JsValue::Member(
+            return Some(JsValue::member(
                 box JsValue::Module(i_src.clone()),
                 box i_sym.clone().into(),
             ));

@@ -201,7 +201,7 @@ pub async fn is_webpack_runtime(asset: AssetVc) -> Result<WebpackRuntimeVc> {
 
                     if let (Some(chunk_filename), Some(prefix_path)) = (chunk_filename, prefix_path)
                     {
-                        let value = JsValue::Concat(vec![
+                        let value = JsValue::concat(vec![
                             JsValue::Constant(prefix_path.into()),
                             chunk_filename,
                         ]);

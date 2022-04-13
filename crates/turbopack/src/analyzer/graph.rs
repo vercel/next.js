@@ -156,7 +156,7 @@ impl EvalContext {
             return values.into_iter().next().unwrap();
         }
 
-        return JsValue::Concat(values);
+        return JsValue::concat(values);
     }
 
     pub fn eval(&self, e: &Expr) -> JsValue {
@@ -188,10 +188,11 @@ impl EvalContext {
                 let r = self.eval(right);
 
                 return match (l, r) {
-                    (JsValue::Add(l), r) => {
-                        JsValue::Add(l.into_iter().chain(iter::once(r)).collect())
-                    }
-                    (l, r) => JsValue::Add(vec![l, r]),
+                    (JsValue::Add(c, l), r) => JsValue::Add(
+                        c + r.total_nodes(),
+                        l.into_iter().chain(iter::once(r)).collect(),
+                    ),
+                    (l, r) => JsValue::add(vec![l, r]),
                 };
             }
 
@@ -249,7 +250,7 @@ impl EvalContext {
                 ..
             }) => {
                 let obj = self.eval(&obj);
-                return JsValue::Member(box obj, box prop.sym.clone().into());
+                return JsValue::member(box obj, box prop.sym.clone().into());
             }
 
             Expr::Member(MemberExpr {
@@ -259,7 +260,7 @@ impl EvalContext {
             }) => {
                 let obj = self.eval(&obj);
                 let prop = self.eval(&computed.expr);
-                return JsValue::Member(box obj, box prop);
+                return JsValue::member(box obj, box prop);
             }
 
             Expr::Call(CallExpr {
@@ -285,11 +286,11 @@ impl EvalContext {
                         }
                         MemberProp::Computed(ComputedPropName { expr, .. }) => self.eval(&expr),
                     };
-                    return JsValue::MemberCall(obj, prop, args);
+                    return JsValue::member_call(obj, prop, args);
                 } else {
                     let callee = box self.eval(&callee);
 
-                    return JsValue::Call(callee, args);
+                    return JsValue::call(callee, args);
                 }
             }
 
@@ -306,7 +307,7 @@ impl EvalContext {
 
                 let callee = box JsValue::FreeVar(FreeVarKind::Import);
 
-                return JsValue::Call(callee, args);
+                return JsValue::call(callee, args);
             }
 
             Expr::Array(arr) => {
@@ -322,11 +323,11 @@ impl EvalContext {
                         _ => JsValue::FreeVar(FreeVarKind::Other(js_word!("undefined"))),
                     })
                     .collect();
-                return JsValue::Array(arr);
+                return JsValue::array(arr);
             }
 
             Expr::Object(obj) => {
-                return JsValue::Object(
+                return JsValue::object(
                     obj.props
                         .iter()
                         .map(|prop| match prop {
@@ -528,7 +529,7 @@ impl Analyzer<'_> {
         match values.len() {
             0 => box JsValue::FreeVar(FreeVarKind::Other(js_word!("undefined"))),
             1 => box values.into_iter().next().unwrap(),
-            _ => box JsValue::Alternatives(values),
+            _ => box JsValue::alternatives(values),
         }
     }
 }
@@ -593,7 +594,7 @@ impl Visit for Analyzer<'_> {
         decl.visit_children_with(self);
         let return_value = self.take_return_values();
 
-        self.add_value(decl.ident.to_id(), JsValue::Function(return_value));
+        self.add_value(decl.ident.to_id(), JsValue::function(return_value));
 
         self.cur_fn_return_values = old;
     }
@@ -604,14 +605,14 @@ impl Visit for Analyzer<'_> {
         let return_value = self.take_return_values();
 
         if let Some(ident) = &expr.ident {
-            self.add_value(ident.to_id(), JsValue::Function(return_value));
+            self.add_value(ident.to_id(), JsValue::function(return_value));
         } else {
             self.add_value(
                 (
                     format!("*anonymous function {}*", expr.function.span.lo.0).into(),
                     SyntaxContext::empty(),
                 ),
-                JsValue::Function(return_value),
+                JsValue::function(return_value),
             );
         }
 
@@ -626,13 +627,13 @@ impl Visit for Analyzer<'_> {
                 let return_value = self.take_return_values();
 
                 self.cur_fn_return_values = old;
-                JsValue::Function(return_value)
+                JsValue::function(return_value)
             }
             BlockStmtOrExpr::Expr(inner_expr) => {
                 expr.visit_children_with(self);
                 let return_value = self.eval_context.eval(&*inner_expr);
 
-                JsValue::Function(box return_value)
+                JsValue::function(box return_value)
             }
         };
         self.add_value(
@@ -695,7 +696,7 @@ impl Visit for Analyzer<'_> {
                 //
 
                 match &value {
-                    Some(JsValue::Array(value)) => {
+                    Some(JsValue::Array(_, value)) => {
                         //
                         for (idx, elem) in arr.elems.iter().enumerate() {
                             self.current_value = value.get(idx).cloned();
@@ -708,7 +709,7 @@ impl Visit for Analyzer<'_> {
 
                     Some(value) => {
                         for (idx, elem) in arr.elems.iter().enumerate() {
-                            self.current_value = Some(JsValue::Member(
+                            self.current_value = Some(JsValue::member(
                                 box value.clone(),
                                 box JsValue::Constant(ConstantValue::Num(ConstantNumber(
                                     idx as f64,
@@ -732,7 +733,7 @@ impl Visit for Analyzer<'_> {
                                 ObjectPatProp::KeyValue(KeyValuePatProp { key, value }) => {
                                     let key_value = self.eval_context.eval_prop_name(key);
                                     key.visit_with(self);
-                                    self.current_value = Some(JsValue::Member(
+                                    self.current_value = Some(JsValue::member(
                                         box current_value.clone(),
                                         box key_value,
                                     ));
@@ -745,15 +746,15 @@ impl Visit for Analyzer<'_> {
                                         key.to_id(),
                                         if let Some(box value) = value {
                                             let value = self.eval_context.eval(value);
-                                            JsValue::Alternatives(vec![
-                                                JsValue::Member(
+                                            JsValue::alternatives(vec![
+                                                JsValue::member(
                                                     box current_value.clone(),
                                                     box key_value,
                                                 ),
                                                 value,
                                             ])
                                         } else {
-                                            JsValue::Member(
+                                            JsValue::member(
                                                 box current_value.clone(),
                                                 box key_value,
                                             )

@@ -2,6 +2,7 @@
     (
         "a",
         Member(
+            3,
             Variable(
                 (
                     Atom('object' type=static),
@@ -18,6 +19,7 @@
     (
         "a1",
         Member(
+            3,
             Variable(
                 (
                     Atom('object' type=static),
@@ -34,6 +36,7 @@
     (
         "a2",
         Member(
+            3,
             Variable(
                 (
                     Atom('object' type=static),
@@ -50,6 +53,7 @@
     (
         "a3",
         Member(
+            3,
             Variable(
                 (
                     Atom('object_spread' type=dynamic),
@@ -66,6 +70,7 @@
     (
         "a4",
         Member(
+            3,
             Variable(
                 (
                     Atom('object' type=static),
@@ -82,6 +87,7 @@
     (
         "a5",
         Member(
+            3,
             Variable(
                 (
                     Atom('unknown_spread' type=dynamic),
@@ -98,6 +104,7 @@
     (
         "b",
         Member(
+            3,
             Variable(
                 (
                     Atom('object' type=static),
@@ -114,6 +121,7 @@
     (
         "b1",
         Member(
+            3,
             Variable(
                 (
                     Atom('object' type=static),
@@ -130,6 +138,7 @@
     (
         "b2",
         Member(
+            3,
             Variable(
                 (
                     Atom('object' type=static),
@@ -146,6 +155,7 @@
     (
         "b3",
         Member(
+            3,
             Variable(
                 (
                     Atom('object_spread' type=dynamic),
@@ -162,6 +172,7 @@
     (
         "b4",
         Member(
+            3,
             Variable(
                 (
                     Atom('object' type=static),
@@ -178,6 +189,7 @@
     (
         "b5",
         Member(
+            3,
             Variable(
                 (
                     Atom('unknown_spread' type=dynamic),
@@ -194,6 +206,7 @@
     (
         "c",
         Member(
+            3,
             Variable(
                 (
                     Atom('object' type=static),
@@ -210,6 +223,7 @@
     (
         "c1",
         Member(
+            3,
             Variable(
                 (
                     Atom('object' type=static),
@@ -226,6 +240,7 @@
     (
         "c2",
         Member(
+            3,
             Variable(
                 (
                     Atom('object' type=static),
@@ -242,6 +257,7 @@
     (
         "c3",
         Member(
+            3,
             Variable(
                 (
                     Atom('object_spread' type=dynamic),
@@ -258,6 +274,7 @@
     (
         "c4",
         Member(
+            3,
             Variable(
                 (
                     Atom('object' type=static),
@@ -274,6 +291,7 @@
     (
         "c5",
         Member(
+            3,
             Variable(
                 (
                     Atom('unknown_spread' type=dynamic),
@@ -290,6 +308,7 @@
     (
         "d",
         Member(
+            3,
             Variable(
                 (
                     Atom('object' type=static),
@@ -306,6 +325,7 @@
     (
         "d1",
         Member(
+            3,
             Variable(
                 (
                     Atom('object' type=static),
@@ -322,6 +342,7 @@
     (
         "d2",
         Member(
+            3,
             Variable(
                 (
                     Atom('object' type=static),
@@ -338,6 +359,7 @@
     (
         "d3",
         Member(
+            3,
             Variable(
                 (
                     Atom('object_spread' type=dynamic),
@@ -354,6 +376,7 @@
     (
         "d4",
         Member(
+            3,
             Variable(
                 (
                     Atom('object' type=static),
@@ -370,6 +393,7 @@
     (
         "object",
         Object(
+            7,
             [
                 KeyValue(
                     Constant(
@@ -419,6 +443,7 @@
     (
         "object_spread",
         Object(
+            6,
             [
                 KeyValue(
                     Constant(
@@ -462,6 +487,7 @@
     (
         "unknown_spread",
         Object(
+            6,
             [
                 KeyValue(
                     Constant(

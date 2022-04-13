@@ -10,6 +10,7 @@
     (
         "a",
         MemberCall(
+            4,
             FreeVar(
                 Other(
                     Atom('Object' type=static),
@@ -33,6 +34,7 @@
     (
         "b",
         MemberCall(
+            4,
             Variable(
                 (
                     Atom('O' type=inline),

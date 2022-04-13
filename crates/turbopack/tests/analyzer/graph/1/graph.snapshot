@@ -2,6 +2,7 @@
     (
         "a",
         Function(
+            2,
             FreeVar(
                 Other(
                     Atom('undefined' type=static),
@@ -12,6 +13,7 @@
     (
         "b",
         Function(
+            2,
             FreeVar(
                 Other(
                     Atom('undefined' type=static),
@@ -22,6 +24,7 @@
     (
         "c",
         Function(
+            2,
             FreeVar(
                 Other(
                     Atom('undefined' type=static),
@@ -32,6 +35,7 @@
     (
         "x",
         Alternatives(
+            5,
             [
                 Constant(
                     Num(
@@ -41,6 +45,7 @@
                     ),
                 ),
                 Concat(
+                    3,
                     [
                         Variable(
                             (
@@ -61,6 +66,7 @@
     (
         "y",
         Alternatives(
+            3,
             [
                 Constant(
                     Str(

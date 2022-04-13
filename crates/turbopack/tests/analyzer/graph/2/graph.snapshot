@@ -2,6 +2,7 @@
     (
         "x",
         Alternatives(
+            3,
             [
                 Constant(
                     Num(
