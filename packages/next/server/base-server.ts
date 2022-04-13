@@ -1449,7 +1449,12 @@ export default abstract class Server {
 
         // skip manual revalidate if cache is not present and
         // revalidate-if-generated is set
-        if (isManualRevalidate && revalidateOnlyGenerated && !hadCache) {
+        if (
+          isManualRevalidate &&
+          revalidateOnlyGenerated &&
+          !hadCache &&
+          !this.minimalMode
+        ) {
           await this.render404(req, res)
           return null
         }
