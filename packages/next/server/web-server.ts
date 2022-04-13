@@ -8,7 +8,7 @@ import type { LoadComponentsReturnType } from './load-components'
 
 import BaseServer, { Options } from './base-server'
 import { renderToHTML } from './render'
-import { byteLength } from './api-utils/web'
+import { byteLength, generateETag } from './api-utils/web'
 
 interface WebServerConfig {
   loadComponent: (pathname: string) => Promise<LoadComponentsReturnType | null>
@@ -169,10 +169,7 @@ export default class NextWebServer extends BaseServer {
     if (options.result.isDynamic()) {
       const writer = res.transformStream.writable.getWriter()
       options.result.pipe({
-        write: (chunk: Uint8Array) => {
-          console.log('write chunk', new TextDecoder().decode(chunk))
-          return writer.write(chunk)
-        },
+        write: (chunk: Uint8Array) => new TextDecoder().decode(chunk),
         end: () => writer.close(),
         destroy: (err: Error) => writer.abort(err),
         cork: () => {},
@@ -180,10 +177,11 @@ export default class NextWebServer extends BaseServer {
         // Not implemented: on/removeListener
       } as any)
     } else {
-      console.log('!!!')
-      // TODO: generate Etag
       const payload = await options.result.toUnchunkedString()
       res.setHeader('Content-Length', String(byteLength(payload)))
+      if (options.generateEtags) {
+        res.setHeader('ETag', await generateETag(payload))
+      }
       res.body(payload)
     }
 
