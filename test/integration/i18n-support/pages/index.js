@@ -47,6 +47,10 @@ export default function Page(props) {
         <a id="to-gssp-slug">to /gssp/first</a>
       </Link>
       <br />
+      <Link href="/api/post/asdf">
+        <a id="to-api-post">to /api/post/[slug]</a>
+      </Link>
+      <br />
     </>
   )
 }

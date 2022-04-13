@@ -58,4 +58,10 @@ export async function middleware(request) {
     url.pathname = '/redirects/infinite-loop'
     return Response.redirect(url)
   }
+
+  if (url.pathname === '/redirects/to') {
+    url.pathname = url.searchParams.get('pathname')
+    url.searchParams.delete('pathname')
+    return Response.redirect(url)
+  }
 }
