@@ -1,8 +1,16 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import { check, findPort, killApp, renderViaHTTP } from 'next-test-utils'
-import { nextBuild, nextDev, nextStart } from './utils'
+import {
+  check,
+  findPort,
+  killApp,
+  launchApp,
+  nextBuild,
+  nextStart,
+  renderViaHTTP,
+  waitFor,
+} from 'next-test-utils'
 
 const appDir = join(__dirname, '../switchable-runtime')
 
@@ -13,7 +21,7 @@ function splitLines(text) {
     .filter(Boolean)
 }
 
-async function testRoute(appPort, url, { isStatic, isEdge }) {
+async function testRoute(appPort, url, { isStatic, isEdge, isRSC }) {
   const html1 = await renderViaHTTP(appPort, url)
   const renderedAt1 = +html1.match(/Time: (\d+)/)[1]
   expect(html1).toContain(`Runtime: ${isEdge ? 'Edge' : 'Node.js'}`)
@@ -29,6 +37,12 @@ async function testRoute(appPort, url, { isStatic, isEdge }) {
     // Should be re-rendered.
     expect(renderedAt1).toBeLessThan(renderedAt2)
   }
+  const customAppServerHtml = '<div class="app-server-root">'
+  if (isRSC) {
+    expect(html1).toContain(customAppServerHtml)
+  } else {
+    expect(html1).not.toContain(customAppServerHtml)
+  }
 }
 
 describe('Switchable runtime (prod)', () => {
@@ -36,7 +50,10 @@ describe('Switchable runtime (prod)', () => {
 
   beforeAll(async () => {
     context.appPort = await findPort()
-    const { stdout, stderr } = await nextBuild(context.appDir)
+    const { stdout, stderr } = await nextBuild(context.appDir, [], {
+      stderr: true,
+      stdout: true,
+    })
     context.stdout = stdout
     context.stderr = stderr
     context.server = await nextStart(context.appDir, context.appPort)
@@ -49,6 +66,7 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/static', {
       isStatic: true,
       isEdge: false,
+      isRSC: false,
     })
   })
 
@@ -56,6 +74,7 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node', {
       isStatic: true,
       isEdge: false,
+      isRSC: false,
     })
   })
 
@@ -63,6 +82,7 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-ssr', {
       isStatic: false,
       isEdge: false,
+      isRSC: false,
     })
   })
 
@@ -70,6 +90,7 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-ssg', {
       isStatic: true,
       isEdge: false,
+      isRSC: false,
     })
   })
 
@@ -77,6 +98,7 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-rsc', {
       isStatic: true,
       isEdge: false,
+      isRSC: true,
     })
   })
 
@@ -84,6 +106,7 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-rsc-ssr', {
       isStatic: false,
       isEdge: false,
+      isRSC: true,
     })
   })
 
@@ -91,6 +114,7 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-rsc-ssg', {
       isStatic: true,
       isEdge: false,
+      isRSC: true,
     })
   })
 
@@ -106,7 +130,7 @@ describe('Switchable runtime (prod)', () => {
     expect(renderedAt1).toBe(renderedAt2)
 
     // Trigger a revalidation after 3s.
-    await new Promise((resolve) => setTimeout(resolve, 4000))
+    await waitFor(4000)
     await renderViaHTTP(context.appPort, '/node-rsc-isr')
 
     await check(async () => {
@@ -122,6 +146,7 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/edge', {
       isStatic: false,
       isEdge: true,
+      isRSC: false,
     })
   })
 
@@ -129,6 +154,7 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/edge-rsc', {
       isStatic: false,
       isEdge: true,
+      isRSC: true,
     })
   })
 
@@ -137,7 +163,9 @@ describe('Switchable runtime (prod)', () => {
       /^[┌├└/]/.test(line)
     )
     const expectedOutputLines = splitLines(`
-  ┌ ○ /404
+  ┌   /_app
+  ├   /_app.server
+  ├ ○ /404
   ├ ℇ /edge
   ├ ℇ /edge-rsc
   ├ ○ /node
@@ -149,9 +177,11 @@ describe('Switchable runtime (prod)', () => {
   ├ λ /node-ssr
   └ ○ /static
   `)
-    const isMatched = expectedOutputLines.every((line, index) =>
-      stdoutLines[index].startsWith(line)
-    )
+    const isMatched = expectedOutputLines.every((line, index) => {
+      const matched = stdoutLines[index].startsWith(line)
+      return matched
+    })
+
     expect(isMatched).toBe(true)
   })
 
@@ -227,7 +257,7 @@ describe('Switchable runtime (dev)', () => {
 
   beforeAll(async () => {
     context.appPort = await findPort()
-    context.server = await nextDev(context.appDir, context.appPort)
+    context.server = await launchApp(context.appDir, context.appPort)
   })
   afterAll(async () => {
     await killApp(context.server)

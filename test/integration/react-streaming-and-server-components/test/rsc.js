@@ -3,9 +3,10 @@ import webdriver from 'next-webdriver'
 import { renderViaHTTP, check } from 'next-test-utils'
 import { join } from 'path'
 import fs from 'fs-extra'
-import { distDir, getNodeBySelector } from './utils'
+import { getNodeBySelector } from './utils'
 
 export default function (context, { runtime, env }) {
+  const distDir = join(context.appDir, '.next')
   it('should render server components correctly', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/', null, {
       headers: {
@@ -15,11 +16,9 @@ export default function (context, { runtime, env }) {
 
     // should have only 1 DOCTYPE
     expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
-
     expect(homeHTML).toContain('component:index.server')
     expect(homeHTML).toContain('env:env_var_test')
     expect(homeHTML).toContain('header:test-util')
-    expect(homeHTML).toContain('path:/')
   })
 
   it('should reuse the inline flight response without sending extra requests', async () => {
@@ -65,6 +64,15 @@ export default function (context, { runtime, env }) {
     expect(sharedServerModule[0][1]).toBe(sharedServerModule[1][1])
     expect(sharedClientModule[0][1]).toBe(sharedClientModule[1][1])
     expect(sharedServerModule[0][1]).not.toBe(sharedClientModule[0][1])
+
+    // Should import 2 module instances for node_modules too.
+    const modFromClient = main.match(
+      /node_modules instance from \.client\.js:(\d+)/
+    )
+    const modFromServer = main.match(
+      /node_modules instance from \.server\.js:(\d+)/
+    )
+    expect(modFromClient[1]).not.toBe(modFromServer[1])
   })
 
   it('should support next/link in server components', async () => {
@@ -110,13 +118,15 @@ export default function (context, { runtime, env }) {
     expect(content).toContain('component:index.server')
 
     await browser.waitForElementByCss('#goto-streaming-rsc').click()
-    await new Promise((res) => setTimeout(res, 1500))
+
+    // Wait for navigation and streaming to finish.
+    await check(
+      () => browser.elementByCss('#content').text(),
+      'next_streaming_data'
+    )
     expect(await browser.url()).toBe(
       `http://localhost:${context.appPort}/streaming-rsc`
     )
-
-    content = await browser.elementByCss('#content').text()
-    expect(content).toContain('next_streaming_data')
   })
 
   it('should handle streaming server components correctly', async () => {
@@ -182,7 +192,7 @@ export default function (context, { runtime, env }) {
         .readFileSync(join(distServerDir, 'external-imports.js'))
         .toString()
 
-      expect(bundle).not.toContain('moment')
+      expect(bundle).not.toContain('non-isomorphic-text')
     })
   }
 
@@ -207,6 +217,22 @@ export default function (context, { runtime, env }) {
     expect(hydratedContent).toContain('named.client')
     expect(hydratedContent).toContain('cjs-shared')
     expect(hydratedContent).toContain('cjs-client')
+    expect(hydratedContent).toContain('Export All: one, two, two')
+  })
+
+  it('should support native modules in server component', async () => {
+    const html = await renderViaHTTP(context.appPort, '/native-module')
+    const content = getNodeBySelector(html, '#__next').text()
+
+    expect(content).toContain('fs: function')
+    expect(content).toContain('foo.client')
+  })
+
+  it('should support the re-export syntax in server component', async () => {
+    const html = await renderViaHTTP(context.appPort, '/re-export')
+    const content = getNodeBySelector(html, '#__next').text()
+
+    expect(content).toContain('This should be in red')
   })
 
   it('should handle 404 requests and missing routes correctly', async () => {

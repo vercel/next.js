@@ -29,10 +29,14 @@ export function initNextServerScript(
   opts
 ) {
   return new Promise((resolve, reject) => {
-    const instance = spawn('node', ['--no-deprecation', scriptPath], {
-      env,
-      cwd: opts && opts.cwd,
-    })
+    const instance = spawn(
+      'node',
+      [...((opts && opts.nodeArgs) || []), '--no-deprecation', scriptPath],
+      {
+        env,
+        cwd: opts && opts.cwd,
+      }
+    )
 
     function handleStdout(data) {
       const message = data.toString()
@@ -717,4 +721,68 @@ export function getPageFileFromPagesManifest(dir, page) {
 export function readNextBuildServerPageFile(appDir, page) {
   const pageFile = getPageFileFromPagesManifest(appDir, page)
   return readFileSync(path.join(appDir, '.next', 'server', pageFile), 'utf8')
+}
+
+/**
+ *
+ * @param {string} suiteName
+ * @param {{env: 'prod' | 'dev', appDir: string}} context
+ * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function}} options
+ */
+function runSuite(suiteName, context, options) {
+  const { appDir, env } = context
+  describe(`${suiteName} ${env}`, () => {
+    beforeAll(async () => {
+      options.beforeAll?.(env)
+      context.stderr = ''
+      const onStderr = (msg) => {
+        context.stderr += msg
+      }
+      if (env === 'prod') {
+        context.appPort = await findPort()
+        const { stdout, stderr, code } = await nextBuild(appDir, [], {
+          stderr: true,
+          stdout: true,
+        })
+        context.stdout = stdout
+        context.stderr = stderr
+        context.code = code
+        context.server = await nextStart(context.appDir, context.appPort, {
+          onStderr,
+        })
+      } else if (env === 'dev') {
+        context.appPort = await findPort()
+        context.server = await launchApp(context.appDir, context.appPort, {
+          onStderr,
+        })
+      }
+    })
+    afterAll(async () => {
+      options.afterAll?.(env)
+      if (context.server) {
+        await killApp(context.server)
+      }
+    })
+    options.runTests(context, env)
+  })
+}
+
+/**
+ *
+ * @param {string} suiteName
+ * @param {string} appDir
+ * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function}} options
+ */
+export function runDevSuite(suiteName, appDir, options) {
+  return runSuite(suiteName, { appDir, env: 'dev' }, options)
+}
+
+/**
+ *
+ * @param {string} suiteName
+ * @param {string} appDir
+ * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function}} options
+ */
+export function runProdSuite(suiteName, appDir, options) {
+  return runSuite(suiteName, { appDir, env: 'prod' }, options)
 }
