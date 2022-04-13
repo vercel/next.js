@@ -2067,7 +2067,7 @@ describe('Prerender', () => {
           { redirect: 'manual' }
         )
 
-        expect(res2.status).toBe(200)
+        expect(res3.status).toBe(200)
         const revalidateData = await res3.json()
         expect(revalidateData.revalidated).toBe(true)
 
