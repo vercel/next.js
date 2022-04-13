@@ -1,6 +1,4 @@
 {
-  "name": "electron-next-app",
-  "version": "0.0.0",
   "private": true,
   "productName": "ElectronNext",
   "main": "main/index.js",
