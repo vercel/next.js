@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import Nav from '../../components/nav.server'
+import Nav from '../../components/nav'
 
 export default function LinkPage({ router }) {
   const { query } = router

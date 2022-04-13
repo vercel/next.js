@@ -46,7 +46,7 @@ class Playwright extends BrowserInterface {
     this.eventCallbacks[event]?.delete(cb)
   }
 
-  async setup(browserName: string) {
+  async setup(browserName: string, locale?: string) {
     if (browser) return
     const headless = !!process.env.HEADLESS
 
@@ -57,7 +57,7 @@ class Playwright extends BrowserInterface {
     } else {
       browser = await chromium.launch({ headless, devtools: !headless })
     }
-    context = await browser.newContext()
+    context = await browser.newContext({ locale })
   }
 
   async get(url: string): Promise<void> {
@@ -315,12 +315,7 @@ class Playwright extends BrowserInterface {
 
   waitForCondition(condition, timeout) {
     return this.chain(() => {
-      return page.waitForFunction(
-        `function() {
-        return ${condition}
-      }`,
-        { timeout }
-      )
+      return page.waitForFunction(condition, { timeout })
     })
   }
 

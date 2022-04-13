@@ -1,4 +1,4 @@
-import Nav from '../components/nav.server'
+import Nav from '../components/nav'
 
 const envVar = process.env.ENV_VAR_TEST
 const headerKey = 'x-next-test-client'
