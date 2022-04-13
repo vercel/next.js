@@ -14,11 +14,14 @@ export default function (context, { runtime, env }) {
       },
     })
 
+    const browser = await webdriver(context.appPort, '/')
+    const scriptTagContent = await browser.elementById('client-script').text()
     // should have only 1 DOCTYPE
     expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
     expect(homeHTML).toContain('component:index.server')
     expect(homeHTML).toContain('env:env_var_test')
     expect(homeHTML).toContain('header:test-util')
+    expect(scriptTagContent).toBe(';')
   })
 
   it('should reuse the inline flight response without sending extra requests', async () => {
