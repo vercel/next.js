@@ -1,6 +1,6 @@
 const defaultJsFileExtensions = ['js', 'mjs', 'jsx', 'ts', 'tsx', 'json']
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
-const nextClientComponents = ['link', 'image', 'script']
+const nextClientComponents = ['link', 'image', 'head', 'script']
 
 const NEXT_BUILT_IN_CLIENT_RSC_REGEX = new RegExp(
   `[\\\\/]next[\\\\/](${nextClientComponents.join('|')})\\.js$`
