@@ -1,7 +1,10 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
 import type { PageConfig } from 'next/types'
-import { PRERENDER_REVALIDATE_IF_GENERATED_HEADER, __ApiPreviewProps } from '.'
+import {
+  PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
+  __ApiPreviewProps,
+} from '.'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import type { PreviewData } from 'next/types'
@@ -298,7 +301,7 @@ async function unstable_revalidate(
     [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
     ...(opts.unstable_onlyGenerated
       ? {
-          [PRERENDER_REVALIDATE_IF_GENERATED_HEADER]: '1',
+          [PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER]: '1',
         }
       : {}),
   }

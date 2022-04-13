@@ -71,7 +71,7 @@ export function redirect(
 }
 
 export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
-export const PRERENDER_REVALIDATE_IF_GENERATED_HEADER =
+export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
   'x-prerender-revalidate-if-generated'
 
 export function checkIsManualRevalidate(
@@ -85,7 +85,7 @@ export function checkIsManualRevalidate(
     isManualRevalidate:
       req.headers[PRERENDER_REVALIDATE_HEADER] === previewProps.previewModeId,
     revalidateOnlyGenerated:
-      !!req.headers[PRERENDER_REVALIDATE_IF_GENERATED_HEADER],
+      !!req.headers[PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER],
   }
 }
 
