@@ -31,7 +31,7 @@ fn test(input: &Path, minify: bool) {
                 swc: swc::config::Options {
                     swcrc: true,
                     is_module: swc::config::IsModule::Bool(true),
-                    output_path: Some(output.to_path_buf()),
+                    output_path: Some(output.clone()),
 
                     config: swc::config::Config {
                         jsc: swc::config::JscConfig {
