@@ -13,6 +13,7 @@
     "styled-components": "^5.2.3"
   },
   "devDependencies": {
+    "@types/styled-components": "5.1.25",
     "babel-plugin-styled-components": "^1.12.0"
   }
 }
