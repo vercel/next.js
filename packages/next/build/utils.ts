@@ -1135,93 +1135,6 @@ export function getUnresolvedModuleFromError(
   return builtinModules.find((item: string) => item === moduleName)
 }
 
-// copies files or directories from `src` to `dest`,
-// dereferences (copies) symlinks if they are outside of `root`
-// symlinks are dereferenced only once, then they are linked again from their new location inside `root` to prevent duplicate dependencies
-// symlinks inside `root` are kept as symlinks
-async function copy({
-  src,
-  dest,
-  copiedFiles,
-  root,
-  copiedSymlinks,
-}: {
-  src: string
-  dest: string
-  root: string
-  copiedFiles: Set<string>
-  copiedSymlinks: Record<string, string>
-}) {
-  if (!copiedFiles.has(dest)) {
-    copiedFiles.add(dest)
-    const stat = await fs.lstat(src)
-    const isDirectory = stat.isDirectory()
-    // create parent directories
-    if (isDirectory) {
-      await fs.mkdir(dest, { recursive: true })
-    } else {
-      await fs.mkdir(path.dirname(dest), { recursive: true })
-    }
-
-    const symlink = stat.isSymbolicLink()
-      ? await fs.readlink(src).catch(() => null)
-      : null
-
-    // normal copy of file or directory
-    if (!symlink) {
-      if (!isDirectory) {
-        return await fs.copyFile(src, dest)
-      }
-      const files = await fs.readdir(src)
-      for (const file of files) {
-        await copy({
-          dest: path.join(dest, file),
-          src: path.join(src, file),
-          copiedFiles,
-          copiedSymlinks,
-          root: root,
-        })
-      }
-      return
-    }
-
-    const absLink = path.resolve(path.dirname(src), symlink)
-    const outsideRoot = path.relative(root, absLink).startsWith('..')
-
-    if (!outsideRoot) {
-      // copy symlinked file inside root
-      await copy({
-        src: absLink,
-        dest: path.resolve(path.dirname(dest), symlink),
-        copiedFiles,
-        root: root,
-        copiedSymlinks,
-      })
-      // keep the symlink if it is inside the tracingRoot
-      return await fs.symlink(
-        symlink, // symlink is always a relative path
-        dest
-      )
-    }
-    // create symlink to previously copied one, this prevents creating duplicates
-    if (copiedSymlinks[absLink]) {
-      return await fs.symlink(
-        path.relative(path.dirname(dest), copiedSymlinks[absLink]),
-        dest
-      )
-    }
-    // copy the symlinks that are outside root
-    await copy({
-      src: absLink,
-      dest: dest,
-      copiedFiles,
-      root: root,
-      copiedSymlinks,
-    })
-    copiedSymlinks[absLink] = dest
-  }
-}
-
 export async function copyTracedFiles(
   dir: string,
   distDir: string,
@@ -1231,8 +1144,7 @@ export async function copyTracedFiles(
   middlewareManifest: MiddlewareManifest
 ) {
   const outputPath = path.join(distDir, 'standalone')
-  const copiedFiles = new Set<string>()
-  const copiedSymlinks: Record<string, string> = {}
+  const copiedFiles = new Set()
   await recursiveDelete(outputPath)
 
   async function handleTraceFiles(traceFilePath: string) {
@@ -1244,21 +1156,28 @@ export async function copyTracedFiles(
 
     await Promise.all(
       traceData.files.map(async (relativeFile) => {
-        const tracedFilePath = path.join(traceFileDir, relativeFile)
-        const relative = path.relative(tracingRoot, tracedFilePath)
-        if (relative.startsWith('..')) {
-          // do not copy files outside `tracingRoot`, they would be copied out of `standalone` directory and could even pollute user project
-          return
-        }
-        const fileOutputPath = path.join(outputPath, relative)
         await copySema.acquire()
-        await copy({
-          copiedFiles,
-          copiedSymlinks,
-          dest: fileOutputPath,
-          root: tracingRoot,
-          src: tracedFilePath,
-        })
+
+        const tracedFilePath = path.join(traceFileDir, relativeFile)
+        const fileOutputPath = path.join(
+          outputPath,
+          path.relative(tracingRoot, tracedFilePath)
+        )
+
+        if (!copiedFiles.has(fileOutputPath)) {
+          copiedFiles.add(fileOutputPath)
+
+          await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
+          const symlink = await fs.readlink(tracedFilePath).catch(() => null)
+
+          if (symlink) {
+            console.log('symlink', path.relative(tracingRoot, symlink))
+            await fs.symlink(symlink, fileOutputPath)
+          } else {
+            await fs.copyFile(tracedFilePath, fileOutputPath)
+          }
+        }
+
         await copySema.release()
       })
     )
