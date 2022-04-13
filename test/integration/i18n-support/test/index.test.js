@@ -495,6 +495,16 @@ describe('i18n Support', () => {
           expect(await browser.eval('window.location.pathname')).toBe(
             `${localePath}gssp/first/`
           )
+
+          await browser.back().waitForElementByCss('#index')
+          await browser.elementByCss('#to-api-post').click()
+
+          await browser.waitForCondition(
+            'window.location.pathname === "/api/post/asdf/"'
+          )
+          const body = await browser.elementByCss('body').text()
+          const json = JSON.parse(body)
+          expect(json.post).toBe(true)
         }
       })
     }
