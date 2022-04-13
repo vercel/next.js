@@ -1,5 +1,5 @@
 {
-  "name": "electron-typescript-next",
+  "name": "electron-typescript-next-app",
   "version": "0.0.0",
   "private": true,
   "main": "main/index.js",
