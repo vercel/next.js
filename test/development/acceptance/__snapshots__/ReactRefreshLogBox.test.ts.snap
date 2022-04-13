@@ -130,29 +130,31 @@ exports[`ReactRefreshLogBox syntax > runtime error 1`] = `
 exports[`ReactRefreshLogBox syntax > runtime error 2`] = `
 "./index.js
 Error: 
-  x Unexpected eof
+  x Expected '}', got '<eof>'
    ,----
  8 | export default function FunctionNamed() {
-   :                                          ^
+   :                                         ^
    \`----
 
 Caused by:
     0: failed to process input file
-    1: Syntax Error"
+    1: error was recoverable, but proceeding would result in wrong codegen
+    2: Syntax Error"
 `;
 
 exports[`ReactRefreshLogBox syntax > runtime error 3`] = `
 "./index.js
 Error: 
-  x Unexpected eof
+  x Expected '}', got '<eof>'
    ,----
  8 | export default function FunctionNamed() {
-   :                                          ^
+   :                                         ^
    \`----
 
 Caused by:
     0: failed to process input file
-    1: Syntax Error"
+    1: error was recoverable, but proceeding would result in wrong codegen
+    2: Syntax Error"
 `;
 
 exports[`ReactRefreshLogBox unterminated JSX 1`] = `
