@@ -2040,9 +2040,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css_parser"
-version = "0.100.1"
+version = "0.100.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63ba20eb665492621fee54b67432c29f58a8f440541d2c68f549d212cd595dea"
+checksum = "aa623eabb6808a9bdee076605fc8023f0e1fea460e6cd92ae236faca3346f838"
 dependencies = [
  "bitflags",
  "lexical",

@@ -1,7 +1,11 @@
-export default function Pid({ router }) {
-  return <div>{`query: ${router.query.dynamic}`}</div>
+export default function Pid({ text }) {
+  return <div>{`query: ${text}`}</div>
 }
 
-export const config = {
-  runtime: 'edge',
+export function getServerSideProps({ params }) {
+  return {
+    props: {
+      text: params.dynamic,
+    },
+  }
 }
