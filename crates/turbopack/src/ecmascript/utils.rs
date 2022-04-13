@@ -24,13 +24,13 @@ pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
             ConstantValue::Regex(exp, flags) => format!("/{exp}/{flags}"),
             ConstantValue::Undefined => "undefined".to_string(),
         }),
-        JsValue::Alternatives(alts) => {
+        JsValue::Alternatives(_, alts) => {
             Pattern::Alternatives(alts.iter().map(|alt| js_value_to_pattern(alt)).collect())
         }
-        JsValue::Concat(parts) => {
+        JsValue::Concat(_, parts) => {
             Pattern::Concatenation(parts.iter().map(|alt| js_value_to_pattern(alt)).collect())
         }
-        JsValue::Add(_) => {
+        JsValue::Add(..) => {
             // TODO do we need to handle that here
             // or is that already covered by normalization of JsValue
             Pattern::Dynamic

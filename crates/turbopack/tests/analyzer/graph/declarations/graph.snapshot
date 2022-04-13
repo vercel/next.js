@@ -2,6 +2,7 @@
     (
         "*anonymous function 24*",
         Function(
+            2,
             FreeVar(
                 Other(
                     Atom('undefined' type=static),
@@ -12,6 +13,7 @@
     (
         "a",
         Function(
+            2,
             FreeVar(
                 Other(
                     Atom('undefined' type=static),

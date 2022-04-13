@@ -2,6 +2,7 @@
     (
         "aa",
         Member(
+            3,
             Module(
                 Atom('x2' type=inline),
             ),
@@ -15,6 +16,7 @@
     (
         "xx",
         Member(
+            3,
             Module(
                 Atom('x1' type=inline),
             ),

@@ -246,7 +246,7 @@ pub async fn module_references(
                 }
                 let linked_args = || try_join_all(args.iter().map(|arg| link_value(arg.clone())));
                 match func {
-                    JsValue::Alternatives(alts) => {
+                    JsValue::Alternatives(_, alts) => {
                         for alt in alts {
                             handle_call_boxed(
                                 handler,
@@ -395,7 +395,7 @@ pub async fn module_references(
                         )
                     }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin) => {
-                        let linked_func_call = link_value(JsValue::Call(
+                        let linked_func_call = link_value(JsValue::call(
                             box JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
                             args.clone(),
                         ))
@@ -424,7 +424,7 @@ pub async fn module_references(
                             let pat = js_value_to_pattern(&args[0]);
                             if pat.is_match("node") && args.len() >= 2 {
                                 let first_arg =
-                                    JsValue::Member(box args[1].clone(), box 0_f64.into());
+                                    JsValue::member(box args[1].clone(), box 0_f64.into());
                                 let first_arg = link_value(first_arg).await?;
                                 let pat = js_value_to_pattern(&first_arg);
                                 if !pat.has_constant_parts() {
@@ -552,7 +552,7 @@ pub async fn module_references(
                         let obj = link(&var_graph, obj.clone(), &linker, &cache).await?;
                         let func = link(
                             &var_graph,
-                            JsValue::Member(box obj.clone(), box prop.clone()),
+                            JsValue::member(box obj.clone(), box prop.clone()),
                             &linker,
                             &cache,
                         )
@@ -597,6 +597,7 @@ async fn value_visitor_inner(source: &AssetVc, v: JsValue) -> Result<(JsValue, b
     Ok((
         match v {
             JsValue::Call(
+                _,
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
                 args,
             ) => {
@@ -608,12 +609,12 @@ async fn value_visitor_inner(source: &AssetVc, v: JsValue) -> Result<(JsValue, b
                     let resolved = cjs_resolve(request, context, resolve_options).await?;
                     match &*resolved {
                         ResolveResult::Single(asset, _) => as_abs_path(asset.path()).await?,
-                        ResolveResult::Alternatives(assets, _) => JsValue::Alternatives(
+                        ResolveResult::Alternatives(assets, _) => JsValue::alternatives(
                             try_join_all(assets.iter().map(|asset| as_abs_path(asset.path())))
                                 .await?,
                         ),
                         _ => JsValue::Unknown(
-                            Some(Arc::new(JsValue::Call(
+                            Some(Arc::new(JsValue::call(
                                 box JsValue::WellKnownFunction(
                                     WellKnownFunctionKind::RequireResolve,
                                 ),
@@ -624,7 +625,7 @@ async fn value_visitor_inner(source: &AssetVc, v: JsValue) -> Result<(JsValue, b
                     }
                 } else {
                     JsValue::Unknown(
-                        Some(Arc::new(JsValue::Call(
+                        Some(Arc::new(JsValue::call(
                             box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
                             args,
                         ))),

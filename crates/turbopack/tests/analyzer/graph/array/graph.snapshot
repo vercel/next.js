@@ -20,7 +20,9 @@
     (
         "c",
         Member(
+            7,
             Array(
+                3,
                 [
                     Constant(
                         Num(
@@ -37,6 +39,7 @@
                 ],
             ),
             Member(
+                3,
                 FreeVar(
                     Other(
                         Atom('global' type=static),
@@ -53,6 +56,7 @@
     (
         "d1",
         Array(
+            3,
             [
                 Constant(
                     Num(
@@ -72,6 +76,7 @@
     (
         "d2",
         Member(
+            5,
             Variable(
                 (
                     Atom('d1' type=inline),
@@ -79,6 +84,7 @@
                 ),
             ),
             Member(
+                3,
                 FreeVar(
                     Other(
                         Atom('global' type=static),
@@ -95,6 +101,7 @@
     (
         "d3",
         Member(
+            3,
             Variable(
                 (
                     Atom('d1' type=inline),
@@ -113,6 +120,7 @@
     (
         "d4",
         Member(
+            3,
             Variable(
                 (
                     Atom('d1' type=inline),

@@ -2,7 +2,9 @@
     (
         "*anonymous function 180*",
         Function(
+            9,
             MemberCall(
+                8,
                 Variable(
                     (
                         Atom('crypt' type=inline),
@@ -16,6 +18,7 @@
                 ),
                 [
                     Array(
+                        5,
                         [
                             Variable(
                                 (
@@ -50,7 +53,9 @@
     (
         "*anonymous function 5012*",
         Function(
+            4,
             Add(
+                3,
                 [
                     Unknown(
                         None,
@@ -69,7 +74,9 @@
     (
         "*anonymous function 5162*",
         Function(
+            4,
             Add(
+                3,
                 [
                     Unknown(
                         None,
@@ -88,7 +95,9 @@
     (
         "*anonymous function 5312*",
         Function(
+            4,
             Add(
+                3,
                 [
                     Unknown(
                         None,
@@ -107,7 +116,9 @@
     (
         "*anonymous function 5453*",
         Function(
+            4,
             Add(
+                3,
                 [
                     Unknown(
                         None,
@@ -126,6 +137,7 @@
     (
         "*anonymous function 5684*",
         Function(
+            2,
             Unknown(
                 None,
                 "unsupported expression",
@@ -135,6 +147,7 @@
     (
         "FF",
         Member(
+            3,
             Variable(
                 (
                     Atom('md5' type=inline),
@@ -151,6 +164,7 @@
     (
         "GG",
         Member(
+            3,
             Variable(
                 (
                     Atom('md5' type=inline),
@@ -167,6 +181,7 @@
     (
         "HH",
         Member(
+            3,
             Variable(
                 (
                     Atom('md5' type=inline),
@@ -183,6 +198,7 @@
     (
         "II",
         Member(
+            3,
             Variable(
                 (
                     Atom('md5' type=inline),
@@ -199,6 +215,7 @@
     (
         "a#3",
         Alternatives(
+            211,
             [
                 Constant(
                     Num(
@@ -208,6 +225,7 @@
                     ),
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('FF' type=inline),
@@ -240,6 +258,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -247,6 +266,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -278,6 +298,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('FF' type=inline),
@@ -310,6 +331,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -317,6 +339,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -348,6 +371,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('FF' type=inline),
@@ -380,6 +404,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -387,6 +412,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -421,6 +447,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('FF' type=inline),
@@ -453,6 +480,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -460,6 +488,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -494,6 +523,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('GG' type=inline),
@@ -526,6 +556,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -533,6 +564,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -564,6 +596,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('GG' type=inline),
@@ -596,6 +629,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -603,6 +637,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -634,6 +669,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('GG' type=inline),
@@ -666,6 +702,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -673,6 +710,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -707,6 +745,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('GG' type=inline),
@@ -739,6 +778,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -746,6 +786,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -777,6 +818,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('HH' type=inline),
@@ -809,6 +851,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -816,6 +859,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -847,6 +891,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('HH' type=inline),
@@ -879,6 +924,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -886,6 +932,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -917,6 +964,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('HH' type=inline),
@@ -949,6 +997,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -956,6 +1005,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -990,6 +1040,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('HH' type=inline),
@@ -1022,6 +1073,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -1029,6 +1081,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1060,6 +1113,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('II' type=inline),
@@ -1092,6 +1146,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -1099,6 +1154,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1130,6 +1186,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('II' type=inline),
@@ -1162,6 +1219,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -1169,6 +1227,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1203,6 +1262,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('II' type=inline),
@@ -1235,6 +1295,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -1242,6 +1303,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1276,6 +1338,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('II' type=inline),
@@ -1308,6 +1371,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -1315,6 +1379,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1388,12 +1453,14 @@
     (
         "b#3",
         Alternatives(
+            210,
             [
                 Unknown(
                     None,
                     "unsupported expression",
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('FF' type=inline),
@@ -1426,6 +1493,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -1433,6 +1501,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1464,6 +1533,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('FF' type=inline),
@@ -1496,6 +1566,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -1503,6 +1574,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1534,6 +1606,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('FF' type=inline),
@@ -1566,6 +1639,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -1573,6 +1647,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1604,6 +1679,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('FF' type=inline),
@@ -1636,6 +1712,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -1643,6 +1720,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1677,6 +1755,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('GG' type=inline),
@@ -1709,6 +1788,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -1716,6 +1796,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1747,6 +1828,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('GG' type=inline),
@@ -1779,6 +1861,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -1786,6 +1869,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1817,6 +1901,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('GG' type=inline),
@@ -1849,6 +1934,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -1856,6 +1942,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1890,6 +1977,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('GG' type=inline),
@@ -1922,6 +2010,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -1929,6 +2018,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1960,6 +2050,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('HH' type=inline),
@@ -1992,6 +2083,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -1999,6 +2091,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2030,6 +2123,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('HH' type=inline),
@@ -2062,6 +2156,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -2069,6 +2164,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2100,6 +2196,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('HH' type=inline),
@@ -2132,6 +2229,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -2139,6 +2237,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2173,6 +2272,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('HH' type=inline),
@@ -2205,6 +2305,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -2212,6 +2313,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2243,6 +2345,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('II' type=inline),
@@ -2275,6 +2378,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -2282,6 +2386,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2313,6 +2418,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('II' type=inline),
@@ -2345,6 +2451,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -2352,6 +2459,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2383,6 +2491,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('II' type=inline),
@@ -2415,6 +2524,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -2422,6 +2532,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2456,6 +2567,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('II' type=inline),
@@ -2488,6 +2600,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -2495,6 +2608,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2564,7 +2678,9 @@
     (
         "bin",
         Member(
+            5,
             Call(
+                3,
                 FreeVar(
                     Require,
                 ),
@@ -2586,12 +2702,14 @@
     (
         "c#3",
         Alternatives(
+            210,
             [
                 Unknown(
                     None,
                     "unsupported expression",
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('FF' type=inline),
@@ -2624,6 +2742,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -2631,6 +2750,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2665,6 +2785,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('FF' type=inline),
@@ -2697,6 +2818,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -2704,6 +2826,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2735,6 +2858,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('FF' type=inline),
@@ -2767,6 +2891,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -2774,6 +2899,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2805,6 +2931,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('FF' type=inline),
@@ -2837,6 +2964,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -2844,6 +2972,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2875,6 +3004,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('GG' type=inline),
@@ -2907,6 +3037,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -2914,6 +3045,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2948,6 +3080,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('GG' type=inline),
@@ -2980,6 +3113,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -2987,6 +3121,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3018,6 +3153,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('GG' type=inline),
@@ -3050,6 +3186,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -3057,6 +3194,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3088,6 +3226,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('GG' type=inline),
@@ -3120,6 +3259,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -3127,6 +3267,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3161,6 +3302,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('HH' type=inline),
@@ -3193,6 +3335,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -3200,6 +3343,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3234,6 +3378,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('HH' type=inline),
@@ -3266,6 +3411,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -3273,6 +3419,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3304,6 +3451,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('HH' type=inline),
@@ -3336,6 +3484,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -3343,6 +3492,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3374,6 +3524,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('HH' type=inline),
@@ -3406,6 +3557,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -3413,6 +3565,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3447,6 +3600,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('II' type=inline),
@@ -3479,6 +3633,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -3486,6 +3641,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3517,6 +3673,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('II' type=inline),
@@ -3549,6 +3706,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -3556,6 +3714,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3587,6 +3746,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('II' type=inline),
@@ -3619,6 +3779,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -3626,6 +3787,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3657,6 +3819,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('II' type=inline),
@@ -3689,6 +3852,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -3696,6 +3860,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3768,6 +3933,7 @@
     (
         "crypt",
         Call(
+            3,
             FreeVar(
                 Require,
             ),
@@ -3783,6 +3949,7 @@
     (
         "d#3",
         Alternatives(
+            211,
             [
                 Constant(
                     Num(
@@ -3792,6 +3959,7 @@
                     ),
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('FF' type=inline),
@@ -3824,6 +3992,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -3831,6 +4000,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3862,6 +4032,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('FF' type=inline),
@@ -3894,6 +4065,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -3901,6 +4073,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3935,6 +4108,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('FF' type=inline),
@@ -3967,6 +4141,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -3974,6 +4149,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4005,6 +4181,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('FF' type=inline),
@@ -4037,6 +4214,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -4044,6 +4222,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4075,6 +4254,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('GG' type=inline),
@@ -4107,6 +4287,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -4114,6 +4295,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4145,6 +4327,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('GG' type=inline),
@@ -4177,6 +4360,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -4184,6 +4368,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4218,6 +4403,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('GG' type=inline),
@@ -4250,6 +4436,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -4257,6 +4444,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4288,6 +4476,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('GG' type=inline),
@@ -4320,6 +4509,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -4327,6 +4517,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4358,6 +4549,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('HH' type=inline),
@@ -4390,6 +4582,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -4397,6 +4590,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4428,6 +4622,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('HH' type=inline),
@@ -4460,6 +4655,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -4467,6 +4663,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4501,6 +4698,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('HH' type=inline),
@@ -4533,6 +4731,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -4540,6 +4739,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4571,6 +4771,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('HH' type=inline),
@@ -4603,6 +4804,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -4610,6 +4812,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4641,6 +4844,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('II' type=inline),
@@ -4673,6 +4877,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -4680,6 +4885,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4714,6 +4920,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('II' type=inline),
@@ -4746,6 +4953,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -4753,6 +4961,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4784,6 +4993,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('II' type=inline),
@@ -4816,6 +5026,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -4823,6 +5034,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4854,6 +5066,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('II' type=inline),
@@ -4886,6 +5099,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('m' type=inline),
@@ -4893,6 +5107,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4966,6 +5181,7 @@
     (
         "digestbytes",
         MemberCall(
+            7,
             Variable(
                 (
                     Atom('crypt' type=inline),
@@ -4979,6 +5195,7 @@
             ),
             [
                 Call(
+                    4,
                     Variable(
                         (
                             Atom('md5' type=inline),
@@ -5016,6 +5233,7 @@
     (
         "isBuffer",
         Call(
+            3,
             FreeVar(
                 Require,
             ),
@@ -5038,6 +5256,7 @@
     (
         "m",
         MemberCall(
+            4,
             Variable(
                 (
                     Atom('crypt' type=inline),
@@ -5071,11 +5290,13 @@
     (
         "message#3",
         Alternatives(
+            22,
             [
                 Argument(
                     0,
                 ),
                 MemberCall(
+                    4,
                     Variable(
                         (
                             Atom('bin' type=inline),
@@ -5097,6 +5318,7 @@
                     ],
                 ),
                 MemberCall(
+                    4,
                     Variable(
                         (
                             Atom('utf8' type=inline),
@@ -5118,8 +5340,11 @@
                     ],
                 ),
                 MemberCall(
+                    9,
                     Member(
+                        5,
                         Member(
+                            3,
                             FreeVar(
                                 Other(
                                     Atom('Array' type=static),
@@ -5159,6 +5384,7 @@
                     ],
                 ),
                 MemberCall(
+                    3,
                     Variable(
                         (
                             Atom('message' type=inline),
@@ -5184,6 +5410,7 @@
     (
         "n#4",
         Add(
+            5,
             [
                 Variable(
                     (
@@ -5211,6 +5438,7 @@
     (
         "n#5",
         Add(
+            5,
             [
                 Variable(
                     (
@@ -5238,6 +5466,7 @@
     (
         "n#6",
         Add(
+            5,
             [
                 Variable(
                     (
@@ -5265,6 +5494,7 @@
     (
         "n#7",
         Add(
+            5,
             [
                 Variable(
                     (
@@ -5352,7 +5582,9 @@
     (
         "utf8",
         Member(
+            5,
             Call(
+                3,
                 FreeVar(
                     Require,
                 ),

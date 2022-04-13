@@ -2,6 +2,7 @@
     (
         "*anonymous function 115*",
         Function(
+            2,
             Constant(
                 Num(
                     ConstantNumber(
@@ -14,6 +15,7 @@
     (
         "*anonymous function 338*",
         Function(
+            2,
             Constant(
                 Num(
                     ConstantNumber(
@@ -26,6 +28,7 @@
     (
         "*arrow function 10*",
         Function(
+            2,
             Constant(
                 Num(
                     ConstantNumber(
@@ -38,6 +41,7 @@
     (
         "*arrow function 213*",
         Function(
+            2,
             Constant(
                 Num(
                     ConstantNumber(
@@ -50,6 +54,7 @@
     (
         "*arrow function 235*",
         Function(
+            2,
             Constant(
                 Num(
                     ConstantNumber(
@@ -62,6 +67,7 @@
     (
         "*arrow function 258*",
         Function(
+            2,
             Constant(
                 Num(
                     ConstantNumber(
@@ -74,6 +80,7 @@
     (
         "*arrow function 29*",
         Function(
+            2,
             Constant(
                 Num(
                     ConstantNumber(
@@ -86,6 +93,7 @@
     (
         "*arrow function 298*",
         Function(
+            2,
             Constant(
                 Num(
                     ConstantNumber(
@@ -98,6 +106,7 @@
     (
         "*arrow function 49*",
         Function(
+            2,
             Constant(
                 Num(
                     ConstantNumber(
@@ -110,6 +119,7 @@
     (
         "*arrow function 82*",
         Function(
+            2,
             Constant(
                 Num(
                     ConstantNumber(
@@ -167,6 +177,7 @@
     (
         "e#2",
         Function(
+            2,
             Constant(
                 Num(
                     ConstantNumber(
@@ -188,6 +199,7 @@
     (
         "x",
         Function(
+            2,
             FreeVar(
                 Other(
                     Atom('undefined' type=static),
@@ -243,6 +255,7 @@
     (
         "xe#4",
         Function(
+            2,
             Constant(
                 Num(
                     ConstantNumber(

@@ -2,9 +2,12 @@
     (
         "*arrow function 2641*",
         Function(
+            16,
             Alternatives(
+                15,
                 [
                     Array(
+                        10,
                         [
                             Constant(
                                 Str(
@@ -12,8 +15,10 @@
                                 ),
                             ),
                             Array(
+                                8,
                                 [
                                     MemberCall(
+                                        7,
                                         Variable(
                                             (
                                                 Atom('path2' type=inline),
@@ -51,8 +56,10 @@
                         ],
                     ),
                     Array(
+                        4,
                         [
                             Call(
+                                2,
                                 Variable(
                                     (
                                         Atom('generateBinPath' type=dynamic),
@@ -62,6 +69,7 @@
                                 [],
                             ),
                             Array(
+                                1,
                                 [],
                             ),
                         ],
@@ -73,7 +81,9 @@
     (
         "args",
         Member(
+            4,
             Call(
+                2,
                 Variable(
                     (
                         Atom('esbuildCommandAndArgs' type=dynamic),
@@ -94,6 +104,7 @@
     (
         "binPath",
         Alternatives(
+            13,
             [
                 Unknown(
                     Some(
@@ -107,6 +118,7 @@
                     "pattern without value",
                 ),
                 MemberCall(
+                    7,
                     FreeVar(
                         Require,
                     ),
@@ -117,6 +129,7 @@
                     ),
                     [
                         Concat(
+                            4,
                             [
                                 Variable(
                                     (
@@ -140,6 +153,7 @@
                     ],
                 ),
                 Call(
+                    4,
                     FreeVar(
                         Other(
                             Atom('downloadedBinPath' type=dynamic),
@@ -166,6 +180,7 @@
     (
         "binTargetPath",
         MemberCall(
+            12,
             Variable(
                 (
                     Atom('path' type=inline),
@@ -185,6 +200,7 @@
                     ),
                 ),
                 Concat(
+                    8,
                     [
                         Constant(
                             Str(
@@ -203,6 +219,7 @@
                             ),
                         ),
                         MemberCall(
+                            4,
                             Variable(
                                 (
                                     Atom('path' type=inline),
@@ -231,7 +248,9 @@
     (
         "command",
         Member(
+            4,
             Call(
+                2,
                 Variable(
                     (
                         Atom('esbuildCommandAndArgs' type=dynamic),
@@ -289,6 +308,7 @@
     (
         "esbuildLibDir",
         MemberCall(
+            7,
             Variable(
                 (
                     Atom('path' type=inline),
@@ -302,6 +322,7 @@
             ),
             [
                 MemberCall(
+                    4,
                     FreeVar(
                         Require,
                     ),
@@ -324,7 +345,9 @@
     (
         "generateBinPath",
         Function(
+            5,
             Alternatives(
+                4,
                 [
                     FreeVar(
                         Other(
@@ -350,6 +373,7 @@
     (
         "isYarnPnP",
         Alternatives(
+            3,
             [
                 Constant(
                     False,
@@ -363,6 +387,7 @@
     (
         "knownUnixlikePackages",
         Object(
+            31,
             [
                 KeyValue(
                     Constant(
@@ -550,6 +575,7 @@
     (
         "knownWindowsPackages",
         Object(
+            7,
             [
                 KeyValue(
                     Constant(
@@ -593,6 +619,7 @@
     (
         "path",
         Call(
+            3,
             FreeVar(
                 Require,
             ),
@@ -608,6 +635,7 @@
     (
         "path2",
         Call(
+            3,
             FreeVar(
                 Require,
             ),
@@ -623,6 +651,7 @@
     (
         "pkg#2",
         Alternatives(
+            8,
             [
                 Unknown(
                     Some(
@@ -636,6 +665,7 @@
                     "pattern without value",
                 ),
                 Member(
+                    3,
                     Variable(
                         (
                             Atom('knownWindowsPackages' type=dynamic),
@@ -650,6 +680,7 @@
                     ),
                 ),
                 Member(
+                    3,
                     Variable(
                         (
                             Atom('knownUnixlikePackages' type=dynamic),
@@ -669,7 +700,9 @@
     (
         "pkg#3",
         Member(
+            4,
             Call(
+                2,
                 Variable(
                     (
                         Atom('pkgAndSubpathForCurrentPlatform' type=dynamic),
@@ -688,7 +721,9 @@
     (
         "pkgAndSubpathForCurrentPlatform",
         Function(
+            6,
             Object(
+                5,
                 [
                     KeyValue(
                         Constant(
@@ -723,8 +758,10 @@
     (
         "platformKey",
         Concat(
+            12,
             [
                 Member(
+                    3,
                     FreeVar(
                         Other(
                             Atom('process' type=static),
@@ -742,6 +779,7 @@
                     ),
                 ),
                 MemberCall(
+                    3,
                     FreeVar(
                         Other(
                             Atom('os' type=inline),
@@ -760,6 +798,7 @@
                     ),
                 ),
                 MemberCall(
+                    3,
                     FreeVar(
                         Other(
                             Atom('os' type=inline),
@@ -778,6 +817,7 @@
     (
         "subpath#2",
         Alternatives(
+            4,
             [
                 Unknown(
                     Some(
@@ -806,7 +846,9 @@
     (
         "subpath#3",
         Member(
+            4,
             Call(
+                2,
                 Variable(
                     (
                         Atom('pkgAndSubpathForCurrentPlatform' type=dynamic),
@@ -825,6 +867,7 @@
     (
         "x",
         MemberCall(
+            5,
             Variable(
                 (
                     Atom('args' type=inline),

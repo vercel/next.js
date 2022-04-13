@@ -6,7 +6,7 @@ use super::{ConstantNumber, ConstantValue, JsValue, ObjectPart};
 
 pub fn replace_builtin(value: &mut JsValue) -> bool {
     match value {
-        JsValue::Member(box ref mut obj, ref mut prop) => {
+        JsValue::Member(_, box ref mut obj, ref mut prop) => {
             match obj {
                 JsValue::Constant(_) => {
                     value.make_unknown("property on constant");
@@ -16,44 +16,44 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     value.make_unknown("property on url");
                     true
                 }
-                JsValue::Concat(_) => {
+                JsValue::Concat(..) => {
                     value.make_unknown("property on string");
                     true
                 }
-                JsValue::Add(_) => {
+                JsValue::Add(..) => {
                     value.make_unknown("property on number or string");
                     true
                 }
-                JsValue::Unknown(_, _) => {
+                JsValue::Unknown(..) => {
                     value.make_unknown("property on unknown");
                     true
                 }
-                JsValue::Function(_) => {
+                JsValue::Function(..) => {
                     value.make_unknown("property on function");
                     true
                 }
-                JsValue::Alternatives(alts) => {
-                    *value = JsValue::Alternatives(
+                JsValue::Alternatives(_, alts) => {
+                    *value = JsValue::alternatives(
                         take(alts)
                             .into_iter()
-                            .map(|alt| JsValue::Member(box alt, prop.clone()))
+                            .map(|alt| JsValue::member(box alt, prop.clone()))
                             .collect(),
                     );
                     true
                 }
-                JsValue::Array(array) => {
+                JsValue::Array(_, array) => {
                     fn items_to_alternatives(
                         items: &mut Vec<JsValue>,
                         prop: &mut JsValue,
                     ) -> JsValue {
                         items.push(JsValue::Unknown(
-                            Some(Arc::new(JsValue::Member(
-                                box JsValue::Array(Vec::new()),
+                            Some(Arc::new(JsValue::member(
+                                box JsValue::array(Vec::new()),
                                 box take(prop),
                             ))),
                             "unknown array prototype methods or values",
                         ));
-                        JsValue::Alternatives(take(items))
+                        JsValue::alternatives(take(items))
                     }
                     match &mut **prop {
                         JsValue::Unknown(_, _) => {
@@ -67,7 +67,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 true
                             } else {
                                 *value = JsValue::Unknown(
-                                    Some(Arc::new(JsValue::Member(box take(obj), box take(prop)))),
+                                    Some(Arc::new(JsValue::member(box take(obj), box take(prop)))),
                                     "invalid index",
                                 );
                                 true
@@ -77,11 +77,11 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             value.make_unknown("non-num constant property on array");
                             true
                         }
-                        JsValue::Array(_) => {
+                        JsValue::Array(..) => {
                             value.make_unknown("array property on array");
                             true
                         }
-                        JsValue::Object(_) => {
+                        JsValue::Object(..) => {
                             value.make_unknown("object property on array");
                             true
                         }
@@ -89,20 +89,20 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             value.make_unknown("url property on array");
                             true
                         }
-                        JsValue::Function(_) => {
+                        JsValue::Function(..) => {
                             value.make_unknown("function property on array");
                             true
                         }
-                        JsValue::Alternatives(alts) => {
-                            *value = JsValue::Alternatives(
+                        JsValue::Alternatives(_, alts) => {
+                            *value = JsValue::alternatives(
                                 take(alts)
                                     .into_iter()
-                                    .map(|alt| JsValue::Member(box obj.clone(), box alt))
+                                    .map(|alt| JsValue::member(box obj.clone(), box alt))
                                     .collect(),
                             );
                             true
                         }
-                        JsValue::Concat(_) | JsValue::Add(_) => {
+                        JsValue::Concat(..) | JsValue::Add(..) => {
                             if prop.has_placeholder() {
                                 // keep the member infact since it might be handled later
                                 false
@@ -113,9 +113,9 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                         }
                         JsValue::FreeVar(_)
                         | JsValue::Variable(_)
-                        | JsValue::Call(_, _)
+                        | JsValue::Call(..)
                         | JsValue::MemberCall(..)
-                        | JsValue::Member(_, _)
+                        | JsValue::Member(..)
                         | JsValue::WellKnownObject(_)
                         | JsValue::Argument(_)
                         | JsValue::WellKnownFunction(_)
@@ -126,7 +126,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     };
                     true
                 }
-                JsValue::Object(parts) => {
+                JsValue::Object(_, parts) => {
                     fn parts_to_alternatives(
                         parts: &mut Vec<ObjectPart>,
                         prop: &mut Box<JsValue>,
@@ -139,8 +139,8 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 }
                                 ObjectPart::Spread(value) => {
                                     values.push(JsValue::Unknown(
-                                        Some(Arc::new(JsValue::Member(
-                                            box JsValue::Object(vec![take(part)]),
+                                        Some(Arc::new(JsValue::member(
+                                            box JsValue::object(vec![take(part)]),
                                             prop.clone(),
                                         ))),
                                         "spreaded object",
@@ -149,13 +149,13 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             }
                         }
                         values.push(JsValue::Unknown(
-                            Some(Arc::new(JsValue::Member(
-                                box JsValue::Object(Vec::new()),
+                            Some(Arc::new(JsValue::member(
+                                box JsValue::object(Vec::new()),
                                 box take(prop),
                             ))),
                             "unknown object prototype methods or values",
                         ));
-                        JsValue::Alternatives(values)
+                        JsValue::alternatives(values)
                     }
                     match &mut **prop {
                         JsValue::Unknown(_, _) => {
@@ -180,11 +180,11 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             *value = JsValue::FreeVar(FreeVarKind::Other("undefined".into()));
                             true
                         }
-                        JsValue::Array(_) => {
+                        JsValue::Array(..) => {
                             value.make_unknown("array property on object");
                             true
                         }
-                        JsValue::Object(_) => {
+                        JsValue::Object(..) => {
                             value.make_unknown("object property on object");
                             true
                         }
@@ -192,20 +192,20 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             value.make_unknown("url property on object");
                             true
                         }
-                        JsValue::Function(_) => {
+                        JsValue::Function(..) => {
                             value.make_unknown("function property on object");
                             true
                         }
-                        JsValue::Alternatives(alts) => {
-                            *value = JsValue::Alternatives(
+                        JsValue::Alternatives(_, alts) => {
+                            *value = JsValue::alternatives(
                                 take(alts)
                                     .into_iter()
-                                    .map(|alt| JsValue::Member(box obj.clone(), box alt))
+                                    .map(|alt| JsValue::member(box obj.clone(), box alt))
                                     .collect(),
                             );
                             true
                         }
-                        JsValue::Concat(_) | JsValue::Add(_) => {
+                        JsValue::Concat(..) | JsValue::Add(..) => {
                             if prop.has_placeholder() {
                                 // keep the member infact since it might be handled later
                                 false
@@ -216,9 +216,9 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                         }
                         JsValue::FreeVar(_)
                         | JsValue::Variable(_)
-                        | JsValue::Call(_, _)
+                        | JsValue::Call(..)
                         | JsValue::MemberCall(..)
-                        | JsValue::Member(_, _)
+                        | JsValue::Member(..)
                         | JsValue::WellKnownObject(_)
                         | JsValue::Argument(_)
                         | JsValue::WellKnownFunction(_)
@@ -231,9 +231,9 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 }
                 JsValue::FreeVar(_)
                 | JsValue::Variable(_)
-                | JsValue::Call(_, _)
+                | JsValue::Call(..)
                 | JsValue::MemberCall(..)
-                | JsValue::Member(_, _)
+                | JsValue::Member(..)
                 | JsValue::WellKnownObject(_)
                 | JsValue::Argument(_)
                 | JsValue::WellKnownFunction(_)
@@ -244,36 +244,36 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 }
             }
         }
-        JsValue::MemberCall(box ref mut obj, box ref mut prop, ref mut args) => {
+        JsValue::MemberCall(_, box ref mut obj, box ref mut prop, ref mut args) => {
             match obj {
-                JsValue::Array(items) => match prop {
+                JsValue::Array(_, items) => match prop {
                     JsValue::Constant(ConstantValue::Str(str)) => match &**str {
                         "concat" => {
                             if args.iter().all(|arg| {
                                 matches!(
                                     arg,
-                                    JsValue::Array(_)
+                                    JsValue::Array(..)
                                         | JsValue::Constant(_)
                                         | JsValue::Url(_)
-                                        | JsValue::Concat(_)
-                                        | JsValue::Add(_)
+                                        | JsValue::Concat(..)
+                                        | JsValue::Add(..)
                                         | JsValue::WellKnownObject(_)
                                         | JsValue::WellKnownFunction(_)
-                                        | JsValue::Function(_)
+                                        | JsValue::Function(..)
                                 )
                             }) {
                                 for arg in args {
                                     match arg {
-                                        JsValue::Array(inner) => {
+                                        JsValue::Array(_, inner) => {
                                             items.extend(take(inner));
                                         }
                                         JsValue::Constant(_)
                                         | JsValue::Url(_)
-                                        | JsValue::Concat(_)
-                                        | JsValue::Add(_)
+                                        | JsValue::Concat(..)
+                                        | JsValue::Add(..)
                                         | JsValue::WellKnownObject(_)
                                         | JsValue::WellKnownFunction(_)
-                                        | JsValue::Function(_) => {
+                                        | JsValue::Function(..) => {
                                             items.push(take(arg));
                                         }
                                         _ => {
@@ -281,6 +281,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                         }
                                     }
                                 }
+                                obj.update_total_nodes();
                                 *value = take(obj);
                                 return true;
                             }
@@ -289,34 +290,36 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     },
                     _ => {}
                 },
-                JsValue::Alternatives(alts) => {
-                    *value = JsValue::Alternatives(
+                JsValue::Alternatives(_, alts) => {
+                    *value = JsValue::alternatives(
                         take(alts)
                             .into_iter()
-                            .map(|alt| JsValue::MemberCall(box alt, box prop.clone(), args.clone()))
+                            .map(|alt| {
+                                JsValue::member_call(box alt, box prop.clone(), args.clone())
+                            })
                             .collect(),
                     );
                     return true;
                 }
                 _ => {}
             }
-            *value = JsValue::Call(
-                box JsValue::Member(box take(obj), box take(prop)),
+            *value = JsValue::call(
+                box JsValue::member(box take(obj), box take(prop)),
                 take(args),
             );
             true
         }
-        JsValue::Call(box ref mut callee, ref mut args) => {
+        JsValue::Call(_, box ref mut callee, ref mut args) => {
             match callee {
                 JsValue::Unknown(inner, explainer) => {
                     value.make_unknown("call of unknown function");
                     true
                 }
-                JsValue::Array(_) => {
+                JsValue::Array(..) => {
                     value.make_unknown("call of array");
                     true
                 }
-                JsValue::Object(_) => {
+                JsValue::Object(..) => {
                     value.make_unknown("call of object");
                     true
                 }
@@ -328,19 +331,19 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     value.make_unknown("call of url");
                     true
                 }
-                JsValue::Concat(_) => {
+                JsValue::Concat(..) => {
                     value.make_unknown("call of string");
                     true
                 }
-                JsValue::Add(_) => {
+                JsValue::Add(..) => {
                     value.make_unknown("call of number or string");
                     true
                 }
-                JsValue::Function(box ref mut return_value) => {
+                JsValue::Function(_, box ref mut return_value) => {
                     let mut return_value = take(return_value);
                     return_value.visit_mut_conditional(
                         |value| {
-                            if let JsValue::Function(_) = value {
+                            if let JsValue::Function(..) = value {
                                 false
                             } else {
                                 true
@@ -364,20 +367,20 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     *value = return_value;
                     true
                 }
-                JsValue::Alternatives(alts) => {
-                    *value = JsValue::Alternatives(
+                JsValue::Alternatives(_, alts) => {
+                    *value = JsValue::alternatives(
                         take(alts)
                             .into_iter()
-                            .map(|alt| JsValue::Call(box alt, args.clone()))
+                            .map(|alt| JsValue::call(box alt, args.clone()))
                             .collect(),
                     );
                     true
                 }
                 JsValue::FreeVar(_)
                 | JsValue::Variable(_)
-                | JsValue::Call(_, _)
+                | JsValue::Call(..)
                 | JsValue::MemberCall(..)
-                | JsValue::Member(_, _)
+                | JsValue::Member(..)
                 | JsValue::WellKnownObject(_)
                 | JsValue::Argument(_)
                 | JsValue::WellKnownFunction(_)
@@ -388,14 +391,14 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 }
             }
         }
-        JsValue::Object(parts) => {
+        JsValue::Object(_, parts) => {
             if parts
                 .iter()
-                .any(|part| matches!(part, ObjectPart::Spread(JsValue::Object(_))))
+                .any(|part| matches!(part, ObjectPart::Spread(JsValue::Object(..))))
             {
                 let old_parts = take(parts);
                 for part in old_parts {
-                    if let ObjectPart::Spread(JsValue::Object(inner_parts)) = part {
+                    if let ObjectPart::Spread(JsValue::Object(_, inner_parts)) = part {
                         parts.extend(inner_parts);
                     } else {
                         parts.push(part);

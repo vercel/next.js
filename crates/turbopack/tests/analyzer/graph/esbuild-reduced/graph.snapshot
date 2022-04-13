@@ -2,6 +2,7 @@
     (
         "binPath",
         Alternatives(
+            9,
             [
                 Unknown(
                     Some(
@@ -15,6 +16,7 @@
                     "pattern without value",
                 ),
                 MemberCall(
+                    7,
                     FreeVar(
                         Require,
                     ),
@@ -25,6 +27,7 @@
                     ),
                     [
                         Concat(
+                            4,
                             [
                                 Variable(
                                     (
@@ -67,6 +70,7 @@
     (
         "generateBinPath",
         Function(
+            2,
             Variable(
                 (
                     Atom('binPath' type=inline),
@@ -78,6 +82,7 @@
     (
         "knownWindowsPackages",
         Object(
+            7,
             [
                 KeyValue(
                     Constant(
@@ -121,6 +126,7 @@
     (
         "path",
         Call(
+            3,
             FreeVar(
                 Require,
             ),
@@ -136,6 +142,7 @@
     (
         "path2",
         Call(
+            3,
             FreeVar(
                 Require,
             ),
@@ -151,6 +158,7 @@
     (
         "pkg#2",
         Alternatives(
+            5,
             [
                 Unknown(
                     Some(
@@ -164,6 +172,7 @@
                     "pattern without value",
                 ),
                 Member(
+                    3,
                     Variable(
                         (
                             Atom('knownWindowsPackages' type=dynamic),
@@ -182,7 +191,9 @@
     (
         "pkg#3",
         Member(
+            4,
             Call(
+                2,
                 Variable(
                     (
                         Atom('pkgAndSubpathForCurrentPlatform' type=dynamic),
@@ -201,7 +212,9 @@
     (
         "pkgAndSubpathForCurrentPlatform",
         Function(
+            6,
             Object(
+                5,
                 [
                     KeyValue(
                         Constant(
@@ -236,6 +249,7 @@
     (
         "subpath#2",
         Alternatives(
+            3,
             [
                 Unknown(
                     Some(
@@ -259,7 +273,9 @@
     (
         "subpath#3",
         Member(
+            4,
             Call(
+                2,
                 Variable(
                     (
                         Atom('pkgAndSubpathForCurrentPlatform' type=dynamic),
@@ -278,6 +294,7 @@
     (
         "x",
         Call(
+            2,
             Variable(
                 (
                     Atom('generateBinPath' type=dynamic),

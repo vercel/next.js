@@ -2,6 +2,7 @@
     (
         "*anonymous function 65*",
         Function(
+            2,
             FreeVar(
                 Other(
                     Atom('undefined' type=static),
@@ -12,6 +13,7 @@
     (
         "*arrow function 117*",
         Function(
+            2,
             FreeVar(
                 Other(
                     Atom('undefined' type=static),
@@ -22,6 +24,7 @@
     (
         "*arrow function 228*",
         Function(
+            2,
             FreeVar(
                 Other(
                     Atom('undefined' type=static),
@@ -32,6 +35,7 @@
     (
         "a",
         Function(
+            2,
             FreeVar(
                 Other(
                     Atom('undefined' type=static),
@@ -67,6 +71,7 @@
     (
         "e",
         Function(
+            2,
             FreeVar(
                 Other(
                     Atom('undefined' type=static),

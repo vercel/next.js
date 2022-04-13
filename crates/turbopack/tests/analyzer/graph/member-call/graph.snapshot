@@ -2,6 +2,7 @@
     (
         "array",
         Array(
+            4,
             [
                 Constant(
                     Num(
@@ -30,8 +31,10 @@
     (
         "arrays",
         Alternatives(
+            9,
             [
                 Array(
+                    4,
                     [
                         Constant(
                             Num(
@@ -57,6 +60,7 @@
                     ],
                 ),
                 Array(
+                    4,
                     [
                         Constant(
                             Num(
@@ -87,6 +91,7 @@
     (
         "concatenated_array",
         MemberCall(
+            13,
             Variable(
                 (
                     Atom('array' type=inline),
@@ -121,6 +126,7 @@
                     ),
                 ),
                 Array(
+                    4,
                     [
                         Constant(
                             Num(
@@ -146,6 +152,7 @@
                     ],
                 ),
                 Concat(
+                    3,
                     [
                         Constant(
                             Str(
@@ -166,6 +173,7 @@
     (
         "concatenated_array_options",
         MemberCall(
+            7,
             Variable(
                 (
                     Atom('array' type=inline),
@@ -179,6 +187,7 @@
             ),
             [
                 Array(
+                    4,
                     [
                         Constant(
                             Num(
@@ -209,6 +218,7 @@
     (
         "item",
         Member(
+            3,
             Variable(
                 (
                     Atom('array' type=inline),
@@ -227,6 +237,7 @@
     (
         "item_options",
         Member(
+            3,
             Variable(
                 (
                     Atom('arrays' type=inline),
@@ -245,10 +256,14 @@
     (
         "pick_array1",
         MemberCall(
+            14,
             Member(
+                7,
                 Array(
+                    5,
                     [
                         Array(
+                            4,
                             [
                                 Constant(
                                     Num(
@@ -290,6 +305,7 @@
             ),
             [
                 Array(
+                    5,
                     [
                         Constant(
                             Num(
@@ -325,10 +341,14 @@
     (
         "pick_array2",
         MemberCall(
+            13,
             Member(
+                7,
                 Array(
+                    5,
                     [
                         Array(
+                            4,
                             [
                                 Constant(
                                     Num(

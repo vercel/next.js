@@ -20,6 +20,7 @@
     (
         "a#4",
         Alternatives(
+            210,
             [
                 Constant(
                     Num(
@@ -29,6 +30,7 @@
                     ),
                 ),
                 Call(
+                    11,
                     Variable(
                         (
                             Atom('md5ff' type=inline),
@@ -61,6 +63,7 @@
                             ),
                         ),
                         Member(
+                            3,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -88,6 +91,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ff' type=inline),
@@ -120,6 +124,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -127,6 +132,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -158,6 +164,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ff' type=inline),
@@ -190,6 +197,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -197,6 +205,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -231,6 +240,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ff' type=inline),
@@ -263,6 +273,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -270,6 +281,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -304,6 +316,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5gg' type=inline),
@@ -336,6 +349,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -343,6 +357,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -374,6 +389,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5gg' type=inline),
@@ -406,6 +422,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -413,6 +430,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -444,6 +462,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5gg' type=inline),
@@ -476,6 +495,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -483,6 +503,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -517,6 +538,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5gg' type=inline),
@@ -549,6 +571,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -556,6 +579,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -587,6 +611,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5hh' type=inline),
@@ -619,6 +644,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -626,6 +652,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -657,6 +684,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5hh' type=inline),
@@ -689,6 +717,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -696,6 +725,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -727,6 +757,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5hh' type=inline),
@@ -759,6 +790,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -766,6 +798,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -800,6 +833,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5hh' type=inline),
@@ -832,6 +866,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -839,6 +874,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -870,6 +906,7 @@
                     ],
                 ),
                 Call(
+                    11,
                     Variable(
                         (
                             Atom('md5ii' type=inline),
@@ -902,6 +939,7 @@
                             ),
                         ),
                         Member(
+                            3,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -929,6 +967,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ii' type=inline),
@@ -961,6 +1000,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -968,6 +1008,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1002,6 +1043,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ii' type=inline),
@@ -1034,6 +1076,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -1041,6 +1084,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1075,6 +1119,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ii' type=inline),
@@ -1107,6 +1152,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -1114,6 +1160,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1145,6 +1192,7 @@
                     ],
                 ),
                 Call(
+                    4,
                     Variable(
                         (
                             Atom('safeAdd' type=inline),
@@ -1202,12 +1250,14 @@
     (
         "b#4",
         Alternatives(
+            212,
             [
                 Unknown(
                     None,
                     "unsupported expression",
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ff' type=inline),
@@ -1240,6 +1290,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -1247,6 +1298,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1278,6 +1330,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ff' type=inline),
@@ -1310,6 +1363,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -1317,6 +1371,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1348,6 +1403,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ff' type=inline),
@@ -1380,6 +1436,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -1387,6 +1444,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1418,6 +1476,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ff' type=inline),
@@ -1450,6 +1509,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -1457,6 +1517,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1491,6 +1552,7 @@
                     ],
                 ),
                 Call(
+                    11,
                     Variable(
                         (
                             Atom('md5gg' type=inline),
@@ -1523,6 +1585,7 @@
                             ),
                         ),
                         Member(
+                            3,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -1550,6 +1613,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5gg' type=inline),
@@ -1582,6 +1646,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -1589,6 +1654,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1620,6 +1686,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5gg' type=inline),
@@ -1652,6 +1719,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -1659,6 +1727,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1693,6 +1762,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5gg' type=inline),
@@ -1725,6 +1795,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -1732,6 +1803,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1763,6 +1835,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5hh' type=inline),
@@ -1795,6 +1868,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -1802,6 +1876,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1833,6 +1908,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5hh' type=inline),
@@ -1865,6 +1941,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -1872,6 +1949,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1903,6 +1981,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5hh' type=inline),
@@ -1935,6 +2014,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -1942,6 +2022,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -1976,6 +2057,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5hh' type=inline),
@@ -2008,6 +2090,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -2015,6 +2098,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2046,6 +2130,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ii' type=inline),
@@ -2078,6 +2163,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -2085,6 +2171,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2116,6 +2203,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ii' type=inline),
@@ -2148,6 +2236,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -2155,6 +2244,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2186,6 +2276,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ii' type=inline),
@@ -2218,6 +2309,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -2225,6 +2317,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2259,6 +2352,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ii' type=inline),
@@ -2291,6 +2385,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -2298,6 +2393,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2329,6 +2425,7 @@
                     ],
                 ),
                 Call(
+                    4,
                     Variable(
                         (
                             Atom('safeAdd' type=inline),
@@ -2368,6 +2465,7 @@
     (
         "bitRotateLeft",
         Function(
+            2,
             Unknown(
                 None,
                 "unsupported expression",
@@ -2377,6 +2475,7 @@
     (
         "bytes",
         Alternatives(
+            3,
             [
                 Argument(
                     0,
@@ -2391,6 +2490,7 @@
     (
         "bytesToWords",
         Function(
+            2,
             Variable(
                 (
                     Atom('output' type=inline),
@@ -2420,12 +2520,14 @@
     (
         "c#4",
         Alternatives(
+            214,
             [
                 Unknown(
                     None,
                     "unsupported expression",
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ff' type=inline),
@@ -2458,6 +2560,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -2465,6 +2568,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2499,6 +2603,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ff' type=inline),
@@ -2531,6 +2636,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -2538,6 +2644,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2569,6 +2676,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ff' type=inline),
@@ -2601,6 +2709,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -2608,6 +2717,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2639,6 +2749,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ff' type=inline),
@@ -2671,6 +2782,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -2678,6 +2790,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2709,6 +2822,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5gg' type=inline),
@@ -2741,6 +2855,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -2748,6 +2863,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2782,6 +2898,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5gg' type=inline),
@@ -2814,6 +2931,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -2821,6 +2939,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2852,6 +2971,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5gg' type=inline),
@@ -2884,6 +3004,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -2891,6 +3012,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2922,6 +3044,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5gg' type=inline),
@@ -2954,6 +3077,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -2961,6 +3085,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -2995,6 +3120,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5hh' type=inline),
@@ -3027,6 +3153,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -3034,6 +3161,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3068,6 +3196,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5hh' type=inline),
@@ -3100,6 +3229,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -3107,6 +3237,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3138,6 +3269,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5hh' type=inline),
@@ -3170,6 +3302,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -3177,6 +3310,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3208,6 +3342,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5hh' type=inline),
@@ -3240,6 +3375,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -3247,6 +3383,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3281,6 +3418,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ii' type=inline),
@@ -3313,6 +3451,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -3320,6 +3459,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3351,6 +3491,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ii' type=inline),
@@ -3383,6 +3524,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -3390,6 +3532,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3421,6 +3564,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ii' type=inline),
@@ -3453,6 +3597,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -3460,6 +3605,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3491,6 +3637,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ii' type=inline),
@@ -3523,6 +3670,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -3530,6 +3678,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3564,6 +3713,7 @@
                     ],
                 ),
                 Call(
+                    4,
                     Variable(
                         (
                             Atom('safeAdd' type=inline),
@@ -3621,6 +3771,7 @@
     (
         "d#4",
         Alternatives(
+            212,
             [
                 Constant(
                     Num(
@@ -3630,6 +3781,7 @@
                     ),
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ff' type=inline),
@@ -3662,6 +3814,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -3669,6 +3822,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3700,6 +3854,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ff' type=inline),
@@ -3732,6 +3887,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -3739,6 +3895,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3773,6 +3930,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ff' type=inline),
@@ -3805,6 +3963,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -3812,6 +3971,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3843,6 +4003,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ff' type=inline),
@@ -3875,6 +4036,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -3882,6 +4044,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3913,6 +4076,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5gg' type=inline),
@@ -3945,6 +4109,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -3952,6 +4117,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -3983,6 +4149,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5gg' type=inline),
@@ -4015,6 +4182,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -4022,6 +4190,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4056,6 +4225,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5gg' type=inline),
@@ -4088,6 +4258,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -4095,6 +4266,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4126,6 +4298,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5gg' type=inline),
@@ -4158,6 +4331,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -4165,6 +4339,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4196,6 +4371,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5hh' type=inline),
@@ -4228,6 +4404,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -4235,6 +4412,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4266,6 +4444,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5hh' type=inline),
@@ -4298,6 +4477,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -4305,6 +4485,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4339,6 +4520,7 @@
                     ],
                 ),
                 Call(
+                    11,
                     Variable(
                         (
                             Atom('md5hh' type=inline),
@@ -4371,6 +4553,7 @@
                             ),
                         ),
                         Member(
+                            3,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -4398,6 +4581,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5hh' type=inline),
@@ -4430,6 +4614,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -4437,6 +4622,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4468,6 +4654,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ii' type=inline),
@@ -4500,6 +4687,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -4507,6 +4695,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4541,6 +4730,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ii' type=inline),
@@ -4573,6 +4763,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -4580,6 +4771,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4611,6 +4803,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ii' type=inline),
@@ -4643,6 +4836,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -4650,6 +4844,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4681,6 +4876,7 @@
                     ],
                 ),
                 Call(
+                    13,
                     Variable(
                         (
                             Atom('md5ii' type=inline),
@@ -4713,6 +4909,7 @@
                             ),
                         ),
                         Member(
+                            5,
                             Variable(
                                 (
                                     Atom('x' type=inline),
@@ -4720,6 +4917,7 @@
                                 ),
                             ),
                             Add(
+                                3,
                                 [
                                     Variable(
                                         (
@@ -4751,6 +4949,7 @@
                     ],
                 ),
                 Call(
+                    4,
                     Variable(
                         (
                             Atom('safeAdd' type=inline),
@@ -4784,6 +4983,7 @@
     (
         "hex",
         Alternatives(
+            14,
             [
                 Unknown(
                     Some(
@@ -4797,6 +4997,7 @@
                     "pattern without value",
                 ),
                 Call(
+                    12,
                     FreeVar(
                         Other(
                             Atom('parseInt' type=dynamic),
@@ -4804,8 +5005,10 @@
                     ),
                     [
                         Add(
+                            9,
                             [
                                 MemberCall(
+                                    4,
                                     Variable(
                                         (
                                             Atom('hexTab' type=inline),
@@ -4825,6 +5028,7 @@
                                     ],
                                 ),
                                 MemberCall(
+                                    4,
                                     Variable(
                                         (
                                             Atom('hexTab' type=inline),
@@ -4878,6 +5082,7 @@
     (
         "i#3",
         Alternatives(
+            3,
             [
                 Unknown(
                     Some(
@@ -4903,6 +5108,7 @@
     (
         "i#4",
         Alternatives(
+            3,
             [
                 Unknown(
                     Some(
@@ -4928,6 +5134,7 @@
     (
         "i#5",
         Alternatives(
+            3,
             [
                 Unknown(
                     Some(
@@ -4985,6 +5192,7 @@
     (
         "lsw",
         Add(
+            3,
             [
                 Unknown(
                     None,
@@ -5000,7 +5208,9 @@
     (
         "md5",
         Function(
+            9,
             Call(
+                8,
                 Variable(
                     (
                         Atom('md5ToHexEncodedArray' type=dynamic),
@@ -5009,6 +5219,7 @@
                 ),
                 [
                     Call(
+                        6,
                         Variable(
                             (
                                 Atom('wordsToMd5' type=dynamic),
@@ -5017,6 +5228,7 @@
                         ),
                         [
                             Call(
+                                3,
                                 Variable(
                                     (
                                         Atom('bytesToWords' type=dynamic),
@@ -5045,6 +5257,7 @@
     (
         "md5ToHexEncodedArray",
         Function(
+            2,
             Variable(
                 (
                     Atom('output' type=inline),
@@ -5056,7 +5269,9 @@
     (
         "md5cmn",
         Function(
+            17,
             Call(
+                16,
                 Variable(
                     (
                         Atom('safeAdd' type=inline),
@@ -5065,6 +5280,7 @@
                 ),
                 [
                     Call(
+                        13,
                         Variable(
                             (
                                 Atom('bitRotateLeft' type=dynamic),
@@ -5073,6 +5289,7 @@
                         ),
                         [
                             Call(
+                                10,
                                 Variable(
                                     (
                                         Atom('safeAdd' type=inline),
@@ -5081,6 +5298,7 @@
                                 ),
                                 [
                                     Call(
+                                        4,
                                         Variable(
                                             (
                                                 Atom('safeAdd' type=inline),
@@ -5103,6 +5321,7 @@
                                         ],
                                     ),
                                     Call(
+                                        4,
                                         Variable(
                                             (
                                                 Atom('safeAdd' type=inline),
@@ -5147,7 +5366,9 @@
     (
         "md5ff",
         Function(
+            9,
             Call(
+                8,
                 Variable(
                     (
                         Atom('md5cmn' type=inline),
@@ -5196,7 +5417,9 @@
     (
         "md5gg",
         Function(
+            9,
             Call(
+                8,
                 Variable(
                     (
                         Atom('md5cmn' type=inline),
@@ -5245,7 +5468,9 @@
     (
         "md5hh",
         Function(
+            9,
             Call(
+                8,
                 Variable(
                     (
                         Atom('md5cmn' type=inline),
@@ -5294,7 +5519,9 @@
     (
         "md5ii",
         Function(
+            9,
             Call(
+                8,
                 Variable(
                     (
                         Atom('md5cmn' type=inline),
@@ -5343,6 +5570,7 @@
     (
         "msg",
         Call(
+            5,
             FreeVar(
                 Other(
                     Atom('unescape' type=dynamic),
@@ -5350,6 +5578,7 @@
             ),
             [
                 Call(
+                    3,
                     FreeVar(
                         Other(
                             Atom('encodeURIComponent' type=dynamic),
@@ -5370,6 +5599,7 @@
     (
         "msw",
         Add(
+            4,
             [
                 Unknown(
                     None,
@@ -5395,6 +5625,7 @@
     (
         "olda",
         Alternatives(
+            3,
             [
                 Unknown(
                     Some(
@@ -5419,6 +5650,7 @@
     (
         "oldb",
         Alternatives(
+            3,
             [
                 Unknown(
                     Some(
@@ -5443,6 +5675,7 @@
     (
         "oldc",
         Alternatives(
+            3,
             [
                 Unknown(
                     Some(
@@ -5467,6 +5700,7 @@
     (
         "oldd",
         Alternatives(
+            3,
             [
                 Unknown(
                     Some(
@@ -5491,12 +5725,14 @@
     (
         "output#3",
         Array(
+            1,
             [],
         ),
     ),
     (
         "output#5",
         Array(
+            1,
             [],
         ),
     ),
@@ -5539,6 +5775,7 @@
     (
         "safeAdd",
         Function(
+            2,
             Unknown(
                 None,
                 "unsupported expression",
@@ -5578,7 +5815,9 @@
     (
         "wordsToMd5",
         Function(
+            6,
             Array(
+                5,
                 [
                     Variable(
                         (
@@ -5629,6 +5868,7 @@
     (
         "x#3",
         Alternatives(
+            3,
             [
                 Unknown(
                     Some(
