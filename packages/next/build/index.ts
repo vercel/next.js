@@ -73,6 +73,7 @@ import {
   eventTypeCheckCompleted,
   EVENT_BUILD_FEATURE_USAGE,
   EventBuildFeatureUsage,
+  eventPackageUsedInGetServerSideProps,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { CompilerResult, runCompiler } from './compiler'
@@ -98,6 +99,7 @@ import {
   copyTracedFiles,
   isReservedPage,
   isCustomErrorPage,
+  isFlightPage,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -161,7 +163,6 @@ export default async function build(
     // using React 18 or experimental.
     const hasReactRoot = shouldUseReactRoot()
     const hasConcurrentFeatures = hasReactRoot
-
     const hasServerComponents =
       hasReactRoot && !!config.experimental.serverComponents
 
@@ -287,6 +288,7 @@ export default async function build(
       .traceAsyncFn(() => collectPages(pagesDir, config.pageExtensions))
     // needed for static exporting since we want to replace with HTML
     // files
+
     const allStaticPages = new Set<string>()
     let allPageInfos = new Map<string, PageInfo>()
 
@@ -315,7 +317,8 @@ export default async function build(
           previewProps,
           config,
           loadedEnvFiles,
-          pagesDir
+          pagesDir,
+          false
         )
       )
     const pageKeys = Object.keys(mappedPages)
@@ -447,18 +450,12 @@ export default async function build(
         namedRegex?: string
         routeKeys?: { [key: string]: string }
       }>
-      dynamicRoutes: Array<
-        | {
-            page: string
-            regex: string
-            namedRegex?: string
-            routeKeys?: { [key: string]: string }
-          }
-        | {
-            page: string
-            isMiddleware: true
-          }
-      >
+      dynamicRoutes: Array<{
+        page: string
+        regex: string
+        namedRegex?: string
+        routeKeys?: { [key: string]: string }
+      }>
       dataRoutes: Array<{
         page: string
         routeKeys?: { [key: string]: string }
@@ -477,14 +474,14 @@ export default async function build(
         localeDetection?: false
       }
     } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => ({
-      version: 4,
+      version: 3,
       pages404: true,
       basePath: config.basePath,
       redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
       headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
       dynamicRoutes: getSortedRoutes(pageKeys)
-        .filter((page) => isDynamicRoute(page))
-        .map(pageToRouteOrMiddleware),
+        .filter((page) => isDynamicRoute(page) && !page.match(MIDDLEWARE_ROUTE))
+        .map(pageToRoute),
       staticRoutes: getSortedRoutes(pageKeys)
         .filter(
           (page) =>
@@ -962,6 +959,7 @@ export default async function build(
 
             let isSsg = false
             let isStatic = false
+            let isServerComponent = false
             let isHybridAmp = false
             let ssgPageRoutes: string[] | null = null
             let isMiddlewareRoute = !!page.match(MIDDLEWARE_ROUTE)
@@ -974,6 +972,12 @@ export default async function build(
             const pageRuntime = pagePath
               ? await getPageRuntime(join(pagesDir, pagePath), config)
               : undefined
+
+            if (hasServerComponents && pagePath) {
+              if (isFlightPage(config, pagePath)) {
+                isServerComponent = true
+              }
+            }
 
             if (
               !isMiddlewareRoute &&
@@ -1044,11 +1048,16 @@ export default async function build(
                   serverPropsPages.add(page)
                 } else if (
                   workerResult.isStatic &&
-                  !workerResult.hasFlightData &&
+                  !isServerComponent &&
                   (await customAppGetInitialPropsPromise) === false
                 ) {
                   staticPages.add(page)
                   isStatic = true
+                } else if (isServerComponent) {
+                  // This is a static server component page that doesn't have
+                  // gSP or gSSP. We still treat it as a SSG page.
+                  ssgPages.add(page)
+                  isSsg = true
                 }
 
                 if (hasPages404 && page === '/404') {
@@ -1961,6 +1970,7 @@ export default async function build(
     if (telemetryPlugin) {
       const events = eventBuildFeatureUsage(telemetryPlugin)
       telemetry.record(events)
+      telemetry.record(eventPackageUsedInGetServerSideProps(telemetryPlugin))
     }
 
     if (ssgPages.size > 0) {
@@ -2075,14 +2085,15 @@ export default async function build(
         }, []),
       ]) {
         const filePath = path.join(dir, file)
-        await promises.copyFile(
-          filePath,
-          path.join(
-            distDir,
-            'standalone',
-            path.relative(outputFileTracingRoot, filePath)
-          )
+        const outputPath = path.join(
+          distDir,
+          'standalone',
+          path.relative(outputFileTracingRoot, filePath)
         )
+        await promises.mkdir(path.dirname(outputPath), {
+          recursive: true,
+        })
+        await promises.copyFile(filePath, outputPath)
       }
       await recursiveCopy(
         path.join(distDir, SERVER_DIRECTORY, 'pages'),
@@ -2189,15 +2200,4 @@ function pageToRoute(page: string) {
     routeKeys: routeRegex.routeKeys,
     namedRegex: routeRegex.namedRegex,
   }
-}
-
-function pageToRouteOrMiddleware(page: string) {
-  if (page.match(MIDDLEWARE_ROUTE)) {
-    return {
-      page: page.replace(/\/_middleware$/, '') || '/',
-      isMiddleware: true as const,
-    }
-  }
-
-  return pageToRoute(page)
 }

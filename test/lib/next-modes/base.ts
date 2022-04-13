@@ -88,13 +88,15 @@ export class NextInstance {
     ) {
       await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
     } else if (!skipIsolatedNext) {
+      const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
+      const finalDependencies = {
+        react: reactVersion,
+        'react-dom': reactVersion,
+        ...this.dependencies,
+        ...((this.packageJson.dependencies as object | undefined) || {}),
+      }
       this.testDir = await createNextInstall(
-        {
-          react: '17.0.2',
-          'react-dom': '17.0.2',
-          ...this.dependencies,
-          ...((this.packageJson.dependencies as object | undefined) || {}),
-        },
+        finalDependencies,
         this.installCommand,
         this.packageJson
       )

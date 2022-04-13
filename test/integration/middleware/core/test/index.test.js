@@ -579,6 +579,14 @@ function redirectTests(locale = '') {
       fetchViaHTTP(context.appPort, `${locale}/redirects/infinite-loop`)
     ).rejects.toThrow()
   })
+
+  it(`${locale} should redirect to api route with locale`, async () => {
+    const browser = await webdriver(context.appPort, `${locale}/redirects`)
+    await browser.elementByCss('#link-to-api-with-locale').click()
+    await browser.waitForCondition('window.location.pathname === "/api/ok"')
+    const body = await browser.elementByCss('body').text()
+    expect(body).toBe('ok')
+  })
 }
 
 function responseTests(locale = '') {
@@ -628,7 +636,7 @@ function responseTests(locale = '') {
       `${locale}/responses/react?name=jack`
     )
     const html = await res.text()
-    expect(html).toBe('<h1 data-reactroot="">SSR with React! Hello, jack</h1>')
+    expect(html).toBe('<h1>SSR with React! Hello, jack</h1>')
   })
 
   it(`${locale} should stream a React component`, async () => {
@@ -637,9 +645,7 @@ function responseTests(locale = '') {
       `${locale}/responses/react-stream`
     )
     const html = await res.text()
-    expect(html).toBe(
-      '<h1 data-reactroot="">I am a stream</h1><p data-reactroot="">I am another stream</p>'
-    )
+    expect(html).toBe('<h1>I am a stream</h1><p>I am another stream</p>')
   })
 
   it(`${locale} should stream a long response`, async () => {
@@ -812,7 +818,9 @@ function interfaceTests(locale = '') {
     const element = await browser.elementByCss('.title')
     expect(await element.text()).toEqual('Parts page')
     const logs = await browser.log()
-    expect(logs.every((log) => log.source === 'log')).toEqual(true)
+    expect(
+      logs.every((log) => log.source === 'log' || log.source === 'info')
+    ).toEqual(true)
   })
 }
 

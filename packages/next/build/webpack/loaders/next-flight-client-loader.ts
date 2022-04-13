@@ -5,10 +5,15 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+import { promisify } from 'util'
+
 import { parse } from '../../swc'
 import { buildExports } from './utils'
 
+const IS_NEXT_CLIENT_BUILT_IN = /[\\/]next[\\/](link|image)\.js$/
+
 function addExportNames(names: string[], node: any) {
+  if (!node) return
   switch (node.type) {
     case 'Identifier':
       names.push(node.value)
@@ -40,20 +45,33 @@ function addExportNames(names: string[], node: any) {
   }
 }
 
-async function parseModuleInfo(
+async function collectExports(
   resourcePath: string,
   transformedSource: string,
-  names: Array<string>
-): Promise<void> {
+  {
+    resolve,
+    loadModule,
+  }: {
+    resolve: (request: string) => Promise<string>
+    loadModule: (request: string) => Promise<string>
+  }
+) {
+  const names: string[] = []
+
+  // Next.js built-in client components
+  if (IS_NEXT_CLIENT_BUILT_IN.test(resourcePath)) {
+    names.push('default')
+  }
+
   const { body } = await parse(transformedSource, {
     filename: resourcePath,
     isModule: 'unknown',
   })
+
   for (let i = 0; i < body.length; i++) {
     const node = body[i]
+
     switch (node.type) {
-      // TODO: support export * from module path
-      // case 'ExportAllDeclaration':
       case 'ExportDefaultExpression':
       case 'ExportDefaultDeclaration':
         names.push('default')
@@ -69,10 +87,10 @@ async function parseModuleInfo(
             addExportNames(names, node.declaration.id)
           }
         }
-        if (node.specificers) {
-          const specificers = node.specificers
-          for (let j = 0; j < specificers.length; j++) {
-            addExportNames(names, specificers[j].exported)
+        if (node.specifiers) {
+          const specifiers = node.specifiers
+          for (let j = 0; j < specifiers.length; j++) {
+            addExportNames(names, specifiers[j].exported)
           }
         }
         break
@@ -87,48 +105,69 @@ async function parseModuleInfo(
         } = node
         // exports.xxx = xxx
         if (
+          left.object &&
           left.type === 'MemberExpression' &&
-          left?.object.type === 'Identifier' &&
-          left.object?.value === 'exports'
+          left.object.type === 'Identifier' &&
+          left.object.value === 'exports'
         ) {
           addExportNames(names, left.property)
         }
         break
       }
+      case 'ExportAllDeclaration':
+        if (node.exported) {
+          addExportNames(names, node.exported)
+          break
+        }
+
+        const reexportedFromResourcePath = await resolve(node.source.value)
+        const reexportedFromResourceSource = await loadModule(
+          reexportedFromResourcePath
+        )
+
+        names.push(
+          ...(await collectExports(
+            reexportedFromResourcePath,
+            reexportedFromResourceSource,
+            { resolve, loadModule }
+          ))
+        )
+        continue
       default:
         break
     }
   }
+
+  return names
 }
 
 export default async function transformSource(
   this: any,
   source: string
 ): Promise<string> {
-  const { resourcePath } = this
+  const { resourcePath, resolve, loadModule, context } = this
 
   const transformedSource = source
   if (typeof transformedSource !== 'string') {
     throw new Error('Expected source to have been transformed to a string.')
   }
 
-  const names: string[] = []
-  await parseModuleInfo(resourcePath, transformedSource, names)
-
-  // next.js/packages/next/<component>.js
-  if (/[\\/]next[\\/](link|image)\.js$/.test(resourcePath)) {
-    names.push('default')
-  }
+  const names = await collectExports(resourcePath, transformedSource, {
+    resolve: (...args) => promisify(resolve)(context, ...args),
+    loadModule: promisify(loadModule),
+  })
 
   const moduleRefDef =
     "const MODULE_REFERENCE = Symbol.for('react.module.reference');\n"
+
+  const isNextClientBuiltIn = IS_NEXT_CLIENT_BUILT_IN.test(resourcePath)
 
   const clientRefsExports = names.reduce((res: any, name) => {
     const moduleRef =
       '{ $$typeof: MODULE_REFERENCE, filepath: ' +
       JSON.stringify(resourcePath) +
       ', name: ' +
-      JSON.stringify(name) +
+      JSON.stringify(name === 'default' && isNextClientBuiltIn ? '' : name) +
       ' };\n'
     res[name] = moduleRef
     return res

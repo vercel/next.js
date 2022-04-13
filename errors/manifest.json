@@ -641,6 +641,14 @@
         {
           "title": "client-flush-effects",
           "path": "/errors/client-flush-effects.md"
+        },
+        {
+          "title": "import-next",
+          "path": "/errors/import-next.md"
+        },
+        {
+          "title": "invalid-getserversideprops-return-value",
+          "path": "/errors/invalid-getserversideprops-return-value.md"
         }
       ]
     }

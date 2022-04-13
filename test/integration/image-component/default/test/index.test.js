@@ -610,6 +610,12 @@ function runTests(mode) {
       expect(await browser.elementById('raw1').getAttribute('style')).toBe(
         `aspect-ratio:1200 / 700`
       )
+      expect(await browser.elementById('raw1').getAttribute('height')).toBe(
+        '700'
+      )
+      expect(await browser.elementById('raw1').getAttribute('width')).toBe(
+        '1200'
+      )
       expect(await browser.elementById('raw1').getAttribute('srcset')).toBe(
         `/_next/image?url=%2Fwide.png&w=1200&q=75 1x, /_next/image?url=%2Fwide.png&w=3840&q=75 2x`
       )
@@ -617,6 +623,10 @@ function runTests(mode) {
       expect(await browser.elementById('raw2').getAttribute('style')).toBe(
         'padding-left:4rem;width:100%;object-position:30% 30%;aspect-ratio:1200 / 700'
       )
+      expect(
+        await browser.elementById('raw2').getAttribute('height')
+      ).toBeNull()
+      expect(await browser.elementById('raw2').getAttribute('width')).toBeNull()
       expect(await browser.elementById('raw2').getAttribute('srcset')).toBe(
         `/_next/image?url=%2Fwide.png&w=16&q=75 16w, /_next/image?url=%2Fwide.png&w=32&q=75 32w, /_next/image?url=%2Fwide.png&w=48&q=75 48w, /_next/image?url=%2Fwide.png&w=64&q=75 64w, /_next/image?url=%2Fwide.png&w=96&q=75 96w, /_next/image?url=%2Fwide.png&w=128&q=75 128w, /_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w`
       )
@@ -1165,6 +1175,95 @@ function runTests(mode) {
             'background-image'
           ),
         'none'
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should re-lazyload images after src changes', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/lazy-src-change')
+      // image should not be loaded as it is out of viewport
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('basic-image').naturalWidth`
+        )
+
+        if (result >= 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      // Move image into viewport
+      await browser.eval(
+        'document.getElementById("spacer").style.display = "none"'
+      )
+
+      // image should be loaded by now
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('basic-image').naturalWidth`
+        )
+
+        if (result < 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      await check(
+        () => browser.eval(`document.getElementById("basic-image").currentSrc`),
+        /test\.jpg/
+      )
+
+      // Make image out of viewport again
+      await browser.eval(
+        'document.getElementById("spacer").style.display = "block"'
+      )
+      // Toggle image's src
+      await browser.eval(
+        'document.getElementById("button-change-image-src").click()'
+      )
+      // "new" image should be lazy loaded
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('basic-image').naturalWidth`
+        )
+
+        if (result >= 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      // Move image into viewport again
+      await browser.eval(
+        'document.getElementById("spacer").style.display = "none"'
+      )
+      // "new" image should be loaded by now
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('basic-image').naturalWidth`
+        )
+
+        if (result < 400) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      await check(
+        () => browser.eval(`document.getElementById("basic-image").currentSrc`),
+        /test\.png/
       )
     } finally {
       if (browser) {
