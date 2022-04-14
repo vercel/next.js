@@ -5,7 +5,7 @@ use std::{
 };
 use weak_table::WeakHashSet;
 
-use crate::{error::SharedError, SlotVc, Task, TurboTasks};
+use crate::{error::SharedError, RawVc, Task, TurboTasks};
 
 #[derive(Default, Debug)]
 pub struct Output {
@@ -17,7 +17,7 @@ pub struct Output {
 #[derive(Clone, Debug)]
 pub enum OutputContent {
     Empty,
-    Link(SlotVc),
+    Link(RawVc),
     Error(SharedError),
 }
 
@@ -31,34 +31,34 @@ impl Display for OutputContent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             OutputContent::Empty => write!(f, "empty"),
-            OutputContent::Link(slot_ref) => write!(f, "link {}", slot_ref),
+            OutputContent::Link(raw_vc) => write!(f, "link {}", raw_vc),
             OutputContent::Error(err) => write!(f, "error {}", err),
         }
     }
 }
 
 impl Output {
-    pub fn read(&mut self, reader: Arc<Task>) -> Result<SlotVc> {
+    pub fn read(&mut self, reader: Arc<Task>) -> Result<RawVc> {
         self.dependent_tasks.insert(reader);
         match &self.content {
             OutputContent::Empty => Err(anyhow!("Output it empty")),
             OutputContent::Error(err) => Err(err.clone().into()),
-            OutputContent::Link(slot_ref) => Ok(slot_ref.clone()),
+            OutputContent::Link(raw_vc) => Ok(raw_vc.clone()),
         }
     }
 
-    pub fn link(&mut self, target: SlotVc) {
+    pub fn link(&mut self, target: RawVc) {
         let change;
         let mut _type_change = false;
         match &self.content {
             OutputContent::Link(old_target) => {
                 if match (old_target, &target) {
-                    (SlotVc::TaskOutput(old_task), SlotVc::TaskOutput(new_task)) => {
+                    (RawVc::TaskOutput(old_task), RawVc::TaskOutput(new_task)) => {
                         Arc::ptr_eq(old_task, new_task)
                     }
                     (
-                        SlotVc::TaskCreated(old_task, old_index),
-                        SlotVc::TaskCreated(new_task, new_index),
+                        RawVc::TaskCreated(old_task, old_index),
+                        RawVc::TaskCreated(new_task, new_index),
                     ) => Arc::ptr_eq(old_task, new_task) && *old_index == *new_index,
                     _ => false,
                 } {

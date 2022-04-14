@@ -1,6 +1,6 @@
 use regex::Regex;
 use std::collections::HashMap;
-use turbo_tasks::trace::TraceSlotVcs;
+use turbo_tasks::trace::TraceRawVcs;
 use turbo_tasks_fs::FileSystemPathVc;
 
 #[turbo_tasks::function]
@@ -59,7 +59,7 @@ pub struct ModuleOptions {
     pub rules: Vec<ModuleRule>,
 }
 
-#[derive(TraceSlotVcs)]
+#[derive(TraceRawVcs)]
 pub struct ModuleRule {
     pub conditions: Vec<ModuleRuleCondition>,
     pub effects: HashMap<ModuleRuleEffectKey, ModuleRuleEffect>,
@@ -74,20 +74,20 @@ impl ModuleRule {
     }
 }
 
-#[derive(TraceSlotVcs)]
+#[derive(TraceRawVcs)]
 pub enum ModuleRuleCondition {
     ResourcePathHasNoExtension,
     ResourcePathEndsWith(String),
     ResourcePathRegex(#[trace_ignore] Regex),
 }
 
-#[derive(TraceSlotVcs)]
+#[derive(TraceRawVcs)]
 pub enum ModuleRuleEffect {
     ModuleType(ModuleType),
     Custom,
 }
 
-#[derive(TraceSlotVcs)]
+#[derive(TraceRawVcs)]
 pub enum ModuleType {
     Ecmascript,
     Typescript,
@@ -108,7 +108,7 @@ impl ModuleRuleEffect {
     }
 }
 
-#[derive(TraceSlotVcs, PartialEq, Eq, Hash)]
+#[derive(TraceRawVcs, PartialEq, Eq, Hash)]
 pub enum ModuleRuleEffectKey {
     ModuleType,
     Custom,

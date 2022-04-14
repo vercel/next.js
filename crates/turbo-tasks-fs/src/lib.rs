@@ -33,7 +33,7 @@ use invalidator_map::InvalidatorMap;
 use json::{parse, JsonValue};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use threadpool::ThreadPool;
-use turbo_tasks::{trace::TraceSlotVcs, CompletionVc, Invalidator, Task, ValueToString, Vc};
+use turbo_tasks::{trace::TraceRawVcs, CompletionVc, Invalidator, Task, ValueToString, Vc};
 use util::{join_path, normalize_path};
 
 #[turbo_tasks::value_trait]
@@ -819,7 +819,7 @@ pub enum FileJsonContent {
     NotFound,
 }
 
-#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceSlotVcs)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs)]
 pub enum DirectoryEntry {
     File(FileSystemPathVc),
     Directory(FileSystemPathVc),
@@ -827,7 +827,7 @@ pub enum DirectoryEntry {
     Error,
 }
 
-#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceSlotVcs)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs)]
 pub enum FileSystemEntryType {
     NotFound,
     File,

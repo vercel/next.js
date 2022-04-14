@@ -3,7 +3,7 @@ use std::{collections::HashSet, fmt::Display, mem::take};
 use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
-use turbo_tasks::{trace::TraceSlotVcs, Value, ValueToString, ValueToStringVc, Vc};
+use turbo_tasks::{trace::TraceRawVcs, Value, ValueToString, ValueToStringVc, Vc};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 
 #[turbo_tasks::value(shared, ValueToString)]
@@ -617,7 +617,7 @@ impl ValueToString for Pattern {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, TraceSlotVcs)]
+#[derive(PartialEq, Eq, Clone, TraceRawVcs)]
 pub enum PatternMatch {
     File(String, FileSystemPathVc),
     Directory(String, FileSystemPathVc),
