@@ -11,12 +11,12 @@ use crate::{
     reference::AssetReferenceVc,
 };
 use anyhow::Result;
-use turbo_tasks::{trace::TraceSlotVcs, Value, Vc};
+use turbo_tasks::{trace::TraceRawVcs, Value, Vc};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use self::references::module_references;
 
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceSlotVcs)]
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs)]
 pub enum ModuleAssetType {
     Ecmascript,
     Typescript,

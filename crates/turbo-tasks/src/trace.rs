@@ -4,23 +4,23 @@ use std::{
     time::Duration,
 };
 
-use crate::SlotVc;
+use crate::RawVc;
 
-pub struct TraceSlotVcsContext {
-    list: Vec<SlotVc>,
+pub struct TraceRawVcsContext {
+    list: Vec<RawVc>,
 }
 
-impl TraceSlotVcsContext {
+impl TraceRawVcsContext {
     pub(crate) fn new() -> Self {
         Self { list: Vec::new() }
     }
 
-    pub(crate) fn into_vec(self) -> Vec<SlotVc> {
+    pub(crate) fn into_vec(self) -> Vec<RawVc> {
         self.list
     }
 }
 
-/// Trait that allows to walk data to find all [SlotVc]s contained.
+/// Trait that allows to walk data to find all [RawVc]s contained.
 ///
 /// This is important for Garbagge Collection to mark all Slots and
 /// therefore Tasks that are still in use.
@@ -28,12 +28,12 @@ impl TraceSlotVcsContext {
 /// It can also be used to optimize transferring of Tasks, where knowning
 /// the referenced Slots/Tasks allows pushing them earlier.
 ///
-/// `#[derive(TraceSlotVcs)]` is available.
+/// `#[derive(TraceRawVcs)]` is available.
 /// `#[trace_ignore]` can be used on fields to skip tracing for them.
-pub trait TraceSlotVcs {
-    fn trace_node_refs(&self, context: &mut TraceSlotVcsContext);
-    fn get_node_refs(&self) -> Vec<SlotVc> {
-        let mut context = TraceSlotVcsContext::new();
+pub trait TraceRawVcs {
+    fn trace_node_refs(&self, context: &mut TraceRawVcsContext);
+    fn get_node_refs(&self) -> Vec<RawVc> {
+        let mut context = TraceRawVcsContext::new();
         self.trace_node_refs(&mut context);
         context.into_vec()
     }
@@ -41,8 +41,8 @@ pub trait TraceSlotVcs {
 
 macro_rules! ignore {
   ($ty:ty) => {
-    impl TraceSlotVcs for $ty {
-      fn trace_node_refs(&self, _context: &mut TraceSlotVcsContext) {}
+    impl TraceRawVcs for $ty {
+      fn trace_node_refs(&self, _context: &mut TraceRawVcsContext) {}
     }
   };
 
@@ -67,93 +67,93 @@ ignore!(
 );
 ignore!(String, Duration);
 
-impl<A: TraceSlotVcs> TraceSlotVcs for (A,) {
-    fn trace_node_refs(&self, context: &mut TraceSlotVcsContext) {
-        TraceSlotVcs::trace_node_refs(&self.0, context);
+impl<A: TraceRawVcs> TraceRawVcs for (A,) {
+    fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
+        TraceRawVcs::trace_node_refs(&self.0, context);
     }
 }
 
-impl<A: TraceSlotVcs, B: TraceSlotVcs> TraceSlotVcs for (A, B) {
-    fn trace_node_refs(&self, context: &mut TraceSlotVcsContext) {
-        TraceSlotVcs::trace_node_refs(&self.0, context);
-        TraceSlotVcs::trace_node_refs(&self.1, context);
+impl<A: TraceRawVcs, B: TraceRawVcs> TraceRawVcs for (A, B) {
+    fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
+        TraceRawVcs::trace_node_refs(&self.0, context);
+        TraceRawVcs::trace_node_refs(&self.1, context);
     }
 }
 
-impl<A: TraceSlotVcs, B: TraceSlotVcs, C: TraceSlotVcs> TraceSlotVcs for (A, B, C) {
-    fn trace_node_refs(&self, context: &mut TraceSlotVcsContext) {
-        TraceSlotVcs::trace_node_refs(&self.0, context);
-        TraceSlotVcs::trace_node_refs(&self.1, context);
-        TraceSlotVcs::trace_node_refs(&self.2, context);
+impl<A: TraceRawVcs, B: TraceRawVcs, C: TraceRawVcs> TraceRawVcs for (A, B, C) {
+    fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
+        TraceRawVcs::trace_node_refs(&self.0, context);
+        TraceRawVcs::trace_node_refs(&self.1, context);
+        TraceRawVcs::trace_node_refs(&self.2, context);
     }
 }
 
-impl<T: TraceSlotVcs> TraceSlotVcs for Option<T> {
-    fn trace_node_refs(&self, context: &mut TraceSlotVcsContext) {
+impl<T: TraceRawVcs> TraceRawVcs for Option<T> {
+    fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
         if let Some(item) = self {
-            TraceSlotVcs::trace_node_refs(item, context);
+            TraceRawVcs::trace_node_refs(item, context);
         }
     }
 }
 
-impl<T: TraceSlotVcs> TraceSlotVcs for Vec<T> {
-    fn trace_node_refs(&self, context: &mut TraceSlotVcsContext) {
+impl<T: TraceRawVcs> TraceRawVcs for Vec<T> {
+    fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
         for item in self.iter() {
-            TraceSlotVcs::trace_node_refs(item, context);
+            TraceRawVcs::trace_node_refs(item, context);
         }
     }
 }
 
-impl<T: TraceSlotVcs> TraceSlotVcs for HashSet<T> {
-    fn trace_node_refs(&self, context: &mut TraceSlotVcsContext) {
+impl<T: TraceRawVcs> TraceRawVcs for HashSet<T> {
+    fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
         for item in self.iter() {
-            TraceSlotVcs::trace_node_refs(item, context);
+            TraceRawVcs::trace_node_refs(item, context);
         }
     }
 }
 
-impl<T: TraceSlotVcs> TraceSlotVcs for BTreeSet<T> {
-    fn trace_node_refs(&self, context: &mut TraceSlotVcsContext) {
+impl<T: TraceRawVcs> TraceRawVcs for BTreeSet<T> {
+    fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
         for item in self.iter() {
-            TraceSlotVcs::trace_node_refs(item, context);
+            TraceRawVcs::trace_node_refs(item, context);
         }
     }
 }
 
-impl<K: TraceSlotVcs, V: TraceSlotVcs> TraceSlotVcs for HashMap<K, V> {
-    fn trace_node_refs(&self, context: &mut TraceSlotVcsContext) {
+impl<K: TraceRawVcs, V: TraceRawVcs> TraceRawVcs for HashMap<K, V> {
+    fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
         for (key, value) in self.iter() {
-            TraceSlotVcs::trace_node_refs(key, context);
-            TraceSlotVcs::trace_node_refs(value, context);
+            TraceRawVcs::trace_node_refs(key, context);
+            TraceRawVcs::trace_node_refs(value, context);
         }
     }
 }
 
-impl<K: TraceSlotVcs, V: TraceSlotVcs> TraceSlotVcs for BTreeMap<K, V> {
-    fn trace_node_refs(&self, context: &mut TraceSlotVcsContext) {
+impl<K: TraceRawVcs, V: TraceRawVcs> TraceRawVcs for BTreeMap<K, V> {
+    fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
         for (key, value) in self.iter() {
-            TraceSlotVcs::trace_node_refs(key, context);
-            TraceSlotVcs::trace_node_refs(value, context);
+            TraceRawVcs::trace_node_refs(key, context);
+            TraceRawVcs::trace_node_refs(value, context);
         }
     }
 }
 
-impl<T: TraceSlotVcs + ?Sized> TraceSlotVcs for Box<T> {
-    fn trace_node_refs(&self, context: &mut TraceSlotVcsContext) {
-        TraceSlotVcs::trace_node_refs(&**self, context);
+impl<T: TraceRawVcs + ?Sized> TraceRawVcs for Box<T> {
+    fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
+        TraceRawVcs::trace_node_refs(&**self, context);
     }
 }
 
-impl<T: TraceSlotVcs + ?Sized> TraceSlotVcs for Arc<T> {
-    fn trace_node_refs(&self, context: &mut TraceSlotVcsContext) {
-        TraceSlotVcs::trace_node_refs(&**self, context);
+impl<T: TraceRawVcs + ?Sized> TraceRawVcs for Arc<T> {
+    fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
+        TraceRawVcs::trace_node_refs(&**self, context);
     }
 }
 
-impl TraceSlotVcs for SlotVc {
-    fn trace_node_refs(&self, context: &mut TraceSlotVcsContext) {
+impl TraceRawVcs for RawVc {
+    fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
         context.list.push(self.clone());
     }
 }
 
-pub use turbo_tasks_macros::TraceSlotVcs;
+pub use turbo_tasks_macros::TraceRawVcs;

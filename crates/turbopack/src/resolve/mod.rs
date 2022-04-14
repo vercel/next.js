@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use json::JsonValue;
-use turbo_tasks::{trace::TraceSlotVcs, util::try_join_all, Value, ValueToString, Vc};
+use turbo_tasks::{trace::TraceRawVcs, util::try_join_all, Value, ValueToString, Vc};
 use turbo_tasks_fs::{
     glob::GlobVc,
     util::{join_path, normalize_path, normalize_request},
@@ -40,7 +40,7 @@ pub mod parse;
 pub mod pattern;
 mod prefix_tree;
 
-#[derive(PartialEq, Eq, Clone, Debug, TraceSlotVcs)]
+#[derive(PartialEq, Eq, Clone, Debug, TraceRawVcs)]
 pub enum SpecialType {
     OriginalReferenceExternal,
     OriginalRefernceTypeExternal(String),

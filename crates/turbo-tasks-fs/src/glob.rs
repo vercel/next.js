@@ -1,7 +1,7 @@
 use anyhow::Result;
-use turbo_tasks::trace::TraceSlotVcs;
+use turbo_tasks::trace::TraceRawVcs;
 
-#[derive(PartialEq, Eq, Debug, Clone, TraceSlotVcs)]
+#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs)]
 enum GlobPart {
     /// `/**/`: Matches any path of directories
     AnyDirectories,

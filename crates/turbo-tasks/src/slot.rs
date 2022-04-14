@@ -8,7 +8,7 @@ use std::{
 use weak_table::WeakHashSet;
 
 use crate::{
-    slot_ref::{SlotVc, SlotVcReadResult},
+    raw_vc::{RawVc, RawVcReadResult},
     task_input::{SharedReference, TaskInput},
     SlotValueType, Task, TurboTasks,
 };
@@ -236,14 +236,14 @@ impl Slot {
         match &self.content {
             SlotContent::Empty => Err(anyhow!("Slot it empty")),
             SlotContent::SharedReference(_, data) => match Arc::downcast(data.clone()) {
-                Ok(data) => Ok(SlotReadResult::Final(SlotVcReadResult::shared_reference(
+                Ok(data) => Ok(SlotReadResult::Final(RawVcReadResult::shared_reference(
                     data,
                 ))),
                 Err(_) => Err(anyhow!("Unexpected type in slot")),
             },
             SlotContent::Cloneable(_, data) => {
                 match Box::<dyn Any + Send + Sync>::downcast(data.as_any()) {
-                    Ok(data) => Ok(SlotReadResult::Final(SlotVcReadResult::cloned_data(data))),
+                    Ok(data) => Ok(SlotReadResult::Final(RawVcReadResult::cloned_data(data))),
                     Err(_) => Err(anyhow!("Unexpected type in slot")),
                 }
             }
@@ -271,6 +271,6 @@ impl Slot {
 }
 
 pub enum SlotReadResult<T: Any + Send + Sync> {
-    Final(SlotVcReadResult<T>),
-    Link(SlotVc),
+    Final(RawVcReadResult<T>),
+    Link(RawVc),
 }

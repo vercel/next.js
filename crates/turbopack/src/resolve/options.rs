@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use anyhow::Result;
-use turbo_tasks::{trace::TraceSlotVcs, Value, Vc};
+use turbo_tasks::{trace::TraceRawVcs, Value, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPathVc};
 
 use crate::resolve::parse::RequestVc;
@@ -15,7 +15,7 @@ use super::{
 #[derive(Hash, PartialEq, Eq, Debug)]
 pub struct LockedVersions {}
 
-#[derive(TraceSlotVcs, Hash, PartialEq, Eq, Clone, Debug)]
+#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug)]
 pub enum ResolveModules {
     /// when inside of path, use the list of directories to
     /// resolve inside these
@@ -28,7 +28,7 @@ pub enum ResolveModules {
     Registry(FileSystemPathVc, LockedVersionsVc),
 }
 
-#[derive(TraceSlotVcs, Hash, PartialEq, Eq, Clone, Debug)]
+#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug)]
 pub enum ConditionValue {
     Set,
     Unset,
@@ -45,7 +45,7 @@ impl From<bool> for ConditionValue {
     }
 }
 
-#[derive(TraceSlotVcs, Hash, PartialEq, Eq, Clone, Debug)]
+#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug)]
 pub enum ResolveIntoPackage {
     ExportsField {
         field: String,
@@ -56,7 +56,7 @@ pub enum ResolveIntoPackage {
     Default(String),
 }
 
-#[derive(TraceSlotVcs, Hash, PartialEq, Eq, Clone, Debug)]
+#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug)]
 pub enum ImportMapping {
     External(Option<String>),
     Alias(String, Option<FileSystemPathVc>),

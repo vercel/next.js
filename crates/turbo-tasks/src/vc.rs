@@ -5,17 +5,17 @@ use lazy_static::lazy_static;
 
 use crate::{
     task::{match_previous_node_by_key, match_previous_node_by_type},
-    trace::{TraceSlotVcs, TraceSlotVcsContext},
-    SlotValueType, SlotVc, SlotVcReadResult, TaskInput,
+    trace::{TraceRawVcs, TraceRawVcsContext},
+    RawVc, RawVcReadResult, SlotValueType, TaskInput,
 };
 
 #[derive(PartialEq, Eq, Clone)]
-pub struct Vc<T: Any + TraceSlotVcs + Send + Sync> {
-    node: SlotVc,
+pub struct Vc<T: Any + TraceRawVcs + Send + Sync> {
+    node: RawVc,
     phantom_data: PhantomData<T>,
 }
 
-impl<T: Any + TraceSlotVcs + Send + Sync> Vc<T> {
+impl<T: Any + TraceRawVcs + Send + Sync> Vc<T> {
     /// Reads the value of the reference.
     ///
     /// This is async and will rethrow any fatal error that happened during task
@@ -24,7 +24,7 @@ impl<T: Any + TraceSlotVcs + Send + Sync> Vc<T> {
     /// Reading the value will make the current task depend on the slot and the
     /// task outputs. This will lead to invalidation of the current task
     /// when one of these changes.
-    pub async fn get(&self) -> Result<SlotVcReadResult<T>> {
+    pub async fn get(&self) -> Result<RawVcReadResult<T>> {
         self.node.clone().into_read::<T>().await
     }
 
@@ -49,7 +49,7 @@ impl<T: Any + TraceSlotVcs + Send + Sync> Vc<T> {
     }
 }
 
-impl<T: Any + PartialEq + Eq + TraceSlotVcs + Send + Sync> Vc<T> {
+impl<T: Any + PartialEq + Eq + TraceRawVcs + Send + Sync> Vc<T> {
     /// Places a value in a slot of the current task.
     /// If there is already a value in the slot it only overrides the value when
     /// it's not equal to the provided value. (Requires `Eq` trait to be
@@ -67,7 +67,7 @@ impl<T: Any + PartialEq + Eq + TraceSlotVcs + Send + Sync> Vc<T> {
 }
 
 impl<
-        T: std::hash::Hash + std::cmp::PartialEq + std::cmp::Eq + TraceSlotVcs + Send + Sync + 'static,
+        T: std::hash::Hash + std::cmp::PartialEq + std::cmp::Eq + TraceRawVcs + Send + Sync + 'static,
     > Vc<T>
 {
     /// Places a value in a slot of the current task.
@@ -87,7 +87,7 @@ impl<
     }
 }
 
-impl<T: Any + Default + PartialEq + Eq + TraceSlotVcs + Send + Sync> Vc<T> {
+impl<T: Any + Default + PartialEq + Eq + TraceRawVcs + Send + Sync> Vc<T> {
     pub fn default() -> Self {
         Self {
             node: match_previous_node_by_type::<T, _>(|__slot| {
@@ -98,8 +98,8 @@ impl<T: Any + Default + PartialEq + Eq + TraceSlotVcs + Send + Sync> Vc<T> {
     }
 }
 
-impl<T: Any + TraceSlotVcs + Send + Sync> From<SlotVc> for Vc<T> {
-    fn from(node: SlotVc) -> Self {
+impl<T: Any + TraceRawVcs + Send + Sync> From<RawVc> for Vc<T> {
+    fn from(node: RawVc) -> Self {
         Self {
             node,
             phantom_data: PhantomData,
@@ -107,31 +107,31 @@ impl<T: Any + TraceSlotVcs + Send + Sync> From<SlotVc> for Vc<T> {
     }
 }
 
-impl<T: Any + TraceSlotVcs + Send + Sync> From<Vc<T>> for SlotVc {
+impl<T: Any + TraceRawVcs + Send + Sync> From<Vc<T>> for RawVc {
     fn from(node_ref: Vc<T>) -> Self {
         node_ref.node
     }
 }
 
-impl<T: Any + TraceSlotVcs + Send + Sync> From<&Vc<T>> for SlotVc {
+impl<T: Any + TraceRawVcs + Send + Sync> From<&Vc<T>> for RawVc {
     fn from(node_ref: &Vc<T>) -> Self {
         node_ref.node.clone()
     }
 }
 
-impl<T: Any + TraceSlotVcs + Send + Sync> From<Vc<T>> for TaskInput {
+impl<T: Any + TraceRawVcs + Send + Sync> From<Vc<T>> for TaskInput {
     fn from(node_ref: Vc<T>) -> Self {
         node_ref.node.into()
     }
 }
 
-impl<T: Any + TraceSlotVcs + Send + Sync> From<&Vc<T>> for TaskInput {
+impl<T: Any + TraceRawVcs + Send + Sync> From<&Vc<T>> for TaskInput {
     fn from(node_ref: &Vc<T>) -> Self {
         node_ref.node.clone().into()
     }
 }
 
-impl<T: Any + TraceSlotVcs + Send + Sync> TryFrom<&TaskInput> for Vc<T> {
+impl<T: Any + TraceRawVcs + Send + Sync> TryFrom<&TaskInput> for Vc<T> {
     type Error = anyhow::Error;
 
     fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
@@ -142,17 +142,17 @@ impl<T: Any + TraceSlotVcs + Send + Sync> TryFrom<&TaskInput> for Vc<T> {
     }
 }
 
-impl<T: Any + TraceSlotVcs + Send + Sync> TraceSlotVcs for Vc<T> {
-    fn trace_node_refs(&self, context: &mut TraceSlotVcsContext) {
-        TraceSlotVcs::trace_node_refs(&self.node, context);
+impl<T: Any + TraceRawVcs + Send + Sync> TraceRawVcs for Vc<T> {
+    fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
+        TraceRawVcs::trace_node_refs(&self.node, context);
     }
 }
 
-impl<T: Any + TraceSlotVcs + Send + Sync> IntoFuture for Vc<T> {
-    type Output = Result<SlotVcReadResult<T>>;
+impl<T: Any + TraceRawVcs + Send + Sync> IntoFuture for Vc<T> {
+    type Output = Result<RawVcReadResult<T>>;
 
     type IntoFuture = Pin<
-        Box<dyn std::future::Future<Output = Result<SlotVcReadResult<T>>> + Send + Sync + 'static>,
+        Box<dyn std::future::Future<Output = Result<RawVcReadResult<T>>> + Send + Sync + 'static>,
     >;
 
     fn into_future(self) -> Self::IntoFuture {
