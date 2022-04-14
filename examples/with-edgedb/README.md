@@ -104,9 +104,9 @@ The application should now be running on http://localhost:3000.
 Evolving the application typically requires three steps:
 
 1. Update the schema in `dbschema/default.esdl`
-1. Generate a new migration with `edgedb migration create`
-1. Apply the migration with `edgedb migrate`
-1. Regenerate the query builder with `npx edgeql-js`
+2. Generate a new migration with `edgedb migration create`
+3. Apply the migration with `edgedb migrate`
+4. Regenerate the query builder with `npx edgeql-js`
 
 ## Deployment
 
@@ -125,7 +125,7 @@ After setting up your cloud-hosted EdgeDB instance:
 2. Deploy this app to Vercel with the button below. You'll be prompted to provide a value for `EDGEDB_DSN`.
 3. Open the application.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-edgedb&project-name=with-edgedb&repository-name=with-edgedb)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-edgedb&project-name=with-edgedb&repository-name=with-edgedb&env=EDGEDB_DSN)
 
 ## Next steps
 
