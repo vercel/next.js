@@ -114,6 +114,7 @@ use turbopack::{
 #[case::ts_package_base("integration/ts-package/index.ts", true)]
 #[case::ts_package_extends("integration/ts-package-extends/index.ts", true)]
 #[case::ts_package_from_js("integration/ts-package-from-js/index.js", true)]
+#[serial_test::serial]
 fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let mut tests_root = package_root.clone();
