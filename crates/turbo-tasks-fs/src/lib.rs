@@ -732,10 +732,6 @@ fn skip_json_comments(input: &str) -> String {
                 '/' => {
                     mode = Mode::NormalSlash;
                 }
-                '#' => {
-                    mode = Mode::SingleLineComment;
-                    continue;
-                }
                 '\"' => {
                     mode = Mode::String;
                 }
@@ -750,10 +746,6 @@ fn skip_json_comments(input: &str) -> String {
                 '*' => {
                     mode = Mode::MultiLineComment;
                     o.pop();
-                    continue;
-                }
-                '#' => {
-                    mode = Mode::SingleLineComment;
                     continue;
                 }
                 '\"' => {

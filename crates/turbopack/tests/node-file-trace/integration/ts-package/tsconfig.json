@@ -9,6 +9,10 @@
       "utils/*": ["../utils/*", "../more-utils/*"]
     }
   },
+  // comment
+  /*
+  comment
+  */
   "ts-node": {
     "require": ["tsconfig-paths/register"]
   }
