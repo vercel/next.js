@@ -253,6 +253,7 @@ export default async function transformSource(
   const rscExports: any = {
     __next_rsc__: `{
       __webpack_require__,
+      __webpack_chunk_load__: () => Promise.resolve(),
       _: () => {
         ${imports
           .map(
