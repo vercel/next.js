@@ -1,6 +1,7 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
 import { fetchViaHTTP, waitFor } from 'next-test-utils'
+import { getNodeBySelector } from './utils'
 
 async function resolveStreamResponse(response, onData) {
   let result = ''
@@ -16,7 +17,7 @@ async function resolveStreamResponse(response, onData) {
   return result
 }
 
-export default function (context, { env }) {
+export default function (context, { env, runtime }) {
   it('should support streaming for fizz response', async () => {
     await fetchViaHTTP(context.appPort, '/streaming', null, {}).then(
       async (response) => {
@@ -177,4 +178,55 @@ export default function (context, { env }) {
       }
     })
   }
+
+  it('should stream to users', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/streaming')
+    let flushCount = 0
+    await resolveStreamResponse(res, () => {
+      flushCount++
+    })
+    expect(flushCount).toBeGreaterThan(1)
+    if (runtime === 'nodejs') {
+      expect(res.headers.get('etag')).toBeNull()
+    }
+  })
+
+  it('should not stream to crawlers or google pagerender bot', async () => {
+    const res1 = await fetchViaHTTP(
+      context.appPort,
+      '/streaming',
+      {},
+      {
+        headers: {
+          'user-agent': 'Googlebot',
+        },
+      }
+    )
+
+    const res2 = await fetchViaHTTP(
+      context.appPort,
+      '/streaming',
+      {},
+      {
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36 Google-PageRenderer Google (+https://developers.google.com/+/web/snippet/)',
+        },
+      }
+    )
+    let flushCount = 0
+    await resolveStreamResponse(res2, () => {
+      flushCount++
+    })
+    expect(flushCount).toBe(1)
+    const html = await res1.text()
+    const body = await getNodeBySelector(html, '#__next')
+    // Resolve data instead of fallback
+    expect(body.text()).toBe('next_streaming_data')
+
+    if (runtime === 'nodejs') {
+      expect(res1.headers.get('etag')).toBeDefined()
+      expect(res2.headers.get('etag')).toBeDefined()
+    }
+  })
 }
