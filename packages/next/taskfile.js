@@ -313,6 +313,7 @@ export async function ncc_use_subscription(task, opts) {
         react: 'react',
         'react-dom': 'react-dom',
       },
+      target: 'es5',
     })
     .target('compiled/use-subscription')
 }
