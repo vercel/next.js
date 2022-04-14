@@ -226,7 +226,11 @@ describe('pnpm support', () => {
       let browser
       try {
         appPort = await findPort()
-        appProcess = runPnpm(appDir, 'run', 'start', '--', '--port', appPort)
+        appProcess = execa('pnpm', ['run', 'start', '--', '--port', appPort], {
+          cwd: appDir,
+          stdio: 'inherit',
+        })
+
         await waitFor(5000)
 
         await renderViaHTTP(appPort, '/')
