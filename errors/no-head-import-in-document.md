@@ -4,10 +4,6 @@
 
 ### Why This Error Occurred
 
-`next/head` should not be imported in `pages/_document.js`. This can cause unexpected issues in your application.
-
-### Why This Error Occurred
-
 `next/head` was imported in `pages/_document.js`. This can cause unexpected issues in your application.
 
 ### Possible Ways to Fix It
