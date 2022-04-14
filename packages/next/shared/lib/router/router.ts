@@ -1608,6 +1608,7 @@ export default class Router implements BaseRouter {
 
       routeInfo.props = props
       this.components[route] = routeInfo
+      window.location.href = as
       return routeInfo
     } catch (err) {
       return this.handleRouteInfoError(
