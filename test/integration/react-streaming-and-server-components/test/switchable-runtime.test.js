@@ -5,10 +5,13 @@ import {
   check,
   findPort,
   killApp,
+  launchApp,
+  nextBuild,
+  nextStart,
+  fetchViaHTTP,
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
-import { nextBuild, nextDev, nextStart } from './utils'
 
 const appDir = join(__dirname, '../switchable-runtime')
 
@@ -48,7 +51,10 @@ describe('Switchable runtime (prod)', () => {
 
   beforeAll(async () => {
     context.appPort = await findPort()
-    const { stdout, stderr } = await nextBuild(context.appDir)
+    const { stdout, stderr } = await nextBuild(context.appDir, [], {
+      stderr: true,
+      stdout: true,
+    })
     context.stdout = stdout
     context.stderr = stderr
     context.server = await nextStart(context.appDir, context.appPort)
@@ -245,6 +251,16 @@ describe('Switchable runtime (prod)', () => {
       'This is a static RSC page.'
     )
   })
+
+  it('should support etag header in the web server', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/edge', '', {
+      headers: {
+        // Make sure the result is static so an etag can be generated.
+        'User-Agent': 'Googlebot',
+      },
+    })
+    expect(res.headers.get('ETag')).toBeDefined()
+  })
 })
 
 describe('Switchable runtime (dev)', () => {
@@ -252,7 +268,7 @@ describe('Switchable runtime (dev)', () => {
 
   beforeAll(async () => {
     context.appPort = await findPort()
-    context.server = await nextDev(context.appDir, context.appPort)
+    context.server = await launchApp(context.appDir, context.appPort)
   })
   afterAll(async () => {
     await killApp(context.server)

@@ -7,7 +7,7 @@
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { MIDDLEWARE_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
-import { createClientComponentFilter } from '../loaders/next-flight-server-loader'
+import { createClientComponentFilter } from '../loaders/utils'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -67,12 +67,12 @@ export class FlightManifestPlugin {
     const isClientComponent = createClientComponentFilter(this.pageExtensions)
     compilation.chunkGroups.forEach((chunkGroup: any) => {
       function recordModule(id: string, _chunk: any, mod: any) {
-        const resource = mod.resource?.replace(/\?__sc_client__$/, '')
+        const resource = mod.resource
 
         // TODO: Hook into deps instead of the target module.
         // That way we know by the type of dep whether to include.
         // It also resolves conflicts when the same module is in multiple chunks.
-        if (!isClientComponent(resource)) {
+        if (!resource || !isClientComponent(resource)) {
           return
         }
         const moduleExports: any = manifest[resource] || {}

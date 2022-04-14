@@ -10,7 +10,7 @@
     "build": "npm run build-renderer && npm run build-electron",
     "pack-app": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
-    "type-check": "tsc"
+    "type-check": "tsc -p ./renderer/tsconfig.json && tsc -p ./electron-src/tsconfig.json"
   },
   "dependencies": {
     "electron-is-dev": "^1.1.0",
@@ -23,7 +23,7 @@
     "@types/react": "^16.9.9",
     "@types/react-dom": "^16.9.9",
     "electron": "^13",
-    "electron-builder": "^22.9.1",
+    "electron-builder": "^23.0.3",
     "next": "latest",
     "rimraf": "^3.0.0",
     "typescript": "^4.0.5"
