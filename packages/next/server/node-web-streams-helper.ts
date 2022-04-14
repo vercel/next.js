@@ -118,11 +118,11 @@ export function createBufferedTransformStream(): TransformStream<
 }
 
 export function createFlushEffectStream(
-  handleFlushEffect: () => Promise<string>
+  handleFlushEffect: () => string
 ): TransformStream<Uint8Array, Uint8Array> {
   return new TransformStream({
-    async transform(chunk, controller) {
-      const flushedChunk = encodeText(await handleFlushEffect())
+    transform(chunk, controller) {
+      const flushedChunk = encodeText(handleFlushEffect())
 
       controller.enqueue(flushedChunk)
       controller.enqueue(chunk)
@@ -154,7 +154,7 @@ export async function continueFromInitialStream({
   suffix?: string
   dataStream?: ReadableStream<Uint8Array>
   generateStaticHTML: boolean
-  flushEffectHandler?: () => Promise<string>
+  flushEffectHandler?: () => string
   renderStream: ReadableStream<Uint8Array> & {
     allReady?: Promise<void>
   }
@@ -193,7 +193,7 @@ export async function renderToStream({
   suffix?: string
   dataStream?: ReadableStream<Uint8Array>
   generateStaticHTML: boolean
-  flushEffectHandler?: () => Promise<string>
+  flushEffectHandler?: () => string
 }): Promise<ReadableStream<Uint8Array>> {
   const renderStream = await renderToInitialStream({ ReactDOMServer, element })
   return continueFromInitialStream({

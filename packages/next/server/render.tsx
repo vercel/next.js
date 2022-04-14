@@ -431,14 +431,7 @@ function createServerComponentRenderer(
     return root
   }
 
-  // Although it's not allowed to attach some static methods to Component,
-  // we still re-assign all the component APIs to keep the behavior unchanged.
-  for (const methodName of [
-    'getInitialProps',
-    'getStaticProps',
-    'getServerSideProps',
-    'getStaticPaths',
-  ]) {
+  for (const methodName of Object.keys(Component)) {
     const method = (Component as any)[methodName]
     if (method) {
       ;(ServerComponentWrapper as any)[methodName] = method
@@ -741,7 +734,7 @@ export async function renderToHTML(
     AppTree: (props: any) => {
       return (
         <AppContainerWithIsomorphicFiberStructure>
-          {renderFlight(AppMod, ComponentMod, { ...props, router })}
+          {renderFlight(AppMod, ComponentMod, props)}
         </AppContainerWithIsomorphicFiberStructure>
       )
     },
@@ -1216,7 +1209,7 @@ export async function renderToHTML(
 
   // Pass router to the Server Component as a temporary workaround.
   if (isServerComponent) {
-    props.pageProps = Object.assign({}, props.pageProps, { router })
+    props.pageProps = Object.assign({}, props.pageProps)
   }
 
   // the response might be finished on the getInitialProps call
@@ -1375,7 +1368,7 @@ export async function renderToHTML(
           <AppContainerWithIsomorphicFiberStructure>
             {isServerComponent && !!AppMod.__next_rsc__ ? (
               // _app.server.js is used.
-              <Component {...props.pageProps} router={router} />
+              <Component {...props.pageProps} />
             ) : (
               <App {...props} Component={Component} router={router} />
             )}
@@ -1430,25 +1423,20 @@ export async function renderToHTML(
 
       const bodyResult = async (suffix: string) => {
         // this must be called inside bodyResult so appWrappers is
-        // up to date when getWrappedApp is called
+        // up to date when `wrapApp` is called
 
-        const flushEffectHandler = async () => {
+        const flushEffectHandler = (): string => {
           const allFlushEffects = [
             styledJsxFlushEffect,
             ...(flushEffects || []),
           ]
-          const flushEffectStream = await renderToStream({
-            ReactDOMServer,
-            element: (
-              <>
-                {allFlushEffects.map((flushEffect, i) => (
-                  <React.Fragment key={i}>{flushEffect()}</React.Fragment>
-                ))}
-              </>
-            ),
-            generateStaticHTML: true,
-          })
-          const flushed = await streamToString(flushEffectStream)
+          const flushed = ReactDOMServer.renderToString(
+            <>
+              {allFlushEffects.map((flushEffect, i) => (
+                <React.Fragment key={i}>{flushEffect()}</React.Fragment>
+              ))}
+            </>
+          )
           return flushed
         }
 
@@ -1754,7 +1742,9 @@ export async function renderToHTML(
     return new RenderResult(html)
   }
 
-  return new RenderResult(chainStreams(streams))
+  return new RenderResult(
+    chainStreams(streams).pipeThrough(createBufferedTransformStream())
+  )
 }
 
 function errorToJSON(err: Error) {
