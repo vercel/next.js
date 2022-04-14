@@ -163,11 +163,10 @@ fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
 
             Ok(output.await?)
         }),
-    ))
-    .unwrap();
+    ));
 
     match output {
-        Ok(output) => {
+        Ok(Ok(output)) => {
             if should_succeed {
                 assert!(
                     output.is_empty(),
@@ -176,6 +175,9 @@ fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
             } else {
                 assert!(!output.is_empty(), "test case works now! enable it");
             }
+        }
+        Ok(Err(err)) => {
+            panic!("Execution crashed {err}");
         }
         Err(err) => {
             let mut pending_tasks = 0_usize;
