@@ -139,6 +139,20 @@ where
     R: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
     F: 'a + Fn(JsValue) -> R + Sync,
 {
+    fn swap_extend(
+        replaced_references: &mut (HashSet<Id>, HashSet<Id>),
+        mut prev_replaced_references: (HashSet<Id>, HashSet<Id>),
+    ) {
+        if replaced_references.0.len() < prev_replaced_references.0.len() {
+            swap(&mut replaced_references.0, &mut prev_replaced_references.0);
+        }
+        if replaced_references.1.len() < prev_replaced_references.1.len() {
+            swap(&mut replaced_references.1, &mut prev_replaced_references.1);
+        }
+        replaced_references.0.extend(prev_replaced_references.0);
+        replaced_references.1.extend(prev_replaced_references.1);
+    }
+
     let mut queue: Vec<(bool, JsValue)> = Vec::new();
     let mut done: Vec<(JsValue, bool)> = Vec::new();
     let mut total_nodes = 0;
@@ -204,12 +218,12 @@ where
             }
             // Leave a variable
             (false, JsValue::Variable(var)) => {
-                let mut prev_replaced_references = replaced_references_stack.pop().unwrap();
                 let (val, _) = done.pop().unwrap();
                 cache.store(var.clone(), false, &val, &replaced_references);
-                swap(&mut replaced_references, &mut prev_replaced_references);
-                replaced_references.0.extend(prev_replaced_references.0);
-                replaced_references.1.extend(prev_replaced_references.1);
+                swap_extend(
+                    &mut replaced_references,
+                    replaced_references_stack.pop().unwrap(),
+                );
                 replaced_references.0.remove(&var);
                 replaced_references.1.insert(var.clone());
                 cycle_stack.remove(&var);
@@ -257,15 +271,20 @@ where
                 total_nodes += val.total_nodes();
                 done.push((val, modified));
                 if total_nodes > LIMIT_IN_PROGRESS_NODES {
-                    return Ok(JsValue::Unknown(None, "in progress nodes limit reached"));
+                    done.push((
+                        JsValue::Unknown(None, "in progress nodes limit reached"),
+                        true,
+                    ));
+                    break;
                 }
             }
         }
         if steps > LIMIT_LINK_STEPS {
-            return Ok(JsValue::Unknown(
-                None,
-                "max number of linking steps reached",
+            done.push((
+                JsValue::Unknown(None, "max number of linking steps reached"),
+                true,
             ));
+            break;
         }
     }
 
@@ -277,11 +296,11 @@ where
     while let Some((enter, val)) = queue.pop() {
         match (enter, val) {
             (false, JsValue::Variable(var)) => {
-                let mut prev_replaced_references = replaced_references_stack.pop().unwrap();
                 cache.store(var.clone(), true, &final_value, &replaced_references);
-                swap(&mut replaced_references, &mut prev_replaced_references);
-                replaced_references.0.extend(prev_replaced_references.0);
-                replaced_references.1.extend(prev_replaced_references.1);
+                swap_extend(
+                    &mut replaced_references,
+                    replaced_references_stack.pop().unwrap(),
+                );
                 replaced_references.0.remove(&var);
                 replaced_references.1.insert(var.clone());
             }
