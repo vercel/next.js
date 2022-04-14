@@ -130,5 +130,5 @@ After setting up your cloud-hosted EdgeDB instance:
 ## Next steps
 
 - Check out the [EdgeDB docs](https://www.edgedb.com/docs)
-- Join the EdgeDB [Discord server](https://edgedb.com/p.discord)
+- Join the EdgeDB [Discord server](https://edgedb.com/p/discord)
 - Check out the code on [GitHub](https://github.com/edgedb/edgedb)
