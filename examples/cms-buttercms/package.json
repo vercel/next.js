@@ -1,4 +1,5 @@
 {
+  "name": "nextjs-starter-buttercms",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -7,27 +8,21 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@babel/core": "^7.16.0",
     "@popperjs/core": "^2.10.2",
     "acorn": "^8.0.0",
     "bootstrap": "^5.1.3",
     "buttercms": "^1.2.8",
     "camelcase-keys": "^7.0.1",
     "date-fns": "^2.25.0",
-    "fs": "0.0.1-security",
-    "keys": "^0.1.2",
-    "next": "12.1.0",
-    "react": "17.0.2",
-    "react-dom": "17.0.2",
+    "next": "^12.1.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "sharp": "^0.29.3",
     "tiny-slider": "^2.9.4",
-    "typescript": "^2.8.1"
+    "typescript": "^3.3.1"
   },
   "devDependencies": {
-    "eslint": "7",
-    "eslint-config-next": "12.0.3"
-  },
-  "engines": {
-    "node": "14.15.1"
+    "eslint": "^8.12.0",
+    "eslint-config-next": "^12.1.4"
   }
 }
