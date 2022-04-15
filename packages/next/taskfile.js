@@ -192,7 +192,7 @@ export async function ncc_next__react_dev_overlay(task, opts) {
   )
   const content = fs.readFileSync(clientFile, 'utf8')
   // remove AMD define branch as this forces the module to not
-  // be treated as commonjs in serverless mode
+  // be treated as commonjs in serverless/client mode
   fs.writeFileSync(
     clientFile,
     content.replace(
