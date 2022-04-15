@@ -7,7 +7,7 @@ function HomePage() {
       <Container>
         <div className="space-y-6">
           <h1 className="text-2xl font-bold">
-            Hey, I'm a Senior Software Engineer at Company. I enjoy working with
+            Hey, I&#39;m a Senior Software Engineer at Company. I enjoy working with
             Next.js and crafting beautiful front-end experiences.
           </h1>
           <p>
