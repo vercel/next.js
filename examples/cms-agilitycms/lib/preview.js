@@ -102,7 +102,7 @@ export function generatePreviewKey() {
 
   //build our byte array
   const data = []
-  for (var i = 0; i < str.length; ++i) {
+  for (let i = 0; i < str.length; ++i) {
     data.push(str.charCodeAt(i))
     data.push(0)
   }
