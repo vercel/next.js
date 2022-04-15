@@ -14,7 +14,7 @@ const TodoPage = (props) => {
 }
 
 export const getStaticPaths = async () => {
-  let result = await API.graphql(
+  const result = await API.graphql(
     graphqlOperation(getTodoList, { id: 'global' })
   )
   if (result.errors) {

@@ -113,7 +113,7 @@ const App = (props) => {
 }
 
 export const getStaticProps = async () => {
-  let result = await API.graphql(
+  const result = await API.graphql(
     graphqlOperation(getTodoList, { id: 'global' })
   )
 
