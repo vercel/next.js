@@ -38,7 +38,7 @@ async function testRoute(appPort, url, { isStatic, isEdge, isRSC }) {
     // Should be re-rendered.
     expect(renderedAt1).toBeLessThan(renderedAt2)
   }
-  const customAppServerHtml = '<div class="app-server-root">'
+  const customAppServerHtml = '<div class="app-server-root"'
   if (isRSC) {
     expect(html1).toContain(customAppServerHtml)
   } else {
@@ -101,6 +101,9 @@ describe('Switchable runtime (prod)', () => {
       isEdge: false,
       isRSC: true,
     })
+
+    const html = await renderViaHTTP(context.appPort, '/node-rsc')
+    expect(html).toContain('data-title="node-rsc"')
   })
 
   it('should build /node-rsc-ssr as a dynamic page with the nodejs runtime', async () => {
