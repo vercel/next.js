@@ -1,7 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { loadExampleData, loadingExampleDataFailure } from '../store'
-import { useEffect } from 'react'
 
 const DataList = () => {
   const dispatch = useDispatch()
