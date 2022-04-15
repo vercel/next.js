@@ -30,8 +30,8 @@ export default function Index({ initialPropsCounter }) {
       </Link>
       <button onClick={reload}>Reload</button>
       <button onClick={incrementCounter}>Change State Counter</button>
-      <p>"getServerSideProps" ran for "{initialPropsCounter}" times.</p>
-      <p>Counter: "{query.counter || 0}".</p>
+      <p>&quot;getServerSideProps&quot; ran for &quot;{initialPropsCounter}&quot; times.</p>
+      <p>Counter: &quot;{query.counter || 0}&quot;.</p>
     </div>
   )
 }
