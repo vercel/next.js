@@ -5,6 +5,7 @@ import {
   buildExports,
   createClientComponentFilter,
   createServerComponentFilter,
+  isNextBuiltinClientComponent,
 } from './utils'
 
 function createFlightServerRequest(request: string, options: object) {
@@ -57,7 +58,10 @@ async function parseModuleInfo({
     const isBuiltinModule_ = builtinModules.includes(path)
     const resolvedPath = isBuiltinModule_ ? path : await resolver(path)
 
-    const isNodeModuleImport_ = resolvedPath.includes('/node_modules/')
+    const isNodeModuleImport_ =
+      /[\\/]node_modules[\\/]/.test(resolvedPath) &&
+      // exclude next built-in modules
+      !isNextBuiltinClientComponent(resolvedPath)
 
     return [isBuiltinModule_, isNodeModuleImport_] as const
   }
@@ -208,7 +212,7 @@ export default async function transformSource(
   }
 
   const isServerComponent = createServerComponentFilter(extensions)
-  const isClientComponent = createClientComponentFilter(extensions)
+  const isClientComponent = createClientComponentFilter()
   const hasAppliedFlightServerLoader = this.loaders.some((loader: any) => {
     return hasFlightLoader(loader.path, 'server')
   })
