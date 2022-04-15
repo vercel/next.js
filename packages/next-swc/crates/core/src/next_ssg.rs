@@ -132,10 +132,32 @@ impl Fold for Analyzer<'_> {
 
     fn fold_export_named_specifier(&mut self, s: ExportNamedSpecifier) -> ExportNamedSpecifier {
         if let ModuleExportName::Ident(id) = &s.orig {
-            self.add_ref(id.to_id());
+            let ssg_exports = &["getStaticProps", "getStaticPaths", "getServerSideProps"];
+
+            if !ssg_exports.contains(&&*id.sym) {
+                self.add_ref(id.to_id());
+            }
         }
 
         s
+    }
+
+    fn fold_export_decl(&mut self, s: ExportDecl) -> ExportDecl {
+        if let Decl::Var(d) = &s.decl {
+            if d.decls.is_empty() {
+                return s;
+            }
+
+            if let Pat::Ident(id) = &d.decls[0].name {
+                let ssg_exports = &["getStaticProps", "getStaticPaths", "getServerSideProps"];
+
+                if !ssg_exports.contains(&&*id.id.sym) {
+                    self.add_ref(id.to_id());
+                }
+            }
+        }
+
+        s.fold_children_with(self)
     }
 
     fn fold_expr(&mut self, e: Expr) -> Expr {
