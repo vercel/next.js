@@ -32,7 +32,7 @@ const Index = () => {
   if (viewer) {
     return (
       <div>
-        You're signed in as {viewer.email} goto{' '}
+        You&#39;re signed in as {viewer.email} goto{' '}
         <Link href="/about">
           <a>about</a>
         </Link>{' '}
