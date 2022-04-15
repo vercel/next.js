@@ -14,4 +14,3 @@ Make sure only `notFound` **or** `redirect` is being returned on your page's `ge
 
 - [`getStaticProps` Documentation](https://nextjs.org/docs/basic-features/data-fetching/get-static-props)
 - [`getServerSideProps` Documentation](https://nextjs.org/docs/basic-features/data-fetching/get-server-side-props)
-

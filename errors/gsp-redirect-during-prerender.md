@@ -11,4 +11,3 @@ Remove any paths that result in a redirect from being prerendered in `getStaticP
 ### Useful Links
 
 - [Data Fetching Documentation](https://nextjs.org/docs/basic-features/data-fetching/get-static-props)
-
