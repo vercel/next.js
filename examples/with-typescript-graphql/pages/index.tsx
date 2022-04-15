@@ -38,7 +38,7 @@ const Index = () => {
 
   return (
     <div>
-      You're signed in as {viewer.name} and you're {viewer.status}. Go to the{' '}
+      You&#39;re signed in as {viewer.name} and you&#39;re {viewer.status}. Go to the{' '}
       <Link href="/about">
         <a>about</a>
       </Link>{' '}
