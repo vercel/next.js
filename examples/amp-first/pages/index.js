@@ -71,14 +71,14 @@ const Home = (props) => (
         <section>
           <h3>amp-bind & amp-state</h3>
           <p>
-            It's no problem to use <code>amp-bind</code> and{' '}
+            It&#39;s no problem to use <code>amp-bind</code> and{' '}
             <code>amp-state</code> with Next.js. There are two things to be
             aware of:
             <ol>
               <li>
                 The <code>[...]</code> binding syntax{' '}
-                <code>[text]="myStateVariable"</code>is not supported in JSX.
-                Use <code>data-amp-bind-text="myStateVariable"</code> instead.
+                <code>[text]=&#34;myStateVariable&#34;</code>is not supported in JSX.
+                Use <code>data-amp-bind-text=&#34;myStateVariable&#34;</code> instead.
               </li>
               <li>
                 Initializing <code>amp-state</code> via JSON string is not
@@ -118,7 +118,7 @@ const Home = (props) => (
         <section>
           <h3>amp-list & amp-mustache</h3>
           <p>
-            Mustache templates conflict with JSX and it's template literals need
+            Mustache templates conflict with JSX and it&#39;s template literals need
             to be escaped. A simple approach is to escape them via back ticks:{' '}
             <code>src=&#123;`&#123;&#123;imageUrl&#125;&#125;`&#125;</code>.
           </p>
