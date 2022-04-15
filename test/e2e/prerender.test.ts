@@ -1975,13 +1975,18 @@ describe('Prerender', () => {
 
         expect($('p').text()).toMatch(/Post:.*?test-manual-1/)
 
-        const res2 = await fetchViaHTTP(
-          next.url,
-          '/blocking-fallback/test-manual-1'
-        )
-        const html2 = await res2.text()
-        const $2 = cheerio.load(html2)
-        expect(res2.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
+        let $2
+
+        await check(async () => {
+          const res2 = await fetchViaHTTP(
+            next.url,
+            '/blocking-fallback/test-manual-1'
+          )
+          const html2 = await res2.text()
+          $2 = cheerio.load(html2)
+
+          return res2.headers.get('x-nextjs-cache')
+        }, /(HIT|STALE)/)
 
         expect(initialTime).toBe($2('#time').text())
 
@@ -1994,7 +1999,7 @@ describe('Prerender', () => {
           { redirect: 'manual' }
         )
 
-        expect(res2.status).toBe(200)
+        expect(res3.status).toBe(200)
         const revalidateData = await res3.json()
         expect(revalidateData.revalidated).toBe(true)
 
