@@ -249,8 +249,6 @@ If you use it across the site you may want to add the provider to `_app.js` so a
 
 - [MDX](https://mdxjs.com)
 - [`@next/mdx`](https://www.npmjs.com/package/@next/mdx)
-- [next-mdx-remote](https://github.com/hashicorp/next-mdx-remote)
-- [next-mdx-remote example](https://github.com/vercel/next.js/tree/canary/examples/with-mdx-remote)
 - [remark](https://github.com/remarkjs/remark)
 - [rehype](https://github.com/rehypejs/rehype)
 - [ECMAScript modules](https://nodejs.org/api/esm.html)
