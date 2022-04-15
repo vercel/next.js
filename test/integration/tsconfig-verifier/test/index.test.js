@@ -261,6 +261,51 @@ describe('tsconfig.json verifier', () => {
     `)
   })
 
+  it('allows you to set node12 moduleResolution mode', async () => {
+    expect(await exists(tsConfig)).toBe(false)
+
+    await writeFile(
+      tsConfig,
+      `{ "compilerOptions": { "esModuleInterop": false, "moduleResolution": "node12" } }`
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { code } = await nextBuild(appDir)
+    expect(code).toBe(0)
+
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        \\"compilerOptions\\": {
+          \\"esModuleInterop\\": true,
+          \\"module\\": \\"es2020\\",
+          \\"target\\": \\"es5\\",
+          \\"lib\\": [
+            \\"dom\\",
+            \\"dom.iterable\\",
+            \\"esnext\\"
+          ],
+          \\"allowJs\\": true,
+          \\"skipLibCheck\\": true,
+          \\"strict\\": false,
+          \\"forceConsistentCasingInFileNames\\": true,
+          \\"noEmit\\": true,
+          \\"moduleResolution\\": \\"node12\\",
+          \\"resolveJsonModule\\": true,
+          \\"isolatedModules\\": true,
+          \\"jsx\\": \\"preserve\\"
+        },
+        \\"include\\": [
+          \\"next-env.d.ts\\",
+          \\"**/*.ts\\",
+          \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
+        ]
+      }
+      "
+    `)
+  })
+
   it('allows you to extend another configuration file', async () => {
     expect(await exists(tsConfig)).toBe(false)
     expect(await exists(tsConfigBase)).toBe(false)
