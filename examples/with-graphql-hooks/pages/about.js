@@ -21,7 +21,7 @@ export default function About() {
         </p>
 
         <p>
-          You'll see this shares the same{' '}
+          You&#39;ll see this shares the same{' '}
           <a href="https://www.graph.cool">graph.cool</a> backend as the Apollo
           example, this is so you can compare the two side by side. The app
           itself should also look identical.
