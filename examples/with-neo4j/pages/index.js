@@ -23,7 +23,7 @@ export default function Home() {
         <div className="movies">
           <div className="subtitle">
             <p>
-              <strong>"Movies"</strong> Neo4j example dataset.
+              <strong>&quot;Movies&quot;</strong> Neo4j example dataset.
             </p>
           </div>
           <table>
