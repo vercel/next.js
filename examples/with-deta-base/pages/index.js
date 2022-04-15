@@ -47,7 +47,7 @@ export default function Home() {
   }
 
   const updateToDo = async (todo) => {
-    let newBody = {
+    const newBody = {
       ...todo,
       isCompleted: !todo.isCompleted,
     }
