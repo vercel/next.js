@@ -313,6 +313,7 @@ export async function ncc_use_subscription(task, opts) {
         react: 'react',
         'react-dom': 'react-dom',
       },
+      target: 'es5',
     })
     .target('compiled/use-subscription')
 }
@@ -1826,7 +1827,7 @@ export async function nextbuild(task, opts) {
 export async function client(task, opts) {
   await task
     .source(opts.src || 'client/**/*.+(js|ts|tsx)')
-    .swc('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/client')
   notify('Compiled client files')
 }
