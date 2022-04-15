@@ -22,7 +22,7 @@ const About = (props) => {
     <div className="container bg-success page">
       <h1>About us</h1>
       <p>
-        Notice how a loading spinner showed up while my content was "loading"?
+        Notice how a loading spinner showed up while my content was &#34;loading&#34;?
         Pretty neat, huh?
       </p>
       <Link href="/">
