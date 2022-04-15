@@ -2085,14 +2085,15 @@ export default async function build(
         }, []),
       ]) {
         const filePath = path.join(dir, file)
-        await promises.copyFile(
-          filePath,
-          path.join(
-            distDir,
-            'standalone',
-            path.relative(outputFileTracingRoot, filePath)
-          )
+        const outputPath = path.join(
+          distDir,
+          'standalone',
+          path.relative(outputFileTracingRoot, filePath)
         )
+        await promises.mkdir(path.dirname(outputPath), {
+          recursive: true,
+        })
+        await promises.copyFile(filePath, outputPath)
       }
       await recursiveCopy(
         path.join(distDir, SERVER_DIRECTORY, 'pages'),

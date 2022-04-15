@@ -1213,11 +1213,11 @@ jobs:
         uses: actions/cache@v2
         with:
           path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ matrix.settings.target }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
           restore-keys: |
-            turbo-${{ github.job }}-
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
+            turbo-${{ github.job }}-${{ github.ref_name }}-${{ matrix.settings.target }}
+            turbo-${{ github.job }}-${{ github.ref_name }}-${{ matrix.settings.target }}-${{ needs.build.outputs.weekNum }}-
+            turbo-${{ github.job }}-canary-${{ matrix.settings.target }}-${{ needs.build.outputs.weekNum }}-
 
       - name: Setup node
         uses: actions/setup-node@v2
