@@ -58,7 +58,7 @@ export class APIClient {
   }
 
   async getPostsForMoreStories({ postToExcludeContentID }) {
-    let allPosts = await this.getAllPosts(5)
+    const allPosts = await this.getAllPosts(5)
 
     //if we don't have a post to exclude, assume we should exclude the latest one
     if (postToExcludeContentID < 0) {
@@ -118,7 +118,7 @@ export async function getAgilityPageProps({ params, preview }) {
   let page = null
 
   if (path === '/') {
-    let firstPagePathInSitemap = Object.keys(sitemap)[0]
+    const firstPagePathInSitemap = Object.keys(sitemap)[0]
     pageInSitemap = sitemap[firstPagePathInSitemap]
   }
 
@@ -141,18 +141,18 @@ export async function getAgilityPageProps({ params, preview }) {
   }
 
   //resolve the page template
-  let pageTemplateName = page.templateName.replace(/[^0-9a-zA-Z]/g, '')
+  const pageTemplateName = page.templateName.replace(/[^0-9a-zA-Z]/g, '')
 
   //resolve the modules per content zone
   await asyncForEach(Object.keys(page.zones), async (zoneName) => {
-    let modules = []
+    const modules = []
 
     //grab the modules for this content zone
     const modulesForThisContentZone = page.zones[zoneName]
 
     //loop through the zone's modules
     await asyncForEach(modulesForThisContentZone, async (moduleItem) => {
-      let ModuleComponentToRender = requireComponentDependancyByName(
+      const ModuleComponentToRender = requireComponentDependancyByName(
         moduleItem.module
       )
 

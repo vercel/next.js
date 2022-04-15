@@ -7,8 +7,8 @@ const libComponentsPath = path.resolve('./lib/components')
 //let AgilityModule = dynamic(() => import ('../components/' + m.moduleName));
 
 export const requireComponentDependancyByName = (name) => {
-  let pascalCaseName = name
-  let kebabCaseName = convertPascalToKebabCase(name)
+  const pascalCaseName = name
+  const kebabCaseName = convertPascalToKebabCase(name)
   let Component = null
 
   try {

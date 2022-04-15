@@ -14,7 +14,7 @@ export function normalizePosts(postsFromAgility) {
   */
 
   const posts = postsFromAgility.map((p) => {
-    let normalizedPost = {
+    const normalizedPost = {
       title: p.fields.title,
       slug: p.fields.slug,
       excerpt: p.fields.excerpt,

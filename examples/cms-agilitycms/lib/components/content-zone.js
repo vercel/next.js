@@ -2,7 +2,7 @@ import { requireComponentDependancyByName } from '../dependancies'
 
 export default function ContentZone(props) {
   function RenderModules() {
-    let modules = props.page.zones[props.name]
+    const modules = props.page.zones[props.name]
 
     return modules.map((m, i) => {
       const AgilityModule = requireComponentDependancyByName(m.moduleName)
