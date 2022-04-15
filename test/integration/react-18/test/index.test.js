@@ -7,25 +7,23 @@ import {
   findPort,
   killApp,
   launchApp,
-  nextBuild,
-  nextStart,
   renderViaHTTP,
   hasRedbox,
   getRedboxHeader,
+  runDevSuite,
+  runProdSuite,
 } from 'next-test-utils'
 import concurrent from './concurrent'
 import basics from './basics'
 import strictMode from './strict-mode'
 import webdriver from 'next-webdriver'
 
-// overrides react and react-dom to v18
-const nodeArgs = ['-r', join(__dirname, 'require-hook.js')]
 const appDir = join(__dirname, '../app')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const invalidPage = new File(join(appDir, 'pages/invalid.js'))
 
 describe('Basics', () => {
-  runTests('default setting with react 18', (context) => basics(context))
+  runTests('default setting with react 18', basics)
 })
 
 // React 18 with Strict Mode enabled might cause double invocation of lifecycle methods.
@@ -35,9 +33,7 @@ describe('Strict mode - dev', () => {
   beforeAll(async () => {
     nextConfig.replace('// reactStrictMode: true,', 'reactStrictMode: true,')
     context.appPort = await findPort()
-    context.server = await launchApp(context.appDir, context.appPort, {
-      nodeArgs,
-    })
+    context.server = await launchApp(context.appDir, context.appPort)
   })
 
   afterAll(() => {
@@ -82,42 +78,11 @@ function runTestsAgainstRuntime(runtime) {
   )
 }
 
-function runTest(env, name, fn, options) {
-  const context = { appDir }
-  describe(`${name} (${env})`, () => {
-    beforeAll(async () => {
-      context.appPort = await findPort()
-      context.stderr = ''
-      options?.beforeAll(env)
-      if (env === 'dev') {
-        context.server = await launchApp(context.appDir, context.appPort, {
-          nodeArgs,
-          onStderr(msg) {
-            context.stderr += msg
-          },
-        })
-      } else {
-        await nextBuild(context.appDir, [], { nodeArgs })
-        context.server = await nextStart(context.appDir, context.appPort, {
-          nodeArgs,
-          onStderr(msg) {
-            context.stderr += msg
-          },
-        })
-      }
-    })
-    afterAll(async () => {
-      options?.afterAll(env)
-      await killApp(context.server)
-    })
-    fn(context, env)
-  })
-}
-
 runTestsAgainstRuntime('edge')
 runTestsAgainstRuntime('nodejs')
 
-function runTests(name, fn, options) {
-  runTest('dev', name, fn, options)
-  runTest('prod', name, fn, options)
+function runTests(name, fn, opts) {
+  const suiteOptions = { ...opts, runTests: fn }
+  runDevSuite(name, appDir, suiteOptions)
+  runProdSuite(name, appDir, suiteOptions)
 }

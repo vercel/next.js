@@ -18,6 +18,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-relay-modern with-relay-modern-app
 # or
 yarn create next-app --example with-relay-modern with-relay-modern-app
+# or
+pnpm create next-app -- --example with-relay-modern with-relay-modern-app
 ```
 
 Download schema introspection data from configured Relay endpoint
