@@ -71,7 +71,7 @@ const Index = () => {
         )}
         {user && (
           <>
-            <Typography.Text>You're signed in</Typography.Text>
+            <Typography.Text>You&#39;re signed in</Typography.Text>
             <Typography.Text strong>Email: {user.email}</Typography.Text>
 
             <Button

@@ -7,7 +7,7 @@ export default function Profile({ user }) {
     <div style={{ maxWidth: '420px', margin: '96px auto' }}>
       <Card>
         <Space direction="vertical" size={6}>
-          <Typography.Text>You're signed in</Typography.Text>
+          <Typography.Text>You&#39;re signed in</Typography.Text>
           <Typography.Text strong>Email: {user.email}</Typography.Text>
           <Typography.Text type="success">
             User data retrieved server-side (from Cookie in getServerSideProps):
