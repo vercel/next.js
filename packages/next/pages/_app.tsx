@@ -5,8 +5,8 @@ import {
   AppInitialProps,
   AppPropsType,
   NextWebVitalsMetric,
-} from '../next-server/lib/utils'
-import { Router } from '../client/router'
+} from '../shared/lib/utils'
+import type { Router } from '../client/router'
 
 export { AppInitialProps }
 

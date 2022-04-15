@@ -2,7 +2,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import * as dotenv from 'dotenv'
-import dotenvExpand from 'dotenv-expand'
+import { expand as dotenvExpand } from 'dotenv-expand'
 
 export type Env = { [key: string]: string }
 export type LoadedEnvFiles = Array<{
@@ -106,7 +106,7 @@ export function loadEnvConfig(
         path: envFile,
         contents,
       })
-    } catch (err) {
+    } catch (err: any) {
       if (err.code !== 'ENOENT') {
         log.error(`Failed to load env from ${envFile}`, err)
       }

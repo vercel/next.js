@@ -14,7 +14,7 @@ export default class SelfReload extends Component {
   handleAClick = () => {
     Router.push(
       '/nav/hash-changes-with-state',
-      '/nav/hash-changes-with-state#',
+      '/nav/hash-changes-with-state#hello' + Math.random(),
       {
         historyCount: (window.history.state.options.historyCount || 0) + 1,
         shallowHistoryCount: window.history.state.options.shallowHistoryCount,
@@ -25,7 +25,7 @@ export default class SelfReload extends Component {
   handleAShallowClick = () => {
     Router.push(
       '/nav/hash-changes-with-state#',
-      '/nav/hash-changes-with-state#',
+      '/nav/hash-changes-with-state#hello' + Math.random(),
       {
         shallow: true,
         historyCount: window.history.state.options.historyCount,

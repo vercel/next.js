@@ -1,6 +1,5 @@
 {
-  "name": "with-apollo-and-redux",
-  "version": "2.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -18,6 +17,5 @@
     "react-redux": "^7.1.1",
     "redux": "^4.0.1",
     "redux-devtools-extension": "2.13.8"
-  },
-  "license": "MIT"
+  }
 }

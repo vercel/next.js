@@ -12,10 +12,8 @@ import {
   nextBuild,
   nextStart,
 } from 'next-test-utils'
-import clone from 'clone'
 import cheerio from 'cheerio'
 
-jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
 let appPort
@@ -27,8 +25,7 @@ const startApiServer = async (optEnv = {}, opts) => {
   const scriptPath = join(appDir, 'api-server.js')
   apiServerPort = await findPort()
   const env = Object.assign(
-    {},
-    clone(process.env),
+    { ...process.env },
     { PORT: `${apiServerPort}` },
     optEnv
   )
@@ -45,12 +42,7 @@ const startApiServer = async (optEnv = {}, opts) => {
 const startServerlessServer = async (optEnv = {}, opts) => {
   const scriptPath = join(appDir, 'serverless-server.js')
   appPort = await findPort()
-  const env = Object.assign(
-    {},
-    clone(process.env),
-    { PORT: `${appPort}` },
-    optEnv
-  )
+  const env = Object.assign({ ...process.env }, { PORT: `${appPort}` }, optEnv)
 
   return await initNextServerScript(
     scriptPath,

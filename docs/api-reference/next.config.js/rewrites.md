@@ -50,7 +50,7 @@ Rewrites are applied to client-side routing, a `<Link href="/about">` will have 
 - `locale`: `false` or `undefined` - whether the locale should not be included when matching.
 - `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
 
-Rewrites are applied after checking the filesystem (pages and `/public` files) and before dynamic routes by default. This behavior can be changed by instead returning an object instead of an array from the `rewrites` function since `v10.1` of Next.js:
+Rewrites are applied after checking the filesystem (pages and `/public` files) and before dynamic routes by default. This behavior can be changed by returning an object instead of an array from the `rewrites` function since `v10.1` of Next.js:
 
 ```js
 module.exports = {
@@ -86,6 +86,17 @@ module.exports = {
   },
 }
 ```
+
+Note: rewrites in `beforeFiles` do not check the filesystem/dynamic routes immediately after matching a source, they continue until all `beforeFiles` have been checked.
+
+The order Next.js routes are checked is:
+
+1. [headers](/docs/api-reference/next.config.js/headers) are checked/applied
+2. [redirects](/docs/api-reference/next.config.js/redirects) are checked/applied
+3. `beforeFiles` rewrites are checked/applied
+4. static files from the [public directory](/docs/basic-features/static-file-serving), `_next/static` files, and non-dynamic pages are checked/served
+5. `afterFiles` rewrites are checked/applied, if one of these rewrites is matched we check dynamic routes/static files after each match
+6. `fallback` rewrites are checked/applied, these are applied before rendering the 404 page and after dynamic routes/all static assets have been checked.
 
 ## Rewrite parameters
 
@@ -136,6 +147,8 @@ module.exports = {
   },
 }
 ```
+
+Note: for static pages from the [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) or [prerendering](/docs/basic-features/data-fetching/get-static-props.md) params from rewrites will be parsed on the client after hydration and provided in the query.
 
 ## Path Matching
 
@@ -192,13 +205,12 @@ The following characters `(`, `)`, `{`, `}`, `:`, `*`, `+`, `?` are used for reg
 
 ```js
 module.exports = {
-  async redirects() {
+  async rewrites() {
     return [
       {
         // this will match `/english(default)/something` being requested
         source: '/english\\(default\\)/:slug',
         destination: '/en-us/:slug',
-        permanent: false,
       },
     ]
   },
@@ -288,18 +300,43 @@ module.exports = {
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/custom-routes-proxying">Incremental adoption of Next.js</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-zones">Using Multiple Zones</a></li>
   </ul>
 </details>
 
-Rewrites allow you to rewrite to an external url. This is especially useful for incrementally adopting Next.js.
+Rewrites allow you to rewrite to an external url. This is especially useful for incrementally adopting Next.js. The following is an example rewrite for redirecting the `/blog` route of your main app to an external site.
 
 ```js
 module.exports = {
   async rewrites() {
     return [
       {
+        source: '/blog',
+        destination: 'https://example.com/blog',
+      },
+      {
         source: '/blog/:slug',
         destination: 'https://example.com/blog/:slug', // Matched parameters can be used in the destination
+      },
+    ]
+  },
+}
+```
+
+If you're using `trailingSlash: true`, you also need to insert a trailing slash in the `source` parameter. If the destination server is also expecting a trailing slash it should be included in the `destination` parameter as well.
+
+```js
+module.exports = {
+  trailingSlash: true,
+  async rewrites() {
+    return [
+      {
+        source: '/blog/',
+        destination: 'https://example.com/blog/',
+      },
+      {
+        source: '/blog/:path*/',
+        destination: 'https://example.com/blog/:path*/',
       },
     ]
   },

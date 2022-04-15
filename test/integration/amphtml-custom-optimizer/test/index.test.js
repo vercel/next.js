@@ -9,19 +9,22 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 1)
-
 let app
 let appPort
 const appDir = join(__dirname, '../')
+const nodeArgs = ['-r', join(appDir, '../../lib/react-17-require-hook.js')]
 
 describe('AMP Custom Optimizer', () => {
   it('should build and start for static page', async () => {
-    const { code } = await nextBuild(appDir, undefined)
+    const { code } = await nextBuild(appDir, undefined, {
+      nodeArgs,
+    })
     expect(code).toBe(0)
 
     appPort = await findPort()
-    app = await nextStart(appDir, appPort)
+    app = await nextStart(appDir, appPort, {
+      nodeArgs,
+    })
 
     const html = await renderViaHTTP(appPort, '/')
     await killApp(app)
@@ -36,11 +39,11 @@ describe('AMP Custom Optimizer', () => {
   })
 
   it('should build and start for dynamic page', async () => {
-    const { code } = await nextBuild(appDir, undefined)
+    const { code } = await nextBuild(appDir, undefined, { nodeArgs })
     expect(code).toBe(0)
 
     appPort = await findPort()
-    app = await nextStart(appDir, appPort)
+    app = await nextStart(appDir, appPort, { nodeArgs })
 
     const html = await renderViaHTTP(appPort, '/dynamic')
     await killApp(app)

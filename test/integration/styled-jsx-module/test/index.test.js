@@ -11,9 +11,8 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../app')
+const nodeArgs = ['-r', join(appDir, '../../../lib/react-17-require-hook.js')]
 let appPort
 let app
 
@@ -43,16 +42,20 @@ function runTests() {
 
   it('should render styles during SSR (AMP)', async () => {
     const html = await renderViaHTTP(appPort, '/amp')
-    expect(html).toMatch(/color:.*?#0ff/)
+    expect(html).toMatch(/color:.*?cyan/)
   })
 }
 
 describe('styled-jsx using in node_modules', () => {
   describe('Production', () => {
     beforeAll(async () => {
-      await nextBuild(appDir)
+      await nextBuild(appDir, undefined, {
+        nodeArgs,
+      })
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await nextStart(appDir, appPort, {
+        nodeArgs,
+      })
     })
     afterAll(() => killApp(app))
 
@@ -62,7 +65,9 @@ describe('styled-jsx using in node_modules', () => {
   describe('Development', () => {
     beforeAll(async () => {
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, {
+        nodeArgs,
+      })
     })
     afterAll(() => killApp(app))
 

@@ -1,6 +1,5 @@
 {
-  "name": "with-grommet",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -15,6 +14,5 @@
   },
   "devDependencies": {
     "babel-plugin-styled-components": "^1.8.0"
-  },
-  "license": "MIT"
+  }
 }

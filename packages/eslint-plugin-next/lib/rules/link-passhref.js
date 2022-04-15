@@ -1,4 +1,4 @@
-const NodeAttributes = require('../utils/nodeAttributes.js')
+const NodeAttributes = require('../utils/node-attributes.js')
 
 module.exports = {
   meta: {
@@ -7,6 +7,7 @@ module.exports = {
         'Ensure passHref is assigned if child of Link component is a custom component',
       category: 'HTML',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/link-passhref',
     },
     fixable: null,
   },
@@ -22,7 +23,7 @@ module.exports = {
       },
 
       JSXOpeningElement(node) {
-        if (node.name.name !== 'Link' || node.name.name !== linkImport) {
+        if (node.name.name !== linkImport) {
           return
         }
 
@@ -54,7 +55,7 @@ module.exports = {
               attributes.value('passHref') !== true
                 ? 'must be set to true'
                 : 'is missing'
-            }. See https://nextjs.org/docs/messages/link-passhref`,
+            }. See: https://nextjs.org/docs/messages/link-passhref`,
           })
         }
       },

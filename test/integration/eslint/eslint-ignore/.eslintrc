@@ -1,0 +1,9 @@
+{
+  "extends": "next",
+  "root": true,
+  "rules": {
+    "@next/next/no-html-link-for-pages": 0,
+    "@next/next/no-sync-scripts": 1
+  },
+  "ignorePatterns": ["**/components/**"]
+}

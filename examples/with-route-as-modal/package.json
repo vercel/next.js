@@ -1,6 +1,5 @@
 {
-  "name": "with-route-as-modal",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -11,6 +10,5 @@
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-modal": "3.11.2"
-  },
-  "license": "MIT"
+  }
 }

@@ -14,9 +14,11 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const fixturesDir = join(__dirname, '..', 'fixtures')
+const nodeArgs = [
+  '-r',
+  join(__dirname, '../../../lib/react-17-require-hook.js'),
+]
 
 const fsExists = (file) =>
   fs
@@ -28,14 +30,14 @@ async function getBuildId(appDir) {
   return fs.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
 }
 
-const startServerlessEmulator = async (dir, port) => {
+const startServerlessEmulator = async (dir, port, opts = {}) => {
   const scriptPath = join(dir, 'server.js')
   const env = Object.assign(
     {},
     { ...process.env },
     { PORT: port, BUILD_ID: await getBuildId(dir) }
   )
-  return initNextServerScript(scriptPath, /ready on/i, env, false, {})
+  return initNextServerScript(scriptPath, /ready on/i, env, false, opts)
 }
 
 describe('Font Optimization', () => {
@@ -96,12 +98,11 @@ describe('Font Optimization', () => {
           const link = $(
             `link[rel="stylesheet"][data-href="${staticHeadFont}"]`
           )
-          const nonce = link.attr('nonce')
+
           const style = $(`style[data-href="${staticHeadFont}"]`)
           const styleNonce = style.attr('nonce')
 
-          expect(link).toBeDefined()
-          expect(nonce).toBe('VmVyY2Vs')
+          expect(link.length).toBe(0)
           expect(styleNonce).toBe('VmVyY2Vs')
         })
 
@@ -111,17 +112,14 @@ describe('Font Optimization', () => {
 
           const $ = cheerio.load(html)
 
-          expect($(`link[data-href="${withFont}"]`).attr().rel).toBe(
-            'stylesheet'
-          )
+          expect($(`link[data-href="${withFont}"]`).length).toBe(0)
 
           expect(html).toMatch(withFontPattern)
 
           const htmlWithoutFont = await renderViaHTTP(appPort, '/without-font')
-
           const $2 = cheerio.load(htmlWithoutFont)
 
-          expect($2(`link[data-href="${withFont}"]`).attr()).toBeUndefined()
+          expect($2(`link[data-href="${withFont}"]`).length).toBe(0)
           expect(htmlWithoutFont).not.toMatch(withFontPattern)
         })
 
@@ -131,7 +129,7 @@ describe('Font Optimization', () => {
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(
             $(`link[rel=stylesheet][data-href="${staticFont}"]`).length
-          ).toBe(1)
+          ).toBe(0)
           expect(html).toMatch(staticPattern)
         })
 
@@ -141,7 +139,7 @@ describe('Font Optimization', () => {
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(
             $(`link[rel=stylesheet][data-href="${staticHeadFont}"]`).length
-          ).toBe(1)
+          ).toBe(0)
           expect(html).toMatch(staticHeadPattern)
         })
 
@@ -151,7 +149,7 @@ describe('Font Optimization', () => {
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(
             $(`link[rel=stylesheet][data-href="${starsFont}"]`).length
-          ).toBe(1)
+          ).toBe(0)
           expect(html).toMatch(starsPattern)
         })
 
@@ -224,7 +222,9 @@ describe('Font Optimization', () => {
 
         // Re-run build to check if it works when build is cached
         it('should work when build is cached', async () => {
-          await nextBuild(appDir)
+          await nextBuild(appDir, undefined, {
+            nodeArgs,
+          })
           const testJson = JSON.parse(
             await fs.readFile(builtPage('font-manifest.json'), {
               encoding: 'utf-8',
@@ -236,18 +236,16 @@ describe('Font Optimization', () => {
 
       describe('Font optimization for SSR apps', () => {
         beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `module.exports = { cleanDistDir: false }`,
-            'utf8'
-          )
-
           if (fs.pathExistsSync(join(appDir, '.next'))) {
             await fs.remove(join(appDir, '.next'))
           }
-          await nextBuild(appDir)
+          await nextBuild(appDir, undefined, {
+            nodeArgs,
+          })
           appPort = await findPort()
-          app = await nextStart(appDir, appPort)
+          app = await nextStart(appDir, appPort, {
+            nodeArgs,
+          })
           builtServerPagesDir = join(appDir, '.next', 'server')
           builtPage = (file) => join(builtServerPagesDir, file)
         })
@@ -256,37 +254,58 @@ describe('Font Optimization', () => {
       })
 
       describe('Font optimization for serverless apps', () => {
-        beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `module.exports = { target: 'serverless', cleanDistDir: false }`,
-            'utf8'
-          )
-          await nextBuild(appDir)
-          appPort = await findPort()
-          app = await nextStart(appDir, appPort)
-          builtServerPagesDir = join(appDir, '.next', 'serverless')
-          builtPage = (file) => join(builtServerPagesDir, file)
-        })
-        afterAll(() => killApp(app))
-        runTests()
-      })
+        const origNextConfig = fs.readFileSync(nextConfig)
 
-      describe('Font optimization for emulated serverless apps', () => {
         beforeAll(async () => {
           await fs.writeFile(
             nextConfig,
-            `module.exports = { target: 'experimental-serverless-trace', cleanDistDir: false }`,
+            `
+            const path = require('path')
+            module.exports = require(path.join(__dirname, '../../../../lib/with-react-17.js'))({ target: 'serverless', cleanDistDir: false })
+            `,
             'utf8'
           )
-          await nextBuild(appDir)
+          await nextBuild(appDir, undefined, {
+            nodeArgs,
+          })
           appPort = await findPort()
-          app = await startServerlessEmulator(appDir, appPort)
+          app = await nextStart(appDir, appPort, {
+            nodeArgs,
+          })
           builtServerPagesDir = join(appDir, '.next', 'serverless')
           builtPage = (file) => join(builtServerPagesDir, file)
         })
         afterAll(async () => {
-          await fs.remove(nextConfig)
+          await fs.writeFile(nextConfig, origNextConfig)
+          await killApp(app)
+        })
+        runTests()
+      })
+
+      describe('Font optimization for emulated serverless apps', () => {
+        const origNextConfig = fs.readFileSync(nextConfig)
+
+        beforeAll(async () => {
+          await fs.writeFile(
+            nextConfig,
+            `
+            const path = require('path')
+            module.exports = require(path.join(__dirname, '../../../../lib/with-react-17.js'))({ target: 'experimental-serverless-trace', cleanDistDir: false })
+            `,
+            'utf8'
+          )
+          await nextBuild(appDir, undefined, {
+            nodeArgs,
+          })
+          appPort = await findPort()
+          app = await startServerlessEmulator(appDir, appPort, {
+            nodeArgs,
+          })
+          builtServerPagesDir = join(appDir, '.next', 'serverless')
+          builtPage = (file) => join(builtServerPagesDir, file)
+        })
+        afterAll(async () => {
+          await fs.writeFile(nextConfig, origNextConfig)
           await killApp(app)
         })
         runTests()
@@ -294,19 +313,18 @@ describe('Font Optimization', () => {
 
       describe('Font optimization for unreachable font definitions.', () => {
         beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `module.exports = { cleanDistDir: false }`,
-            'utf8'
-          )
-          await nextBuild(appDir)
+          await nextBuild(appDir, undefined, {
+            nodeArgs,
+          })
           await fs.writeFile(
             join(appDir, '.next', 'server', 'font-manifest.json'),
             '[]',
             'utf8'
           )
           appPort = await findPort()
-          app = await nextStart(appDir, appPort)
+          app = await nextStart(appDir, appPort, {
+            nodeArgs,
+          })
           builtServerPagesDir = join(appDir, '.next', 'serverless')
           builtPage = (file) => join(builtServerPagesDir, file)
         })
@@ -328,4 +346,16 @@ describe('Font Optimization', () => {
       })
     }
   )
+
+  test('Spread operator regression on <link>', async () => {
+    const appDir = join(fixturesDir, 'spread-operator-regression')
+    const { code } = await nextBuild(appDir)
+    expect(code).toBe(0)
+  })
+
+  test('makeStylesheetInert regression', async () => {
+    const appDir = join(fixturesDir, 'make-stylesheet-inert-regression')
+    const { code } = await nextBuild(appDir)
+    expect(code).toBe(0)
+  })
 })

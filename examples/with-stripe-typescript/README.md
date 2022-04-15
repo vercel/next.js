@@ -50,7 +50,7 @@ Once you have access to [the environment variables you'll need](#required-config
     - Checkout payment result page that uses [SWR](https://github.com/vercel/swr) hooks to fetch the CheckoutSession status from the API route: [pages/result.tsx](pages/result.tsx).
 - Stripe Elements
   - Custom Amount Donation with Stripe Elements & PaymentIntents (no redirect):
-    - Frontend: [pages/donate-with-elements.tsx](pages/donate-with-checkout.tsx)
+    - Frontend: [pages/donate-with-elements.tsx](pages/donate-with-elements.tsx)
     - Backend: [pages/api/payment_intents/](pages/api/payment_intents/)
 - Webhook handling for [post-payment events](https://stripe.com/docs/payments/accept-a-payment#web-fulfillment)
   - By default Next.js API routes are same-origin only. To allow Stripe webhook event requests to reach our API route, we need to add `micro-cors` and [verify the webhook signature](https://stripe.com/docs/webhooks/signatures) of the event. All of this happens in [pages/api/webhooks/index.ts](pages/api/webhooks/index.ts).
@@ -69,6 +69,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-stripe-typescript with-stripe-typescript-app
 # or
 yarn create next-app --example with-stripe-typescript with-stripe-typescript-app
+# or
+pnpm create next-app -- --example with-stripe-typescript with-stripe-typescript-app
 ```
 
 ### Required configuration

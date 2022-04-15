@@ -76,6 +76,17 @@ describe('i18n Support', () => {
     })
 
     runTests(ctx)
+
+    it('should have pre-rendered /500 correctly', async () => {
+      for (const locale of locales) {
+        const content = await fs.readFile(
+          join(appDir, '.next/server/pages/', locale, '500.html'),
+          'utf8'
+        )
+        expect(content).toContain('500')
+        expect(content).toMatch(/internal server error/i)
+      }
+    })
   })
 
   describe('serverless mode', () => {
@@ -401,6 +412,36 @@ describe('i18n Support', () => {
         }
       })
 
+      it('should return 404 error for repeating locales', async () => {
+        const defaultLocale = 'en-US'
+        for (const locale of nonDomainLocales) {
+          for (const asPath of [
+            '/gsp/fallback/always/',
+            '/post/comment/',
+            '/gssp/first/',
+          ]) {
+            const res = await fetchViaHTTP(
+              curCtx.appPort,
+              `/${locale}/${defaultLocale}${asPath}`,
+              undefined,
+              {
+                redirect: 'manual',
+              }
+            )
+            expect(res.status).toBe(404)
+            const $ = cheerio.load(await res.text())
+            const props = JSON.parse($('#props').text())
+            expect($('#not-found').text().length > 0).toBe(true)
+            expect(props).toEqual({
+              is404: true,
+              locale,
+              locales,
+              defaultLocale,
+            })
+          }
+        }
+      })
+
       it('should navigate between pages correctly', async () => {
         for (const locale of nonDomainLocales) {
           const localePath = `/${locale !== 'en-US' ? `${locale}/` : ''}`
@@ -454,6 +495,16 @@ describe('i18n Support', () => {
           expect(await browser.eval('window.location.pathname')).toBe(
             `${localePath}gssp/first/`
           )
+
+          await browser.back().waitForElementByCss('#index')
+          await browser.elementByCss('#to-api-post').click()
+
+          await browser.waitForCondition(
+            'window.location.pathname === "/api/post/asdf/"'
+          )
+          const body = await browser.elementByCss('body').text()
+          const json = JSON.parse(body)
+          expect(json.post).toBe(true)
         }
       })
     }
@@ -497,5 +548,39 @@ describe('i18n Support', () => {
 
       runSlashTests(curCtx)
     })
+  })
+
+  it('should show proper error for duplicate defaultLocales', async () => {
+    nextConfig.write(`
+      module.exports = {
+        i18n: {
+          locales: ['en', 'fr', 'nl'],
+          defaultLocale: 'en',
+          domains: [
+            {
+              domain: 'example.com',
+              defaultLocale: 'en'
+            },
+            {
+              domain: 'fr.example.com',
+              defaultLocale: 'fr',
+            },
+            {
+              domain: 'french.example.com',
+              defaultLocale: 'fr',
+            }
+          ]
+        }
+      }
+    `)
+
+    const { code, stderr } = await nextBuild(appDir, undefined, {
+      stderr: true,
+    })
+    nextConfig.restore()
+    expect(code).toBe(1)
+    expect(stderr).toContain(
+      'Both fr.example.com and french.example.com configured the defaultLocale fr but only one can'
+    )
   })
 })

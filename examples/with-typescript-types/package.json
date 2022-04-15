@@ -1,7 +1,5 @@
 {
-  "name": "with-typescript-types",
-  "version": "1.0.0",
-  "main": "index.js",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -18,6 +16,5 @@
     "@types/react": "^16.9.16",
     "@types/react-dom": "^16.9.4",
     "typescript": "4.0"
-  },
-  "license": "MIT"
+  }
 }

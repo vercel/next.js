@@ -44,30 +44,27 @@ export const initializeStore = (preloadedState = {}) => {
   }))
 }
 
-export function useHydrate(initialState) {
-  let _store = store ?? initializeStore(initialState)
-
+export function useCreateStore(initialState) {
   // For SSR & SSG, always use a new store.
-  if (typeof window !== 'undefined') {
-    // For CSR, always re-use same store.
-    if (!store) {
-      store = _store
-    }
-
-    // And if initialState changes, then merge states in the next render cycle.
-    //
-    // eslint complaining "React Hooks must be called in the exact same order in every component render"
-    // is ignorable as this code runs in the same order in a given environment (CSR/SSR/SSG)
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    useLayoutEffect(() => {
-      if (initialState && store) {
-        store.setState({
-          ...store.getState(),
-          ...initialState,
-        })
-      }
-    }, [initialState])
+  if (typeof window === 'undefined') {
+    return () => initializeStore(initialState)
   }
 
-  return _store
+  // For CSR, always re-use same store.
+  store = store ?? initializeStore(initialState)
+  // And if initialState changes, then merge states in the next render cycle.
+  //
+  // eslint complaining "React Hooks must be called in the exact same order in every component render"
+  // is ignorable as this code runs in same order in a given environment
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useLayoutEffect(() => {
+    if (initialState && store) {
+      store.setState({
+        ...store.getState(),
+        ...initialState,
+      })
+    }
+  }, [initialState])
+
+  return () => store
 }

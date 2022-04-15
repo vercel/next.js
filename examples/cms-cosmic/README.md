@@ -27,7 +27,9 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
+- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## How to use
 
@@ -37,6 +39,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example cms-cosmic cms-cosmic-app
 # or
 yarn create next-app --example cms-cosmic cms-cosmic-app
+# or
+pnpm create next-app -- --example cms-cosmic cms-cosmic-app
 ```
 
 ## Configuration
@@ -61,7 +65,7 @@ cp .env.local.example .env.local
 
 Then set each variable on `.env.local`:
 
-- `COSMIC_BUCKET_SLUG` should be the **Bucket slug** key under **Basic Settings**.
+- `COSMIC_BUCKET_SLUG` should be the **Bucket slug** key under **API Access**.
 - `COSMIC_READ_KEY` should be the **Read Key** under **API Access**.
 - `COSMIC_PREVIEW_SECRET` can be any random string (but avoid spaces) - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 

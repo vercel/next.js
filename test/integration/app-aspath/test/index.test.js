@@ -13,7 +13,6 @@ import {
 
 let appPort
 let server
-jest.setTimeout(1000 * 60 * 5)
 
 describe('App asPath', () => {
   beforeAll(async () => {

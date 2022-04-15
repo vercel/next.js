@@ -28,6 +28,7 @@ Once you have access to [the environment variables you'll need](#step-5-set-up-e
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## How to use
 
@@ -37,6 +38,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example cms-takeshape cms-takeshape-app
 # or
 yarn create next-app --example cms-takeshape cms-takeshape-app
+# or
+pnpm create next-app -- --example cms-takeshape cms-takeshape-app
 ```
 
 ## Configuration
