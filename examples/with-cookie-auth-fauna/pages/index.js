@@ -13,7 +13,7 @@ const Home = () => (
         used through a token stored in a cookie.
       </li>
       <li>
-        Click logout and try to go to profile again. You'll get redirected to
+        Click logout and try to go to profile again. You&#39;ll get redirected to
         the `/login` route.
       </li>
     </ol>
