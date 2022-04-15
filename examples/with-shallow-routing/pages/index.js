@@ -16,7 +16,7 @@ export default function Index({ initialPropsCounter }) {
     router.push(format({ pathname, query }))
   }
   const incrementCounter = () => {
-    const currentCounter = query.counter ? parseInt(query.counter) : 0
+    const currentCounter = query.counter ? parseInt(query.counter, 10) : 0
     const href = `/?counter=${currentCounter + 1}`
 
     router.push(href, href, { shallow: true })
