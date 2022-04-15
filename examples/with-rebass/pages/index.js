@@ -47,14 +47,14 @@ function HomePage() {
 
         <Box>
           <Text center fontSize={3} py={4}>
-            "Next.js is a minimalistic framework for server-rendered React
-            applications."
+          &quot;Next.js is a minimalistic framework for server-rendered React
+            applications.&quot;
           </Text>
         </Box>
         <Box>
           <Text center fontSize={3} py={2}>
-            "Functional React UI component library, built with
-            styled-components"
+          &quot;Functional React UI component library, built with
+            styled-components&quot;
           </Text>
         </Box>
       </Box>
