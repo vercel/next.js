@@ -196,7 +196,13 @@ export async function ncc_next__react_dev_overlay(task, opts) {
   fs.writeFileSync(
     clientFile,
     content.replace(
-      'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){r.platform=v;define((function(){return v}))}else ',
+      new RegExp(
+        'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){r.platform=b;define((function(){return b}))}else '.replace(
+          /[|\\{}()[\]^$+*?.-]/g,
+          '\\$&'
+        ),
+        'g'
+      ),
       ''
     )
   )
