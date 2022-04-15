@@ -30,7 +30,7 @@ const IndexPage = () => {
   return (
     <>
       <div className="App">
-        <h1>"PG" Rated Movies - 2014</h1>
+        <h1>&quot;PG&quot; Rated Movies - 2014</h1>
 
         {data ? (
           !movies && <div className="status">No movies Found</div>
