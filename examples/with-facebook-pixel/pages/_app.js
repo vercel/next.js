@@ -25,6 +25,7 @@ function MyApp({ Component, pageProps }) {
       {/* Global Site Code Pixel - Facebook Pixel */}
       <Script
         strategy="afterInteractive"
+        id="facebook-tracking-pixel"
         dangerouslySetInnerHTML={{
           __html: `
             !function(f,b,e,v,n,t,s)
