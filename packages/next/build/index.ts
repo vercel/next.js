@@ -73,10 +73,15 @@ import {
   eventTypeCheckCompleted,
   EVENT_BUILD_FEATURE_USAGE,
   EventBuildFeatureUsage,
+  eventPackageUsedInGetServerSideProps,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { CompilerResult, runCompiler } from './compiler'
-import { createEntrypoints, createPagesMapping } from './entries'
+import {
+  createEntrypoints,
+  createPagesMapping,
+  getPageRuntime,
+} from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
@@ -94,6 +99,7 @@ import {
   copyTracedFiles,
   isReservedPage,
   isCustomErrorPage,
+  isFlightPage,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -153,12 +159,10 @@ export default async function build(
     setGlobal('phase', PHASE_PRODUCTION_BUILD)
     setGlobal('distDir', distDir)
 
-    // Currently, when the runtime option is set (either `nodejs` or `edge`),
-    // we enable concurrent features (Fizz-related rendering architecture).
-    const runtime = config.experimental.runtime
+    // We enable concurrent features (Fizz-related rendering architecture) when
+    // using React 18 or experimental.
     const hasReactRoot = shouldUseReactRoot()
-    const hasConcurrentFeatures = !!runtime
-
+    const hasConcurrentFeatures = hasReactRoot
     const hasServerComponents =
       hasReactRoot && !!config.experimental.serverComponents
 
@@ -284,6 +288,7 @@ export default async function build(
       .traceAsyncFn(() => collectPages(pagesDir, config.pageExtensions))
     // needed for static exporting since we want to replace with HTML
     // files
+
     const allStaticPages = new Set<string>()
     let allPageInfos = new Map<string, PageInfo>()
 
@@ -312,7 +317,8 @@ export default async function build(
           previewProps,
           config,
           loadedEnvFiles,
-          pagesDir
+          pagesDir,
+          false
         )
       )
     const pageKeys = Object.keys(mappedPages)
@@ -622,6 +628,7 @@ export default async function build(
               entrypoints: entrypoints.client,
               rewrites,
               runWebpackSpan,
+              hasReactRoot,
             }),
             getBaseWebpackConfig(dir, {
               buildId,
@@ -633,6 +640,7 @@ export default async function build(
               entrypoints: entrypoints.server,
               rewrites,
               runWebpackSpan,
+              hasReactRoot,
             }),
             hasReactRoot
               ? getBaseWebpackConfig(dir, {
@@ -646,6 +654,7 @@ export default async function build(
                   entrypoints: entrypoints.edgeServer,
                   rewrites,
                   runWebpackSpan,
+                  hasReactRoot,
                 })
               : null,
           ])
@@ -950,14 +959,31 @@ export default async function build(
 
             let isSsg = false
             let isStatic = false
+            let isServerComponent = false
             let isHybridAmp = false
             let ssgPageRoutes: string[] | null = null
             let isMiddlewareRoute = !!page.match(MIDDLEWARE_ROUTE)
 
+            const pagePath = pagePaths.find(
+              (p) =>
+                p.startsWith(actualPage + '.') ||
+                p.startsWith(actualPage + '/index.')
+            )
+            const pageRuntime = pagePath
+              ? await getPageRuntime(join(pagesDir, pagePath), config)
+              : undefined
+
+            if (hasServerComponents && pagePath) {
+              if (isFlightPage(config, pagePath)) {
+                isServerComponent = true
+              }
+            }
+
             if (
               !isMiddlewareRoute &&
               !isReservedPage(page) &&
-              !hasConcurrentFeatures
+              // We currently don't support static optimization in the Edge runtime.
+              pageRuntime !== 'edge'
             ) {
               try {
                 let isPageStaticSpan =
@@ -1022,11 +1048,16 @@ export default async function build(
                   serverPropsPages.add(page)
                 } else if (
                   workerResult.isStatic &&
-                  !workerResult.hasFlightData &&
+                  !isServerComponent &&
                   (await customAppGetInitialPropsPromise) === false
                 ) {
                   staticPages.add(page)
                   isStatic = true
+                } else if (isServerComponent) {
+                  // This is a static server component page that doesn't have
+                  // gSP or gSSP. We still treat it as a SSG page.
+                  ssgPages.add(page)
+                  isSsg = true
                 }
 
                 if (hasPages404 && page === '/404') {
@@ -1066,14 +1097,13 @@ export default async function build(
               totalSize: allSize,
               static: isStatic,
               isSsg,
-              isWebSsr:
-                hasConcurrentFeatures &&
-                !isMiddlewareRoute &&
-                !isReservedPage(page) &&
-                !isCustomErrorPage(page),
               isHybridAmp,
               ssgPageRoutes,
               initialRevalidateSeconds: false,
+              runtime:
+                !isReservedPage(page) && !isCustomErrorPage(page)
+                  ? pageRuntime
+                  : undefined,
               pageDuration: undefined,
               ssgPageDurations: undefined,
             })
@@ -1369,9 +1399,7 @@ export default async function build(
     // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
     // Only export the static 404 when there is no /_error present
     const useStatic404 =
-      !hasConcurrentFeatures &&
-      !customAppGetInitialProps &&
-      (!hasNonStaticErrorPage || hasPages404)
+      !customAppGetInitialProps && (!hasNonStaticErrorPage || hasPages404)
 
     if (invalidPages.size > 0) {
       const err = new Error(
@@ -1483,10 +1511,7 @@ export default async function build(
 
     const combinedPages = [...staticPages, ...ssgPages]
 
-    if (
-      !hasConcurrentFeatures &&
-      (combinedPages.length > 0 || useStatic404 || useDefaultStatic500)
-    ) {
+    if (combinedPages.length > 0 || useStatic404 || useDefaultStatic500) {
       const staticGenerationSpan = nextBuildSpan.traceChild('static-generation')
       await staticGenerationSpan.traceAsyncFn(async () => {
         detectConflictingPaths(
@@ -1659,7 +1684,7 @@ export default async function build(
                       // strip leading / and then recurse number of nested dirs
                       // to place from base folder
                       originPage
-                        .substr(1)
+                        .slice(1)
                         .split('/')
                         .map(() => '..')
                         .join('/')
@@ -1709,7 +1734,7 @@ export default async function build(
                 for (const locale of i18n.locales) {
                   const curPath = `/${locale}${page === '/' ? '' : page}`
                   const localeExt = page === '/' ? path.extname(file) : ''
-                  const relativeDestNoPages = relativeDest.substr(
+                  const relativeDestNoPages = relativeDest.slice(
                     'pages/'.length
                   )
 
@@ -1945,6 +1970,7 @@ export default async function build(
     if (telemetryPlugin) {
       const events = eventBuildFeatureUsage(telemetryPlugin)
       telemetry.record(events)
+      telemetry.record(eventPackageUsedInGetServerSideProps(telemetryPlugin))
     }
 
     if (ssgPages.size > 0) {
@@ -2059,14 +2085,15 @@ export default async function build(
         }, []),
       ]) {
         const filePath = path.join(dir, file)
-        await promises.copyFile(
-          filePath,
-          path.join(
-            distDir,
-            'standalone',
-            path.relative(outputFileTracingRoot, filePath)
-          )
+        const outputPath = path.join(
+          distDir,
+          'standalone',
+          path.relative(outputFileTracingRoot, filePath)
         )
+        await promises.mkdir(path.dirname(outputPath), {
+          recursive: true,
+        })
+        await promises.copyFile(filePath, outputPath)
       }
       await recursiveCopy(
         path.join(distDir, SERVER_DIRECTORY, 'pages'),

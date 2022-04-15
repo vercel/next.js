@@ -7,5 +7,10 @@
     "dev-nocache": "rimraf .next && yarn dev",
     "dev-cpuprofile-nocache": "rimraf .next && cross-env NEXT_PRIVATE_LOCAL_WEBPACK5=1 node --cpu-prof ../../node_modules/next/dist/bin/next",
     "build-nocache": "rimraf .next && yarn build"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "pretty-ms": "^7.0.1",
+    "rimraf": "^3.0.2"
   }
 }

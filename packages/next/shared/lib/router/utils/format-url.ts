@@ -51,7 +51,7 @@ export function formatUrl(urlObj: UrlObject) {
 
   let search = urlObj.search || (query && `?${query}`) || ''
 
-  if (protocol && protocol.substr(-1) !== ':') protocol += ':'
+  if (protocol && !protocol.endsWith(':')) protocol += ':'
 
   if (
     urlObj.slashes ||

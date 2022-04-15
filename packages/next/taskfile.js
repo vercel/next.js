@@ -301,6 +301,24 @@ export async function ncc_react_refresh_utils(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+export async function ncc_use_subscription(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('use-subscription'))
+    )
+    .ncc({
+      packageName: 'use-subscription',
+      externals: {
+        ...externals,
+        react: 'react',
+        'react-dom': 'react-dom',
+      },
+      target: 'es5',
+    })
+    .target('compiled/use-subscription')
+}
+
+// eslint-disable-next-line camelcase
 externals['chalk'] = 'next/dist/compiled/chalk'
 export async function ncc_chalk(task, opts) {
   await task
@@ -1618,6 +1636,7 @@ export async function ncc(task, opts) {
         'ncc_node_html_parser',
         'ncc_watchpack',
         'ncc_chalk',
+        'ncc_use_subscription',
         'ncc_napirs_triples',
         'ncc_etag',
         'ncc_p_limit',
@@ -1808,7 +1827,7 @@ export async function nextbuild(task, opts) {
 export async function client(task, opts) {
   await task
     .source(opts.src || 'client/**/*.+(js|ts|tsx)')
-    .swc('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/client')
   notify('Compiled client files')
 }
@@ -1829,6 +1848,13 @@ export async function pages_app(task, opts) {
     .target('dist/pages')
 }
 
+export async function pages_app_server(task, opts) {
+  await task
+    .source('pages/_app.server.tsx')
+    .swc('client', { dev: opts.dev, keepImportAssertions: true })
+    .target('dist/pages')
+}
+
 export async function pages_error(task, opts) {
   await task
     .source('pages/_error.tsx')
@@ -1843,16 +1869,9 @@ export async function pages_document(task, opts) {
     .target('dist/pages')
 }
 
-export async function pages_document_server(task, opts) {
-  await task
-    .source('pages/_document-concurrent.tsx')
-    .swc('client', { dev: opts.dev, keepImportAssertions: true })
-    .target('dist/pages')
-}
-
 export async function pages(task, opts) {
   await task.parallel(
-    ['pages_app', 'pages_error', 'pages_document', 'pages_document_server'],
+    ['pages_app', 'pages_app_server', 'pages_error', 'pages_document'],
     opts
   )
 }

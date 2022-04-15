@@ -48,15 +48,23 @@ When using an external URL, you must add it to
 
 ### width
 
-The width of the image, in pixels. Must be an integer without a unit.
+The `width` property can represent either the _rendered_ width or _original_ width in pixels, depending on the [`layout`](#layout) and [`sizes`](#sizes) properties.
 
-Required, except for statically imported images, or those with [`layout="fill"`](#layout).
+When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"` without `sizes`, the `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
+
+When using `layout="responsive"`, `layout="fill"`, or `layout="raw"` with `sizes`, the `width` property represents the _original_ width in pixels, so it will only affect the aspect ratio.
+
+The `width` property is required, except for [statically imported images](#local-images), or those with `layout="fill"`.
 
 ### height
 
-The height of the image, in pixels. Must be an integer without a unit.
+The `height` property can represent either the _rendered_ height or _original_ height in pixels, depending on the [`layout`](#layout) and [`sizes`](#sizes) properties.
 
-Required, except for statically imported images, or those with [`layout="fill"`](#layout).
+When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"` without `sizes`, the `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
+
+When using `layout="responsive"`, `layout="fill"`, or `layout="raw"` with `sizes`, the `height` property represents the _original_ height in pixels, so it will only affect the aspect ratio.
+
+The `height` property is required, except for [statically imported images](#local-images), or those with `layout="fill"`.
 
 ## Optional Props
 
@@ -413,6 +421,12 @@ module.exports = {
 The following describes the caching algorithm for the default [loader](#loader). For all other loaders, please refer to your cloud provider's documentation.
 
 Images are optimized dynamically upon request and stored in the `<distDir>/cache/images` directory. The optimized image file will be served for subsequent requests until the expiration is reached. When a request is made that matches a cached but expired file, the expired image is served stale immediately. Then the image is optimized again in the background (also called revalidation) and saved to the cache with the new expiration date.
+
+The cache status of an image can be determined by reading the value of the `x-nextjs-cache` response header. The possible values are the following:
+
+- `MISS` - the path is not in the cache (occurs at most once, on the first visit)
+- `STALE` - the path is in the cache but exceeded the revalidate time so it will be updated in the background
+- `HIT` - the path is in the cache and has not exceeded the revalidate time
 
 The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](#minimum-cache-ttl) configuration or the upstream server's `Cache-Control` header, whichever is larger. Specifically, the `max-age` value of the `Cache-Control` header is used. If both `s-maxage` and `max-age` are found, then `s-maxage` is preferred.
 
