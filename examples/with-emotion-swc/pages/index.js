@@ -21,7 +21,7 @@ const Home = () => (
     <Combined>
       With <code>:hover</code>.
     </Combined>
-    <Animated animation={bounce}>Let's bounce.</Animated>
+    <Animated animation={bounce}>Let&#39;s bounce.</Animated>
     <ComponentSelectorsExtended>
       <BasicExtended>Nested</BasicExtended>
     </ComponentSelectorsExtended>
