@@ -8,7 +8,7 @@ export default function Contact() {
       <p>
         This example adds a property <code>getLayout</code> to your page,
         allowing you to return a React component for the layout. This allows you
-        to define the layout on a per-page basis. Since we're returning a
+        to define the layout on a per-page basis. Since we&#39;re returning a
         function, we can have complex nested layouts if desired.
       </p>
       <p>
@@ -25,7 +25,7 @@ export default function Contact() {
       <h3>Try It Out</h3>
       <p>
         To visualize this, try tying in the search input in the{' '}
-        <code>Sidebar</code> and then changing routes. You'll notice the input
+        <code>Sidebar</code> and then changing routes. You&#39;ll notice the input
         state is persisted.
       </p>
     </section>
