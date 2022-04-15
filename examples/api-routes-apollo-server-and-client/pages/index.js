@@ -20,7 +20,7 @@ const Index = () => {
 
   return (
     <div>
-      You're signed in as {viewer.name} and you're {viewer.status} goto{' '}
+      You&#39;re signed in as {viewer.name} and you&#39;re {viewer.status} goto{' '}
       <Link href="/about">
         <a>static</a>
       </Link>{' '}
