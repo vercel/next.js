@@ -21,7 +21,7 @@ const Form = ({ isLogin, errorMessage, onSubmit }) => (
       {isLogin ? (
         <>
           <Link href="/signup">
-            <a>I don't have an account</a>
+            <a>I don&#39;t have an account</a>
           </Link>
           <button type="submit">Login</button>
         </>
