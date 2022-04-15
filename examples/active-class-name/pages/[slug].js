@@ -6,7 +6,7 @@ const SlugPage = () => {
   return (
     <>
       <Nav />
-      <p>Hello, I'm the {asPath} page</p>
+      <p>Hello, I&#39;m the {asPath} page</p>
     </>
   )
 }

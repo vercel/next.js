@@ -3,7 +3,7 @@ import Nav from '../components/Nav'
 const News = () => (
   <>
     <Nav />
-    <p>Hello, I'm the news page</p>
+    <p>Hello, I&#39;m the news page</p>
   </>
 )
 
