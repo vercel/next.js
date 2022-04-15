@@ -11,6 +11,7 @@ export default class MyDocument extends Document {
               height="1"
               width="1"
               style={{ display: 'none' }}
+              alt="Facebook tracking pixel"
               src={`https://www.facebook.com/tr?id=${FB_PIXEL_ID}&ev=PageView&noscript=1`}
             />
           </noscript>
