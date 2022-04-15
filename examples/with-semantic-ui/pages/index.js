@@ -23,7 +23,7 @@ export default function Home() {
           <Modal.Description>
             <Header>Default Profile Image</Header>
             <p>
-              We've found the following gravatar image associated with your
+              We&#39;ve found the following gravatar image associated with your
               e-mail address.
             </p>
             <p>Is it okay to use this photo?</p>
