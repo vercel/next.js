@@ -32,7 +32,7 @@ const Index = () => (
     <p>
       <strong>Important:</strong> exceptions in development mode take a
       different path than in production. These tests should be run on a
-      production build (i.e. 'next build').{' '}
+      production build (i.e. &#39;next build&#39;).{' '}
       <a href="https://nextjs.org/docs/advanced-features/custom-error-page#customizing-the-error-page">
         Read more
       </a>
@@ -43,28 +43,28 @@ const Index = () => (
       <ol>
         <li>
           API has a top-of-module Promise that rejects, but its result is not
-          awaited. Sentry should record Error('API Test 1').{' '}
+          awaited. Sentry should record Error(&#39;API Test 1&#39;).{' '}
           <a href="/api/test1" target="_blank">
             Open in a new tab
           </a>
         </li>
         <li>
-          API has a top-of-module exception. Sentry should record Error('API
-          Test 2').{' '}
+          API has a top-of-module exception. Sentry should record Error(&#39;API
+          Test 2&#39;).{' '}
           <a href="/api/test2" target="_blank">
             Open in a new tab
           </a>
         </li>
         <li>
           API has has an exception in its request handler. Sentry should record
-          Error('API Test 3').{' '}
+          Error(&#39;API Test 3&#39;).{' '}
           <a href="/api/test3" target="_blank">
             Open in a new tab
           </a>
         </li>
         <li>
           API uses a try/catch to handle an exception and records it. Sentry
-          should record Error('API Test 4').{' '}
+          should record Error(&#39;API Test 4&#39;).{' '}
           <a href="/api/test4" target="_blank">
             Open in a new tab
           </a>
@@ -72,13 +72,13 @@ const Index = () => (
       </ol>
       <li>SSR exceptions/transactions</li>
       Note that there are currently two known bugs with respect to SSR
-      transactions: they don't get recorded on Vercel, and ones that are
+      transactions: they don&#39;t get recorded on Vercel, and ones that are
       recorded and have an error are grouped in the Sentry UI by the error page
       name rather than the requested page name.
       <ol>
         <li>
           getServerSideProps throws an Error. This should cause _error.js to
-          render and record Error('SSR Test 1') in Sentry.{' '}
+          render and record Error(&#39;SSR Test 1&#39;) in Sentry.{' '}
           <a href="/ssr/test1" target="_blank">
             Open in a new tab
           </a>{' '}
@@ -89,7 +89,7 @@ const Index = () => (
         </li>
         <li>
           getServerSideProps returns a Promise that rejects. This should cause
-          _error.js to render and record Error('SSR Test 2') in Sentry.{' '}
+          _error.js to render and record Error(&#39;SSR Test 2&#39;) in Sentry.{' '}
           <a href="/ssr/test2" target="_blank">
             Open in a new tab
           </a>
@@ -97,7 +97,7 @@ const Index = () => (
         <li>
           getServerSideProps calls a Promise that rejects, but does not handle
           the rejection or await its result (returning synchronously). Sentry
-          should record Error('SSR Test 3'), but <strong>will not</strong> when
+          should record Error(&#39;SSR Test 3&#39;), but <strong>will not</strong> when
           deployed to Vercel because the serverless function will already have
           exited.{' '}
           <a href="/ssr/test3" target="_blank">
@@ -106,7 +106,7 @@ const Index = () => (
         </li>
         <li>
           getServerSideProps manually captures an exception from a try/catch.
-          This should record Error('SSR Test 4') in Sentry.{' '}
+          This should record Error(&#39;SSR Test 4&#39;) in Sentry.{' '}
           <a href="/ssr/test4" target="_blank">
             Open in a new tab
           </a>
@@ -116,7 +116,7 @@ const Index = () => (
       <ol>
         <li>
           There is a top-of-module Promise that rejects, but its result is not
-          awaited. Sentry should record Error('Client Test 1').{' '}
+          awaited. Sentry should record Error(&#39;Client Test 1&#39;).{' '}
           <Link href="/client/test1">
             <a>Perform client side navigation</a>
           </Link>{' '}
@@ -127,7 +127,7 @@ const Index = () => (
         </li>
         <li>
           There is a top-of-module exception. _error.js should render and record
-          ReferenceError('process is not defined') in Sentry.{' '}
+          ReferenceError(&#39;process is not defined&#39;) in Sentry.{' '}
           <Link href="/client/test2">
             <a>Perform client side navigation</a>
           </Link>{' '}
@@ -138,9 +138,9 @@ const Index = () => (
         </li>
         <li>
           There is an exception during React lifecycle that is caught by
-          Next.js's React Error Boundary. In this case, when the component
-          mounts. This should cause _error.js to render and record Error('Client
-          Test 3') in Sentry.{' '}
+          Next.js&#39;s React Error Boundary. In this case, when the component
+          mounts. This should cause _error.js to render and record Error(&#39;Client
+          Test 3&#39;) in Sentry.{' '}
           <Link href="/client/test3">
             <a>Perform client side navigation</a>
           </Link>{' '}
@@ -152,7 +152,7 @@ const Index = () => (
         <li>
           There is an unhandled Promise rejection during React lifecycle. In
           this case, when the component mounts. Sentry should record
-          Error('Client Test 4').{' '}
+          Error(&#39;Client Test 4&#39;).{' '}
           <Link href="/client/test4">
             <a>Perform client side navigation</a>
           </Link>{' '}
@@ -163,7 +163,7 @@ const Index = () => (
         </li>
         <li>
           An Error is thrown from an event handler. Sentry should record
-          Error('Client Test 5'). (This page also demonstrates how to manually
+          Error(&#39;Client Test 5&#39;). (This page also demonstrates how to manually
           instrument your code for performance monitoring.){' '}
           <Link href="/client/test5">
             <a>Perform client side navigation</a>
