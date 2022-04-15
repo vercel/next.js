@@ -32,7 +32,7 @@ const Dashboard = () => {
           i18n.locale('de', DE)
         }}
       >
-        Change language client-side to 'de'
+        Change language client-side to &#39;de&#39;
       </a>
     </div>
   )
