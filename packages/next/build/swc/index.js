@@ -10,7 +10,7 @@ const triples = platformArchTriples[PlatformName][ArchName] || []
 let nativeBindings
 let wasmBindings
 
-async function loadBindings() {
+async function loadBindings({ bail = true } = {}) {
   let attempts = []
   try {
     return loadNative()
@@ -25,7 +25,7 @@ async function loadBindings() {
     attempts = attempts.concat(a)
   }
 
-  logLoadFailure(attempts)
+  logLoadFailure({ attempts, bail })
 }
 
 function loadBindingsSync() {
@@ -36,18 +36,19 @@ function loadBindingsSync() {
     attempts = attempts.concat(a)
   }
 
-  logLoadFailure(attempts)
+  logLoadFailure({ attempts, bail: true })
 }
 
-function logLoadFailure(attempts) {
+function logLoadFailure({ attempts, bail }) {
   for (let attempt of attempts) {
     Log.info(attempt)
   }
 
+  console.trace('swc err')
   Log.error(
     `Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
   )
-  process.exit(1)
+  if (bail) process.exit(1)
 }
 
 async function loadWasm() {
@@ -74,7 +75,7 @@ async function loadWasm() {
           return Promise.resolve(bindings.minifySync(src.toString(), options))
         },
         parse(src, options) {
-          return Promise.resolve(bindings.parse(src.toString(), options))
+          return Promise.resolve(bindings.parseSync(src.toString(), options))
         },
         getTargetTriple() {
           return undefined
@@ -233,8 +234,9 @@ export async function bundle(options) {
   return bindings.bundle(toBuffer(options))
 }
 
-export async function parse(src, options) {
-  let bindings = await loadBindings()
+export async function parse(src, options = {}) {
+  Object.assign(options, { bail: true }, options)
+  let bindings = await loadBindings({ bail: !(options.bail === false) })
   let parserOptions = getParserOptions(options)
   return bindings.parse(src, parserOptions).then((astStr) => JSON.parse(astStr))
 }
