@@ -279,7 +279,7 @@ describe('tsconfig.json verifier', () => {
       "{
         \\"compilerOptions\\": {
           \\"esModuleInterop\\": true,
-          \\"module\\": \\"es2020\\",
+          \\"moduleResolution\\": \\"node12\\",
           \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
@@ -291,7 +291,8 @@ describe('tsconfig.json verifier', () => {
           \\"strict\\": false,
           \\"forceConsistentCasingInFileNames\\": true,
           \\"noEmit\\": true,
-          \\"moduleResolution\\": \\"node12\\",
+          \\"incremental\\": true,
+          \\"module\\": \\"esnext\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
           \\"jsx\\": \\"preserve\\"
