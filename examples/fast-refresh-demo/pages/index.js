@@ -37,7 +37,7 @@ function Home() {
       <hr className={styles.hr} />
       <div>
         <p>
-          Auto incrementing value. The counter won't reset after edits or if
+          Auto incrementing value. The counter won&#39;t reset after edits or if
           there are errors.
         </p>
         <p>Current value: {count}</p>
@@ -50,8 +50,8 @@ function Home() {
       <hr className={styles.hr} />
       <div>
         <p>
-          The button below will throw 2 errors. You'll see the error overlay to
-          let you know about the errors but it won't break the page or reset
+          The button below will throw 2 errors. You&#39;ll see the error overlay to
+          let you know about the errors but it won&#39;t break the page or reset
           your state.
         </p>
         <Button
