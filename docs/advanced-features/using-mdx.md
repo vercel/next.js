@@ -85,14 +85,6 @@ The following steps outline how to setup `@next/mdx` in your Next.js project:
      - package.json
    ```
 
-## next-mdx-remote
-
-On a remote database, use [next-mdx-remote](https://github.com/hashicorp/next-mdx-remote)
-
-## @mdx-js/mdx
-
-If you are handling mdx strings client side, you should probably use [@mdx-js/mdx](https://mdxjs.com/docs/getting-started/)
-
 ## Using Components, Layouts and Custom Elements
 
 You can now import a React component directly inside your MDX page:
