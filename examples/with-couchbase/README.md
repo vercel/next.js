@@ -8,15 +8,9 @@ If you want to learn more about Couchbase, visit the following pages:
 - [Couchbase Developer Portal](https://developer.couchbase.com/)
 - [Couchbase Cloud](https://cloud.couchbase.com/sign-up)
 
-## Preview
-
-Preview the example live on [StackBlitz](http://stackblitz.com/):
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-couchbase)
-
 ## Deploy your own
 
-Once you have access to the environment variables you'll need, deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) once you have access to the environment variables you'll need or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-couchbase)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-couchbase&project-name=with-couchbase&repository-name=with-couchbase&env=COUCHBASE_USER,COUCHBASE_PASSWORD,COUCHBASE_ENDPOINT,COUCHBASE_BUCKET,IS_CLOUD_INSTANCE&envDescription=Required%20to%20connect%20the%20app%20with%20Couchbase)
 
@@ -28,6 +22,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-couchbase with-couchbase-app
 # or
 yarn create next-app --example with-couchbase with-couchbase-app
+# or
+pnpm create next-app -- --example with-couchbase with-couchbase-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

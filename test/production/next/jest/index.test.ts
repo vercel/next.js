@@ -8,6 +8,8 @@ describe('next/jest', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
+        'public/vercel.svg':
+          '<svg width="24" height="24" xmlns="http://www.w3.org/2000/svg"/>',
         'components/comp.js': `
           export default function Comp() {
             return <h1>Hello Dynamic</h1>;
@@ -15,6 +17,8 @@ describe('next/jest', () => {
         `,
         'pages/index.js': `
           import dynamic from "next/dynamic";
+          import Image from "next/image";
+          import img from "../public/vercel.svg";
 
           const Comp = dynamic(() => import("../components/comp"), {
             loading: () => <h1>Loading...</h1>,
@@ -23,6 +27,8 @@ describe('next/jest', () => {
           export default function Page() { 
             return <>
               <Comp />
+              <Image src={img} alt="logo" placeholder="blur"/>
+              <Image src={img} alt="logo 2"/>
               <p>hello world</p>
             </>
           } 
@@ -73,6 +79,21 @@ describe('next/jest', () => {
               });
             });
           });
+        `,
+        'lib/hello.mjs': `
+          import path from 'path'
+
+          export default function hello() {
+            return path.join('hello', 'world')
+          }
+        `,
+        'test/mjs-support.test.js': `
+          import path from 'path'
+          import hello from '../lib/hello.mjs'
+          
+          it('should transpile .mjs file correctly', async () => {
+            expect(hello()).toBe(path.join('hello', 'world'))
+          })
         `,
         'test/mock.test.js': `
           import router from 'next/router'

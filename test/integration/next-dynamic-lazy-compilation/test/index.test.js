@@ -29,7 +29,9 @@ function runTests() {
     const browser = await webdriver(appPort, '/')
     const text = await browser.elementByCss('#before-hydration').text()
 
-    expect(text).toBe('Index<!-- -->1<!-- -->2<!-- -->3<!-- -->4<!-- -->4')
+    expect(text).toBe(
+      'Index<!-- -->1<!-- -->2<!-- -->3<!-- -->4<!-- -->4<!-- -->'
+    )
     expect(await browser.eval('window.caughtErrors')).toBe('')
   })
 
@@ -37,7 +39,9 @@ function runTests() {
     const browser = await webdriver(appPort, '/')
     const text = await browser.elementByCss('#first-render').text()
 
-    expect(text).toBe('Index<!-- -->1<!-- -->2<!-- -->3<!-- -->4<!-- -->4')
+    expect(text).toBe(
+      'Index<!-- -->1<!-- -->2<!-- -->3<!-- -->4<!-- -->4<!-- -->'
+    )
     expect(await browser.eval('window.caughtErrors')).toBe('')
   })
 }

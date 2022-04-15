@@ -46,7 +46,7 @@ class Playwright extends BrowserInterface {
     this.eventCallbacks[event]?.delete(cb)
   }
 
-  async setup(browserName: string) {
+  async setup(browserName: string, locale?: string) {
     if (browser) return
     const headless = !!process.env.HEADLESS
 
@@ -57,14 +57,17 @@ class Playwright extends BrowserInterface {
     } else {
       browser = await chromium.launch({ headless, devtools: !headless })
     }
-    context = await browser.newContext()
+    context = await browser.newContext({ locale })
   }
 
   async get(url: string): Promise<void> {
     return page.goto(url) as any
   }
 
-  async loadPage(url: string, opts?: { disableCache: boolean }) {
+  async loadPage(
+    url: string,
+    opts?: { disableCache: boolean; beforePageLoad?: (...args: any[]) => void }
+  ) {
     if (this.activeTrace) {
       const traceDir = path.join(__dirname, '../../traces')
       const traceOutputPath = path.join(
@@ -135,6 +138,8 @@ class Playwright extends BrowserInterface {
         }
       })
     })
+
+    opts?.beforePageLoad?.(page)
 
     if (tracePlaywright) {
       await context.tracing.start({
@@ -310,12 +315,7 @@ class Playwright extends BrowserInterface {
 
   waitForCondition(condition, timeout) {
     return this.chain(() => {
-      return page.waitForFunction(
-        `function() {
-        return ${condition}
-      }`,
-        { timeout }
-      )
+      return page.waitForFunction(condition, { timeout })
     })
   }
 

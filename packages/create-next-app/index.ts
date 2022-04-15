@@ -6,7 +6,7 @@ import path from 'path'
 import prompts from 'prompts'
 import checkForUpdate from 'update-check'
 import { createApp, DownloadError } from './create-app'
-import { shouldUseYarn } from './helpers/should-use-yarn'
+import { getPkgManager } from './helpers/get-pkg-manager'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
 
@@ -31,6 +31,13 @@ const program = new Commander.Command(packageJson.name)
     `
 
   Explicitly tell the CLI to bootstrap the app using npm
+`
+  )
+  .option(
+    '--use-pnpm',
+    `
+
+  Explicitly tell the CLI to bootstrap the app using pnpm
 `
   )
   .option(
@@ -116,14 +123,19 @@ async function run(): Promise<void> {
       'Please provide an example name or url, otherwise remove the example option.'
     )
     process.exit(1)
-    return
   }
+
+  const packageManager = !!program.useNpm
+    ? 'npm'
+    : !!program.usePnpm
+    ? 'pnpm'
+    : getPkgManager()
 
   const example = typeof program.example === 'string' && program.example.trim()
   try {
     await createApp({
       appPath: resolvedProjectPath,
-      useNpm: !!program.useNpm,
+      packageManager,
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
       typescript: program.typescript,
@@ -147,7 +159,7 @@ async function run(): Promise<void> {
 
     await createApp({
       appPath: resolvedProjectPath,
-      useNpm: !!program.useNpm,
+      packageManager,
       typescript: program.typescript,
     })
   }
@@ -159,7 +171,7 @@ async function notifyUpdate(): Promise<void> {
   try {
     const res = await update
     if (res?.latest) {
-      const isYarn = shouldUseYarn()
+      const pkgManager = getPkgManager()
 
       console.log()
       console.log(
@@ -168,9 +180,9 @@ async function notifyUpdate(): Promise<void> {
       console.log(
         'You can update by running: ' +
           chalk.cyan(
-            isYarn
+            pkgManager === 'yarn'
               ? 'yarn global add create-next-app'
-              : 'npm i -g create-next-app'
+              : `${pkgManager} install --global create-next-app`
           )
       )
       console.log()

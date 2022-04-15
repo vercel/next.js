@@ -50,7 +50,7 @@ function runTests(dev = false) {
     expect(res2.headers.get('transfer-encoding')).toBe(null)
 
     if (dev) {
-      expect(stderr.substr(stderrIdx)).toContain(
+      expect(stderr.slice(stderrIdx)).toContain(
         'A body was attempted to be set with a 204 statusCode'
       )
     }
@@ -451,13 +451,32 @@ function runTests(dev = false) {
     let res = await fetchViaHTTP(appPort, '/api/large-response')
     expect(res.ok).toBeTruthy()
     expect(stderr).toContain(
-      'API response for /api/large-response exceeds 4MB. This will cause the request to fail in a future version.'
+      'API response for /api/large-response exceeds 4MB. API Routes are meant to respond quickly.'
     )
 
     res = await fetchViaHTTP(appPort, '/api/large-chunked-response')
     expect(res.ok).toBeTruthy()
     expect(stderr).toContain(
-      'API response for /api/large-chunked-response exceeds 4MB. This will cause the request to fail in a future version.'
+      'API response for /api/large-chunked-response exceeds 4MB. API Routes are meant to respond quickly.'
+    )
+  })
+
+  it('should not warn if response body is larger than 4MB with responseLimit config = false', async () => {
+    let res = await fetchViaHTTP(appPort, '/api/large-response-with-config')
+    expect(res.ok).toBeTruthy()
+    expect(stderr).not.toContain(
+      'API response for /api/large-response-with-config exceeds 4MB. API Routes are meant to respond quickly.'
+    )
+  })
+
+  it('should warn with configured size if response body is larger than configured size', async () => {
+    let res = await fetchViaHTTP(
+      appPort,
+      '/api/large-response-with-config-size'
+    )
+    expect(res.ok).toBeTruthy()
+    expect(stderr).toContain(
+      'API response for /api/large-response-with-config-size exceeds 5MB. API Routes are meant to respond quickly.'
     )
   })
 
@@ -490,7 +509,7 @@ function runTests(dev = false) {
     it('should not show warning when the API resolves and the response is piped', async () => {
       const startIdx = stderr.length > 0 ? stderr.length - 1 : stderr.length
       await fetchViaHTTP(appPort, `/api/test-res-pipe`, { port: appPort })
-      expect(stderr.substr(startIdx)).not.toContain(
+      expect(stderr.slice(startIdx)).not.toContain(
         `API resolved without sending a response for /api/test-res-pipe`
       )
     })
@@ -508,7 +527,7 @@ function runTests(dev = false) {
       const startIdx = stderr.length > 0 ? stderr.length - 1 : stderr.length
       const apiURL = '/api/external-resolver'
       const req = await fetchViaHTTP(appPort, apiURL)
-      expect(stderr.substr(startIdx)).not.toContain(
+      expect(stderr.slice(startIdx)).not.toContain(
         `API resolved without sending a response for ${apiURL}`
       )
       expect(await req.text()).toBe('hello world')

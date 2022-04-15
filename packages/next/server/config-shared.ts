@@ -5,7 +5,9 @@ import {
   ImageConfig,
   ImageConfigComplete,
   imageConfigDefault,
-} from './image-config'
+} from '../shared/lib/image-config'
+
+export type PageRuntime = 'nodejs' | 'edge' | undefined
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -86,6 +88,7 @@ export interface ExperimentalConfig {
   workerThreads?: boolean
   pageEnv?: boolean
   optimizeCss?: boolean
+  nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
   conformance?: boolean
@@ -100,12 +103,31 @@ export interface ExperimentalConfig {
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
-  runtime?: 'nodejs' | 'edge'
+  runtime?: Exclude<PageRuntime, undefined>
   serverComponents?: boolean
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
   outputStandalone?: boolean
+  images?: {
+    layoutRaw: boolean
+  }
+  middlewareSourceMaps?: boolean
+  emotion?:
+    | boolean
+    | {
+        sourceMap?: boolean
+        autoLabel?: 'dev-only' | 'always' | 'never'
+        labelFormat?: string
+      }
+  modularizeImports?: Record<
+    string,
+    {
+      transform: string
+      preventFullImport?: boolean
+      skipDefaultConversion?: boolean
+    }
+  >
 }
 
 /**
@@ -454,6 +476,7 @@ export const defaultConfig: NextConfig = {
     workerThreads: false,
     pageEnv: false,
     optimizeCss: false,
+    nextScriptWorkers: false,
     scrollRestoration: false,
     externalDir: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
@@ -468,6 +491,9 @@ export const defaultConfig: NextConfig = {
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
     outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
+    images: {
+      layoutRaw: false,
+    },
   },
 }
 

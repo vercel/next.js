@@ -32,7 +32,7 @@ const Page = () => {
         width={100}
         height={100}
         loader={({ src, width }) =>
-          `https://example.com${src}?width=${width * 2}`
+          `https://example.vercel.sh${src}?width=${width * 2}`
         }
       />
       <Image
@@ -40,7 +40,7 @@ const Page = () => {
         src="/test.tiff"
         width={100}
         height={100}
-        loader={({ src }) => `https://example.com${src}?size=medium`}
+        loader={({ src }) => `https://example.vercel.sh${src}?size=medium`}
       />
       <footer>footer</footer>
     </div>

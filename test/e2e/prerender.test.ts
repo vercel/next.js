@@ -149,6 +149,11 @@ describe('Prerender', () => {
       initialRevalidateSeconds: false,
       srcRoute: '/api-docs/[...slug]',
     },
+    '/blocking-fallback-once/404-on-manual-revalidate': {
+      dataRoute: `/_next/data/${next.buildId}/blocking-fallback-once/404-on-manual-revalidate.json`,
+      initialRevalidateSeconds: false,
+      srcRoute: '/blocking-fallback-once/[slug]',
+    },
     '/blocking-fallback-some/a': {
       dataRoute: `/_next/data/${next.buildId}/blocking-fallback-some/a.json`,
       initialRevalidateSeconds: 1,
@@ -158,6 +163,11 @@ describe('Prerender', () => {
       dataRoute: `/_next/data/${next.buildId}/blocking-fallback-some/b.json`,
       initialRevalidateSeconds: 1,
       srcRoute: '/blocking-fallback-some/[slug]',
+    },
+    '/blocking-fallback/test-errors-1': {
+      dataRoute: `/_next/data/${next.buildId}/blocking-fallback/test-errors-1.json`,
+      initialRevalidateSeconds: 1,
+      srcRoute: '/blocking-fallback/[slug]',
     },
     '/blog': {
       dataRoute: `/_next/data/${next.buildId}/blog.json`,
@@ -421,6 +431,14 @@ describe('Prerender', () => {
 
   const runTests = (dev = false) => {
     navigateTest(dev)
+
+    it('should respond with 405 for POST to static page', async () => {
+      const res = await fetchViaHTTP(next.url, '/', undefined, {
+        method: 'POST',
+      })
+      expect(res.status).toBe(405)
+      expect(await res.text()).toContain('Method Not Allowed')
+    })
 
     it('should SSR normal page correctly', async () => {
       const html = await renderViaHTTP(next.url, '/')
@@ -1683,13 +1701,13 @@ describe('Prerender', () => {
 
       it('should handle revalidating HTML correctly', async () => {
         const route = '/blog/post-2/comment-2'
-        await renderViaHTTP(next.url, route)
         const initialHtml = await renderViaHTTP(next.url, route)
         expect(initialHtml).toMatch(/Post:.*?post-2/)
         expect(initialHtml).toMatch(/Comment:.*?comment-2/)
 
         let newHtml = await renderViaHTTP(next.url, route)
-        expect(newHtml).toBe(initialHtml)
+        expect(newHtml).toMatch(/Post:.*?post-2/)
+        expect(newHtml).toMatch(/Comment:.*?comment-2/)
 
         await waitFor(2 * 1000)
         await renderViaHTTP(next.url, route)
@@ -1892,25 +1910,82 @@ describe('Prerender', () => {
     }
 
     if (!(global as any).isNextDev) {
+      it('should automatically reset cache TTL when an error occurs and build cache was available', async () => {
+        await next.patchFile('error.txt', 'yes')
+        await waitFor(2000)
+
+        for (let i = 0; i < 5; i++) {
+          const res = await fetchViaHTTP(
+            next.url,
+            '/blocking-fallback/test-errors-1'
+          )
+          expect(res.status).toBe(200)
+        }
+        await next.deleteFile('error.txt')
+        await check(
+          () =>
+            next.cliOutput.match(
+              /throwing error for \/blocking-fallback\/test-errors-1/
+            ).length === 1
+              ? 'success'
+              : next.cliOutput,
+          'success'
+        )
+      })
+
+      it('should automatically reset cache TTL when an error occurs and runtime cache was available', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback/test-errors-2'
+        )
+
+        expect(res.status).toBe(200)
+        await waitFor(2000)
+        await next.patchFile('error.txt', 'yes')
+
+        for (let i = 0; i < 5; i++) {
+          const res = await fetchViaHTTP(
+            next.url,
+            '/blocking-fallback/test-errors-2'
+          )
+          expect(res.status).toBe(200)
+        }
+        await next.deleteFile('error.txt')
+
+        await check(
+          () =>
+            next.cliOutput.match(
+              /throwing error for \/blocking-fallback\/test-errors-2/
+            ).length === 1
+              ? 'success'
+              : next.cliOutput,
+          'success'
+        )
+      })
+
       it('should handle manual revalidate for fallback: blocking', async () => {
-        const html = await renderViaHTTP(
+        const res = await fetchViaHTTP(
           next.url,
           '/blocking-fallback/test-manual-1'
         )
+        const html = await res.text()
         const $ = cheerio.load(html)
         const initialTime = $('#time').text()
+        expect(res.headers.get('x-nextjs-cache')).toMatch(/MISS/)
 
         expect($('p').text()).toMatch(/Post:.*?test-manual-1/)
 
-        const html2 = await renderViaHTTP(
+        const res2 = await fetchViaHTTP(
           next.url,
           '/blocking-fallback/test-manual-1'
         )
+        const html2 = await res2.text()
         const $2 = cheerio.load(html2)
+        expect(res2.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
 
         expect(initialTime).toBe($2('#time').text())
 
-        const res = await fetchViaHTTP(
+        const res3 = await fetchViaHTTP(
           next.url,
           '/api/manual-revalidate',
           {
@@ -1919,19 +1994,94 @@ describe('Prerender', () => {
           { redirect: 'manual' }
         )
 
+        expect(res2.status).toBe(200)
+        const revalidateData = await res3.json()
+        expect(revalidateData.revalidated).toBe(true)
+
+        const res4 = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback/test-manual-1'
+        )
+        const html4 = await res4.text()
+        const $4 = cheerio.load(html4)
+        expect($4('#time').text()).not.toBe(initialTime)
+        expect(res4.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
+      })
+
+      it('should not manual revalidate for fallback: blocking with onlyGenerated if not generated', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/api/manual-revalidate',
+          {
+            pathname: '/blocking-fallback/test-if-generated-1',
+            onlyGenerated: '1',
+          },
+          { redirect: 'manual' }
+        )
+
         expect(res.status).toBe(200)
         const revalidateData = await res.json()
         expect(revalidateData.revalidated).toBe(true)
 
-        const html4 = await renderViaHTTP(
-          next.url,
-          '/blocking-fallback/test-manual-1'
+        expect(next.cliOutput).not.toContain(
+          `getStaticProps test-if-generated-1`
         )
-        const $4 = cheerio.load(html4)
-        expect($4('#time').text()).not.toBe(initialTime)
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback/test-if-generated-1'
+        )
+        expect(res2.headers.get('x-nextjs-cache')).toMatch(/(MISS)/)
+        expect(next.cliOutput).toContain(`getStaticProps test-if-generated-1`)
       })
 
-      it('should not manual revalidate for revalidate: false', async () => {
+      it('should manual revalidate for fallback: blocking with onlyGenerated if generated', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback/test-if-generated-2'
+        )
+        const html = await res.text()
+        const $ = cheerio.load(html)
+        const initialTime = $('#time').text()
+        expect(res.headers.get('x-nextjs-cache')).toMatch(/MISS/)
+
+        expect($('p').text()).toMatch(/Post:.*?test-if-generated-2/)
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback/test-if-generated-2'
+        )
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+        expect(res2.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
+
+        expect(initialTime).toBe($2('#time').text())
+
+        const res3 = await fetchViaHTTP(
+          next.url,
+          '/api/manual-revalidate',
+          {
+            pathname: '/blocking-fallback/test-if-generated-2',
+            onlyGenerated: '1',
+          },
+          { redirect: 'manual' }
+        )
+
+        expect(res3.status).toBe(200)
+        const revalidateData = await res3.json()
+        expect(revalidateData.revalidated).toBe(true)
+
+        const res4 = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback/test-if-generated-2'
+        )
+        const html4 = await res4.text()
+        const $4 = cheerio.load(html4)
+        expect($4('#time').text()).not.toBe(initialTime)
+        expect(res4.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
+      })
+
+      it('should manual revalidate for revalidate: false', async () => {
         const html = await renderViaHTTP(
           next.url,
           '/blocking-fallback-once/test-manual-1'
@@ -1967,7 +2117,48 @@ describe('Prerender', () => {
           '/blocking-fallback-once/test-manual-1'
         )
         const $4 = cheerio.load(html4)
-        expect($4('#time').text()).toBe(initialTime)
+        expect($4('#time').text()).not.toBe(initialTime)
+      })
+
+      it('should manual revalidate that returns notFound: true', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback-once/404-on-manual-revalidate'
+        )
+        const html = await res.text()
+        const $ = cheerio.load(html)
+        const initialTime = $('#time').text()
+        expect(res.headers.get('x-nextjs-cache')).toBe('HIT')
+
+        expect($('p').text()).toMatch(/Post:.*?404-on-manual-revalidate/)
+
+        const html2 = await renderViaHTTP(
+          next.url,
+          '/blocking-fallback-once/404-on-manual-revalidate'
+        )
+        const $2 = cheerio.load(html2)
+
+        expect(initialTime).toBe($2('#time').text())
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/api/manual-revalidate',
+          {
+            pathname: '/blocking-fallback-once/404-on-manual-revalidate',
+          },
+          { redirect: 'manual' }
+        )
+        expect(res2.status).toBe(200)
+        const revalidateData = await res2.json()
+        expect(revalidateData.revalidated).toBe(true)
+
+        const res3 = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback-once/404-on-manual-revalidate'
+        )
+        expect(res3.status).toBe(404)
+        expect(await res3.text()).toContain('This page could not be found')
+        expect(res3.headers.get('x-nextjs-cache')).toBe('HIT')
       })
 
       it('should handle manual revalidate for fallback: false', async () => {
