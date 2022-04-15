@@ -3,7 +3,7 @@ const cluster = require('cluster')
 
 exports['default'] = {
   logger: (api) => {
-    let logger = { transports: [] }
+    const logger = { transports: [] }
 
     // console logger
     if (cluster.isMaster) {
