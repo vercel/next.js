@@ -32,9 +32,9 @@ To run a component on the server, append `.server.js` to the end of the filename
 
 For client components, append `.client.js` to the filename. For example, `./components/avatar.client.js`.
 
-Server components can import server components and client components. 
+Server components can import server components and client components.
 
-Client components **cannot** import server components. 
+Client components **cannot** import server components.
 
 Components without a `server` or `client` extension will be treated as shared components and can be imported by server components and client components. For example:
 
