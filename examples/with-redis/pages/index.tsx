@@ -1,6 +1,5 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, MouseEvent } from 'react'
 import type { NextApiRequest } from 'next'
-import type { MouseEvent } from 'react'
 import Head from 'next/head'
 import clsx from 'clsx'
 import useSWR, { mutate } from 'swr'
