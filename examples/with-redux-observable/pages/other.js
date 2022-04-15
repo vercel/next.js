@@ -4,7 +4,7 @@ const OtherPage = () => (
   <div>
     <h1>Other Page</h1>
     <Link href="/">
-      <a>Get back to "/"</a>
+      <a>Get back to &quot;/&quot;</a>
     </Link>
   </div>
 )

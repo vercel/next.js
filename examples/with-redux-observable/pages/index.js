@@ -21,7 +21,7 @@ const Counter = () => {
       <br />
       <nav>
         <Link href="/other">
-          <a>Navigate to "/other"</a>
+          <a>Navigate to &quot;/other&quot;</a>
         </Link>
       </nav>
     </div>
