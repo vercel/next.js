@@ -69,7 +69,7 @@ export default function Post({ post, morePosts, preview }) {
 }
 
 export async function getStaticProps({ params, preview = false, previewData }) {
-  let { post, morePosts } = await getPostAndMorePosts(
+  const { post, morePosts } = await getPostAndMorePosts(
     params.slug,
     preview,
     previewData

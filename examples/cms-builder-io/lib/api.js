@@ -27,7 +27,7 @@ export function getDraftPost(id) {
 }
 
 export async function getPost(mongoQuery, preview) {
-  let post = preview
+  const post = preview
     ? (await searchPosts(mongoQuery, true))?.[0]
     : await builder
         .get(BUILDER_CONFIG.postsModel, {
