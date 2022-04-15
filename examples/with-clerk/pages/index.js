@@ -142,7 +142,7 @@ const APIRequest = () => {
         >
           <img src="/icons/server.svg" />
           <div>
-            <h3>fetch('/api/getAuthenticatedUserId')</h3>
+            <h3>fetch(&#39;/api/getAuthenticatedUserId&#39;)</h3>
             <p>
               Retrieve the user ID of the signed in user, or null if there is no
               user
