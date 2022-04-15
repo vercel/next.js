@@ -70,7 +70,7 @@ const VerifyOTPForm = (props: Props) => {
   const resetPasscode = () => {
     const inputs = document.getElementsByClassName(styles.passcodeInput)
     for (let i = 0; i < inputs.length; i++) {
-      ;(inputs[i] as HTMLInputElement).value = ''
+      (inputs[i] as HTMLInputElement).value = ''
     }
     document.getElementById('digit-0')?.focus()
     setIsDisabled(true)
