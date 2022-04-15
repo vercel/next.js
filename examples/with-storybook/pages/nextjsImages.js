@@ -14,7 +14,7 @@ export default function NextjsImages() {
       <main>
         <h2>This image uses a remote image</h2>
         <Image src="/vercel.svg" alt="Vercel Logo" width={200} height={200} />
-        <h2>This image uses a static import with a "placeholder="blur"</h2>
+        <h2>This image uses a static import with a &quot;placeholder=&quot;blur&quot;</h2>
         <Image
           src={nyanCatImgSrc}
           layout="responsive"

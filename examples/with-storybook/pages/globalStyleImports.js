@@ -10,9 +10,9 @@ export default function CssModules() {
       </Head>
       <Links />
       <main>
-        The background of this page is set by "styles/globals.scss" and this
-        text size is set by "styles/globals.css". All global style imports need
-        to be done in ".storybook/preview.js" for storybook.
+        The background of this page is set by &quot;styles/globals.scss&quot; and this
+        text size is set by &quot;styles/globals.css&quot;. All global style imports need
+        to be done in &quot;.storybook/preview.js&quot; for storybook.
       </main>
     </div>
   )

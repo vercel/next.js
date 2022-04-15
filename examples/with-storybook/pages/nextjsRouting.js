@@ -14,7 +14,7 @@ export default function NextjsRouting() {
       <Links />
       <main>
         <p>
-          Interact with any of the links and look at the "Actions" tab below (if
+          Interact with any of the links and look at the &quot;Actions&quot; tab below (if
           in storybook)
         </p>
         <p>
