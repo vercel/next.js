@@ -4,7 +4,7 @@ const COUCHBASE_USER = process.env.COUCHBASE_USER
 const COUCHBASE_PASSWORD = process.env.COUCHBASE_PASSWORD
 const COUCHBASE_ENDPOINT = process.env.COUCHBASE_ENDPOINT || 'localhost'
 const COUCHBASE_BUCKET = process.env.COUCHBASE_BUCKET || 'travel-sample'
-let IS_CLOUD_INSTANCE = process.env.IS_CLOUD_INSTANCE || 'false'
+const IS_CLOUD_INSTANCE = process.env.IS_CLOUD_INSTANCE || 'false'
 
 if (!COUCHBASE_USER) {
   throw new Error(
@@ -55,7 +55,7 @@ export async function connectToDatabase() {
   const bucket = cluster.bucket(COUCHBASE_BUCKET)
   const collection = bucket.defaultCollection()
 
-  let dbConnection = {
+  const dbConnection = {
     cluster,
     bucket,
     collection,

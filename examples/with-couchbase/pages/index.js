@@ -55,7 +55,7 @@ export default function Home({ isConnected }) {
 }
 
 export async function getServerSideProps(context) {
-  let connection = await connectToDatabase()
+  const connection = await connectToDatabase()
 
   const { collection } = connection
 
