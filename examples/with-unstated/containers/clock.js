@@ -5,7 +5,7 @@ function useClock() {
   const [data, setData] = useState({ lastUpdate: 0, light: false })
 
   useEffect(() => {
-    let interval = setInterval(() => {
+    const interval = setInterval(() => {
       setData({ lastUpdate: Date.now(), light: !data.light })
     }, 1000)
 
