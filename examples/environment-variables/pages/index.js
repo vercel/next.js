@@ -8,7 +8,7 @@ const IndexPage = () => (
       <h1>Environment Variables with Next.js</h1>
       <hr className={styles.hr} />
       <p>
-        In the table below you'll see how{' '}
+        In the table below you&#39;ll see how{' '}
         <a href="https://nextjs.org/docs/basic-features/environment-variables#exposing-environment-variables-to-the-browser">
           environment variables can be exposed to the browser
         </a>{' '}
@@ -68,20 +68,20 @@ const IndexPage = () => (
         <code>cp .env.local.example .env.local</code>
       </pre>
       <p>
-        Variables in <Code>.env.production</Code> won't be available if the app
+        Variables in <Code>.env.production</Code> won&#39;t be available if the app
         is running in development:
       </p>
       <pre>
         <code>npm run dev</code>
       </pre>
       <p>
-        Similarly, variables in <Code>.env.development</Code> won't be available
+        Similarly, variables in <Code>.env.development</Code> won&#39;t be available
         if the app is running on production:
       </p>
       <pre>
         <code>npm run build && npm run start</code>
       </pre>
-      <p>Once you run the app, you'll see logs like these in the terminal:</p>
+      <p>Once you run the app, you&#39;ll see logs like these in the terminal:</p>
       <pre>
         <code>
           info - Loaded env from /home/user/../.env.local{'\n'}
