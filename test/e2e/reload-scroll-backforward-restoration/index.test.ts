@@ -47,7 +47,7 @@ describe('reload-scroll-back-restoration', () => {
     await browser.eval(`window.next.router.push('/2')`)
 
     // check restore value on history index: 1
-    await browser.eval(() => window.history.back())
+    await browser.back()
     await check(
       () => browser.eval(() => document.documentElement.innerHTML),
       /hydrated/
@@ -60,10 +60,10 @@ describe('reload-scroll-back-restoration', () => {
       Math.floor(await browser.eval(() => window.scrollY))
     )
 
-    await browser.eval(`window.next.router.reload()`)
+    await browser.refresh()
 
     // check restore value on history index: 0
-    await browser.eval(() => window.history.back())
+    await browser.back()
     await check(
       () => browser.eval(() => document.documentElement.innerHTML),
       /hydrated/
@@ -111,9 +111,9 @@ describe('reload-scroll-back-restoration', () => {
     })
 
     // check restore value on history index: 1
-    await browser.eval(() => window.history.back())
-    await browser.eval(() => window.history.back())
-    await browser.eval(() => window.history.forward())
+    await browser.back()
+    await browser.back()
+    await browser.forward()
     await check(
       () => browser.eval(() => document.documentElement.innerHTML),
       /hydrated/
@@ -126,10 +126,10 @@ describe('reload-scroll-back-restoration', () => {
       Math.floor(await browser.eval(() => window.scrollY))
     )
 
-    await browser.eval(`window.next.router.reload()`)
+    await browser.refresh()
 
     // check restore value on history index: 2
-    await browser.eval(() => window.history.forward())
+    await browser.forward()
     await check(
       () => browser.eval(() => document.documentElement.innerHTML),
       /hydrated/
