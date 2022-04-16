@@ -12,7 +12,7 @@ function createFlightServerRequest(
   request: string,
   options?: { client: 1 | undefined }
 ) {
-  return `next-flight-server-loader${JSON.stringify(options)}!${request}`
+  return `next-flight-server-loader?${JSON.stringify(options)}!${request}`
 }
 
 function hasFlightLoader(request: string, type: 'client' | 'server') {
