@@ -138,25 +138,22 @@ export default function Page() {
 
 #### Resetting state after navigation
 
-When navigating to the same page in Next.js, the page's state **will not** be reset by default:
+When navigating to the same page in Next.js, the page's state **will not** be reset by default as react does not unmount unless the parent component has changed. 
 
 ```jsx
-// pages/[pageTitle].jsx
+// pages/[slug].js
 
 import Link from "next/link"
 import { useState } from "react"
 
-export const getServerSideProps = async ({ params }) => ({
-  props: {
-    pageTitle: params["pageTitle"]
-  }
-})
-
-export default function Page({ pageTitle }) {
-  const [title] = useState(pageTitle)
+export default function Page(props) {
+  const router = useRouter()
+  const [count, setCount] = useState(0)
   return (
     <div>
-      <h1>{title}</h1>
+      <h1>Page: {router.query.slug}</h1>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>Increase count</button>
       <Link href="/one">
         <a>one</a>
       </Link>{" "}
@@ -168,7 +165,7 @@ export default function Page({ pageTitle }) {
 }
 ```
 
-Above, navigating between `/foo` and `/bar` **will not** change the page title. The `useState` is initialized for the first `Page` component, and not re-initialized when navigating to a different `Page` instance. This is because the top-level React component, `Page`, is the same.
+In the above example, navigating between `/one` and `/two` **will not** reset the count . The `useState` is maintained between renders because the top-level React component, `Page`, is the same.
 
 If you do not want this behavior, you have a couple of options:
 
@@ -176,21 +173,20 @@ If you do not want this behavior, you have a couple of options:
 
    ```jsx
    useEffect(() => {
-     setTitle(pageTitle)
-   }, [pageTitle])
+     setCount(0)
+   }, [router.query.slug])
    ```
 
-2. Use a React `key` to [tell React to remount the component](https://kentcdodds.com/blog/understanding-reacts-key-prop#:~:text=This%20allows%20you%20to%20return%20the%20exact%20same%20element%20type%2C%20but%20force%20React%20to%20unmount%20the%20previous%20instance%2C%20and%20mount%20a%20new%20one.). To do this for all pages, you can use a custom app:
+2. Use a React `key` to [tell React to remount the component](https://reactjs.org/docs/lists-and-keys.html#keys). To do this for all pages, you can use a custom app:
 
-   ```jsx
-   // pages/_app.jsx
-   import { useRouter } from "next/router"
+```jsx
+// pages/_app.js
+import { useRouter } from "next/router"
 
-   export default function MyApp({ Component, pageProps }) {
-     const router = useRouter()
-     return <Component key={router.asPath} {...pageProps} />
-   }
-   ```
+export default function MyApp({ Component, pageProps }) {
+  const router = useRouter()
+  return <Component key={router.asPath} {...pageProps} />
+}
 
 #### With URL object
 
