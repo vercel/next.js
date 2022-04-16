@@ -104,6 +104,7 @@ fn get_object_pattern(array_pattern: &ArrayPat) -> Pat {
                     key: PropName::Num(Number {
                         value: i as f64,
                         span: DUMMY_SP,
+                        raw: None,
                     }),
                     value: Box::new(elem.clone()),
                 })

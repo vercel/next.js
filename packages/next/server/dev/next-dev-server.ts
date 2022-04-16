@@ -285,7 +285,7 @@ export default class DevServer extends Server {
           invalidatePageRuntimeCache(fileName, safeTime)
           const pageRuntimeConfig = await getPageRuntime(
             fileName,
-            this.nextConfig.experimental.runtime
+            this.nextConfig
           )
           const isEdgeRuntime = pageRuntimeConfig === 'edge'
 
@@ -938,9 +938,11 @@ export default class DevServer extends Server {
     try {
       await this.hotReloader!.ensurePage(pathname)
 
+      const serverComponents = this.nextConfig.experimental.serverComponents
+
       // When the new page is compiled, we need to reload the server component
       // manifest.
-      if (this.nextConfig.experimental.serverComponents) {
+      if (serverComponents) {
         this.serverComponentManifest = super.getServerComponentManifest()
       }
 
