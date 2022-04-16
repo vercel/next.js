@@ -202,12 +202,17 @@ function renderFlight(AppMod: any, ComponentMod: any, props: any) {
   const AppServer = isServerComponent
     ? (App as React.ComponentType)
     : React.Fragment
+  const { router: _, ...rest } = props
 
-  return (
-    <AppServer>
-      <Component {...props} />
-    </AppServer>
-  )
+  if (isServerComponent) {
+    return (
+      <AppServer>
+        <Component {...rest} />
+      </AppServer>
+    )
+  }
+
+  return <App Component={Component} {...props} />
 }
 
 export type RenderOptsPartial = {
@@ -734,7 +739,7 @@ export async function renderToHTML(
     AppTree: (props: any) => {
       return (
         <AppContainerWithIsomorphicFiberStructure>
-          {renderFlight(AppMod, ComponentMod, props)}
+          {renderFlight(AppMod, ComponentMod, { ...props, router })}
         </AppContainerWithIsomorphicFiberStructure>
       )
     },
