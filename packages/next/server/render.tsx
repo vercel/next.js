@@ -197,20 +197,21 @@ function enhanceComponents(
 
 function renderFlight(AppMod: any, ComponentMod: any, props: any) {
   const isServerComponent = !!ComponentMod.__next_rsc__
-  const isServerApp = !!AppMod.__next_rsc__
   const App = interopDefault(AppMod)
   const Component = interopDefault(ComponentMod)
   const AppServer = isServerComponent
     ? (App as React.ComponentType)
     : React.Fragment
+  const { router: _, ...rest } = props
 
-  if (isServerApp) {
+  if (isServerComponent) {
     return (
       <AppServer>
-        <Component {...props} />
+        <Component {...rest} />
       </AppServer>
     )
   }
+
   return <App Component={Component} {...props} />
 }
 
@@ -738,7 +739,7 @@ export async function renderToHTML(
     AppTree: (props: any) => {
       return (
         <AppContainerWithIsomorphicFiberStructure>
-          {renderFlight(AppMod, ComponentMod, props)}
+          {renderFlight(AppMod, ComponentMod, { ...props, router })}
         </AppContainerWithIsomorphicFiberStructure>
       )
     },
