@@ -31,16 +31,19 @@ use crate::{
     util::{deserialize_json, CtxtExt, MapErr},
 };
 use anyhow::{anyhow, bail, Context as _, Error};
+use fxhash::FxHashSet;
 use napi::{CallContext, Env, JsBoolean, JsBuffer, JsObject, JsString, JsUnknown, Status, Task};
 use next_swc::{custom_before_pass, TransformOptions};
 use std::fs::read_to_string;
 use std::{
+    cell::RefCell,
     convert::TryFrom,
     panic::{catch_unwind, AssertUnwindSafe},
+    rc::Rc,
     sync::Arc,
 };
 use swc::{try_with_handler, Compiler, TransformOutput};
-use swc_common::{FileName, SourceFile};
+use swc_common::{errors::ColorConfig, FileName, SourceFile};
 use swc_ecmascript::ast::Program;
 use swc_ecmascript::transforms::pass::noop;
 
@@ -60,53 +63,69 @@ pub struct TransformTask {
 }
 
 impl Task for TransformTask {
-    type Output = TransformOutput;
+    type Output = (TransformOutput, FxHashSet<String>);
     type JsValue = JsObject;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
+        let eliminated_packages: Rc<RefCell<fxhash::FxHashSet<String>>> = Default::default();
         let res = catch_unwind(AssertUnwindSafe(|| {
-            try_with_handler(self.c.cm.clone(), true, |handler| {
-                self.c.run(|| {
-                    let options: TransformOptions = deserialize_json(&self.options)?;
-                    let fm = match &self.input {
-                        Input::Source { src } => {
-                            let filename = if options.swc.filename.is_empty() {
-                                FileName::Anon
-                            } else {
-                                FileName::Real(options.swc.filename.clone().into())
-                            };
+            try_with_handler(
+                self.c.cm.clone(),
+                swc::HandlerOpts {
+                    color: ColorConfig::Never,
+                    skip_filename: true,
+                },
+                |handler| {
+                    self.c.run(|| {
+                        let options: TransformOptions = deserialize_json(&self.options)?;
+                        let fm = match &self.input {
+                            Input::Source { src } => {
+                                let filename = if options.swc.filename.is_empty() {
+                                    FileName::Anon
+                                } else {
+                                    FileName::Real(options.swc.filename.clone().into())
+                                };
 
-                            self.c.cm.new_source_file(filename, src.to_string())
-                        }
-                        Input::FromFilename => {
-                            let filename = &options.swc.filename;
-                            if filename.is_empty() {
-                                bail!("no filename is provided via options");
+                                self.c.cm.new_source_file(filename, src.to_string())
                             }
+                            Input::FromFilename => {
+                                let filename = &options.swc.filename;
+                                if filename.is_empty() {
+                                    bail!("no filename is provided via options");
+                                }
 
-                            self.c.cm.new_source_file(
-                                FileName::Real(filename.into()),
-                                read_to_string(filename).with_context(|| {
-                                    format!("Failed to read source code from {}", filename)
-                                })?,
-                            )
-                        }
-                    };
-                    let options = options.patch(&fm);
+                                self.c.cm.new_source_file(
+                                    FileName::Real(filename.into()),
+                                    read_to_string(filename).with_context(|| {
+                                        format!("Failed to read source code from {}", filename)
+                                    })?,
+                                )
+                            }
+                        };
+                        let options = options.patch(&fm);
 
-                    let cm = self.c.cm.clone();
-                    let file = fm.clone();
+                        let cm = self.c.cm.clone();
+                        let file = fm.clone();
 
-                    self.c.process_js_with_custom_pass(
-                        fm,
-                        None,
-                        handler,
-                        &options.swc,
-                        |_, comments| custom_before_pass(cm, file, &options, comments.clone()),
-                        |_, _| noop(),
-                    )
-                })
-            })
+                        self.c.process_js_with_custom_pass(
+                            fm,
+                            None,
+                            handler,
+                            &options.swc,
+                            |_, comments| {
+                                custom_before_pass(
+                                    cm,
+                                    file,
+                                    &options,
+                                    comments.clone(),
+                                    eliminated_packages.clone(),
+                                )
+                            },
+                            |_, _| noop(),
+                        )
+                    })
+                },
+            )
         }))
         .map_err(|err| {
             if let Some(s) = err.downcast_ref::<String>() {
@@ -117,7 +136,9 @@ impl Task for TransformTask {
         });
 
         match res {
-            Ok(res) => res.convert_err(),
+            Ok(res) => res
+                .map(|o| (o, eliminated_packages.replace(Default::default())))
+                .convert_err(),
             Err(err) => Err(napi::Error::new(
                 Status::GenericFailure,
                 format!("{:?}", err),
@@ -125,8 +146,12 @@ impl Task for TransformTask {
         }
     }
 
-    fn resolve(self, env: Env, result: Self::Output) -> napi::Result<Self::JsValue> {
-        complete_output(&env, result)
+    fn resolve(
+        self,
+        env: Env,
+        (output, eliminated_packages): Self::Output,
+    ) -> napi::Result<Self::JsValue> {
+        complete_output(&env, output, eliminated_packages)
     }
 }
 
@@ -174,22 +199,29 @@ where
     let mut options: TransformOptions = cx.get_deserialized(2)?;
     options.swc.swcrc = false;
 
-    let output = try_with_handler(c.cm.clone(), true, |handler| {
-        c.run(|| {
-            if is_module.get_value()? {
-                let program: Program =
-                    serde_json::from_str(s.as_str()?).context("failed to deserialize Program")?;
-                c.process_js(handler, program, &options.swc)
-            } else {
-                let fm =
-                    op(&c, s.as_str()?.to_string(), &options).context("failed to load file")?;
-                c.process_js_file(fm, handler, &options.swc)
-            }
-        })
-    })
+    let output = try_with_handler(
+        c.cm.clone(),
+        swc::HandlerOpts {
+            color: ColorConfig::Never,
+            skip_filename: true,
+        },
+        |handler| {
+            c.run(|| {
+                if is_module.get_value()? {
+                    let program: Program = serde_json::from_str(s.as_str()?)
+                        .context("failed to deserialize Program")?;
+                    c.process_js(handler, program, &options.swc)
+                } else {
+                    let fm =
+                        op(&c, s.as_str()?.to_string(), &options).context("failed to load file")?;
+                    c.process_js_file(fm, handler, &options.swc)
+                }
+            })
+        },
+    )
     .convert_err()?;
 
-    complete_output(cx.env, output)
+    complete_output(cx.env, output, Default::default())
 }
 
 #[js_function(4)]
@@ -219,7 +251,7 @@ pub fn transform_sync(cx: CallContext) -> napi::Result<JsObject> {
 fn test_deser() {
     const JSON_STR: &str = r#"{"jsc":{"parser":{"syntax":"ecmascript","dynamicImport":true,"jsx":true},"transform":{"react":{"runtime":"automatic","pragma":"React.createElement","pragmaFrag":"React.Fragment","throwIfNamespace":true,"development":false,"useBuiltins":true}},"target":"es5"},"filename":"/Users/timneutkens/projects/next.js/packages/next/dist/client/next.js","sourceMaps":false,"sourceFileName":"/Users/timneutkens/projects/next.js/packages/next/dist/client/next.js"}"#;
 
-    let tr: TransformOptions = serde_json::from_str(&JSON_STR).unwrap();
+    let tr: TransformOptions = serde_json::from_str(JSON_STR).unwrap();
 
     println!("{:#?}", tr);
 }
@@ -228,7 +260,7 @@ fn test_deser() {
 fn test_deserialize_transform_regenerator() {
     const JSON_STR: &str = r#"{"jsc":{"parser":{"syntax":"ecmascript","dynamicImport":true,"jsx":true},"transform":{ "regenerator": { "importPath": "foo" }, "react":{"runtime":"automatic","pragma":"React.createElement","pragmaFrag":"React.Fragment","throwIfNamespace":true,"development":false,"useBuiltins":true}},"target":"es5"},"filename":"/Users/timneutkens/projects/next.js/packages/next/dist/client/next.js","sourceMaps":false,"sourceFileName":"/Users/timneutkens/projects/next.js/packages/next/dist/client/next.js"}"#;
 
-    let tr: TransformOptions = serde_json::from_str(&JSON_STR).unwrap();
+    let tr: TransformOptions = serde_json::from_str(JSON_STR).unwrap();
 
     println!("{:#?}", tr);
 }

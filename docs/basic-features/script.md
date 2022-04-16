@@ -154,7 +154,7 @@ npm run dev
 # ...
 ```
 
-Once setup is complete, defining `strategy="worker` will automatically instantiate Partytown in your application and off-load the script to a web worker.
+Once setup is complete, defining `strategy="worker"` will automatically instantiate Partytown in your application and off-load the script to a web worker.
 
 ```jsx
 <Script src="https://example.com/analytics.js" strategy="worker" />
@@ -166,7 +166,7 @@ There are a number of trade-offs that need to be considered when loading a third
 
 Although the `worker` strategy does not require any additional configuration to work, Partytown supports the use of a config object to modify some of its settings, including enabling `debug` mode and forwarding events and triggers.
 
-If you would like to add additonal configuration options, you can include it within the `<Head />` component used in a [custom `_document.js`](/docs/advanced-features/custom-document.md):
+If you would like to add additional configuration options, you can include it within the `<Head />` component used in a [custom `_document.js`](/docs/advanced-features/custom-document.md):
 
 ```jsx
 import { Html, Head, Main, NextScript } from 'next/document'

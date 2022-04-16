@@ -19,6 +19,7 @@ describe('should set-up next', () => {
   let server
   let appPort
   let errors = []
+  let stderr = ''
   let requiredFilesManifest
 
   beforeAll(async () => {
@@ -109,6 +110,7 @@ describe('should set-up next', () => {
           if (msg.includes('top-level')) {
             errors.push(msg)
           }
+          stderr += msg
         },
       }
     )
@@ -116,6 +118,14 @@ describe('should set-up next', () => {
   afterAll(async () => {
     await next.destroy()
     if (server) await killApp(server)
+  })
+
+  it('should warn when "next" is imported directly', async () => {
+    await renderViaHTTP(appPort, '/gssp')
+    await check(
+      () => stderr,
+      /"next" should not be imported directly, imported in/
+    )
   })
 
   it('`compress` should be `true` by default', async () => {
@@ -176,6 +186,72 @@ describe('should set-up next', () => {
     expect(res2.status).toBe(200)
     const { pageProps: props2 } = await res2.json()
     expect(props2.gspCalls).toBe(props.gspCalls)
+
+    const res3 = await fetchViaHTTP(appPort, '/index', undefined, {
+      redirect: 'manual',
+      headers: {
+        'x-matched-path': '/index',
+      },
+    })
+    expect(res3.status).toBe(200)
+    const $2 = cheerio.load(await res3.text())
+    const props3 = JSON.parse($2('#props').text())
+    expect(props3.gspCalls).toBeDefined()
+
+    const res4 = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/index.json`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res4.status).toBe(200)
+    const { pageProps: props4 } = await res4.json()
+    expect(props4.gspCalls).toBe(props3.gspCalls)
+  })
+
+  it('should cap de-dupe previousCacheItem expires time', async () => {
+    const res = await fetchViaHTTP(appPort, '/gsp-long-revalidate', undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+    const props = JSON.parse($('#props').text())
+    expect(props.gspCalls).toBeDefined()
+
+    await waitFor(1000)
+
+    const res2 = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/gsp-long-revalidate.json`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res2.status).toBe(200)
+    const { pageProps: props2 } = await res2.json()
+    expect(props2.gspCalls).not.toBe(props.gspCalls)
+  })
+
+  it('should not 404 for onlyGenerated manual revalidate in minimal mode', async () => {
+    const previewProps = JSON.parse(
+      await next.readFile('standalone/.next/prerender-manifest.json')
+    ).preview
+
+    const res = await fetchViaHTTP(
+      appPort,
+      '/optional-ssg/only-generated-1',
+      undefined,
+      {
+        headers: {
+          'x-prerender-revalidate': previewProps.previewModeId,
+          'x-prerender-revalidate-if-generated': '1',
+        },
+      }
+    )
+    expect(res.status).toBe(200)
   })
 
   it('should set correct SWR headers with notFound gsp', async () => {
@@ -218,6 +294,8 @@ describe('should set-up next', () => {
     const res2 = await fetchViaHTTP(appPort, '/gssp', undefined, {
       redirect: 'manual ',
     })
+    await next.patchFile('standalone/data.txt', 'show')
+
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe(
       's-maxage=1, stale-while-revalidate'
@@ -225,18 +303,18 @@ describe('should set-up next', () => {
   })
 
   it('should render SSR page correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/')
+    const html = await renderViaHTTP(appPort, '/gssp')
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
-    expect($('#index').text()).toBe('index page')
+    expect($('#gssp').text()).toBe('getServerSideProps page')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(appPort, '/')
+    const html2 = await renderViaHTTP(appPort, '/gssp')
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
-    expect($2('#index').text()).toBe('index page')
+    expect($2('#gssp').text()).toBe('getServerSideProps page')
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
   })
@@ -300,24 +378,24 @@ describe('should set-up next', () => {
   it('should render SSR page correctly with x-matched-path', async () => {
     const html = await renderViaHTTP(appPort, '/some-other-path', undefined, {
       headers: {
-        'x-matched-path': '/',
+        'x-matched-path': '/gssp',
       },
     })
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
-    expect($('#index').text()).toBe('index page')
+    expect($('#gssp').text()).toBe('getServerSideProps page')
     expect(data.hello).toBe('world')
 
     const html2 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
       headers: {
-        'x-matched-path': '/',
+        'x-matched-path': '/gssp',
       },
     })
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
-    expect($2('#index').text()).toBe('index page')
+    expect($2('#gssp').text()).toBe('getServerSideProps page')
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
   })
@@ -564,7 +642,7 @@ describe('should set-up next', () => {
       },
       {
         headers: {
-          'x-matched-path': '/',
+          'x-matched-path': '/gssp',
         },
       }
     )
@@ -743,7 +821,7 @@ describe('should set-up next', () => {
     expect($('#index').text()).toBe('index page')
   })
 
-  it('should match the root dyanmic page correctly', async () => {
+  it('should match the root dynamic page correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/index', undefined, {
       headers: {
         'x-matched-path': '/[slug]',
