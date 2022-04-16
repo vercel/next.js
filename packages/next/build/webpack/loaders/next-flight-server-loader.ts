@@ -6,17 +6,15 @@ import {
   createClientComponentFilter,
   createServerComponentFilter,
   isNextBuiltinClientComponent,
-  defaultJsFileExtensions,
 } from './utils'
 
 function createFlightServerRequest(
   request: string,
   options?: { client: 1 | undefined }
 ) {
-  return `next-flight-server-loader?${JSON.stringify({
-    ...options,
-    extensions: defaultJsFileExtensions,
-  })}!${request}`
+  return `next-flight-server-loader${
+    options ? JSON.stringify(options) : ''
+  }!${request}`
 }
 
 function hasFlightLoader(request: string, type: 'client' | 'server') {
@@ -26,7 +24,6 @@ function hasFlightLoader(request: string, type: 'client' | 'server') {
 async function parseModuleInfo({
   resourcePath,
   source,
-  extensions,
   isClientCompilation,
   isServerComponent,
   isClientComponent,
