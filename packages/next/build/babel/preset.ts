@@ -93,10 +93,6 @@ export default (
     // In production/development this option is set to `false` so that webpack can handle import/export with tree-shaking
     modules: 'auto',
     exclude: ['transform-typeof-symbol'],
-    include: [
-      '@babel/plugin-proposal-optional-chaining',
-      '@babel/plugin-proposal-nullish-coalescing-operator',
-    ],
     ...options['preset-env'],
   }
 
@@ -158,6 +154,7 @@ export default (
         },
       ],
       require('next/dist/compiled/babel/plugin-syntax-dynamic-import'),
+      require('next/dist/compiled/babel/plugin-syntax-import-assertions'),
       require('./plugins/react-loadable-plugin'),
       [
         require('next/dist/compiled/babel/plugin-proposal-class-properties'),

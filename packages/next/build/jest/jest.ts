@@ -81,7 +81,7 @@ export default function nextJest(options: { dir?: string } = {}) {
           '^.+\\.(css|sass|scss)$': require.resolve('./__mocks__/styleMock.js'),
 
           // Handle image imports
-          '^.+\\.(jpg|jpeg|png|gif|webp|avif|svg)$': require.resolve(
+          '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$': require.resolve(
             `./__mocks__/fileMock.js`
           ),
 
@@ -100,7 +100,7 @@ export default function nextJest(options: { dir?: string } = {}) {
 
         transform: {
           // Use SWC to compile tests
-          '^.+\\.(js|jsx|ts|tsx)$': [
+          '^.+\\.(js|jsx|ts|tsx|mjs)$': [
             require.resolve('../swc/jest-transformer'),
             {
               nextConfig,

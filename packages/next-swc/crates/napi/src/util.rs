@@ -27,9 +27,16 @@ DEALINGS IN THE SOFTWARE.
 */
 
 use anyhow::{Context, Error};
-use napi::{CallContext, JsBuffer, Status};
+use napi::{CallContext, Env, JsBuffer, JsString, Status};
 use serde::de::DeserializeOwned;
 use std::any::type_name;
+
+static TARGET_TRIPLE: &str = include_str!(concat!(env!("OUT_DIR"), "/triple.txt"));
+
+#[contextless_function]
+pub fn get_target_triple(env: Env) -> napi::ContextlessResult<JsString> {
+    env.create_string(TARGET_TRIPLE).map(Some)
+}
 
 pub trait MapErr<T>: Into<Result<T, anyhow::Error>> {
     fn convert_err(self) -> napi::Result<T> {
@@ -54,7 +61,7 @@ impl CtxtExt for CallContext<'_> {
 
         Ok(String::from_utf8_lossy(buffer.as_ref()).to_string())
     }
-    
+
     fn get_deserialized<T>(&self, index: usize) -> napi::Result<T>
     where
         T: DeserializeOwned,
@@ -79,6 +86,6 @@ pub(crate) fn deserialize_json<T>(s: &str) -> Result<T, Error>
 where
     T: DeserializeOwned,
 {
-    serde_json::from_str(&s)
+    serde_json::from_str(s)
         .with_context(|| format!("failed to deserialize as {}\nJSON: {}", type_name::<T>(), s))
 }

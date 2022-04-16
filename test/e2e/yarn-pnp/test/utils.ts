@@ -7,43 +7,54 @@ import { NextInstance } from 'test/lib/next-modes/base'
 jest.setTimeout(2 * 60 * 1000)
 
 export function runTests(example = '') {
-  let next: NextInstance
+  const versionParts = process.versions.node.split('.').map((i) => Number(i))
 
-  beforeAll(async () => {
-    const srcDir = join(__dirname, '../../../../examples', example)
-    const srcFiles = await fs.readdir(srcDir)
+  if (
+    versionParts[0] > 16 ||
+    (versionParts[0] === 16 && versionParts[1] >= 14)
+  ) {
+    let next: NextInstance
 
-    const packageJson = await fs.readJson(join(srcDir, 'package.json'))
+    beforeAll(async () => {
+      const srcDir = join(__dirname, '../../../../examples', example)
+      const srcFiles = await fs.readdir(srcDir)
 
-    next = await createNext({
-      files: srcFiles.reduce((prev, file) => {
-        if (file !== 'package.json') {
-          prev[file] = new FileRef(join(srcDir, file))
-        }
-        return prev
-      }, {} as { [key: string]: FileRef }),
-      dependencies: {
-        ...packageJson.dependencies,
-        ...packageJson.devDependencies,
-      },
-      installCommand: ({ dependencies }) => {
-        const pkgs = Object.keys(dependencies).reduce((prev, cur) => {
-          prev.push(`${cur}@${dependencies[cur]}`)
+      const packageJson = await fs.readJson(join(srcDir, 'package.json'))
+
+      next = await createNext({
+        files: srcFiles.reduce((prev, file) => {
+          if (file !== 'package.json') {
+            prev[file] = new FileRef(join(srcDir, file))
+          }
           return prev
-        }, [] as string[])
-        return `yarn set version berry && yarn config set enableGlobalCache true && yarn config set compressionLevel 0 && yarn add ${pkgs.join(
-          ' '
-        )}`
-      },
-      buildCommand: `yarn next build --no-lint`,
-      startCommand: (global as any).isNextDev ? `yarn next` : `yarn next start`,
+        }, {} as { [key: string]: FileRef }),
+        dependencies: {
+          ...packageJson.dependencies,
+          ...packageJson.devDependencies,
+        },
+        installCommand: ({ dependencies }) => {
+          const pkgs = Object.keys(dependencies).reduce((prev, cur) => {
+            prev.push(`${cur}@${dependencies[cur]}`)
+            return prev
+          }, [] as string[])
+          return `yarn set version berry && yarn config set enableGlobalCache true && yarn config set compressionLevel 0 && yarn add ${pkgs.join(
+            ' '
+          )}`
+        },
+        buildCommand: `yarn next build --no-lint`,
+        startCommand: (global as any).isNextDev
+          ? `yarn next`
+          : `yarn next start`,
+      })
     })
-  })
-  afterAll(() => next?.destroy())
+    afterAll(() => next?.destroy())
 
-  it(`should compile and serve the index page correctly ${example}`, async () => {
-    const res = await fetchViaHTTP(next.url, '/')
-    expect(res.status).toBe(200)
-    expect(await res.text()).toContain('<html')
-  })
+    it(`should compile and serve the index page correctly ${example}`, async () => {
+      const res = await fetchViaHTTP(next.url, '/')
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('<html')
+    })
+  } else {
+    it('should not run PnP test for older node versions', () => {})
+  }
 }

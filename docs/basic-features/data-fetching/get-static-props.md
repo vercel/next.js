@@ -20,12 +20,20 @@ You should use `getStaticProps` if:
 
 - The data required to render the page is available at build time ahead of a user’s request
 - The data comes from a headless CMS
-- The data can be publicly cached (not user-specific)
 - The page must be pre-rendered (for SEO) and be very fast — `getStaticProps` generates `HTML` and `JSON` files, both of which can be cached by a CDN for performance
+- The data can be publicly cached (not user-specific). This condition can be bypassed in certain specific situation by using a Middleware to rewrite the path.
+
+## When does getStaticProps run
+
+`getStaticProps` always runs on the server and never on the client. You can validate code written inside `getStaticProps` is removed from the client-side bundle [with this tool](https://next-code-elimination.vercel.app/).
+
+- `getStaticProps` always runs during `next build`
+- `getStaticProps` runs in the background when using `revalidate`
+- `getStaticProps` runs on-demand in the background when using [`unstable_revalidate`](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation-beta)
 
 When combined with [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md), `getStaticProps` will run in the background while the stale page is being revalidated, and the fresh page served to the browser.
 
-Because `getStaticProps` runs at build time, it does **not** have access to the incoming request (such as query parameters or `HTTP` headers) as it generates static `HTML`. If you need access to the request for your page, consider using [Middleware](/docs/middleware.md) in addition to `getStaticProps`.
+`getStaticProps` does not have access to the incoming request (such as query parameters or HTTP headers) as it generates static HTML. If you need access to the request for your page, consider using [Middleware](/docs/middleware.md) in addition to `getStaticProps`.
 
 ## Using getStaticProps to fetch data from a CMS
 
@@ -128,9 +136,11 @@ In development (`next dev`), `getStaticProps` will be called on every request.
 
 ## Preview Mode
 
-In some cases, you might want to temporarily bypass Static Generation and render the page at **request time** instead of build time. For example, you might be using a headless CMS and want to preview drafts before they're published.
+You can temporarily bypass static generation and render the page at **request time** instead of build time using [**Preview Mode**](/docs/advanced-features/preview-mode.md). For example, you might be using a headless CMS and want to preview drafts before they're published.
 
-This use case is supported in Next.js by the [**Preview Mode**](/docs/advanced-features/preview-mode.md) feature.
+## Related
+
+For more information on what to do next, we recommend the following sections:
 
 <div class="card">
   <a href="/docs/api-reference/data-fetching/get-static-props.md">

@@ -14,32 +14,6 @@ export async function* streamToIterator<T>(
   reader.releaseLock()
 }
 
-export function readableStreamTee<T = any>(
-  readable: ReadableStream<T>
-): [ReadableStream<T>, ReadableStream<T>] {
-  const transformStream = new TransformStream()
-  const transformStream2 = new TransformStream()
-  const writer = transformStream.writable.getWriter()
-  const writer2 = transformStream2.writable.getWriter()
-
-  const reader = readable.getReader()
-  function read() {
-    reader.read().then(({ done, value }) => {
-      if (done) {
-        writer.close()
-        writer2.close()
-        return
-      }
-      writer.write(value)
-      writer2.write(value)
-      read()
-    })
-  }
-  read()
-
-  return [transformStream.readable, transformStream2.readable]
-}
-
 export function notImplemented(name: string, method: string): any {
   throw new Error(
     `Failed to get the '${method}' property on '${name}': the property is not implemented`
@@ -149,18 +123,15 @@ export function splitCookiesString(cookiesString: string) {
 }
 
 /**
- * We will be soon deprecating the usage of relative URLs in Middleware introducing
- * URL validation. This helper puts the future code in place and prints a warning
- * for cases where it will break. Meanwhile we preserve the previous behavior.
+ * Validate the correctness of a user-provided URL.
  */
 export function validateURL(url: string | URL): string {
   try {
     return String(new URL(String(url)))
   } catch (error: any) {
-    console.log(
-      `warn  -`,
-      'using relative URLs for Middleware will be deprecated soon - https://nextjs.org/docs/messages/middleware-relative-urls'
+    throw new Error(
+      `URLs is malformed. Please use only absolute URLs - https://nextjs.org/docs/messages/middleware-relative-urls`,
+      { cause: error }
     )
-    return String(url)
   }
 }
