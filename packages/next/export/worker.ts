@@ -55,11 +55,11 @@ interface ExportPageInput {
   subFolders?: boolean
   serverless: boolean
   optimizeFonts: boolean
-  optimizeImages?: boolean
   optimizeCss: any
   disableOptimizedLoading: any
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
+  serverComponents?: boolean
 }
 
 interface ExportPageResults {
@@ -77,7 +77,6 @@ interface RenderOpts {
   ampValidatorPath?: string
   ampSkipValidation?: boolean
   optimizeFonts?: boolean
-  optimizeImages?: boolean
   disableOptimizedLoading?: boolean
   optimizeCss?: any
   fontManifest?: FontManifest
@@ -105,10 +104,10 @@ export default async function exportPage({
   subFolders,
   serverless,
   optimizeFonts,
-  optimizeImages,
   optimizeCss,
   disableOptimizedLoading,
   httpAgentOptions,
+  serverComponents,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpAgentOptions(httpAgentOptions)
   const exportPageSpan = trace('export-page-worker', parentSpanId)
@@ -215,8 +214,10 @@ export default async function exportPage({
         subFolders ? `${_path}${sep}index.html` : `${_path}.html`
       let htmlFilename = getHtmlFilename(filePath)
 
-      const pageExt = extname(page)
-      const pathExt = extname(path)
+      // dynamic routes can provide invalid extensions e.g. /blog/[...slug] returns an
+      // extension of `.slug]`
+      const pageExt = isDynamic ? '' : extname(page)
+      const pathExt = isDynamic ? '' : extname(path)
       // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
       if (pageExt !== pathExt && pathExt !== '') {
         const isBuiltinPaths = ['/500', '/404'].some(
@@ -261,7 +262,7 @@ export default async function exportPage({
           getServerSideProps,
           getStaticProps,
           pageConfig,
-        } = await loadComponents(distDir, page, serverless)
+        } = await loadComponents(distDir, page, serverless, serverComponents)
         const ampState = {
           ampFirst: pageConfig?.amp === true,
           hasQuery: Boolean(query.amp),
@@ -302,8 +303,6 @@ export default async function exportPage({
               /// @ts-ignore
               optimizeFonts,
               /// @ts-ignore
-              optimizeImages,
-              /// @ts-ignore
               optimizeCss,
               disableOptimizedLoading,
               distDir,
@@ -324,7 +323,12 @@ export default async function exportPage({
           throw new Error(`Failed to render serverless page`)
         }
       } else {
-        const components = await loadComponents(distDir, page, serverless)
+        const components = await loadComponents(
+          distDir,
+          page,
+          serverless,
+          serverComponents
+        )
         const ampState = {
           ampFirst: components.pageConfig?.amp === true,
           hasQuery: Boolean(query.amp),
@@ -365,9 +369,6 @@ export default async function exportPage({
           if (optimizeFonts) {
             process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
           }
-          if (optimizeImages) {
-            process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
-          }
           if (optimizeCss) {
             process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
           }
@@ -377,7 +378,6 @@ export default async function exportPage({
             ampPath: renderAmpPath,
             params,
             optimizeFonts,
-            optimizeImages,
             optimizeCss,
             disableOptimizedLoading,
             fontManifest: optimizeFonts
@@ -501,7 +501,7 @@ export default async function exportPage({
     } catch (error) {
       console.error(
         `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
-          (isError(error) ? error.stack : error)
+          (isError(error) && error.stack ? error.stack : error)
       )
       results.error = true
     }

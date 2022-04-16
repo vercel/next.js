@@ -30,7 +30,9 @@ Once you have access to [the environment variables you'll need](#step-15-set-up-
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
+- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## How to use
 
@@ -40,6 +42,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example cms-agilitycms cms-agilitycms-app
 # or
 yarn create next-app --example cms-agilitycms cms-agilitycms-app
+# or
+pnpm create next-app -- --example cms-agilitycms cms-agilitycms-app
 ```
 
 ## Configuration

@@ -11,6 +11,7 @@ import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
+import type { WasmBinding } from '../build/webpack/loaders/next-middleware-wasm-loader'
 
 export function pageNotFoundError(page: string): Error {
   const err: any = new Error(`Cannot find module for page: ${page}`)
@@ -85,7 +86,12 @@ export function getMiddlewareInfo(params: {
   distDir: string
   page: string
   serverless: boolean
-}): { name: string; paths: string[] } {
+}): {
+  name: string
+  paths: string[]
+  env: string[]
+  wasm: WasmBinding[]
+} {
   const serverBuildPath = join(
     params.distDir,
     params.serverless && !params.dev ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
@@ -112,5 +118,10 @@ export function getMiddlewareInfo(params: {
   return {
     name: pageInfo.name,
     paths: pageInfo.files.map((file) => join(params.distDir, file)),
+    env: pageInfo.env ?? [],
+    wasm: (pageInfo.wasm ?? []).map((binding) => ({
+      ...binding,
+      filePath: join(params.distDir, binding.filePath),
+    })),
   }
 }

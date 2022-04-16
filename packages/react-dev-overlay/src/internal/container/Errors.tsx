@@ -14,12 +14,9 @@ import {
 import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
 import { Overlay } from '../components/Overlay'
 import { Toast } from '../components/Toast'
+import { getErrorByType, ReadyRuntimeError } from '../helpers/getErrorByType'
 import { isNodeError } from '../helpers/nodeStackFrames'
 import { noop as css } from '../helpers/noop-template'
-import {
-  getOriginalStackFrames,
-  OriginalStackFrame,
-} from '../helpers/stack-frame'
 import { RuntimeError } from './RuntimeError'
 
 export type SupportedErrorEvent = {
@@ -28,13 +25,6 @@ export type SupportedErrorEvent = {
 }
 export type ErrorsProps = { errors: SupportedErrorEvent[] }
 
-export type ReadyRuntimeError = {
-  id: number
-
-  runtime: true
-  error: Error
-  frames: OriginalStackFrame[]
-}
 type ReadyErrorEvent = ReadyRuntimeError
 
 function getErrorSignature(ev: SupportedErrorEvent): string {
@@ -80,32 +70,6 @@ const HotlinkedText: React.FC<{
         : text}
     </>
   )
-}
-
-async function getErrorByType(
-  ev: SupportedErrorEvent
-): Promise<ReadyErrorEvent> {
-  const { id, event } = ev
-  switch (event.type) {
-    case TYPE_UNHANDLED_ERROR:
-    case TYPE_UNHANDLED_REJECTION: {
-      return {
-        id,
-        runtime: true,
-        error: event.reason,
-        frames: await getOriginalStackFrames(
-          isNodeError(event.reason),
-          event.frames
-        ),
-      }
-    }
-    default: {
-      break
-    }
-  }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _: never = event
-  throw new Error('type system invariant violation')
 }
 
 export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {

@@ -27,23 +27,23 @@ DEALINGS IN THE SOFTWARE.
 */
 
 #![recursion_limit = "2048"]
-//#![deny(clippy::all)]
+#![deny(clippy::all)]
 
 use auto_cjs::contains_cjs;
 use either::Either;
+use fxhash::FxHashSet;
 use serde::Deserialize;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::{path::PathBuf, sync::Arc};
 use swc::config::ModuleConfig;
-use swc_common::SourceFile;
+use swc_common::comments::Comments;
 use swc_common::{self, chain, pass::Optional};
+use swc_common::{FileName, SourceFile, SourceMap};
 use swc_ecmascript::ast::EsVersion;
+use swc_ecmascript::parser::parse_file_as_module;
 use swc_ecmascript::transforms::pass::noop;
-use swc_ecmascript::{
-    parser::{lexer::Lexer, Parser, StringInput},
-    visit::Fold,
-};
+use swc_ecmascript::visit::Fold;
 
 pub mod amp_attributes;
 mod auto_cjs;
@@ -53,8 +53,10 @@ pub mod next_dynamic;
 pub mod next_ssg;
 pub mod page_config;
 pub mod react_remove_properties;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod relay;
 pub mod remove_console;
-pub mod styled_jsx;
+pub mod shake_exports;
 mod top_level_binding_collector;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -79,6 +81,9 @@ pub struct TransformOptions {
     pub is_development: bool,
 
     #[serde(default)]
+    pub is_server: bool,
+
+    #[serde(default)]
     pub styled_components: Option<styled_components::Config>,
 
     #[serde(default)]
@@ -86,12 +91,47 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub react_remove_properties: Option<react_remove_properties::Config>,
+
+    #[serde(default)]
+    #[cfg(not(target_arch = "wasm32"))]
+    pub relay: Option<relay::Config>,
+
+    #[serde(default)]
+    pub shake_exports: Option<shake_exports::Config>,
+
+    #[serde(default)]
+    pub emotion: Option<swc_emotion::EmotionOptions>,
+
+    #[serde(default)]
+    pub modularize_imports: Option<modularize_imports::Config>,
 }
 
-pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> impl Fold {
+pub fn custom_before_pass<'a, C: Comments + 'a>(
+    cm: Arc<SourceMap>,
+    file: Arc<SourceFile>,
+    opts: &'a TransformOptions,
+    comments: C,
+    eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
+) -> impl Fold + 'a {
+    #[cfg(target_arch = "wasm32")]
+    let relay_plugin = noop();
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let relay_plugin = {
+        if let Some(config) = &opts.relay {
+            Either::Left(relay::relay(
+                config,
+                file.name.clone(),
+                opts.pages_dir.clone(),
+            ))
+        } else {
+            Either::Right(noop())
+        }
+    };
+
     chain!(
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
-        styled_jsx::styled_jsx(),
+        styled_jsx::styled_jsx(cm.clone(), file.name.clone()),
         hook_optimizer::hook_optimizer(),
         match &opts.styled_components {
             Some(config) => {
@@ -107,13 +147,22 @@ pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> imp
                 Either::Right(noop())
             }
         },
-        Optional::new(next_ssg::next_ssg(), !opts.disable_next_ssg),
+        Optional::new(
+            next_ssg::next_ssg(eliminated_packages),
+            !opts.disable_next_ssg
+        ),
         amp_attributes::amp_attributes(),
-        next_dynamic::next_dynamic(file.name.clone(), opts.pages_dir.clone()),
+        next_dynamic::next_dynamic(
+            opts.is_development,
+            opts.is_server,
+            file.name.clone(),
+            opts.pages_dir.clone()
+        ),
         Optional::new(
             page_config::page_config(opts.is_development, opts.is_page_file),
             !opts.disable_page_config
         ),
+        relay_plugin,
         match &opts.remove_console {
             Some(config) if config.truthy() =>
                 Either::Left(remove_console::remove_console(config.clone())),
@@ -124,6 +173,34 @@ pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> imp
                 Either::Left(react_remove_properties::remove_properties(config.clone())),
             _ => Either::Right(noop()),
         },
+        match &opts.shake_exports {
+            Some(config) => Either::Left(shake_exports::shake_exports(config.clone())),
+            None => Either::Right(noop()),
+        },
+        opts.emotion
+            .as_ref()
+            .and_then(|config| {
+                if !config.enabled.unwrap_or(false) {
+                    return None;
+                }
+                if let FileName::Real(path) = &file.name {
+                    path.to_str().map(|_| {
+                        Either::Left(swc_emotion::EmotionTransformer::new(
+                            config.clone(),
+                            path,
+                            cm,
+                            comments,
+                        ))
+                    })
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| Either::Right(noop())),
+        match &opts.modularize_imports {
+            Some(config) => Either::Left(modularize_imports::modularize_imports(config.clone())),
+            None => Either::Right(noop()),
+        }
     )
 }
 
@@ -134,10 +211,9 @@ impl TransformOptions {
         let should_enable_commonjs =
             self.swc.config.module.is_none() && fm.src.contains("module.exports") && {
                 let syntax = self.swc.config.jsc.syntax.unwrap_or_default();
-                let target = self.swc.config.jsc.target.unwrap_or(EsVersion::latest());
-                let lexer = Lexer::new(syntax, target, StringInput::from(&*fm), None);
-                let mut p = Parser::new_from(lexer);
-                p.parse_module()
+                let target = self.swc.config.jsc.target.unwrap_or_else(EsVersion::latest);
+
+                parse_file_as_module(fm, syntax, target, None, &mut vec![])
                     .map(|m| contains_cjs(&m))
                     .unwrap_or_default()
             };

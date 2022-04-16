@@ -1,36 +1,47 @@
+function b(c, a) {
+    (null == a || a > c.length) && (a = c.length);
+    for(var b = 0, d = new Array(a); b < a; b++)d[b] = c[b];
+    return d;
+}
 import a from "other";
-function _arrayWithHoles(a) {
-    if (Array.isArray(a)) return a;
-}
-function _classCallCheck(a, b) {
-    if (!(a instanceof b)) throw new TypeError("Cannot call a class as a function");
-}
-function _iterableToArrayLimit(a, b) {
-    var c = [], d = !0, e = !1, f = void 0;
-    try {
-        for(var g, h = a[Symbol.iterator](); !(d = (g = h.next()).done) && (c.push(g.value), !b || c.length !== b); d = !0);
-    } catch (i) {
-        e = !0, f = i;
-    } finally{
-        try {
-            d || null == h.return || h.return();
-        } finally{
-            if (e) throw f;
+(function(c, b) {
+    return function(c) {
+        if (Array.isArray(c)) return c;
+    }(c) || function(c, b) {
+        var g, h, a = null == c ? null : "undefined" != typeof Symbol && c[Symbol.iterator] || c["@@iterator"];
+        if (null != a) {
+            var d = [], e = !0, i = !1;
+            try {
+                for(a = a.call(c); !(e = (g = a.next()).done) && (d.push(g.value), !b || d.length !== b); e = !0);
+            } catch (j) {
+                i = !0, h = j;
+            } finally{
+                try {
+                    e || null == a.return || a.return();
+                } finally{
+                    if (i) throw h;
+                }
+            }
+            return d;
         }
-    }
-    return c;
-}
-function _nonIterableRest() {
-    throw new TypeError("Invalid attempt to destructure non-iterable instance");
-}
-function _slicedToArray(a, b) {
-    return _arrayWithHoles(a) || _iterableToArrayLimit(a, b) || _nonIterableRest();
-}
-var _other = _slicedToArray(a, 1), foo = _other[0], Foo = function() {
+    }(c, b) || function(a, d) {
+        if (a) {
+            if ("string" == typeof a) return b(a, d);
+            var c = Object.prototype.toString.call(a).slice(8, -1);
+            if ("Object" === c && a.constructor && (c = a.constructor.name), "Map" === c || "Set" === c) return Array.from(c);
+            if ("Arguments" === c || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(c)) return b(a, d);
+        }
+    }(c, b) || function() {
+        throw new TypeError("Invalid attempt to destructure non-iterable instance.\\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+    }();
+})(a, 1)[0];
+var c = function() {
     "use strict";
-    _classCallCheck(this, Foo);
+    !function(a, b) {
+        if (!(a instanceof b)) throw new TypeError("Cannot call a class as a function");
+    }(this, c);
 };
 export var __N_SSG = !0;
-export default function a() {
+export default function d() {
     return React.createElement("div", null);
 };

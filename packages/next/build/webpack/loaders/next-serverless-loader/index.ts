@@ -1,10 +1,10 @@
 import devalue from 'next/dist/compiled/devalue'
-import escapeRegexp from 'next/dist/compiled/escape-string-regexp'
 import { join } from 'path'
 import { parse } from 'querystring'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { API_ROUTE } from '../../../../lib/constants'
 import { isDynamicRoute } from '../../../../shared/lib/router/utils'
+import { escapeStringRegexp } from '../../../../shared/lib/escape-regexp'
 import { __ApiPreviewProps } from '../../../../server/api-utils'
 import {
   BUILD_MANIFEST,
@@ -18,6 +18,7 @@ export type ServerlessLoaderQuery = {
   distDir: string
   absolutePagePath: string
   absoluteAppPath: string
+  absoluteAppServerPath: string
   absoluteDocumentPath: string
   absoluteErrorPath: string
   absolute404Path: string
@@ -31,6 +32,7 @@ export type ServerlessLoaderQuery = {
   previewProps: string
   loadedEnvFiles: string
   i18n: string
+  reactRoot: string
 }
 
 const nextServerlessLoader: webpack.loader.Loader = function () {
@@ -52,8 +54,9 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
     previewProps,
     loadedEnvFiles,
     i18n,
+    reactRoot,
   }: ServerlessLoaderQuery =
-    typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
+    typeof this.query === 'string' ? parse(this.query.slice(1)) : this.query
 
   const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
   const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST).replace(
@@ -62,7 +65,7 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
   )
   const routesManifest = join(distDir, ROUTES_MANIFEST).replace(/\\/g, '/')
 
-  const escapedBuildId = escapeRegexp(buildId)
+  const escapedBuildId = escapeStringRegexp(buildId)
   const pageIsDynamicRoute = isDynamicRoute(page)
 
   const encodedPreviewProps = devalue(
@@ -193,6 +196,7 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
         canonicalBase: "${canonicalBase}",
         generateEtags: ${generateEtags || 'false'},
         poweredByHeader: ${poweredByHeader || 'false'},
+        reactRoot: ${reactRoot || 'false'},
 
         runtimeConfig,
         buildManifest,

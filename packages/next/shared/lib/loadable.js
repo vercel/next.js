@@ -22,7 +22,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 // Modified to be compatible with webpack 4 / Next.js
 
 import React from 'react'
-import { useSubscription } from 'use-subscription'
+import { useSubscription } from 'next/dist/compiled/use-subscription'
 import { LoadableContext } from './loadable-context'
 
 const ALL_INITIALIZERS = []
@@ -95,21 +95,21 @@ function createLoadableComponent(loadFn, options) {
   }
 
   // Client only
-  if (
-    !initialized &&
-    typeof window !== 'undefined' &&
-    typeof opts.webpack === 'function' &&
-    typeof require.resolveWeak === 'function' &&
-    !opts.suspense
-  ) {
-    const moduleIds = opts.webpack()
-    READY_INITIALIZERS.push((ids) => {
-      for (const moduleId of moduleIds) {
-        if (ids.indexOf(moduleId) !== -1) {
-          return init()
+  if (!initialized && typeof window !== 'undefined' && !opts.suspense) {
+    // require.resolveWeak check is needed for environments that don't have it available like Jest
+    const moduleIds =
+      opts.webpack && typeof require.resolveWeak === 'function'
+        ? opts.webpack()
+        : opts.modules
+    if (moduleIds) {
+      READY_INITIALIZERS.push((ids) => {
+        for (const moduleId of moduleIds) {
+          if (ids.indexOf(moduleId) !== -1) {
+            return init()
+          }
         }
-      }
-    })
+      })
+    }
   }
 
   function LoadableImpl(props, ref) {

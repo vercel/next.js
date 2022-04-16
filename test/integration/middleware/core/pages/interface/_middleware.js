@@ -31,6 +31,52 @@ export async function middleware(request) {
     }
   }
 
+  if (url.pathname.includes('/fetchUserAgentDefault')) {
+    try {
+      const apiRoute = new URL(url)
+      apiRoute.pathname = '/api/headers'
+      const res = await fetch(apiRoute)
+      return new Response(await res.text(), {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      })
+    } catch (err) {
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: 500,
+        headers: {
+          'content-type': 'application/json',
+        },
+      })
+    }
+  }
+
+  if (url.pathname.includes('/fetchUserAgentCustom')) {
+    try {
+      const apiRoute = new URL(url)
+      apiRoute.pathname = '/api/headers'
+      const res = await fetch(apiRoute, {
+        headers: {
+          'user-agent': 'custom-agent',
+        },
+      })
+      return new Response(await res.text(), {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      })
+    } catch (err) {
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: 500,
+        headers: {
+          'content-type': 'application/json',
+        },
+      })
+    }
+  }
+
   if (url.pathname.endsWith('/webcrypto')) {
     const response = {}
     try {
@@ -54,9 +100,35 @@ export async function middleware(request) {
   }
 
   if (url.pathname.endsWith('/root-subrequest')) {
-    return fetch(
-      `http://${request.headers.get('host')}/interface/root-subrequest`
-    )
+    return fetch(url)
+  }
+
+  if (url.pathname.endsWith('/abort-controller')) {
+    const controller = new AbortController()
+    const signal = controller.signal
+
+    controller.abort()
+    const response = {}
+
+    try {
+      await fetch('https://example.com', { signal })
+    } catch (err) {
+      response.error = {
+        name: err.name,
+        message: err.message,
+      }
+    } finally {
+      return new NextResponse(JSON.stringify(response), {
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+        },
+      })
+    }
+  }
+
+  if (url.pathname.endsWith('/dynamic-replace')) {
+    url.pathname = '/_interface/dynamic-path'
+    return NextResponse.rewrite(url)
   }
 
   return new Response(null, {

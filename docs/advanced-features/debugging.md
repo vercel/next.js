@@ -52,7 +52,7 @@ Now go to the Debug panel (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> on Wind
 
 ### Client-side code
 
-Start your development server as usual by running `next dev`, `npm run dev`, or `yarn dev`. Once the server starts, open `http://localhost:3000` (or your alternate URL) in Chrome. Next, open Chrome's Developer Tools (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> on Windows/Linux, <kbd>⌥</kbd>+<kbd>⌘</kbd>+<kbd>I</kbd> on macOS), then go to the **Sources** tab
+Start your development server as usual by running `next dev`, `npm run dev`, or `yarn dev`. Once the server starts, open `http://localhost:3000` (or your alternate URL) in Chrome. Next, open Chrome's Developer Tools (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> on Windows/Linux, <kbd>⌥</kbd>+<kbd>⌘</kbd>+<kbd>I</kbd> on macOS), then go to the **Sources** tab.
 
 Now, any time your client-side code reaches a [`debugger`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/debugger) statement, code execution will pause and that file will appear in the debug area. You can also press <kbd>Ctrl</kbd>+<kbd>P</kbd> on Windows/Linux or <kbd>⌘</kbd>+<kbd>P</kbd> on macOS to search for a file and set breakpoints manually. Note that when searching here, your source files will have paths starting with `webpack://_N_E/./`.
 
@@ -86,7 +86,7 @@ Debugging server-side code here works much like debugging client-side code with 
 
 ### Debugging on Windows
 
-Windows users may run into an issue when using `NODE_OPTIONS='--inspect'` as that syntax is not supported on Windows platforms. To get around this, install the [`cross-env`](https://www.npmjs.com/package/cross-env) package as a development dependency (`--dev` with Yarn or `-D` for NPM) and replace the `dev` script with the following.
+Windows users may run into an issue when using `NODE_OPTIONS='--inspect'` as that syntax is not supported on Windows platforms. To get around this, install the [`cross-env`](https://www.npmjs.com/package/cross-env) package as a development dependency (`--dev` with NPM or `-D` for Yarn) and replace the `dev` script with the following.
 
 ```json
 "dev": "cross-env NODE_OPTIONS='--inspect' next dev",

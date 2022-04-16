@@ -2,15 +2,9 @@
 
 This example shows how to use [`@vercel/fetch`](https://www.npmjs.com/package/@vercel/fetch) in a Next.js application.
 
-## Preview
-
-Preview the example live on [StackBlitz](http://stackblitz.com/):
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-vercel-fetch)
-
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-vercel-fetch)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-vercel-fetch&project-name=with-vercel-fetch&repository-name=with-vercel-fetch)
 
@@ -22,4 +16,6 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-vercel-fetch with-vercel-fetch-app
 # or
 yarn create next-app --example with-vercel-fetch with-vercel-fetch-app
+# or
+pnpm create next-app -- --example with-vercel-fetch with-vercel-fetch-app
 ```

@@ -1,6 +1,6 @@
 import type { I18NConfig } from '../../config-shared'
 import { NextURL } from '../next-url'
-import { toNodeHeaders } from '../utils'
+import { toNodeHeaders, validateURL } from '../utils'
 import cookie from 'next/dist/compiled/cookie'
 import { CookieSerializeOptions } from '../types'
 
@@ -67,32 +67,35 @@ export class NextResponse extends Response {
     return this.cookie(name, '', { expires: new Date(1), path: '/', ...opts })
   }
 
-  static json(body: any) {
+  static json(body: any, init?: ResponseInit) {
+    const { headers, ...responseInit } = init || {}
     return new NextResponse(JSON.stringify(body), {
-      headers: { 'content-type': 'application/json' },
+      ...responseInit,
+      headers: {
+        ...headers,
+        'content-type': 'application/json',
+      },
     })
   }
 
-  static redirect(url: string | NextURL | URL, status = 302) {
+  static redirect(url: string | NextURL | URL, status = 307) {
     if (!REDIRECTS.has(status)) {
       throw new RangeError(
         'Failed to execute "redirect" on "response": Invalid status code'
       )
     }
 
-    return new NextResponse(null, {
-      headers: { Location: typeof url === 'string' ? url : url.toString() },
+    const destination = validateURL(url)
+    return new NextResponse(destination, {
+      headers: { Location: destination },
       status,
     })
   }
 
-  static rewrite(destination: string | NextURL) {
+  static rewrite(destination: string | NextURL | URL) {
     return new NextResponse(null, {
       headers: {
-        'x-middleware-rewrite':
-          typeof destination === 'string'
-            ? destination
-            : destination.toString(),
+        'x-middleware-rewrite': validateURL(destination),
       },
     })
   }

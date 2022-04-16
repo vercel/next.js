@@ -16,6 +16,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-apollo-neo4j-graphql with-apollo-neo4j-graphql-app
 # or
 yarn create next-app --example with-apollo-neo4j-graphql with-apollo-neo4j-graphql-app
+# or
+pnpm create next-app -- --example with-apollo-neo4j-graphql with-apollo-neo4j-graphql-app
 ```
 
 ## Configuration

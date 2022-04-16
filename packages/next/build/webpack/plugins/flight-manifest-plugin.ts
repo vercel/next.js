@@ -7,6 +7,7 @@
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { MIDDLEWARE_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
+import { createClientComponentFilter } from '../loaders/utils'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -17,20 +18,20 @@ import { MIDDLEWARE_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 
 type Options = {
   dev: boolean
-  clientComponentsRegex: RegExp
+  pageExtensions: string[]
 }
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
 
 export class FlightManifestPlugin {
   dev: boolean = false
-  clientComponentsRegex: RegExp
+  pageExtensions: string[]
 
   constructor(options: Options) {
     if (typeof options.dev === 'boolean') {
       this.dev = options.dev
     }
-    this.clientComponentsRegex = options.clientComponentsRegex
+    this.pageExtensions = options.pageExtensions
   }
 
   apply(compiler: any) {
@@ -62,29 +63,30 @@ export class FlightManifestPlugin {
   }
 
   createAsset(assets: any, compilation: any) {
-    const json: any = {}
-    const { clientComponentsRegex } = this
+    const manifest: any = {}
+    const isClientComponent = createClientComponentFilter(this.pageExtensions)
     compilation.chunkGroups.forEach((chunkGroup: any) => {
       function recordModule(id: string, _chunk: any, mod: any) {
-        const resource = mod.resource?.replace(/\?flight$/, '')
+        const resource = mod.resource
 
         // TODO: Hook into deps instead of the target module.
         // That way we know by the type of dep whether to include.
         // It also resolves conflicts when the same module is in multiple chunks.
-        const isNextClientComponent = /next[\\/](link|image)/.test(resource)
-        if (!clientComponentsRegex.test(resource) && !isNextClientComponent) {
+        if (!resource || !isClientComponent(resource)) {
           return
         }
-
-        const moduleExports: any = json[resource] || {}
+        const moduleExports: any = manifest[resource] || {}
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
-        const providedExports = exportsInfo.getProvidedExports()
         const moduleExportedKeys = ['', '*'].concat(
-          // TODO: improve exports detection
-          providedExports === true || providedExports == null
-            ? 'default'
-            : providedExports
+          [...exportsInfo.exports]
+            .map((exportInfo) => {
+              if (exportInfo.provided) {
+                return exportInfo.name
+              }
+              return null
+            })
+            .filter(Boolean)
         )
 
         moduleExportedKeys.forEach((name) => {
@@ -96,7 +98,7 @@ export class FlightManifestPlugin {
             }
           }
         })
-        json[resource] = moduleExports
+        manifest[resource] = moduleExports
       }
 
       chunkGroup.chunks.forEach((chunk: any) => {
@@ -120,9 +122,12 @@ export class FlightManifestPlugin {
       })
     })
 
-    const output = `self.__RSC_MANIFEST=` + JSON.stringify(json)
-    assets[`server/${MIDDLEWARE_FLIGHT_MANIFEST}.js`] = new sources.RawSource(
-      output
-    )
+    // With switchable runtime, we need to emit the manifest files for both
+    // runtimes.
+    const file = `server/${MIDDLEWARE_FLIGHT_MANIFEST}`
+    const json = JSON.stringify(manifest)
+
+    assets[file + '.js'] = new sources.RawSource('self.__RSC_MANIFEST=' + json)
+    assets[file + '.json'] = new sources.RawSource(json)
   }
 }

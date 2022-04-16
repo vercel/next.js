@@ -10,6 +10,8 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 
 const context = {}
+const appDir = join(__dirname, '../')
+const nodeArgs = ['-r', join(appDir, '../../lib/react-17-require-hook.js')]
 
 const navigateTo = async (browser, selector) =>
   await browser
@@ -28,8 +30,9 @@ const getMainHeadingTitle = async (browser) =>
 describe('Client Navigation accessibility', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort, {
+    context.server = await launchApp(appDir, context.appPort, {
       env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+      nodeArgs,
     })
 
     const prerender = [
@@ -44,6 +47,12 @@ describe('Client Navigation accessibility', () => {
   afterAll(() => killApp(context.server))
 
   describe('<RouteAnnouncer />', () => {
+    it('should not have the initial route announced', async () => {
+      const browser = await webdriver(context.appPort, '/')
+      const title = await getAnnouncedTitle(browser)
+      expect(title).toBe('')
+    })
+
     it('has aria-live="assertive" and role="alert"', async () => {
       const browser = await webdriver(context.appPort, '/')
       const routeAnnouncer = await browser.waitForElementByCss(

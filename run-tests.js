@@ -36,6 +36,7 @@ const cleanUpAndExit = async (code) => {
   if (process.env.NEXT_TEST_STARTER) {
     await fs.remove(process.env.NEXT_TEST_STARTER)
   }
+  console.log(`exiting with code ${code}`)
   process.exit(code)
 }
 
@@ -214,9 +215,10 @@ async function main() {
     // a starter Next.js install to re-use to speed up tests
     // to avoid having to run yarn each time
     console.log('Creating Next.js install for isolated tests')
+    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
     const testStarter = await createNextInstall({
-      react: 'latest',
-      'react-dom': 'latest',
+      react: reactVersion,
+      'react-dom': reactVersion,
     })
     process.env.NEXT_TEST_STARTER = testStarter
   }
@@ -275,9 +277,9 @@ async function main() {
 
       children.add(child)
 
-      child.on('exit', async (code) => {
+      child.on('exit', async (code, signal) => {
         children.delete(child)
-        if (code) {
+        if (code !== 0 || signal !== null) {
           if (isFinalRun && hideOutput) {
             // limit out to last 64kb so that we don't
             // run out of log room in CI
@@ -298,7 +300,13 @@ async function main() {
             }
             trimmedOutput.forEach((chunk) => process.stdout.write(chunk))
           }
-          return reject(new Error(`failed with code: ${code}`))
+          return reject(
+            new Error(
+              code
+                ? `failed with code: ${code}`
+                : `failed with signal: ${signal}`
+            )
+          )
         }
         await fs
           .remove(
@@ -348,6 +356,8 @@ async function main() {
               await exec(`git clean -fdx "${testDir}"`)
               await exec(`git checkout "${testDir}"`)
             } catch (err) {}
+          } else {
+            console.error(`${test} failed due to ${err}`)
           }
         }
       }

@@ -32,6 +32,15 @@ export async function middleware(request, ev) {
     return next
   }
 
+  if (url.pathname === '/responses/two-cookies') {
+    const headers = new Headers()
+    headers.append('set-cookie', 'foo=chocochip')
+    headers.append('set-cookie', 'bar=chocochip')
+    return new Response('cookies set', {
+      headers,
+    })
+  }
+
   // Streams a basic response
   if (url.pathname === '/responses/stream-a-response') {
     ev.waitUntil(
@@ -57,11 +66,11 @@ export async function middleware(request, ev) {
     ev.waitUntil(
       (async () => {
         writer.write(encoder.encode('this is a streamed '.repeat(10)))
-        await sleep(2000)
+        await sleep(200)
         writer.write(encoder.encode('after 2 seconds '.repeat(10)))
-        await sleep(2000)
+        await sleep(200)
         writer.write(encoder.encode('after 4 seconds '.repeat(10)))
-        await sleep(2000)
+        await sleep(200)
         writer.close()
       })()
     )
