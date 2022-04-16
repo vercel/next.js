@@ -40,9 +40,9 @@ export const createClientComponentFilter = () => {
   return (importSource: string) => regex.test(importSource)
 }
 
-export const createServerComponentFilter = (
-  extensions: string[] = defaultJsFileExtensions
-) => {
-  const regex = new RegExp(`\\.server(\\.(${extensions.join('|')}))?$`)
+export const createServerComponentFilter = () => {
+  const regex = new RegExp(
+    `\\.server(\\.(${defaultJsFileExtensions.join('|')}))?$`
+  )
   return (importSource: string) => regex.test(importSource)
 }

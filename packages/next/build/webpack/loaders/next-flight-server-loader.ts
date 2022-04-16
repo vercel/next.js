@@ -12,9 +12,7 @@ function createFlightServerRequest(
   request: string,
   options?: { client: 1 | undefined }
 ) {
-  return `next-flight-server-loader${
-    options ? JSON.stringify(options) : ''
-  }!${request}`
+  return `next-flight-server-loader${JSON.stringify(options)}!${request}`
 }
 
 function hasFlightLoader(request: string, type: 'client' | 'server') {
@@ -32,7 +30,6 @@ async function parseModuleInfo({
   resourcePath: string
   source: string
   isClientCompilation: boolean
-  extensions: string[]
   isServerComponent: (name: string) => boolean
   isClientComponent: (name: string) => boolean
   resolver: (req: string) => Promise<string>
@@ -194,7 +191,7 @@ export default async function transformSource(
   this: any,
   source: string
 ): Promise<string> {
-  const { client: isClientCompilation, extensions } = this.getOptions()
+  const { client: isClientCompilation } = this.getOptions()
   const { resourcePath, resolve: resolveFn, context } = this
 
   const resolver = (req: string): Promise<string> => {
@@ -210,7 +207,7 @@ export default async function transformSource(
     throw new Error('Expected source to have been transformed to a string.')
   }
 
-  const isServerComponent = createServerComponentFilter(extensions)
+  const isServerComponent = createServerComponentFilter()
   const isClientComponent = createClientComponentFilter()
   const hasAppliedFlightServerLoader = this.loaders.some((loader: any) => {
     return hasFlightLoader(loader.path, 'server')
@@ -234,7 +231,6 @@ export default async function transformSource(
   } = await parseModuleInfo({
     resourcePath,
     source,
-    extensions,
     isClientCompilation,
     isServerComponent,
     isClientComponent,
