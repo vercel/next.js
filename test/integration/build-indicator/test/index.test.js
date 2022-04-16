@@ -3,7 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { findPort, launchApp, killApp, waitFor, check } from 'next-test-utils'
+import { findPort, launchApp, killApp, waitFor } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
