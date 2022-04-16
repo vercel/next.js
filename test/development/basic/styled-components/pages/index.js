@@ -32,7 +32,9 @@ export default function Home() {
         GitHub
       </Button>
 
-      <Button href="/docs">Documentation</Button>
+      <Button id="btn" href="/docs">
+        Documentation
+      </Button>
     </div>
   )
 }
