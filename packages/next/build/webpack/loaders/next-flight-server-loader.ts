@@ -6,10 +6,17 @@ import {
   createClientComponentFilter,
   createServerComponentFilter,
   isNextBuiltinClientComponent,
+  defaultJsFileExtensions,
 } from './utils'
 
-function createFlightServerRequest(request: string, options: object) {
-  return `next-flight-server-loader?${JSON.stringify(options)}!${request}`
+function createFlightServerRequest(
+  request: string,
+  options?: { client: 1 | undefined }
+) {
+  return `next-flight-server-loader?${JSON.stringify({
+    ...options,
+    extensions: defaultJsFileExtensions,
+  })}!${request}`
 }
 
 function hasFlightLoader(request: string, type: 'client' | 'server') {
@@ -75,12 +82,7 @@ async function parseModuleInfo({
       imports.push(path)
     } else {
       // Shared component.
-      imports.push(
-        createFlightServerRequest(path, {
-          extensions,
-          client: 1,
-        })
-      )
+      imports.push(createFlightServerRequest(path, { client: 1 }))
     }
   }
 
@@ -123,7 +125,7 @@ async function parseModuleInfo({
             const serverImportSource =
               isReactImports || isBuiltinModule
                 ? importSource
-                : createFlightServerRequest(importSource, { extensions })
+                : createFlightServerRequest(importSource)
             transformedSource += importDeclarations
             transformedSource += JSON.stringify(serverImportSource)
 

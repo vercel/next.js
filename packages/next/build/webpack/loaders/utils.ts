@@ -1,4 +1,4 @@
-const defaultJsFileExtensions = ['js', 'mjs', 'jsx', 'ts', 'tsx']
+export const defaultJsFileExtensions = ['js', 'mjs', 'jsx', 'ts', 'tsx']
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
 const nextClientComponents = ['link', 'image', 'head', 'script']
 
