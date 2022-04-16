@@ -26,6 +26,7 @@ import { fileExists } from '../../lib/file-exists'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import loadCustomRoutes from '../../lib/load-custom-routes'
 import { verifyTypeScriptSetup } from '../../lib/verifyTypeScriptSetup'
+import { verifyPartytownSetup } from '../../lib/verify-partytown-setup'
 import {
   PHASE_DEVELOPMENT_SERVER,
   CLIENT_STATIC_FILES_PATH,
@@ -40,7 +41,8 @@ import {
 } from '../../shared/lib/router/utils'
 import Server, { WrappedBuildError } from '../next-server'
 import { normalizePagePath } from '../normalize-page-path'
-import Router, { hasBasePath, replaceBasePath, route } from '../router'
+import Router, { route } from '../router'
+import { hasBasePath, replaceBasePath } from '../router-utils'
 import { eventCliSession } from '../../telemetry/events'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
@@ -283,7 +285,7 @@ export default class DevServer extends Server {
           invalidatePageRuntimeCache(fileName, safeTime)
           const pageRuntimeConfig = await getPageRuntime(
             fileName,
-            this.nextConfig.experimental.runtime
+            this.nextConfig
           )
           const isEdgeRuntime = pageRuntimeConfig === 'edge'
 
@@ -392,6 +394,13 @@ export default class DevServer extends Server {
     await this.hotReloader.start()
     await this.startWatcher()
     this.setDevReady!()
+
+    if (this.nextConfig.experimental.nextScriptWorkers) {
+      await verifyPartytownSetup(
+        this.dir,
+        pathJoin(this.distDir, CLIENT_STATIC_FILES_PATH)
+      )
+    }
 
     const telemetry = new Telemetry({ distDir: this.distDir })
     telemetry.record(
@@ -929,9 +938,11 @@ export default class DevServer extends Server {
     try {
       await this.hotReloader!.ensurePage(pathname)
 
+      const serverComponents = this.nextConfig.experimental.serverComponents
+
       // When the new page is compiled, we need to reload the server component
       // manifest.
-      if (this.nextConfig.experimental.serverComponents) {
+      if (serverComponents) {
         this.serverComponentManifest = super.getServerComponentManifest()
       }
 
@@ -949,9 +960,7 @@ export default class DevServer extends Server {
     // Build the error page to ensure the fallback is built too.
     // TODO: See if this can be moved into hotReloader or removed.
     await this.hotReloader!.ensurePage('/_error')
-    return await loadDefaultErrorComponents(this.distDir, {
-      hasConcurrentFeatures: !!this.renderOpts.runtime,
-    })
+    return await loadDefaultErrorComponents(this.distDir)
   }
 
   protected setImmutableAssetCacheControl(res: BaseNextResponse): void {

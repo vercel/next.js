@@ -64,7 +64,9 @@ function getBaseSWCOptions({
         legacyDecorator: enableDecorators,
         decoratorMetadata: emitDecoratorMetadata,
         react: {
-          importSource: jsConfig?.compilerOptions?.jsxImportSource || 'react',
+          importSource:
+            jsConfig?.compilerOptions?.jsxImportSource ??
+            (nextConfig?.experimental?.emotion ? '@emotion/react' : 'react'),
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
@@ -100,7 +102,36 @@ function getBaseSWCOptions({
       : null,
     removeConsole: nextConfig?.compiler?.removeConsole,
     reactRemoveProperties: nextConfig?.compiler?.reactRemoveProperties,
+    modularizeImports: nextConfig?.experimental?.modularizeImports,
     relay: nextConfig?.compiler?.relay,
+    emotion: getEmotionOptions(nextConfig, development),
+  }
+}
+
+function getEmotionOptions(nextConfig, development) {
+  if (!nextConfig?.experimental?.emotion) {
+    return null
+  }
+  let autoLabel = false
+  switch (nextConfig?.experimental?.emotion?.autoLabel) {
+    case 'never':
+      autoLabel = false
+      break
+    case 'always':
+      autoLabel = true
+      break
+    case 'dev-only':
+    default:
+      autoLabel = !!development
+      break
+  }
+  return {
+    enabled: true,
+    autoLabel,
+    labelFormat: nextConfig?.experimental?.emotion?.labelFormat,
+    sourcemap: development
+      ? nextConfig?.experimental?.emotion?.sourceMap ?? true
+      : false,
   }
 }
 
@@ -133,13 +164,6 @@ export function getJestSWCOptions({
         // Targets the current version of Node.js
         node: process.versions.node,
       },
-      // we always transpile optional chaining and nullish coalescing
-      // since it can cause issues with webpack even if the node target
-      // supports them
-      include: [
-        'proposal-optional-chaining',
-        'proposal-nullish-coalescing-operator',
-      ],
     },
     module: {
       type: esm && !isNextDist ? 'es6' : 'commonjs',
@@ -188,13 +212,6 @@ export function getLoaderSWCOptions({
           // Targets the current version of Node.js
           node: process.versions.node,
         },
-        // we always transpile optional chaining and nullish coalescing
-        // since it can cause issues with webpack even if the node target
-        // supports them
-        include: [
-          'proposal-optional-chaining',
-          'proposal-nullish-coalescing-operator',
-        ],
       },
     }
   } else {

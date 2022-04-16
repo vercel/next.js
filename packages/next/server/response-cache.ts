@@ -187,10 +187,7 @@ export default class ResponseCache {
             this.previousCacheItem = {
               key,
               entry: cacheEntry,
-              expiresAt:
-                typeof cacheEntry.revalidate !== 'number'
-                  ? Date.now() + 1000
-                  : Date.now() + cacheEntry?.revalidate * 1000,
+              expiresAt: Date.now() + 1000,
             }
           } else {
             await this.incrementalCache.set(
