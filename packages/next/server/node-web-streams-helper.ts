@@ -1,3 +1,5 @@
+import { nonNullable } from '../lib/non-nullable'
+
 export function readableStreamTee<T = any>(
   readable: ReadableStream<T>
 ): [ReadableStream<T>, ReadableStream<T>] {
@@ -172,7 +174,7 @@ export async function continueFromInitialStream({
     suffixUnclosed != null ? createPrefixStream(suffixUnclosed) : null,
     dataStream ? createInlineDataStream(dataStream) : null,
     suffixUnclosed != null ? createSuffixStream(closeTag) : null,
-  ].filter(Boolean) as any
+  ].filter(nonNullable)
 
   return transforms.reduce(
     (readable, transform) => readable.pipeThrough(transform),
