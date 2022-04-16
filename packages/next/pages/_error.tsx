@@ -60,7 +60,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
                   border-right: 1px solid rgba(0, 0, 0, .3);
                 }
                 @media (prefers-color-scheme: dark) {
-                  body { color:#fff; background: #000; }
+                  body { color: #fff; background: #000; }
                   .next-error-h1 {
                     border-right: 1px solid rgba(255, 255, 255, .3);
                   }
