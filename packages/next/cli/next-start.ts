@@ -60,16 +60,7 @@ const nextStart: cliCommand = (argv) => {
     port = 0
   }
 
-  let keepAliveTimeout = args['--keepAliveTimeout']
-    ? parseInt(args['--keepAliveTimeout'])
-    : undefined
-
-  if (Number.isNaN(keepAliveTimeout)) {
-    keepAliveTimeout = undefined
-    printAndExit(
-      'Invalid type for --keepAliveTimeout; provide an integer in milliseconds'
-    )
-  }
+  const keepAliveTimeout: number | undefined = args['--keepAliveTimeout']
 
   startServer({
     dir,
