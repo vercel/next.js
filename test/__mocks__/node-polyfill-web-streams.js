@@ -10,11 +10,11 @@ const OriginWritableStreamWrite = WritableStreamDefaultWriter.prototype.write
 
 // Override writable stream write method to validate chunk type.
 // Currently CF workers only allow to write the encoded chunk in Uint8Array format.
-WritableStreamDefaultWriter.prototype.write = (chunk) => {
+WritableStreamDefaultWriter.prototype.write = function (chunk) {
   if (!(chunk instanceof Uint8Array)) {
     throw new Error('Writing non Uint8Array chunk in streaming is not allowed')
   }
-  OriginWritableStreamWrite(chunk)
+  return OriginWritableStreamWrite.call(this, chunk)
 }
 
 global.ReadableStream = ReadableStream
