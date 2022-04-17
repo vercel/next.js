@@ -12,7 +12,7 @@ The minimum Node.js version has been bumped from 12.0.0 to 12.22.0 which is the 
 
 ### Upgrade React version to latest
 
-To upgrade you can run the following command:
+The minimum required React version is `17.0.2`. To upgrade you can run the following command in the terminal:
 
 ```
 npm install react@latest react-dom@latest

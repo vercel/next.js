@@ -113,8 +113,6 @@ export default function Page() {
 }
 ```
 
-> **Note:** When navigating to the same page in Next.js, the page's state **will not** be reset by default, as the top-level React component is the same. You can manually ensure the state is updated using `useEffect`.
-
 Redirecting the user to `pages/login.js`, useful for pages behind [authentication](/docs/authentication):
 
 ```jsx
@@ -135,6 +133,58 @@ export default function Page() {
   }, [user, loading])
 
   return <p>Redirecting...</p>
+}
+```
+
+#### Resetting state after navigation
+
+When navigating to the same page in Next.js, the page's state **will not** be reset by default as react does not unmount unless the parent component has changed.
+
+```jsx
+// pages/[slug].js
+import Link from 'next/link'
+import { useState } from 'react'
+import { useRouter } from 'next/router'
+
+export default function Page(props) {
+  const router = useRouter()
+  const [count, setCount] = useState(0)
+  return (
+    <div>
+      <h1>Page: {router.query.slug}</h1>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>Increase count</button>
+      <Link href="/one">
+        <a>one</a>
+      </Link> <Link href="/two">
+        <a>two</a>
+      </Link>
+    </div>
+  )
+}
+```
+
+In the above example, navigating between `/one` and `/two` **will not** reset the count . The `useState` is maintained between renders because the top-level React component, `Page`, is the same.
+
+If you do not want this behavior, you have a couple of options:
+
+1. Manually ensure each state is updated using `useEffect`. In the above example, that could look like:
+
+```jsx
+useEffect(() => {
+  setCount(0)
+}, [router.query.slug])
+```
+
+2. Use a React `key` to [tell React to remount the component](https://reactjs.org/docs/lists-and-keys.html#keys). To do this for all pages, you can use a custom app:
+
+```jsx
+// pages/_app.js
+import { useRouter } from 'next/router'
+
+export default function MyApp({ Component, pageProps }) {
+  const router = useRouter()
+  return <Component key={router.asPath} {...pageProps} />
 }
 ```
 
