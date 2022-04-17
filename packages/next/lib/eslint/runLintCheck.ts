@@ -34,8 +34,12 @@ function isValidSeverity(severity: string): severity is Severity {
 }
 
 const requiredPackages = [
-  { file: 'eslint', pkg: 'eslint' },
-  { file: 'eslint-config-next', pkg: 'eslint-config-next' },
+  { file: 'eslint', pkg: 'eslint', exportsRestrict: false },
+  {
+    file: 'eslint-config-next',
+    pkg: 'eslint-config-next',
+    exportsRestrict: false,
+  },
 ]
 
 async function cliPrompt() {
@@ -265,11 +269,13 @@ export async function runLintCheck(
 ): ReturnType<typeof lint> {
   try {
     // Find user's .eslintrc file
+    // See: https://eslint.org/docs/user-guide/configuring/configuration-files#configuration-file-formats
     const eslintrcFile =
       (await findUp(
         eslintOptions.overrideConfigFile ??
         [
           '.eslintrc.js',
+          '.eslintrc.cjs',
           '.eslintrc.yaml',
           '.eslintrc.yml',
           '.eslintrc.json',

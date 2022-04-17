@@ -68,7 +68,6 @@ import {
   readableStreamTee,
   encodeText,
   decodeText,
-  pipeThrough,
   streamFromArray,
   streamToString,
   chainStreams,
@@ -79,6 +78,7 @@ import {
 } from './node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
+import { interopDefault } from '../lib/interop-default'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
@@ -195,15 +195,24 @@ function enhanceComponents(
   }
 }
 
-function renderFlight(AppMod: any, Component: React.ComponentType, props: any) {
-  const AppServer = AppMod.__next_rsc__
-    ? (AppMod.default as React.ComponentType)
+function renderFlight(AppMod: any, ComponentMod: any, props: any) {
+  const isServerComponent = !!ComponentMod.__next_rsc__
+  const App = interopDefault(AppMod)
+  const Component = interopDefault(ComponentMod)
+  const AppServer = isServerComponent
+    ? (App as React.ComponentType)
     : React.Fragment
-  return (
-    <AppServer>
-      <Component {...props} />
-    </AppServer>
-  )
+  const { router: _, ...rest } = props
+
+  if (isServerComponent) {
+    return (
+      <AppServer>
+        <Component {...rest} />
+      </AppServer>
+    )
+  }
+
+  return <App Component={Component} {...props} />
 }
 
 export type RenderOptsPartial = {
@@ -250,12 +259,17 @@ export type RenderOptsPartial = {
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
-const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
+const invalidKeysMsg = (
+  methodName: 'getServerSideProps' | 'getStaticProps',
+  invalidKeys: string[]
+) => {
+  const docsPathname = `invalid-${methodName.toLocaleLowerCase()}-value`
+
   return (
     `Additional keys were returned from \`${methodName}\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
     `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
     `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.` +
-    `\nRead more: https://nextjs.org/docs/messages/invalid-getstaticprops-value`
+    `\nRead more: https://nextjs.org/docs/messages/${docsPathname}`
   )
 }
 
@@ -310,12 +324,19 @@ function checkRedirectValues(
 const rscCache = new Map()
 
 function createFlightHook() {
-  return (
-    writable: WritableStream<Uint8Array>,
-    id: string,
-    req: ReadableStream<Uint8Array>,
+  return ({
+    id,
+    req,
+    inlinedDataWritable,
+    staticDataWritable,
+    bootstrap,
+  }: {
+    id: string
+    req: ReadableStream<Uint8Array>
     bootstrap: boolean
-  ) => {
+    inlinedDataWritable: WritableStream<Uint8Array>
+    staticDataWritable: WritableStream<Uint8Array> | null
+  }) => {
     let entry = rscCache.get(id)
     if (!entry) {
       const [renderStream, forwardStream] = readableStreamTee(req)
@@ -323,13 +344,18 @@ function createFlightHook() {
       rscCache.set(id, entry)
 
       let bootstrapped = false
+
       const forwardReader = forwardStream.getReader()
-      const writer = writable.getWriter()
+      const inlinedDataWriter = inlinedDataWritable.getWriter()
+      const staticDataWriter = staticDataWritable
+        ? staticDataWritable.getWriter()
+        : null
+
       function process() {
         forwardReader.read().then(({ done, value }) => {
           if (bootstrap && !bootstrapped) {
             bootstrapped = true
-            writer.write(
+            inlinedDataWriter.write(
               encodeText(
                 `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
                   [0, id]
@@ -339,15 +365,21 @@ function createFlightHook() {
           }
           if (done) {
             rscCache.delete(id)
-            writer.close()
+            inlinedDataWriter.close()
+            if (staticDataWriter) {
+              staticDataWriter.close()
+            }
           } else {
-            writer.write(
+            inlinedDataWriter.write(
               encodeText(
                 `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
                   [1, id, decodeText(value)]
                 )})</script>`
               )
             )
+            if (staticDataWriter) {
+              staticDataWriter.write(value)
+            }
             process()
           }
         })
@@ -362,16 +394,17 @@ const useFlightResponse = createFlightHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
-  OriginalComponent: React.ComponentType,
   AppMod: any,
   ComponentMod: any,
   {
     cachePrefix,
-    transformStream,
+    inlinedTransformStream,
+    staticTransformStream,
     serverComponentManifest,
   }: {
     cachePrefix: string
-    transformStream: TransformStream<Uint8Array, Uint8Array>
+    inlinedTransformStream: TransformStream<Uint8Array, Uint8Array>
+    staticTransformStream: null | TransformStream<Uint8Array, Uint8Array>
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
   }
 ) {
@@ -379,45 +412,38 @@ function createServerComponentRenderer(
   // react-server-dom-webpack. This is a hack until we find a better way.
   // @ts-ignore
   globalThis.__webpack_require__ = ComponentMod.__next_rsc__.__webpack_require__
+  const Component = interopDefault(ComponentMod)
 
-  const writable = transformStream.writable
-  const ServerComponentWrapper = (props: any) => {
+  function ServerComponentWrapper(props: any) {
     const id = (React as any).useId()
     const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
-      renderFlight(AppMod, OriginalComponent, props),
+      renderFlight(AppMod, ComponentMod, props),
       serverComponentManifest
     )
 
-    const response = useFlightResponse(
-      writable,
-      cachePrefix + ',' + id,
-      reqStream,
-      true
-    )
+    const response = useFlightResponse({
+      id: cachePrefix + ',' + id,
+      req: reqStream,
+      inlinedDataWritable: inlinedTransformStream.writable,
+      staticDataWritable: staticTransformStream
+        ? staticTransformStream.writable
+        : null,
+      bootstrap: true,
+    })
+
     const root = response.readRoot()
     rscCache.delete(id)
     return root
   }
 
-  const Component = (props: any) => {
-    return <ServerComponentWrapper {...props} />
-  }
-
-  // Although it's not allowed to attach some static methods to Component,
-  // we still re-assign all the component APIs to keep the behavior unchanged.
-  for (const methodName of [
-    'getInitialProps',
-    'getStaticProps',
-    'getServerSideProps',
-    'getStaticPaths',
-  ]) {
-    const method = (OriginalComponent as any)[methodName]
+  for (const methodName of Object.keys(Component)) {
+    const method = (Component as any)[methodName]
     if (method) {
-      ;(Component as any)[methodName] = method
+      ;(ServerComponentWrapper as any)[methodName] = method
     }
   }
 
-  return Component
+  return ServerComponentWrapper
 }
 
 export async function renderToHTML(
@@ -441,7 +467,6 @@ export async function renderToHTML(
     err,
     dev = false,
     ampPath = '',
-    App,
     pageConfig = {},
     buildManifest,
     fontManifest,
@@ -461,40 +486,45 @@ export async function renderToHTML(
     reactRoot,
     runtime: globalRuntime,
     ComponentMod,
-    AppMod,
+    AppMod: AppClientMod,
+    AppServerMod,
   } = renderOpts
 
   const hasConcurrentFeatures = reactRoot
 
   let Document = renderOpts.Document
-  const OriginalComponent = renderOpts.Component
 
   // We don't need to opt-into the flight inlining logic if the page isn't a RSC.
   const isServerComponent =
     hasConcurrentFeatures &&
     !!serverComponentManifest &&
-    !!ComponentMod.__next_rsc_server__
+    !!ComponentMod.__next_rsc__?.server
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
+
+  const AppMod = isServerComponent ? AppServerMod : AppClientMod
+  const App = interopDefault(AppMod)
+
   let serverComponentsInlinedTransformStream: TransformStream<
     Uint8Array,
     Uint8Array
   > | null = null
+  let serverComponentsPageDataTransformStream: TransformStream<
+    Uint8Array,
+    Uint8Array
+  > | null =
+    isServerComponent && !process.browser ? new TransformStream() : null
 
   if (isServerComponent) {
     serverComponentsInlinedTransformStream = new TransformStream()
     const search = stringifyQuery(query)
-    Component = createServerComponentRenderer(
-      OriginalComponent,
-      AppMod,
-      ComponentMod,
-      {
-        cachePrefix: pathname + (search ? `?${search}` : ''),
-        transformStream: serverComponentsInlinedTransformStream,
-        serverComponentManifest,
-      }
-    )
+    Component = createServerComponentRenderer(AppMod, ComponentMod, {
+      cachePrefix: pathname + (search ? `?${search}` : ''),
+      inlinedTransformStream: serverComponentsInlinedTransformStream,
+      staticTransformStream: serverComponentsPageDataTransformStream,
+      serverComponentManifest,
+    })
   }
 
   const getFontDefinition = (url: string): string => {
@@ -709,7 +739,7 @@ export async function renderToHTML(
     AppTree: (props: any) => {
       return (
         <AppContainerWithIsomorphicFiberStructure>
-          <App {...props} Component={Component} router={router} />
+          {renderFlight(AppMod, ComponentMod, { ...props, router })}
         </AppContainerWithIsomorphicFiberStructure>
       )
     },
@@ -1169,7 +1199,11 @@ export async function renderToHTML(
   // Avoid rendering page un-necessarily for getServerSideProps data request
   // and getServerSideProps/getStaticProps redirects
   if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
-    return RenderResult.fromStatic(JSON.stringify(props))
+    // For server components, we still need to render the page to get the flight
+    // data.
+    if (!serverComponentsPageDataTransformStream) {
+      return RenderResult.fromStatic(JSON.stringify(props))
+    }
   }
 
   // We don't call getStaticProps or getServerSideProps while generating
@@ -1180,23 +1214,21 @@ export async function renderToHTML(
 
   // Pass router to the Server Component as a temporary workaround.
   if (isServerComponent) {
-    props.pageProps = Object.assign({}, props.pageProps, { router })
+    props.pageProps = Object.assign({}, props.pageProps)
   }
 
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSSG) return null
 
   if (renderServerComponentData) {
-    const stream: ReadableStream<Uint8Array> = renderToReadableStream(
-      renderFlight(AppMod, OriginalComponent, {
-        ...props.pageProps,
-        ...serverComponentProps,
-      }),
-      serverComponentManifest
-    )
-
     return new RenderResult(
-      pipeThrough(stream, createBufferedTransformStream())
+      renderToReadableStream(
+        renderFlight(AppMod, ComponentMod, {
+          ...props.pageProps,
+          ...serverComponentProps,
+        }),
+        serverComponentManifest
+      ).pipeThrough(createBufferedTransformStream())
     )
   }
 
@@ -1339,9 +1371,9 @@ export async function renderToHTML(
       ) : (
         <Body>
           <AppContainerWithIsomorphicFiberStructure>
-            {isServerComponent && AppMod.__next_rsc__ ? (
+            {isServerComponent && !!AppMod.__next_rsc__ ? (
               // _app.server.js is used.
-              <Component {...props.pageProps} router={router} />
+              <Component {...props.pageProps} />
             ) : (
               <App {...props} Component={Component} router={router} />
             )}
@@ -1386,41 +1418,65 @@ export async function renderToHTML(
         }
       }
     } else {
-      let bodyResult
-
-      let renderStream: any
-
       // We start rendering the shell earlier, before returning the head tags
       // to `documentResult`.
       const content = renderContent()
-      renderStream = await renderToInitialStream({
+      const renderStream = await renderToInitialStream({
         ReactDOMServer,
         element: content,
       })
 
-      bodyResult = async (suffix: string) => {
+      const bodyResult = async (suffix: string) => {
         // this must be called inside bodyResult so appWrappers is
-        // up to date when getWrappedApp is called
+        // up to date when `wrapApp` is called
 
-        const flushEffectHandler = async () => {
+        const flushEffectHandler = (): string => {
           const allFlushEffects = [
             styledJsxFlushEffect,
             ...(flushEffects || []),
           ]
-          const flushEffectStream = await renderToStream({
-            ReactDOMServer,
-            element: (
-              <>
-                {allFlushEffects.map((flushEffect, i) => (
-                  <React.Fragment key={i}>{flushEffect()}</React.Fragment>
-                ))}
-              </>
-            ),
-            generateStaticHTML: true,
-          })
-          const flushed = await streamToString(flushEffectStream)
+          const flushed = ReactDOMServer.renderToString(
+            <>
+              {allFlushEffects.map((flushEffect, i) => (
+                <React.Fragment key={i}>{flushEffect()}</React.Fragment>
+              ))}
+            </>
+          )
           return flushed
         }
+
+        // Handle static data for server components.
+        async function generateStaticFlightDataIfNeeded() {
+          if (serverComponentsPageDataTransformStream) {
+            // If it's a server component with the Node.js runtime, we also
+            // statically generate the page data.
+            let data = ''
+
+            const readable = serverComponentsPageDataTransformStream.readable
+            const reader = readable.getReader()
+            const textDecoder = new TextDecoder()
+
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) {
+                break
+              }
+              data += decodeText(value, textDecoder)
+            }
+
+            ;(renderOpts as any).pageData = {
+              ...(renderOpts as any).pageData,
+              __flight__: data,
+            }
+            return data
+          }
+        }
+
+        // @TODO: A potential improvement would be to reuse the inlined
+        // data stream, or pass a callback inside as this doesn't need to
+        // be streamed.
+        // Do not use `await` here.
+        generateStaticFlightDataIfNeeded()
 
         return await continueFromInitialStream({
           renderStream,
@@ -1562,7 +1618,6 @@ export async function renderToHTML(
     optimizeFonts: renderOpts.optimizeFonts,
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
-    hasConcurrentFeatures,
   }
 
   const document = (
@@ -1626,6 +1681,14 @@ export async function renderToHTML(
     await documentResult.bodyResult(renderTargetSuffix),
   ]
 
+  if (
+    serverComponentsPageDataTransformStream &&
+    ((isDataReq && !isSSG) || (renderOpts as any).isRedirect)
+  ) {
+    await streamToString(streams[1])
+    return RenderResult.fromStatic((renderOpts as any).pageData)
+  }
+
   const postProcessors: Array<((html: string) => Promise<string>) | null> = (
     generateStaticHTML
       ? [
@@ -1684,7 +1747,9 @@ export async function renderToHTML(
     return new RenderResult(html)
   }
 
-  return new RenderResult(chainStreams(streams))
+  return new RenderResult(
+    chainStreams(streams).pipeThrough(createBufferedTransformStream())
+  )
 }
 
 function errorToJSON(err: Error) {

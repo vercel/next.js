@@ -19,7 +19,12 @@ import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-lo
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
 import { parse } from '../build/swc'
-import { isCustomErrorPage, isFlightPage, isReservedPage } from './utils'
+import {
+  getRawPageExtensions,
+  isCustomErrorPage,
+  isFlightPage,
+  isReservedPage,
+} from './utils'
 import { ssrEntries } from './webpack/plugins/middleware-plugin'
 import {
   MIDDLEWARE_RUNTIME_WEBPACK,
@@ -32,7 +37,14 @@ export type PagesMapping = {
 }
 
 export function getPageFromPath(pagePath: string, extensions: string[]) {
-  let page = pagePath.replace(new RegExp(`\\.+(${extensions.join('|')})$`), '')
+  const rawExtensions = getRawPageExtensions(extensions)
+  const pickedExtensions = pagePath.includes('/_app.server.')
+    ? rawExtensions
+    : extensions
+  let page = pagePath.replace(
+    new RegExp(`\\.+(${pickedExtensions.join('|')})$`),
+    ''
+  )
   page = page.replace(/\\/g, '/').replace(/\/index$/, '')
   return page === '' ? '/' : page
 }
@@ -86,13 +98,20 @@ export function createPagesMapping(
   // allow falling back to the correct source file so
   // that HMR can work properly when a file is added/removed
   if (isDev) {
+    if (hasServerComponents) {
+      pages['/_app.server'] = `${PAGES_DIR_ALIAS}/_app.server`
+    }
     pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
     pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
     pages['/_document'] = `${PAGES_DIR_ALIAS}/_document`
   } else {
+    if (hasServerComponents) {
+      pages['/_app.server'] =
+        pages['/_app.server'] || 'next/dist/pages/_app.server'
+    }
     pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
     pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
-    pages['/_document'] = pages['/_document'] || `next/dist/pages/_document`
+    pages['/_document'] = pages['/_document'] || 'next/dist/pages/_document'
   }
   return pages
 }
@@ -109,7 +128,8 @@ const cachedPageRuntimeConfig = new Map<string, [number, PageRuntime]>()
 // could be thousands of pages existing.
 export async function getPageRuntime(
   pageFilePath: string,
-  nextConfig: Partial<NextConfig>
+  nextConfig: Partial<NextConfig>,
+  isDev?: boolean
 ): Promise<PageRuntime> {
   if (!nextConfig.experimental?.reactRoot) return undefined
 
@@ -125,7 +145,7 @@ export async function getPageRuntime(
       encoding: 'utf8',
     })
   } catch (err) {
-    if (process.env.NODE_ENV === 'production') throw err
+    if (!isDev) throw err
     return undefined
   }
 
@@ -216,7 +236,8 @@ export async function createEntrypoints(
   previewMode: __ApiPreviewProps,
   config: NextConfigComplete,
   loadedEnvFiles: LoadedEnvFiles,
-  pagesDir: string
+  pagesDir: string,
+  isDev?: boolean
 ): Promise<Entrypoints> {
   const client: webpack5.EntryObject = {}
   const server: webpack5.EntryObject = {}
@@ -229,6 +250,7 @@ export async function createEntrypoints(
 
   const defaultServerlessOptions = {
     absoluteAppPath: pages['/_app'],
+    absoluteAppServerPath: pages['/_app.server'],
     absoluteDocumentPath: pages['/_document'],
     absoluteErrorPath: pages['/_error'],
     absolute404Path: pages['/404'] || '',
@@ -271,7 +293,7 @@ export async function createEntrypoints(
       const pageFilePath = isInternalPages
         ? require.resolve(absolutePagePath)
         : join(pagesDir, absolutePagePath.replace(PAGES_DIR_ALIAS, ''))
-      const pageRuntime = await getPageRuntime(pageFilePath, config)
+      const pageRuntime = await getPageRuntime(pageFilePath, config, isDev)
       const isEdgeRuntime = pageRuntime === 'edge'
 
       if (page.match(MIDDLEWARE_ROUTE)) {
@@ -320,6 +342,7 @@ export async function createEntrypoints(
       } else if (
         isLikeServerless &&
         page !== '/_app' &&
+        page !== '/_app.server' &&
         page !== '/_document' &&
         !isEdgeRuntime
       ) {
@@ -333,7 +356,7 @@ export async function createEntrypoints(
         )}!`
       }
 
-      if (page === '/_document') {
+      if (page === '/_document' || page === '/_app.server') {
         return
       }
 
