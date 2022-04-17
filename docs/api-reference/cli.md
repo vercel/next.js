@@ -116,12 +116,6 @@ To configure the timeout values for the production Next.js server, pass `--keepA
 npx next start --keepAliveTimeout 70000
 ```
 
-In some earlier versions of Node.js, there is [a regression that requires that `headersTimeout` is set to a value greater than the `keepAliveTimeout` value](https://github.com/nodejs/node/issues/27363). To configure [`headersTimeout`](https://nodejs.org/api/http.html#serverheaderstimeout) for the production Next.js server, pass `--headersTimeout` (in milliseconds) to `next start`, like so:
-
-```bash
-npx next start --keepAliveTimeout 70000 --headersTimeout 75000
-```
-
 ## Lint
 
 `next lint` runs ESLint for all files in the `pages`, `components`, and `lib` directories. It also

@@ -15,7 +15,6 @@ const nextStart: cliCommand = (argv) => {
     '--port': Number,
     '--hostname': String,
     '--keepAliveTimeout': Number,
-    '--headersTimeout': Number,
 
     // Aliases
     '-h': '--help',
@@ -47,7 +46,6 @@ const nextStart: cliCommand = (argv) => {
         --port, -p      A port number on which to start the application
         --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
         --keepAliveTimeout  Max milliseconds to wait before closing inactive connections
-        --headersTimeout  Max milliseconds to wait for headers to finish, before closing inactive connections
         --help, -h      Displays this message
     `)
     process.exit(0)
@@ -66,21 +64,10 @@ const nextStart: cliCommand = (argv) => {
     ? parseInt(args['--keepAliveTimeout'])
     : undefined
 
-  let headersTimeout = args['--headersTimeout']
-    ? parseInt(args['--headersTimeout'])
-    : undefined
-
   if (Number.isNaN(keepAliveTimeout)) {
     keepAliveTimeout = undefined
     printAndExit(
       'Invalid type for --keepAliveTimeout; provide an integer in milliseconds'
-    )
-  }
-
-  if (Number.isNaN(headersTimeout)) {
-    headersTimeout = undefined
-    printAndExit(
-      'Invalid type for --headersTimeout; provide an integer in milliseconds'
     )
   }
 
@@ -89,7 +76,6 @@ const nextStart: cliCommand = (argv) => {
     hostname: host,
     port,
     keepAliveTimeout,
-    headersTimeout,
   })
     .then(async (app) => {
       const appUrl = `http://${app.hostname}:${app.port}`

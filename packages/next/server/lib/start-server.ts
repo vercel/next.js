@@ -6,7 +6,6 @@ import next from '../next'
 interface StartServerOptions extends NextServerOptions {
   allowRetry?: boolean
   keepAliveTimeout?: number
-  headersTimeout?: number
 }
 
 export function startServer(opts: StartServerOptions) {
@@ -18,10 +17,6 @@ export function startServer(opts: StartServerOptions) {
 
   if (opts.keepAliveTimeout) {
     server.keepAliveTimeout = opts.keepAliveTimeout
-  }
-
-  if (opts.headersTimeout) {
-    server.headersTimeout = opts.headersTimeout
   }
 
   return new Promise<NextServer>((resolve, reject) => {
