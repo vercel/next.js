@@ -42,7 +42,6 @@ module.exports = {
         '@next/next/no-document-import-in-page': 2,
         '@next/next/no-head-import-in-document': 2,
         '@next/next/no-script-in-document': 2,
-        '@next/next/no-script-in-head': 2,
         '@next/next/no-script-component-in-head': 2,
         '@next/next/no-styled-jsx-in-document': 2,
         '@next/next/no-server-import-in-page': 2,
