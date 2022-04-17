@@ -10,6 +10,7 @@ import {
   MIDDLEWARE_SSR_RUNTIME_WEBPACK,
 } from '../../../shared/lib/constants'
 import { nonNullable } from '../../../lib/non-nullable'
+import type { WasmBinding } from '../loaders/next-middleware-wasm-loader'
 
 const PLUGIN_NAME = 'MiddlewarePlugin'
 const MIDDLEWARE_FULL_ROUTE_REGEX = /^pages[/\\]?(.*)\/_middleware$/
@@ -27,6 +28,7 @@ export interface MiddlewareManifest {
       name: string
       page: string
       regexp: string
+      wasm?: WasmBinding[]
     }
   }
 }
@@ -49,10 +51,15 @@ function getPageFromEntrypointName(pagePath: string) {
   return page
 }
 
+export type PerRoute = {
+  envPerRoute: Map<string, string[]>
+  wasmPerRoute: Map<string, WasmBinding[]>
+}
+
 export function getEntrypointInfo(
   compilation: webpack5.Compilation,
-  envPerRoute: Map<string, string[]>,
-  webServerRuntime: boolean
+  { envPerRoute, wasmPerRoute }: PerRoute,
+  isEdgeRuntime: boolean
 ) {
   const entrypoints = compilation.entrypoints
   const infos = []
@@ -61,8 +68,8 @@ export function getEntrypointInfo(
 
     const ssrEntryInfo = ssrEntries.get(entrypoint.name)
 
-    if (ssrEntryInfo && !webServerRuntime) continue
-    if (!ssrEntryInfo && webServerRuntime) continue
+    if (ssrEntryInfo && !isEdgeRuntime) continue
+    if (!ssrEntryInfo && isEdgeRuntime) continue
 
     const page = getPageFromEntrypointName(entrypoint.name)
 
@@ -87,6 +94,7 @@ export function getEntrypointInfo(
 
     infos.push({
       env: envPerRoute.get(entrypoint.name) || [],
+      wasm: wasmPerRoute.get(entrypoint.name) || [],
       files,
       name: entrypoint.name,
       page,
@@ -98,26 +106,30 @@ export function getEntrypointInfo(
 
 export default class MiddlewarePlugin {
   dev: boolean
-  webServerRuntime: boolean
+  isEdgeRuntime: boolean
 
   constructor({
     dev,
-    webServerRuntime,
+    isEdgeRuntime,
   }: {
     dev: boolean
-    webServerRuntime: boolean
+    isEdgeRuntime: boolean
   }) {
     this.dev = dev
-    this.webServerRuntime = webServerRuntime
+    this.isEdgeRuntime = isEdgeRuntime
   }
 
   createAssets(
     compilation: webpack5.Compilation,
     assets: any,
-    envPerRoute: Map<string, string[]>,
-    webServerRuntime: boolean
+    { envPerRoute, wasmPerRoute }: PerRoute,
+    isEdgeRuntime: boolean
   ) {
-    const infos = getEntrypointInfo(compilation, envPerRoute, webServerRuntime)
+    const infos = getEntrypointInfo(
+      compilation,
+      { envPerRoute, wasmPerRoute },
+      isEdgeRuntime
+    )
     infos.forEach((info) => {
       middlewareManifest.middleware[info.page] = info
     })
@@ -134,9 +146,7 @@ export default class MiddlewarePlugin {
     )
 
     assets[
-      this.webServerRuntime
-        ? MIDDLEWARE_MANIFEST
-        : `server/${MIDDLEWARE_MANIFEST}`
+      this.isEdgeRuntime ? MIDDLEWARE_MANIFEST : `server/${MIDDLEWARE_MANIFEST}`
     ] = new sources.RawSource(JSON.stringify(middlewareManifest, null, 2))
   }
 
@@ -144,7 +154,7 @@ export default class MiddlewarePlugin {
     collectAssets(compiler, this.createAssets.bind(this), {
       dev: this.dev,
       pluginName: PLUGIN_NAME,
-      webServerRuntime: this.webServerRuntime,
+      isEdgeRuntime: this.isEdgeRuntime,
     })
   }
 }
@@ -154,13 +164,13 @@ export function collectAssets(
   createAssets: (
     compilation: webpack5.Compilation,
     assets: any,
-    envPerRoute: Map<string, string[]>,
-    webServerRuntime: boolean
+    { envPerRoute, wasmPerRoute }: PerRoute,
+    isEdgeRuntime: boolean
   ) => void,
   options: {
     dev: boolean
     pluginName: string
-    webServerRuntime: boolean
+    isEdgeRuntime: boolean
   }
 ) {
   const wp = compiler.webpack
@@ -177,6 +187,7 @@ export function collectAssets(
       })
 
       const envPerRoute = new Map<string, string[]>()
+      const wasmPerRoute = new Map<string, WasmBinding[]>()
 
       compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, () => {
         const { moduleGraph } = compilation as any
@@ -189,6 +200,7 @@ export function collectAssets(
           ) {
             const middlewareEntries = new Set<webpack5.Module>()
             const env = new Set<string>()
+            const wasm = new Set<WasmBinding>()
 
             const addEntriesFromDependency = (dep: any) => {
               const module = moduleGraph.getModule(dep)
@@ -205,6 +217,9 @@ export function collectAssets(
             const queue = new Set(middlewareEntries)
             for (const module of queue) {
               const { buildInfo } = module
+              if (buildInfo.nextWasmMiddlewareBinding) {
+                wasm.add(buildInfo.nextWasmMiddlewareBinding)
+              }
               if (
                 !options.dev &&
                 buildInfo &&
@@ -249,6 +264,7 @@ export function collectAssets(
             }
 
             envPerRoute.set(name, Array.from(env))
+            wasmPerRoute.set(name, Array.from(wasm))
           }
         }
       })
@@ -380,8 +396,8 @@ export function collectAssets(
           createAssets(
             compilation,
             assets,
-            envPerRoute,
-            options.webServerRuntime
+            { envPerRoute, wasmPerRoute },
+            options.isEdgeRuntime
           )
         }
       )

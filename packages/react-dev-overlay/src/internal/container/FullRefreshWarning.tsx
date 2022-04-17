@@ -12,10 +12,18 @@ import { noop as css } from '../helpers/noop-template'
 
 export type FullRefreshWarningProps = { reason: string | null }
 
+const FULL_REFRESH_STORAGE_KEY = '_has_warned_about_full_refresh'
+
 export const FullRefreshWarning: React.FC<FullRefreshWarningProps> =
   function FullRefreshWarning({ reason }) {
     const reload = React.useCallback(() => {
       window.location.reload()
+    }, [])
+    const change = React.useCallback((e) => {
+      sessionStorage.setItem(
+        FULL_REFRESH_STORAGE_KEY,
+        e.target.checked ? 'ignore' : 'true'
+      )
     }, [])
 
     return (
@@ -42,6 +50,10 @@ export const FullRefreshWarning: React.FC<FullRefreshWarningProps> =
                   </a>
                   .
                 </p>
+                <label>
+                  <input type="checkbox" onChange={change} /> Don't show again
+                  for session
+                </label>
                 <button onClick={reload}>Reload</button>
               </footer>
             </DialogBody>

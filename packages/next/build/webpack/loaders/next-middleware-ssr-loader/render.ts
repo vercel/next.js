@@ -4,24 +4,12 @@ import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
 
 import { NextRequest } from '../../../../server/web/spec-extension/request'
-import { toNodeHeaders } from '../../../../server/web/utils'
 
 import WebServer from '../../../../server/web-server'
-import { WebNextRequest, WebNextResponse } from '../../../../server/base-http'
-
-const createHeaders = (args?: any) => ({
-  ...args,
-  'x-middleware-ssr': '1',
-  'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
-})
-
-function sendError(req: any, error: Error) {
-  const defaultMessage = 'An error occurred while rendering ' + req.url + '.'
-  return new Response((error && error.message) || defaultMessage, {
-    status: 500,
-    headers: createHeaders(),
-  })
-}
+import {
+  WebNextRequest,
+  WebNextResponse,
+} from '../../../../server/base-http/web'
 
 // Polyfilled for `path-browserify` inside the Web Server.
 process.cwd = () => ''
@@ -29,29 +17,29 @@ process.cwd = () => ''
 export function getRender({
   dev,
   page,
+  appMod,
   pageMod,
   errorMod,
   error500Mod,
   Document,
-  App,
   buildManifest,
   reactLoadableManifest,
   serverComponentManifest,
-  isServerComponent,
   config,
   buildId,
+  appServerMod,
 }: {
   dev: boolean
   page: string
+  appMod: any
   pageMod: any
   errorMod: any
   error500Mod: any
   Document: DocumentType
-  App: AppType
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
-  serverComponentManifest: any | null
-  isServerComponent: boolean
+  serverComponentManifest: any
+  appServerMod: any
   config: NextConfig
   buildId: string
 }) {
@@ -60,7 +48,9 @@ export function getRender({
     buildManifest,
     reactLoadableManifest,
     Document,
-    App,
+    App: appMod.default as AppType,
+    AppMod: appMod,
+    AppServerMod: appServerMod,
   }
 
   const server = new WebServer({
@@ -69,8 +59,9 @@ export function getRender({
     webServerConfig: {
       extendRenderOpts: {
         buildId,
+        reactRoot: true,
+        runtime: 'edge',
         supportsDynamicHTML: true,
-        concurrentFeatures: true,
         disableOptimizedLoading: true,
         serverComponentManifest,
       },
@@ -119,45 +110,15 @@ export function getRender({
   const requestHandler = server.getRequestHandler()
 
   return async function render(request: NextRequest) {
-    const { nextUrl: url, cookies, headers } = request
-    const { pathname, searchParams } = url
-
-    const query = Object.fromEntries(searchParams)
-    const req = {
-      url: pathname,
-      cookies,
-      headers: toNodeHeaders(headers),
-    }
-
     // Preflight request
     if (request.method === 'HEAD') {
+      // Hint the client that the matched route is a SSR page.
       return new Response(null, {
-        headers: createHeaders(),
+        headers: {
+          'x-middleware-ssr': '1',
+        },
       })
     }
-
-    // @TODO: We should move this into server/render.
-    if (Document.getInitialProps) {
-      const err = new Error(
-        '`getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
-      )
-      return sendError(req, err)
-    }
-
-    const renderServerComponentData = isServerComponent
-      ? query.__flight__ !== undefined
-      : false
-
-    const serverComponentProps =
-      isServerComponent && query.__props__
-        ? JSON.parse(query.__props__)
-        : undefined
-
-    // Extend the render options.
-    server.updateRenderOpts({
-      renderServerComponentData,
-      serverComponentProps,
-    })
 
     const extendedReq = new WebNextRequest(request)
     const extendedRes = new WebNextResponse()

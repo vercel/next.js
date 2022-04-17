@@ -1,0 +1,22 @@
+[package]
+authors = ["강동윤 <kdy1997.dev@gmail.com>"]
+description = "AST transforms for styled-jsx"
+edition = "2018"
+license = "Apache-2.0"
+name = "styled_jsx"
+repository = "https://github.com/vercel/next.js.git"
+version = "0.1.1"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+easy-error = "1.0.0"
+swc_common = { version = "0.17.21", features = ["concurrent", "sourcemap"] }
+swc_css = "0.104.1"
+swc_css_prefixer = "0.100.4"
+swc_ecmascript = { version = "0.147.0", features = ["parser", "minifier", "utils", "visit"] }
+tracing = "0.1.32"
+
+[dev-dependencies]
+swc_ecma_transforms_testing = "0.80.0"
+testing = "0.19.1"

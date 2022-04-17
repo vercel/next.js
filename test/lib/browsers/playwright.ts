@@ -1,4 +1,4 @@
-import { BrowserInterface } from './base'
+import { BrowserInterface, Event } from './base'
 import fs from 'fs-extra'
 import {
   chromium,
@@ -28,8 +28,25 @@ export async function quit() {
 
 class Playwright extends BrowserInterface {
   private activeTrace?: string
+  private eventCallbacks: Record<Event, Set<(...args: any[]) => void>> = {
+    request: new Set(),
+  }
 
-  async setup(browserName: string) {
+  on(event: Event, cb: (...args: any[]) => void) {
+    if (!this.eventCallbacks[event]) {
+      throw new Error(
+        `Invalid event passed to browser.on, received ${event}. Valid events are ${Object.keys(
+          event
+        )}`
+      )
+    }
+    this.eventCallbacks[event]?.add(cb)
+  }
+  off(event: Event, cb: (...args: any[]) => void) {
+    this.eventCallbacks[event]?.delete(cb)
+  }
+
+  async setup(browserName: string, locale?: string) {
     if (browser) return
     const headless = !!process.env.HEADLESS
 
@@ -40,14 +57,17 @@ class Playwright extends BrowserInterface {
     } else {
       browser = await chromium.launch({ headless, devtools: !headless })
     }
-    context = await browser.newContext()
+    context = await browser.newContext({ locale })
   }
 
   async get(url: string): Promise<void> {
     return page.goto(url) as any
   }
 
-  async loadPage(url: string, opts?: { disableCache: boolean }) {
+  async loadPage(
+    url: string,
+    opts?: { disableCache: boolean; beforePageLoad?: (...args: any[]) => void }
+  ) {
     if (this.activeTrace) {
       const traceDir = path.join(__dirname, '../../traces')
       const traceOutputPath = path.join(
@@ -84,6 +104,9 @@ class Playwright extends BrowserInterface {
     page.on('pageerror', (error) => {
       console.error('page error', error)
     })
+    page.on('request', (req) => {
+      this.eventCallbacks.request.forEach((cb) => cb(req))
+    })
 
     if (opts?.disableCache) {
       // TODO: this doesn't seem to work (dev tools does not check the box as expected)
@@ -115,6 +138,8 @@ class Playwright extends BrowserInterface {
         }
       })
     })
+
+    opts?.beforePageLoad?.(page)
 
     if (tracePlaywright) {
       await context.tracing.start({
@@ -290,12 +315,7 @@ class Playwright extends BrowserInterface {
 
   waitForCondition(condition, timeout) {
     return this.chain(() => {
-      return page.waitForFunction(
-        `function() {
-        return ${condition}
-      }`,
-        { timeout }
-      )
+      return page.waitForFunction(condition, { timeout })
     })
   }
 

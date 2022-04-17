@@ -13,8 +13,12 @@ type UseIntersection = { disabled?: boolean } & UseIntersectionObserverInit & {
     rootRef?: React.RefObject<HTMLElement> | null
   }
 type ObserveCallback = (isVisible: boolean) => void
+type Identifier = {
+  root: Element | Document | null
+  margin: string
+}
 type Observer = {
-  id: string
+  id: Identifier
   observer: IntersectionObserver
   elements: Map<Element, ObserveCallback>
 }
@@ -25,7 +29,7 @@ export function useIntersection<T extends Element>({
   rootRef,
   rootMargin,
   disabled,
-}: UseIntersection): [(element: T | null) => void, boolean] {
+}: UseIntersection): [(element: T | null) => void, boolean, () => void] {
   const isDisabled: boolean = disabled || !hasIntersectionObserver
 
   const unobserve = useRef<Function>()
@@ -51,6 +55,10 @@ export function useIntersection<T extends Element>({
     [isDisabled, root, rootMargin, visible]
   )
 
+  const resetVisible = useCallback(() => {
+    setVisible(false)
+  }, [])
+
   useEffect(() => {
     if (!hasIntersectionObserver) {
       if (!visible) {
@@ -63,7 +71,7 @@ export function useIntersection<T extends Element>({
   useEffect(() => {
     if (rootRef) setRoot(rootRef.current)
   }, [rootRef])
-  return [setRef, visible]
+  return [setRef, visible, resetVisible]
 }
 
 function observe(
@@ -83,14 +91,35 @@ function observe(
     if (elements.size === 0) {
       observer.disconnect()
       observers.delete(id)
+      let index = idList.findIndex(
+        (obj) => obj.root === id.root && obj.margin === id.margin
+      )
+      if (index > -1) {
+        idList.splice(index, 1)
+      }
     }
   }
 }
 
-const observers = new Map<string, Observer>()
+const observers = new Map<Identifier, Observer>()
+
+const idList: Identifier[] = []
+
 function createObserver(options: UseIntersectionObserverInit): Observer {
-  const id = options.rootMargin || ''
-  let instance = observers.get(id)
+  const id = {
+    root: options.root || null,
+    margin: options.rootMargin || '',
+  }
+  let existing = idList.find(
+    (obj) => obj.root === id.root && obj.margin === id.margin
+  )
+  let instance
+  if (existing) {
+    instance = observers.get(existing)
+  } else {
+    instance = observers.get(id)
+    idList.push(id)
+  }
   if (instance) {
     return instance
   }

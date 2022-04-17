@@ -10,6 +10,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-docker nextjs-docker
 # or
 yarn create next-app --example with-docker nextjs-docker
+# or
+pnpm create next-app -- --example with-docker nextjs-docker
 ```
 
 ## Using Docker
@@ -19,6 +21,22 @@ yarn create next-app --example with-docker nextjs-docker
 1. Run your container: `docker run -p 3000:3000 nextjs-docker`.
 
 You can view your images created with `docker images`.
+
+### In existing projects
+
+To add support for Docker to an existing project, just copy the `Dockerfile` into the root of the project and add the following to the `next.config.js` file:
+
+```js
+// next.config.js
+module.exports = {
+  // ... rest of the configuration.
+  experimental: {
+    outputStandalone: true,
+  },
+}
+```
+
+This will build the project as a standalone app inside the Docker image.
 
 ## Deploying to Google Cloud Run
 

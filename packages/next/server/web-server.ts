@@ -1,4 +1,4 @@
-import type { WebNextRequest, WebNextResponse } from './base-http'
+import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type { RenderOpts } from './render'
 import type RenderResult from './render-result'
 import type { NextParsedUrlQuery } from './request-meta'
@@ -8,6 +8,7 @@ import type { LoadComponentsReturnType } from './load-components'
 
 import BaseServer, { Options } from './base-server'
 import { renderToHTML } from './render'
+import { byteLength, generateETag } from './api-utils/web'
 
 interface WebServerConfig {
   loadComponent: (pathname: string) => Promise<LoadComponentsReturnType | null>
@@ -31,7 +32,8 @@ export default class NextWebServer extends BaseServer {
     }
   }
   protected handleCompression() {
-    // @TODO
+    // For the web server layer, compression is automatically handled by the
+    // upstream proxy (edge runtime or node server) and we can simply skip here.
   }
   protected getRoutesManifest() {
     return {
@@ -49,14 +51,15 @@ export default class NextWebServer extends BaseServer {
     return ''
   }
   protected getPublicDir() {
-    // @TODO
+    // Public files are not handled by the web server.
     return ''
   }
   protected getBuildId() {
     return (globalThis as any).__server_context.buildId
   }
   protected loadEnvConfig() {
-    // @TODO
+    // The web server does not need to load the env config. This is done by the
+    // runtime already.
   }
   protected getHasStaticDir() {
     return false
@@ -109,6 +112,10 @@ export default class NextWebServer extends BaseServer {
       },
     }
   }
+  protected getServerComponentManifest() {
+    // @TODO: Need to return `extendRenderOpts.serverComponentManifest` here.
+    return undefined
+  }
   protected async renderHTML(
     req: WebNextRequest,
     _res: WebNextResponse,
@@ -118,7 +125,7 @@ export default class NextWebServer extends BaseServer {
   ): Promise<RenderResult | null> {
     return renderToHTML(
       {
-        url: pathname,
+        url: req.url,
         cookies: req.cookies,
         headers: req.headers,
       } as any,
@@ -127,9 +134,8 @@ export default class NextWebServer extends BaseServer {
       query,
       {
         ...renderOpts,
-        supportsDynamicHTML: true,
-        concurrentFeatures: true,
         disableOptimizedLoading: true,
+        runtime: 'edge',
       }
     )
   }
@@ -144,23 +150,41 @@ export default class NextWebServer extends BaseServer {
       options?: PayloadOptions | undefined
     }
   ): Promise<void> {
-    // @TODO
-    const writer = res.transformStream.writable.getWriter()
-    options.result.pipe({
-      write: (chunk: Uint8Array) => writer.write(chunk),
-      end: () => writer.close(),
-      destroy: (err: Error) => writer.abort(err),
-      cork: () => {},
-      uncork: () => {},
-      // Not implemented: on/removeListener
-    } as any)
+    res.setHeader('X-Edge-Runtime', '1')
 
-    // To prevent Safari's bfcache caching the "shell", we have to add the
-    // `no-cache` header to document responses.
-    res.setHeader(
-      'Cache-Control',
-      'no-cache, no-store, max-age=0, must-revalidate'
-    )
+    // Add necessary headers.
+    // @TODO: Share the isomorphic logic with server/send-payload.ts.
+    if (options.poweredByHeader && options.type === 'html') {
+      res.setHeader('X-Powered-By', 'Next.js')
+    }
+    if (!res.getHeader('Content-Type')) {
+      res.setHeader(
+        'Content-Type',
+        options.type === 'json'
+          ? 'application/json'
+          : 'text/html; charset=utf-8'
+      )
+    }
+
+    if (options.result.isDynamic()) {
+      const writer = res.transformStream.writable.getWriter()
+      options.result.pipe({
+        write: (chunk: Uint8Array) => writer.write(chunk),
+        end: () => writer.close(),
+        destroy: (err: Error) => writer.abort(err),
+        cork: () => {},
+        uncork: () => {},
+        // Not implemented: on/removeListener
+      } as any)
+    } else {
+      const payload = await options.result.toUnchunkedString()
+      res.setHeader('Content-Length', String(byteLength(payload)))
+      if (options.generateEtags) {
+        res.setHeader('ETag', await generateETag(payload))
+      }
+      res.body(payload)
+    }
+
     res.send()
   }
   protected async runApi() {
@@ -182,9 +206,5 @@ export default class NextWebServer extends BaseServer {
       },
       components: result,
     }
-  }
-
-  public updateRenderOpts(renderOpts: Partial<BaseServer['renderOpts']>) {
-    Object.assign(this.renderOpts, renderOpts)
   }
 }

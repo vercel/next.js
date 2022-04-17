@@ -1,11 +1,16 @@
+import type {
+  AppType,
+  DocumentType,
+  NextComponentType,
+} from '../shared/lib/utils'
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
+  MIDDLEWARE_FLIGHT_MANIFEST,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
 import { BuildManifest } from './get-page-files'
-import { AppType, DocumentType } from '../shared/lib/utils'
 import { interopDefault } from '../lib/interop-default'
 import {
   PageConfig,
@@ -22,21 +27,25 @@ export type ManifestItem = {
 export type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 
 export type LoadComponentsReturnType = {
-  Component: React.ComponentType
+  Component: NextComponentType
   pageConfig: PageConfig
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
+  serverComponentManifest?: any
   Document: DocumentType
   App: AppType
   getStaticProps?: GetStaticProps
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
   ComponentMod: any
+  AppMod: any
+  AppServerMod: any
 }
 
 export async function loadDefaultErrorComponents(distDir: string) {
   const Document = interopDefault(require('next/dist/pages/_document'))
-  const App = interopDefault(require('next/dist/pages/_app'))
+  const AppMod = require('next/dist/pages/_app')
+  const App = interopDefault(AppMod)
   const ComponentMod = require('next/dist/pages/_error')
   const Component = interopDefault(ComponentMod)
 
@@ -48,13 +57,17 @@ export async function loadDefaultErrorComponents(distDir: string) {
     buildManifest: require(join(distDir, `fallback-${BUILD_MANIFEST}`)),
     reactLoadableManifest: {},
     ComponentMod,
+    AppMod,
+    // Use App for fallback
+    AppServerMod: AppMod,
   }
 }
 
 export async function loadComponents(
   distDir: string,
   pathname: string,
-  serverless: boolean
+  serverless: boolean,
+  serverComponents?: boolean
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const ComponentMod = await requirePage(pathname, distDir, serverless)
@@ -89,16 +102,21 @@ export async function loadComponents(
     } as LoadComponentsReturnType
   }
 
-  const [DocumentMod, AppMod, ComponentMod] = await Promise.all([
+  const [DocumentMod, AppMod, ComponentMod, AppServerMod] = await Promise.all([
     requirePage('/_document', distDir, serverless),
     requirePage('/_app', distDir, serverless),
     requirePage(pathname, distDir, serverless),
+    serverComponents ? requirePage('/_app.server', distDir, serverless) : null,
   ])
 
-  const [buildManifest, reactLoadableManifest] = await Promise.all([
-    require(join(distDir, BUILD_MANIFEST)),
-    require(join(distDir, REACT_LOADABLE_MANIFEST)),
-  ])
+  const [buildManifest, reactLoadableManifest, serverComponentManifest] =
+    await Promise.all([
+      require(join(distDir, BUILD_MANIFEST)),
+      require(join(distDir, REACT_LOADABLE_MANIFEST)),
+      serverComponents
+        ? require(join(distDir, 'server', MIDDLEWARE_FLIGHT_MANIFEST + '.json'))
+        : null,
+    ])
 
   const Component = interopDefault(ComponentMod)
   const Document = interopDefault(DocumentMod)
@@ -114,8 +132,11 @@ export async function loadComponents(
     reactLoadableManifest,
     pageConfig: ComponentMod.config || {},
     ComponentMod,
+    AppMod,
+    AppServerMod,
     getServerSideProps,
     getStaticProps,
     getStaticPaths,
+    serverComponentManifest,
   }
 }

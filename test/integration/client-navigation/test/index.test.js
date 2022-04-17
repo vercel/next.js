@@ -60,6 +60,14 @@ describe('Client Navigation', () => {
       await browser.close()
     })
 
+    it('should have proper error when no children are provided', async () => {
+      const browser = await webdriver(context.appPort, '/link-no-child')
+      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        'No children were passed to <Link> with `href` of `/about` but one child is required'
+      )
+    })
+
     it('should navigate back after reload', async () => {
       const browser = await webdriver(context.appPort, '/nav')
       await browser.elementByCss('#about-link').click()
@@ -85,6 +93,13 @@ describe('Client Navigation', () => {
       const text = await browser.elementByCss('p').text()
       if (browser) await browser.close()
       expect(text).toMatch(/this is the about page/i)
+    })
+
+    it('should error when calling onClick without event', async () => {
+      const browser = await webdriver(context.appPort, '/link-invalid-onclick')
+      expect(await browser.elementByCss('#errors').text()).toBe('0')
+      await browser.elementByCss('#custom-button').click()
+      expect(await browser.elementByCss('#errors').text()).toBe('1')
     })
 
     it('should navigate via the client side', async () => {
@@ -616,6 +631,17 @@ describe('Client Navigation', () => {
             await browser.close()
           }
         }
+      })
+
+      it('should not scroll to hash when scroll={false} is set', async () => {
+        const browser = await webdriver(context.appPort, '/nav/hash-changes')
+        const curScroll = await browser.eval(
+          'document.documentElement.scrollTop'
+        )
+        await browser.elementByCss('#scroll-to-name-item-400-no-scroll').click()
+        expect(curScroll).toBe(
+          await browser.eval('document.documentElement.scrollTop')
+        )
       })
 
       it('should scroll to the specified position on the same page with a name property', async () => {
@@ -1405,75 +1431,6 @@ describe('Client Navigation', () => {
         expect(
           Number(await browser.eval('window.__test_defer_executions'))
         ).toBe(1)
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-
-    it('should warn when scripts are in head', async () => {
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/head')
-
-        await browser.waitForElementByCss('h1')
-        await waitFor(2000)
-        const browserLogs = await browser.log('browser')
-        let found = false
-        browserLogs.forEach((log) => {
-          console.log('log.message', log.message)
-          if (log.message.includes('Use next/script instead')) {
-            found = true
-          }
-        })
-        expect(found).toEqual(true)
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-
-    it('should not warn when application/ld+json scripts are in head', async () => {
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/head-with-json-ld-snippet')
-
-        await browser.waitForElementByCss('h1')
-        await waitFor(2000)
-        const browserLogs = await browser.log('browser')
-        let found = false
-        browserLogs.forEach((log) => {
-          console.log('log.message', log.message)
-          if (log.message.includes('Use next/script instead')) {
-            found = true
-          }
-        })
-        expect(found).toEqual(false)
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-
-    it('should warn when stylesheets are in head', async () => {
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/head')
-
-        await browser.waitForElementByCss('h1')
-        await waitFor(2000)
-        const browserLogs = await browser.log('browser')
-        let found = false
-        browserLogs.forEach((log) => {
-          console.log('log.message', log.message)
-          if (log.message.includes('Do not add stylesheets using next/head')) {
-            found = true
-          }
-        })
-        expect(found).toEqual(true)
       } finally {
         if (browser) {
           await browser.close()

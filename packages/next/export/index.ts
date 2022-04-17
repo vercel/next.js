@@ -239,7 +239,12 @@ export default async function exportApp(
         continue
       }
 
-      if (page === '/_document' || page === '/_app' || page === '/_error') {
+      if (
+        page === '/_document' ||
+        page === '/_app.server' ||
+        page === '/_app' ||
+        page === '/_error'
+      ) {
         continue
       }
 
@@ -381,11 +386,12 @@ export default async function exportApp(
       disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
       // Exported pages do not currently support dynamic HTML.
       supportsDynamicHTML: false,
-      concurrentFeatures: nextConfig.experimental.concurrentFeatures,
+      runtime: nextConfig.experimental.runtime,
       crossOrigin: nextConfig.crossOrigin,
       optimizeCss: nextConfig.experimental.optimizeCss,
+      nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts,
-      optimizeImages: nextConfig.experimental.optimizeImages,
+      reactRoot: nextConfig.experimental.reactRoot || false,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -582,12 +588,12 @@ export default async function exportApp(
             buildExport: options.buildExport,
             serverless: isTargetLikeServerless(nextConfig.target),
             optimizeFonts: nextConfig.optimizeFonts,
-            optimizeImages: nextConfig.experimental.optimizeImages,
             optimizeCss: nextConfig.experimental.optimizeCss,
             disableOptimizedLoading:
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
+            serverComponents: nextConfig.experimental.serverComponents,
           })
 
           for (const validation of result.ampValidations || []) {
@@ -646,7 +652,7 @@ export default async function exportApp(
             // strip leading / and then recurse number of nested dirs
             // to place from base folder
             pageName
-              .substr(1)
+              .slice(1)
               .split('/')
               .map(() => '..')
               .join('/')
