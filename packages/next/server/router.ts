@@ -147,7 +147,6 @@ export default class Router {
     }
     this.seenRequests.add(req)
     try {
-
       // memoize page check calls so we don't duplicate checks for pages
       const pageChecks: { [name: string]: Promise<boolean> } = {}
       const memoizedPageChecker = async (p: string): Promise<boolean> => {
@@ -173,7 +172,12 @@ export default class Router {
           if (fsParams) {
             checkParsedUrl.pathname = fsPathname
 
-            const fsResult = await fsRoute.fn(req, res, fsParams, checkParsedUrl)
+            const fsResult = await fsRoute.fn(
+              req,
+              res,
+              fsParams,
+              checkParsedUrl
+            )
 
             if (fsResult.finished) {
               return true
@@ -239,7 +243,12 @@ export default class Router {
                 name: 'page checker',
                 requireBasePath: false,
                 match: route('/:path*'),
-                fn: async (checkerReq, checkerRes, params, parsedCheckerUrl) => {
+                fn: async (
+                  checkerReq,
+                  checkerRes,
+                  params,
+                  parsedCheckerUrl
+                ) => {
                   let { pathname } = parsedCheckerUrl
                   pathname = removePathTrailingSlash(pathname || '/')
 
@@ -299,7 +308,8 @@ export default class Router {
         const originalPathname = currentPathname
         const requireBasePath = testRoute.requireBasePath !== false
         const isCustomRoute = customRouteTypes.has(testRoute.type)
-        const isPublicFolderCatchall = testRoute.name === 'public folder catchall'
+        const isPublicFolderCatchall =
+          testRoute.name === 'public folder catchall'
         const isMiddlewareCatchall = testRoute.name === 'middleware catchall'
         const keepBasePath =
           isCustomRoute || isPublicFolderCatchall || isMiddlewareCatchall
@@ -338,7 +348,9 @@ export default class Router {
             parsedUrl.query.__nextLocale &&
             !localePathResult.detectedLocale
           ) {
-            currentPathname = `${activeBasePath}/${parsedUrl.query.__nextLocale}${
+            currentPathname = `${activeBasePath}/${
+              parsedUrl.query.__nextLocale
+            }${
               currentPathnameNoBasePath === '/' ? '' : currentPathnameNoBasePath
             }`
           }
@@ -392,7 +404,12 @@ export default class Router {
             parsedUrlUpdated.pathname = currentPathname
           }
 
-          const result = await testRoute.fn(req, res, newParams, parsedUrlUpdated)
+          const result = await testRoute.fn(
+            req,
+            res,
+            newParams,
+            parsedUrlUpdated
+          )
 
           // The response was handled
           if (result.finished) {
