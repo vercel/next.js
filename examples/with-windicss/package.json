@@ -1,0 +1,23 @@
+{
+	"private": true,
+	"scripts": {
+		"dev": "next dev",
+		"build": "next build",
+		"start": "next start"
+	},
+	"dependencies": {
+		"next": "latest",
+		"react": "17.0.2",
+		"react-dom": "17.0.2"
+	},
+	"devDependencies": {
+		"@types/node": "^16.11.9",
+		"@types/react": "^17.0.35",
+		"@types/react-dom": "^17.0.11",
+		"eslint": "7",
+		"eslint-config-next": "12.0.4",
+		"typescript": "^4.5.2",
+		"windicss": "^3.5.1",
+		"windicss-webpack-plugin": "^1.6.10"
+	}
+}
