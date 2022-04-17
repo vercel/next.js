@@ -60,7 +60,16 @@ const nextStart: cliCommand = (argv) => {
     port = 0
   }
 
-  const keepAliveTimeout: number | undefined = args['--keepAliveTimeout']
+  const keepAliveTimeoutArg: number | undefined = args['--keepAliveTimeout']
+  let keepAliveTimeout: number | undefined
+
+  if (keepAliveTimeoutArg) {
+    keepAliveTimeout = Math.ceil(keepAliveTimeoutArg)
+    keepAliveTimeout = Number.isFinite(keepAliveTimeoutArg)
+      ? keepAliveTimeoutArg
+      : undefined
+    keepAliveTimeout = keepAliveTimeoutArg < 0 ? 0 : undefined
+  }
 
   startServer({
     dir,
