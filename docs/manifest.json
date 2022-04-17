@@ -143,8 +143,11 @@
           ]
         },
         {
-          "title": "Middleware",
-          "path": "/docs/middleware.md"
+          "path": "/docs/middleware",
+          "redirect": {
+            "destination": "/docs/advanced-features/middleware",
+            "permanent": true
+          }
         },
         {
           "title": "Going to Production",
@@ -264,6 +267,10 @@
               "path": "/docs/advanced-features/measuring-performance.md"
             },
             {
+              "title": "Middleware (Beta)",
+              "path": "/docs/advanced-features/middleware.md"
+            },
+            {
               "title": "Debugging",
               "path": "/docs/advanced-features/debugging.md"
             },
@@ -311,6 +318,10 @@
                 {
                   "title": "React Server Components",
                   "path": "/docs/advanced-features/react-18/server-components.md"
+                },
+                {
+                  "title": "Switchable Runtime",
+                  "path": "/docs/advanced-features/react-18/switchable-runtime.md"
                 }
               ]
             }

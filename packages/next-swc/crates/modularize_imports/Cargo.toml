@@ -1,0 +1,22 @@
+[package]
+authors = ["강동윤 <kdy1997.dev@gmail.com>"]
+description = "AST Transforms for import modularizer"
+edition = "2018"
+license = "Apache-2.0"
+name = "modularize_imports"
+repository = "https://github.com/vercel/next.js.git"
+version = "0.1.1"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+handlebars = "4.2.1"
+once_cell = "1.8.0"
+regex = "1.5"
+serde = "1"
+swc_cached = "0.1.1"
+swc_ecmascript = { version = "0.147.0", features = ["visit"] }
+
+[dev-dependencies]
+swc_ecma_transforms_testing = "0.80.0"
+testing = "0.19.1"

@@ -14,7 +14,7 @@ describe('Link rendering', () => {
     )
     const html = ReactDOM.renderToString(element)
     expect(html).toMatchInlineSnapshot(
-      `"<a href=\\"/my-path\\" data-reactroot=\\"\\">to another page</a>"`
+      `"<a href=\\"/my-path\\">to another page</a>"`
     )
   })
 })
