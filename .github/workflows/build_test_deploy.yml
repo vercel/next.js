@@ -174,7 +174,7 @@ jobs:
   testUnit:
     name: Test Unit
     runs-on: ubuntu-latest
-    needs: [build, build-native-dev]
+    needs: [build, build-native-test]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -195,7 +195,7 @@ jobs:
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       - run: node run-tests.js --type unit
@@ -204,7 +204,7 @@ jobs:
   testDev:
     name: Test Development
     runs-on: ubuntu-latest
-    needs: [build, build-native-dev]
+    needs: [build, build-native-test]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -235,7 +235,58 @@ jobs:
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: node run-tests.js --type development
+        name: Run test/development
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - name: Upload test trace
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-trace
+          if-no-files-found: ignore
+          retention-days: 2
+          path: |
+            test/traces
+
+  testDevReact17:
+    name: Test Development (react v17)
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test]
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+      NEXT_TEST_REACT_VERSION: ^17
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          node-version: 16
+
+      - run: echo ${{needs.build.outputs.docsChange}}
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+
+      - uses: actions/download-artifact@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
@@ -258,7 +309,7 @@ jobs:
   testDevE2E:
     name: Test Development (E2E)
     runs-on: ubuntu-latest
-    needs: [build, build-native-dev]
+    needs: [build, build-native-test]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -289,7 +340,58 @@ jobs:
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e
+        name: Run test/e2e (dev)
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - name: Upload test trace
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-trace
+          if-no-files-found: ignore
+          retention-days: 2
+          path: |
+            test/traces
+
+  testDevE2EReact17:
+    name: Test Development (E2E) (react v17)
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test]
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+      NEXT_TEST_REACT_VERSION: ^17
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          node-version: 16
+
+      - run: echo ${{needs.build.outputs.docsChange}}
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+
+      - uses: actions/download-artifact@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
@@ -312,7 +414,7 @@ jobs:
   testProd:
     name: Test Production
     runs-on: ubuntu-latest
-    needs: [build, build-native-dev]
+    needs: [build, build-native-test]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -343,7 +445,48 @@ jobs:
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: node run-tests.js --type production
+        name: Run test/production
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+  testProdReact17:
+    name: Test Production (react v17)
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test]
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+      NEXT_TEST_REACT_VERSION: ^17
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          node-version: 16
+
+      - run: echo ${{needs.build.outputs.docsChange}}
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+
+      - uses: actions/download-artifact@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
@@ -356,7 +499,7 @@ jobs:
   testProdE2E:
     name: Test Production (E2E)
     runs-on: ubuntu-latest
-    needs: [build, build-native-dev]
+    needs: [build, build-native-test]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -387,7 +530,48 @@ jobs:
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e
+        name: Run test/e2e (production)
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+  testProdE2EReact17:
+    name: Test Production (E2E) (react v17)
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test]
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+      NEXT_TEST_REACT_VERSION: ^17
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          node-version: ${{ matrix.node }}
+
+      - run: echo ${{needs.build.outputs.docsChange}}
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+
+      - uses: actions/download-artifact@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
@@ -400,7 +584,7 @@ jobs:
   testIntegration:
     name: Test Integration
     runs-on: ubuntu-latest
-    needs: [build, build-native-dev]
+    needs: [build, build-native-test]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -436,7 +620,7 @@ jobs:
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
@@ -458,7 +642,7 @@ jobs:
   testElectron:
     name: Test Electron
     runs-on: ubuntu-latest
-    needs: [build, build-native-dev]
+    needs: [build, build-native-test]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -480,7 +664,7 @@ jobs:
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       - run: cd test/integration/with-electron/app && yarn
@@ -509,7 +693,7 @@ jobs:
   testFirefox:
     name: Test Firefox (production)
     runs-on: ubuntu-latest
-    needs: [build, build-native-dev]
+    needs: [build, build-native-test]
     env:
       BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
@@ -529,17 +713,20 @@ jobs:
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native
       - run: npx playwright install-deps && npx playwright install firefox
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       - run: node run-tests.js test/integration/production/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+      # test rsc hydration on firefox due to limited support of TransformStream api
+      - run: xvfb-run yarn jest test/integration/react-streaming-and-server-components/test/index.test.js -t "should handle streaming server components correctly"
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testSafari:
     name: Test Safari (production)
     runs-on: ubuntu-latest
-    needs: [build, build-native-dev]
+    needs: [build, build-native-test]
     env:
       BROWSERSTACK: true
       BROWSER_NAME: 'safari'
@@ -569,7 +756,7 @@ jobs:
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       # TODO: use macos runner so that we can use playwright to test against
@@ -583,7 +770,7 @@ jobs:
   testSafariOld:
     name: Test Safari 10.1 (nav)
     runs-on: ubuntu-latest
-    needs: [build, testSafari, build-native-dev]
+    needs: [build, testSafari, build-native-test]
     env:
       BROWSERSTACK: true
       LEGACY_SAFARI: true
@@ -613,7 +800,7 @@ jobs:
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || npm i -g browserstack-local@1.4.0'
@@ -625,7 +812,7 @@ jobs:
   testFirefoxNode17:
     name: Test Firefox Node.js 17
     runs-on: ubuntu-latest
-    needs: [build, testFirefox, build-native-dev]
+    needs: [build, testFirefox, build-native-test]
     env:
       BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
@@ -645,7 +832,7 @@ jobs:
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native
       - run: npx playwright install-deps && npx playwright install firefox
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -696,7 +883,7 @@ jobs:
   releaseStats:
     name: Release Stats
     runs-on: ubuntu-latest
-    needs: [publishRelease, build-native-dev]
+    needs: [publishRelease, build-native-test]
     steps:
       - name: Setup node
         uses: actions/setup-node@v2
@@ -711,7 +898,7 @@ jobs:
 
       - uses: actions/download-artifact@v2
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
@@ -721,8 +908,8 @@ jobs:
         env:
           PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
 
-  build-native-dev:
-    name: Build dev binary for tests
+  build-native-test:
+    name: Build native binary for tests and metrics
     runs-on: ubuntu-18.04
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
@@ -797,14 +984,14 @@ jobs:
       - run: npm i -g @napi-rs/cli@2.4.4 turbo@1.0.28
       - name: Build
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        run: turbo run build-native --cache-dir=".turbo"
+        run: turbo run build-native --cache-dir=".turbo" -- --release
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2.2.4
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native/next-swc.linux-x64-gnu.node
 
       - name: Clear the cargo caches
@@ -835,7 +1022,7 @@ jobs:
   test-wasm:
     name: Test the wasm build
     runs-on: ubuntu-18.04
-    needs: [build, build-native-dev, build-wasm-dev]
+    needs: [build, build-native-test, build-wasm-dev]
 
     steps:
       - uses: actions/cache@v2
@@ -857,7 +1044,7 @@ jobs:
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       # node version needs to be 16+ to use --no-addons option
@@ -1026,11 +1213,11 @@ jobs:
         uses: actions/cache@v2
         with:
           path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ matrix.settings.target }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
           restore-keys: |
-            turbo-${{ github.job }}-
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
+            turbo-${{ github.job }}-${{ github.ref_name }}-${{ matrix.settings.target }}
+            turbo-${{ github.job }}-${{ github.ref_name }}-${{ matrix.settings.target }}-${{ needs.build.outputs.weekNum }}-
+            turbo-${{ github.job }}-canary-${{ matrix.settings.target }}-${{ needs.build.outputs.weekNum }}-
 
       - name: Setup node
         uses: actions/setup-node@v2
@@ -1198,3 +1385,66 @@ jobs:
         with:
           name: wasm-dev-binary
           path: packages/next-swc/crates/wasm/pkg-nodejs
+
+  check-trace-secrests:
+    runs-on: ubuntu-latest
+    outputs:
+      trace-api-key: ${{ steps.trace-api-key.outputs.defined }}
+    steps:
+      - id: trace-api-key
+        env:
+          TRACE_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+        if: "${{ env.TRACE_API_KEY != '' }}"
+        run: echo "::set-output name=defined::true"
+  build-performance-metrics:
+    name: Performance Metrics for Release Build
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test, check-trace-secrests]
+    if: needs.check-trace-secrests.outputs.trace-api-key == 'true'
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          node-version: 14
+
+      - uses: actions/cache@v2
+        id: restore-build
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+
+      - name: Set Git Short sha Env
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        run: echo "GIT_SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
+
+      - name: Check Git Short sha Env
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        run: echo ${GIT_SHORT_SHA}
+
+      - uses: actions/download-artifact@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - name: Generate metrics data
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        run: |
+          yarn --cwd bench/nested-deps install
+          node bench/nested-deps/bench.mjs build
+      - uses: datadog/agent-github-action@v1
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          api_key: ${{ secrets.DATA_DOG_API_KEY }}
+      - name: Sending metrics data to Datadog
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        run: |
+          node scripts/trace-dd.mjs bench/nested-deps/.next/trace build ${GIT_SHORT_SHA} ./bench/nested-deps/next.config.js
+        env:
+          DATA_DOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+          DD_TRACE_PARTIAL_FLUSH_MIN_SPANS: 10
+          DD_ENV: canary
+          DD_SERVICE: nextjs-dev-build
+          DD_TRACE_DEBUG: true

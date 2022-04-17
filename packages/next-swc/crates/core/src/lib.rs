@@ -31,6 +31,7 @@ DEALINGS IN THE SOFTWARE.
 
 use auto_cjs::contains_cjs;
 use either::Either;
+use fxhash::FxHashSet;
 use serde::Deserialize;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -47,9 +48,7 @@ use swc_ecmascript::visit::Fold;
 pub mod amp_attributes;
 mod auto_cjs;
 pub mod disallow_re_export_all_in_page;
-pub mod emotion;
 pub mod hook_optimizer;
-pub mod modularize_imports;
 pub mod next_dynamic;
 pub mod next_ssg;
 pub mod page_config;
@@ -58,7 +57,6 @@ pub mod react_remove_properties;
 pub mod relay;
 pub mod remove_console;
 pub mod shake_exports;
-pub mod styled_jsx;
 mod top_level_binding_collector;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -102,7 +100,7 @@ pub struct TransformOptions {
     pub shake_exports: Option<shake_exports::Config>,
 
     #[serde(default)]
-    pub emotion: Option<emotion::EmotionOptions>,
+    pub emotion: Option<swc_emotion::EmotionOptions>,
 
     #[serde(default)]
     pub modularize_imports: Option<modularize_imports::Config>,
@@ -113,6 +111,7 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
     file: Arc<SourceFile>,
     opts: &'a TransformOptions,
     comments: C,
+    eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
 ) -> impl Fold + 'a {
     #[cfg(target_arch = "wasm32")]
     let relay_plugin = noop();
@@ -148,7 +147,10 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
                 Either::Right(noop())
             }
         },
-        Optional::new(next_ssg::next_ssg(), !opts.disable_next_ssg),
+        Optional::new(
+            next_ssg::next_ssg(eliminated_packages),
+            !opts.disable_next_ssg
+        ),
         amp_attributes::amp_attributes(),
         next_dynamic::next_dynamic(
             opts.is_development,
@@ -183,7 +185,7 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
                 }
                 if let FileName::Real(path) = &file.name {
                     path.to_str().map(|_| {
-                        Either::Left(emotion::EmotionTransformer::new(
+                        Either::Left(swc_emotion::EmotionTransformer::new(
                             config.clone(),
                             path,
                             cm,
