@@ -1,10 +1,12 @@
+import type { NextConfigComplete, PageRuntime } from '../server/config-shared'
+
 import '../server/node-polyfill-fetch'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { promises as fs } from 'fs'
-import { isValidElementType } from 'react-is'
+import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
   Redirect,
@@ -16,6 +18,7 @@ import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
+  MIDDLEWARE_ROUTE,
 } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
@@ -36,10 +39,10 @@ import * as Log from './output/log'
 import { loadComponents } from '../server/load-components'
 import { trace } from '../trace'
 import { setHttpAgentOptions } from '../server/config'
-import { NextConfigComplete } from '../server/config-shared'
 import isError from '../lib/is-error'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
+import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 
 const { builtinModules } = require('module')
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
@@ -75,11 +78,11 @@ export interface PageInfo {
   totalSize: number
   static: boolean
   isSsg: boolean
-  isWebSsr: boolean
   ssgPageRoutes: string[] | null
   initialRevalidateSeconds: number | false
   pageDuration: number | undefined
   ssgPageDurations: number[] | undefined
+  runtime: PageRuntime
 }
 
 export async function printTreeView(
@@ -141,6 +144,11 @@ export async function printTreeView(
   ]
 
   const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
+  const hasCustomAppServer = await findPageFile(
+    pagesDir,
+    '/_app.server',
+    pageExtensions
+  )
 
   pageInfos.set('/404', {
     ...(pageInfos.get('/404') || pageInfos.get('/_error')),
@@ -167,7 +175,8 @@ export async function printTreeView(
         !(
           e === '/_document' ||
           e === '/_error' ||
-          (!hasCustomApp && e === '/_app')
+          (!hasCustomApp && e === '/_app') ||
+          (!hasCustomAppServer && e === '/_app.server')
         )
     )
     .sort((a, b) => a.localeCompare(b))
@@ -189,16 +198,16 @@ export async function printTreeView(
       (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
 
     const symbol =
-      item === '/_app'
+      item === '/_app' || item === '/_app.server'
         ? ' '
         : item.endsWith('/_middleware')
         ? 'ƒ'
-        : pageInfo?.isWebSsr
-        ? 'ℇ'
         : pageInfo?.static
         ? '○'
         : pageInfo?.isSsg
         ? '●'
+        : pageInfo?.runtime === 'edge'
+        ? 'ℇ'
         : 'λ'
 
     usedSymbols.add(symbol)
@@ -721,7 +730,7 @@ export async function buildStaticPaths(
       let cleanedEntry = entry
 
       if (localePathResult.detectedLocale) {
-        cleanedEntry = entry.substr(localePathResult.detectedLocale.length + 1)
+        cleanedEntry = entry.slice(localePathResult.detectedLocale.length + 1)
       } else if (defaultLocale) {
         entry = `/${defaultLocale}${entry}`
       }
@@ -856,7 +865,6 @@ export async function isPageStatic(
   isStatic?: boolean
   isAmpOnly?: boolean
   isHybridAmp?: boolean
-  hasFlightData?: boolean
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderRoutes?: string[]
@@ -879,7 +887,6 @@ export async function isPageStatic(
         throw new Error('INVALID_DEFAULT_EXPORT')
       }
 
-      const hasFlightData = !!(Comp as any).__next_rsc__
       const hasGetInitialProps = !!(Comp as any).getInitialProps
       const hasStaticProps = !!mod.getStaticProps
       const hasStaticPaths = !!mod.getStaticPaths
@@ -967,11 +974,7 @@ export async function isPageStatic(
       const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
       const config: PageConfig = mod.pageConfig
       return {
-        isStatic:
-          !hasStaticProps &&
-          !hasGetInitialProps &&
-          !hasServerProps &&
-          !hasFlightData,
+        isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
         isHybridAmp: config.amp === 'hybrid',
         isAmpOnly: config.amp === true,
         prerenderRoutes,
@@ -979,7 +982,6 @@ export async function isPageStatic(
         encodedPrerenderRoutes,
         hasStaticProps,
         hasServerProps,
-        hasFlightData,
         isNextImageImported,
         traceIncludes: config.unstable_includeFiles || [],
         traceExcludes: config.unstable_excludeFiles || [],
@@ -1101,19 +1103,6 @@ export function detectConflictingPaths(
   }
 }
 
-export function getCssFilePaths(buildManifest: BuildManifest): string[] {
-  const cssFiles = new Set<string>()
-  Object.values(buildManifest.pages).forEach((files) => {
-    files.forEach((file) => {
-      if (file.endsWith('.css')) {
-        cssFiles.add(file)
-      }
-    })
-  })
-
-  return [...cssFiles]
-}
-
 export function getRawPageExtensions(pageExtensions: string[]): string[] {
   return pageExtensions.filter(
     (ext) => !ext.startsWith('client.') && !ext.startsWith('server.')
@@ -1122,23 +1111,18 @@ export function getRawPageExtensions(pageExtensions: string[]): string[] {
 
 export function isFlightPage(
   nextConfig: NextConfigComplete,
-  pagePath: string
+  filePath: string
 ): boolean {
-  if (
-    !(
-      nextConfig.experimental.serverComponents &&
-      nextConfig.experimental.concurrentFeatures
-    )
-  )
+  if (!nextConfig.experimental.serverComponents) {
     return false
+  }
 
   const rawPageExtensions = getRawPageExtensions(
     nextConfig.pageExtensions || []
   )
-  const isRscPage = rawPageExtensions.some((ext) => {
-    return new RegExp(`\\.server\\.${ext}$`).test(pagePath)
+  return rawPageExtensions.some((ext) => {
+    return filePath.endsWith(`.server.${ext}`)
   })
-  return isRscPage
 }
 
 export function getUnresolvedModuleFromError(
@@ -1156,7 +1140,8 @@ export async function copyTracedFiles(
   distDir: string,
   pageKeys: string[],
   tracingRoot: string,
-  serverConfig: { [key: string]: any }
+  serverConfig: { [key: string]: any },
+  middlewareManifest: MiddlewareManifest
 ) {
   const outputPath = path.join(distDir, 'standalone')
   const copiedFiles = new Set()
@@ -1187,10 +1172,7 @@ export async function copyTracedFiles(
 
           if (symlink) {
             console.log('symlink', path.relative(tracingRoot, symlink))
-            await fs.symlink(
-              path.relative(tracingRoot, symlink),
-              fileOutputPath
-            )
+            await fs.symlink(symlink, fileOutputPath)
           } else {
             await fs.copyFile(tracedFilePath, fileOutputPath)
           }
@@ -1202,6 +1184,23 @@ export async function copyTracedFiles(
   }
 
   for (const page of pageKeys) {
+    if (MIDDLEWARE_ROUTE.test(page)) {
+      const { files } =
+        middlewareManifest.middleware[page.replace(/\/_middleware$/, '') || '/']
+
+      for (const file of files) {
+        const originalPath = path.join(distDir, file)
+        const fileOutputPath = path.join(
+          outputPath,
+          path.relative(tracingRoot, distDir),
+          file
+        )
+        await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
+        await fs.copyFile(originalPath, fileOutputPath)
+      }
+      continue
+    }
+
     const pageFile = path.join(
       distDir,
       'server',
@@ -1226,16 +1225,11 @@ const NextServer = require('next/dist/server/next-server').default
 const http = require('http')
 const path = require('path')
 
-const nextServer = new NextServer({
-  dir: path.join(__dirname),
-  dev: false,
-  conf: ${JSON.stringify({
-    ...serverConfig,
-    distDir: `./${path.relative(dir, distDir)}`,
-  })},
-})
+// Make sure commands gracefully respect termination signals (e.g. from Docker)
+process.on('SIGTERM', () => process.exit(0))
+process.on('SIGINT', () => process.exit(0))
 
-const handler = nextServer.getRequestHandler()
+let handler
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -1246,12 +1240,26 @@ const server = http.createServer(async (req, res) => {
     res.end('internal server error')
   }
 })
-const currentPort = process.env.PORT || 3000
+const currentPort = parseInt(process.env.PORT, 10) || 3000
+
 server.listen(currentPort, (err) => {
   if (err) {
     console.error("Failed to start server", err)
     process.exit(1)
   }
+  const addr = server.address()
+  const nextServer = new NextServer({
+    hostname: 'localhost',
+    port: currentPort,
+    dir: path.join(__dirname),
+    dev: false,
+    conf: ${JSON.stringify({
+      ...serverConfig,
+      distDir: `./${path.relative(dir, distDir)}`,
+    })},
+  })
+  handler = nextServer.getRequestHandler()
+
   console.log("Listening on port", currentPort)
 })
     `

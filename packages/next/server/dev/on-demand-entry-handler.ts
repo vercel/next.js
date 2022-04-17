@@ -10,6 +10,7 @@ import { reportTrigger } from '../../build/output'
 import type ws from 'ws'
 import { NextConfigComplete } from '../config-shared'
 import { isCustomErrorPage } from '../../build/utils'
+import { getPageRuntime } from '../../build/entries'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -74,7 +75,7 @@ export default function onDemandEntryHandler(
     if (invalidator.rebuildAgain) {
       return invalidator.doneBuilding()
     }
-    const [clientStats, serverStats, serverWebStats] = multiStats.stats
+    const [clientStats, serverStats, edgeServerStats] = multiStats.stats
     const pagePaths = [
       ...getPagePathsFromEntrypoints(
         'client',
@@ -84,10 +85,10 @@ export default function onDemandEntryHandler(
         'server',
         serverStats.compilation.entrypoints
       ),
-      ...(serverWebStats
+      ...(edgeServerStats
         ? getPagePathsFromEntrypoints(
-            'server-web',
-            serverWebStats.compilation.entrypoints
+            'edge-server',
+            edgeServerStats.compilation.entrypoints
           )
         : []),
     ]
@@ -204,11 +205,16 @@ export default function onDemandEntryHandler(
 
       const isMiddleware = normalizedPage.match(MIDDLEWARE_ROUTE)
       const isApiRoute = normalizedPage.match(API_ROUTE) && !isMiddleware
-      const isServerWeb = !!nextConfig.experimental.concurrentFeatures
+      const pageRuntimeConfig = await getPageRuntime(
+        absolutePagePath,
+        nextConfig
+      )
+      const isEdgeServer = pageRuntimeConfig === 'edge'
+
       const isCustomError = isCustomErrorPage(page)
 
       let entriesChanged = false
-      const addPageEntry = (type: 'client' | 'server' | 'server-web') => {
+      const addPageEntry = (type: 'client' | 'server' | 'edge-server') => {
         return new Promise<void>((resolve, reject) => {
           // Makes sure the page that is being kept in on-demand-entries matches the webpack output
           const pageKey = `${type}${page}`
@@ -253,7 +259,7 @@ export default function onDemandEntryHandler(
         : Promise.all([
             addPageEntry('client'),
             addPageEntry(
-              isServerWeb && !isCustomError ? 'server-web' : 'server'
+              isEdgeServer && !isCustomError ? 'edge-server' : 'server'
             ),
           ])
 

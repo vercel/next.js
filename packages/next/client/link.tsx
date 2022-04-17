@@ -86,17 +86,15 @@ function linkClicked(
 ): void {
   const { nodeName } = e.currentTarget
 
-  if (nodeName === 'A' && (isModifiedEvent(e) || !isLocalURL(href))) {
+  // anchors inside an svg have a lowercase nodeName
+  const isAnchorNodeName = nodeName.toUpperCase() === 'A'
+
+  if (isAnchorNodeName && (isModifiedEvent(e) || !isLocalURL(href))) {
     // ignore click for browser’s default behavior
     return
   }
 
   e.preventDefault()
-
-  //  avoid scroll for urls with anchor refs
-  if (scroll == null && as.indexOf('#') >= 0) {
-    scroll = false
-  }
 
   // replace state instead of push if prop is present
   router[replace ? 'replace' : 'push'](href, as, {
@@ -221,6 +219,9 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     }
   }, [router, props.href, props.as])
 
+  const previousHref = React.useRef<string>(href)
+  const previousAs = React.useRef<string>(as)
+
   let { children, replace, shallow, scroll, locale } = props
 
   if (typeof children === 'string') {
@@ -233,6 +234,11 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     try {
       child = React.Children.only(children)
     } catch (err) {
+      if (!children) {
+        throw new Error(
+          `No children were passed to <Link> with \`href\` of \`${props.href}\` but one child is required https://nextjs.org/docs/messages/link-no-children`
+        )
+      }
       throw new Error(
         `Multiple children were passed to <Link> with \`href\` of \`${props.href}\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children` +
           (typeof window !== 'undefined'
@@ -245,11 +251,19 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   }
   const childRef: any = child && typeof child === 'object' && child.ref
 
-  const [setIntersectionRef, isVisible] = useIntersection({
+  const [setIntersectionRef, isVisible, resetVisible] = useIntersection({
     rootMargin: '200px',
   })
+
   const setRef = React.useCallback(
     (el: Element) => {
+      // Before the link getting observed, check if visible state need to be reset
+      if (previousAs.current !== as || previousHref.current !== href) {
+        resetVisible()
+        previousAs.current = as
+        previousHref.current = href
+      }
+
       setIntersectionRef(el)
       if (childRef) {
         if (typeof childRef === 'function') childRef(el)
@@ -258,7 +272,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         }
       }
     },
-    [childRef, setIntersectionRef]
+    [as, childRef, href, resetVisible, setIntersectionRef]
   )
   React.useEffect(() => {
     const shouldPrefetch = isVisible && p && isLocalURL(href)
@@ -281,6 +295,13 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   } = {
     ref: setRef,
     onClick: (e: React.MouseEvent) => {
+      if (process.env.NODE_ENV !== 'production') {
+        if (!e) {
+          throw new Error(
+            `Component rendered inside next/link has to pass click event to "onClick" prop.`
+          )
+        }
+      }
       if (child.props && typeof child.props.onClick === 'function') {
         child.props.onClick(e)
       }

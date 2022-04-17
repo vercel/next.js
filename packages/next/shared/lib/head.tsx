@@ -3,6 +3,7 @@ import Effect from './side-effect'
 import { AmpStateContext } from './amp-context'
 import { HeadManagerContext } from './head-manager-context'
 import { isInAmpMode } from './amp'
+import { warnOnce } from './utils'
 
 type WithInAmpMode = {
   inAmpMode?: boolean
@@ -159,6 +160,24 @@ function reduceComponents(
           newProps['data-optimized-fonts'] = true
 
           return React.cloneElement(c, newProps)
+        }
+      }
+      if (
+        process.env.NODE_ENV === 'development' &&
+        process.env.__NEXT_CONCURRENT_FEATURES
+      ) {
+        // omit JSON-LD structured data snippets from the warning
+        if (c.type === 'script' && c.props['type'] !== 'application/ld+json') {
+          const srcMessage = c.props['src']
+            ? `<script> tag with src="${c.props['src']}"`
+            : `inline <script>`
+          warnOnce(
+            `Do not add <script> tags using next/head (see ${srcMessage}). Use next/script instead. \nSee more info here: https://nextjs.org/docs/messages/no-script-tags-in-head-component`
+          )
+        } else if (c.type === 'link' && c.props['rel'] === 'stylesheet') {
+          warnOnce(
+            `Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="${c.props['href']}"). Use Document instead. \nSee more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component`
+          )
         }
       }
       return React.cloneElement(c, { key })

@@ -1,20 +1,37 @@
 import path from 'path'
 import assert from 'assert'
 import { NextConfig } from 'next'
-import { NextInstance } from './next-modes/base'
+import { InstallCommand, NextInstance, PackageJson } from './next-modes/base'
 import { NextDevInstance } from './next-modes/next-dev'
 import { NextStartInstance } from './next-modes/next-start'
 
-const testFile = module.parent.filename
+// increase timeout to account for yarn install time
+jest.setTimeout((process.platform === 'win32' ? 240 : 180) * 1000)
+
 const testsFolder = path.join(__dirname, '..')
+
+let testFile
+const testFileRegex = /\.test\.(js|tsx?)/
+
+const visitedModules = new Set()
+const checkParent = (mod) => {
+  if (!mod?.parent || visitedModules.has(mod)) return
+  testFile = mod.parent.filename || ''
+  visitedModules.add(mod)
+
+  if (!testFileRegex.test(testFile)) {
+    checkParent(mod.parent)
+  }
+}
+checkParent(module)
 
 process.env.TEST_FILE_PATH = testFile
 
 let testMode = process.env.NEXT_TEST_MODE
 
-if (!testFile.match(/\.test\.(js|tsx?)/)) {
+if (!testFileRegex.test(testFile)) {
   throw new Error(
-    'e2e-utils imported from non-test file (must end with .test.(js,ts,tsx)'
+    `e2e-utils imported from non-test file ${testFile} (must end with .test.(js,ts,tsx)`
   )
 }
 
@@ -97,6 +114,10 @@ export async function createNext(opts: {
   }
   nextConfig?: NextConfig
   skipStart?: boolean
+  installCommand?: InstallCommand
+  buildCommand?: string
+  packageJson?: PackageJson
+  startCommand?: string
 }): Promise<NextInstance> {
   try {
     if (nextInstance) {

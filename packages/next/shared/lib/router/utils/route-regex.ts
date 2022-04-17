@@ -1,13 +1,9 @@
+import { escapeStringRegexp } from '../../escape-regexp'
+
 interface Group {
   pos: number
   repeat: boolean
   optional: boolean
-}
-
-// this isn't importing the escape-string-regex module
-// to reduce bytes
-function escapeRegex(str: string) {
-  return str.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
 }
 
 function parseParameter(param: string) {
@@ -34,7 +30,7 @@ export function getParametrizedRoute(route: string) {
         groups[key] = { pos: groupIndex++, repeat, optional }
         return repeat ? (optional ? '(?:/(.+?))?' : '/(.+?)') : '/([^/]+?)'
       } else {
-        return `/${escapeRegex(segment)}`
+        return `/${escapeStringRegexp(segment)}`
       }
     })
     .join('')
@@ -77,7 +73,7 @@ export function getParametrizedRoute(route: string) {
           if (cleanedKey.length === 0 || cleanedKey.length > 30) {
             invalidKey = true
           }
-          if (!isNaN(parseInt(cleanedKey.substr(0, 1)))) {
+          if (!isNaN(parseInt(cleanedKey.slice(0, 1)))) {
             invalidKey = true
           }
 
@@ -92,7 +88,7 @@ export function getParametrizedRoute(route: string) {
               : `/(?<${cleanedKey}>.+?)`
             : `/(?<${cleanedKey}>[^/]+?)`
         } else {
-          return `/${escapeRegex(segment)}`
+          return `/${escapeStringRegexp(segment)}`
         }
       })
       .join('')
