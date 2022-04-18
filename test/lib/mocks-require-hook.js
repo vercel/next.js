@@ -18,7 +18,7 @@ function matchModule(request) {
 
 const resolveFilename = mod._resolveFilename
 mod._resolveFilename = function (request, parent, isMain, options) {
-  const hookResolved = matchModule(request) // hookPropertyMap.get(request)
+  const hookResolved = matchModule(request)
   if (hookResolved) request = hookResolved
   return resolveFilename.call(mod, request, parent, isMain, options)
 }
