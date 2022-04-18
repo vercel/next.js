@@ -1908,9 +1908,9 @@ dependencies = [
 
 [[package]]
 name = "swc_bundler"
-version = "0.137.0"
+version = "0.137.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f9841f7675e2d7c5ec72018b4fa030e24f76275583b4a244a439b634f369318"
+checksum = "d88962abba86ff6e0221a5fcd821e0383ed293d3f91b5edaa6e6d08514150b48"
 dependencies = [
  "ahash",
  "anyhow",
@@ -2108,9 +2108,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_codegen"
-version = "0.105.1"
+version = "0.105.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a110ba748bd5a8d373acec3ac9f1be30234ca4bfb2dd0a919e57d2fe16b49ea6"
+checksum = "d2a88c6555f9475b3349679c8db17af662fe20452ae76db76ed5fe412e791432"
 dependencies = [
  "bitflags",
  "memchr",
@@ -2196,9 +2196,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_minifier"
-version = "0.104.1"
+version = "0.104.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bc0be700ddeae725e08d551eb131b71f25c9d192a49e8106bde7437f070b1cc"
+checksum = "f3c69e02f70bc63b27e0eb9c1019049b0643ca83c251956456785f753693cb20"
 dependencies = [
  "ahash",
  "indexmap",
@@ -2227,9 +2227,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_parser"
-version = "0.102.0"
+version = "0.102.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cafbcdc30d6d3da9d0829cb5011adf1d40de5d7bdad5b3228a5c978e01c75da3"
+checksum = "29d2f7b7d31ecab9704b1064c9713b06ea2e2f9654eb56025b8471f81517dda8"
 dependencies = [
  "either",
  "enum_kind",
@@ -2299,7 +2299,6 @@ dependencies = [
  "better_scoped_tls",
  "once_cell",
  "phf",
- "rayon",
  "serde",
  "smallvec",
  "swc_atoms",
@@ -2366,9 +2365,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_module"
-version = "0.105.0"
+version = "0.105.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b921ed7a081930439567cb64daccda9fda42a030e825c3b2b9655a6fda3b313"
+checksum = "678b0a606eaf68b1af778e0f96cf5ee7f31ca3bdf001bba230670280bc6200cd"
 dependencies = [
  "Inflector",
  "ahash",
@@ -2398,7 +2397,6 @@ dependencies = [
  "dashmap 5.1.0",
  "indexmap",
  "once_cell",
- "rayon",
  "serde_json",
  "swc_atoms",
  "swc_common",
@@ -2502,7 +2500,6 @@ checksum = "54a6b4842755a0874036d3d396809c763d259af62af228b86f0543b59873a563"
 dependencies = [
  "indexmap",
  "once_cell",
- "rayon",
  "swc_atoms",
  "swc_common",
  "swc_ecma_ast",
