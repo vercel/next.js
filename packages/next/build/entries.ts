@@ -8,8 +8,12 @@ import fs from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
-import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
-import { MIDDLEWARE_ROUTE } from '../lib/constants'
+import {
+  API_ROUTE,
+  DOT_NEXT_ALIAS,
+  PAGES_DIR_ALIAS,
+  MIDDLEWARE_ROUTE,
+} from '../lib/constants'
 import { __ApiPreviewProps } from '../server/api-utils'
 import { isTargetLikeServerless } from '../server/utils'
 import { normalizePagePath } from '../server/normalize-page-path'

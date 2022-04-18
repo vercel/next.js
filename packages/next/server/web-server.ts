@@ -207,4 +207,26 @@ export default class NextWebServer extends BaseServer {
       components: result,
     }
   }
+
+  protected getIncrementalCache() {
+    return {
+      async set() {},
+      async get() {
+        return null
+      },
+      async getFallback() {
+        return ''
+      },
+    }
+  }
+
+  protected getCacheFilesystem() {
+    return {
+      readFile: () => Promise.resolve(''),
+      readFileSync: () => '',
+      writeFile: () => Promise.resolve(),
+      mkdir: () => Promise.resolve(),
+      stat: () => Promise.resolve({ mtime: new Date() }),
+    }
+  }
 }

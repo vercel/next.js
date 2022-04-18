@@ -21,6 +21,7 @@ import webdriver from 'next-webdriver'
 const appDir = join(__dirname, '../app')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const invalidPage = new File(join(appDir, 'pages/invalid.js'))
+const indexPage = new File(join(appDir, 'pages/index.js'))
 
 describe('Basics', () => {
   runTests('default setting with react 18', basics)
@@ -67,11 +68,13 @@ function runTestsAgainstRuntime(runtime) {
           invalidPage.write(`export const value = 1`)
         }
         nextConfig.replace("// runtime: 'edge'", `runtime: '${runtime}'`)
+        indexPage.replace("// runtime: 'edge'", `runtime: '${runtime}'`)
       },
       afterAll: (env) => {
         if (env === 'dev') {
           invalidPage.delete()
         }
+        indexPage.restore()
         nextConfig.restore()
       },
     }

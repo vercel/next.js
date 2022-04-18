@@ -12,19 +12,17 @@ import type { Rewrite } from '../lib/load-custom-routes'
 import type { RenderOpts, RenderOptsPartial } from './render'
 import type { ResponseCacheEntry, ResponseCacheValue } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
-import type { CacheFs } from '../shared/lib/utils'
 import type { PreviewData } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
+import type { IncrementalCache } from './incremental-cache'
 
 import { join, resolve } from 'path'
 import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/load-custom-routes'
 import {
-  SERVERLESS_DIRECTORY,
-  SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
@@ -44,7 +42,6 @@ import { DecodeError, normalizeRepeatedSlashes } from '../shared/lib/utils'
 import { isTargetLikeServerless } from './utils'
 import Router, { route } from './router'
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
-import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage, isBot } from './utils'
 import RenderResult from './render-result'
@@ -224,6 +221,7 @@ export default abstract class Server {
   protected abstract getRoutesManifest(): CustomRoutes
   protected abstract getPrerenderManifest(): PrerenderManifest
   protected abstract getServerComponentManifest(): any
+  protected abstract getIncrementalCache(dev: boolean): any
 
   protected abstract sendRenderResult(
     req: BaseNextRequest,
@@ -350,32 +348,7 @@ export default abstract class Server {
     this.router = new Router(this.generateRoutes())
     this.setAssetPrefix(assetPrefix)
 
-    this.incrementalCache = new IncrementalCache({
-      fs: this.getCacheFilesystem(),
-      dev,
-      distDir: this.distDir,
-      pagesDir: join(
-        this.distDir,
-        this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-        'pages'
-      ),
-      locales: this.nextConfig.i18n?.locales,
-      max: this.nextConfig.experimental.isrMemoryCacheSize,
-      flushToDisk: !minimalMode && this.nextConfig.experimental.isrFlushToDisk,
-      getPrerenderManifest: () => {
-        if (dev) {
-          return {
-            version: -1 as any, // letting us know this doesn't conform to spec
-            routes: {},
-            dynamicRoutes: {},
-            notFoundRoutes: [],
-            preview: null as any, // `preview` is special case read in next-dev-server
-          }
-        } else {
-          return this.getPrerenderManifest()
-        }
-      },
-    })
+    this.incrementalCache = this.getIncrementalCache(dev)
     this.responseCache = new ResponseCache(
       this.incrementalCache,
       this.minimalMode
@@ -1891,16 +1864,6 @@ export default abstract class Server {
       pathname,
       query,
     })
-  }
-
-  protected getCacheFilesystem(): CacheFs {
-    return {
-      readFile: () => Promise.resolve(''),
-      readFileSync: () => '',
-      writeFile: () => Promise.resolve(),
-      mkdir: () => Promise.resolve(),
-      stat: () => Promise.resolve({ mtime: new Date() }),
-    }
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {

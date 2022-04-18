@@ -2,7 +2,6 @@ import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
 import type { Params, Route } from './router'
-import type { CacheFs } from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
@@ -74,6 +73,7 @@ import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { clonableBodyForRequest } from './body-streams'
+import { IncrementalCache } from './incremental-cache'
 
 export * from './base-server'
 
@@ -704,13 +704,13 @@ export default class NextNodeServer extends BaseServer {
     ))
   }
 
-  protected getCacheFilesystem(): CacheFs {
+  protected getCacheFilesystem() {
     return {
-      readFile: (f) => fs.promises.readFile(f, 'utf8'),
-      readFileSync: (f) => fs.readFileSync(f, 'utf8'),
-      writeFile: (f, d) => fs.promises.writeFile(f, d, 'utf8'),
-      mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
-      stat: (f) => fs.promises.stat(f),
+      readFile: (f: string) => fs.promises.readFile(f, 'utf8'),
+      readFileSync: (f: string) => fs.readFileSync(f, 'utf8'),
+      writeFile: (f: string, d: number) => fs.promises.writeFile(f, d, 'utf8'),
+      mkdir: (dir: string) => fs.promises.mkdir(dir, { recursive: true }),
+      stat: (f: string) => fs.promises.stat(f),
     }
   }
 
@@ -1356,5 +1356,35 @@ export default class NextNodeServer extends BaseServer {
       )
       this.warnIfQueryParametersWereDeleted = () => {}
     }
+  }
+
+  protected getIncrementalCache(dev: boolean) {
+    return new IncrementalCache({
+      fs: this.getCacheFilesystem(),
+      dev,
+      distDir: this.distDir,
+      pagesDir: join(
+        this.distDir,
+        this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+        'pages'
+      ),
+      locales: this.nextConfig.i18n?.locales,
+      max: this.nextConfig.experimental.isrMemoryCacheSize,
+      flushToDisk:
+        !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
+      getPrerenderManifest: () => {
+        if (dev) {
+          return {
+            version: -1 as any, // letting us know this doesn't conform to spec
+            routes: {},
+            dynamicRoutes: {},
+            notFoundRoutes: [],
+            preview: null as any, // `preview` is special case read in next-dev-server
+          }
+        } else {
+          return this.getPrerenderManifest()
+        }
+      },
+    })
   }
 }

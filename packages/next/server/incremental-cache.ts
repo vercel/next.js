@@ -1,5 +1,3 @@
-import type { CacheFs } from '../shared/lib/utils'
-
 import LRUCache from 'next/dist/compiled/lru-cache'
 import path from 'path'
 import { PrerenderManifest } from '../build'
@@ -8,6 +6,14 @@ import { IncrementalCacheValue, IncrementalCacheEntry } from './response-cache'
 
 function toRoute(pathname: string): string {
   return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
+}
+
+interface CacheFs {
+  readFile(f: string): Promise<string>
+  readFileSync(f: string): string
+  writeFile(f: string, d: any): Promise<void>
+  mkdir(dir: string): Promise<void | string>
+  stat(f: string): Promise<{ mtime: Date }>
 }
 
 export class IncrementalCache {
