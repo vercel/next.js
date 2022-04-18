@@ -133,7 +133,7 @@ export function runTests(ctx) {
     slowImageServer.stop()
   })
 
-  if (ctx.domains.includes('localhost')) {
+  if (ctx.remotePatterns.length > 0) {
     it('should normalize invalid status codes', async () => {
       const url = `http://localhost:${
         slowImageServer.port
@@ -577,7 +577,7 @@ export function runTests(ctx) {
     })
   }
 
-  if (ctx.domains.includes('localhost')) {
+  if (ctx.remotePatterns.length > 0) {
     it('should resize absolute url from localhost', async () => {
       const url = `http://localhost:${ctx.appPort}/test.png`
       const query = { url, w: ctx.w, q: 80 }
@@ -756,7 +756,7 @@ export function runTests(ctx) {
     )
   })
 
-  if (ctx.domains.includes('localhost')) {
+  if (ctx.remotePatterns.length > 0) {
     it('should fail when url fails to load an image', async () => {
       const url = `http://localhost:${ctx.appPort}/not-an-image`
       const query = { w: ctx.w, url, q: 100 }
@@ -1113,7 +1113,7 @@ export function runTests(ctx) {
     expect(await res.text()).toBe("The requested resource isn't a valid image.")
   })
 
-  if (ctx.domains.length) {
+  if (ctx.remotePatterns.length > 0) {
     it('should handle concurrent requests', async () => {
       await cleanImagesDir(ctx)
       const delay = 500
@@ -1194,12 +1194,12 @@ export function runTests(ctx) {
 export const setupTests = (ctx) => {
   const nextConfig = new File(join(ctx.appDir, 'next.config.js'))
 
-  if (!ctx.domains) {
-    ctx.domains = [
-      'localhost',
-      'example.com',
-      'assets.vercel.com',
-      'image-optimization-test.vercel.app',
+  if (!ctx.remotePatterns) {
+    ctx.remotePatterns = [
+      { protocol: 'http', hostname: 'localhost' },
+      { hostname: 'example.com' },
+      { protocol: 'https', hostname: 'assets.vercel.com' },
+      { protocol: 'https', hostname: 'image-optimization-test.vercel.app' },
     ]
   }
 
@@ -1211,7 +1211,7 @@ export const setupTests = (ctx) => {
         ...ctx,
         w: size,
         isDev: true,
-        domains: [],
+        remotePatterns: [],
         avifEnabled: false,
       }
 
@@ -1251,7 +1251,7 @@ export const setupTests = (ctx) => {
           images: {
             deviceSizes: [largeSize],
             imageSizes: [size],
-            domains: curCtx.domains,
+            remotePatterns: curCtx.remotePatterns,
             formats: ['image/avif', 'image/webp'],
           },
         })
@@ -1285,7 +1285,7 @@ export const setupTests = (ctx) => {
         ...ctx,
         w: size,
         isDev: false,
-        domains: [],
+        remotePatterns: [],
       }
       beforeAll(async () => {
         curCtx.nextOutput = ''
@@ -1325,7 +1325,7 @@ export const setupTests = (ctx) => {
         images: {
           formats: ['image/avif', 'image/webp'],
           deviceSizes: [size, largeSize],
-          domains: ctx.domains,
+          remotePatterns: ctx.remotePatterns,
         },
       })
       curCtx.nextOutput = ''

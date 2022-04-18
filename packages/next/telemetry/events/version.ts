@@ -21,6 +21,7 @@ type EventCliSessionStarted = {
   localeDomainsCount: number | null
   localeDetectionEnabled: boolean | null
   imageDomainsCount: number | null
+  imageRemotePatternsCount: number | null
   imageSizes: string | null
   imageLoader: string | null
   trailingSlashEnabled: boolean
@@ -64,6 +65,7 @@ export function eventCliSession(
     | 'localeDomainsCount'
     | 'localeDetectionEnabled'
     | 'imageDomainsCount'
+    | 'imageRemotePatternsCount'
     | 'imageSizes'
     | 'imageLoader'
     | 'trailingSlashEnabled'
@@ -95,6 +97,9 @@ export function eventCliSession(
     localeDomainsCount: i18n?.domains ? i18n.domains.length : null,
     localeDetectionEnabled: !i18n ? null : i18n.localeDetection !== false,
     imageDomainsCount: images?.domains ? images.domains.length : null,
+    imageRemotePatternsCount: images?.remotePatterns
+      ? images.remotePatterns.length
+      : null,
     imageSizes: images?.imageSizes ? images.imageSizes.join(',') : null,
     imageLoader: images?.loader,
     trailingSlashEnabled: !!nextConfig?.trailingSlash,

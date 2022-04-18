@@ -1059,7 +1059,7 @@ function defaultLoader({
       )
     }
 
-    if (!src.startsWith('/') && config.domains) {
+    if (!src.startsWith('/') && (config.domains || config.remotePatterns)) {
       let parsedSrc: URL
       try {
         parsedSrc = new URL(src)
@@ -1070,14 +1070,17 @@ function defaultLoader({
         )
       }
 
-      if (
-        process.env.NODE_ENV !== 'test' &&
-        !config.domains.includes(parsedSrc.hostname)
-      ) {
-        throw new Error(
-          `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
-            `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
-        )
+      if (process.env.NODE_ENV === 'development') {
+        const domains = config.remotePatterns
+          .map((p) => p.hostname)
+          .concat(config.domains)
+        // TODO: can we utilize the backend to get the error message, perhaps from onError()?
+        if (!domains.includes(parsedSrc.hostname)) {
+          throw new Error(
+            `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
+              `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
+          )
+        }
       }
     }
   }

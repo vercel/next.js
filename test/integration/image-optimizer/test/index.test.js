@@ -48,6 +48,58 @@ describe('Image Optimizer', () => {
       )
     })
 
+    it('should error when remotePatterns length exceeds 50', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            remotePatterns: Array.from({ length: 51 }).map((_) => ({
+              hostname: 'example.com',
+            })),
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Specified images.remotePatterns exceeds length of 50, received length (51), please reduce the length of the array to continue'
+      )
+    })
+
+    it('should error when remotePatterns has invalid object', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            remotePatterns: [{ foo: 'example.com' }],
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Specified images.remotePatterns[0] should be RemotePattern object received invalid value ({"foo":"example.com"})'
+      )
+    })
+
     it('should error when sizes length exceeds 25', async () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',

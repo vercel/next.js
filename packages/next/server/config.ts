@@ -235,6 +235,52 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )
       }
     }
+
+    if (images.remotePatterns) {
+      if (!Array.isArray(images.remotePatterns)) {
+        throw new Error(
+          `Specified images.remotePatterns should be an Array received ${typeof images.remotePatterns}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+
+      // static images are automatically prefixed with assetPrefix
+      // so we need to ensure _next/image allows downloading from
+      // this resource
+      if (config.assetPrefix?.startsWith('http')) {
+        const {
+          protocol: proto,
+          hostname,
+          pathname,
+        } = new URL(config.assetPrefix)
+        const protocol = proto === 'https:' ? 'https' : 'http'
+        images.remotePatterns.push({ protocol, hostname, pathname })
+      }
+
+      if (images.remotePatterns.length > 50) {
+        throw new Error(
+          `Specified images.remotePatterns exceeds length of 50, received length (${images.remotePatterns.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+
+      const validProps = new Set(['protocol', 'hostname', 'pathname', 'port'])
+      const invalidIndex = images.remotePatterns.findIndex(
+        (d: unknown) =>
+          !d ||
+          typeof d !== 'object' ||
+          Object.entries(d).some(
+            ([k, v]) => !validProps.has(k) || typeof v !== 'string'
+          )
+      )
+      const invalid = images.remotePatterns[invalidIndex]
+      if (invalid) {
+        throw new Error(
+          `Specified images.remotePatterns[${invalidIndex}] should be RemotePattern object received invalid value (${JSON.stringify(
+            invalid
+          )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+    }
+
     if (images.deviceSizes) {
       const { deviceSizes } = images
       if (!Array.isArray(deviceSizes)) {

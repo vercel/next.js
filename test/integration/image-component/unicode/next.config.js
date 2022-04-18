@@ -1,5 +1,5 @@
 module.exports = {
   images: {
-    domains: ['image-optimization-test.vercel.app'],
+    remotePatterns: [{ hostname: 'image-optimization-test.vercel.app' }],
   },
 }
