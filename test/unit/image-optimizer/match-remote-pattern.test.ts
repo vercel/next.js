@@ -3,7 +3,7 @@ import { matchRemotePattern } from 'next/dist/server/image-optimizer'
 
 describe('matchRemotePattern', () => {
   it('should match literal hostname', () => {
-    const p = { hostname: 'example.com' }
+    const p = { hostname: 'example.com' } as const
     expect(matchRemotePattern(p, new URL('https://example.com'))).toBe(true)
     expect(matchRemotePattern(p, new URL('https://example.com.uk'))).toBe(false)
     expect(matchRemotePattern(p, new URL('https://example.net'))).toBe(false)
@@ -35,7 +35,7 @@ describe('matchRemotePattern', () => {
   })
 
   it('should match literal protocol and hostname', () => {
-    const p = { protocol: 'https', hostname: 'example.com' }
+    const p = { protocol: 'https', hostname: 'example.com' } as const
     expect(matchRemotePattern(p, new URL('https://example.com'))).toBe(true)
     expect(matchRemotePattern(p, new URL('https://example.com.uk'))).toBe(false)
     expect(matchRemotePattern(p, new URL('https://sub.example.com'))).toBe(
@@ -69,7 +69,7 @@ describe('matchRemotePattern', () => {
   })
 
   it('should match literal protocol, hostname, no port', () => {
-    const p = { protocol: 'https', hostname: 'example.com', port: '' }
+    const p = { protocol: 'https', hostname: 'example.com', port: '' } as const
     expect(matchRemotePattern(p, new URL('https://example.com'))).toBe(true)
     expect(matchRemotePattern(p, new URL('https://example.com.uk'))).toBe(false)
     expect(matchRemotePattern(p, new URL('https://sub.example.com'))).toBe(
@@ -103,7 +103,11 @@ describe('matchRemotePattern', () => {
   })
 
   it('should match literal protocol, hostname, port 5000', () => {
-    const p = { protocol: 'https', hostname: 'example.com', port: '5000' }
+    const p = {
+      protocol: 'https',
+      hostname: 'example.com',
+      port: '5000',
+    } as const
     expect(matchRemotePattern(p, new URL('https://example.com:5000'))).toBe(
       true
     )
@@ -155,7 +159,7 @@ describe('matchRemotePattern', () => {
       hostname: 'example.com',
       port: '5000',
       pathname: '/path/to/file',
-    }
+    } as const
     expect(matchRemotePattern(p, new URL('https://example.com:5000'))).toBe(
       false
     )
@@ -215,7 +219,7 @@ describe('matchRemotePattern', () => {
   })
 
   it('should match hostname pattern with single asterisk', () => {
-    const p = { hostname: 'avatars.*.example.com' }
+    const p = { hostname: 'avatars.*.example.com' } as const
     expect(matchRemotePattern(p, new URL('https://com'))).toBe(false)
     expect(matchRemotePattern(p, new URL('https://example.com'))).toBe(false)
     expect(matchRemotePattern(p, new URL('https://sub.example.com'))).toBe(
@@ -240,7 +244,7 @@ describe('matchRemotePattern', () => {
   })
 
   it('should match hostname pattern with double asterisk', () => {
-    const p = { hostname: '**.example.com' }
+    const p = { hostname: '**.example.com' } as const
     expect(matchRemotePattern(p, new URL('https://com'))).toBe(false)
     expect(matchRemotePattern(p, new URL('https://example.com'))).toBe(false)
     expect(matchRemotePattern(p, new URL('https://sub.example.com'))).toBe(true)
@@ -266,7 +270,10 @@ describe('matchRemotePattern', () => {
   })
 
   it('should match pathname pattern with single asterisk', () => {
-    const p = { hostname: 'example.com', pathname: '/act123/*/avatar.jpg' }
+    const p = {
+      hostname: 'example.com',
+      pathname: '/act123/*/avatar.jpg',
+    } as const
     expect(matchRemotePattern(p, new URL('https://com'))).toBe(false)
     expect(matchRemotePattern(p, new URL('https://example.com'))).toBe(false)
     expect(matchRemotePattern(p, new URL('https://sub.example.com'))).toBe(
@@ -324,7 +331,7 @@ describe('matchRemotePattern', () => {
   })
 
   it('should match pathname pattern with double asterisk', () => {
-    const p = { hostname: 'example.com', pathname: '/act123/**' }
+    const p = { hostname: 'example.com', pathname: '/act123/**' } as const
     expect(matchRemotePattern(p, new URL('https://com'))).toBe(false)
     expect(matchRemotePattern(p, new URL('https://example.com'))).toBe(false)
     expect(matchRemotePattern(p, new URL('https://sub.example.com'))).toBe(
