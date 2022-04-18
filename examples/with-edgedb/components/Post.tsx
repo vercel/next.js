@@ -5,16 +5,15 @@ import { PostProps } from '../pages/blog/[id]'
 
 const Post: React.FC<{ post: PostProps }> = ({ post }) => {
   return (
-    <Link href={`/blog/${post.id}`}>
+    <Link href={`/blog/${post.id}`} passHref>
       <div>
         <h2>{post.title}</h2>
         <small>By {post.authorName}</small>
         <br />
         <br />
-        <ReactMarkdown
-          children={post.content || ''}
-          className={'react-markdown'}
-        />
+        <ReactMarkdown className={'react-markdown'}>
+          {post.content || ''}
+        </ReactMarkdown>
         <style jsx>{`
           div {
             color: inherit;

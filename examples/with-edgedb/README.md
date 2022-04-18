@@ -28,16 +28,6 @@ Then `cd` into the created directory.
 $ cd with-edgedb-app
 ```
 
-### Install dependencies
-
-Install npm dependencies:
-
-```bash
-$  npm install
-# or
-$  yarn
-```
-
 ### Install the CLI
 
 First install the EdgeDB CLI if you haven't already.
@@ -59,6 +49,16 @@ $ edgedb project init
 ```
 
 After you follow the prompts, this command will spin up a local EdgeDB instance and apply all the migrations inside `dbschema/migrations`. Now that the project is initialized, all EdgeDB clients initialized inside the project directory will connect to this instance automatically—no need for environment variables or hard-coded configuration. ([Read more about projects here.](https://www.edgedb.com/docs/guides/projects))
+
+### Install dependencies
+
+Install npm dependencies:
+
+```bash
+$  npm install
+# or
+$  yarn
+```
 
 ### Generate the query builder
 
@@ -90,7 +90,14 @@ The application should now be running on http://localhost:3000.
 
 ## Notes
 
-### API structure
+#### packages structure
+
+- `/`: See all published posts
+- `/drafts`: See all drafts
+- `/create`: Form to create new draft
+- `/blog/:id`: See either an edit page or a published post, depending on the publish status of the post.
+
+#### API structure
 
 - `POST /api/post`: Create a new post
   - Body: `{title: string; content: string; authorName: string}`
@@ -107,10 +114,11 @@ Evolving the application typically requires three steps:
 2. Generate a new migration with `edgedb migration create`
 3. Apply the migration with `edgedb migrate`
 4. Regenerate the query builder with `npx edgeql-js`
+5. Update the application code, as needed.
 
 ## Deployment
 
-To deploy this application, follow the EdgeDB deployment guides for your preferred cloud provider:
+To deploy this application, deploy EdgeDB to your preferred cloud provider:
 
 - [AWS](https://www.edgedb.com/docs/guides/deployment/aws_aurora_ecs)
 - [Google Cloud](https://www.edgedb.com/docs/guides/deployment/gcp)
@@ -119,13 +127,21 @@ To deploy this application, follow the EdgeDB deployment guides for your preferr
 - [Fly.io](https://www.edgedb.com/docs/guides/deployment/fly_io)
 - [Docker](https://www.edgedb.com/docs/guides/deployment/docker) (cloud-agnostic)
 
-After setting up your cloud-hosted EdgeDB instance:
+Then:
 
 1. Find your instance's DSN (AKA connection string). The exact instructions for this depend on which cloud you are deploying to.
-2. Deploy this app to Vercel with the button below. You'll be prompted to provide a value for `EDGEDB_DSN`.
-3. Open the application.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-edgedb&project-name=with-edgedb&repository-name=with-edgedb&env=EDGEDB_DSN)
+2. Use this DSN to migrate your remote instance to the latest schema. Run this command from inside your project directory.
+
+```
+edgedb migrate --dsn <your-instance-dsn> --tls-security insecure
+```
+
+You have to disable TLS checks with `--tls-security insecure`. All EdgeDB instances use TLS by default, but configuring it is out of scope of this project.
+
+3. Deploy this app to Vercel with the button above. You'll be prompted to provide a value for `EDGEDB_DSN`, the value from the previous step.
+
+4. Open the application at the deployment URL supplied by Vercel.
 
 ## Next steps
 

@@ -9,18 +9,12 @@ export default async function handle(
 ) {
   const { title, content, authorName } = req.body
 
-  const newPost = await e.insert(e.Post, {
-    title,
-    content,
-    authorName: authorName,
-  })
-
-  const result = e
-    .select(newPost, () => ({
-      title: true,
-      content: true,
-      authorName: true,
-    }))
+  const result = await e
+    .insert(e.Post, {
+      title,
+      content,
+      authorName,
+    })
     .run(client)
   res.json(result)
 }

@@ -2,7 +2,6 @@ import React, { useState } from 'react'
 import Layout from '../components/Layout'
 import Router from 'next/router'
 import Link from 'next/link'
-import { ROOT_URL } from '../globals'
 
 const Draft: React.FC = () => {
   const [title, setTitle] = useState('')
@@ -13,7 +12,7 @@ const Draft: React.FC = () => {
     e.preventDefault()
     try {
       const body = { title, content, authorName }
-      const result = await fetch(`${ROOT_URL}/api/post`, {
+      const result = await fetch(`/api/post`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

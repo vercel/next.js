@@ -3,14 +3,14 @@ import { GetServerSidePropsContext, InferGetServerSidePropsType } from 'next'
 import Layout from '../../components/Layout'
 import Router from 'next/router'
 import { client, e } from '../../client'
-import { ROOT_URL } from '../../globals'
+
 import ReactMarkdown from 'react-markdown'
 
 async function update(
   id: string,
   data: { title?: string; content?: string }
 ): Promise<void> {
-  await fetch(`${ROOT_URL}/api/post/${id}`, {
+  await fetch(`/api/post/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -19,14 +19,14 @@ async function update(
 }
 
 async function publish(id: string): Promise<void> {
-  await fetch(`${ROOT_URL}/api/publish/${id}`, {
+  await fetch(`/api/publish/${id}`, {
     method: 'PUT',
   })
   await Router.push(`/blog/${id}`)
 }
 
 async function destroy(id: string): Promise<void> {
-  await fetch(`${ROOT_URL}/api/post/${id}`, {
+  await fetch(`/api/post/${id}`, {
     method: 'DELETE',
   })
   await Router.push('/')
@@ -61,7 +61,7 @@ const Post: React.FC<PostProps> = (props) => {
           </p>
           <br />
           <br />
-          <ReactMarkdown children={props.content || ''} />
+          <ReactMarkdown>{props.content || ''}</ReactMarkdown>
         </div>
       </Layout>
     )
