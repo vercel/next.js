@@ -8,6 +8,33 @@ export const VALID_LOADERS = [
 
 export type LoaderValue = typeof VALID_LOADERS[number]
 
+export type RemotePattern = {
+  /**
+   * Must be `http` or `https`.
+   */
+  protocol?: 'http' | 'https'
+
+  /**
+   * Can be literal or wildcard.
+   * Single `*` matches a single subdomain.
+   * Double `**` matches any number of subdomains.
+   */
+  hostname: string
+
+  /**
+   * Can be literal port such as `8080` or empty string
+   * meaning no port.
+   */
+  port?: string
+
+  /**
+   * Can be literal or wildcard.
+   * Single `*` matches a single path segment.
+   * Double `**` matches any number of path segments.
+   */
+  pathname?: string
+}
+
 type ImageFormat = 'image/avif' | 'image/webp'
 
 /**
@@ -30,6 +57,9 @@ export type ImageConfigComplete = {
 
   /** @see [Image domains configuration](https://nextjs.org/docs/basic-features/image-optimization#domains) */
   domains: string[]
+
+  /** @see [Remote Images](https://nextjs.org/docs/basic-features/image-optimization#remote-images) */
+  remotePatterns: RemotePattern[]
 
   /** @see [Cache behavior](https://nextjs.org/docs/api-reference/next/image#caching-behavior) */
   disableStaticImages: boolean
@@ -55,6 +85,7 @@ export const imageConfigDefault: ImageConfigComplete = {
   path: '/_next/image',
   loader: 'default',
   domains: [],
+  remotePatterns: [],
   disableStaticImages: false,
   minimumCacheTTL: 60,
   formats: ['image/webp'],
