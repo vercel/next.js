@@ -23,6 +23,7 @@ type Options = {
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
 
+const isClientComponent = createClientComponentFilter()
 export class FlightManifestPlugin {
   dev: boolean = false
   pageExtensions: string[]
@@ -64,7 +65,6 @@ export class FlightManifestPlugin {
 
   createAsset(assets: any, compilation: any) {
     const manifest: any = {}
-    const isClientComponent = createClientComponentFilter(this.pageExtensions)
     compilation.chunkGroups.forEach((chunkGroup: any) => {
       function recordModule(id: string, _chunk: any, mod: any) {
         const resource = mod.resource

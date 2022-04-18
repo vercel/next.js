@@ -1174,9 +1174,6 @@ export default async function getBaseWebpackConfig(
                   ...rscCodeCondition,
                   use: {
                     loader: 'next-flight-server-loader',
-                    options: {
-                      extensions: rawPageExtensions,
-                    },
                   },
                 },
               ]
@@ -1188,7 +1185,6 @@ export default async function getBaseWebpackConfig(
                     loader: 'next-flight-server-loader',
                     options: {
                       client: 1,
-                      extensions: rawPageExtensions,
                     },
                   },
                 },
