@@ -13,6 +13,8 @@ export default function Page() {
   )
 }
 
+Page.title = 'node-rsc'
+
 export const config = {
   runtime: 'nodejs',
 }
