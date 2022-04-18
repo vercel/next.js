@@ -1,32 +1,17 @@
 import { builtinModules } from 'module'
 
 import { parse } from '../../swc'
-import { buildExports } from './utils'
+import {
+  buildExports,
+  createClientComponentFilter,
+  createServerComponentFilter,
+  isNextBuiltinClientComponent,
+} from './utils'
 
-const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
-
-export const createClientComponentFilter = (extensions: string[]) => {
-  // Special cases for Next.js APIs that are considered as client components:
-  // - .client.[ext]
-  // - next built-in client components
-  // - .[imageExt]
-  const regex = new RegExp(
-    '(' +
-      `\\.client(\\.(${extensions.join('|')}))?|` +
-      `next/(link|image)(\\.js)?|` +
-      `\\.(${imageExtensions.join('|')})` +
-      ')$'
-  )
-
-  return (importSource: string) => regex.test(importSource)
-}
-
-export const createServerComponentFilter = (extensions: string[]) => {
-  const regex = new RegExp(`\\.server(\\.(${extensions.join('|')}))?$`)
-  return (importSource: string) => regex.test(importSource)
-}
-
-function createFlightServerRequest(request: string, options: object) {
+function createFlightServerRequest(
+  request: string,
+  options?: { client: 1 | undefined }
+) {
   return `next-flight-server-loader?${JSON.stringify(options)}!${request}`
 }
 
@@ -37,7 +22,6 @@ function hasFlightLoader(request: string, type: 'client' | 'server') {
 async function parseModuleInfo({
   resourcePath,
   source,
-  extensions,
   isClientCompilation,
   isServerComponent,
   isClientComponent,
@@ -46,7 +30,6 @@ async function parseModuleInfo({
   resourcePath: string
   source: string
   isClientCompilation: boolean
-  extensions: string[]
   isServerComponent: (name: string) => boolean
   isClientComponent: (name: string) => boolean
   resolver: (req: string) => Promise<string>
@@ -76,7 +59,10 @@ async function parseModuleInfo({
     const isBuiltinModule_ = builtinModules.includes(path)
     const resolvedPath = isBuiltinModule_ ? path : await resolver(path)
 
-    const isNodeModuleImport_ = resolvedPath.includes('/node_modules/')
+    const isNodeModuleImport_ =
+      /[\\/]node_modules[\\/]/.test(resolvedPath) &&
+      // exclude next built-in modules
+      !isNextBuiltinClientComponent(resolvedPath)
 
     return [isBuiltinModule_, isNodeModuleImport_] as const
   }
@@ -90,12 +76,7 @@ async function parseModuleInfo({
       imports.push(path)
     } else {
       // Shared component.
-      imports.push(
-        createFlightServerRequest(path, {
-          extensions,
-          client: 1,
-        })
-      )
+      imports.push(createFlightServerRequest(path, { client: 1 }))
     }
   }
 
@@ -138,7 +119,7 @@ async function parseModuleInfo({
             const serverImportSource =
               isReactImports || isBuiltinModule
                 ? importSource
-                : createFlightServerRequest(importSource, { extensions })
+                : createFlightServerRequest(importSource)
             transformedSource += importDeclarations
             transformedSource += JSON.stringify(serverImportSource)
 
@@ -210,7 +191,7 @@ export default async function transformSource(
   this: any,
   source: string
 ): Promise<string> {
-  const { client: isClientCompilation, extensions } = this.getOptions()
+  const { client: isClientCompilation } = this.getOptions()
   const { resourcePath, resolve: resolveFn, context } = this
 
   const resolver = (req: string): Promise<string> => {
@@ -226,8 +207,8 @@ export default async function transformSource(
     throw new Error('Expected source to have been transformed to a string.')
   }
 
-  const isServerComponent = createServerComponentFilter(extensions)
-  const isClientComponent = createClientComponentFilter(extensions)
+  const isServerComponent = createServerComponentFilter()
+  const isClientComponent = createClientComponentFilter()
   const hasAppliedFlightServerLoader = this.loaders.some((loader: any) => {
     return hasFlightLoader(loader.path, 'server')
   })
@@ -250,7 +231,6 @@ export default async function transformSource(
   } = await parseModuleInfo({
     resourcePath,
     source,
-    extensions,
     isClientCompilation,
     isServerComponent,
     isClientComponent,
