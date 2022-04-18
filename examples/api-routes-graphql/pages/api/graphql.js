@@ -19,8 +19,10 @@ const resolvers = {
 
 
 const server = createServer({
-  typeDefs,
-  resolvers,
+  schema: {
+    typeDefs,
+    resolvers
+  },
   endpoint: '/api/graphql',
   // graphiql: false // uncomment to disable GraphiQL
 })
