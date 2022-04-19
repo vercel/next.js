@@ -72,7 +72,6 @@ import {
   streamToString,
   chainStreams,
   createBufferedTransformStream,
-  renderToStream,
   renderToInitialStream,
   continueFromInitialStream,
 } from './node-web-streams-helper'
@@ -1628,17 +1627,7 @@ export async function renderToHTML(
     </AmpStateContext.Provider>
   )
 
-  let documentHTML: string
-  if (hasConcurrentFeatures) {
-    const documentStream = await renderToStream({
-      ReactDOMServer,
-      element: document,
-      generateStaticHTML: true,
-    })
-    documentHTML = await streamToString(documentStream)
-  } else {
-    documentHTML = ReactDOMServer.renderToStaticMarkup(document)
-  }
+  const documentHTML = ReactDOMServer.renderToStaticMarkup(document)
 
   if (process.env.NODE_ENV !== 'production') {
     const nonRenderedComponents = []
