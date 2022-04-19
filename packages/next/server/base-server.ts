@@ -16,7 +16,6 @@ import type { PreviewData } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
-import type { IncrementalCache } from './incremental-cache'
 
 import { join, resolve } from 'path'
 import { parse as parseQs } from 'querystring'
@@ -62,6 +61,7 @@ import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { replaceBasePath } from './router-utils'
+import { IncrementalCache } from './incremental-cache'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -168,8 +168,9 @@ export default abstract class Server {
     serverComponentProps?: any
     reactRoot: boolean
   }
-  private incrementalCache: IncrementalCache
-  private responseCache: ResponseCache
+
+  protected responseCache: ResponseCache
+  protected incrementalCache: IncrementalCache
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
   protected customRoutes: CustomRoutes
@@ -222,6 +223,7 @@ export default abstract class Server {
   protected abstract getPrerenderManifest(): PrerenderManifest
   protected abstract getServerComponentManifest(): any
   protected abstract getIncrementalCache(dev: boolean): any
+  protected abstract getResponseCache(): any
 
   protected abstract sendRenderResult(
     req: BaseNextRequest,
@@ -349,10 +351,7 @@ export default abstract class Server {
     this.setAssetPrefix(assetPrefix)
 
     this.incrementalCache = this.getIncrementalCache(dev)
-    this.responseCache = new ResponseCache(
-      this.incrementalCache,
-      this.minimalMode
-    )
+    this.responseCache = this.getResponseCache()
   }
 
   public logError(err: Error): void {

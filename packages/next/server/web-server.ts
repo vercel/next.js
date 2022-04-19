@@ -229,4 +229,12 @@ export default class NextWebServer extends BaseServer {
       stat: () => Promise.resolve({ mtime: new Date() }),
     }
   }
+
+  protected getResponseCache() {
+    return {
+      get() {
+        return null
+      },
+    }
+  }
 }

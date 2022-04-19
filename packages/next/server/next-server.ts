@@ -113,6 +113,11 @@ export default class NextNodeServer extends BaseServer {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
 
+    this.responseCache = new ResponseCache(
+      this.incrementalCache,
+      this.minimalMode
+    )
+
     if (!this.minimalMode) {
       const { ImageOptimizerCache } =
         require('./image-optimizer') as typeof import('./image-optimizer')
@@ -1386,5 +1391,9 @@ export default class NextNodeServer extends BaseServer {
         }
       },
     })
+  }
+
+  protected getResponseCache() {
+    return new ResponseCache(this.incrementalCache, this.minimalMode)
   }
 }
