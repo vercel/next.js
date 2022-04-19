@@ -190,11 +190,14 @@ npm install --save-dev eslint-config-prettier
 yarn add --dev eslint-config-prettier
 ```
 
-Then, add `prettier` to your existing ESLint config:
+Then, add `prettier` and the following `rules` to your existing ESLint config:
 
 ```json
 {
-  "extends": ["next", "prettier"]
+  "extends": ["next", "prettier"],
+  "rules": {
+    "indent": "error"
+  }
 }
 ```
 
