@@ -13,6 +13,8 @@ use swc_ecmascript::{
     visit::{noop_fold_type, Fold},
 };
 
+static SSG_EXPORTS: &[&str; 3] = &["getStaticProps", "getStaticPaths", "getServerSideProps"];
+
 /// Note: This paths requires running `resolver` **before** running this.
 pub fn next_ssg(eliminated_packages: Rc<RefCell<FxHashSet<String>>>) -> impl Fold {
     Repeat::new(NextSsg {
@@ -55,9 +57,7 @@ struct State {
 impl State {
     #[allow(clippy::wrong_self_convention)]
     fn is_data_identifier(&mut self, i: &Ident) -> Result<bool, Error> {
-        let ssg_exports = &["getStaticProps", "getStaticPaths", "getServerSideProps"];
-
-        if ssg_exports.contains(&&*i.sym) {
+        if SSG_EXPORTS.contains(&&*i.sym) {
             if &*i.sym == "getServerSideProps" {
                 if self.is_prerenderer {
                     HANDLER.with(|handler| {
@@ -132,10 +132,28 @@ impl Fold for Analyzer<'_> {
 
     fn fold_export_named_specifier(&mut self, s: ExportNamedSpecifier) -> ExportNamedSpecifier {
         if let ModuleExportName::Ident(id) = &s.orig {
-            self.add_ref(id.to_id());
+            if !SSG_EXPORTS.contains(&&*id.sym) {
+                self.add_ref(id.to_id());
+            }
         }
 
         s
+    }
+
+    fn fold_export_decl(&mut self, s: ExportDecl) -> ExportDecl {
+        if let Decl::Var(d) = &s.decl {
+            if d.decls.is_empty() {
+                return s;
+            }
+
+            if let Pat::Ident(id) = &d.decls[0].name {
+                if !SSG_EXPORTS.contains(&&*id.id.sym) {
+                    self.add_ref(id.to_id());
+                }
+            }
+        }
+
+        s.fold_children_with(self)
     }
 
     fn fold_expr(&mut self, e: Expr) -> Expr {
