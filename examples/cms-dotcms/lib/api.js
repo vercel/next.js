@@ -1,12 +1,12 @@
 /**
  * A helper for the GraphQL API.
- * 
+ *
  * @param {String} query - The query to fetch for
  * @param {Object} param1.variables - The variables to pass to the query
  * @param {Object} param1.preview - Indicate if the query should be previewed
  * @returns {Promise} - A promise that resolves to the result of the query
  */
-async function fetchAPI(query, { variables, preview } = {}) {
+async function fetchAPI(query, {variables} = {}) {
   const res = await fetch(process.env.NEXT_PUBLIC_DOTCMS_HOST + '/api/v1/graphql', {
     method: 'POST',
     headers: {
@@ -29,13 +29,20 @@ async function fetchAPI(query, { variables, preview } = {}) {
   return json.data
 }
 
-export async function getPreviewPostBySlug(slug) {
-  // TODO: get preview post by slug
+/**
+ * Fetch one post and more post with preview mode flag.
+ *
+ * @param slug
+ * @param isPreview
+ * @returns {Promise<{post, morePosts}>}
+ */
+export async function getPreviewPostBySlug(slug, isPreview) {
+  return await getPostAndMorePosts(slug, isPreview)
 }
 
 /**
  * Fetch all posts with slug
- * 
+ *
  * @returns An array of posts with the following shape:
  * {
  *  urlTitle: string
@@ -44,7 +51,7 @@ export async function getPreviewPostBySlug(slug) {
 export async function getAllPostsWithSlug() {
   const entries = await fetchAPI(`
     query getAllPostsWithSlug {
-      BlogCollection {
+      BlogCollection(query: "+live:true +deleted:false") {
         urlTitle
       }
     }
@@ -55,17 +62,20 @@ export async function getAllPostsWithSlug() {
 
 /**
  * Fetch all posts
- * 
- * @param {String} preview - If true, return a preview of the post
+ *
+ * @param {boolean} preview - If true, return a preview of the post
  * @returns An array of posts
  */
 export async function getAllPostsForHome(preview) {
+
   const entries = await fetchAPI(`
-    query getAllPostsForHome {
-      BlogCollection {
+    query getAllPostsForHome($query: String!) {
+      BlogCollection(query: $query) {
         title
         teaser
         postingDate
+        live
+        working
         author {
           firstName
           lastName
@@ -79,16 +89,19 @@ export async function getAllPostsForHome(preview) {
         }
       }
     }
-  `)
-
+  `, {
+    variables: {
+      query: `${showPreviewPosts(preview)}`,
+    }
+  })
   return entries?.BlogCollection ?? []
 }
 
 /**
  * Fetch a single post and more posts
- * 
+ *
  * @param {String} slug - The slug of the post to fetch
- * @param {String} preview - Whether or not to fetch the preview post
+ * @param {boolean} preview - Whether or not to fetch the live post
  * @returns An object with a post and more posts array
  */
 export async function getPostAndMorePosts(slug, preview) {
@@ -97,7 +110,9 @@ export async function getPostAndMorePosts(slug, preview) {
       post: BlogCollection(query: $query, limit: 1) {
         title
         urlTitle
-        body
+        blogContent {
+          json
+        }
         postingDate
         image {
           idPath
@@ -114,7 +129,7 @@ export async function getPostAndMorePosts(slug, preview) {
       morePosts: BlogCollection(query: $morePostsQuery, limit: 2) {
         title
         urlTitle
-        body
+        teaser
         postingDate
         image {
           idPath
@@ -130,13 +145,22 @@ export async function getPostAndMorePosts(slug, preview) {
     }
   `, {
     variables: {
-      query: `+Blog.urlTitle:${slug}`,
-      morePostsQuery: `-Blog.urlTitle:${slug}`,
+      query: `+urlmap:/blog/post/${slug} ${showPreviewPosts(preview)}`,
+      morePostsQuery: `-blog.urlTitle:${slug} ${showPreviewPosts(preview)}`,
     }
   })
-
   return {
     post: data?.post[0] ?? {},
     morePosts: data?.morePosts ?? [],
   }
+}
+
+/**
+ * Get the correct type to filter post using preview flag
+ *
+ * @param preview
+ * @returns {string}
+ */
+const showPreviewPosts = (preview) => {
+  return (preview === true) ? '+working:true +deleted:false' : '+live:true +deleted:false'
 }

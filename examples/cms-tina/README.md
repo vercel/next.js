@@ -22,6 +22,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
 - [Builder.io](/examples/cms-builder-io)
+- [DotCMS](/examples/cms-dotcms)
 
 ## How to use
 
