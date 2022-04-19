@@ -72,7 +72,6 @@ import {
   streamToString,
   chainStreams,
   createBufferedTransformStream,
-  renderToStream,
   renderToInitialStream,
   continueFromInitialStream,
 } from './node-web-streams-helper'
