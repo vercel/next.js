@@ -218,7 +218,7 @@ describe('basePath', () => {
             [
               `${basePath}/gsp.json`,
               `${basePath}/index.json`,
-              `${basePath}/index/index.json`,
+              // `${basePath}/index/index.json`,
             ]
           )
 
@@ -438,7 +438,7 @@ describe('basePath', () => {
         ).toEqual([
           `${basePath}/gsp.json`,
           `${basePath}/index.json`,
-          `${basePath}/index/index.json`,
+          // `${basePath}/index/index.json`,
         ])
       }
     })

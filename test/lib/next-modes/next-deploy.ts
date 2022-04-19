@@ -59,6 +59,8 @@ export class NextDeployInstance extends NextInstance {
         'NEXT_PRIVATE_TEST_MODE=1',
         '--build-env',
         'FORCE_RUNTIME_TAG=canary',
+        '--build-env',
+        'NEXT_TELEMETRY_DISABLED=1',
         '--force',
         ...vercelFlags,
       ],

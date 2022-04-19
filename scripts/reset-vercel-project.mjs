@@ -1,7 +1,7 @@
 import fetch from 'node-fetch'
 
-export const TEST_PROJECT_NAME = 'e2e-tests'
-export const TEST_TEAM_NAME = 'next-e2e-tests'
+export const TEST_PROJECT_NAME = 'vtest314-e2e-tests'
+export const TEST_TEAM_NAME = 'vtest314-next-e2e-tests'
 export const TEST_TOKEN = process.env.VERCEL_TEST_TOKEN
 
 async function resetProject() {
