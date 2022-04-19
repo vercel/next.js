@@ -24,7 +24,11 @@ export type HtmlProps = {
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
   devOnlyCacheBusterQueryString: string
-  scriptLoader: { afterInteractive?: string[]; beforeInteractive?: any[] }
+  scriptLoader: {
+    afterInteractive?: string[]
+    beforeInteractive?: any[]
+    worker?: any[]
+  }
   locale?: string
   disableOptimizedLoading?: boolean
   styles?: React.ReactElement[] | React.ReactFragment
@@ -32,7 +36,9 @@ export type HtmlProps = {
   crossOrigin?: string
   optimizeCss?: boolean
   optimizeFonts?: boolean
+  nextScriptWorkers?: boolean
   runtime?: 'edge' | 'nodejs'
+  hasConcurrentFeatures?: boolean
 }
 
 export const HtmlContext = createContext<HtmlProps>(null as any)

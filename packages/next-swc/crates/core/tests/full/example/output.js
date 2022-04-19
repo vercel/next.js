@@ -5,9 +5,9 @@ function b(c, a) {
 }
 import a from "other";
 (function(c, b) {
-    return (function(c) {
+    return function(c) {
         if (Array.isArray(c)) return c;
-    })(c) || (function(c, b) {
+    }(c) || function(c, b) {
         var g, h, a = null == c ? null : "undefined" != typeof Symbol && c[Symbol.iterator] || c["@@iterator"];
         if (null != a) {
             var d = [], e = !0, i = !1;
@@ -24,16 +24,16 @@ import a from "other";
             }
             return d;
         }
-    })(c, b) || (function(a, d) {
+    }(c, b) || function(a, d) {
         if (a) {
             if ("string" == typeof a) return b(a, d);
             var c = Object.prototype.toString.call(a).slice(8, -1);
             if ("Object" === c && a.constructor && (c = a.constructor.name), "Map" === c || "Set" === c) return Array.from(c);
             if ("Arguments" === c || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(c)) return b(a, d);
         }
-    })(c, b) || (function() {
+    }(c, b) || function() {
         throw new TypeError("Invalid attempt to destructure non-iterable instance.\\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
-    })();
+    }();
 })(a, 1)[0];
 var c = function() {
     "use strict";

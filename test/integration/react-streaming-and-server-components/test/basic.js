@@ -10,18 +10,9 @@ export default async function basic(context, { env }) {
     expect(pathNotFoundHTML).toContain('custom-404-page')
   })
 
-  it('should render dynamic routes correctly', async () => {
-    const dynamicRoute1HTML = await renderViaHTTP(
-      context.appPort,
-      '/routes/dynamic1'
-    )
-    const dynamicRoute2HTML = await renderViaHTTP(
-      context.appPort,
-      '/routes/dynamic2'
-    )
-
-    expect(dynamicRoute1HTML).toContain('query: dynamic1')
-    expect(dynamicRoute2HTML).toContain('query: dynamic2')
+  it('should render title correctly', async () => {
+    const res = await renderViaHTTP(context.appPort, '/')
+    expect(res).toContain('<title>hello, env_var_test</title>')
   })
 
   it('should support api routes', async () => {
@@ -37,13 +28,39 @@ export default async function basic(context, { env }) {
   })
 
   it('should render 500 error correctly', async () => {
-    const path500HTML = await renderViaHTTP(context.appPort, '/err')
-
-    if (env === 'dev') {
-      // In dev mode it should show the error popup.
-      expect(path500HTML).toContain('Error: oops')
-    } else {
-      expect(path500HTML).toContain('custom-500-page')
-    }
+    const errPaths = ['/err', '/err/render']
+    const promises = errPaths.map(async (pagePath) => {
+      const html = await renderViaHTTP(context.appPort, pagePath)
+      if (env === 'dev') {
+        // In dev mode it should show the error popup.
+        expect(html).toContain('Error: oops')
+      } else {
+        expect(html).toContain('custom-500-page')
+      }
+    })
+    await Promise.all(promises)
   })
+
+  it('should render fallback if error raised from suspense during streaming', async () => {
+    const html = await renderViaHTTP(context.appPort, '/err/suspense')
+    expect(html).toContain('error-fallback')
+  })
+
+  it('should support React.lazy and dynamic imports', async () => {
+    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
+    expect(html).toContain('foo.client')
+
+    const browser = await webdriver(context.appPort, '/dynamic-imports')
+    const content = await browser.eval(`window.document.body.innerText`)
+    const dynamicIds = await browser.eval(`__NEXT_DATA__.dynamicIds`)
+    expect(content).toMatchInlineSnapshot('"foo.clientbar.client"')
+    expect(dynamicIds).toBe(undefined)
+  })
+
+  if (env === 'prod') {
+    it(`should not display custom _app or _app.server in treeview if there's not any`, () => {
+      const { stdout } = context
+      expect(stdout).not.toMatch(/\s\/_app(\.server)?/)
+    })
+  }
 }

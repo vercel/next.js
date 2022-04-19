@@ -208,7 +208,7 @@ declare global {
     >(
       array: T
     ): T
-    randomUUID?(): string
+    randomUUID(): string
   }
 }
 
