@@ -110,11 +110,10 @@ export class ImageOptimizerCache {
         return { errorMessage: '"url" parameter is not allowed' }
       }
 
-      if (!domains.includes(hrefParsed.hostname)) {
-        return { errorMessage: '"url" parameter is not allowed' }
-      }
-
-      if (remotePatterns.some((p) => !matchRemotePattern(p, hrefParsed))) {
+      if (
+        !domains.includes(hrefParsed.hostname) &&
+        remotePatterns.some((p) => !matchRemotePattern(p, hrefParsed))
+      ) {
         return { errorMessage: '"url" parameter is not allowed' }
       }
     }
