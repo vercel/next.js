@@ -61,7 +61,6 @@ import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { replaceBasePath } from './router-utils'
-import { IncrementalCache } from './incremental-cache'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -170,7 +169,7 @@ export default abstract class Server {
   }
 
   protected responseCache: ResponseCache
-  protected incrementalCache: IncrementalCache
+  protected incrementalCache: any
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
   protected customRoutes: CustomRoutes

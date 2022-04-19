@@ -25,7 +25,7 @@ export class IncrementalCache {
   }
 
   prerenderManifest: PrerenderManifest
-  cache?: LRUCache<string, IncrementalCacheEntry>
+  cache?: any
   locales?: string[]
   fs: CacheFs
 
@@ -67,7 +67,7 @@ export class IncrementalCache {
     if (max) {
       this.cache = new LRUCache({
         max,
-        length({ value }) {
+        length({ value }: any) {
           if (!value) {
             return 25
           } else if (value.kind === 'REDIRECT') {
@@ -109,7 +109,7 @@ export class IncrementalCache {
     return revalidateAfter
   }
 
-  getFallback(page: string): Promise<string> {
+  public getFallback(page: string): Promise<string> {
     page = normalizePagePath(page)
     return this.fs.readFile(this.getSeedPath(page, 'html'))
   }
@@ -222,3 +222,7 @@ export class IncrementalCache {
     }
   }
 }
+
+type IncrementalCacheType = typeof IncrementalCache
+
+export { IncrementalCacheType }
