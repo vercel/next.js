@@ -10,6 +10,11 @@ export default async function basic(context, { env }) {
     expect(pathNotFoundHTML).toContain('custom-404-page')
   })
 
+  it('should render title correctly', async () => {
+    const res = await renderViaHTTP(context.appPort, '/')
+    expect(res).toContain('<title>hello, env_var_test</title>')
+  })
+
   it('should support api routes', async () => {
     const res = await renderViaHTTP(context.appPort, '/api/ping')
     expect(res).toContain('pong')
