@@ -17,7 +17,7 @@ import { API_ROUTE, MIDDLEWARE_ROUTE } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import { __ApiPreviewProps } from '../api-utils'
-import { route } from '../router'
+import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { findPageFile } from '../lib/find-page-file'
 import onDemandEntryHandler, {
   entries,
@@ -101,7 +101,7 @@ function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
   return { preflight: false }
 }
 
-const matchNextPageBundleRequest = route(
+const matchNextPageBundleRequest = getPathMatch(
   '/_next/static/chunks/pages/:path*.js(\\.map|)'
 )
 
@@ -238,8 +238,7 @@ export default class HotReloader {
       parsedPageBundleUrl: UrlObject
     ): Promise<{ finished?: true }> => {
       const { pathname } = parsedPageBundleUrl
-      const params: { path: string[] } | null =
-        matchNextPageBundleRequest(pathname)
+      const params = matchNextPageBundleRequest<{ path: string[] }>(pathname)
       if (!params) {
         return {}
       }
