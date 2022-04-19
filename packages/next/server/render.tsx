@@ -201,12 +201,17 @@ function renderFlight(AppMod: any, ComponentMod: any, props: any) {
   const AppServer = isServerComponent
     ? (App as React.ComponentType)
     : React.Fragment
+  const { router: _, ...rest } = props
 
-  return (
-    <AppServer>
-      <Component {...props} />
-    </AppServer>
-  )
+  if (isServerComponent) {
+    return (
+      <AppServer>
+        <Component {...rest} />
+      </AppServer>
+    )
+  }
+
+  return <App Component={Component} {...props} />
 }
 
 export type RenderOptsPartial = {
@@ -430,14 +435,7 @@ function createServerComponentRenderer(
     return root
   }
 
-  // Although it's not allowed to attach some static methods to Component,
-  // we still re-assign all the component APIs to keep the behavior unchanged.
-  for (const methodName of [
-    'getInitialProps',
-    'getStaticProps',
-    'getServerSideProps',
-    'getStaticPaths',
-  ]) {
+  for (const methodName of Object.keys(Component)) {
     const method = (Component as any)[methodName]
     if (method) {
       ;(ServerComponentWrapper as any)[methodName] = method
@@ -740,7 +738,7 @@ export async function renderToHTML(
     AppTree: (props: any) => {
       return (
         <AppContainerWithIsomorphicFiberStructure>
-          {renderFlight(AppMod, ComponentMod, props)}
+          {renderFlight(AppMod, ComponentMod, { ...props, router })}
         </AppContainerWithIsomorphicFiberStructure>
       )
     },
@@ -1374,7 +1372,7 @@ export async function renderToHTML(
           <AppContainerWithIsomorphicFiberStructure>
             {isServerComponent && !!AppMod.__next_rsc__ ? (
               // _app.server.js is used.
-              <Component {...props.pageProps} router={router} />
+              <Component {...props.pageProps} />
             ) : (
               <App {...props} Component={Component} router={router} />
             )}

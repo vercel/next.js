@@ -169,8 +169,7 @@ export default class NextWebServer extends BaseServer {
     if (options.result.isDynamic()) {
       const writer = res.transformStream.writable.getWriter()
       options.result.pipe({
-        write: (chunk: Uint8Array) =>
-          writer.write(new TextDecoder().decode(chunk)),
+        write: (chunk: Uint8Array) => writer.write(chunk),
         end: () => writer.close(),
         destroy: (err: Error) => writer.abort(err),
         cork: () => {},
