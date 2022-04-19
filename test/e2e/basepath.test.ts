@@ -443,7 +443,9 @@ describe('basePath', () => {
       }
     })
 
-    it('should navigate to nested index page with getStaticProps', async () => {
+    // TODO: investigate index/index seems this shouldn't work
+    // as pages/index.js conflicts with pages/index/index.js
+    it.skip('should navigate to nested index page with getStaticProps', async () => {
       const browser = await webdriver(next.url, `${basePath}/hello`)
       await browser.eval('window.beforeNavigate = "hi"')
 
