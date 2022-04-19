@@ -1,9 +1,12 @@
 import path from 'path'
 import assert from 'assert'
 import { NextConfig } from 'next'
-import { InstallCommand, NextInstance } from './next-modes/base'
+import { InstallCommand, NextInstance, PackageJson } from './next-modes/base'
 import { NextDevInstance } from './next-modes/next-dev'
 import { NextStartInstance } from './next-modes/next-start'
+
+// increase timeout to account for yarn install time
+jest.setTimeout((process.platform === 'win32' ? 240 : 180) * 1000)
 
 const testsFolder = path.join(__dirname, '..')
 
@@ -113,6 +116,7 @@ export async function createNext(opts: {
   skipStart?: boolean
   installCommand?: InstallCommand
   buildCommand?: string
+  packageJson?: PackageJson
   startCommand?: string
 }): Promise<NextInstance> {
   try {

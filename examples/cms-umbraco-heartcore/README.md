@@ -33,12 +33,14 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-umbraco-heartcore cms-umbraco-heartcore-app
 # or
 yarn create next-app --example cms-umbraco-heartcore cms-umbraco-heartcore-app
+# or
+pnpm create next-app -- --example cms-umbraco-heartcore cms-umbraco-heartcore-app
 ```
 
 ## Configuration
@@ -91,7 +93,7 @@ yarn install
 yarn dev
 ```
 
-Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/zeit/next.js/discussions).
+Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
 
 ### Step 5. Try preview mode
 

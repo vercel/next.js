@@ -11,6 +11,7 @@
   "files": [
     "next-swc.linux-x64-musl.node"
   ],
+  "libc": ["musl"],
   "license": "MIT",
   "engines": {
     "node": ">= 10"

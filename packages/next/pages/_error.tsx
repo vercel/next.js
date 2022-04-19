@@ -52,8 +52,26 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
           </Head>
         )}
         <div>
-          <style dangerouslySetInnerHTML={{ __html: 'body { margin: 0 }' }} />
-          {statusCode ? <h1 style={styles.h1}>{statusCode}</h1> : null}
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+                body { margin: 0; color: #000; background: #fff; }
+                .next-error-h1 {
+                  border-right: 1px solid rgba(0, 0, 0, .3);
+                }
+                @media (prefers-color-scheme: dark) {
+                  body { color: #fff; background: #000; }
+                  .next-error-h1 {
+                    border-right: 1px solid rgba(255, 255, 255, .3);
+                  }
+                }`,
+            }}
+          />
+          {statusCode ? (
+            <h1 className="next-error-h1" style={styles.h1}>
+              {statusCode}
+            </h1>
+          ) : null}
           <div style={styles.desc}>
             <h2 style={styles.h2}>
               {this.props.title || statusCode ? (
@@ -75,8 +93,6 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
 
 const styles: { [k: string]: React.CSSProperties } = {
   error: {
-    color: '#000',
-    background: '#fff',
     fontFamily:
       '-apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
     height: '100vh',
@@ -97,7 +113,6 @@ const styles: { [k: string]: React.CSSProperties } = {
 
   h1: {
     display: 'inline-block',
-    borderRight: '1px solid rgba(0, 0, 0,.3)',
     margin: 0,
     marginRight: '20px',
     padding: '10px 23px 10px 0',

@@ -1,4 +1,7 @@
-import { isPlainObject, getObjectClassLabel } from './is-plain-object'
+import {
+  isPlainObject,
+  getObjectClassLabel,
+} from '../shared/lib/is-plain-object'
 
 const regexpPlainIdentifier = /^[A-Za-z_$][A-Za-z0-9_$]*$/
 

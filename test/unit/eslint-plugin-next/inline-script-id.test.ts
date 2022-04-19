@@ -76,6 +76,39 @@ ruleTester.run('inline-script-id', rule, {
         )
       }`,
     },
+    {
+      code: `import Script from 'next/script';
+
+      export default function TestPage() {
+        return (
+          <Script {...{ strategy: "lazyOnload" }} id={"test-script"}>
+            {\`console.log('Hello world');\`}
+          </Script>
+        )
+      }`,
+    },
+    {
+      code: `import Script from 'next/script';
+
+      export default function TestPage() {
+        return (
+          <Script {...{ strategy: "lazyOnload", id: "test-script" }}>
+            {\`console.log('Hello world');\`}
+          </Script>
+        )
+      }`,
+    },
+    {
+      code: `import Script from 'next/script';
+      const spread = { strategy: "lazyOnload" }
+      export default function TestPage() {
+        return (
+          <Script {...spread} id={"test-script"}>
+            {\`console.log('Hello world');\`}
+          </Script>
+        )
+      }`,
+    },
   ],
   invalid: [
     {

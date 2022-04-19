@@ -176,9 +176,13 @@ export function middleware(request: NextRequest) {
     !request.nextUrl.pathname.includes('/api/') &&
     request.nextUrl.locale === 'default'
 
-  return shouldHandleLocale
-    ? NextResponse.redirect(`/en${request.nextUrl.href}`)
-    : undefined
+  if (shouldHandleLocale) {
+    const url = request.nextUrl.clone()
+    url.pathname = `/en${request.nextUrl.pathname}`
+    return NextResponse.redirect(url)
+  }
+
+  return undefined
 }
 ```
 

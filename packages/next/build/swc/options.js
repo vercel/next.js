@@ -5,6 +5,23 @@ const regeneratorRuntimePath = require.resolve(
   'next/dist/compiled/regenerator-runtime'
 )
 
+export function getParserOptions({ filename, jsConfig, ...rest }) {
+  const isTSFile = filename.endsWith('.ts')
+  const isTypeScript = isTSFile || filename.endsWith('.tsx')
+  const enableDecorators = Boolean(
+    jsConfig?.compilerOptions?.experimentalDecorators
+  )
+  return {
+    ...rest,
+    syntax: isTypeScript ? 'typescript' : 'ecmascript',
+    dynamicImport: true,
+    decorators: enableDecorators,
+    // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
+    [isTypeScript ? 'tsx' : 'jsx']: isTSFile ? false : true,
+    importAssertions: true,
+  }
+}
+
 function getBaseSWCOptions({
   filename,
   jest,
@@ -15,11 +32,13 @@ function getBaseSWCOptions({
   resolvedBaseUrl,
   jsConfig,
 }) {
-  const isTSFile = filename.endsWith('.ts')
-  const isTypeScript = isTSFile || filename.endsWith('.tsx')
+  const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
   const enableDecorators = Boolean(
     jsConfig?.compilerOptions?.experimentalDecorators
+  )
+  const emitDecoratorMetadata = Boolean(
+    jsConfig?.compilerOptions?.emitDecoratorMetadata
   )
   return {
     jsc: {
@@ -29,25 +48,32 @@ function getBaseSWCOptions({
             paths,
           }
         : {}),
-      parser: {
-        syntax: isTypeScript ? 'typescript' : 'ecmascript',
-        dynamicImport: true,
-        decorators: enableDecorators,
-        // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
-        [isTypeScript ? 'tsx' : 'jsx']: isTSFile ? false : true,
+      parser: parserConfig,
+      experimental: {
+        keepImportAssertions: true,
       },
-
       transform: {
+        // Enables https://github.com/swc-project/swc/blob/0359deb4841be743d73db4536d4a22ac797d7f65/crates/swc_ecma_ext_transforms/src/jest.rs
+        ...(jest
+          ? {
+              hidden: {
+                jest: true,
+              },
+            }
+          : {}),
         legacyDecorator: enableDecorators,
+        decoratorMetadata: emitDecoratorMetadata,
         react: {
-          importSource: jsConfig?.compilerOptions?.jsxImportSource || 'react',
+          importSource:
+            jsConfig?.compilerOptions?.jsxImportSource ??
+            (nextConfig?.experimental?.emotion ? '@emotion/react' : 'react'),
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
           throwIfNamespace: true,
-          development: development,
+          development: !!development,
           useBuiltins: true,
-          refresh: hasReactRefresh,
+          refresh: !!hasReactRefresh,
         },
         optimizer: {
           simplify: false,
@@ -68,13 +94,44 @@ function getBaseSWCOptions({
         },
       },
     },
-    styledComponents: nextConfig?.experimental?.styledComponents
+    sourceMaps: jest ? 'inline' : undefined,
+    styledComponents: nextConfig?.compiler?.styledComponents
       ? {
           displayName: Boolean(development),
         }
       : null,
-    removeConsole: nextConfig?.experimental?.removeConsole,
-    reactRemoveProperties: nextConfig?.experimental?.reactRemoveProperties,
+    removeConsole: nextConfig?.compiler?.removeConsole,
+    reactRemoveProperties: nextConfig?.compiler?.reactRemoveProperties,
+    modularizeImports: nextConfig?.experimental?.modularizeImports,
+    relay: nextConfig?.compiler?.relay,
+    emotion: getEmotionOptions(nextConfig, development),
+  }
+}
+
+function getEmotionOptions(nextConfig, development) {
+  if (!nextConfig?.experimental?.emotion) {
+    return null
+  }
+  let autoLabel = false
+  switch (nextConfig?.experimental?.emotion?.autoLabel) {
+    case 'never':
+      autoLabel = false
+      break
+    case 'always':
+      autoLabel = true
+      break
+    case 'dev-only':
+    default:
+      autoLabel = !!development
+      break
+  }
+  return {
+    enabled: true,
+    autoLabel,
+    labelFormat: nextConfig?.experimental?.emotion?.labelFormat,
+    sourcemap: development
+      ? nextConfig?.experimental?.emotion?.sourceMap ?? true
+      : false,
   }
 }
 

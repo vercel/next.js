@@ -26,9 +26,7 @@ struct ExportShaker {
 impl Fold for ExportShaker {
     fn fold_module(&mut self, module: Module) -> Module {
         let module = module.fold_children_with(self);
-        let module = module.fold_with(&mut dce(DCEConfig::default()));
-
-        module
+        module.fold_with(&mut dce(DCEConfig::default()))
     }
 
     fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {

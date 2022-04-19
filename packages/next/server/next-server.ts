@@ -1,19 +1,25 @@
+import './node-polyfill-fetch'
+import './node-polyfill-web-streams'
+
 import type { Params, Route } from './router'
-import { CacheFs, execOnce } from '../shared/lib/utils'
-import {
-  addRequestMeta,
-  getRequestMeta,
-  NextParsedUrlQuery,
-  NextUrlWithParsedQuery,
-} from './request-meta'
+import type { CacheFs } from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
+import type { PrerenderManifest } from '../build'
+import type { Rewrite } from '../lib/load-custom-routes'
+import type { BaseNextRequest, BaseNextResponse } from './base-http'
+import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
+import type { PayloadOptions } from './send-payload'
+import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
+
+import { execOnce } from '../shared/lib/utils'
+import { addRequestMeta, getRequestMeta } from './request-meta'
 
 import {
   PAGES_MANIFEST,
@@ -22,30 +28,30 @@ import {
   MIDDLEWARE_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
+  PRERENDER_MANIFEST,
+  ROUTES_MANIFEST,
+  MIDDLEWARE_FLIGHT_MANIFEST,
+  CLIENT_PUBLIC_FILES_PATH,
+  SERVERLESS_DIRECTORY,
 } from '../shared/lib/constants'
-import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
 import compression from 'next/dist/compiled/compression'
-import Proxy from 'next/dist/compiled/http-proxy'
+import HttpProxy from 'next/dist/compiled/http-proxy'
 import { route } from './router'
 import { run } from './web/sandbox'
 
-import {
-  BaseNextRequest,
-  BaseNextResponse,
-  NodeNextRequest,
-  NodeNextResponse,
-} from './base-http'
-import { PayloadOptions, sendRenderResult } from './send-payload'
-import { serveStatic } from './serve-static'
+import { NodeNextRequest, NodeNextResponse } from './base-http/node'
+import { sendRenderResult } from './send-payload'
+import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
-import { apiResolver } from './api-utils'
+import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
-import { ParsedUrl } from '../shared/lib/router/utils/parse-url'
+import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
 
 import BaseServer, {
+  Options,
   FindComponentsResult,
   prepareServerlessUrl,
   stringifyQuery,
@@ -62,6 +68,12 @@ import { prepareDestination } from '../shared/lib/router/utils/prepare-destinati
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getMiddlewareRegex, getRouteMatcher } from '../shared/lib/router/utils'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
+import { loadEnvConfig } from '@next/env'
+import { getCustomRoute } from './server-route-utils'
+import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
+import ResponseCache from '../server/response-cache'
+import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
+import { clonableBodyForRequest } from './body-streams'
 
 export * from './base-server'
 
@@ -80,17 +92,75 @@ export interface NodeRequestHandler {
 }
 
 export default class NextNodeServer extends BaseServer {
+  private imageResponseCache?: ResponseCache
+
+  constructor(options: Options) {
+    // Initialize super class
+    super(options)
+
+    /**
+     * This sets environment variable to be used at the time of SSR by head.tsx.
+     * Using this from process.env allows targeting both serverless and SSR by calling
+     * `process.env.__NEXT_OPTIMIZE_CSS`.
+     */
+    if (this.renderOpts.optimizeFonts) {
+      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+    }
+    if (this.renderOpts.optimizeCss) {
+      process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
+    }
+    if (this.renderOpts.nextScriptWorkers) {
+      process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
+    }
+
+    if (!this.minimalMode) {
+      const { ImageOptimizerCache } =
+        require('./image-optimizer') as typeof import('./image-optimizer')
+
+      this.imageResponseCache = new ResponseCache(
+        new ImageOptimizerCache({
+          distDir: this.distDir,
+          nextConfig: this.nextConfig,
+        }),
+        this.minimalMode
+      )
+    }
+
+    if (!this.renderOpts.dev) {
+      // pre-warm _document and _app as these will be
+      // needed for most requests
+      loadComponents(this.distDir, '/_document', this._isLikeServerless).catch(
+        () => {}
+      )
+      loadComponents(this.distDir, '/_app', this._isLikeServerless).catch(
+        () => {}
+      )
+    }
+  }
+
   private compression =
     this.nextConfig.compress && this.nextConfig.target === 'server'
       ? (compression() as ExpressMiddleware)
       : undefined
+
+  protected loadEnvConfig({ dev }: { dev: boolean }) {
+    loadEnvConfig(this.dir, dev, Log)
+  }
+
+  protected getPublicDir(): string {
+    return join(this.dir, CLIENT_PUBLIC_FILES_PATH)
+  }
 
   protected getHasStaticDir(): boolean {
     return fs.existsSync(join(this.dir, 'static'))
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
-    const pagesManifestPath = join(this.serverBuildDir, PAGES_MANIFEST)
+    const serverBuildDir = join(
+      this.distDir,
+      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+    )
+    const pagesManifestPath = join(serverBuildDir, PAGES_MANIFEST)
     return require(pagesManifestPath)
   }
 
@@ -115,7 +185,7 @@ export default class NextNodeServer extends BaseServer {
         match: route('/_next/image'),
         type: 'route',
         name: '_next/image catchall',
-        fn: (req, res, _params, parsedUrl) => {
+        fn: async (req, res, _params, parsedUrl) => {
           if (this.minimalMode) {
             res.statusCode = 400
             res.body('Bad Request').send()
@@ -123,18 +193,93 @@ export default class NextNodeServer extends BaseServer {
               finished: true,
             }
           }
+          const { getHash, ImageOptimizerCache, sendResponse, ImageError } =
+            require('./image-optimizer') as typeof import('./image-optimizer')
 
-          return this.imageOptimizer(
-            req as NodeNextRequest,
-            res as NodeNextResponse,
-            parsedUrl
+          if (!this.imageResponseCache) {
+            throw new Error(
+              'invariant image optimizer cache was not initialized'
+            )
+          }
+
+          const imagesConfig = this.nextConfig.images
+
+          if (imagesConfig.loader !== 'default') {
+            await this.render404(req, res)
+            return { finished: true }
+          }
+          const paramsResult = ImageOptimizerCache.validateParams(
+            (req as NodeNextRequest).originalRequest,
+            parsedUrl.query,
+            this.nextConfig,
+            !!this.renderOpts.dev
           )
+
+          if ('errorMessage' in paramsResult) {
+            res.statusCode = 400
+            res.body(paramsResult.errorMessage).send()
+            return { finished: true }
+          }
+          const cacheKey = ImageOptimizerCache.getCacheKey(paramsResult)
+
+          try {
+            const cacheEntry = await this.imageResponseCache.get(
+              cacheKey,
+              async () => {
+                const { buffer, contentType, maxAge } =
+                  await this.imageOptimizer(
+                    req as NodeNextRequest,
+                    res as NodeNextResponse,
+                    paramsResult
+                  )
+                const etag = getHash([buffer])
+
+                return {
+                  value: {
+                    kind: 'IMAGE',
+                    buffer,
+                    etag,
+                    extension: getExtension(contentType) as string,
+                  },
+                  revalidate: maxAge,
+                }
+              },
+              {}
+            )
+
+            if (cacheEntry?.value?.kind !== 'IMAGE') {
+              throw new Error(
+                'invariant did not get entry from image response cache'
+              )
+            }
+
+            sendResponse(
+              (req as NodeNextRequest).originalRequest,
+              (res as NodeNextResponse).originalResponse,
+              paramsResult.href,
+              cacheEntry.value.extension,
+              cacheEntry.value.buffer,
+              paramsResult.isStatic,
+              cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT',
+              imagesConfig.contentSecurityPolicy
+            )
+          } catch (err) {
+            if (err instanceof ImageError) {
+              res.statusCode = err.statusCode
+              res.body(err.message).send()
+              return {
+                finished: true,
+              }
+            }
+            throw err
+          }
+          return { finished: true }
         },
       },
     ]
   }
 
-  protected generateStaticRotes(): Route[] {
+  protected generateStaticRoutes(): Route[] {
     return this.hasStaticDir
       ? [
           {
@@ -154,6 +299,10 @@ export default class NextNodeServer extends BaseServer {
           } as Route,
         ]
       : []
+  }
+
+  protected setImmutableAssetCacheControl(res: BaseNextResponse): void {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
   protected generateFsStaticRoutes(): Route[] {
@@ -341,7 +490,7 @@ export default class NextNodeServer extends BaseServer {
     parsedUrl.search = stringifyQuery(req, query)
 
     const target = formatUrl(parsedUrl)
-    const proxy = new Proxy({
+    const proxy = new HttpProxy({
       target,
       changeOrigin: true,
       ignorePath: true,
@@ -401,7 +550,16 @@ export default class NextNodeServer extends BaseServer {
       res.originalResponse,
       query,
       pageModule,
-      this.renderOpts.previewProps,
+      {
+        ...this.renderOpts.previewProps,
+        revalidate: (newReq: IncomingMessage, newRes: ServerResponse) =>
+          this.getRequestHandler()(
+            new NodeNextRequest(newReq),
+            new NodeNextResponse(newRes)
+          ),
+        // internal config so is not typed
+        trustHostHeader: (this.nextConfig.experimental as any).trustHostHeader,
+      },
       this.minimalMode,
       this.renderOpts.dev,
       page
@@ -416,6 +574,11 @@ export default class NextNodeServer extends BaseServer {
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult | null> {
+    // Due to the way we pass data by mutating `renderOpts`, we can't extend the
+    // object here but only updating its `serverComponentManifest` field.
+    // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+    renderOpts.serverComponentManifest = this.serverComponentManifest
+
     return renderToHTML(
       req.originalRequest,
       res.originalResponse,
@@ -427,30 +590,33 @@ export default class NextNodeServer extends BaseServer {
 
   protected streamResponseChunk(res: NodeNextResponse, chunk: any) {
     res.originalResponse.write(chunk)
+
+    // When both compression and streaming are enabled, we need to explicitly
+    // flush the response to avoid it being buffered by gzip.
+    if (this.compression && 'flush' in res.originalResponse) {
+      ;(res.originalResponse as any).flush()
+    }
   }
 
   protected async imageOptimizer(
     req: NodeNextRequest,
     res: NodeNextResponse,
-    parsedUrl: UrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
+    paramsResult: import('./image-optimizer').ImageParamsResult
+  ): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
     const { imageOptimizer } =
       require('./image-optimizer') as typeof import('./image-optimizer')
 
     return imageOptimizer(
       req.originalRequest,
       res.originalResponse,
-      parsedUrl,
+      paramsResult,
       this.nextConfig,
-      this.distDir,
-      () => this.render404(req, res, parsedUrl),
       (newReq, newRes, newParsedUrl) =>
         this.getRequestHandler()(
           new NodeNextRequest(newReq),
           new NodeNextResponse(newRes),
           newParsedUrl
-        ),
-      this.renderOpts.dev
+        )
     )
   }
 
@@ -489,7 +655,8 @@ export default class NextNodeServer extends BaseServer {
         const components = await loadComponents(
           this.distDir,
           pagePath!,
-          !this.renderOpts.dev && this._isLikeServerless
+          !this.renderOpts.dev && this._isLikeServerless,
+          this.renderOpts.serverComponents
         )
 
         if (
@@ -511,6 +678,7 @@ export default class NextNodeServer extends BaseServer {
                   _nextDataReq: query._nextDataReq,
                   __nextLocale: query.__nextLocale,
                   __nextDefaultLocale: query.__nextDefaultLocale,
+                  __flight__: query.__flight__,
                 } as NextParsedUrlQuery)
               : query),
             ...(params || {}),
@@ -525,6 +693,15 @@ export default class NextNodeServer extends BaseServer {
 
   protected getFontManifest(): FontManifest {
     return requireFontManifest(this.distDir, this._isLikeServerless)
+  }
+
+  protected getServerComponentManifest() {
+    if (!this.nextConfig.experimental.serverComponents) return undefined
+    return require(join(
+      this.distDir,
+      'server',
+      MIDDLEWARE_FLIGHT_MANIFEST + '.json'
+    ))
   }
 
   protected getCacheFilesystem(): CacheFs {
@@ -561,14 +738,16 @@ export default class NextNodeServer extends BaseServer {
     res: BaseNextResponse | ServerResponse,
     pathname: string,
     query?: NextParsedUrlQuery,
-    parsedUrl?: NextUrlWithParsedQuery
+    parsedUrl?: NextUrlWithParsedQuery,
+    internal = false
   ): Promise<void> {
     return super.render(
       this.normalizeReq(req),
       this.normalizeRes(res),
       pathname,
       query,
-      parsedUrl
+      parsedUrl,
+      internal
     )
   }
 
@@ -632,6 +811,24 @@ export default class NextNodeServer extends BaseServer {
       parsedUrl,
       setHeaders
     )
+  }
+
+  protected async hasMiddleware(
+    pathname: string,
+    _isSSR?: boolean
+  ): Promise<boolean> {
+    try {
+      return (
+        getMiddlewareInfo({
+          dev: this.renderOpts.dev,
+          distDir: this.distDir,
+          page: pathname,
+          serverless: this._isLikeServerless,
+        }).paths.length > 0
+      )
+    } catch (_) {}
+
+    return false
   }
 
   public async serveStatic(
@@ -732,13 +929,13 @@ export default class NextNodeServer extends BaseServer {
     return filesystemUrls.has(resolved)
   }
 
-  protected getMiddlewareInfo(params: {
-    dev?: boolean
-    distDir: string
-    page: string
-    serverless: boolean
-  }) {
-    return getMiddlewareInfo(params)
+  protected getMiddlewareInfo(page: string) {
+    return getMiddlewareInfo({
+      dev: this.renderOpts.dev,
+      page,
+      distDir: this.distDir,
+      serverless: this._isLikeServerless,
+    })
   }
 
   protected getMiddlewareManifest(): MiddlewareManifest | undefined {
@@ -750,6 +947,79 @@ export default class NextNodeServer extends BaseServer {
       return require(middlewareManifestPath)
     }
     return undefined
+  }
+
+  protected generateRewrites({
+    restrictedRedirectPaths,
+  }: {
+    restrictedRedirectPaths: string[]
+  }) {
+    let beforeFiles: Route[] = []
+    let afterFiles: Route[] = []
+    let fallback: Route[] = []
+
+    if (!this.minimalMode) {
+      const buildRewrite = (rewrite: Rewrite, check = true) => {
+        const rewriteRoute = getCustomRoute({
+          type: 'rewrite',
+          rule: rewrite,
+          restrictedRedirectPaths,
+        })
+        return {
+          ...rewriteRoute,
+          check,
+          type: rewriteRoute.type,
+          name: `Rewrite route ${rewriteRoute.source}`,
+          match: rewriteRoute.match,
+          fn: async (req, res, params, parsedUrl) => {
+            const { newUrl, parsedDestination } = prepareDestination({
+              appendParamsToQuery: true,
+              destination: rewriteRoute.destination,
+              params: params,
+              query: parsedUrl.query,
+            })
+
+            // external rewrite, proxy it
+            if (parsedDestination.protocol) {
+              return this.proxyRequest(
+                req as NodeNextRequest,
+                res as NodeNextResponse,
+                parsedDestination
+              )
+            }
+
+            addRequestMeta(req, '_nextRewroteUrl', newUrl)
+            addRequestMeta(req, '_nextDidRewrite', newUrl !== req.url)
+
+            return {
+              finished: false,
+              pathname: newUrl,
+              query: parsedDestination.query,
+            }
+          },
+        } as Route
+      }
+
+      if (Array.isArray(this.customRoutes.rewrites)) {
+        afterFiles = this.customRoutes.rewrites.map((r) => buildRewrite(r))
+      } else {
+        beforeFiles = this.customRoutes.rewrites.beforeFiles.map((r) =>
+          buildRewrite(r, false)
+        )
+        afterFiles = this.customRoutes.rewrites.afterFiles.map((r) =>
+          buildRewrite(r)
+        )
+        fallback = this.customRoutes.rewrites.fallback.map((r) =>
+          buildRewrite(r)
+        )
+      }
+    }
+
+    return {
+      beforeFiles,
+      afterFiles,
+      fallback,
+    }
   }
 
   protected generateCatchAllMiddlewareRoute(): Route | undefined {
@@ -775,7 +1045,8 @@ export default class NextNodeServer extends BaseServer {
           },
         })
 
-        if (!this.middleware?.some((m) => m.match(parsedUrl.pathname))) {
+        const normalizedPathname = removePathTrailingSlash(parsedUrl.pathname)
+        if (!this.middleware?.some((m) => m.match(normalizedPathname))) {
           return { finished: false }
         }
 
@@ -863,12 +1134,17 @@ export default class NextNodeServer extends BaseServer {
         }
 
         if (result.response.headers.has('x-middleware-rewrite')) {
-          const { newUrl, parsedDestination } = prepareDestination({
-            appendParamsToQuery: true,
-            destination: result.response.headers.get('x-middleware-rewrite')!,
-            params: _params,
-            query: parsedUrl.query,
-          })
+          const rewritePath = result.response.headers.get(
+            'x-middleware-rewrite'
+          )!
+          const parsedDestination = parseUrl(rewritePath)
+          const newUrl = parsedDestination.pathname
+
+          // TODO: remove after next minor version current `v12.0.9`
+          this.warnIfQueryParametersWereDeleted(
+            parsedUrl.query,
+            parsedDestination.query
+          )
 
           if (
             parsedDestination.protocol &&
@@ -948,6 +1224,9 @@ export default class NextNodeServer extends BaseServer {
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     this.middlewareBetaWarning()
+    const normalizedPathname = removePathTrailingSlash(
+      params.parsedUrl.pathname
+    )
 
     // For middleware to "fetch" we must always provide an absolute URL
     const url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
@@ -958,11 +1237,11 @@ export default class NextNodeServer extends BaseServer {
     }
 
     const page: { name?: string; params?: { [key: string]: string } } = {}
-    if (await this.hasPage(params.parsedUrl.pathname)) {
+    if (await this.hasPage(normalizedPathname)) {
       page.name = params.parsedUrl.pathname
     } else if (this.dynamicRoutes) {
       for (const dynamicRoute of this.dynamicRoutes) {
-        const matchParams = dynamicRoute.match(params.parsedUrl.pathname)
+        const matchParams = dynamicRoute.match(normalizedPathname)
         if (matchParams) {
           page.name = dynamicRoute.page
           page.params = matchParams
@@ -973,30 +1252,30 @@ export default class NextNodeServer extends BaseServer {
 
     const allHeaders = new Headers()
     let result: FetchEventResult | null = null
+    const method = (params.request.method || 'GET').toUpperCase()
+    let originalBody =
+      method !== 'GET' && method !== 'HEAD'
+        ? clonableBodyForRequest(params.request.body)
+        : undefined
 
     for (const middleware of this.middleware || []) {
-      if (middleware.match(params.parsedUrl.pathname)) {
+      if (middleware.match(normalizedPathname)) {
         if (!(await this.hasMiddleware(middleware.page, middleware.ssr))) {
           console.warn(`The Edge Function for ${middleware.page} was not found`)
           continue
         }
 
         await this.ensureMiddleware(middleware.page, middleware.ssr)
-
-        const middlewareInfo = this.getMiddlewareInfo({
-          dev: this.renderOpts.dev,
-          distDir: this.distDir,
-          page: middleware.page,
-          serverless: this._isLikeServerless,
-        })
+        const middlewareInfo = this.getMiddlewareInfo(middleware.page)
 
         result = await run({
           name: middlewareInfo.name,
           paths: middlewareInfo.paths,
           env: middlewareInfo.env,
+          wasm: middlewareInfo.wasm,
           request: {
             headers: params.request.headers,
-            method: params.request.method || 'GET',
+            method,
             nextConfig: {
               basePath: this.nextConfig.basePath,
               i18n: this.nextConfig.i18n,
@@ -1004,8 +1283,9 @@ export default class NextNodeServer extends BaseServer {
             },
             url: url,
             page: page,
+            body: originalBody?.cloneBodyStream(),
           },
-          useCache: !this.nextConfig.experimental.concurrentFeatures,
+          useCache: !this.nextConfig.experimental.runtime,
           onWarning: (warning: Error) => {
             if (params.onWarning) {
               warning.message += ` "./${middlewareInfo.name}"`
@@ -1040,6 +1320,41 @@ export default class NextNodeServer extends BaseServer {
       }
     }
 
+    await originalBody?.finalize()
+
     return result
+  }
+
+  private _cachedPreviewManifest: PrerenderManifest | undefined
+  protected getPrerenderManifest(): PrerenderManifest {
+    if (this._cachedPreviewManifest) {
+      return this._cachedPreviewManifest
+    }
+    const manifest = require(join(this.distDir, PRERENDER_MANIFEST))
+    return (this._cachedPreviewManifest = manifest)
+  }
+
+  protected getRoutesManifest() {
+    return require(join(this.distDir, ROUTES_MANIFEST))
+  }
+
+  // TODO: remove after next minor version current `v12.0.9`
+  private warnIfQueryParametersWereDeleted(
+    incoming: ParsedUrlQuery,
+    rewritten: ParsedUrlQuery
+  ): void {
+    const incomingQuery = urlQueryToSearchParams(incoming)
+    const rewrittenQuery = urlQueryToSearchParams(rewritten)
+
+    const missingKeys = [...incomingQuery.keys()].filter((key) => {
+      return !rewrittenQuery.has(key)
+    })
+
+    if (missingKeys.length > 0) {
+      Log.warn(
+        `Query params are no longer automatically merged for rewrites in middleware, see more info here: https://nextjs.org/docs/messages/deleting-query-params-in-middlewares`
+      )
+      this.warnIfQueryParametersWereDeleted = () => {}
+    }
   }
 }

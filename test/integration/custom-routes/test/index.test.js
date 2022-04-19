@@ -81,6 +81,24 @@ const runTests = (isDev = false) => {
     }
   })
 
+  it('should handle external beforeFiles rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/overridden')
+    const html = await res.text()
+
+    if (res.status !== 200) {
+      console.error('Invalid response', html)
+    }
+    expect(res.status).toBe(200)
+    expect(html).toContain('Vercel')
+
+    const browser = await webdriver(appPort, '/nav')
+    await browser.elementByCss('#to-before-files-overridden').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /Vercel/
+    )
+  })
+
   it('should support long URLs for rewrites', async () => {
     const res = await fetchViaHTTP(
       appPort,
@@ -159,7 +177,7 @@ const runTests = (isDev = false) => {
     const browser = await webdriver(appPort, '/rewriting-to-auto-export')
     await check(
       () => browser.eval(() => document.documentElement.innerHTML),
-      /auto-export hello/
+      /auto-export.*?hello/
     )
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       rewrite: '1',
@@ -688,6 +706,26 @@ const runTests = (isDev = false) => {
     })
     expect(res.status).toBe(308)
     expect(res.headers.get('refresh')).toBe(`0;url=/`)
+  })
+
+  it('should have correctly encoded query in location and refresh headers', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      // Query unencoded is ?テスト=あ
+      '/redirect4?%E3%83%86%E3%82%B9%E3%83%88=%E3%81%82',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res.status).toBe(308)
+
+    expect(res.headers.get('location').split('?')[1]).toBe(
+      '%E3%83%86%E3%82%B9%E3%83%88=%E3%81%82'
+    )
+    expect(res.headers.get('refresh')).toBe(
+      '0;url=/?%E3%83%86%E3%82%B9%E3%83%88=%E3%81%82'
+    )
   })
 
   it('should handle basic api rewrite successfully', async () => {
@@ -1677,6 +1715,11 @@ const runTests = (isDev = false) => {
               ),
               source: '/old-blog/:path*',
             },
+            {
+              destination: 'https://vercel.com',
+              regex: normalizeRegEx('^\\/overridden(?:\\/)?$'),
+              source: '/overridden',
+            },
           ],
           afterFiles: [
             {
@@ -2009,6 +2052,12 @@ const runTests = (isDev = false) => {
             routeKeys: {},
           },
           {
+            namedRegex: '^/overridden(?:/)?$',
+            page: '/overridden',
+            regex: '^/overridden(?:/)?$',
+            routeKeys: {},
+          },
+          {
             namedRegex: '^/redirect\\-override(?:/)?$',
             page: '/redirect-override',
             regex: '^/redirect\\-override(?:/)?$',
@@ -2132,7 +2181,7 @@ describe('Custom routes', () => {
       const browser = await webdriver(appPort, '/auto-export/my-slug')
       await check(
         () => browser.eval(() => document.documentElement.innerHTML),
-        /auto-export my-slug/
+        /auto-export.*?my-slug/
       )
     })
   })
