@@ -55,13 +55,7 @@ yarn dev
 
 Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, you can post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
 
-### Step 4 Try preview mode
-
-To try preview mode at any time while editing in Builder.io press `view current draft`, if you changed the secret defined in [constants.js](./lib/constants.js) you'll need to also change it in your `Post` [model settings](https://builder.io/models).
-
-To exit the preview mode, you can click **Click here to exit preview mode** at the top.
-
-### Step 5 Deploy on Vercel
+### Step 4 Deploy on Vercel
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 

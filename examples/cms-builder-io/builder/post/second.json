@@ -1,22 +1,46 @@
 {
+  "@originContentId": "82a462fbb98adc39fae63e713d31eec444fba1d5e4868ce62d167e644ed90276",
+  "@originModelId": "5815ecdde412fcc54b774bec92be8e7e405595e3ce681db84f88047cb7447505",
+  "@originOrg": "da10ebf47ea346cf9079e7563d4c2af3",
   "createdBy": "4FFFg0MNRJT0z0nW4uUizDHfHJV2",
   "createdDate": 1613031378505,
   "data": {
     "author": {
       "@type": "@builder.io/core:Reference",
-      "id": "7b0b333bd44b4e91a6f4bf93158cb62b",
+      "id": "e1efa9afdfa34d88abecfc4b7d4e00fa",
       "model": "author"
     },
     "customFonts": [
       {
+        "category": "handwriting",
         "family": "Allura",
-        "isUserFont": true
+        "files": {
+          "regular": "https://fonts.gstatic.com/s/allura/v6/9oRPNYsQpS4zjuAPjA.ttf"
+        },
+        "kind": "webfonts#webfont",
+        "lastModified": "2017-10-10",
+        "subsets": [
+          "latin",
+          "latin-ext"
+        ],
+        "variants": [
+          "regular"
+        ],
+        "version": "v6"
       }
     ],
     "image": "https://cdn.builder.io/api/v1/image/assets%2F8f6bae86bfa3487eb1a18f263118c832%2Ff2b8319ddd4642209af3a9a09f408dfd",
     "inputs": [],
     "intro": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
+    "lastUpdated": "Thu Apr 21 2022 00:00:00 GMT-0300 (Horário Padrão de Brasília)",
     "slug": "second-one",
+    "state": {
+      "deviceSize": "large",
+      "location": {
+        "path": "",
+        "query": {}
+      }
+    },
     "title": "aber",
     "blocks": [
       {
@@ -1242,9 +1266,10 @@
         }
       },
       {
-        "id": "builder-pixel-o7ofge7v1he",
         "@type": "@builder.io/sdk:Element",
+        "@version": 2,
         "tagName": "img",
+        "id": "builder-pixel-o7ofge7v1he",
         "properties": {
           "src": "https://cdn.builder.io/api/v1/pixel?apiKey=8f6bae86bfa3487eb1a18f263118c832",
           "role": "presentation",
@@ -1262,32 +1287,24 @@
           }
         }
       }
-    ],
-    "state": {
-      "deviceSize": "large",
-      "location": {
-        "path": "",
-        "query": {}
-      }
-    }
+    ]
   },
-  "id": "aa5cde0446204c228a11ea6ff10fff92",
-  "lastUpdatedBy": "4FFFg0MNRJT0z0nW4uUizDHfHJV2",
+  "id": "f0acfad7e5bc46d6b39bc4fede76e1eb",
+  "lastUpdated": 1650378389284,
+  "lastUpdatedBy": "XNHR3dCzCSXqg2Sumbh99KBD3XC2",
   "meta": {
     "hasLinks": false,
     "kind": "component",
     "needsHydration": false
   },
-  "modelId": "3f6eda812cf2484088b1451a2150d38f",
+  "modelId": "4e8ba03f462d4dc092680c13b2dd77ac",
   "name": "second ",
   "published": "published",
   "query": [],
+  "rev": "f52zffkmdoo",
+  "screenshot": "https://cdn.builder.io/api/v1/image/assets%2F8f6bae86bfa3487eb1a18f263118c832%2Fae6b7a78f9994ba2bded4527c22b647f",
   "testRatio": 1,
   "variations": {},
-  "lastUpdated": 1613033616315,
-  "screenshot": "https://cdn.builder.io/api/v1/image/assets%2F8f6bae86bfa3487eb1a18f263118c832%2Fae6b7a78f9994ba2bded4527c22b647f",
-  "rev": "3mj2dvbqtry",
-  "@originOrg": "8f6bae86bfa3487eb1a18f263118c832",
-  "@originContentId": "3ff20a4db1994618bb45ac7c8610300f",
-  "@originModelId": "7a732bbf5d964e7bbeff4acef2735c8a"
+  "firstPublished": 1613031378505,
+  "previewUrl": "http://localhost:3000/posts/second-one"
 }

@@ -1,16 +1,27 @@
 {
+  "@originContentId": "d8b74bf35356878c128588fda6f66a435ad2c07c1b352d921aa2857b86b2d6b7",
+  "@originModelId": "5815ecdde412fcc54b774bec92be8e7e405595e3ce681db84f88047cb7447505",
+  "@originOrg": "da10ebf47ea346cf9079e7563d4c2af3",
   "createdBy": "4FFFg0MNRJT0z0nW4uUizDHfHJV2",
   "createdDate": 1613015962185,
   "data": {
     "author": {
       "@type": "@builder.io/core:Reference",
-      "id": "d50fe8eced654b2dae22c738dbeabcee",
+      "id": "d4b3b626b5054f7d9eabb7dddf3b4e39",
       "model": "author"
     },
     "image": "https://cdn.builder.io/api/v1/image/assets%2F8f6bae86bfa3487eb1a18f263118c832%2F79e961dbf6d54a9a8f189c5bd48454d8",
     "inputs": [],
     "intro": "pellentesque nec nam aliquam. Tincidunt id aliquet risus feugiat in ante metus dictum at. Nascetur ridiculus mus mauris vitae ultricies leo integer malesuada nunc. Tellus cras adipiscing enim eu turpis. Ultrices eros in cursus turpis massa tincidunt dui. Feugiat nisl pretium fusce id. Mauris augue neque gravida infermentum et. Sed elementum tempus egestas sed. At consectetur lorem donec massa sapien faucibus et.",
+    "lastUpdated": "Tue Apr 19 2022 00:00:00 GMT-0300 (Horário Padrão de Brasília)",
     "slug": "first-one",
+    "state": {
+      "deviceSize": "large",
+      "location": {
+        "path": "",
+        "query": {}
+      }
+    },
     "title": "Now howoiofweewf",
     "blocks": [
       {
@@ -232,9 +243,10 @@
         }
       },
       {
-        "id": "builder-pixel-3zydvairp32",
         "@type": "@builder.io/sdk:Element",
+        "@version": 2,
         "tagName": "img",
+        "id": "builder-pixel-3zydvairp32",
         "properties": {
           "src": "https://cdn.builder.io/api/v1/pixel?apiKey=8f6bae86bfa3487eb1a18f263118c832",
           "role": "presentation",
@@ -252,32 +264,31 @@
           }
         }
       }
-    ],
-    "state": {
-      "deviceSize": "large",
-      "location": {
-        "path": "",
-        "query": {}
-      }
-    }
+    ]
   },
-  "id": "006452f51b414da189e8ccc576d9805b",
-  "lastUpdatedBy": "agZ9n5CUKRfbL9t6CaJOyVSK4Es2",
+  "id": "fec9ffb9b9b84a5888d95ca3087f6085",
+  "lastUpdated": 1650378378243,
+  "lastUpdatedBy": "XNHR3dCzCSXqg2Sumbh99KBD3XC2",
   "meta": {
     "hasLinks": false,
     "kind": "component",
     "needsHydration": false
   },
-  "modelId": "3f6eda812cf2484088b1451a2150d38f",
+  "modelId": "4e8ba03f462d4dc092680c13b2dd77ac",
   "name": "first one",
   "published": "published",
-  "query": [],
+  "query": [
+    {
+      "@type": "@builder.io/core:Query",
+      "operator": "is",
+      "property": null,
+      "value": null
+    }
+  ],
+  "rev": "f52zffkmdoo",
+  "screenshot": "https://cdn.builder.io/api/v1/image/assets%2F8f6bae86bfa3487eb1a18f263118c832%2Ffb7a0bb3ded54a8cbcdd8ddd98d24a7e",
   "testRatio": 1,
   "variations": {},
-  "lastUpdated": 1613035917446,
-  "screenshot": "https://cdn.builder.io/api/v1/image/assets%2F8f6bae86bfa3487eb1a18f263118c832%2Ffb7a0bb3ded54a8cbcdd8ddd98d24a7e",
-  "rev": "3mj2dvbqtry",
-  "@originOrg": "8f6bae86bfa3487eb1a18f263118c832",
-  "@originContentId": "e7951ec30b1c496b87b3fa2c98192a79",
-  "@originModelId": "7a732bbf5d964e7bbeff4acef2735c8a"
+  "firstPublished": 1613015962185,
+  "previewUrl": "http://localhost:3000/posts/first-one"
 }

@@ -2,12 +2,11 @@ import { useRouter } from 'next/router'
 import ErrorPage from 'next/error'
 import Container from '@/components/container'
 import PostBody from '@/components/post-body'
-import MoreStories from '@/components/more-stories'
 import Header from '@/components/header'
 import PostHeader from '@/components/post-header'
 import SectionSeparator from '@/components/section-separator'
 import Layout from '@/components/layout'
-import { getAllPostsWithSlug, getPostAndMorePosts } from '@/lib/api'
+import { getAllPostsWithSlug, getPostBySlug } from '@/lib/api'
 import PostTitle from '@/components/post-title'
 import Head from 'next/head'
 import { CMS_NAME, BUILDER_CONFIG } from '@/lib/constants'
@@ -17,14 +16,15 @@ import '@builder.io/widgets'
 builder.init(BUILDER_CONFIG.apiKey)
 Builder.isStatic = true
 
-export default function Post({ post, morePosts, preview }) {
+export default function Post({ post }) {
   const router = useRouter()
-  const isLive = !Builder.isEditing && !Builder.isPreviewing && !preview
+  const isLive = !Builder.isEditing && !Builder.isPreviewing
   if (!router.isFallback && !post && isLive) {
     return <ErrorPage statusCode={404} />
   }
+
   return (
-    <Layout preview={preview}>
+    <Layout>
       <Container>
         <Header />
         {router.isFallback ? (
@@ -54,13 +54,16 @@ export default function Post({ post, morePosts, preview }) {
                         author={data.author.value?.data}
                       />
                     )}
+                    <p>
+                      {post.data.intro}
+                    </p>
                     <PostBody content={post} />
                   </article>
                 )
               }
             </BuilderContent>
             <SectionSeparator />
-            {morePosts.length > 0 && <MoreStories posts={morePosts} />}
+            {/* {morePosts.length > 0 && <MoreStories posts={morePosts} />} */}
           </>
         )}
       </Container>
@@ -68,19 +71,15 @@ export default function Post({ post, morePosts, preview }) {
   )
 }
 
-export async function getStaticProps({ params, preview = false, previewData }) {
-  let { post, morePosts } = await getPostAndMorePosts(
+export async function getStaticProps({ params }) {
+  let { post } = await getPostBySlug(
     params.slug,
-    preview,
-    previewData
   )
 
   return {
     props: {
       key: post?.id + post?.data.slug + params.slug,
-      preview,
       post,
-      morePosts,
     },
   }
 }

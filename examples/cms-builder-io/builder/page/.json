@@ -1,0 +1,793 @@
+{
+  "createdBy": "XNHR3dCzCSXqg2Sumbh99KBD3XC2",
+  "createdDate": 1650039267021,
+  "data": {
+    "author": {
+      "@type": "@builder.io/core:Reference",
+      "id": "",
+      "model": ""
+    },
+    "customFonts": [
+      {
+        "category": "sans-serif",
+        "family": "Roboto",
+        "files": {
+          "100": "https://fonts.gstatic.com/s/roboto/v18/KFOkCnqEu92Fr1MmgWxP.ttf",
+          "300": "https://fonts.gstatic.com/s/roboto/v18/KFOlCnqEu92Fr1MmSU5vAw.ttf",
+          "500": "https://fonts.gstatic.com/s/roboto/v18/KFOlCnqEu92Fr1MmEU9vAw.ttf",
+          "700": "https://fonts.gstatic.com/s/roboto/v18/KFOlCnqEu92Fr1MmWUlvAw.ttf",
+          "900": "https://fonts.gstatic.com/s/roboto/v18/KFOlCnqEu92Fr1MmYUtvAw.ttf",
+          "100italic": "https://fonts.gstatic.com/s/roboto/v18/KFOiCnqEu92Fr1Mu51QrIzc.ttf",
+          "300italic": "https://fonts.gstatic.com/s/roboto/v18/KFOjCnqEu92Fr1Mu51TjARc9.ttf",
+          "500italic": "https://fonts.gstatic.com/s/roboto/v18/KFOjCnqEu92Fr1Mu51S7ABc9.ttf",
+          "700italic": "https://fonts.gstatic.com/s/roboto/v18/KFOjCnqEu92Fr1Mu51TzBhc9.ttf",
+          "900italic": "https://fonts.gstatic.com/s/roboto/v18/KFOjCnqEu92Fr1Mu51TLBBc9.ttf",
+          "italic": "https://fonts.gstatic.com/s/roboto/v18/KFOkCnqEu92Fr1Mu52xP.ttf",
+          "regular": "https://fonts.gstatic.com/s/roboto/v18/KFOmCnqEu92Fr1Me5Q.ttf"
+        },
+        "kind": "webfonts#webfont",
+        "lastModified": "2017-10-16",
+        "subsets": [
+          "latin",
+          "greek",
+          "greek-ext",
+          "latin-ext",
+          "cyrillic",
+          "vietnamese",
+          "cyrillic-ext"
+        ],
+        "variants": [
+          "100",
+          "100italic",
+          "300",
+          "300italic",
+          "regular",
+          "italic",
+          "500",
+          "500italic",
+          "700",
+          "700italic",
+          "900",
+          "900italic"
+        ],
+        "version": "v18"
+      }
+    ],
+    "httpRequests": {
+      "post": "https://cdn.builder.io/api/v2/content/post/82a462fbb98adc39fae63e713d31eec444fba1d5e4868ce62d167e644ed90276?apiKey=da10ebf47ea346cf9079e7563d4c2af3&includeRefs=true&fields=data",
+      "post2": "https://cdn.builder.io/api/v2/content/post?apiKey=da10ebf47ea346cf9079e7563d4c2af3&includeRefs=true&fields=data&limit=10"
+    },
+    "inputs": [],
+    "postList": {
+      "@type": "@builder.io/core:Reference",
+      "id": "",
+      "model": ""
+    },
+    "title": "/",
+    "blocks": [
+      {
+        "@type": "@builder.io/sdk:Element",
+        "@version": 2,
+        "id": "builder-49e51b8816374160ba5373eb8b1c30b8",
+        "component": {
+          "name": "Text",
+          "options": {
+            "text": "<h1><strong>Blog demo</strong></h1>"
+          }
+        },
+        "responsiveStyles": {
+          "large": {
+            "display": "flex",
+            "flexDirection": "column",
+            "position": "relative",
+            "flexShrink": "0",
+            "boxSizing": "border-box",
+            "marginTop": "20px",
+            "lineHeight": "normal",
+            "height": "auto",
+            "textAlign": "center",
+            "fontSize": "32px"
+          }
+        }
+      },
+      {
+        "@type": "@builder.io/sdk:Element",
+        "@version": 2,
+        "id": "builder-8976bdc3354c4590ab40bbbd9b550831",
+        "component": {
+          "name": "Text",
+          "options": {
+            "text": "<p>Featured Post</p>"
+          }
+        },
+        "responsiveStyles": {
+          "large": {
+            "display": "flex",
+            "flexDirection": "column",
+            "position": "relative",
+            "flexShrink": "0",
+            "boxSizing": "border-box",
+            "marginTop": "20px",
+            "lineHeight": "normal",
+            "height": "auto",
+            "textAlign": "center"
+          }
+        }
+      },
+      {
+        "@type": "@builder.io/sdk:Element",
+        "@version": 2,
+        "bindings": {
+          "style.backgroundImage": "var _virtual_index=\"url(\"+state.post.data.image+\")\";return _virtual_index"
+        },
+        "code": {
+          "bindings": {
+            "style.backgroundImage": "`url(${state.post.data.image})`"
+          }
+        },
+        "layerName": "Collection showcase",
+        "id": "builder-94a165c9af844e13a7596a7e7c571be4",
+        "animations": [
+          {
+            "trigger": "hover",
+            "animation": "custom",
+            "steps": [
+              {
+                "id": "0122aeb4bd384e2a8513a863db22e4c0",
+                "isStartState": false,
+                "styles": {},
+                "delay": 0
+              },
+              {
+                "id": "3bcbcddb258d4d57a204b3a8083eaaf3",
+                "isStartState": false,
+                "styles": {
+                  "overflow": "hidden",
+                  "transition": "transform 0.3s ease-in-out",
+                  "_newProperty": ""
+                },
+                "delay": 0
+              }
+            ],
+            "delay": 0,
+            "duration": 0.5,
+            "easing": "cubic-bezier(.37,.01,0,.98)",
+            "repeat": false
+          }
+        ],
+        "meta": {
+          "bindingActions": {
+            "style": {
+              "backgroundColor": [],
+              "backgroundImage": [
+                {
+                  "@type": "@builder.io/core:Action",
+                  "action": "@builder.io:combineText",
+                  "options": {}
+                }
+              ]
+            }
+          }
+        },
+        "children": [
+          {
+            "@type": "@builder.io/sdk:Element",
+            "@version": 2,
+            "id": "builder-cd64a83862e54961845e950f03436119",
+            "animations": [
+              {
+                "trigger": "pageLoad",
+                "animation": "fadeInUp",
+                "steps": [
+                  {
+                    "id": "bc0e3feb33cf4257a5a6e27f1e918d0e",
+                    "isStartState": false,
+                    "styles": {
+                      "opacity": "0",
+                      "transform": "translate3d(0, 20px, 0)"
+                    },
+                    "delay": 0
+                  },
+                  {
+                    "id": "1fe07680f4c94b3babfa67bee737db72",
+                    "isStartState": false,
+                    "styles": {
+                      "opacity": "1",
+                      "transform": "none"
+                    },
+                    "delay": 0
+                  }
+                ],
+                "delay": 0,
+                "duration": 0.5,
+                "easing": "cubic-bezier(.37,.01,0,.98)",
+                "repeat": false
+              }
+            ],
+            "children": [
+              {
+                "@type": "@builder.io/sdk:Element",
+                "@version": 2,
+                "bindings": {
+                  "component.options.text": "var _virtual_index=state.post.data.title;return _virtual_index"
+                },
+                "code": {
+                  "bindings": {
+                    "component.options.text": "state.post.data.title"
+                  }
+                },
+                "id": "builder-ee18f1f7eecb499c894c250c7291e8c2",
+                "animations": [
+                  {
+                    "trigger": "scrollInView",
+                    "animation": "fadeInUp",
+                    "steps": [
+                      {
+                        "id": "9ef14164b01e41189875dd27d072d66b",
+                        "isStartState": false,
+                        "styles": {
+                          "opacity": "0",
+                          "transform": "translate3d(0, 20px, 0)"
+                        },
+                        "delay": 0
+                      },
+                      {
+                        "id": "950d19df43d946e8ae0a8bd6d8d9f2b7",
+                        "isStartState": false,
+                        "styles": {
+                          "opacity": "1",
+                          "transform": "none"
+                        },
+                        "delay": 0
+                      }
+                    ],
+                    "delay": 0,
+                    "duration": 0.5,
+                    "easing": "cubic-bezier(.37,.01,0,.98)",
+                    "repeat": false
+                  }
+                ],
+                "component": {
+                  "name": "Text",
+                  "options": {
+                    "text": "<p>ABOUT THIS COLLECTION</p>"
+                  }
+                },
+                "responsiveStyles": {
+                  "large": {
+                    "display": "flex",
+                    "flexDirection": "column",
+                    "alignItems": "stretch",
+                    "position": "relative",
+                    "flexShrink": "0",
+                    "boxSizing": "border-box",
+                    "lineHeight": "normal",
+                    "height": "auto",
+                    "textAlign": "left",
+                    "color": "rgba(252, 250, 250, 1)",
+                    "fontSize": "82px",
+                    "fontWeight": "500"
+                  }
+                }
+              },
+              {
+                "@type": "@builder.io/sdk:Element",
+                "@version": 2,
+                "bindings": {
+                  "component.options.link": "var _virtual_index=\"/posts/\"+state.post.data.slug;return _virtual_index"
+                },
+                "code": {
+                  "bindings": {
+                    "component.options.link": "`/posts/${state.post.data.slug}`"
+                  }
+                },
+                "layerName": "Button",
+                "id": "builder-88218c244a8647898153ffc22c1c6425",
+                "animations": [
+                  {
+                    "trigger": "scrollInView",
+                    "animation": "fadeInUp",
+                    "steps": [
+                      {
+                        "id": "8c3c34029b0d42b6976b68f3201a59f9",
+                        "isStartState": false,
+                        "styles": {
+                          "opacity": "0",
+                          "transform": "translate3d(0, 20px, 0)"
+                        },
+                        "delay": 0
+                      },
+                      {
+                        "id": "c03caad611614741952d5c88b59f5737",
+                        "isStartState": false,
+                        "styles": {
+                          "opacity": "1",
+                          "transform": "none"
+                        },
+                        "delay": 0
+                      }
+                    ],
+                    "delay": 0,
+                    "duration": 0.5,
+                    "easing": "cubic-bezier(.37,.01,0,.98)",
+                    "repeat": false
+                  }
+                ],
+                "component": {
+                  "name": "Core:Button",
+                  "options": {
+                    "text": "View"
+                  }
+                },
+                "responsiveStyles": {
+                  "large": {
+                    "flexDirection": "column",
+                    "alignItems": "stretch",
+                    "position": "relative",
+                    "flexShrink": "0",
+                    "boxSizing": "border-box",
+                    "appearance": "none",
+                    "paddingTop": "15px",
+                    "paddingBottom": "15px",
+                    "paddingLeft": "25px",
+                    "paddingRight": "25px",
+                    "backgroundColor": "rgba(144, 19, 254, 1)",
+                    "color": "rgba(245, 239, 239, 1)",
+                    "borderRadius": "20px",
+                    "textAlign": "center",
+                    "cursor": "pointer",
+                    "width": "130px",
+                    "fontSize": "14px",
+                    "alignSelf": "center",
+                    "textDecoration": "none",
+                    "zIndex": "1000",
+                    "marginRight": "auto",
+                    "marginTop": "20px"
+                  }
+                }
+              }
+            ],
+            "responsiveStyles": {
+              "large": {
+                "display": "flex",
+                "flexDirection": "column",
+                "alignItems": "stretch",
+                "flexShrink": "0",
+                "boxSizing": "border-box",
+                "height": "auto",
+                "paddingBottom": "20px",
+                "width": "auto",
+                "alignSelf": "center",
+                "textAlign": "left",
+                "paddingTop": "20px",
+                "paddingLeft": "20px",
+                "paddingRight": "20px",
+                "position": "relative",
+                "marginRight": "auto",
+                "marginLeft": "50px",
+                "marginBottom": "3px",
+                "marginTop": "auto"
+              },
+              "medium": {
+                "marginLeft": "20px",
+                "marginBottom": "0px"
+              },
+              "small": {
+                "marginLeft": "auto",
+                "marginRight": "auto"
+              }
+            }
+          }
+        ],
+        "responsiveStyles": {
+          "large": {
+            "position": "relative",
+            "flexShrink": "0",
+            "boxSizing": "border-box",
+            "display": "flex",
+            "flexDirection": "column",
+            "alignItems": "flex-start",
+            "marginTop": "20px",
+            "paddingBottom": "30px",
+            "backgroundPosition": "center",
+            "backgroundSize": "cover",
+            "justifyContent": "flex-end",
+            "height": "600px",
+            "backgroundRepeat": "no-repeat",
+            "overflow": "hidden"
+          },
+          "small": {
+            "height": "300px"
+          }
+        }
+      },
+      {
+        "@type": "@builder.io/sdk:Element",
+        "@version": 2,
+        "id": "builder-691383409a454e91940606d11ac5402a",
+        "component": {
+          "name": "Core:Section",
+          "options": {
+            "maxWidth": 1200
+          }
+        },
+        "children": [
+          {
+            "@type": "@builder.io/sdk:Element",
+            "@version": 2,
+            "id": "builder-f0006bf9cdea4f9abdfbb92a266f1e56",
+            "component": {
+              "name": "Text",
+              "options": {
+                "text": "<p>More Posts</p>"
+              }
+            },
+            "responsiveStyles": {
+              "large": {
+                "display": "flex",
+                "flexDirection": "column",
+                "position": "relative",
+                "flexShrink": "0",
+                "boxSizing": "border-box",
+                "marginTop": "20px",
+                "lineHeight": "normal",
+                "height": "auto",
+                "textAlign": "center"
+              }
+            }
+          }
+        ],
+        "responsiveStyles": {
+          "large": {
+            "display": "flex",
+            "flexDirection": "column",
+            "position": "relative",
+            "flexShrink": "0",
+            "boxSizing": "border-box",
+            "marginTop": "0px",
+            "paddingLeft": "20px",
+            "paddingRight": "20px",
+            "paddingTop": "50px",
+            "paddingBottom": "50px",
+            "width": "100vw",
+            "marginLeft": "calc(50% - 50vw)"
+          }
+        }
+      },
+      {
+        "@type": "@builder.io/sdk:Element",
+        "@version": 2,
+        "layerName": "Collection list",
+        "id": "builder-32581d95fbbc494eadf3aabdf8ae3790",
+        "animations": [
+          {
+            "trigger": "scrollInView",
+            "animation": "fadeInUp",
+            "steps": [
+              {
+                "id": "f7da5267b1e14f0ebad87e2dcb345a9f",
+                "isStartState": false,
+                "styles": {
+                  "opacity": "0",
+                  "transform": "translate3d(0, 20px, 0)"
+                },
+                "delay": 0
+              },
+              {
+                "id": "1666a6b704bc4ffcb1ef27fda5fad9cc",
+                "isStartState": false,
+                "styles": {
+                  "opacity": "1",
+                  "transform": "none"
+                },
+                "delay": 0
+              }
+            ],
+            "delay": 0,
+            "duration": 0.5,
+            "easing": "cubic-bezier(.37,.01,0,.98)",
+            "repeat": false
+          }
+        ],
+        "children": [
+          {
+            "@type": "@builder.io/sdk:Element",
+            "@version": 2,
+            "bindings": {
+              "style.backgroundImage": "var _virtual_index=\"url(\"+state.resultsItem.data.image+\")\";return _virtual_index"
+            },
+            "code": {
+              "bindings": {
+                "style.backgroundImage": "`url(${state.resultsItem.data.image})`"
+              }
+            },
+            "repeat": {
+              "collection": "state.post2.results"
+            },
+            "layerName": "Collection showcase mini",
+            "id": "builder-63936c3a1ebd4764bd3308bf1b6881cf",
+            "children": [
+              {
+                "@type": "@builder.io/sdk:Element",
+                "@version": 2,
+                "id": "builder-81539e90ca4e49909221b92feaf0057e",
+                "animations": [
+                  {
+                    "trigger": "pageLoad",
+                    "animation": "fadeInUp",
+                    "steps": [
+                      {
+                        "id": "0f13a25090ab46499e8b8432529ba455",
+                        "isStartState": false,
+                        "styles": {
+                          "opacity": "0",
+                          "transform": "translate3d(0, 20px, 0)"
+                        },
+                        "delay": 0
+                      },
+                      {
+                        "id": "76c5555857684ebcbd40024685593ea5",
+                        "isStartState": false,
+                        "styles": {
+                          "opacity": "1",
+                          "transform": "none"
+                        },
+                        "delay": 0
+                      }
+                    ],
+                    "delay": 0,
+                    "duration": 0.5,
+                    "easing": "cubic-bezier(.37,.01,0,.98)",
+                    "repeat": false
+                  }
+                ],
+                "children": [
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "bindings": {
+                      "component.options.text": "var _virtual_index=state.resultsItem.data.title;return _virtual_index"
+                    },
+                    "code": {
+                      "bindings": {
+                        "component.options.text": "state.resultsItem.data.title"
+                      }
+                    },
+                    "id": "builder-03127dce9216451e8ab25c338ed5d4d8",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Skincare</p>"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "5px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "left",
+                        "color": "rgba(19, 1, 1, 1)",
+                        "fontSize": "24px",
+                        "fontWeight": "600"
+                      }
+                    }
+                  },
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "bindings": {
+                      "component.options.link": "var _virtual_index=\"/posts/\"+state.resultsItem.data.slug;return _virtual_index"
+                    },
+                    "code": {
+                      "bindings": {
+                        "component.options.link": "`/posts/${state.resultsItem.data.slug}`"
+                      }
+                    },
+                    "layerName": "Button",
+                    "id": "builder-b393adc091f54783b967ed341e713bab",
+                    "animations": [
+                      {
+                        "trigger": "hover",
+                        "animation": "custom",
+                        "steps": [
+                          {
+                            "id": "f39f947cfab046f09537b868b8762997",
+                            "isStartState": false,
+                            "styles": {},
+                            "delay": 0
+                          },
+                          {
+                            "id": "458645a564354e70ac449c8b0d46a0f7",
+                            "isStartState": false,
+                            "styles": {
+                              "color": "rgba(255, 255, 255, 1)",
+                              "backgroundColor": "rgba(0, 0, 0, 1)"
+                            },
+                            "delay": 0
+                          }
+                        ],
+                        "delay": 0,
+                        "duration": 0.5,
+                        "easing": "cubic-bezier(.37,.01,0,.98)",
+                        "repeat": false
+                      }
+                    ],
+                    "component": {
+                      "name": "Core:Button",
+                      "options": {
+                        "text": "View"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "20px",
+                        "appearance": "none",
+                        "paddingTop": "15px",
+                        "paddingBottom": "15px",
+                        "paddingLeft": "25px",
+                        "paddingRight": "25px",
+                        "backgroundColor": "rgba(255, 255, 255, 1)",
+                        "color": "rgba(0, 0, 0, 1)",
+                        "borderRadius": "0px",
+                        "textAlign": "center",
+                        "cursor": "pointer",
+                        "width": "auto",
+                        "fontSize": "14px",
+                        "alignSelf": "center",
+                        "textDecoration": "none",
+                        "marginRight": "auto"
+                      }
+                    }
+                  }
+                ],
+                "responsiveStyles": {
+                  "large": {
+                    "display": "flex",
+                    "flexDirection": "column",
+                    "alignItems": "stretch",
+                    "flexShrink": "0",
+                    "boxSizing": "border-box",
+                    "height": "auto",
+                    "paddingBottom": "0px",
+                    "width": "auto",
+                    "alignSelf": "center",
+                    "textAlign": "left",
+                    "backgroundColor": "rgba(0, 0, 0, 0)",
+                    "paddingTop": "20px",
+                    "paddingLeft": "20px",
+                    "paddingRight": "20px",
+                    "marginTop": "auto",
+                    "position": "relative",
+                    "marginRight": "auto",
+                    "marginLeft": "10px",
+                    "marginBottom": "30px"
+                  }
+                }
+              }
+            ],
+            "responsiveStyles": {
+              "large": {
+                "position": "relative",
+                "flexShrink": "0",
+                "boxSizing": "border-box",
+                "display": "flex",
+                "flexDirection": "column",
+                "alignItems": "flex-start",
+                "marginTop": "0px",
+                "paddingBottom": "0px",
+                "backgroundPosition": "center",
+                "backgroundSize": "cover",
+                "justifyContent": "flex-end",
+                "height": "600px",
+                "backgroundImage": "url(https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F319471b96f7c4e249176cc245ff53493?width=680)",
+                "backgroundRepeat": "no-repeat",
+                "width": "34%"
+              },
+              "medium": {
+                "width": "100%"
+              }
+            }
+          }
+        ],
+        "responsiveStyles": {
+          "large": {
+            "display": "flex",
+            "flexDirection": "row",
+            "position": "relative",
+            "flexShrink": "0",
+            "boxSizing": "border-box",
+            "paddingRight": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingTop": "0px",
+            "overflow": "hidden",
+            "alignItems": "center",
+            "justifyContent": "center",
+            "marginTop": "20px"
+          },
+          "medium": {
+            "alignItems": "stretch",
+            "flexDirection": "column",
+            "display": "flex"
+          }
+        }
+      }
+    ],
+    "url": "/",
+    "state": {
+      "deviceSize": "large",
+      "location": {
+        "path": "",
+        "query": {}
+      }
+    }
+  },
+  "id": "d7e18ff6d6af43af9a1fc7aa9284b11d",
+  "lastUpdatedBy": "XNHR3dCzCSXqg2Sumbh99KBD3XC2",
+  "meta": {
+    "dataSources": [
+      {
+        "dataPluginName": "Builder.io",
+        "options": {
+          "entry": "f0acfad7e5bc46d6b39bc4fede76e1eb",
+          "limit": 10,
+          "orderBy": "priority",
+          "orderType": "descending",
+          "query": [],
+          "single": false
+        },
+        "propertyName": "post",
+        "resourceId": "4e8ba03f462d4dc092680c13b2dd77ac",
+        "resourceName": "Post"
+      },
+      {
+        "dataPluginName": "Builder.io",
+        "options": {
+          "limit": 10,
+          "orderBy": "priority",
+          "orderType": "descending",
+          "query": [],
+          "single": false
+        },
+        "propertyName": "post2",
+        "resourceId": "4e8ba03f462d4dc092680c13b2dd77ac",
+        "resourceName": "Post"
+      }
+    ],
+    "hasLinks": false,
+    "kind": "page",
+    "needsHydration": false
+  },
+  "modelId": "9f22db20d5184e62882757b533cbb0e7",
+  "name": "/",
+  "published": "published",
+  "query": [
+    {
+      "@type": "@builder.io/core:Query",
+      "operator": "is",
+      "property": "urlPath",
+      "value": "/"
+    }
+  ],
+  "testRatio": 1,
+  "variations": {},
+  "lastUpdated": 1650326210095,
+  "firstPublished": 1650039278399,
+  "previewUrl": "http://localhost:3000/",
+  "screenshot": "https://cdn.builder.io/api/v1/image/assets%2Fda10ebf47ea346cf9079e7563d4c2af3%2Fb0e0557b73b747b98005926ba3d3ab7a",
+  "rev": "tuvtvzeloxc",
+  "@originOrg": "da10ebf47ea346cf9079e7563d4c2af3",
+  "@originContentId": "62bd46f95d0b47e88dbfc31d42b77552",
+  "@originModelId": "a877a6591eeb413e9e06289c986932b3"
+}

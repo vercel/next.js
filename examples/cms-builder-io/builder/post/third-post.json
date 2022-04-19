@@ -1,0 +1,34 @@
+{
+  "createdBy": "XNHR3dCzCSXqg2Sumbh99KBD3XC2",
+  "createdDate": 1650044164562,
+  "data": {
+    "author": {
+      "@type": "@builder.io/core:Reference",
+      "id": "e1efa9afdfa34d88abecfc4b7d4e00fa",
+      "model": "author"
+    },
+    "image": "https://cdn.builder.io/api/v1/image/assets%2Fda10ebf47ea346cf9079e7563d4c2af3%2F4d1a8765cdaa4c59b4472b46def3b1cb",
+    "intro": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Orci sagittis eu volutpat odio facilisis mauris. Commodo nulla facilisi nullam vehicula. Tellus cras adipiscing enim eu. Morbi blandit cursus risus at ultrices mi tempus imperdiet nulla. Tempus quam pellentesque nec nam aliquam. Tincidunt id aliquet risus feugiat in ante metus dictum at. Nascetur ridiculus mus mauris vitae ultricies leo integer malesuada nunc. Tellus cras adipiscing enim eu turpis. Ultrices eros in cursus turpis massa tincidunt dui. Feugiat nisl pretium fusce id. Mauris augue neque gravida in fermentum et. Sed elementum tempus egestas sed. At consectetur lorem donec massa sapien faucibus et. Tellus pellentesque eu tincidunt tortor. Blandit turpis cursus in hac habitasse. Dui nunc mattis enim ut tellus elementum sagittis vitae. Ipsum.",
+    "lastUpdated": "Wed Apr 20 2022 00:00:00 GMT-0300 (Horário Padrão de Brasília)",
+    "slug": "third-one",
+    "title": "Third one"
+  },
+  "id": "7239f4e3739046a295cf99c435272401",
+  "lastUpdatedBy": "XNHR3dCzCSXqg2Sumbh99KBD3XC2",
+  "meta": {
+    "kind": "component"
+  },
+  "modelId": "4e8ba03f462d4dc092680c13b2dd77ac",
+  "name": "Third post",
+  "published": "published",
+  "query": [],
+  "testRatio": 1,
+  "variations": {},
+  "lastUpdated": 1650378407882,
+  "previewUrl": "http://localhost:3000/posts/third-one",
+  "firstPublished": 1650044263516,
+  "rev": "f52zffkmdoo",
+  "@originOrg": "da10ebf47ea346cf9079e7563d4c2af3",
+  "@originContentId": "c2272afd1e3943c7808ada93748f0110",
+  "@originModelId": "5815ecdde412fcc54b774bec92be8e7e405595e3ce681db84f88047cb7447505"
+}
