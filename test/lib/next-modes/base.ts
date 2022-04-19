@@ -32,6 +32,7 @@ export class NextInstance {
   protected _url: string
   protected _parsedUrl: URL
   protected packageJson: PackageJson
+  protected basePath?: string
 
   constructor({
     files,
@@ -164,7 +165,7 @@ export class NextInstance {
       await fs.writeFile(
         path.join(this.testDir, 'next.config.js'),
         `
-        const config = ` +
+        module.exports = ` +
           JSON.stringify(
             {
               ...this.nextConfig,
@@ -192,7 +193,13 @@ export class NextInstance {
         this.testDir,
         nextConfigFile || 'next.config.js'
       )
-      const content = await fs.readFile(fileName)
+      const content = await fs.readFile(fileName, 'utf8')
+
+      if (content.includes('basePath')) {
+        this.basePath =
+          content.match(/['"`]?basePath['"`]?:.*?['"`](.*?)['"`]/)?.[1] || ''
+      }
+
       await fs.writeFile(
         fileName,
         `${content}\n` +

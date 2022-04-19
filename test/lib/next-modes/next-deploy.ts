@@ -30,7 +30,8 @@ export class NextDeployInstance extends NextInstance {
         stdio: 'inherit',
       })
     }
-    const vercelFlags = ['--scope', TEST_TEAM_NAME, '-t', TEST_TOKEN]
+    const vercelFlags = ['--scope', TEST_TEAM_NAME]
+    const vercelEnv = { ...process.env, TOKEN: TEST_TOKEN }
     console.log(`Linking project at ${this.testDir}`)
 
     // link the project
@@ -39,6 +40,7 @@ export class NextDeployInstance extends NextInstance {
       ['link', '-p', TEST_PROJECT_NAME, '--confirm', ...vercelFlags],
       {
         cwd: this.testDir,
+        env: vercelEnv,
       }
     )
 
@@ -60,6 +62,7 @@ export class NextDeployInstance extends NextInstance {
       ],
       {
         cwd: this.testDir,
+        env: vercelEnv,
       }
     )
 
@@ -73,11 +76,16 @@ export class NextDeployInstance extends NextInstance {
     this._parsedUrl = new URL(this._url)
 
     console.log(`Deployment URL: ${this._url}`)
+    const buildIdUrl = `${this._url}${
+      this.basePath || ''
+    }/_next/static/__BUILD_ID`
 
-    const buildIdRes = await fetch(`${this._url}/_next/static/__BUILD_ID`)
+    const buildIdRes = await fetch(buildIdUrl)
 
     if (!buildIdRes.ok) {
-      throw new Error(`Failed to load buildId ${buildIdRes.status}`)
+      console.error(
+        `Failed to load buildId ${buildIdUrl} (${buildIdRes.status})`
+      )
     }
     this._buildId = (await buildIdRes.text()).trim()
 
