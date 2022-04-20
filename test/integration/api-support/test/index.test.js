@@ -163,9 +163,25 @@ function runTests(dev = false) {
   })
 
   it('should support undefined response body', async () => {
-    const res = await fetchViaHTTP(appPort, '/api/undefined', null, {})
+    const res = await fetchViaHTTP(appPort, '/api/json-undefined', null, {})
     const body = res.ok ? await res.text() : null
     expect(body).toBe('')
+  })
+
+  it('should support string in JSON response body', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/json-string', null, {})
+    const body = res.ok ? await res.text() : null
+    expect(body).toBe('"Hello world!"')
+  })
+
+  it('should support null in JSON response body', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/json-null')
+    const body = res.ok ? await res.json() : 'Not null'
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe(
+      'application/json; charset=utf-8'
+    )
+    expect(body).toBe(null)
   })
 
   it('should return error with invalid JSON', async () => {

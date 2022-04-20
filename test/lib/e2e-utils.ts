@@ -4,6 +4,7 @@ import { NextConfig } from 'next'
 import { InstallCommand, NextInstance, PackageJson } from './next-modes/base'
 import { NextDevInstance } from './next-modes/next-dev'
 import { NextStartInstance } from './next-modes/next-start'
+import { NextDeployInstance } from './next-modes/next-deploy'
 
 // increase timeout to account for yarn install time
 jest.setTimeout((process.platform === 'win32' ? 240 : 180) * 1000)
@@ -129,7 +130,7 @@ export async function createNext(opts: {
       nextInstance = new NextDevInstance(opts)
     } else if (testMode === 'deploy') {
       // Vercel
-      throw new Error('to-implement')
+      nextInstance = new NextDeployInstance(opts)
     } else {
       // next build + next start
       nextInstance = new NextStartInstance(opts)
@@ -146,7 +147,7 @@ export async function createNext(opts: {
     }
     return nextInstance!
   } catch (err) {
-    console.error('Failed to create next instance', err)
+    require('console').error('Failed to create next instance', err)
     try {
       await nextInstance.destroy()
     } catch (_) {}

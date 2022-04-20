@@ -20,6 +20,7 @@ module.exports = {
     'inline-script-id': require('./rules/inline-script-id'),
     'next-script-for-ga': require('./rules/next-script-for-ga'),
     'no-before-interactive-script-outside-document': require('./rules/no-before-interactive-script-outside-document'),
+    'no-assign-module-variable': require('./rules/no-assign-module-variable'),
   },
   configs: {
     recommended: {
@@ -45,6 +46,7 @@ module.exports = {
         '@next/next/no-duplicate-head': 2,
         '@next/next/inline-script-id': 2,
         '@next/next/no-before-interactive-script-outside-document': 1,
+        '@next/next/no-assign-module-variable': 2,
       },
     },
     'core-web-vitals': {

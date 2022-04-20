@@ -653,6 +653,10 @@
         {
           "title": "invalid-getserversideprops-return-value",
           "path": "/errors/invalid-getserversideprops-return-value.md"
+        },
+        {
+          "title": "no-assign-module-variable",
+          "path": "/errors/no-assign-module-variable.md"
         }
       ]
     }

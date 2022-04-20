@@ -273,6 +273,8 @@ export default function Home() {
 }
 ```
 
+> **Note: `onLoad` can't be used with the `beforeInteractive` loading strategy.**
+
 Sometimes it is helpful to catch when a script fails to load. These errors can be handled with the `onError` property:
 
 ```jsx

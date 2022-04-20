@@ -3,7 +3,9 @@ export default async function handler(req, res) {
   // make sure to use trusted value for revalidating
   let revalidated = false
   try {
-    await res.unstable_revalidate(req.query.pathname)
+    await res.unstable_revalidate(req.query.pathname, {
+      unstable_onlyGenerated: !!req.query.onlyGenerated,
+    })
     revalidated = true
   } catch (err) {
     console.error(err)

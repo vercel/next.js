@@ -38,7 +38,7 @@ describe('experimental.nextScriptWorkers: false with no Partytown dependency', (
     let browser: BrowserInterface
 
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
 
       const snippetScript = await browser.eval(
         `document.querySelector('script[data-partytown]')`
@@ -92,7 +92,7 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
     let browser: BrowserInterface
 
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
 
       const snippetScript = await browser.eval(
         `document.querySelector('script[data-partytown]').innerHTML`
@@ -117,7 +117,7 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
     let browser: BrowserInterface
 
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
 
       const predefinedWorkerScripts = await browser.eval(
         `document.querySelectorAll('script[type="text/partytown"]').length`
@@ -209,7 +209,7 @@ describe('experimental.nextScriptWorkers: true with config override', () => {
     let browser: BrowserInterface
 
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
 
       const configScript = await browser.eval(
         `document.querySelector('script[data-partytown-config]').innerHTML`
