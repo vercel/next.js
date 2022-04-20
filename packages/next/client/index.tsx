@@ -251,7 +251,7 @@ export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
     }
   }
 
-  if (initialData.scriptLoader) {
+  if (initialData.scriptLoader && initialData.scriptLoader.length > 0) {
     const { initScriptLoader } = require('./script')
     initScriptLoader(initialData.scriptLoader)
   }
