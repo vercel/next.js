@@ -56,12 +56,12 @@ export type ImageConfigComplete = {
   path: string
 
   /**
-   * @deprecated Use `remotePatterns` instead for finer control.
-   * @see [Image domains configuration](https://nextjs.org/docs/basic-features/image-optimization#domains)
+   * @deprecated Use `remotePatterns` instead for more granular configuration.
+   * @see [Image domains configuration](https://nextjs.org/docs/api-reference/next/image#domains)
    */
   domains: string[]
 
-  /** @see [Remote Images](https://nextjs.org/docs/basic-features/image-optimization#remote-images) */
+  /** @see [Remote Images](https://nextjs.org/docs/api-reference/next/image#remote-patterns) */
   remotePatterns: RemotePattern[]
 
   /** @see [Cache behavior](https://nextjs.org/docs/api-reference/next/image#caching-behavior) */
