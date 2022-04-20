@@ -74,8 +74,6 @@ export async function getAllPostsForHome(preview) {
         title
         teaser
         postingDate
-        live
-        working
         author {
           firstName
           lastName

@@ -22,7 +22,6 @@ export const Link = ({
 }) => {
 
   const router = useRouter()
-  console.log(title)
   if(href === undefined){
     return <></>
   }
@@ -32,7 +31,6 @@ export const Link = ({
   // the href to a normal anchor tag with a target of _blank and
   // a rel of noopener noreferrer to prevent the page from being
   // supplanted.
-  console.log(href)
   if (href.startsWith('http')) {
     return <a {...rest} href={href} rel="noopener noreferrer" target="_blank" />
   }

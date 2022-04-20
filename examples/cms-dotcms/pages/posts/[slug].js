@@ -14,6 +14,7 @@ import {CMS_NAME} from '../../lib/constants'
 
 import  {DotSBRender} from '../../components/dotCMS/storyblock'
 import DateComponent from "../../components/date";
+import Avatar from "../../components/avatar";
 
 export default function Post({post, morePosts, preview}) {
   const router = useRouter()
@@ -49,6 +50,9 @@ export default function Post({post, morePosts, preview}) {
               />
 
               <div className='prose lg:prose-xl max-w-2xl mx-auto'>
+                <div className='block md:hidden mb-6'>
+                  {post.author.length ? <Avatar name={`${post.author[0].firstName} ${post.author[0].lastName}`} picture={post.author[0].profilePhoto} /> : null}
+                </div>
                 <div className="mb-6 text-lg">
                   {post.postingDate != 'now' ? <div className="mb-6 text-lg">Posted <DateComponent dateString={post.postingDate} /></div> : null}
                 </div>
