@@ -458,10 +458,10 @@ describe('create next app', () => {
     })
   })
 
-  it('should skip installation on supplying --skip-install', async () => {
+  it('should skip installation on supplying --no-install', async () => {
     await usingTempDir(async (cwd) => {
-      const projectName = 'test-skip-install'
-      const res = await run([projectName, '--skip-install'], { cwd })
+      const projectName = 'test-no-install'
+      const res = await run([projectName, '--no-install'], { cwd })
       expect(res.exitCode).toBe(0)
 
       const files = ['package.json', 'pages/index.js', '.gitignore']
@@ -476,10 +476,10 @@ describe('create next app', () => {
     })
   })
 
-  it('should generate package.json on supplying --skip-install', async () => {
+  it('should generate package.json on supplying --no-install', async () => {
     await usingTempDir(async (cwd) => {
-      const projectName = 'test-skip-install'
-      const res = await run([projectName, '--skip-install'], { cwd })
+      const projectName = 'test-no-install'
+      const res = await run([projectName, '--no-install'], { cwd })
       expect(res.exitCode).toBe(0)
       const pkgJSONPath = path.join(cwd, projectName, 'package.json')
 
@@ -499,10 +499,10 @@ describe('create next app', () => {
     })
   })
 
-  it('should generate package.json with ts dependencies on supplying --skip-install and --typescript', async () => {
+  it('should generate package.json with ts dependencies on supplying --no-install and --typescript', async () => {
     await usingTempDir(async (cwd) => {
-      const projectName = 'test-skip-install'
-      const res = await run([projectName, '--skip-install', '--typescript'], {
+      const projectName = 'test-no-install'
+      const res = await run([projectName, '--no-install', '--typescript'], {
         cwd,
       })
       expect(res.exitCode).toBe(0)
@@ -527,13 +527,13 @@ describe('create next app', () => {
     })
   })
 
-  it('should skip installation on supplying --skip-install with example', async () => {
+  it('should skip installation on supplying --no-install with example', async () => {
     await usingTempDir(async (cwd) => {
-      const projectName = 'test-skip-install'
+      const projectName = 'test-no-install'
       const res = await run(
         [
           projectName,
-          '--skip-install',
+          '--no-install',
           '--example',
           `${exampleRepo}/${examplePath}`,
         ],

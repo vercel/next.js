@@ -29,14 +29,14 @@ export async function createApp({
   example,
   examplePath,
   typescript,
-  skipInstall,
+  noInstall,
 }: {
   appPath: string
   packageManager: PackageManager
   example?: string
   examplePath?: string
   typescript?: boolean
-  skipInstall?: boolean
+  noInstall?: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const template = typescript ? 'typescript' : 'default'
@@ -190,7 +190,7 @@ export async function createApp({
     console.log('Installing packages. This might take a couple of minutes.')
     console.log()
 
-    if (skipInstall) console.log('Skipping dependency installation step.')
+    if (noInstall) console.log('Skipping dependency installation step.')
     else {
       console.log('Installing packages. This might take a couple of minutes.')
       console.log()
@@ -242,7 +242,7 @@ export async function createApp({
       )
     }
 
-    if (skipInstall) {
+    if (noInstall) {
       console.log('Skipping dependency installation step.')
 
       let dependenciesObj: Record<string, string> | undefined

@@ -60,7 +60,7 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
-    '--skip-install',
+    '--no-install',
     `
 
   Skips dependencies installation step
@@ -146,7 +146,7 @@ async function run(): Promise<void> {
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
       typescript: program.typescript,
-      skipInstall: program.skipInstall,
+      noInstall: program.noInstall,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -169,7 +169,7 @@ async function run(): Promise<void> {
       appPath: resolvedProjectPath,
       packageManager,
       typescript: program.typescript,
-      skipInstall: program.skipInstall,
+      noInstall: program.noInstall,
     })
   }
 }
