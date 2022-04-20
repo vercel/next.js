@@ -211,6 +211,49 @@ describe('should set-up next', () => {
     expect(props4.gspCalls).toBe(props3.gspCalls)
   })
 
+  it('should cap de-dupe previousCacheItem expires time', async () => {
+    const res = await fetchViaHTTP(appPort, '/gsp-long-revalidate', undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+    const props = JSON.parse($('#props').text())
+    expect(props.gspCalls).toBeDefined()
+
+    await waitFor(1000)
+
+    const res2 = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/gsp-long-revalidate.json`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res2.status).toBe(200)
+    const { pageProps: props2 } = await res2.json()
+    expect(props2.gspCalls).not.toBe(props.gspCalls)
+  })
+
+  it('should not 404 for onlyGenerated manual revalidate in minimal mode', async () => {
+    const previewProps = JSON.parse(
+      await next.readFile('standalone/.next/prerender-manifest.json')
+    ).preview
+
+    const res = await fetchViaHTTP(
+      appPort,
+      '/optional-ssg/only-generated-1',
+      undefined,
+      {
+        headers: {
+          'x-prerender-revalidate': previewProps.previewModeId,
+          'x-prerender-revalidate-if-generated': '1',
+        },
+      }
+    )
+    expect(res.status).toBe(200)
+  })
+
   it('should set correct SWR headers with notFound gsp', async () => {
     await waitFor(2000)
     await next.patchFile('standalone/data.txt', 'show')
