@@ -1853,9 +1853,9 @@ dependencies = [
 
 [[package]]
 name = "swc"
-version = "0.168.1"
+version = "0.169.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5051ceeb304f658657f0278ad5e794aeccc3f482e5587511a08b3770485e0c39"
+checksum = "ce6c5927fa1da9371880df1aa36aed417c97dd7acfb4ea8d9711069c853ef08d"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1892,6 +1892,7 @@ dependencies = [
  "swc_ecmascript",
  "swc_error_reporters",
  "swc_node_comments",
+ "swc_timer",
  "swc_visit",
  "tracing",
 ]
