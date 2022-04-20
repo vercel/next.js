@@ -1172,10 +1172,7 @@ export async function copyTracedFiles(
 
           if (symlink) {
             console.log('symlink', path.relative(tracingRoot, symlink))
-            await fs.symlink(
-              path.relative(tracingRoot, symlink),
-              fileOutputPath
-            )
+            await fs.symlink(symlink, fileOutputPath)
           } else {
             await fs.copyFile(tracedFilePath, fileOutputPath)
           }

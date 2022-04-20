@@ -72,7 +72,6 @@ import {
   streamToString,
   chainStreams,
   createBufferedTransformStream,
-  renderToStream,
   renderToInitialStream,
   continueFromInitialStream,
 } from './node-web-streams-helper'
@@ -202,12 +201,17 @@ function renderFlight(AppMod: any, ComponentMod: any, props: any) {
   const AppServer = isServerComponent
     ? (App as React.ComponentType)
     : React.Fragment
+  const { router: _, ...rest } = props
 
-  return (
-    <AppServer>
-      <Component {...props} />
-    </AppServer>
-  )
+  if (isServerComponent) {
+    return (
+      <AppServer>
+        <Component {...rest} />
+      </AppServer>
+    )
+  }
+
+  return <App Component={Component} {...props} />
 }
 
 export type RenderOptsPartial = {
@@ -431,14 +435,7 @@ function createServerComponentRenderer(
     return root
   }
 
-  // Although it's not allowed to attach some static methods to Component,
-  // we still re-assign all the component APIs to keep the behavior unchanged.
-  for (const methodName of [
-    'getInitialProps',
-    'getStaticProps',
-    'getServerSideProps',
-    'getStaticPaths',
-  ]) {
+  for (const methodName of Object.keys(Component)) {
     const method = (Component as any)[methodName]
     if (method) {
       ;(ServerComponentWrapper as any)[methodName] = method
@@ -1216,7 +1213,7 @@ export async function renderToHTML(
 
   // Pass router to the Server Component as a temporary workaround.
   if (isServerComponent) {
-    props.pageProps = Object.assign({}, props.pageProps, { router })
+    props.pageProps = Object.assign({}, props.pageProps)
   }
 
   // the response might be finished on the getInitialProps call
@@ -1375,7 +1372,7 @@ export async function renderToHTML(
           <AppContainerWithIsomorphicFiberStructure>
             {isServerComponent && !!AppMod.__next_rsc__ ? (
               // _app.server.js is used.
-              <Component {...props.pageProps} router={router} />
+              <Component {...props.pageProps} />
             ) : (
               <App {...props} Component={Component} router={router} />
             )}
@@ -1630,17 +1627,7 @@ export async function renderToHTML(
     </AmpStateContext.Provider>
   )
 
-  let documentHTML: string
-  if (hasConcurrentFeatures) {
-    const documentStream = await renderToStream({
-      ReactDOMServer,
-      element: document,
-      generateStaticHTML: true,
-    })
-    documentHTML = await streamToString(documentStream)
-  } else {
-    documentHTML = ReactDOMServer.renderToStaticMarkup(document)
-  }
+  const documentHTML = ReactDOMServer.renderToStaticMarkup(document)
 
   if (process.env.NODE_ENV !== 'production') {
     const nonRenderedComponents = []
@@ -1749,7 +1736,9 @@ export async function renderToHTML(
     return new RenderResult(html)
   }
 
-  return new RenderResult(chainStreams(streams))
+  return new RenderResult(
+    chainStreams(streams).pipeThrough(createBufferedTransformStream())
+  )
 }
 
 function errorToJSON(err: Error) {

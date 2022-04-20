@@ -14,12 +14,15 @@ export default function (context, { runtime, env }) {
       },
     })
 
+    const browser = await webdriver(context.appPort, '/')
+    const scriptTagContent = await browser.elementById('client-script').text()
     // should have only 1 DOCTYPE
     expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
+    expect(homeHTML).toMatch('<meta name="rsc-title" content="index"/>')
     expect(homeHTML).toContain('component:index.server')
     expect(homeHTML).toContain('env:env_var_test')
     expect(homeHTML).toContain('header:test-util')
-    expect(homeHTML).toContain('path:/')
+    expect(scriptTagContent).toBe(';')
   })
 
   it('should reuse the inline flight response without sending extra requests', async () => {
@@ -101,6 +104,22 @@ export default function (context, { runtime, env }) {
     await check(() => browser.elementByCss('#query').text(), 'query:2')
 
     expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
+  it('should render dynamic routes correctly', async () => {
+    const dynamicRoute1HTML = await renderViaHTTP(
+      context.appPort,
+      '/routes/dynamic1'
+    )
+    const dynamicRoute2HTML = await renderViaHTTP(
+      context.appPort,
+      '/routes/dynamic2'
+    )
+
+    expect(dynamicRoute1HTML).toContain('query: dynamic1')
+    expect(dynamicRoute1HTML).toContain('pathname: /routes/dynamic')
+    expect(dynamicRoute2HTML).toContain('query: dynamic2')
+    expect(dynamicRoute2HTML).toContain('pathname: /routes/dynamic')
   })
 
   it('should be able to navigate between rsc pages', async () => {
@@ -219,6 +238,21 @@ export default function (context, { runtime, env }) {
     expect(hydratedContent).toContain('cjs-shared')
     expect(hydratedContent).toContain('cjs-client')
     expect(hydratedContent).toContain('Export All: one, two, two')
+  })
+
+  it('should support native modules in server component', async () => {
+    const html = await renderViaHTTP(context.appPort, '/native-module')
+    const content = getNodeBySelector(html, '#__next').text()
+
+    expect(content).toContain('fs: function')
+    expect(content).toContain('foo.client')
+  })
+
+  it('should support the re-export syntax in server component', async () => {
+    const html = await renderViaHTTP(context.appPort, '/re-export')
+    const content = getNodeBySelector(html, '#__next').text()
+
+    expect(content).toContain('This should be in red')
   })
 
   it('should handle 404 requests and missing routes correctly', async () => {
