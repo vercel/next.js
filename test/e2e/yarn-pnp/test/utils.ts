@@ -9,6 +9,11 @@ jest.setTimeout(2 * 60 * 1000)
 export function runTests(example = '') {
   const versionParts = process.versions.node.split('.').map((i) => Number(i))
 
+  if ((global as any).isNextDeploy) {
+    it('should not run for next deploy', () => {})
+    return
+  }
+
   if (
     versionParts[0] > 16 ||
     (versionParts[0] === 16 && versionParts[1] >= 14)
