@@ -1,6 +1,7 @@
 import { platform, arch } from 'os'
 import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
 import * as Log from '../output/log'
+import { getParserOptions } from './options'
 
 const ArchName = arch()
 const PlatformName = platform()
@@ -71,6 +72,12 @@ async function loadWasm() {
         },
         minify(src, options) {
           return Promise.resolve(bindings.minifySync(src.toString(), options))
+        },
+        parse(src, options) {
+          return Promise.resolve(bindings.parse(src.toString(), options))
+        },
+        getTargetTriple() {
+          return undefined
         },
       }
       return wasmBindings
@@ -179,6 +186,12 @@ function loadNative() {
       bundle(options) {
         return bindings.bundle(toBuffer(options))
       },
+
+      parse(src, options) {
+        return bindings.parse(src, toBuffer(options ?? {}))
+      },
+
+      getTargetTriple: bindings.getTargetTriple,
     }
     return nativeBindings
   }
@@ -218,4 +231,23 @@ export function minifySync(src, options) {
 export async function bundle(options) {
   let bindings = loadBindingsSync()
   return bindings.bundle(toBuffer(options))
+}
+
+export async function parse(src, options) {
+  let bindings = await loadBindings()
+  let parserOptions = getParserOptions(options)
+  return bindings.parse(src, parserOptions).then((astStr) => JSON.parse(astStr))
+}
+
+export function getBinaryMetadata() {
+  let bindings
+  try {
+    bindings = loadNative()
+  } catch (e) {
+    // Suppress exceptions, this fn allows to fail to load native bindings
+  }
+
+  return {
+    target: bindings?.getTargetTriple?.(),
+  }
 }

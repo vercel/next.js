@@ -26,9 +26,7 @@ struct ExportShaker {
 impl Fold for ExportShaker {
     fn fold_module(&mut self, module: Module) -> Module {
         let module = module.fold_children_with(self);
-        let module = module.fold_with(&mut dce(DCEConfig::default()));
-
-        module
+        module.fold_with(&mut dce(DCEConfig::default()))
     }
 
     fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
@@ -84,11 +82,15 @@ impl Fold for ExportShaker {
             .filter_map(|spec| {
                 if let ExportSpecifier::Named(named_spec) = spec {
                     if let Some(ident) = &named_spec.exported {
+                        if let ModuleExportName::Ident(ident) = ident {
+                            if self.ignore.contains(&ident.sym) {
+                                return Some(ExportSpecifier::Named(named_spec));
+                            }
+                        }
+                    } else if let ModuleExportName::Ident(ident) = &named_spec.orig {
                         if self.ignore.contains(&ident.sym) {
                             return Some(ExportSpecifier::Named(named_spec));
                         }
-                    } else if self.ignore.contains(&named_spec.orig.sym) {
-                        return Some(ExportSpecifier::Named(named_spec));
                     }
                 }
                 None

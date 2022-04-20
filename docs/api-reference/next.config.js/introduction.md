@@ -48,6 +48,20 @@ module.exports = (phase, { defaultConfig }) => {
 }
 ```
 
+Since Next.js 12.1.0, you can use an async function:
+
+```js
+module.exports = async (phase, { defaultConfig }) => {
+  /**
+   * @type {import('next').NextConfig}
+   */
+  const nextConfig = {
+    /* config options here */
+  }
+  return nextConfig
+}
+```
+
 `phase` is the current context in which the configuration is loaded. You can see the [available phases](https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/constants.ts#L1-L5). Phases can be imported from `next/constants`:
 
 ```js
@@ -66,7 +80,7 @@ module.exports = (phase, { defaultConfig }) => {
 }
 ```
 
-The commented lines are the place where you can put the configs allowed by `next.config.js`, which are [defined in this file](https://github.com/vercel/next.js/blob/canary/packages/next/server/config-shared.ts#L68).
+The commented lines are the place where you can put the configs allowed by `next.config.js`, which are [defined in this file](https://github.com/vercel/next.js/blob/canary/packages/next/server/config-shared.ts#L137).
 
 However, none of the configs are required, and it's not necessary to understand what each config does. Instead, search for the features you need to enable or modify in this section and they will show you what to do.
 

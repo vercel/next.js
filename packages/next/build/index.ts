@@ -9,7 +9,7 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import path from 'path'
+import path, { join } from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
@@ -30,6 +30,7 @@ import loadCustomRoutes, {
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyAndLint } from '../lib/verifyAndLint'
+import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_ID_FILE,
@@ -57,9 +58,9 @@ import {
   isDynamicRoute,
 } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
-import loadConfig, { isTargetLikeServerless } from '../server/config'
+import loadConfig from '../server/config'
+import { isTargetLikeServerless } from '../server/utils'
 import { BuildManifest } from '../server/get-page-files'
-import '../server/node-polyfill-fetch'
 import { normalizePagePath } from '../server/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -72,10 +73,15 @@ import {
   eventTypeCheckCompleted,
   EVENT_BUILD_FEATURE_USAGE,
   EventBuildFeatureUsage,
+  eventPackageUsedInGetServerSideProps,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { CompilerResult, runCompiler } from './compiler'
-import { createEntrypoints, createPagesMapping } from './entries'
+import {
+  createEntrypoints,
+  createPagesMapping,
+  getPageRuntime,
+} from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
@@ -89,11 +95,11 @@ import {
   PageInfo,
   printCustomRoutes,
   printTreeView,
-  getCssFilePaths,
   getUnresolvedModuleFromError,
   copyTracedFiles,
   isReservedPage,
   isCustomErrorPage,
+  isFlightPage,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -105,6 +111,7 @@ import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { recursiveCopy } from '../lib/recursive-copy'
+import { shouldUseReactRoot } from '../server/config'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -152,9 +159,12 @@ export default async function build(
     setGlobal('phase', PHASE_PRODUCTION_BUILD)
     setGlobal('distDir', distDir)
 
-    const hasConcurrentFeatures = !!config.experimental.concurrentFeatures
+    // We enable concurrent features (Fizz-related rendering architecture) when
+    // using React 18 or experimental.
+    const hasReactRoot = shouldUseReactRoot()
+    const hasConcurrentFeatures = hasReactRoot
     const hasServerComponents =
-      hasConcurrentFeatures && !!config.experimental.serverComponents
+      hasReactRoot && !!config.experimental.serverComponents
 
     const { target } = config
     const buildId: string = await nextBuildSpan
@@ -278,6 +288,7 @@ export default async function build(
       .traceAsyncFn(() => collectPages(pagesDir, config.pageExtensions))
     // needed for static exporting since we want to replace with HTML
     // files
+
     const allStaticPages = new Set<string>()
     let allPageInfos = new Map<string, PageInfo>()
 
@@ -293,20 +304,21 @@ export default async function build(
         createPagesMapping(pagePaths, config.pageExtensions, {
           isDev: false,
           hasServerComponents,
-          hasConcurrentFeatures,
         })
       )
 
-    const entrypoints = nextBuildSpan
+    const entrypoints = await nextBuildSpan
       .traceChild('create-entrypoints')
-      .traceFn(() =>
+      .traceAsyncFn(() =>
         createEntrypoints(
           mappedPages,
           target,
           buildId,
           previewProps,
           config,
-          loadedEnvFiles
+          loadedEnvFiles,
+          pagesDir,
+          false
         )
       )
     const pageKeys = Object.keys(mappedPages)
@@ -424,7 +436,7 @@ export default async function build(
       pages404: boolean
       basePath: string
       redirects: Array<ReturnType<typeof buildCustomRoute>>
-      rewrites:
+      rewrites?:
         | Array<ReturnType<typeof buildCustomRoute>>
         | {
             beforeFiles: Array<ReturnType<typeof buildCustomRoute>>
@@ -529,6 +541,13 @@ export default async function build(
       await recursiveDelete(distDir, /^cache/)
     }
 
+    // Ensure commonjs handling is used for files in the distDir (generally .next)
+    // Files outside of the distDir can be "type": "module"
+    await promises.writeFile(
+      path.join(distDir, 'package.json'),
+      '{"type": "commonjs"}'
+    )
+
     // We need to write the manifest with rewrites before build
     // so serverless can import the manifest
     await nextBuildSpan
@@ -553,8 +572,11 @@ export default async function build(
         version: 1,
         config: {
           ...config,
-          compress: false,
           configFile: undefined,
+          experimental: {
+            ...config.experimental,
+            trustHostHeader: ciEnvironment.hasNextSupport,
+          },
         },
         appDir: dir,
         files: [
@@ -563,9 +585,15 @@ export default async function build(
           BUILD_MANIFEST,
           PRERENDER_MANIFEST,
           path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
-          hasServerComponents
-            ? path.join(SERVER_DIRECTORY, MIDDLEWARE_FLIGHT_MANIFEST + '.js')
-            : null,
+          ...(hasServerComponents
+            ? [
+                path.join(SERVER_DIRECTORY, MIDDLEWARE_FLIGHT_MANIFEST + '.js'),
+                path.join(
+                  SERVER_DIRECTORY,
+                  MIDDLEWARE_FLIGHT_MANIFEST + '.json'
+                ),
+              ]
+            : []),
           REACT_LOADABLE_MANIFEST,
           config.optimizeFonts
             ? path.join(
@@ -600,6 +628,7 @@ export default async function build(
               entrypoints: entrypoints.client,
               rewrites,
               runWebpackSpan,
+              hasReactRoot,
             }),
             getBaseWebpackConfig(dir, {
               buildId,
@@ -611,19 +640,21 @@ export default async function build(
               entrypoints: entrypoints.server,
               rewrites,
               runWebpackSpan,
+              hasReactRoot,
             }),
-            hasConcurrentFeatures
+            hasReactRoot
               ? getBaseWebpackConfig(dir, {
                   buildId,
                   reactProductionProfiling,
                   isServer: true,
-                  webServerRuntime: true,
+                  isEdgeRuntime: true,
                   config,
                   target,
                   pagesDir,
-                  entrypoints: entrypoints.serverWeb,
+                  entrypoints: entrypoints.edgeServer,
                   rewrites,
                   runWebpackSpan,
+                  hasReactRoot,
                 })
               : null,
           ])
@@ -655,7 +686,7 @@ export default async function build(
           }
         } else {
           const serverResult = await runCompiler(configs[1], { runWebpackSpan })
-          const serverWebResult = configs[2]
+          const edgeServerResult = configs[2]
             ? await runCompiler(configs[2], { runWebpackSpan })
             : null
 
@@ -663,12 +694,12 @@ export default async function build(
             warnings: [
               ...clientResult.warnings,
               ...serverResult.warnings,
-              ...(serverWebResult?.warnings || []),
+              ...(edgeServerResult?.warnings || []),
             ],
             errors: [
               ...clientResult.errors,
               ...serverResult.errors,
-              ...(serverWebResult?.errors || []),
+              ...(edgeServerResult?.errors || []),
             ],
           }
         }
@@ -715,7 +746,7 @@ export default async function build(
       const moduleName = getUnresolvedModuleFromError(error)
       if (hasConcurrentFeatures && moduleName) {
         const err = new Error(
-          `Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`${moduleName}\` imported.\n\n`
+          `Native Node.js APIs are not supported in the Edge Runtime. Found \`${moduleName}\` imported.\n\n`
         ) as NextError
         err.code = 'EDGE_RUNTIME_UNSUPPORTED_API'
         throw err
@@ -928,14 +959,31 @@ export default async function build(
 
             let isSsg = false
             let isStatic = false
+            let isServerComponent = false
             let isHybridAmp = false
             let ssgPageRoutes: string[] | null = null
             let isMiddlewareRoute = !!page.match(MIDDLEWARE_ROUTE)
 
+            const pagePath = pagePaths.find(
+              (p) =>
+                p.startsWith(actualPage + '.') ||
+                p.startsWith(actualPage + '/index.')
+            )
+            const pageRuntime = pagePath
+              ? await getPageRuntime(join(pagesDir, pagePath), config)
+              : undefined
+
+            if (hasServerComponents && pagePath) {
+              if (isFlightPage(config, pagePath)) {
+                isServerComponent = true
+              }
+            }
+
             if (
               !isMiddlewareRoute &&
               !isReservedPage(page) &&
-              !hasConcurrentFeatures
+              // We currently don't support static optimization in the Edge runtime.
+              pageRuntime !== 'edge'
             ) {
               try {
                 let isPageStaticSpan =
@@ -1000,11 +1048,16 @@ export default async function build(
                   serverPropsPages.add(page)
                 } else if (
                   workerResult.isStatic &&
-                  !workerResult.hasFlightData &&
+                  !isServerComponent &&
                   (await customAppGetInitialPropsPromise) === false
                 ) {
                   staticPages.add(page)
                   isStatic = true
+                } else if (isServerComponent) {
+                  // This is a static server component page that doesn't have
+                  // gSP or gSSP. We still treat it as a SSG page.
+                  ssgPages.add(page)
+                  isSsg = true
                 }
 
                 if (hasPages404 && page === '/404') {
@@ -1033,7 +1086,7 @@ export default async function build(
                   )
                 }
               } catch (err) {
-                if (isError(err) && err.message !== 'INVALID_DEFAULT_EXPORT')
+                if (!isError(err) || err.message !== 'INVALID_DEFAULT_EXPORT')
                   throw err
                 invalidPages.add(page)
               }
@@ -1044,14 +1097,13 @@ export default async function build(
               totalSize: allSize,
               static: isStatic,
               isSsg,
-              isWebSsr:
-                hasConcurrentFeatures &&
-                !isMiddlewareRoute &&
-                !isReservedPage(page) &&
-                !isCustomErrorPage(page),
               isHybridAmp,
               ssgPageRoutes,
               initialRevalidateSeconds: false,
+              runtime:
+                !isReservedPage(page) && !isCustomErrorPage(page)
+                  ? pageRuntime
+                  : undefined,
               pageDuration: undefined,
               ssgPageDurations: undefined,
             })
@@ -1347,9 +1399,7 @@ export default async function build(
     // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
     // Only export the static 404 when there is no /_error present
     const useStatic404 =
-      !hasConcurrentFeatures &&
-      !customAppGetInitialProps &&
-      (!hasNonStaticErrorPage || hasPages404)
+      !customAppGetInitialProps && (!hasNonStaticErrorPage || hasPages404)
 
     if (invalidPages.size > 0) {
       const err = new Error(
@@ -1368,10 +1418,22 @@ export default async function build(
     await writeBuildId(distDir, buildId)
 
     if (config.experimental.optimizeCss) {
-      const cssFilePaths = getCssFilePaths(buildManifest)
+      const globOrig =
+        require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+
+      const cssFilePaths = await new Promise<string[]>((resolve, reject) => {
+        globOrig('**/*.css', { cwd: join(distDir, 'static') }, (err, files) => {
+          if (err) {
+            return reject(err)
+          }
+          resolve(files)
+        })
+      })
 
       requiredServerFiles.files.push(
-        ...cssFilePaths.map((filePath) => path.join(config.distDir, filePath))
+        ...cssFilePaths.map((filePath) =>
+          path.join(config.distDir, 'static', filePath)
+        )
       )
     }
 
@@ -1449,10 +1511,7 @@ export default async function build(
 
     const combinedPages = [...staticPages, ...ssgPages]
 
-    if (
-      !hasConcurrentFeatures &&
-      (combinedPages.length > 0 || useStatic404 || useDefaultStatic500)
-    ) {
+    if (combinedPages.length > 0 || useStatic404 || useDefaultStatic500) {
       const staticGenerationSpan = nextBuildSpan.traceChild('static-generation')
       await staticGenerationSpan.traceAsyncFn(async () => {
         detectConflictingPaths(
@@ -1625,7 +1684,7 @@ export default async function build(
                       // strip leading / and then recurse number of nested dirs
                       // to place from base folder
                       originPage
-                        .substr(1)
+                        .slice(1)
                         .split('/')
                         .map(() => '..')
                         .join('/')
@@ -1675,7 +1734,7 @@ export default async function build(
                 for (const locale of i18n.locales) {
                   const curPath = `/${locale}${page === '/' ? '' : page}`
                   const localeExt = page === '/' ? path.extname(file) : ''
-                  const relativeDestNoPages = relativeDest.substr(
+                  const relativeDestNoPages = relativeDest.slice(
                     'pages/'.length
                   )
 
@@ -1881,6 +1940,9 @@ export default async function build(
       })
     }
 
+    // ensure the worker is not left hanging
+    staticWorkers.close()
+
     const analysisEnd = process.hrtime(analysisBegin)
     telemetry.record(
       eventBuildOptimize(pagePaths, {
@@ -1908,6 +1970,7 @@ export default async function build(
     if (telemetryPlugin) {
       const events = eventBuildFeatureUsage(telemetryPlugin)
       telemetry.record(events)
+      telemetry.record(eventPackageUsedInGetServerSideProps(telemetryPlugin))
     }
 
     if (ssgPages.size > 0) {
@@ -2014,16 +2077,23 @@ export default async function build(
       for (const file of [
         ...requiredServerFiles.files,
         path.join(config.distDir, SERVER_FILES_MANIFEST),
+        ...loadedEnvFiles.reduce<string[]>((acc, envFile) => {
+          if (['.env', '.env.production'].includes(envFile.path)) {
+            acc.push(envFile.path)
+          }
+          return acc
+        }, []),
       ]) {
         const filePath = path.join(dir, file)
-        await promises.copyFile(
-          filePath,
-          path.join(
-            distDir,
-            'standalone',
-            path.relative(outputFileTracingRoot, filePath)
-          )
+        const outputPath = path.join(
+          distDir,
+          'standalone',
+          path.relative(outputFileTracingRoot, filePath)
         )
+        await promises.mkdir(path.dirname(outputPath), {
+          recursive: true,
+        })
+        await promises.copyFile(filePath, outputPath)
       }
       await recursiveCopy(
         path.join(distDir, SERVER_DIRECTORY, 'pages'),
@@ -2068,6 +2138,17 @@ export default async function build(
           "You'll receive a Real Experience Score computed by all of your visitors."
       )
       console.log('')
+    }
+
+    if (Boolean(config.experimental.nextScriptWorkers)) {
+      await nextBuildSpan
+        .traceChild('verify-partytown-setup')
+        .traceAsyncFn(async () => {
+          await verifyPartytownSetup(
+            dir,
+            join(distDir, CLIENT_STATIC_FILES_PATH)
+          )
+        })
     }
 
     await nextBuildSpan

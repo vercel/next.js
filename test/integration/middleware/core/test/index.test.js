@@ -19,38 +19,44 @@ const context = {}
 context.appDir = join(__dirname, '../')
 
 const middlewareWarning = 'using beta Middleware (not covered by semver)'
+const urlsError = 'Please use only absolute URLs'
 
 describe('Middleware base tests', () => {
   describe('dev mode', () => {
-    let output = ''
+    const log = { output: '' }
+
     beforeAll(async () => {
       context.appPort = await findPort()
       context.app = await launchApp(context.appDir, context.appPort, {
         onStdout(msg) {
-          output += msg
+          log.output += msg
         },
         onStderr(msg) {
-          output += msg
+          log.output += msg
         },
       })
     })
     afterAll(() => killApp(context.app))
-    rewriteTests()
-    rewriteTests('/fr')
+    rewriteTests(log)
+    rewriteTests(log, '/fr')
     redirectTests()
     redirectTests('/fr')
     responseTests()
     responseTests('/fr')
     interfaceTests()
     interfaceTests('/fr')
+    urlTests(log)
+    urlTests(log, '/fr')
+    errorTests()
+    errorTests('/fr')
 
     it('should have showed warning for middleware usage', () => {
-      expect(output).toContain(middlewareWarning)
+      expect(log.output).toContain(middlewareWarning)
     })
   })
   describe('production mode', () => {
+    let serverOutput = { output: '' }
     let buildOutput
-    let serverOutput
 
     beforeAll(async () => {
       const res = await nextBuild(context.appDir, undefined, {
@@ -62,29 +68,33 @@ describe('Middleware base tests', () => {
       context.appPort = await findPort()
       context.app = await nextStart(context.appDir, context.appPort, {
         onStdout(msg) {
-          serverOutput += msg
+          serverOutput.output += msg
         },
         onStderr(msg) {
-          serverOutput += msg
+          serverOutput.output += msg
         },
       })
     })
     afterAll(() => killApp(context.app))
-    rewriteTests()
-    rewriteTests('/fr')
+    rewriteTests(serverOutput)
+    rewriteTests(serverOutput, '/fr')
     redirectTests()
     redirectTests('/fr')
     responseTests()
     responseTests('/fr')
     interfaceTests()
     interfaceTests('/fr')
+    urlTests(serverOutput)
+    urlTests(serverOutput, '/fr')
+    errorTests()
+    errorTests('/fr')
 
     it('should have middleware warning during build', () => {
       expect(buildOutput).toContain(middlewareWarning)
     })
 
     it('should have middleware warning during start', () => {
-      expect(serverOutput).toContain(middlewareWarning)
+      expect(serverOutput.output).toContain(middlewareWarning)
     })
 
     it('should have correct files in manifest', async () => {
@@ -93,22 +103,180 @@ describe('Middleware base tests', () => {
       )
       for (const key of Object.keys(manifest.middleware)) {
         const middleware = manifest.middleware[key]
-        expect(
-          middleware.files.some((file) => file.includes('webpack-middleware'))
-        ).toBe(true)
-        expect(
-          middleware.files.filter(
-            (file) =>
-              file.startsWith('static/chunks/') &&
-              !file.startsWith('static/chunks/webpack-middleware')
-          ).length
-        ).toBe(0)
+        expect(middleware.files).toContainEqual(
+          expect.stringContaining('middleware-runtime')
+        )
+        expect(middleware.files).not.toContainEqual(
+          expect.stringContaining('static/chunks/')
+        )
       }
+    })
+  })
+
+  describe('global', () => {
+    beforeAll(async () => {
+      context.appPort = await findPort()
+      context.app = await launchApp(context.appDir, context.appPort, {
+        env: {
+          MIDDLEWARE_TEST: 'asdf',
+        },
+      })
+    })
+
+    it('should contains process polyfill', async () => {
+      const res = await fetchViaHTTP(context.appPort, `/global`)
+      const json = await res.json()
+      expect(json).toEqual({
+        process: {
+          env: {
+            MIDDLEWARE_TEST: 'asdf',
+          },
+          nextTick: 'function',
+        },
+      })
     })
   })
 })
 
-function rewriteTests(locale = '') {
+function urlTests(_log, locale = '') {
+  it('should set fetch user agent correctly', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/interface/fetchUserAgentDefault`
+    )
+    expect((await res.json()).headers['user-agent']).toBe('Next.js Middleware')
+
+    const res2 = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/interface/fetchUserAgentCustom`
+    )
+    expect((await res2.json()).headers['user-agent']).toBe('custom-agent')
+  })
+
+  it('rewrites by default to a target location', async () => {
+    const res = await fetchViaHTTP(context.appPort, `${locale}/urls`)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('.title').text()).toBe('URLs A')
+  })
+
+  it('throws when using URL with a relative URL', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-url`
+    )
+    const json = await res.json()
+    expect(json.error.message).toContain('Invalid URL')
+  })
+
+  it('throws when using Request with a relative URL', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-request`
+    )
+    const json = await res.json()
+    expect(json.error.message).toContain('Invalid URL')
+  })
+
+  it('throws when using NextRequest with a relative URL', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-next-request`
+    )
+    const json = await res.json()
+    expect(json.error.message).toContain('Invalid URL')
+  })
+
+  it('warns when using Response.redirect with a relative URL', async () => {
+    const response = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-redirect`
+    )
+    expect(await response.json()).toEqual({
+      error: {
+        message: expect.stringContaining(urlsError),
+      },
+    })
+  })
+
+  it('warns when using NextResponse.redirect with a relative URL', async () => {
+    const response = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-next-redirect`
+    )
+    expect(await response.json()).toEqual({
+      error: {
+        message: expect.stringContaining(urlsError),
+      },
+    })
+  })
+
+  it('throws when using NextResponse.rewrite with a relative URL', async () => {
+    const response = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-next-rewrite`
+    )
+    expect(await response.json()).toEqual({
+      error: {
+        message: expect.stringContaining(urlsError),
+      },
+    })
+  })
+}
+
+function rewriteTests(log, locale = '') {
+  it('should override with rewrite internally correctly', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/about`,
+      { override: 'internal' },
+      { redirect: 'manual' }
+    )
+
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('Welcome Page A')
+
+    const browser = await webdriver(context.appPort, `${locale}/rewrites`)
+    await browser.elementByCss('#override-with-internal-rewrite').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /Welcome Page A/
+    )
+    expect(await browser.eval('window.location.pathname')).toBe(
+      `${locale || ''}/rewrites/about`
+    )
+    expect(await browser.eval('window.location.search')).toBe(
+      '?override=internal'
+    )
+  })
+
+  it('should override with rewrite externally correctly', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/about`,
+      { override: 'external' },
+      { redirect: 'manual' }
+    )
+
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('Vercel')
+
+    const browser = await webdriver(context.appPort, `${locale}/rewrites`)
+    await browser.elementByCss('#override-with-external-rewrite').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /Vercel/
+    )
+    await check(
+      () => browser.eval('window.location.pathname'),
+      `${locale || ''}/rewrites/about`
+    )
+    await check(
+      () => browser.eval('window.location.search'),
+      '?override=external'
+    )
+  })
+
   it('should rewrite to fallback: true page successfully', async () => {
     const randomSlug = `another-${Date.now()}`
     const res2 = await fetchViaHTTP(
@@ -159,6 +327,35 @@ function rewriteTests(locale = '') {
     expect($('.title').text()).toBe(expectedText)
   })
 
+  it(`${locale} should clear query parameters`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/clear-query-params`,
+      {
+        a: '1',
+        b: '2',
+        foo: 'bar',
+        allowed: 'kept',
+      }
+    )
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#my-query-params').text())).toEqual({
+      allowed: 'kept',
+    })
+  })
+
+  it(`warns about a query param deleted`, async () => {
+    await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/clear-query-params`,
+      { a: '1', allowed: 'kept' }
+    )
+    expect(log.output).toContain(
+      'Query params are no longer automatically merged for rewrites in middleware'
+    )
+  })
+
   it(`${locale} should rewrite to about page`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
@@ -178,6 +375,86 @@ function rewriteTests(locale = '') {
       await browser.close()
     }
     expect($('.title').text()).toBe('About Page')
+  })
+
+  it(`${locale} support colons in path`, async () => {
+    const path = `${locale}/rewrites/not:param`
+    const res = await fetchViaHTTP(context.appPort, path)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#props').text()).toBe('not:param')
+    const browser = await webdriver(context.appPort, path)
+    try {
+      expect(await browser.eval(`window.location.pathname`)).toBe(path)
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it(`${locale} can rewrite to path with colon`, async () => {
+    const path = `${locale}/rewrites/rewrite-me-with-a-colon`
+    const res = await fetchViaHTTP(context.appPort, path)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#props').text()).toBe('with:colon')
+    const browser = await webdriver(context.appPort, path)
+    try {
+      expect(await browser.eval(`window.location.pathname`)).toBe(path)
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it(`${locale} can rewrite from path with colon`, async () => {
+    const path = `${locale}/rewrites/colon:here`
+    const res = await fetchViaHTTP(context.appPort, path)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#props').text()).toBe('no-colon-here')
+    const browser = await webdriver(context.appPort, path)
+    try {
+      expect(await browser.eval(`window.location.pathname`)).toBe(path)
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it(`${locale} can rewrite from path with colon and retain query parameter`, async () => {
+    const path = `${locale}/rewrites/colon:here?qp=arg`
+    const res = await fetchViaHTTP(context.appPort, path)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#props').text()).toBe('no-colon-here')
+    expect($('#qp').text()).toBe('arg')
+    const browser = await webdriver(context.appPort, path)
+    try {
+      expect(
+        await browser.eval(
+          `window.location.href.replace(window.location.origin, '')`
+        )
+      ).toBe(path)
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it(`${locale} can rewrite to path with colon and retain query parameter`, async () => {
+    const path = `${locale}/rewrites/rewrite-me-with-a-colon?qp=arg`
+    const res = await fetchViaHTTP(context.appPort, path)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#props').text()).toBe('with:colon')
+    expect($('#qp').text()).toBe('arg')
+    const browser = await webdriver(context.appPort, path)
+    try {
+      expect(
+        await browser.eval(
+          `window.location.href.replace(window.location.origin, '')`
+        )
+      ).toBe(path)
+    } finally {
+      await browser.close()
+    }
   })
 
   it(`${locale} should rewrite when not using localhost`, async () => {
@@ -224,6 +501,17 @@ function rewriteTests(locale = '') {
     expect(await browser.eval('window.__SAME_PAGE')).toBe(true)
     const element = await browser.elementByCss('.title')
     expect(await element.text()).toEqual('About Bypassed Page')
+  })
+
+  it(`${locale} should not call middleware with shallow push`, async () => {
+    const browser = await webdriver(context.appPort, '/rewrites')
+    await browser.elementByCss('#link-to-shallow-push').click()
+    await browser.waitForCondition(
+      'new URL(window.location.href).searchParams.get("path") === "rewrite-me-without-hard-navigation"'
+    )
+    await expect(async () => {
+      await browser.waitForElementByCss('.refreshed', 500)
+    }).rejects.toThrow()
   })
 }
 
@@ -291,9 +579,29 @@ function redirectTests(locale = '') {
       fetchViaHTTP(context.appPort, `${locale}/redirects/infinite-loop`)
     ).rejects.toThrow()
   })
+
+  it(`${locale} should redirect to api route with locale`, async () => {
+    const browser = await webdriver(context.appPort, `${locale}/redirects`)
+    await browser.elementByCss('#link-to-api-with-locale').click()
+    await browser.waitForCondition('window.location.pathname === "/api/ok"')
+    const body = await browser.elementByCss('body').text()
+    expect(body).toBe('ok')
+  })
 }
 
 function responseTests(locale = '') {
+  it(`${locale} responds with multiple cookies`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/responses/two-cookies`
+    )
+
+    expect(res.headers.raw()['set-cookie']).toEqual([
+      'foo=chocochip',
+      'bar=chocochip',
+    ])
+  })
+
   it(`${locale} should stream a response`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
@@ -328,7 +636,7 @@ function responseTests(locale = '') {
       `${locale}/responses/react?name=jack`
     )
     const html = await res.text()
-    expect(html).toBe('<h1 data-reactroot="">SSR with React! Hello, jack</h1>')
+    expect(html).toBe('<h1>SSR with React! Hello, jack</h1>')
   })
 
   it(`${locale} should stream a React component`, async () => {
@@ -337,9 +645,7 @@ function responseTests(locale = '') {
       `${locale}/responses/react-stream`
     )
     const html = await res.text()
-    expect(html).toBe(
-      '<h1 data-reactroot="">I am a stream</h1><p data-reactroot="">I am another stream</p>'
-    )
+    expect(html).toBe('<h1>I am a stream</h1><p>I am another stream</p>')
   })
 
   it(`${locale} should stream a long response`, async () => {
@@ -398,7 +704,7 @@ function responseTests(locale = '') {
 }
 
 function interfaceTests(locale = '') {
-  it(`${locale} \`globalThis\` is accesible`, async () => {
+  it(`${locale} \`globalThis\` is accessible`, async () => {
     const res = await fetchViaHTTP(context.appPort, '/interface/globalthis')
     const globals = await res.json()
     expect(globals.length > 0).toBe(true)
@@ -512,7 +818,19 @@ function interfaceTests(locale = '') {
     const element = await browser.elementByCss('.title')
     expect(await element.text()).toEqual('Parts page')
     const logs = await browser.log()
-    expect(logs.every((log) => log.source === 'log')).toEqual(true)
+    expect(
+      logs.every((log) => log.source === 'log' || log.source === 'info')
+    ).toEqual(true)
+  })
+}
+
+function errorTests(locale = '') {
+  it(`${locale} should hard-navigate when preflight request failed`, async () => {
+    const browser = await webdriver(context.appPort, `${locale}/errors`)
+    await browser.eval('window.__SAME_PAGE = true')
+    await browser.elementByCss('#throw-on-preflight').click()
+    await browser.waitForElementByCss('.refreshed')
+    expect(await browser.eval('window.__SAME_PAGE')).toBeUndefined()
   })
 }
 

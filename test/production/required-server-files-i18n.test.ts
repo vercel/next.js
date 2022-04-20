@@ -11,6 +11,7 @@ import {
   initNextServerScript,
   killApp,
   renderViaHTTP,
+  waitFor,
 } from 'next-test-utils'
 
 describe('should set-up next', () => {
@@ -133,6 +134,7 @@ describe('should set-up next', () => {
       's-maxage=1, stale-while-revalidate'
     )
 
+    await waitFor(2000)
     await next.patchFile('standalone/data.txt', 'hide')
 
     const res2 = await fetchViaHTTP(appPort, '/gsp', undefined, {
@@ -160,6 +162,8 @@ describe('should set-up next', () => {
     const res2 = await fetchViaHTTP(appPort, '/gssp', undefined, {
       redirect: 'manual ',
     })
+    await next.patchFile('standalone/data.txt', 'show')
+
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe(
       's-maxage=1, stale-while-revalidate'
@@ -167,18 +171,18 @@ describe('should set-up next', () => {
   })
 
   it('should render SSR page correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/')
+    const html = await renderViaHTTP(appPort, '/gssp')
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
-    expect($('#index').text()).toBe('index page')
+    expect($('#gssp').text()).toBe('getServerSideProps page')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(appPort, '/')
+    const html2 = await renderViaHTTP(appPort, '/gssp')
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
-    expect($2('#index').text()).toBe('index page')
+    expect($2('#gssp').text()).toBe('getServerSideProps page')
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
   })
@@ -211,6 +215,7 @@ describe('should set-up next', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
+    await waitFor(2000)
     const html2 = await renderViaHTTP(appPort, '/fallback/first')
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
@@ -241,24 +246,24 @@ describe('should set-up next', () => {
   it('should render SSR page correctly with x-matched-path', async () => {
     const html = await renderViaHTTP(appPort, '/some-other-path', undefined, {
       headers: {
-        'x-matched-path': '/',
+        'x-matched-path': '/gssp',
       },
     })
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
-    expect($('#index').text()).toBe('index page')
+    expect($('#gssp').text()).toBe('getServerSideProps page')
     expect(data.hello).toBe('world')
 
     const html2 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
       headers: {
-        'x-matched-path': '/',
+        'x-matched-path': '/gssp',
       },
     })
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
-    expect($2('#index').text()).toBe('index page')
+    expect($2('#gssp').text()).toBe('getServerSideProps page')
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
   })
@@ -505,7 +510,7 @@ describe('should set-up next', () => {
       },
       {
         headers: {
-          'x-matched-path': '/',
+          'x-matched-path': '/gssp',
         },
       }
     )
@@ -601,11 +606,12 @@ describe('should set-up next', () => {
   it('should normalize optional values correctly for SSG page', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      '/optional-ssg',
-      { rest: '', another: 'value' },
+      '/en/optional-ssg/[[...rest]]',
+      undefined,
       {
         headers: {
-          'x-matched-path': '/optional-ssg/[[...rest]]',
+          'x-matched-path': '/en/optional-ssg/[[...rest]]',
+          'x-now-route-matches': 'nextLocale=en&1=en',
         },
       }
     )
@@ -614,6 +620,28 @@ describe('should set-up next', () => {
     const $ = cheerio.load(html)
     const props = JSON.parse($('#props').text())
     expect(props.params).toEqual({})
+  })
+
+  it('should normalize optional values correctly for nested optional SSG page', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/en/[slug]/social/[[...rest]]',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/en/[slug]/social/[[...rest]]',
+          'x-now-route-matches': 'nextLocale=en&1=en&2=user-123&slug=user-123',
+        },
+      }
+    )
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    const props = JSON.parse($('#props').text())
+    expect(props.params).toEqual({
+      slug: 'user-123',
+    })
+    expect($('#page').text()).toBe('/[slug]/social/[[...rest]]')
   })
 
   it('should normalize optional values correctly for SSG page with encoded slash', async () => {

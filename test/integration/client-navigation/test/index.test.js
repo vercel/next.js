@@ -60,6 +60,14 @@ describe('Client Navigation', () => {
       await browser.close()
     })
 
+    it('should have proper error when no children are provided', async () => {
+      const browser = await webdriver(context.appPort, '/link-no-child')
+      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        'No children were passed to <Link> with `href` of `/about` but one child is required'
+      )
+    })
+
     it('should navigate back after reload', async () => {
       const browser = await webdriver(context.appPort, '/nav')
       await browser.elementByCss('#about-link').click()
@@ -85,6 +93,13 @@ describe('Client Navigation', () => {
       const text = await browser.elementByCss('p').text()
       if (browser) await browser.close()
       expect(text).toMatch(/this is the about page/i)
+    })
+
+    it('should error when calling onClick without event', async () => {
+      const browser = await webdriver(context.appPort, '/link-invalid-onclick')
+      expect(await browser.elementByCss('#errors').text()).toBe('0')
+      await browser.elementByCss('#custom-button').click()
+      expect(await browser.elementByCss('#errors').text()).toBe('1')
     })
 
     it('should navigate via the client side', async () => {
@@ -180,13 +195,35 @@ describe('Client Navigation', () => {
     it('should not navigate if the <a/> tag has a target', async () => {
       const browser = await webdriver(context.appPort, '/nav')
 
-      const counterText = await browser
+      await browser
         .elementByCss('#increase')
         .click()
         .elementByCss('#target-link')
         .click()
-        .elementByCss('#counter')
-        .text()
+
+      await waitFor(1000)
+
+      const counterText = await browser.elementByCss('#counter').text()
+
+      expect(counterText).toBe('Counter: 1')
+      await browser.close()
+    })
+
+    it('should not navigate if the click-event is modified', async () => {
+      const browser = await webdriver(context.appPort, '/nav')
+
+      await browser.elementByCss('#increase').click()
+
+      const key = process.platform === 'darwin' ? 'Meta' : 'Control'
+
+      await browser.keydown(key)
+
+      await browser.elementByCss('#in-svg-link').click()
+
+      await browser.keyup(key)
+      await waitFor(1000)
+
+      const counterText = await browser.elementByCss('#counter').text()
 
       expect(counterText).toBe('Counter: 1')
       await browser.close()
@@ -413,7 +450,6 @@ describe('Client Navigation', () => {
       }
     })
   })
-
   describe('resets scroll at the correct time', () => {
     it('should reset scroll before the new page runs its lifecycles (<Link />)', async () => {
       let browser
@@ -595,6 +631,17 @@ describe('Client Navigation', () => {
             await browser.close()
           }
         }
+      })
+
+      it('should not scroll to hash when scroll={false} is set', async () => {
+        const browser = await webdriver(context.appPort, '/nav/hash-changes')
+        const curScroll = await browser.eval(
+          'document.documentElement.scrollTop'
+        )
+        await browser.elementByCss('#scroll-to-name-item-400-no-scroll').click()
+        expect(curScroll).toBe(
+          await browser.eval('document.documentElement.scrollTop')
+        )
       })
 
       it('should scroll to the specified position on the same page with a name property', async () => {

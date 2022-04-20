@@ -88,6 +88,11 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
   const swcSpan = parentTrace.traceChild('next-swc-transform')
   return swcSpan.traceAsyncFn(() =>
     transform(source, programmaticOptions).then((output) => {
+      if (output.eliminatedPackages && this.eliminatedPackages) {
+        for (const pkg of JSON.parse(output.eliminatedPackages)) {
+          this.eliminatedPackages.add(pkg)
+        }
+      }
       return [output.code, output.map ? JSON.parse(output.map) : undefined]
     })
   )
@@ -101,6 +106,8 @@ export function pitch() {
   ;(async () => {
     let loaderOptions = this.getOptions() || {}
     if (
+      // TODO: investigate swc file reading in PnP mode?
+      !process.versions.pnp &&
       loaderOptions.fileReading &&
       !EXCLUDED_PATHS.test(this.resourcePath) &&
       this.loaders.length - 1 === this.loaderIndex &&

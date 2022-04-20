@@ -27,6 +27,7 @@ Once you have access to [the environment variables you'll need](#step-2-set-up-e
 - [Kontent](/examples/cms-kontent)
 - [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## How to use
 
@@ -36,6 +37,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example cms-ghost cms-ghost-app
 # or
 yarn create next-app --example cms-ghost cms-ghost-app
+# or
+pnpm create next-app -- --example cms-ghost cms-ghost-app
 ```
 
 ### Setp 1. Run Next.js in development mode

@@ -13,7 +13,7 @@ export class NextRequest extends Request {
     cookieParser(): { [key: string]: string }
     geo: RequestData['geo']
     ip?: string
-    page?: { name?: string; params?: { [key: string]: string } }
+    page?: { name?: string; params?: { [key: string]: string | string[] } }
     ua?: UserAgent | null
     url: NextURL
   }
@@ -105,7 +105,7 @@ export interface RequestInit extends globalThis.RequestInit {
   }
   page?: {
     name?: string
-    params?: { [key: string]: string }
+    params?: { [key: string]: string | string[] }
   }
 }
 
