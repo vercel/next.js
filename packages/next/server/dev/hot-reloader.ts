@@ -9,7 +9,6 @@ import {
   createEntrypoints,
   createPagesMapping,
   finalizeEntrypoint,
-  PagesMapping,
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
 import getBaseWebpackConfig from '../../build/webpack-config'
@@ -171,7 +170,7 @@ export default class HotReloader {
   private rewrites: CustomRoutes['rewrites']
   private fallbackWatcher: any
   private hotReloaderSpan: Span
-  private pagesMapping: PagesMapping = {}
+  private pagesMapping: { [key: string]: string } = {}
 
   constructor(
     dir: string,
@@ -393,14 +392,14 @@ export default class HotReloader {
       this.pagesMapping = webpackConfigSpan
         .traceChild('create-pages-mapping')
         .traceFn(() =>
-          createPagesMapping(
-            pagePaths.filter((i) => i !== null) as string[],
-            this.config.pageExtensions,
-            {
-              isDev: true,
-              hasServerComponents: this.hasServerComponents,
-            }
-          )
+          createPagesMapping({
+            hasServerComponents: this.hasServerComponents,
+            isDev: true,
+            pageExtensions: this.config.pageExtensions,
+            pagePaths: pagePaths.filter(
+              (i): i is string => typeof i === 'string'
+            ),
+          })
         )
 
       const entrypoints = await webpackConfigSpan

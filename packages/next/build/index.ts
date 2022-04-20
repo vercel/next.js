@@ -15,6 +15,7 @@ import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
   MIDDLEWARE_ROUTE,
+  PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -88,7 +89,6 @@ import * as Log from './output/log'
 import createSpinner from './spinner'
 import { trace, flushAllTraces, setGlobal } from '../trace'
 import {
-  collectPages,
   detectConflictingPaths,
   computeFromManifest,
   getJsPageSizeInKb,
@@ -112,6 +112,7 @@ import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { shouldUseReactRoot } from '../server/config'
+import { recursiveReadDir } from '../lib/recursive-readdir'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -283,9 +284,14 @@ export default async function build(
 
     const isLikeServerless = isTargetLikeServerless(target)
 
-    const pagePaths: string[] = await nextBuildSpan
+    const pagePaths = await nextBuildSpan
       .traceChild('collect-pages')
-      .traceAsyncFn(() => collectPages(pagesDir, config.pageExtensions))
+      .traceAsyncFn(() =>
+        recursiveReadDir(
+          pagesDir,
+          new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
+        )
+      )
     // needed for static exporting since we want to replace with HTML
     // files
 
@@ -301,9 +307,11 @@ export default async function build(
     const mappedPages = nextBuildSpan
       .traceChild('create-pages-mapping')
       .traceFn(() =>
-        createPagesMapping(pagePaths, config.pageExtensions, {
-          isDev: false,
+        createPagesMapping({
           hasServerComponents,
+          isDev: false,
+          pageExtensions: config.pageExtensions,
+          pagePaths,
         })
       )
 
@@ -322,16 +330,12 @@ export default async function build(
         )
       )
     const pageKeys = Object.keys(mappedPages)
-    const hasMiddleware = pageKeys.some((page) => MIDDLEWARE_ROUTE.test(page))
     const conflictingPublicFiles: string[] = []
-    const hasCustomErrorPage: boolean =
-      mappedPages['/_error'].startsWith('private-next-pages')
-    const hasPages404 = Boolean(
-      mappedPages['/404'] &&
-        mappedPages['/404'].startsWith('private-next-pages')
-    )
+    const hasPages404 = mappedPages['/404']?.startsWith(PAGES_DIR_ALIAS)
+    const hasCustomErrorPage =
+      mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
 
-    if (hasMiddleware) {
+    if (pageKeys.some((page) => MIDDLEWARE_ROUTE.test(page))) {
       Log.warn(
         `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
       )

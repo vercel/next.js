@@ -21,7 +21,6 @@ import {
   MIDDLEWARE_ROUTE,
 } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
-import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getRouteMatcher, getRouteRegex } from '../shared/lib/router/utils'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
@@ -60,16 +59,6 @@ const fsStat = (file: string) => {
   const cached = fileStats[file]
   if (cached) return cached
   return (fileStats[file] = fileSize(file))
-}
-
-export function collectPages(
-  directory: string,
-  pageExtensions: string[]
-): Promise<string[]> {
-  return recursiveReadDir(
-    directory,
-    new RegExp(`\\.(?:${pageExtensions.join('|')})$`)
-  )
 }
 
 export interface PageInfo {

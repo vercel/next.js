@@ -13,6 +13,7 @@ import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { __ApiPreviewProps } from '../server/api-utils'
 import { isTargetLikeServerless } from '../server/utils'
 import { normalizePagePath } from '../server/normalize-page-path'
+import { normalizePathSep } from '../server/denormalize-page-path'
 import { warn } from './output/log'
 import { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
@@ -32,48 +33,44 @@ import {
 } from '../shared/lib/constants'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
-export type PagesMapping = {
-  [page: string]: string
-}
 
-export function getPageFromPath(pagePath: string, extensions: string[]) {
-  const rawExtensions = getRawPageExtensions(extensions)
-  const pickedExtensions = pagePath.includes('/_app.server.')
-    ? rawExtensions
-    : extensions
-  let page = pagePath.replace(
-    new RegExp(`\\.+(${pickedExtensions.join('|')})$`),
-    ''
-  )
-  page = page.replace(/\\/g, '/').replace(/\/index$/, '')
+export function getPageFromPath(pagePath: string, pageExtensions: string[]) {
+  const extensions = pagePath.includes('/_app.server.')
+    ? getRawPageExtensions(pageExtensions)
+    : pageExtensions
+
+  const page = normalizePathSep(
+    pagePath.replace(new RegExp(`\\.+(${extensions.join('|')})$`), '')
+  ).replace(/\/index$/, '')
+
   return page === '' ? '/' : page
 }
 
-export function createPagesMapping(
-  pagePaths: string[],
-  extensions: string[],
-  {
-    isDev,
-    hasServerComponents,
-  }: {
-    isDev: boolean
-    hasServerComponents: boolean
-  }
-): PagesMapping {
-  const previousPages: PagesMapping = {}
+export function createPagesMapping({
+  hasServerComponents,
+  isDev,
+  pageExtensions,
+  pagePaths,
+}: {
+  hasServerComponents: boolean
+  isDev: boolean
+  pageExtensions: string[]
+  pagePaths: string[]
+}): { [page: string]: string } {
+  const previousPages: { [key: string]: string } = {}
+  const pages = pagePaths.reduce<{ [key: string]: string }>(
+    (result, pagePath) => {
+      // Do not process .d.ts files inside the `pages` folder
+      if (pagePath.endsWith('.d.ts') && pageExtensions.includes('ts')) {
+        return result
+      }
 
-  // Do not process .d.ts files inside the `pages` folder
-  pagePaths = extensions.includes('ts')
-    ? pagePaths.filter((pagePath) => !pagePath.endsWith('.d.ts'))
-    : pagePaths
+      const pageKey = getPageFromPath(pagePath, pageExtensions)
 
-  const pages: PagesMapping = pagePaths.reduce(
-    (result: PagesMapping, pagePath): PagesMapping => {
-      const pageKey = getPageFromPath(pagePath, extensions)
-
+      // Assume that if there's a Client Component, that there is
+      // a matching Server Component that will map to the page.
+      // so we will not process it
       if (hasServerComponents && /\.client$/.test(pageKey)) {
-        // Assume that if there's a Client Component, that there is
-        // a matching Server Component that will map to the page.
         return result
       }
 
@@ -88,32 +85,30 @@ export function createPagesMapping(
       } else {
         previousPages[pageKey] = pagePath
       }
-      result[pageKey] = join(PAGES_DIR_ALIAS, pagePath).replace(/\\/g, '/')
+      result[pageKey] = normalizePathSep(join(PAGES_DIR_ALIAS, pagePath))
       return result
     },
     {}
   )
 
-  // we alias these in development and allow webpack to
-  // allow falling back to the correct source file so
-  // that HMR can work properly when a file is added/removed
+  // In development we always alias these to allow Webpack to fallback to
+  // the correct source file so that HMR can work properly when a file is
+  // added or removed.
   if (isDev) {
-    if (hasServerComponents) {
-      pages['/_app.server'] = `${PAGES_DIR_ALIAS}/_app.server`
-    }
-    pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
-    pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
-    pages['/_document'] = `${PAGES_DIR_ALIAS}/_document`
-  } else {
-    if (hasServerComponents) {
-      pages['/_app.server'] =
-        pages['/_app.server'] || 'next/dist/pages/_app.server'
-    }
-    pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
-    pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
-    pages['/_document'] = pages['/_document'] || 'next/dist/pages/_document'
+    delete pages['/_app']
+    delete pages['/_app.server']
+    delete pages['/_error']
+    delete pages['/_document']
   }
-  return pages
+
+  const root = isDev ? PAGES_DIR_ALIAS : 'next/dist/pages'
+  return {
+    '/_app': `${root}/_app`,
+    '/_error': `${root}/_error`,
+    '/_document': `${root}/_document`,
+    ...(hasServerComponents ? { '/_app.server': `${root}/_app.server` } : {}),
+    ...pages,
+  }
 }
 
 type Entrypoints = {
@@ -230,7 +225,7 @@ export function invalidatePageRuntimeCache(
 }
 
 export async function createEntrypoints(
-  pages: PagesMapping,
+  pages: { [page: string]: string },
   target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
   previewMode: __ApiPreviewProps,
