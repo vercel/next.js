@@ -18,7 +18,7 @@ import Avatar from "../../components/avatar";
 
 export default function Post({post, morePosts, preview}) {
   const router = useRouter()
-  const sbContent = post.blogContent.json
+
 
   if (!router.isFallback && !post) {
     return <ErrorPage statusCode={404}/>
@@ -56,7 +56,7 @@ export default function Post({post, morePosts, preview}) {
                 <div className="mb-6 text-lg">
                   {post.postingDate != 'now' ? <div className="mb-6 text-lg">Posted <DateComponent dateString={post.postingDate} /></div> : null}
                 </div>
-                <DotSBRender {...sbContent} />
+                <DotSBRender {...post.blogContent.json} />
               </div>
 
 

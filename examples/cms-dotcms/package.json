@@ -14,10 +14,9 @@
     "react-dom": "^17.0.2"
   },
   "devDependencies": {
-    "@tailwindcss/line-clamp": "0.2.2",
-    "@tailwindcss/typography": "0.4.1",
-    "autoprefixer": "10.3.7",
-    "postcss": "8.3.9",
-    "tailwindcss": "^2.2.16"
+    "@tailwindcss/typography": "0.5.2",
+    "autoprefixer": "10.4.2",
+    "postcss": "8.4.5",
+    "tailwindcss": "^3.0.15"
   }
 }

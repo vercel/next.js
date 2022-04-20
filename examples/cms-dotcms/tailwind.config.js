@@ -1,7 +1,6 @@
+const defaultTheme = require('tailwindcss/defaultTheme')
 module.exports = {
-  mode: 'jit',
-  purge: ['./pages/**/*.{js,ts,jsx,tsx}', './components/**/*.{js,ts,jsx,tsx}'],
-  darkMode: false, // or 'media' or 'class'
+  content: ['./pages/**/*.{js,ts,jsx,tsx}', './components/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
@@ -31,9 +30,13 @@ module.exports = {
         medium: '0 8px 30px rgba(0, 0, 0, 0.12)',
       },
     },
+    screens: {
+      ...defaultTheme.screens,
+      '2xl': '1280px',
+    }
   },
   variants: {
     extend: {},
   },
-  plugins: [require('@tailwindcss/line-clamp'), require('@tailwindcss/typography')],
+  plugins: [require('@tailwindcss/typography')],
 }

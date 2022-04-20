@@ -1,8 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Material+Icons+Outlined');
 @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
 
-/* purgecss start ignore */
 @tailwind base;
 @tailwind components;
-/* purgecss end ignore */
 @tailwind utilities;
+
+
+main{
+    display: block;
+}
