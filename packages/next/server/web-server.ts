@@ -53,17 +53,8 @@ export default class NextWebServer extends BaseServer {
     // @TODO
     return ''
   }
-  protected getDir() {
-    return '.'
-  }
   protected getPublicDir() {
     // Public files are not handled by the web server.
-    return ''
-  }
-  protected getDistDir() {
-    return ''
-  }
-  protected getPagesDir() {
     return ''
   }
   protected getBuildId() {

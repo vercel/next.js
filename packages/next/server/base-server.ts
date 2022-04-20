@@ -18,10 +18,13 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
 
+import { join, resolve } from 'path'
 import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/load-custom-routes'
 import {
+  SERVERLESS_DIRECTORY,
+  SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
@@ -179,9 +182,6 @@ export default abstract class Server {
   public readonly hostname?: string
   public readonly port?: number
 
-  protected abstract getDir(_dir: string): string
-  protected abstract getDistDir(): string
-  protected abstract getPagesDir(): string
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
   protected abstract getPagesManifest(): PagesManifest | undefined
@@ -271,7 +271,7 @@ export default abstract class Server {
     hostname,
     port,
   }: Options) {
-    this.dir = this.getDir(dir)
+    this.dir = resolve(dir)
     this.quiet = quiet
     this.loadEnvConfig({ dev })
 
@@ -280,7 +280,7 @@ export default abstract class Server {
     this.nextConfig = conf as NextConfigComplete
     this.hostname = hostname
     this.port = port
-    this.distDir = this.getDistDir()
+    this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
@@ -350,12 +350,15 @@ export default abstract class Server {
     this.router = new Router(this.generateRoutes())
     this.setAssetPrefix(assetPrefix)
 
-    const pagesDir = this.getPagesDir()
     this.incrementalCache = new IncrementalCache({
       fs: this.getCacheFilesystem(),
       dev,
       distDir: this.distDir,
-      pagesDir,
+      pagesDir: join(
+        this.distDir,
+        this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+        'pages'
+      ),
       locales: this.nextConfig.i18n?.locales,
       max: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk: !minimalMode && this.nextConfig.experimental.isrFlushToDisk,

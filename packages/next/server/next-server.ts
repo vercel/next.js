@@ -147,24 +147,8 @@ export default class NextNodeServer extends BaseServer {
     loadEnvConfig(this.dir, dev, Log)
   }
 
-  protected getDir(_dir: string): string {
-    return resolve(_dir)
-  }
-
   protected getPublicDir(): string {
     return join(this.dir, CLIENT_PUBLIC_FILES_PATH)
-  }
-
-  protected getDistDir(): string {
-    return join(this.dir, this.nextConfig.distDir)
-  }
-
-  protected getPagesDir(): string {
-    return join(
-      this.distDir,
-      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-      'pages'
-    )
   }
 
   protected getHasStaticDir(): boolean {
