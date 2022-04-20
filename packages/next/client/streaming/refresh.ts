@@ -1,7 +1,3 @@
-import { createContext, useContext } from 'react'
+import { createContext } from 'react'
 
 export const RefreshContext = createContext((_props?: any) => {})
-
-export function useRefreshRoot() {
-  return useContext(RefreshContext)
-}
