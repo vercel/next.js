@@ -1,7 +1,7 @@
-// Rewrite in export mode not works.
-// https://nextjs.org/docs/advanced-features/static-html-export
+import Image from 'next/image'
+
 const dotCmsLoader = ({ src, width }) => {
-  return {src:`${process.env.NEXT_PUBLIC_DOTCMS_HOST}${src}?w=${width}` }
+  return `${process.env.NEXT_PUBLIC_DOTCMS_HOST}${src}?w=${width}`
 }
 const DotCmsImage = (props) => {
 
@@ -16,7 +16,7 @@ const DotCmsImage = (props) => {
     )
   }
 
-  return <img {...props} {...dotCmsLoader({...props})}  />
+  return <Image loader={dotCmsLoader} {...props} />
 }
 
 export default DotCmsImage
