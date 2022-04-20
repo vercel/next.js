@@ -1,4 +1,4 @@
-import path from '../shared/lib/fallback/path'
+import path from '../shared/lib/isomorphic/path'
 
 const { join } = path
 

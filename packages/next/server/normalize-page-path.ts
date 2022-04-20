@@ -1,4 +1,4 @@
-import path from '../shared/lib/fallback/path'
+import path from '../shared/lib/isomorphic/path'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 
 const { posix } = path
