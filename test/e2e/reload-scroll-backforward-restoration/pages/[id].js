@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/router'
 
 const Page = ({ id }) => {
-  const [hydrate, setHydrate] = useState(false)
+  const router = useRouter()
+  const [ready, setReady] = useState(false)
   useEffect(() => {
-    setHydrate(true)
-  }, [hydrate, setHydrate])
+    router.events.on('routeChangeComplete', () => {
+      setReady(true)
+    })
+  }, [router, ready, setReady])
 
   return (
     <>
@@ -16,7 +20,7 @@ const Page = ({ id }) => {
           background: 'blue',
         }}
       />
-      <p>{hydrate ? 'hydrated' : 'loading'}</p>
+      <p>{ready ? 'routeChangeComplete' : 'loading'}</p>
       <Link href={`/${id + 1}`}>
         <a
           id="link"

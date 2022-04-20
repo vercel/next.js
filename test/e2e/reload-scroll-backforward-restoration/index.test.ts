@@ -50,7 +50,7 @@ describe('reload-scroll-back-restoration', () => {
     await browser.back()
     await check(
       () => browser.eval(() => document.documentElement.innerHTML),
-      /hydrated/
+      /routeChangeComplete/
     )
 
     expect(scrollPositionMemories[1].x).toBe(
@@ -66,7 +66,7 @@ describe('reload-scroll-back-restoration', () => {
     await browser.back()
     await check(
       () => browser.eval(() => document.documentElement.innerHTML),
-      /hydrated/
+      /routeChangeComplete/
     )
 
     expect(scrollPositionMemories[0].x).toBe(
@@ -116,7 +116,7 @@ describe('reload-scroll-back-restoration', () => {
     await browser.forward()
     await check(
       () => browser.eval(() => document.documentElement.innerHTML),
-      /hydrated/
+      /routeChangeComplete/
     )
 
     expect(scrollPositionMemories[1].x).toBe(
@@ -132,7 +132,7 @@ describe('reload-scroll-back-restoration', () => {
     await browser.forward()
     await check(
       () => browser.eval(() => document.documentElement.innerHTML),
-      /hydrated/
+      /routeChangeComplete/
     )
 
     expect(scrollPositionMemories[2].x).toBe(
