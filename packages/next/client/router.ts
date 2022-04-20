@@ -59,6 +59,30 @@ const routerEvents = [
 ] as const
 export type RouterEvent = typeof routerEvents[number]
 
+// TODO: export this interfaces from another file and share it with `client/router.ts` file.
+interface TransitionOptions {
+  shallow?: boolean
+  locale?: string | false
+  scroll?: boolean
+}
+type HistoryMethod = 'replaceState' | 'pushState'
+
+type Options = {
+  shallow: Required<TransitionOptions>['shallow']
+  scroll: Required<TransitionOptions>['scroll']
+  locale?: TransitionOptions['locale']
+  method: HistoryMethod
+}
+
+export type RouterEventDec = {
+  routeChangeStart: [string, Options]
+  beforeHistoryChange: [string, Options]
+  routeChangeComplete: [string, Options]
+  routeChangeError: [any, string, Options]
+  hashChangeStart: [string, Options]
+  hashChangeComplete: [string, Options]
+}
+
 const coreMethodFields = [
   'push',
   'replace',

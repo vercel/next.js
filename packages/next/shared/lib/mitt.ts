@@ -14,32 +14,35 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // It's been edited for the needs of this script
 // See the LICENSE at the top of the file
 
-type Handler = (...evts: any[]) => void
+type EventShape = Record<string, unknown[]>
+type AnyEvent = Record<string, any[]>
 
-export type MittEmitter<T> = {
-  on(type: T, handler: Handler): void
-  off(type: T, handler: Handler): void
-  emit(type: T, ...evts: any[]): void
+type Handler<P extends unknown[] = any[]> = (...args: P) => void
+
+export type MittEmitter<T extends EventShape = AnyEvent> = {
+  on<K extends keyof T>(type: K, handler: Handler<T[K]>): void
+  off<K extends keyof T>(type: K, handler: Handler<T[K]>): void
+  emit<K extends keyof T>(type: K, ...args: T[K]): void
 }
 
-export default function mitt(): MittEmitter<string> {
-  const all: { [s: string]: Handler[] } = Object.create(null)
+export default function mitt<T extends EventShape>(): MittEmitter<T> {
+  const all: { [K in keyof T]: Handler<T[K]>[] } = Object.create(null)
 
   return {
-    on(type: string, handler: Handler) {
+    on<K extends keyof T>(type: K, handler: Handler<T[K]>) {
       ;(all[type] || (all[type] = [])).push(handler)
     },
 
-    off(type: string, handler: Handler) {
+    off<K extends keyof T>(type: K, handler: Handler<T[K]>) {
       if (all[type]) {
         all[type].splice(all[type].indexOf(handler) >>> 0, 1)
       }
     },
 
-    emit(type: string, ...evts: any[]) {
+    emit<K extends keyof T>(type: K, ...args: T[K]) {
       // eslint-disable-next-line array-callback-return
-      ;(all[type] || []).slice().map((handler: Handler) => {
-        handler(...evts)
+      ;(all[type] || []).slice().map((handler: Handler<T[K]>) => {
+        handler(...args)
       })
     },
   }

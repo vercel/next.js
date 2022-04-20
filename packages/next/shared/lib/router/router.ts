@@ -3,7 +3,7 @@ import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../../server/config'
 import type { MittEmitter } from '../mitt'
 import type { ParsedUrlQuery } from 'querystring'
-import type { RouterEvent } from '../../../client/router'
+import type { RouterEventDec } from '../../../client/router'
 import type { StyleSheetTuple } from '../../../client/page-loader'
 import type { UrlObject } from 'url'
 import type PageLoader from '../../../client/page-loader'
@@ -48,6 +48,9 @@ declare global {
 
 interface RouteProperties {
   shallow: boolean
+  scroll: boolean
+  method: HistoryMethod
+  locale: string | false | undefined
 }
 
 interface TransitionOptions {
@@ -619,7 +622,7 @@ export default class Router implements BaseRouter {
   clc: ComponentLoadCancel
   pageLoader: PageLoader
   _bps: BeforePopStateCallback | undefined
-  events: MittEmitter<RouterEvent>
+  events: MittEmitter<RouterEventDec>
   _wrapApp: (App: AppComponent) => any
   isSsr: boolean
   _inFlightRoute?: string
@@ -642,7 +645,7 @@ export default class Router implements BaseRouter {
 
   private _idx: number = 0
 
-  static events: MittEmitter<RouterEvent> = mitt()
+  static events: MittEmitter<RouterEventDec> = mitt()
 
   constructor(
     pathname: string,
@@ -1027,7 +1030,7 @@ export default class Router implements BaseRouter {
     }
 
     const { shallow = false, scroll = true } = options
-    const routeProps = { shallow }
+    const routeProps = { shallow, scroll, method, locale: options.locale }
 
     if (this._inFlightRoute) {
       this.abortComponentLoad(this._inFlightRoute, routeProps)
@@ -1324,7 +1327,7 @@ export default class Router implements BaseRouter {
             query,
             as,
             resolvedAs,
-            { shallow: false },
+            { ...routeProps, shallow: false },
             nextState.locale,
             nextState.isPreview
           )

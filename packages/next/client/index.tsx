@@ -67,7 +67,7 @@ type RegisterFn = (input: [string, () => void]) => void
 
 export const version = process.env.__NEXT_VERSION
 export let router: Router
-export const emitter: MittEmitter<string> = mitt()
+export const emitter: MittEmitter = mitt()
 
 const looseToArray = <T extends {}>(input: any): T[] => [].slice.call(input)
 
