@@ -26,7 +26,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-use anyhow::{Context, Error};
+use anyhow::{anyhow, Context, Error};
 use napi::{CallContext, Env, JsBuffer, JsExternal, JsString, JsUndefined, JsUnknown, Status};
 use serde::de::DeserializeOwned;
 use std::{any::type_name, convert::TryFrom, path::PathBuf};
@@ -108,6 +108,12 @@ pub fn init_custom_trace_subscriber(cx: CallContext) -> napi::Result<JsExternal>
 
     let mut layer = ChromeLayerBuilder::new().include_args(true);
     if let Some(trace_out_file) = trace_out_file_path {
+        let dir = trace_out_file
+            .parent()
+            .ok_or_else(|| anyhow!("Not able to find path to the trace output"))
+            .convert_err()?;
+        std::fs::create_dir_all(dir)?;
+
         layer = layer.file(trace_out_file);
     }
 

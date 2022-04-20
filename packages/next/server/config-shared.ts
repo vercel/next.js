@@ -132,7 +132,7 @@ export interface ExperimentalConfig {
       skipDefaultConversion?: boolean
     }
   >
-  swcTrace?: {
+  swcTraceProfiling?: {
     enabled: boolean
     traceFileName?: string
   }
