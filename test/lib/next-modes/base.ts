@@ -68,8 +68,8 @@ export class NextInstance {
   }
 
   protected async createTestDir({
-    noInstall = false,
-  }: { noInstall?: boolean } = {}) {
+    skipInstall = false,
+  }: { skipInstall?: boolean } = {}) {
     if (this.isDestroyed) {
       throw new Error('next instance already destroyed')
     }
@@ -92,7 +92,7 @@ export class NextInstance {
       ...((this.packageJson.dependencies as object | undefined) || {}),
     }
 
-    if (noInstall) {
+    if (skipInstall) {
       const pkgScripts = (this.packageJson['scripts'] as {}) || {}
       await fs.ensureDir(this.testDir)
       await fs.writeFile(
