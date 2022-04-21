@@ -586,6 +586,7 @@ export async function renderToHTML(
     App.getInitialProps === (App as any).origGetInitialProps
 
   const hasPageGetInitialProps = !!(Component as any)?.getInitialProps
+  const hasPageScripts = (Component as any)?.unstable_scriptLoader
 
   const pageIsDynamic = isDynamicRoute(pathname)
 
@@ -774,6 +775,14 @@ export async function renderToHTML(
 
   let head: JSX.Element[] = defaultHead(inAmpMode)
 
+  let initialScripts: any = {}
+  if (hasPageScripts) {
+    initialScripts.beforeInteractive = []
+      .concat(hasPageScripts())
+      .filter((script: any) => script.props.strategy === 'beforeInteractive')
+      .map((script: any) => script.props)
+  }
+
   let scriptLoader: any = {}
   const nextExport =
     !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
@@ -823,7 +832,7 @@ export async function renderToHTML(
               updateScripts: (scripts) => {
                 scriptLoader = scripts
               },
-              scripts: {},
+              scripts: initialScripts,
               mountedInstances: new Set(),
             }}
           >
