@@ -1326,6 +1326,11 @@ export async function renderToHTML(
         options: ComponentsEnhancer = {}
       ): RenderPageResult | Promise<RenderPageResult> => {
         if (ctx.err && ErrorDebug) {
+          // Always start rendering the shell even if there's an error.
+          if (renderShell) {
+            renderShell({})
+          }
+
           const html = ReactDOMServer.renderToString(
             <Body>
               <ErrorDebug error={ctx.err} />
