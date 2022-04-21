@@ -19,6 +19,8 @@ class DogHouse extends AnimalHouse {
   // using 'useDefineForClassFields'!
   // @ts-ignore
   resident: Dog
+  // useless constructor only for type checker
+  /* eslint-disable @typescript-eslint/no-useless-constructor */
   constructor(dog: Dog) {
     super(dog)
   }
@@ -26,12 +28,14 @@ class DogHouse extends AnimalHouse {
 
 class DogHouseWithDeclare extends AnimalHouse {
   declare resident: Dog
+  // useless constructor only for type checker
+  /* eslint-disable @typescript-eslint/no-useless-constructor */
   constructor(dog: Dog) {
     super(dog)
   }
 }
 
-export default function Animal() {
+export default function AnimalView() {
   const dog = new DogHouse({
     animalStuff: 'animal',
     dogStuff: 'dog',

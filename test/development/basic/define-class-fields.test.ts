@@ -77,7 +77,7 @@ describe('useDefineForClassFields SWC option', () => {
     let browser
     try {
       browser = await webdriver(next.appPort, '/derived')
-      matchLogs$(browser).then(([data_foundLog, name_foundLog]) => {
+      await matchLogs$(browser).then(([data_foundLog, name_foundLog]) => {
         expect(data_foundLog).toBe(true)
         expect(name_foundLog).toBe(false)
       })
