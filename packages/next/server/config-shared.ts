@@ -78,20 +78,13 @@ export interface NextJsWebpackConfig {
 export interface ExperimentalConfig {
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
-  swcFileReading?: boolean
   cpus?: number
-  sharedPool?: boolean
-  plugins?: boolean
-  profiling?: boolean
   isrFlushToDisk?: boolean
-  reactMode?: 'legacy' | 'concurrent' | 'blocking'
   workerThreads?: boolean
-  pageEnv?: boolean
   optimizeCss?: boolean
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
-  conformance?: boolean
   amp?: {
     optimizer?: any
     validator?: string
@@ -469,12 +462,8 @@ export const defaultConfig: NextConfig = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    sharedPool: true,
-    plugins: false,
-    profiling: false,
     isrFlushToDisk: true,
     workerThreads: false,
-    pageEnv: false,
     optimizeCss: false,
     nextScriptWorkers: false,
     scrollRestoration: false,
@@ -482,7 +471,6 @@ export const defaultConfig: NextConfig = {
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     disableOptimizedLoading: false,
     gzipSize: true,
-    swcFileReading: true,
     craCompat: false,
     esmExternals: true,
     // default to 50MB limit

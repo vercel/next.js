@@ -446,7 +446,7 @@ export default async function getBaseWebpackConfig(
             isServer: isMiddleware || isServer,
             pagesDir,
             hasReactRefresh: !isMiddleware && hasReactRefresh,
-            fileReading: config.experimental.swcFileReading,
+            fileReading: true,
             nextConfig: config,
             jsConfig,
           },
@@ -1344,9 +1344,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_BUILD_INDICATOR_POSITION': JSON.stringify(
           config.devIndicators.buildActivityPosition
         ),
-        'process.env.__NEXT_PLUGINS': JSON.stringify(
-          config.experimental.plugins
-        ),
         'process.env.__NEXT_STRICT_MODE': JSON.stringify(
           config.reactStrictMode
         ),
@@ -1393,22 +1390,6 @@ export default async function getBaseWebpackConfig(
               'global.GENTLY': JSON.stringify(false),
             }
           : undefined),
-        // stub process.env with proxy to warn a missing value is
-        // being accessed in development mode
-        ...(config.experimental.pageEnv && dev
-          ? {
-              'process.env': `
-            new Proxy(${!targetWeb ? 'process.env' : '{}'}, {
-              get(target, prop) {
-                if (typeof target[prop] === 'undefined') {
-                  console.warn(\`An environment variable (\${prop}) that was not provided in the environment was accessed.\nSee more info here: https://nextjs.org/docs/messages/missing-env-value\`)
-                }
-                return target[prop]
-              }
-            })
-          `,
-            }
-          : {}),
       }),
       !isServer &&
         new ReactLoadablePlugin({
@@ -1632,15 +1613,12 @@ export default async function getBaseWebpackConfig(
     buildActivity: config.devIndicators.buildActivity,
     buildActivityPosition: config.devIndicators.buildActivityPosition,
     productionBrowserSourceMaps: !!config.productionBrowserSourceMaps,
-    plugins: config.experimental.plugins,
     reactStrictMode: config.reactStrictMode,
-    reactMode: config.experimental.reactMode,
     optimizeFonts: config.optimizeFonts,
     optimizeCss: config.experimental.optimizeCss,
     nextScriptWorkers: config.experimental.nextScriptWorkers,
     scrollRestoration: config.experimental.scrollRestoration,
     basePath: config.basePath,
-    pageEnv: config.experimental.pageEnv,
     excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
     assetPrefix: config.assetPrefix,
     disableOptimizedLoading,

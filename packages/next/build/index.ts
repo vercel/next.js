@@ -809,7 +809,7 @@ export default async function build(
     ) as BuildManifest
 
     const timeout = config.staticPageGenerationTimeout || 0
-    const sharedPool = config.experimental.sharedPool || false
+    const sharedPool = true
     const staticWorker = sharedPool
       ? require.resolve('./worker')
       : require.resolve('./utils')
