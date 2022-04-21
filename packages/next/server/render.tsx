@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'http'
+import type { ParsedUrlQuery } from 'querystring'
 import type { NextRouter } from '../shared/lib/router/router'
 import type { HtmlProps } from '../shared/lib/html-context'
 import type { DomainLocale } from './config'
@@ -20,7 +21,6 @@ import type { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 
 import React from 'react'
-import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
@@ -72,13 +72,14 @@ import {
   streamToString,
   chainStreams,
   createBufferedTransformStream,
-  renderToStream,
   renderToInitialStream,
   continueFromInitialStream,
 } from './node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { interopDefault } from '../lib/interop-default'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
+import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
@@ -518,7 +519,7 @@ export async function renderToHTML(
 
   if (isServerComponent) {
     serverComponentsInlinedTransformStream = new TransformStream()
-    const search = stringifyQuery(query)
+    const search = urlQueryToSearchParams(query).toString()
     Component = createServerComponentRenderer(AppMod, ComponentMod, {
       cachePrefix: pathname + (search ? `?${search}` : ''),
       inlinedTransformStream: serverComponentsInlinedTransformStream,
@@ -1628,17 +1629,7 @@ export async function renderToHTML(
     </AmpStateContext.Provider>
   )
 
-  let documentHTML: string
-  if (hasConcurrentFeatures) {
-    const documentStream = await renderToStream({
-      ReactDOMServer,
-      element: document,
-      generateStaticHTML: true,
-    })
-    documentHTML = await streamToString(documentStream)
-  } else {
-    documentHTML = ReactDOMServer.renderToStaticMarkup(document)
-  }
+  const documentHTML = ReactDOMServer.renderToStaticMarkup(document)
 
   if (process.env.NODE_ENV !== 'production') {
     const nonRenderedComponents = []
@@ -1755,7 +1746,7 @@ export async function renderToHTML(
 function errorToJSON(err: Error) {
   return {
     name: err.name,
-    message: err.message,
+    message: stripAnsi(err.message),
     stack: err.stack,
     middleware: (err as any).middleware,
   }
