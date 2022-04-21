@@ -809,10 +809,7 @@ export default async function build(
     ) as BuildManifest
 
     const timeout = config.staticPageGenerationTimeout || 0
-    const sharedPool = true
-    const staticWorker = sharedPool
-      ? require.resolve('./worker')
-      : require.resolve('./utils')
+    const staticWorker = require.resolve('./worker')
     let infoPrinted = false
 
     process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
@@ -850,14 +847,12 @@ export default async function build(
       },
       numWorkers: config.experimental.cpus,
       enableWorkerThreads: config.experimental.workerThreads,
-      exposedMethods: sharedPool
-        ? [
-            'hasCustomGetInitialProps',
-            'isPageStatic',
-            'getNamedExports',
-            'exportPage',
-          ]
-        : ['hasCustomGetInitialProps', 'isPageStatic', 'getNamedExports'],
+      exposedMethods: [
+        'hasCustomGetInitialProps',
+        'isPageStatic',
+        'getNamedExports',
+        'exportPage',
+      ],
     }) as Worker &
       Pick<
         typeof import('./worker'),
@@ -977,7 +972,7 @@ export default async function build(
               if (isFlightPage(config, pagePath)) {
                 isServerComponent = true
               }
-            }
+            } //
 
             if (
               !isMiddlewareRoute &&
@@ -1124,7 +1119,6 @@ export default async function build(
         hasNonStaticErrorPage: nonStaticErrorPage,
       }
 
-      if (!sharedPool) staticWorkers.end()
       return returnValue
     })
 
@@ -1531,14 +1525,10 @@ export default async function build(
           pages: combinedPages,
           outdir: path.join(distDir, 'export'),
           statusMessage: 'Generating static pages',
-          exportPageWorker: sharedPool
-            ? staticWorkers.exportPage.bind(staticWorkers)
-            : undefined,
-          endWorker: sharedPool
-            ? async () => {
-                await staticWorkers.end()
-              }
-            : undefined,
+          exportPageWorker: staticWorkers.exportPage.bind(staticWorkers),
+          endWorker: async () => {
+            await staticWorkers.end()
+          },
         }
         const exportConfig: any = {
           ...config,
