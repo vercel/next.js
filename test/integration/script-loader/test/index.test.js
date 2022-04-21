@@ -176,6 +176,19 @@ describe('Next.js Script - Primary Strategies', () => {
     }
   })
 
+  it('priority beforeInteractive with inline script', async () => {
+    const html = await renderViaHTTP(appPort, '/page5')
+    const $ = cheerio.load(html)
+
+    const script = $('#inline-before')
+    expect(script.length).toBe(1)
+
+    // Script is inserted before CSS
+    expect(
+      $(`#inline-before ~ link[href^="/_next/static/css"]`).length
+    ).toBeGreaterThan(0)
+  })
+
   it('onload fires correctly', async () => {
     let browser
     try {
