@@ -42,7 +42,7 @@ export default ActiveLink
 The following is the definition of the `router` object returned by both [`useRouter`](#useRouter) and [`withRouter`](#withRouter):
 
 - `pathname`: `String` - Current route. That is the path of the page in `/pages`, the configured `basePath` or `locale` is not included.
-- `query`: `Object` - The query string parsed to an object. It will be an empty object during prerendering if the page doesn't have [data fetching requirements](/docs/basic-features/data-fetching/overview.md). Defaults to `{}`
+- `query`: `Object` - The query string parsed to an object, including [dynamic route](/docs/routing/dynamic-routes.md) parameters. It will be an empty object during prerendering if the page doesn't have [data fetching requirements](/docs/basic-features/data-fetching/overview.md). Defaults to `{}`
 - `asPath`: `String` - The path (including the query) shown in the browser without the configured `basePath` or `locale`.
 - `isFallback`: `boolean` - Whether the current page is in [fallback mode](/docs/api-reference/data-fetching/get-static-paths.md#fallback-pages).
 - `basePath`: `String` - The active [basePath](/docs/api-reference/next.config.js/basepath.md) (if enabled).
