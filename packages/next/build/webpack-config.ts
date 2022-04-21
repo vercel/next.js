@@ -49,7 +49,7 @@ import {
   TelemetryPlugin,
 } from './webpack/plugins/telemetry-plugin'
 import type { Span } from '../trace'
-import { getRawPageExtensions } from './utils'
+import { withoutRSCExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { getMiddlewareSourceMapPlugins } from './webpack/plugins/middleware-source-maps-plugin'
@@ -471,7 +471,7 @@ export default async function getBaseWebpackConfig(
   }
 
   const rawPageExtensions = hasServerComponents
-    ? getRawPageExtensions(config.pageExtensions)
+    ? withoutRSCExtensions(config.pageExtensions)
     : config.pageExtensions
 
   const serverComponentsRegex = new RegExp(

@@ -21,10 +21,10 @@ import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
 import { parse } from '../build/swc'
 import {
-  getRawPageExtensions,
   isCustomErrorPage,
   isFlightPage,
   isReservedPage,
+  withoutRSCExtensions,
 } from './utils'
 import { ssrEntries } from './webpack/plugins/middleware-plugin'
 import {
@@ -34,9 +34,14 @@ import {
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
+/**
+ * For a given page path removes the provided extensions. `/_app.server` is a
+ * special case because it is the only page where we want to preserve the RSC
+ * server extension.
+ */
 export function getPageFromPath(pagePath: string, pageExtensions: string[]) {
   const extensions = pagePath.includes('/_app.server.')
-    ? getRawPageExtensions(pageExtensions)
+    ? withoutRSCExtensions(pageExtensions)
     : pageExtensions
 
   const page = normalizePathSep(
@@ -85,6 +90,7 @@ export function createPagesMapping({
       } else {
         previousPages[pageKey] = pagePath
       }
+
       result[pageKey] = normalizePathSep(join(PAGES_DIR_ALIAS, pagePath))
       return result
     },
