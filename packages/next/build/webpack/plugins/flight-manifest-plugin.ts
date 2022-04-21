@@ -66,7 +66,7 @@ export class FlightManifestPlugin {
     const manifest: any = {}
     const isClientComponent = createClientComponentFilter(this.pageExtensions)
     compilation.chunkGroups.forEach((chunkGroup: any) => {
-      function recordModule(id: string, _chunk: any, mod: any) {
+      function recordModule(id: string, chunk: any, mod: any) {
         const resource = mod.resource
 
         // TODO: Hook into deps instead of the target module.
@@ -94,7 +94,7 @@ export class FlightManifestPlugin {
             moduleExports[name] = {
               id,
               name,
-              chunks: [],
+              chunks: chunk.ids,
             }
           }
         })

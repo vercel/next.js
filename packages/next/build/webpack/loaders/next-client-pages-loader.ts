@@ -24,7 +24,7 @@ function nextClientPagesLoader(this: any) {
     (window.__NEXT_P = window.__NEXT_P || []).push([
       ${stringifiedPage},
       function () {
-        return require(${stringifiedPagePath});
+        return import(/* webpackMode: "lazy" */ ${stringifiedPagePath});
       }
     ]);
     if(module.hot) {
