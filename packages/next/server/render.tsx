@@ -1301,7 +1301,14 @@ export async function renderToHTML(
       }
     }
 
-    if ((isServerComponent || process.browser) && Document.getInitialProps) {
+    if (
+      // If it's server component, edge runtime or using default document with react 18,
+      // try to fallback to built-in functional document
+      (isServerComponent ||
+        process.browser ||
+        (builtinDocument && hasConcurrentFeatures)) &&
+      Document.getInitialProps
+    ) {
       if (builtinDocument) {
         Document = builtinDocument
       } else {

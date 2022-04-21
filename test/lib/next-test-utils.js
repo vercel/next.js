@@ -754,10 +754,10 @@ function runSuite(suiteName, context, options) {
   describe(`${suiteName} ${env}`, () => {
     beforeAll(async () => {
       options.beforeAll?.(env)
+      context.stdout = ''
       context.stderr = ''
-      const onStderr = (msg) => {
-        context.stderr += msg
-      }
+      const onStdout = (msg) => (context.stdout += msg)
+      const onStderr = (msg) => (context.stderr += msg)
       if (env === 'prod') {
         context.appPort = await findPort()
         const { stdout, stderr, code } = await nextBuild(appDir, [], {
@@ -768,11 +768,13 @@ function runSuite(suiteName, context, options) {
         context.stderr = stderr
         context.code = code
         context.server = await nextStart(context.appDir, context.appPort, {
+          onStdout,
           onStderr,
         })
       } else if (env === 'dev') {
         context.appPort = await findPort()
         context.server = await launchApp(context.appDir, context.appPort, {
+          onStdout,
           onStderr,
         })
       }

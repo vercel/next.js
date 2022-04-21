@@ -1,7 +1,13 @@
 import ReactDOM from 'react-dom'
 import Image from 'next/image'
 
+function sideEffectCall() {
+  console.log('sideEffectCall')
+}
+
 export default function Index() {
+  sideEffectCall()
+
   if (typeof window !== 'undefined') {
     window.didHydrate = true
   }

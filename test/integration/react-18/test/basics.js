@@ -5,6 +5,14 @@ import cheerio from 'cheerio'
 import { renderViaHTTP } from 'next-test-utils'
 
 export default (context, env) => {
+  it('should render page on server side only once if there is no custom document', async () => {
+    await renderViaHTTP(context.appPort, '/')
+    const firstIndex = context.stdout.indexOf('sideEffectCall')
+    const lastIndex = context.stdout.lastIndexOf('sideEffectCall')
+    // log only once
+    expect(firstIndex === lastIndex).toBe(true)
+  })
+
   it('no warnings for image related link props', async () => {
     await renderViaHTTP(context.appPort, '/')
     expect(context.stderr).not.toContain('Warning: Invalid DOM property')
