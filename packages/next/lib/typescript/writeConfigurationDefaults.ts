@@ -193,6 +193,13 @@ export async function writeConfigurationDefaults(
     return
   }
 
+  console.log(
+    chalk.green(
+      `We detected TypeScript in your project and reconfigured your ${chalk.bold(
+        'tsconfig.json'
+      )} file for you.`
+    ) + '\n'
+  )
   if (suggestedActions.length) {
     console.log(
       `The following suggested values were added to your ${chalk.cyan(
