@@ -972,7 +972,7 @@ export default async function build(
               if (isFlightPage(config, pagePath)) {
                 isServerComponent = true
               }
-            } //
+            }
 
             if (
               !isMiddlewareRoute &&

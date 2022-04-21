@@ -318,9 +318,7 @@ export default abstract class Server {
           : undefined,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
       nextScriptWorkers: this.nextConfig.experimental.nextScriptWorkers,
-      disableOptimizedLoading: this.nextConfig.experimental.runtime
-        ? true
-        : false,
+      disableOptimizedLoading: Boolean(this.nextConfig.experimental.runtime),
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
       runtime: this.nextConfig.experimental.runtime,

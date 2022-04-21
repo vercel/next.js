@@ -368,7 +368,7 @@ export default async function getBaseWebpackConfig(
   const hasConcurrentFeatures = hasReactRoot
   const hasServerComponents =
     hasConcurrentFeatures && !!config.experimental.serverComponents
-  const disableOptimizedLoading = hasConcurrentFeatures ? true : false
+  const disableOptimizedLoading = hasConcurrentFeatures
 
   if (!isServer) {
     if (runtime === 'edge') {
