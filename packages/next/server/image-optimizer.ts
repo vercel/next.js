@@ -106,14 +106,13 @@ export class ImageOptimizerCache {
         return { errorMessage: '"url" parameter is invalid' }
       }
 
-      if (!domains && !remotePatterns) {
-        return { errorMessage: '"url" parameter is not allowed' }
-      }
-
-      if (
-        !domains.includes(hrefParsed.hostname) &&
-        remotePatterns.some((p) => !matchRemotePattern(p, hrefParsed))
-      ) {
+      const allPatterns = remotePatterns.concat(
+        domains.map((hostname) => ({ hostname }))
+      )
+      const hasMatch = allPatterns.some((p) =>
+        matchRemotePattern(p, hrefParsed)
+      )
+      if (!hasMatch) {
         return { errorMessage: '"url" parameter is not allowed' }
       }
     }
