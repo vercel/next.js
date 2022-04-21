@@ -1,5 +1,6 @@
 import React from 'react'
-import DotCMSImage from '../../../Image'
+import cn from "classnames";
+import DotCmsImage from "../../../../dotcms-image";
 
 
 export const DotImage = ({ attrs: { textAlign, data } }) => {
@@ -8,7 +9,16 @@ export const DotImage = ({ attrs: { textAlign, data } }) => {
 
   return (
     <div className="w-full h-64 mb-4 relative" style={{ textAlign: textAlign }}>
-      <DotCMSImage objectFit={'cover'} path={asset} title={imgTitle} />
+
+      <DotCmsImage
+        alt={`Cover Image for ${title}`}
+        className={cn('shadow-small', {
+          'hover:shadow-medium transition-shadow  duration-200': imgTitle,
+        })}
+        src={asset}
+        layout="fill"
+      />
+
     </div>
   )
 }
