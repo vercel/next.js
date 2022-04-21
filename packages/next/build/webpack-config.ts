@@ -454,7 +454,7 @@ export default async function getBaseWebpackConfig(
   const getBabelOrSwcLoader = (buildDir: string) => {
     if (
       useSWCLoader &&
-      config?.experimental?.swcTraceProfiling?.enabled &&
+      config?.experimental?.swcTraceProfiling &&
       !swcTraceFlushGuard
     ) {
       // This will init subscribers once only in a single process lifecycle,
@@ -462,12 +462,11 @@ export default async function getBaseWebpackConfig(
       // Subscriber need to be initialized _before_ any actual swc's call (transform, etcs)
       // to collect correct trace spans when they are called.
       swcTraceFlushGuard = require('./swc')?.initCustomTraceSubscriber?.(
-        config?.experimental?.swcTraceProfiling?.traceFileName ??
-          path.join(
-            buildDir,
-            config.distDir,
-            `swc-trace-profile-${Date.now()}.json`
-          )
+        path.join(
+          buildDir,
+          config.distDir,
+          `swc-trace-profile-${Date.now()}.json`
+        )
       )
     }
 
