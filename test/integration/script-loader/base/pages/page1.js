@@ -8,7 +8,7 @@ const Page = () => {
   )
 }
 
-Page.scriptLoader = () => {
+Page.unstable_scriptLoader = () => {
   return (
     <Script
       id="scriptBeforePageRender"
