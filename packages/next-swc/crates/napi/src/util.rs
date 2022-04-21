@@ -29,7 +29,7 @@ DEALINGS IN THE SOFTWARE.
 use anyhow::{anyhow, Context, Error};
 use napi::{CallContext, Env, JsBuffer, JsExternal, JsString, JsUndefined, JsUnknown, Status};
 use serde::de::DeserializeOwned;
-use std::{any::type_name, convert::TryFrom, path::PathBuf};
+use std::{any::type_name, cell::RefCell, convert::TryFrom, path::PathBuf};
 use tracing_chrome::{ChromeLayerBuilder, FlushGuard};
 use tracing_subscriber::{filter, prelude::*, util::SubscriberInitExt, Layer};
 
@@ -125,17 +125,22 @@ pub fn init_custom_trace_subscriber(cx: CallContext) -> napi::Result<JsExternal>
         .try_init()
         .expect("Failed to register tracing subscriber");
 
-    cx.env.create_external(guard, None)
+    let guard_cell = RefCell::new(Some(guard));
+    cx.env.create_external(guard_cell, None)
 }
 
 /// Teardown currently running tracing subscriber to flush out remaining traces.
 /// This should be called when parent node.js process exits, otherwise generated
-/// trace will missing traces in the buffer.
+/// trace may drop traces in the buffer.
 #[js_function(1)]
 pub fn teardown_trace_subscriber(cx: CallContext) -> napi::Result<JsUndefined> {
     let guard_external = cx.get::<JsExternal>(0)?;
-    let guard = &*cx.env.get_value_external::<FlushGuard>(&guard_external)?;
+    let guard_cell = &*cx
+        .env
+        .get_value_external::<RefCell<Option<FlushGuard>>>(&guard_external)?;
 
-    guard.close();
+    if let Some(guard) = guard_cell.take() {
+        drop(guard);
+    }
     cx.env.get_undefined()
 }

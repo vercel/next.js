@@ -28,8 +28,7 @@ tracing = { version = "0.1.32", features = ["release_max_level_info"] }
 tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.9"
 
-# https://github.com/thoren-d/tracing-chrome/pull/10
-tracing-chrome = { git = "https://github.com/kwonoj/tracing-chrome", rev = "0dd9d6c9e0f74f43993b58560f4ac0103e058df8" }
+tracing-chrome = "0.5.0"
 
 [build-dependencies]
 napi-build = "1"
