@@ -198,8 +198,16 @@ export async function writeConfigurationDefaults(
       `We detected TypeScript in your project and reconfigured your ${chalk.bold(
         'tsconfig.json'
       )} file for you.`
-    ) + '\n'
+    )
   )
+  if (userTsConfig.compilerOptions['strict'] == false) {
+    console.log(
+      chalk.green(
+        `Strict-mode is set to ${chalk.bold('false')} by default.`
+      )
+    )
+  }
+  
   if (suggestedActions.length) {
     console.log(
       `The following suggested values were added to your ${chalk.cyan(
