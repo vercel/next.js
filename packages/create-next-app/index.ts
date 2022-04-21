@@ -41,6 +41,13 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--no-install',
+    `
+
+    Explicitly tell the CLI to not install dependencies
+`
+  )
+  .option(
     '-e, --example [name]|[github-url]',
     `
 
@@ -57,13 +64,6 @@ const program = new Commander.Command(packageJson.name)
   a slash (e.g. bug/fix-1) and the path to the example (e.g. foo/bar).
   In this case, you must specify the path to the example separately:
   --example-path foo/bar
-`
-  )
-  .option(
-    '--no-install',
-    `
-
-  Skips dependencies installation step
 `
   )
   .allowUnknownOption()
@@ -146,7 +146,7 @@ async function run(): Promise<void> {
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
       typescript: program.typescript,
-      noInstall: program.noInstall,
+      noInstall: !program.install,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -169,7 +169,7 @@ async function run(): Promise<void> {
       appPath: resolvedProjectPath,
       packageManager,
       typescript: program.typescript,
-      noInstall: program.noInstall,
+      noInstall: !program.install,
     })
   }
 }
