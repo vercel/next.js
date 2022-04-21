@@ -383,7 +383,7 @@ export default async function exportApp(
       defaultLocale: i18n?.defaultLocale,
       domainLocales: i18n?.domains,
       trailingSlash: nextConfig.trailingSlash,
-      disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
+      disableOptimizedLoading: false,
       // Exported pages do not currently support dynamic HTML.
       supportsDynamicHTML: false,
       runtime: nextConfig.experimental.runtime,
@@ -589,8 +589,7 @@ export default async function exportApp(
             serverless: isTargetLikeServerless(nextConfig.target),
             optimizeFonts: nextConfig.optimizeFonts,
             optimizeCss: nextConfig.experimental.optimizeCss,
-            disableOptimizedLoading:
-              nextConfig.experimental.disableOptimizedLoading,
+            disableOptimizedLoading: false,
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
             serverComponents: nextConfig.experimental.serverComponents,

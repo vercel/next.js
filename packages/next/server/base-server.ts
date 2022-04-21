@@ -320,7 +320,7 @@ export default abstract class Server {
       nextScriptWorkers: this.nextConfig.experimental.nextScriptWorkers,
       disableOptimizedLoading: this.nextConfig.experimental.runtime
         ? true
-        : this.nextConfig.experimental.disableOptimizedLoading,
+        : false,
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
       runtime: this.nextConfig.experimental.runtime,
