@@ -121,12 +121,49 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
           }}
         />
         {(scriptLoader.worker || []).map((file: ScriptProps, index: number) => {
-          const { strategy, ...scriptProps } = file
+          const {
+            strategy,
+            src,
+            children: scriptChildren,
+            dangerouslySetInnerHTML,
+            ...scriptProps
+          } = file
+
+          let srcProps: {
+            src?: string
+            dangerouslySetInnerHTML?: {
+              __html: string
+            }
+          } = {}
+
+          if (src) {
+            // Use external src if provided
+            srcProps.src = src
+          } else {
+            // Embed inline script if provided with dangerouslySetInnerHTML
+            if (dangerouslySetInnerHTML && dangerouslySetInnerHTML.__html) {
+              srcProps.dangerouslySetInnerHTML = {
+                __html: dangerouslySetInnerHTML.__html,
+              }
+            } else if (scriptChildren) {
+              // Embed inline script if provided with children
+              srcProps.dangerouslySetInnerHTML = {
+                __html:
+                  typeof scriptChildren === 'string'
+                    ? scriptChildren
+                    : Array.isArray(scriptChildren)
+                    ? scriptChildren.join('')
+                    : '',
+              }
+            }
+          }
+
           return (
             <script
+              {...srcProps}
               {...scriptProps}
               type="text/partytown"
-              key={scriptProps.src || index}
+              key={src || index}
               nonce={props.nonce}
               data-nscript="worker"
               crossOrigin={props.crossOrigin || crossOrigin}

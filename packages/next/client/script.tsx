@@ -13,6 +13,9 @@ export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
   onLoad?: (e: any) => void
   onError?: (e: any) => void
   children?: React.ReactNode
+  dangerouslySetInnerHTML?: {
+    __html: string
+  }
 }
 
 /**
@@ -173,6 +176,7 @@ function Script(props: ScriptProps): JSX.Element | null {
           src,
           onLoad,
           onError,
+          dangerouslySetInnerHTML,
           ...restProps,
         },
       ])
