@@ -3,9 +3,6 @@ import { Article } from '../components/Article'
 import { Header } from '../components/Header'
 import { Callout } from 'react-foundation'
 
-// Add Foundation to index.js
-import 'foundation-sites/dist/css/foundation.min.css'
-
 export default function Home() {
   return (
     <>
