@@ -2,7 +2,6 @@ import {useRouter} from 'next/router'
 import Head from 'next/head'
 import ErrorPage from 'next/error'
 import Container from '../../components/container'
-import PostBody from '../../components/post-body'
 import MoreStories from '../../components/more-stories'
 import Header from '../../components/header'
 import PostHeader from '../../components/post-header'
@@ -12,7 +11,7 @@ import {getAllPostsWithSlug, getPostAndMorePosts} from '../../lib/api'
 import PostTitle from '../../components/post-title'
 import {CMS_NAME} from '../../lib/constants'
 
-import  {DotSBRender} from '../../components/dotCMS/storyblock'
+import  {ContentBlocks} from '../../components/content-blocks'
 import DateComponent from "../../components/date";
 import Avatar from "../../components/avatar";
 
@@ -56,10 +55,8 @@ export default function Post({post, morePosts, preview}) {
                 <div className="mb-6 text-lg">
                   {post.postingDate != 'now' ? <div className="mb-6 text-lg">Posted <DateComponent dateString={post.postingDate} /></div> : null}
                 </div>
-                <DotSBRender {...post.blogContent.json} />
+                <ContentBlocks content={post.blogContent.json.content} />
               </div>
-
-
 
             </article>
 
