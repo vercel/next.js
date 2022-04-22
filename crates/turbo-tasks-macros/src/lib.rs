@@ -386,7 +386,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         /// This is useful when storing the reference somewhere or when comparing it with other references.
         ///
         /// A reference is equal to another reference with it points to the same thing. No resolving is applied on comparision.
-        #[derive(Clone, Debug, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq)]
+        #[derive(Clone, Copy, Debug, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq)]
         #vis struct #ref_ident {
             node: turbo_tasks::RawVc,
         }
@@ -686,7 +686,7 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
         #[allow(non_upper_case_globals)]
         #vis static #ident: #mod_ident = #mod_ident { __private: () };
 
-        #[derive(Clone, Debug, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq)]
+        #[derive(Clone, Copy, Debug, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq)]
         #vis struct #ref_ident {
             node: turbo_tasks::RawVc,
         }
