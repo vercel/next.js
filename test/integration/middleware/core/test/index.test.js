@@ -124,7 +124,7 @@ describe('Middleware base tests', () => {
       })
     })
 
-    it('should contains process polyfill', async () => {
+    it('should contains process.env without other properties', async () => {
       const res = await fetchViaHTTP(context.appPort, `/global`)
       const json = await res.json()
       expect(json).toEqual({
