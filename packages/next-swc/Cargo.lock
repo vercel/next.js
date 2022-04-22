@@ -2094,9 +2094,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_ast"
-version = "0.76.0"
+version = "0.76.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b2a73d43c031effb0cf0b57df28fe87f7b6044304e188eb2f832cea964e9c75"
+checksum = "82617d5fbf5698e7955a84dca76838c2d70b31b5a0f42049ffa052c6de45e67e"
 dependencies = [
  "is-macro",
  "num-bigint",
