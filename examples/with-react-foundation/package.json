@@ -6,16 +6,16 @@
     "start": "next start"
   },
   "dependencies": {
+    "foundation-sites": "6.7.4",
     "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "foundation-sites": "6.6.3",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
     "react-foundation": "^0.9.7"
   },
   "devDependencies": {
-    "@types/node": "^14.6.0",
-    "@types/react": "^17.0.3",
-    "@types/react-dom": "^17.0.3",
-    "typescript": "4.3.2"
+    "@types/node": "^17.0.25",
+    "@types/react": "^18.0.6",
+    "@types/react-dom": "^18.0.2",
+    "typescript": "4.6.3"
   }
 }
