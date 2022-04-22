@@ -318,17 +318,18 @@ export default async function build(
     const entrypoints = await nextBuildSpan
       .traceChild('create-entrypoints')
       .traceAsyncFn(() =>
-        createEntrypoints(
-          mappedPages,
-          target,
+        createEntrypoints({
           buildId,
-          previewProps,
           config,
-          loadedEnvFiles,
+          envFiles: loadedEnvFiles,
+          isDev: false,
+          pages: mappedPages,
           pagesDir,
-          false
-        )
+          previewMode: previewProps,
+          target,
+        })
       )
+
     const pageKeys = Object.keys(mappedPages)
     const conflictingPublicFiles: string[] = []
     const hasPages404 = mappedPages['/404']?.startsWith(PAGES_DIR_ALIAS)
@@ -564,11 +565,8 @@ export default async function build(
         )
       )
 
-    const manifestPath = path.join(
-      distDir,
-      isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-      PAGES_MANIFEST
-    )
+    const serverDir = isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+    const manifestPath = path.join(distDir, serverDir, PAGES_MANIFEST)
 
     const requiredServerFiles = nextBuildSpan
       .traceChild('generate-required-server-files')
@@ -599,12 +597,7 @@ export default async function build(
               ]
             : []),
           REACT_LOADABLE_MANIFEST,
-          config.optimizeFonts
-            ? path.join(
-                isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-                FONT_MANIFEST
-              )
-            : null,
+          config.optimizeFonts ? path.join(serverDir, FONT_MANIFEST) : null,
           BUILD_ID_FILE,
         ]
           .filter(nonNullable)
@@ -618,49 +611,37 @@ export default async function build(
     await (async () => {
       // IIFE to isolate locals and avoid retaining memory too long
       const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
+
+      const commonWebpackOptions = {
+        buildId,
+        config,
+        hasReactRoot,
+        pagesDir,
+        reactProductionProfiling,
+        rewrites,
+        runWebpackSpan,
+        target,
+      }
+
       const configs = await runWebpackSpan
         .traceChild('generate-webpack-config')
         .traceAsyncFn(() =>
           Promise.all([
             getBaseWebpackConfig(dir, {
-              buildId,
-              reactProductionProfiling,
-              isServer: false,
-              config,
-              target,
-              pagesDir,
+              ...commonWebpackOptions,
+              compilerType: 'client',
               entrypoints: entrypoints.client,
-              rewrites,
-              runWebpackSpan,
-              hasReactRoot,
             }),
             getBaseWebpackConfig(dir, {
-              buildId,
-              reactProductionProfiling,
-              isServer: true,
-              config,
-              target,
-              pagesDir,
+              ...commonWebpackOptions,
+              compilerType: 'server',
               entrypoints: entrypoints.server,
-              rewrites,
-              runWebpackSpan,
-              hasReactRoot,
             }),
-            hasReactRoot
-              ? getBaseWebpackConfig(dir, {
-                  buildId,
-                  reactProductionProfiling,
-                  isServer: true,
-                  isEdgeRuntime: true,
-                  config,
-                  target,
-                  pagesDir,
-                  entrypoints: entrypoints.edgeServer,
-                  rewrites,
-                  runWebpackSpan,
-                  hasReactRoot,
-                })
-              : null,
+            getBaseWebpackConfig(dir, {
+              ...commonWebpackOptions,
+              compilerType: 'edge-server',
+              entrypoints: entrypoints.edgeServer,
+            }),
           ])
         )
 
@@ -1468,7 +1449,7 @@ export default async function build(
 
     const middlewareManifest: MiddlewareManifest = JSON.parse(
       await promises.readFile(
-        path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+        path.join(distDir, serverDir, MIDDLEWARE_MANIFEST),
         'utf8'
       )
     )
@@ -1655,10 +1636,6 @@ export default async function build(
           const serverBundle = getPagePath(page, distDir, isLikeServerless)
           await promises.unlink(serverBundle)
         }
-        const serverOutputDir = path.join(
-          distDir,
-          isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-        )
 
         const moveExportedPage = async (
           originPage: string,
@@ -1681,7 +1658,7 @@ export default async function build(
 
               const relativeDest = path
                 .relative(
-                  serverOutputDir,
+                  path.join(distDir, serverDir),
                   path.join(
                     path.join(
                       pagePath,
@@ -1698,12 +1675,6 @@ export default async function build(
                 )
                 .replace(/\\/g, '/')
 
-              const dest = path.join(
-                distDir,
-                isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-                relativeDest
-              )
-
               if (
                 !isSsg &&
                 !(
@@ -1718,6 +1689,7 @@ export default async function build(
                 pagesManifest[page] = relativeDest
               }
 
+              const dest = path.join(distDir, serverDir, relativeDest)
               const isNotFound = ssgNotFoundPaths.includes(page)
 
               // for SSG files with i18n the non-prerendered variants are
@@ -1763,7 +1735,7 @@ export default async function build(
                   )
                   const updatedDest = path.join(
                     distDir,
-                    isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+                    serverDir,
                     updatedRelativeDest
                   )
 

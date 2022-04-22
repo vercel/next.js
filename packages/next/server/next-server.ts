@@ -24,7 +24,6 @@ import { addRequestMeta, getRequestMeta } from './request-meta'
 import {
   PAGES_MANIFEST,
   BUILD_ID_FILE,
-  SERVER_DIRECTORY,
   MIDDLEWARE_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
@@ -32,7 +31,6 @@ import {
   ROUTES_MANIFEST,
   MIDDLEWARE_FLIGHT_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
-  SERVERLESS_DIRECTORY,
 } from '../shared/lib/constants'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
@@ -156,12 +154,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
-    const serverBuildDir = join(
-      this.distDir,
-      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-    )
-    const pagesManifestPath = join(serverBuildDir, PAGES_MANIFEST)
-    return require(pagesManifestPath)
+    return require(join(this.serverDistDir, PAGES_MANIFEST))
   }
 
   protected getBuildId(): string {
@@ -939,14 +932,9 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getMiddlewareManifest(): MiddlewareManifest | undefined {
-    if (!this.minimalMode) {
-      const middlewareManifestPath = join(
-        join(this.distDir, SERVER_DIRECTORY),
-        MIDDLEWARE_MANIFEST
-      )
-      return require(middlewareManifestPath)
-    }
-    return undefined
+    return !this.minimalMode
+      ? require(join(this.serverDistDir, MIDDLEWARE_MANIFEST))
+      : undefined
   }
 
   protected generateRewrites({

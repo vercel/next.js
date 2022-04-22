@@ -356,11 +356,7 @@ export default abstract class Server {
       fs: this.getCacheFilesystem(),
       dev,
       distDir: this.distDir,
-      pagesDir: join(
-        this.distDir,
-        this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-        'pages'
-      ),
+      pagesDir: join(this.serverDistDir, 'pages'),
       locales: this.nextConfig.i18n?.locales,
       max: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk: !minimalMode && this.nextConfig.experimental.isrFlushToDisk,
@@ -1966,6 +1962,13 @@ export default abstract class Server {
 
   protected get _isLikeServerless(): boolean {
     return isTargetLikeServerless(this.nextConfig.target)
+  }
+
+  protected get serverDistDir() {
+    return join(
+      this.distDir,
+      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+    )
   }
 }
 

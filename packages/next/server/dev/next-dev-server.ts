@@ -541,16 +541,20 @@ export default class DevServer extends Server {
       const result = await super.runMiddleware({
         ...params,
         onWarning: (warn) => {
-          this.logErrorWithOriginalStack(warn, 'warning', 'client')
+          this.logErrorWithOriginalStack(warn, 'warning', 'edge-server')
         },
       })
 
       result?.waitUntil.catch((error) =>
-        this.logErrorWithOriginalStack(error, 'unhandledRejection', 'client')
+        this.logErrorWithOriginalStack(
+          error,
+          'unhandledRejection',
+          'edge-server'
+        )
       )
       return result
     } catch (error) {
-      this.logErrorWithOriginalStack(error, undefined, 'client')
+      this.logErrorWithOriginalStack(error, undefined, 'edge-server')
 
       const preflight =
         params.request.method === 'HEAD' &&
@@ -627,7 +631,7 @@ export default class DevServer extends Server {
   private async logErrorWithOriginalStack(
     err?: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning',
-    stats: 'server' | 'client' = 'server'
+    stats: 'server' | 'edge-server' = 'server'
   ) {
     let usedOriginalStack = false
 
@@ -638,9 +642,9 @@ export default class DevServer extends Server {
 
         if (frame.lineNumber && frame?.file) {
           const compilation =
-            stats === 'client'
-              ? this.hotReloader?.clientStats?.compilation
-              : this.hotReloader?.serverStats?.compilation
+            stats === 'server'
+              ? this.hotReloader?.serverStats?.compilation
+              : this.hotReloader?.edgeServerStats?.compilation
 
           const moduleId = frame.file!.replace(
             /^(webpack-internal:\/\/\/|file:\/\/)/,
