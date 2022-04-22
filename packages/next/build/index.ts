@@ -113,7 +113,7 @@ import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import { lockfilePatchPromise } from './swc'
+import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -2212,6 +2212,7 @@ export default async function build(
 
     // Ensure all traces are flushed before finishing the command
     await flushAllTraces()
+    teardownTraceSubscriber()
   }
 }
 
