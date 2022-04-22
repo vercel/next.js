@@ -7,7 +7,7 @@ use turbo_tasks::{trace::TraceRawVcs, Value, ValueToString, ValueToStringVc, Vc}
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 
 #[turbo_tasks::value(shared, ValueToString)]
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Debug)]
 pub enum Pattern {
     Constant(String),
     Dynamic,

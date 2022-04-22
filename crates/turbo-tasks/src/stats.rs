@@ -6,7 +6,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{NativeFunction, Task, TraitType};
+use crate::{NativeFunction, Task, TaskId, TraitType, TurboTasks};
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum TaskType {
@@ -63,7 +63,7 @@ impl Stats {
         }
     }
 
-    pub fn add(&mut self, task: &Arc<Task>) {
+    pub fn add(&mut self, turbo_tasks: &TurboTasks, task: &Arc<Task>) {
         let ty = task.get_stats_type();
         let stats = self.tasks.entry(ty).or_default();
         stats.count += 1;
@@ -71,14 +71,22 @@ impl Stats {
         let references = task.get_stats_references();
         let set: HashSet<_> = references.into_iter().collect();
         for (ref_type, task) in set {
-            let ty = task.get_stats_type();
-            let ref_stats = stats.references.entry((ref_type, ty)).or_default();
-            ref_stats.count += 1;
+            turbo_tasks.with_task_and_tt(task, |task| {
+                let ty = task.get_stats_type();
+                let ref_stats = stats.references.entry((ref_type, ty)).or_default();
+                ref_stats.count += 1;
+            })
         }
     }
 
+    pub fn add_id(&mut self, turbo_tasks: &TurboTasks, id: TaskId) {
+        turbo_tasks.with_task_and_tt(id, |task| {
+            self.add(turbo_tasks, task);
+        });
+    }
+
     pub fn merge_resolve(&mut self) {
-        self.merge(|ty, stats| match ty {
+        self.merge(|ty, _stats| match ty {
             TaskType::Root(_) | TaskType::Once(_) | TaskType::Native(_) => false,
             TaskType::ResolveNative(_) | TaskType::ResolveTrait(_, _) => true,
         })

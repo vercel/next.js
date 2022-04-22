@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use crate::{
     task::{match_previous_node_by_key, match_previous_node_by_type},
     trace::{TraceRawVcs, TraceRawVcsContext},
-    RawVc, RawVcReadResult, SlotValueType, TaskInput,
+    RawVc, RawVcReadResult, SlotValueType, TaskInput, TurboTasks,
 };
 
 #[derive(PartialEq, Eq, Clone)]
@@ -25,7 +25,10 @@ impl<T: Any + TraceRawVcs + Send + Sync> Vc<T> {
     /// task outputs. This will lead to invalidation of the current task
     /// when one of these changes.
     pub async fn get(&self) -> Result<RawVcReadResult<T>> {
-        self.node.clone().into_read::<T>().await
+        self.node
+            .clone()
+            .into_read::<T>(TurboTasks::current().unwrap())
+            .await
     }
 
     /// Resolve the reference until it points to a slot directly.
@@ -81,6 +84,23 @@ impl<
         Self {
             node: match_previous_node_by_key::<T, T, _>(key, |__slot| {
                 __slot.compare_and_update_shared(&Self::value_type(), content);
+            }),
+            phantom_data: PhantomData,
+        }
+    }
+}
+
+impl<T: Any + TraceRawVcs + Send + Sync> Vc<T> {
+    /// Places a value in a slot of the current task.
+    /// If there is already a value in the slot it only overrides the value when
+    /// it's not equal to the provided value. (Requires `Eq` trait to be
+    /// implemented on the type.)
+    ///
+    /// Slot is selected based on the value type and call order of `slot`.
+    pub fn slot_new(content: T) -> Self {
+        Self {
+            node: match_previous_node_by_type::<T, _>(|__slot| {
+                __slot.update_shared(&Self::value_type(), content);
             }),
             phantom_data: PhantomData,
         }
@@ -156,6 +176,10 @@ impl<T: Any + TraceRawVcs + Send + Sync> IntoFuture for Vc<T> {
     >;
 
     fn into_future(self) -> Self::IntoFuture {
-        Box::pin(self.node.clone().into_read::<T>())
+        Box::pin(
+            self.node
+                .clone()
+                .into_read::<T>(TurboTasks::current().unwrap()),
+        )
     }
 }

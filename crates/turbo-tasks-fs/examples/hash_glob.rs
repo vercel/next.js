@@ -41,10 +41,6 @@ fn main() {
                 tt.wait_done().await;
                 println!("done in {} ms", start.elapsed().as_millis());
 
-                for task in tt.cached_tasks_iter() {
-                    task.reset_executions();
-                }
-
                 loop {
                     let (elapsed, count) = tt.wait_done().await;
                     if elapsed.as_millis() >= 10 {

@@ -16,7 +16,7 @@ use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use self::references::module_references;
 
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone, TraceRawVcs)]
 pub enum ModuleAssetType {
     Ecmascript,
     Typescript,

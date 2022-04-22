@@ -1,10 +1,11 @@
 use std::{
+    cell::RefCell,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
-    sync::{atomic::*, Arc},
+    sync::{atomic::*, Arc, Mutex},
     time::Duration,
 };
 
-use crate::RawVc;
+use crate::{RawVc, RawVcReadResult};
 
 pub struct TraceRawVcsContext {
     list: Vec<RawVc>,
@@ -65,7 +66,7 @@ ignore!(
     AtomicBool,
     AtomicUsize
 );
-ignore!(String, Duration);
+ignore!(String, Duration, anyhow::Error);
 
 impl<A: TraceRawVcs> TraceRawVcs for (A,) {
     fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
@@ -153,6 +154,33 @@ impl<T: TraceRawVcs + ?Sized> TraceRawVcs for Arc<T> {
 impl TraceRawVcs for RawVc {
     fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
         context.list.push(self.clone());
+    }
+}
+
+impl<T: TraceRawVcs, E: TraceRawVcs> TraceRawVcs for Result<T, E> {
+    fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
+        match self {
+            Ok(o) => o.trace_node_refs(context),
+            Err(e) => e.trace_node_refs(context),
+        }
+    }
+}
+
+impl<T: TraceRawVcs> TraceRawVcs for Mutex<T> {
+    fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
+        self.lock().unwrap().trace_node_refs(context);
+    }
+}
+
+impl<T: TraceRawVcs> TraceRawVcs for RefCell<T> {
+    fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
+        self.borrow().trace_node_refs(context);
+    }
+}
+
+impl<T: TraceRawVcs + Send + Sync + 'static> TraceRawVcs for RawVcReadResult<T> {
+    fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
+        (**self).trace_node_refs(context);
     }
 }
 

@@ -177,13 +177,14 @@ fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
         }
         Err(err) => {
             let mut pending_tasks = 0_usize;
-            for task in tt.cached_tasks_iter() {
+            let guard = tt.guard();
+            for task in tt.cached_tasks_iter(&guard) {
                 if task.is_pending() {
                     println!("PENDING: {task}");
                     pending_tasks += 1;
                 }
             }
-            panic!("Execution is hanging (for > 120s, {pending_tasks} pending tasks)");
+            panic!("Execution is hanging (for > 120s, {pending_tasks} pending tasks): {err}");
         }
     }
 }

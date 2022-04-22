@@ -90,3 +90,20 @@ impl Hash for &'static NativeFunction {
         Hash::hash(&(*self as *const NativeFunction), state);
     }
 }
+
+impl PartialOrd for &'static NativeFunction {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        PartialOrd::partial_cmp(
+            &(*self as *const NativeFunction),
+            &(*other as *const NativeFunction),
+        )
+    }
+}
+impl Ord for &'static NativeFunction {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        Ord::cmp(
+            &(*self as *const NativeFunction),
+            &(*other as *const NativeFunction),
+        )
+    }
+}

@@ -401,7 +401,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             /// Reading the value will make the current task depend on the slot and the task outputs.
             /// This will lead to invalidation of the current task when one of these changes.
             pub async fn get(&self) -> turbo_tasks::Result<turbo_tasks::RawVcReadResult<#ident>> {
-                self.node.clone().into_read::<#ident>().await
+                self.node.clone().into_read::<#ident>(turbo_tasks::TurboTasks::current().unwrap()).await
             }
 
             /// Resolve the reference until it points to a slot directly.
@@ -417,7 +417,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             type Output = turbo_tasks::Result<turbo_tasks::macro_helpers::RawVcReadResult<#ident>>;
             type IntoFuture = std::pin::Pin<std::boxed::Box<dyn std::future::Future<Output = turbo_tasks::Result<turbo_tasks::macro_helpers::RawVcReadResult<#ident>>> + Send + Sync + 'static>>;
             fn into_future(self) -> Self::IntoFuture {
-                Box::pin(self.node.clone().into_read::<#ident>())
+                Box::pin(self.node.clone().into_read::<#ident>(turbo_tasks::TurboTasks::current().unwrap()))
             }
         }
 

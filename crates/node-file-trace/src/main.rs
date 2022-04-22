@@ -7,7 +7,7 @@ use std::{
     collections::BTreeSet, env::current_dir, fs, future::Future, path::PathBuf, pin::Pin,
     sync::Arc, time::Instant,
 };
-use turbo_tasks::{stats::Stats, viz, NothingVc, Task, TurboTasks};
+use turbo_tasks::{stats::Stats, viz, NothingVc, TaskId, TurboTasks};
 use turbo_tasks_fs::{
     glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemPathVc, FileSystemVc,
     ReadGlobResultVc,
@@ -176,7 +176,7 @@ fn main() {
     } = args.common();
 
     let start = Instant::now();
-    let finish = |tt: Arc<TurboTasks>, root_task: Arc<Task>| {
+    let finish = |tt: Arc<TurboTasks>, root_task: TaskId| {
         if watch {
             let handle = spawn({
                 let tt = tt.clone();
@@ -201,10 +201,11 @@ fn main() {
             println!("done in {} ms", start.elapsed().as_millis());
             if visualize_graph {
                 let mut stats = Stats::new();
-                for task in tt.cached_tasks_iter() {
-                    stats.add(&task);
+                let guard = tt.guard();
+                for task in tt.cached_tasks_iter(&guard) {
+                    stats.add(&tt, &task);
                 }
-                stats.add(&root_task);
+                stats.add_id(&tt, root_task);
                 stats.merge_resolve();
                 let tree = stats.treeify();
                 let graph = viz::visualize_stats_tree(tree);

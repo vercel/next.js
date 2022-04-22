@@ -170,7 +170,7 @@ fn get_task_label(ty: &TaskType, stats: &TaskStats) -> String {
     format!("{}\n{}", escape(&ty.to_string()), stats.count)
 }
 
-fn get_child_label(ty: &ReferenceType, stats: &ReferenceStats, source_count: usize) -> String {
+fn get_child_label(_ty: &ReferenceType, stats: &ReferenceStats, source_count: usize) -> String {
     if stats.count == source_count {
         "".to_string()
     } else {

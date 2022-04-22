@@ -46,10 +46,6 @@ fn main() {
                 tt.wait_done().await;
                 println!("done in {} ms", start.elapsed().as_millis());
 
-                for task in tt.cached_tasks_iter() {
-                    task.reset_executions();
-                }
-
                 loop {
                     let (elapsed, count) = tt.wait_done().await;
                     if elapsed.as_millis() >= 10 {
@@ -68,11 +64,12 @@ fn main() {
             let mut stats = Stats::new();
 
             // graph root node
-            stats.add(&task);
+            stats.add_id(&tt, task);
 
             // graph tasks in cache
-            for task in tt.cached_tasks_iter() {
-                stats.add(&task);
+            let guard = tt.guard();
+            for task in tt.cached_tasks_iter(&guard) {
+                stats.add(&tt, &task);
             }
 
             // prettify graph
