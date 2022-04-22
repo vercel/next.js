@@ -1,6 +1,6 @@
 # TypeScript & Mantine Next.js example
 
-This is a really simple project that show the usage of Next.js with TypeScript and Mantine.
+This is a simple project that shows the usage of Next.js with TypeScript and Mantine.
 
 ## Deploy your own
 
