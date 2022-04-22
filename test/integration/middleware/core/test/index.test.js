@@ -119,6 +119,7 @@ describe('Middleware base tests', () => {
       context.app = await launchApp(context.appDir, context.appPort, {
         env: {
           MIDDLEWARE_TEST: 'asdf',
+          __NEXT_RUNTIME: 'edge',
         },
       })
     })
