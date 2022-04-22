@@ -489,7 +489,7 @@ export async function renderToHTML(
     reactRoot,
     runtime: globalRuntime,
     ComponentMod,
-    AppMod: AppClientMod,
+    AppMod,
     AppServerMod,
   } = renderOpts
 
@@ -508,8 +508,7 @@ export async function renderToHTML(
     renderOpts.Component
   const OriginComponent = Component
 
-  const AppMod = isServerComponent ? AppServerMod : AppClientMod
-  const App = interopDefault(AppMod)
+  const App = interopDefault(isServerComponent ? AppServerMod : AppMod)
 
   let serverComponentsInlinedTransformStream: TransformStream<
     Uint8Array,
