@@ -1243,7 +1243,7 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        ...(targetWeb
+        ...(!isServer && !isEdgeRuntime
           ? [
               {
                 oneOf: [
