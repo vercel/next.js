@@ -1,4 +1,4 @@
-import { ParsedUrlQuery } from 'querystring'
+import type { ParsedUrlQuery } from 'querystring'
 
 export function searchParamsToUrlQuery(
   searchParams: URLSearchParams
