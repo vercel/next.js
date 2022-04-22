@@ -45,8 +45,7 @@ module.exports = {
 
         context.report({
           node,
-          message:
-            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: ${url}",
+          message: `\`next/script\`'s \`beforeInteractive\` strategy should not be used outside of \`pages/_document.js\`. See: ${url}`,
         })
       },
     }
