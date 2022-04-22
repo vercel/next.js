@@ -123,7 +123,7 @@ describe('Middleware base tests', () => {
       })
     })
 
-    it('should contains process polyfill', async () => {
+    it('should contains process.env without other properties', async () => {
       const res = await fetchViaHTTP(context.appPort, `/global`)
       const json = await res.json()
       expect(json).toEqual({
@@ -131,7 +131,7 @@ describe('Middleware base tests', () => {
           env: {
             MIDDLEWARE_TEST: 'asdf',
           },
-          nextTick: 'function',
+          nextTick: 'undefined',
         },
       })
     })
