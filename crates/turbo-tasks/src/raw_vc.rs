@@ -70,12 +70,10 @@ impl RawVc {
         loop {
             match match current {
                 RawVc::TaskOutput(task) => SlotReadResult::Link(
-                    tt.with_task_and_tt(task, |task| {
-                        task.clone().with_done_output(|output| {
-                            Task::with_current(|reader, reader_id| {
-                                reader.add_dependency(current.clone());
-                                output.read(reader_id)
-                            })
+                    Task::with_done_output(task, &tt, |_, output| {
+                        Task::with_current(|reader, reader_id| {
+                            reader.add_dependency(current.clone());
+                            output.read(reader_id)
                         })
                     })
                     .await?,
@@ -104,11 +102,7 @@ impl RawVc {
         loop {
             match match current {
                 RawVc::TaskOutput(task) => SlotReadResult::Link(
-                    tt.with_task_and_tt(task, |task| {
-                        task.clone()
-                            .with_done_output(|output| output.read_untracked())
-                    })
-                    .await?,
+                    Task::with_done_output(task, &tt, |_, output| output.read_untracked()).await?,
                 ),
                 RawVc::TaskCreated(task, index) => tt.with_task_and_tt(task, |task| {
                     task.with_created_slot_mut(index, |slot| slot.read_untracked())
@@ -133,12 +127,10 @@ impl RawVc {
                         tt.notify_scheduled_tasks();
                         notified = true;
                     }
-                    tt.with_task_and_tt(task, |task| {
-                        task.clone().with_done_output(|output| {
-                            Task::with_current(|reader, reader_id| {
-                                reader.add_dependency(current.clone());
-                                output.read(reader_id)
-                            })
+                    Task::with_done_output(task, &tt, |_, output| {
+                        Task::with_current(|reader, reader_id| {
+                            reader.add_dependency(current.clone());
+                            output.read(reader_id)
                         })
                     })
                     .await?

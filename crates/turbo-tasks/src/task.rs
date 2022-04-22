@@ -295,19 +295,19 @@ impl Task {
     }
 
     #[cfg(not(feature = "report_expensive"))]
-    pub(crate) fn deactivate_tasks(tasks: Vec<Arc<Task>>, turbo_tasks: Arc<TurboTasks>) {
+    pub(crate) fn deactivate_tasks(tasks: Vec<TaskId>, turbo_tasks: Arc<TurboTasks>) {
         for child in tasks.into_iter() {
-            child.deactivate(1, &turbo_tasks);
+            turbo_tasks.with_task_and_tt(child, |child| child.deactivate(1, &turbo_tasks));
         }
     }
 
     #[cfg(feature = "report_expensive")]
-    pub(crate) fn deactivate_tasks(tasks: Vec<Arc<Task>>, turbo_tasks: Arc<TurboTasks>) {
+    pub(crate) fn deactivate_tasks(tasks: Vec<TaskId>, turbo_tasks: Arc<TurboTasks>) {
         let start = Instant::now();
         let mut count = 0;
         let mut len = 0;
         for child in tasks.into_iter() {
-            count += child.deactivate(1, &turbo_tasks);
+            count += turbo_tasks.with_task_and_tt(child, |child| child.deactivate(1, &turbo_tasks));
             len += 1;
         }
         let elapsed = start.elapsed();
@@ -344,7 +344,7 @@ impl Task {
     }
 
     #[cfg(feature = "report_expensive")]
-    fn clear_dependencies(self: &Arc<Self>) {
+    fn clear_dependencies(&self) {
         let start = Instant::now();
         let mut execution_data = self.execution_data.lock().unwrap();
         let dependencies = execution_data
@@ -377,7 +377,7 @@ impl Task {
         }
     }
 
-    pub(crate) fn execution_started(self: &Arc<Task>, turbo_tasks: &Arc<TurboTasks>) -> bool {
+    pub(crate) fn execution_started(self: &Task, turbo_tasks: &Arc<TurboTasks>) -> bool {
         let mut state = self.state.write().unwrap();
         if !state.active {
             return false;
@@ -408,7 +408,7 @@ impl Task {
         true
     }
 
-    pub(crate) fn execution_result(self: &Arc<Self>, result: Result<RawVc>) {
+    pub(crate) fn execution_result(&self, result: Result<RawVc>) {
         let mut state = self.state.write().unwrap();
         match state.state_type {
             InProgress => match result {
@@ -502,7 +502,7 @@ impl Task {
     }
 
     /// This method should be called after removing the last parent
-    fn deactivate(self: &Arc<Self>, depth: u8, turbo_tasks: &Arc<TurboTasks>) -> usize {
+    fn deactivate(&self, depth: u8, turbo_tasks: &Arc<TurboTasks>) -> usize {
         let mut state = self.state.write().unwrap();
 
         if self.active_parents.load(Ordering::Acquire) != 0 {
@@ -531,10 +531,10 @@ impl Task {
             count
         } else {
             let mut scheduled = Vec::new();
-            for child in state.children.iter() {
-                turbo_tasks.with_task_and_tt(*child, |child| {
+            for child_id in state.children.iter() {
+                turbo_tasks.with_task_and_tt(*child_id, |child| {
                     if child.active_parents.fetch_sub(1, Ordering::AcqRel) == 1 {
-                        scheduled.push(child.clone());
+                        scheduled.push(*child_id);
                     }
                 })
             }
@@ -592,7 +592,7 @@ impl Task {
         CURRENT_TASK_ID.with(|c| c.get())
     }
 
-    pub(crate) fn with_current<T>(func: impl FnOnce(&Arc<Task>, TaskId) -> T) -> T {
+    pub(crate) fn with_current<T>(func: impl FnOnce(&Task, TaskId) -> T) -> T {
         CURRENT_TASK_ID.with(|c| {
             if let Some(id) = c.get() {
                 TurboTasks::with_task(id, |task| func(task, id))
@@ -612,7 +612,7 @@ impl Task {
         execution_data.dependencies.insert(node);
     }
 
-    pub(crate) fn execute(self: &Arc<Self>, tt: Arc<TurboTasks>) -> NativeTaskFuture {
+    pub(crate) fn execute(&self, tt: Arc<TurboTasks>) -> NativeTaskFuture {
         match &self.ty {
             TaskType::Root(bound_fn) => bound_fn(),
             TaskType::Once(mutex) => {
@@ -744,10 +744,10 @@ impl Task {
         state.state_type != TaskStateType::Done
     }
 
-    pub fn get_stats_type(self: &Arc<Task>) -> stats::TaskType {
+    pub fn get_stats_type(self: &Task) -> stats::TaskType {
         match &self.ty {
-            TaskType::Root(_) => stats::TaskType::Root(self.clone()),
-            TaskType::Once(_) => stats::TaskType::Once(self.clone()),
+            TaskType::Root(_) => stats::TaskType::Root(self.id),
+            TaskType::Once(_) => stats::TaskType::Once(self.id),
             TaskType::Native(f, _) => stats::TaskType::Native(f),
             TaskType::ResolveNative(f) => stats::TaskType::ResolveNative(f),
             TaskType::ResolveTrait(t, n) => stats::TaskType::ResolveTrait(t, n.to_string()),
@@ -828,32 +828,36 @@ impl Task {
     }
 
     pub(crate) async fn with_done_output<T>(
-        self: Arc<Self>,
-        mut func: impl FnOnce(&mut Output) -> T,
+        id: TaskId,
+        turbo_tasks: &TurboTasks,
+        mut func: impl FnOnce(&Task, &mut Output) -> T,
     ) -> T {
-        fn get_or_wait<T, F: FnOnce(&mut Output) -> T>(
-            this: &Arc<Task>,
+        fn get_or_wait<T, F: FnOnce(&Task, &mut Output) -> T>(
+            id: TaskId,
+            turbo_tasks: &TurboTasks,
             func: F,
         ) -> Result<T, (F, EventListener)> {
             {
-                let mut state = this.state.write().unwrap();
-                match state.state_type {
-                    Done => {
-                        let result = func(&mut state.output);
-                        drop(state);
+                turbo_tasks.with_task_and_tt(id, |task| {
+                    let mut state = task.state.write().unwrap();
+                    match state.state_type {
+                        Done => {
+                            let result = func(task, &mut state.output);
+                            drop(state);
 
-                        Ok(result)
+                            Ok(result)
+                        }
+                        Dirty | Scheduled | InProgress | InProgressDirty => {
+                            let listener = state.event.listen();
+                            drop(state);
+                            Err((func, listener))
+                        }
                     }
-                    Dirty | Scheduled | InProgress | InProgressDirty => {
-                        let listener = state.event.listen();
-                        drop(state);
-                        Err((func, listener))
-                    }
-                }
+                })
             }
         }
         loop {
-            match get_or_wait(&self, func) {
+            match get_or_wait(id, turbo_tasks, func) {
                 Ok(result) => return result,
                 Err((func_back, listener)) => {
                     func = func_back;

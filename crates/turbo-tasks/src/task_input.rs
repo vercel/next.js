@@ -71,17 +71,16 @@ impl TaskInput {
         let mut current = self;
         loop {
             current = match current {
-                TaskInput::TaskOutput(task_id) => tt
-                    .with_task_and_tt(task_id, |task| {
-                        task.clone().with_done_output(|output| {
-                            Task::with_current(|reader, reader_id| {
-                                reader.add_dependency(RawVc::TaskOutput(task_id));
-                                output.read(reader_id)
-                            })
+                TaskInput::TaskOutput(task_id) => {
+                    Task::with_done_output(task_id, &tt, |_, output| {
+                        Task::with_current(|reader, reader_id| {
+                            reader.add_dependency(RawVc::TaskOutput(task_id));
+                            output.read(reader_id)
                         })
                     })
                     .await?
-                    .into(),
+                    .into()
+                }
                 TaskInput::TaskCreated(task_id, index) => tt.with_task_and_tt(task_id, |task| {
                     Task::with_current(|reader, reader_id| {
                         reader.add_dependency(RawVc::TaskCreated(task_id, index));
@@ -103,17 +102,16 @@ impl TaskInput {
         let mut current = self;
         loop {
             current = match current {
-                TaskInput::TaskOutput(task_id) => tt
-                    .with_task_and_tt(task_id, |task| {
-                        task.clone().with_done_output(|output| {
-                            Task::with_current(|reader, reader_id| {
-                                reader.add_dependency(RawVc::TaskOutput(task_id));
-                                output.read(reader_id)
-                            })
+                TaskInput::TaskOutput(task_id) => {
+                    Task::with_done_output(task_id, &tt, |_, output| {
+                        Task::with_current(|reader, reader_id| {
+                            reader.add_dependency(RawVc::TaskOutput(task_id));
+                            output.read(reader_id)
                         })
                     })
                     .await?
-                    .into(),
+                    .into()
+                }
                 TaskInput::List(list) => {
                     if list.iter().all(|i| i.is_resolved()) {
                         return Ok(TaskInput::List(list));

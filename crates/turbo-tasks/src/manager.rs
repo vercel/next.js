@@ -26,7 +26,7 @@ use crate::{
 
 pub struct TurboTasks {
     next_task_id: AtomicU32,
-    memory_tasks: FHashMap<TaskId, Arc<Task>>,
+    memory_tasks: FHashMap<TaskId, Task>,
     resolve_task_cache: FHashMap<(&'static NativeFunction, Vec<TaskInput>), TaskId>,
     native_task_cache: FHashMap<(&'static NativeFunction, Vec<TaskInput>), TaskId>,
     trait_task_cache: FHashMap<(&'static TraitType, String, Vec<TaskInput>), TaskId>,
@@ -81,7 +81,7 @@ impl TurboTasks {
         functor: impl Fn() -> NativeTaskFuture + Sync + Send + 'static,
     ) -> TaskId {
         let id = self.get_free_task_id();
-        let task = Arc::new(Task::new_root(id, functor));
+        let task = Task::new_root(id, functor);
         self.memory_tasks.pin().insert(id, task);
         self.clone().schedule(id);
         id
@@ -95,7 +95,7 @@ impl TurboTasks {
         future: impl Future<Output = Result<RawVc>> + Send + 'static,
     ) -> TaskId {
         let id = self.get_free_task_id();
-        let task = Arc::new(Task::new_once(id, future));
+        let task = Task::new_once(id, future);
         self.memory_tasks.pin().insert(id, task);
         self.clone().schedule(id);
         id
@@ -109,11 +109,8 @@ impl TurboTasks {
             let result = future.await?;
             Ok(Vc::slot_new(Mutex::new(RefCell::new(Some(result)))).into())
         });
-        let raw_result = self
-            .with_task_and_tt(task_id, |task| {
-                task.clone().with_done_output(|output| output.read(task_id))
-            })
-            .await?;
+        let raw_result =
+            Task::with_done_output(task_id, self, |_, output| output.read(task_id)).await?;
         // SAFETY: A Once task will never invalidate, therefore we don't need to track a
         // dependency
         let read_result =
@@ -141,7 +138,7 @@ impl TurboTasks {
         } else {
             // slow pass with key lock
             let id = self.get_free_task_id();
-            let new_task = Arc::new(create_new(id));
+            let new_task = create_new(id);
             let memory_tasks = self.memory_tasks.pin();
             memory_tasks.insert(id, new_task);
             let result_task = match map.try_insert(key, id) {
@@ -276,11 +273,11 @@ impl TurboTasks {
         })
     }
 
-    pub(crate) fn with_task<T>(id: TaskId, func: impl FnOnce(&Arc<Task>) -> T) -> T {
+    pub(crate) fn with_task<T>(id: TaskId, func: impl FnOnce(&Task) -> T) -> T {
         Self::with_current(|tt| tt.with_task_and_tt(id, func))
     }
 
-    pub(crate) fn with_task_and_tt<T>(&self, id: TaskId, func: impl FnOnce(&Arc<Task>) -> T) -> T {
+    pub(crate) fn with_task_and_tt<T>(&self, id: TaskId, func: impl FnOnce(&Task) -> T) -> T {
         func(&self.memory_tasks.pin().get(&id).unwrap())
     }
 
@@ -325,7 +322,7 @@ impl TurboTasks {
 
     /// Schedules a background job that will deactive a list of tasks, when
     /// their active_parents count is still zero.
-    pub(crate) fn schedule_deactivate_tasks(self: &Arc<Self>, tasks: Vec<Arc<Task>>) {
+    pub(crate) fn schedule_deactivate_tasks(self: &Arc<Self>, tasks: Vec<TaskId>) {
         let tt = self.clone();
         self.clone().schedule_background_job(async move {
             Task::deactivate_tasks(tasks, tt);
@@ -349,8 +346,8 @@ impl TurboTasks {
     pub fn cached_tasks_iter<'g>(
         &'g self,
         guard: &'g Guard,
-    ) -> impl Iterator<Item = Arc<Task>> + 'g {
-        self.memory_tasks.iter(guard).map(|(_, v)| v.clone())
+    ) -> impl Iterator<Item = &'g Task> + 'g {
+        self.memory_tasks.iter(guard).map(|(_, v)| v)
     }
 }
 

@@ -3,15 +3,14 @@ use std::{
     collections::{hash_map::Entry, HashMap, HashSet, VecDeque},
     fmt::Display,
     mem::take,
-    sync::Arc,
 };
 
 use crate::{NativeFunction, Task, TaskId, TraitType, TurboTasks};
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum TaskType {
-    Root(Arc<Task>),
-    Once(Arc<Task>),
+    Root(TaskId),
+    Once(TaskId),
     Native(&'static NativeFunction),
     ResolveNative(&'static NativeFunction),
     ResolveTrait(&'static TraitType, String),
@@ -51,11 +50,6 @@ pub struct Stats {
     tasks: HashMap<TaskType, TaskStats>,
 }
 
-pub struct TaskSnapshot {
-    pub ty: TaskType,
-    pub references: Vec<(ReferenceType, Arc<Task>)>,
-}
-
 impl Stats {
     pub fn new() -> Self {
         Self {
@@ -63,7 +57,7 @@ impl Stats {
         }
     }
 
-    pub fn add(&mut self, turbo_tasks: &TurboTasks, task: &Arc<Task>) {
+    pub fn add(&mut self, turbo_tasks: &TurboTasks, task: &Task) {
         let ty = task.get_stats_type();
         let stats = self.tasks.entry(ty).or_default();
         stats.count += 1;
