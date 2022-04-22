@@ -1,4 +1,4 @@
-# React-foundation Example
+# react-foundation Example
 
 This example shows how to use Next.js with [react-foundation](https://digia.online/react-foundation-docs/) and TypeScript.
 
