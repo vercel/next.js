@@ -383,7 +383,6 @@ function runTests(mode) {
       () => browser.eval(`document.getElementById("msg2").textContent`),
       'error occured while loading img2'
     )
-    setTimeout(() => {}, [10000])
   })
 
   it('should work with image with blob src', async () => {
