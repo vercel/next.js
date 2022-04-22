@@ -72,6 +72,10 @@ export default function nextJest(options: { dir?: string } = {}) {
         ...resolvedJestConfig,
 
         moduleNameMapper: {
+          // Custom config will be able to override the default mappings
+          // moduleNameMapper is matched top to bottom hence why this has to be before Next.js internal rules
+          ...(resolvedJestConfig.moduleNameMapper || {}),
+
           // Handle CSS imports (with CSS modules)
           // https://jestjs.io/docs/webpack#mocking-css-modules
           '^.+\\.module\\.(css|sass|scss)$':
@@ -84,9 +88,6 @@ export default function nextJest(options: { dir?: string } = {}) {
           '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$': require.resolve(
             `./__mocks__/fileMock.js`
           ),
-
-          // Custom config will be able to override the default mappings
-          ...(resolvedJestConfig.moduleNameMapper || {}),
         },
         testPathIgnorePatterns: [
           // Don't look for tests in node_modules

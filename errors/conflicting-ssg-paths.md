@@ -65,4 +65,4 @@ export default function CatchAll() {
 
 ### Useful Links
 
-- [`getStaticPaths` Documentation](https://nextjs.org/docs/api-reference/data-fetching/get-static-paths)
+- [`getStaticPaths` Documentation](https://nextjs.org/docs/basic-features/data-fetching/get-static-paths)

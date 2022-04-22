@@ -31,7 +31,13 @@ export function initNextServerScript(
   return new Promise((resolve, reject) => {
     const instance = spawn(
       'node',
-      [...((opts && opts.nodeArgs) || []), '--no-deprecation', scriptPath],
+      [
+        ...((opts && opts.nodeArgs) || []),
+        '-r',
+        require.resolve('./mocks-require-hook'),
+        '--no-deprecation',
+        scriptPath,
+      ],
       {
         env,
         cwd: opts && opts.cwd,
@@ -147,7 +153,14 @@ export function runNextCommand(argv, options = {}) {
     console.log(`Running command "next ${argv.join(' ')}"`)
     const instance = spawn(
       'node',
-      [...(options.nodeArgs || []), '--no-deprecation', nextBin, ...argv],
+      [
+        ...(options.nodeArgs || []),
+        '-r',
+        require.resolve('./mocks-require-hook'),
+        '--no-deprecation',
+        nextBin,
+        ...argv,
+      ],
       {
         ...options.spawnOptions,
         cwd,
@@ -237,7 +250,14 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
   return new Promise((resolve, reject) => {
     const instance = spawn(
       'node',
-      [...nodeArgs, '--no-deprecation', nextBin, ...argv],
+      [
+        ...nodeArgs,
+        '-r',
+        require.resolve('./mocks-require-hook'),
+        '--no-deprecation',
+        nextBin,
+        ...argv,
+      ],
       {
         cwd,
         env,
@@ -738,6 +758,10 @@ function runSuite(suiteName, context, options) {
       const onStderr = (msg) => {
         context.stderr += msg
       }
+      context.stdout = ''
+      const onStdout = (msg) => {
+        context.stdout += msg
+      }
       if (env === 'prod') {
         context.appPort = await findPort()
         const { stdout, stderr, code } = await nextBuild(appDir, [], {
@@ -749,11 +773,13 @@ function runSuite(suiteName, context, options) {
         context.code = code
         context.server = await nextStart(context.appDir, context.appPort, {
           onStderr,
+          onStdout,
         })
       } else if (env === 'dev') {
         context.appPort = await findPort()
         context.server = await launchApp(context.appDir, context.appPort, {
           onStderr,
+          onStdout,
         })
       }
     })

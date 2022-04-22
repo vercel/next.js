@@ -106,12 +106,16 @@ const matchNextPageBundleRequest = route(
 )
 
 // Recursively look up the issuer till it ends up at the root
-function findEntryModule(issuer: any): any {
-  if (issuer.issuer) {
-    return findEntryModule(issuer.issuer)
+function findEntryModule(
+  compilation: webpack5.Compilation,
+  issuerModule: any
+): any {
+  const issuer = compilation.moduleGraph.getIssuer(issuerModule)
+  if (issuer) {
+    return findEntryModule(compilation, issuer)
   }
 
-  return issuer
+  return issuerModule
 }
 
 function erroredPages(compilation: webpack5.Compilation) {
@@ -121,7 +125,7 @@ function erroredPages(compilation: webpack5.Compilation) {
       continue
     }
 
-    const entryModule = findEntryModule(error.module)
+    const entryModule = findEntryModule(compilation, error.module)
     const { name } = entryModule
     if (!name) {
       continue
@@ -288,6 +292,77 @@ export default class HotReloader {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
       this.webpackHotMiddleware?.onHMR(client)
       this.onDemandEntries?.onHMR(client)
+
+      client.addEventListener('message', ({ data }) => {
+        data = typeof data !== 'string' ? data.toString() : data
+
+        try {
+          const payload = JSON.parse(data)
+
+          let traceChild:
+            | {
+                name: string
+                startTime?: bigint
+                endTime?: bigint
+                attrs?: Record<string, number | string>
+              }
+            | undefined
+
+          switch (payload.event) {
+            case 'client-hmr-latency': {
+              traceChild = {
+                name: payload.event,
+                startTime: BigInt(payload.startTime * 1000 * 1000),
+                endTime: BigInt(payload.endTime * 1000 * 1000),
+              }
+              break
+            }
+            case 'client-reload-page':
+            case 'client-success': {
+              traceChild = {
+                name: payload.event,
+              }
+              break
+            }
+            case 'client-error': {
+              traceChild = {
+                name: payload.event,
+                attrs: { errorCount: payload.errorCount },
+              }
+              break
+            }
+            case 'client-warning': {
+              traceChild = {
+                name: payload.event,
+                attrs: { warningCount: payload.warningCount },
+              }
+              break
+            }
+            case 'client-removed-page':
+            case 'client-added-page': {
+              traceChild = {
+                name: payload.event,
+                attrs: { page: payload.page || '' },
+              }
+              break
+            }
+            default: {
+              break
+            }
+          }
+
+          if (traceChild) {
+            this.hotReloaderSpan.manualTraceChild(
+              traceChild.name,
+              traceChild.startTime || process.hrtime.bigint(),
+              traceChild.endTime || process.hrtime.bigint(),
+              { ...traceChild.attrs, clientId: payload.id }
+            )
+          }
+        } catch (_) {
+          // invalid WebSocket message
+        }
+      })
     })
   }
 
