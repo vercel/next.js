@@ -123,7 +123,7 @@ describe('Middleware base tests', () => {
       })
     })
 
-    it('should contains process.env without other properties', async () => {
+    it('should contains process polyfill', async () => {
       const res = await fetchViaHTTP(context.appPort, `/global`)
       const json = await res.json()
       expect(json).toEqual({
@@ -131,7 +131,9 @@ describe('Middleware base tests', () => {
           env: {
             MIDDLEWARE_TEST: 'asdf',
           },
-          nextTick: 'undefined',
+          // it's poflyfilled since there is the "process" module
+          // as a devDepencies of the next package
+          nextTick: 'function',
         },
       })
     })
