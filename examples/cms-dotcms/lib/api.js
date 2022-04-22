@@ -144,7 +144,7 @@ export async function getPostAndMorePosts(slug, preview) {
   `, {
     variables: {
       query: `+urlmap:/blog/post/${slug} ${showPreviewPosts(preview)}`,
-      morePostsQuery: `-blog.urlTitle:${slug} ${showPreviewPosts(preview)}`,
+      morePostsQuery: `-urlmap:/blog/post/${slug} ${showPreviewPosts(preview)}`,
     }
   })
   return {
