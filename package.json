@@ -90,7 +90,7 @@
     "alex": "9.1.0",
     "amphtml-validator": "1.0.35",
     "async-sema": "3.0.1",
-    "browserslist": "4.18.1",
+    "browserslist": "4.20.2",
     "cheerio": "0.22.0",
     "cookie": "0.4.1",
     "cors": "2.8.5",
@@ -175,7 +175,7 @@
     "worker-loader": "3.0.7"
   },
   "resolutions": {
-    "browserslist": "4.18.1",
+    "browserslist": "4.20.2",
     "caniuse-lite": "1.0.30001332"
   },
   "engines": {

@@ -170,7 +170,7 @@
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
     "browserify-zlib": "0.2.0",
-    "browserslist": "4.18.1",
+    "browserslist": "4.20.2",
     "buffer": "5.6.0",
     "bytes": "3.1.1",
     "chalk": "2.4.2",
@@ -274,7 +274,7 @@
     "ws": "8.2.3"
   },
   "resolutions": {
-    "browserslist": "4.18.1",
+    "browserslist": "4.20.2",
     "caniuse-lite": "1.0.30001332"
   },
   "engines": {
