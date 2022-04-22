@@ -130,6 +130,7 @@ describe('Middleware base tests', () => {
         process: {
           env: {
             MIDDLEWARE_TEST: 'asdf',
+            __NEXT_RUNTIME: 'edge',
           },
           nextTick: 'function',
         },
