@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'http'
+import type { ParsedUrlQuery } from 'querystring'
 import type { NextRouter } from '../shared/lib/router/router'
 import type { HtmlProps } from '../shared/lib/html-context'
 import type { DomainLocale } from './config'
@@ -20,7 +21,6 @@ import type { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 
 import React from 'react'
-import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
@@ -72,13 +72,14 @@ import {
   streamToString,
   chainStreams,
   createBufferedTransformStream,
-  renderToStream,
   renderToInitialStream,
   continueFromInitialStream,
 } from './node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { interopDefault } from '../lib/interop-default'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
+import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
@@ -202,12 +203,17 @@ function renderFlight(AppMod: any, ComponentMod: any, props: any) {
   const AppServer = isServerComponent
     ? (App as React.ComponentType)
     : React.Fragment
+  const { router: _, ...rest } = props
 
-  return (
-    <AppServer>
-      <Component {...props} />
-    </AppServer>
-  )
+  if (isServerComponent) {
+    return (
+      <AppServer>
+        <Component {...rest} />
+      </AppServer>
+    )
+  }
+
+  return <App Component={Component} {...props} />
 }
 
 export type RenderOptsPartial = {
@@ -389,7 +395,6 @@ const useFlightResponse = createFlightHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
-  AppMod: any,
   ComponentMod: any,
   {
     cachePrefix,
@@ -409,10 +414,13 @@ function createServerComponentRenderer(
   globalThis.__webpack_require__ = ComponentMod.__next_rsc__.__webpack_require__
   const Component = interopDefault(ComponentMod)
 
-  function ServerComponentWrapper(props: any) {
+  function ServerComponentWrapper({ App, router, ...props }: any) {
     const id = (React as any).useId()
+
     const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
-      renderFlight(AppMod, ComponentMod, props),
+      <App>
+        <Component {...props} />
+      </App>,
       serverComponentManifest
     )
 
@@ -513,8 +521,8 @@ export async function renderToHTML(
 
   if (isServerComponent) {
     serverComponentsInlinedTransformStream = new TransformStream()
-    const search = stringifyQuery(query)
-    Component = createServerComponentRenderer(AppMod, ComponentMod, {
+    const search = urlQueryToSearchParams(query).toString()
+    Component = createServerComponentRenderer(ComponentMod, {
       cachePrefix: pathname + (search ? `?${search}` : ''),
       inlinedTransformStream: serverComponentsInlinedTransformStream,
       staticTransformStream: serverComponentsPageDataTransformStream,
@@ -578,6 +586,7 @@ export async function renderToHTML(
     App.getInitialProps === (App as any).origGetInitialProps
 
   const hasPageGetInitialProps = !!(Component as any)?.getInitialProps
+  const hasPageScripts = (Component as any)?.unstable_scriptLoader
 
   const pageIsDynamic = isDynamicRoute(pathname)
 
@@ -734,7 +743,7 @@ export async function renderToHTML(
     AppTree: (props: any) => {
       return (
         <AppContainerWithIsomorphicFiberStructure>
-          {renderFlight(AppMod, ComponentMod, props)}
+          {renderFlight(AppMod, ComponentMod, { ...props, router })}
         </AppContainerWithIsomorphicFiberStructure>
       )
     },
@@ -765,6 +774,14 @@ export async function renderToHTML(
   const reactLoadableModules: string[] = []
 
   let head: JSX.Element[] = defaultHead(inAmpMode)
+
+  let initialScripts: any = {}
+  if (hasPageScripts) {
+    initialScripts.beforeInteractive = []
+      .concat(hasPageScripts())
+      .filter((script: any) => script.props.strategy === 'beforeInteractive')
+      .map((script: any) => script.props)
+  }
 
   let scriptLoader: any = {}
   const nextExport =
@@ -815,7 +832,7 @@ export async function renderToHTML(
               updateScripts: (scripts) => {
                 scriptLoader = scripts
               },
-              scripts: {},
+              scripts: initialScripts,
               mountedInstances: new Set(),
             }}
           >
@@ -1305,11 +1322,24 @@ export async function renderToHTML(
       }
     }
 
-    async function documentInitialProps() {
+    async function documentInitialProps(
+      renderShell?: ({
+        EnhancedApp,
+        EnhancedComponent,
+      }: {
+        EnhancedApp?: AppType
+        EnhancedComponent?: NextComponentType
+      }) => Promise<void>
+    ) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
       ): RenderPageResult | Promise<RenderPageResult> => {
         if (ctx.err && ErrorDebug) {
+          // Always start rendering the shell even if there's an error.
+          if (renderShell) {
+            renderShell({})
+          }
+
           const html = ReactDOMServer.renderToString(
             <Body>
               <ErrorDebug error={ctx.err} />
@@ -1326,6 +1356,14 @@ export async function renderToHTML(
 
         const { App: EnhancedApp, Component: EnhancedComponent } =
           enhanceComponents(options, App, Component)
+
+        if (renderShell) {
+          return renderShell({ EnhancedApp, EnhancedComponent }).then(() => {
+            // When using concurrent features, we don't have or need the full
+            // html so it's fine to return nothing here.
+            return { html: '', head }
+          })
+        }
 
         const html = ReactDOMServer.renderToString(
           <Body>
@@ -1358,7 +1396,13 @@ export async function renderToHTML(
       return { docProps, documentCtx }
     }
 
-    const renderContent = () => {
+    const renderContent = ({
+      EnhancedApp,
+      EnhancedComponent,
+    }: {
+      EnhancedApp?: AppType
+      EnhancedComponent?: NextComponentType
+    } = {}) => {
       return ctx.err && ErrorDebug ? (
         <Body>
           <ErrorDebug error={ctx.err} />
@@ -1366,12 +1410,16 @@ export async function renderToHTML(
       ) : (
         <Body>
           <AppContainerWithIsomorphicFiberStructure>
-            {isServerComponent && !!AppMod.__next_rsc__ ? (
-              // _app.server.js is used.
-              <Component {...props.pageProps} />
-            ) : (
-              <App {...props} Component={Component} router={router} />
-            )}
+            {isServerComponent
+              ? React.createElement(EnhancedComponent || Component, {
+                  App: EnhancedApp || App,
+                  ...props.pageProps,
+                })
+              : React.createElement(EnhancedApp || App, {
+                  ...props,
+                  Component: EnhancedComponent || Component,
+                  router,
+                })}
           </AppContainerWithIsomorphicFiberStructure>
         </Body>
       )
@@ -1413,13 +1461,23 @@ export async function renderToHTML(
         }
       }
     } else {
-      // We start rendering the shell earlier, before returning the head tags
-      // to `documentResult`.
-      const content = renderContent()
-      const renderStream = await renderToInitialStream({
-        ReactDOMServer,
-        element: content,
-      })
+      let renderStream: ReadableStream<Uint8Array> & {
+        allReady?: Promise<void> | undefined
+      }
+
+      const renderShell = async ({
+        EnhancedApp,
+        EnhancedComponent,
+      }: {
+        EnhancedApp?: AppType
+        EnhancedComponent?: NextComponentType
+      } = {}) => {
+        const content = renderContent({ EnhancedApp, EnhancedComponent })
+        renderStream = await renderToInitialStream({
+          ReactDOMServer,
+          element: content,
+        })
+      }
 
       const bodyResult = async (suffix: string) => {
         // this must be called inside bodyResult so appWrappers is
@@ -1488,10 +1546,18 @@ export async function renderToHTML(
         !Document.getInitialProps
       )
 
-      const documentInitialPropsRes = hasDocumentGetInitialProps
-        ? await documentInitialProps()
-        : {}
-      if (documentInitialPropsRes === null) return null
+      // If it has getInitialProps, we will render the shell in `renderPage`.
+      // Otherwise we do it right now.
+      let documentInitialPropsRes:
+        | {}
+        | Awaited<ReturnType<typeof documentInitialProps>>
+      if (hasDocumentGetInitialProps) {
+        documentInitialPropsRes = await documentInitialProps(renderShell)
+        if (documentInitialPropsRes === null) return null
+      } else {
+        await renderShell()
+        documentInitialPropsRes = {}
+      }
 
       const { docProps } = (documentInitialPropsRes as any) || {}
       const documentElement = () => {
@@ -1623,17 +1689,7 @@ export async function renderToHTML(
     </AmpStateContext.Provider>
   )
 
-  let documentHTML: string
-  if (hasConcurrentFeatures) {
-    const documentStream = await renderToStream({
-      ReactDOMServer,
-      element: document,
-      generateStaticHTML: true,
-    })
-    documentHTML = await streamToString(documentStream)
-  } else {
-    documentHTML = ReactDOMServer.renderToStaticMarkup(document)
-  }
+  const documentHTML = ReactDOMServer.renderToStaticMarkup(document)
 
   if (process.env.NODE_ENV !== 'production') {
     const nonRenderedComponents = []
@@ -1750,7 +1806,7 @@ export async function renderToHTML(
 function errorToJSON(err: Error) {
   return {
     name: err.name,
-    message: err.message,
+    message: stripAnsi(err.message),
     stack: err.stack,
     middleware: (err as any).middleware,
   }

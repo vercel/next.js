@@ -40,6 +40,8 @@ export class NextDevInstance extends NextInstance {
         },
       })
 
+      this._cliOutput = ''
+
       this.childProcess.stdout.on('data', (chunk) => {
         const msg = chunk.toString()
         process.stdout.write(chunk)
