@@ -1,31 +1,6 @@
 import React from 'react'
 
-import { BasicNodes, DotContent, TextNode, DotImage } from './components'
-
-const components = {
-  // Text Node
-  text: TextNode,
-  // Basic Nodes
-  ...BasicNodes,
-  // Custom nods
-  //dotContent: DotContent,
-  dotImage: DotImage,
-}
-
-const FallbackComponent = ({ type }) => {
-  return (
-    <>
-      {process.env.NODE_ENV === 'development' ? (
-        <span>
-          You don&apos;t have a storyblock component for the content type:{' '}
-          {type}
-        </span>
-      ) : (
-        <></>
-      )}
-    </>
-  )
-}
+import { Heading, Paragraph, BulletList, OrderedList, DotImage, BlockQuote, CodeBlock } from './Blocks'
 
 /**
  * Dot Story Block Render
@@ -34,17 +9,37 @@ export const DotSBRender = ({ content }) => {
   return (
     <>
       {content?.map((data, index) => {
+        switch (data.type) {
+          case 'paragraph':
+            return <Paragraph key={index} {...data} />
 
-        const Component = components[data.type] || FallbackComponent
-        if (!data?.content?.length) {
-          return <Component key={index} {...data} />
+          case 'heading':
+            return <Heading key={index} {...data} />
+
+          case 'bulletList':
+            return <BulletList key={index} {...data} />
+
+          case 'orderedList':
+            return <OrderedList key={index} {...data} />
+
+          case 'dotImage':
+            return <DotImage key={index} {...data} />
+
+          case 'horizontalRule':
+            return <hr key={index} />
+
+          case 'blockquote':
+            return <BlockQuote key={index} {...data} />
+
+          case 'codeBlock':
+            return <CodeBlock key={index} {...data} />
+
+          case 'hardBreak':
+            return <br key={index} />
+
+          case 'default':
+            return <p>Block not supported</p>
         }
-          return (
-
-          <Component  attrs={data.attrs} key={index} type={data?.type}>
-            <DotSBRender key={index} {...data} />
-          </Component>
-        )
       })}
     </>
   )

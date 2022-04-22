@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { Link, Bold, Italic, Strike, Underline } from '../utils/Marks'
+import { Link, Bold, Italic, Strike, Underline } from './Marks'
 
 
 const nodeMarks = {

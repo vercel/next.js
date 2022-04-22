@@ -1,9 +1,6 @@
 // Dependencies
 import Image from 'next/image'
 
-
-
-
 export const DotCMSImage = ({
   alt,
   path,
