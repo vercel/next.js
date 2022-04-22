@@ -1,7 +1,7 @@
 import type { CacheFs } from '../shared/lib/utils'
 
 import LRUCache from 'next/dist/compiled/lru-cache'
-import path from 'path'
+import path from '../shared/lib/isomorphic/path'
 import { PrerenderManifest } from '../build'
 import { normalizePagePath } from './normalize-page-path'
 import { IncrementalCacheValue, IncrementalCacheEntry } from './response-cache'
