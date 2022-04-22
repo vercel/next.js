@@ -13,7 +13,6 @@ import {
 } from 'next-test-utils'
 
 const context = {}
-const WEBPACK_BREAKING_CHANGE = 'BREAKING CHANGE:'
 
 jest.setTimeout(1000 * 60 * 2)
 context.appDir = join(__dirname, '../')
@@ -47,33 +46,38 @@ describe('Middleware importing Node.js built-in module', () => {
 
     afterEach(() => killApp(context.app))
 
-    it('shows error when importing path module', async () => {
-      const res = await fetchViaHTTP(context.appPort, '/using-path')
+    it('does not show the not-supported error when importing non-node-builtin module', async () => {
+      const res = await fetchViaHTTP(context.appPort, '/using-not-exist')
+      expect(res.status).toBe(500)
+
       const text = await res.text()
       await waitFor(500)
-      const msg = getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('path')
-      expect(res.status).toBe(500)
-      expect(output).toContain(getModuleNotFound('path'))
-      expect(output).toContain(msg)
-      expect(text).toContain(escapeLF(msg))
-      expect(stripAnsi(output)).toContain("import { basename } from 'path'")
-      expect(output).not.toContain(WEBPACK_BREAKING_CHANGE)
+      const msg =
+        getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('not-exist')
+      expect(output).toContain(getModuleNotFound('not-exist'))
+      expect(output).not.toContain(msg)
+      expect(text).not.toContain(escapeLF(msg))
     })
 
-    it('shows error when importing child_process module', async () => {
-      const res = await fetchViaHTTP(context.appPort, '/using-child-process')
+    it('does not show the not-supported error when importing child_process module on a page', async () => {
+      await fetchViaHTTP(context.appPort, '/using-child-process-on-page')
+
+      // Need to request twice
+      // See: https://github.com/vercel/next.js/issues/36387
+      const res = await fetchViaHTTP(
+        context.appPort,
+        '/using-child-process-on-page'
+      )
+
+      expect(res.status).toBe(500)
+
       const text = await res.text()
       await waitFor(500)
       const msg =
         getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('child_process')
-      expect(res.status).toBe(500)
       expect(output).toContain(getModuleNotFound('child_process'))
-      expect(output).toContain(msg)
-      expect(text).toContain(escapeLF(msg))
-      expect(stripAnsi(output)).toContain(
-        "import { spawn } from 'child_process'"
-      )
-      expect(output).not.toContain(WEBPACK_BREAKING_CHANGE)
+      expect(output).not.toContain(msg)
+      expect(text).not.toContain(escapeLF(msg))
     })
   })
 
@@ -87,13 +91,15 @@ describe('Middleware importing Node.js built-in module', () => {
       })
     })
 
-    it('should have middleware error during build', () => {
+    it('should not have middleware error during build', () => {
+      expect(buildResult.stderr).toContain(getModuleNotFound('not-exist'))
       expect(buildResult.stderr).toContain(getModuleNotFound('child_process'))
-      expect(buildResult.stderr).toContain(getModuleNotFound('path'))
-      expect(buildResult.stderr).toContain(
+      expect(buildResult.stderr).not.toContain(
+        getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('not-exist')
+      )
+      expect(buildResult.stderr).not.toContain(
         getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('child_process')
       )
-      expect(buildResult.stderr).not.toContain(WEBPACK_BREAKING_CHANGE)
     })
   })
 })

@@ -1,4 +1,5 @@
 import type { NextConfigComplete, PageRuntime } from '../server/config-shared'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 import '../server/node-polyfill-fetch'
 import chalk from 'next/dist/compiled/chalk'
@@ -20,6 +21,10 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   MIDDLEWARE_ROUTE,
 } from '../lib/constants'
+import {
+  MIDDLEWARE_RUNTIME_WEBPACK,
+  MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+} from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { getRouteMatcher, getRouteRegex } from '../shared/lib/router/utils'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
@@ -51,6 +56,11 @@ const fsStatGzip = (file: string) => {
   if (cached) return cached
   return (fileGzipStats[file] = getGzipSize.file(file))
 }
+
+const WEBPACK_EDGE_RUNTIMES = new Set([
+  MIDDLEWARE_RUNTIME_WEBPACK,
+  MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+])
 
 const fileSize = async (file: string) => (await fs.stat(file)).size
 
@@ -1123,7 +1133,7 @@ export function getUnresolvedModuleFromError(
   error: string
 ): string | undefined {
   const moduleErrorRegex = new RegExp(
-    `Module not found: Can't resolve '(\\w+)'`
+    `Module not found: Error: Can't resolve '(\\w+)'`
   )
   const [, moduleName] = error.match(moduleErrorRegex) || []
   return builtinModules.find((item: string) => item === moduleName)
@@ -1265,4 +1275,40 @@ export function isReservedPage(page: string) {
 
 export function isCustomErrorPage(page: string) {
   return page === '/404' || page === '/500'
+}
+
+// FIX ME: it does not work for non-middleware edge functions
+//  since chunks don't contain runtime specified somehow
+export function isEdgeRuntimeCompiled(
+  compilation: webpack5.Compilation,
+  module: any
+) {
+  let isEdgeRuntime = false
+
+  for (const chunk of compilation.chunkGraph.getModuleChunksIterable(module)) {
+    let runtimes: string[]
+    if (typeof chunk.runtime === 'string') {
+      runtimes = [chunk.runtime]
+    } else if (chunk.runtime) {
+      runtimes = [...chunk.runtime]
+    } else {
+      runtimes = []
+    }
+
+    if (runtimes.some((r) => WEBPACK_EDGE_RUNTIMES.has(r))) {
+      isEdgeRuntime = true
+      break
+    }
+  }
+
+  return isEdgeRuntime
+}
+
+export function getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(
+  name: string
+) {
+  return (
+    `You're using a Node.js module (${name}) which is not supported in the Edge Runtime that Middleware uses.\n` +
+    'Learn more: https://nextjs.org/docs/api-reference/edge-runtime'
+  )
 }
