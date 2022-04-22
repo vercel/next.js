@@ -106,12 +106,16 @@ const matchNextPageBundleRequest = route(
 )
 
 // Recursively look up the issuer till it ends up at the root
-function findEntryModule(issuer: any): any {
-  if (issuer.issuer) {
-    return findEntryModule(issuer.issuer)
+function findEntryModule(
+  compilation: webpack5.Compilation,
+  issuerModule: any
+): any {
+  const issuer = compilation.moduleGraph.getIssuer(issuerModule)
+  if (issuer) {
+    return findEntryModule(compilation, issuer)
   }
 
-  return issuer
+  return issuerModule
 }
 
 function erroredPages(compilation: webpack5.Compilation) {
@@ -121,7 +125,7 @@ function erroredPages(compilation: webpack5.Compilation) {
       continue
     }
 
-    const entryModule = findEntryModule(error.module)
+    const entryModule = findEntryModule(compilation, error.module)
     const { name } = entryModule
     if (!name) {
       continue

@@ -21,6 +21,7 @@ const Button = styled.a`
 `
 
 export default function Home() {
+  console.log('__render__')
   return (
     <div>
       <Button
