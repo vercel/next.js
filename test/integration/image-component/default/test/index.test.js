@@ -363,6 +363,29 @@ function runTests(mode) {
     )
   })
 
+  it('should callback native onError when error occured while loading image', async () => {
+    let browser = await webdriver(appPort, '/on-error')
+
+    await check(
+      () => browser.eval(`document.getElementById("img1").currentSrc`),
+      /test\.png/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img2").currentSrc`),
+      //This is an empty data url
+      /nonexistent-img\.png/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg1").textContent`),
+      'no error occured'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg2").textContent`),
+      'error occured while loading img2'
+    )
+    setTimeout(() => {}, [10000])
+  })
+
   it('should work with image with blob src', async () => {
     let browser
     try {
