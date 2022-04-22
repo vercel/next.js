@@ -21,9 +21,3 @@ pnpm create next-app -- --example with-typescript-mantine with-typescript-mantin
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
-
-## Notes
-
-This is an amalgamation of the 1 existing example:
-
-- [with-typescript](https://github.com/vercel/next.js/tree/canary/examples/with-typescript)
