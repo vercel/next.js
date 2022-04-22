@@ -266,7 +266,9 @@ function buildEnvironmentVariablesFrom(
   keys: string[]
 ): Record<string, string | undefined> {
   const pairs = keys.map((key) => [key, process.env[key]])
-  return Object.fromEntries(pairs)
+  const env = Object.fromEntries(pairs)
+  env.__NEXT_RUNTIME = 'edge'
+  return env
 }
 
 async function loadWasm(

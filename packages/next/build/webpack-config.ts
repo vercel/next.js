@@ -1325,7 +1325,10 @@ export default async function getBaseWebpackConfig(
           dev ? 'development' : 'production'
         ),
         'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(crossOrigin),
-        'process.browser': JSON.stringify(targetWeb),
+        'process.browser': JSON.stringify(!isServer),
+        'process.env.__NEXT_RUNTIME': JSON.stringify(
+          !isServer ? 'browser' : isEdgeRuntime ? 'edge' : 'nodejs'
+        ),
         'process.env.__NEXT_TEST_MODE': JSON.stringify(
           process.env.__NEXT_TEST_MODE
         ),
