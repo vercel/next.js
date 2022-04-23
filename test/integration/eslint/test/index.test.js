@@ -59,7 +59,7 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
       expect(output).toContain(
         'Error: Comments inside children section of tag should be placed inside braces'
@@ -90,9 +90,7 @@ describe('ESLint', () => {
       expect(output).toContain(
         'Error: Comments inside children section of tag should be placed inside braces'
       )
-      expect(output).toContain(
-        'Warning: External synchronous scripts are forbidden'
-      )
+      expect(output).toContain('Error: Synchronous scripts should not be used.')
     })
 
     test('invalid older eslint version', async () => {
@@ -121,7 +119,7 @@ describe('ESLint', () => {
       expect(output).not.toContain('Build error occurred')
       expect(output).not.toContain('NoFilesFoundError')
       expect(output).toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
       expect(output).toContain('Compiled successfully')
     })
@@ -136,7 +134,7 @@ describe('ESLint', () => {
       expect(output).not.toContain('Build error occurred')
       expect(output).not.toContain('AllFilesIgnoredError')
       expect(output).toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
       expect(output).toContain('Compiled successfully')
     })
@@ -270,7 +268,7 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
       expect(output).toContain(
         'Error: Comments inside children section of tag should be placed inside braces'
@@ -285,10 +283,10 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        "Warning: Do not use <img>. Use Image from 'next/image' instead."
+        'Error: Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
       )
       expect(output).toContain(
-        'Error: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
     })
 
@@ -303,11 +301,9 @@ describe('ESLint', () => {
       )
 
       const output = stdout + stderr
+      expect(output).toContain('Error: Synchronous scripts should not be used.')
       expect(output).toContain(
-        'Warning: External synchronous scripts are forbidden'
-      )
-      expect(output).toContain(
-        'Error: next/document should not be imported outside of pages/_document.js.'
+        'Warning: `<Document />` from `next/document` should not be imported outside of `pages/_document.js`.'
       )
     })
 
@@ -323,10 +319,10 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        "Warning: Do not use <img>. Use Image from 'next/image' instead."
+        'Error: Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
       )
       expect(output).toContain(
-        'Error: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
     })
 
@@ -393,7 +389,7 @@ describe('ESLint', () => {
         'Error: Comments inside children section of tag should be placed inside braces'
       )
       expect(output).not.toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
     })
 
@@ -407,9 +403,7 @@ describe('ESLint', () => {
       expect(output).toContain(
         'Error: Comments inside children section of tag should be placed inside braces'
       )
-      expect(output).toContain(
-        'Warning: External synchronous scripts are forbidden'
-      )
+      expect(output).toContain('Error: Synchronous scripts should not be used.')
     })
 
     test('max warnings flag errors when warnings exceed threshold', async () => {
@@ -424,10 +418,10 @@ describe('ESLint', () => {
 
       expect(stderr).not.toEqual('')
       expect(stderr).toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
       expect(stdout).not.toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
     })
 
@@ -443,10 +437,10 @@ describe('ESLint', () => {
 
       expect(stderr).toEqual('')
       expect(stderr).not.toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
       expect(stdout).toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
     })
 
@@ -462,7 +456,7 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'warning: External synchronous scripts are forbidden'
+        'warning: Synchronous scripts should not be used.'
       )
       expect(stdout).toContain('<script src="https://example.com" />')
       expect(stdout).toContain('2 warnings found')
@@ -576,7 +570,7 @@ describe('ESLint', () => {
       )
 
       expect(output).not.toContain('pages/')
-      expect(output).not.toContain('External synchronous scripts are forbidden')
+      expect(output).not.toContain('Synchronous scripts should not be used.')
     })
 
     test('file flag can selectively lints multiple files', async () => {
@@ -598,11 +592,11 @@ describe('ESLint', () => {
 
       expect(output).toContain('pages/bar.js')
       expect(output).toContain(
-        "Do not use <img>. Use Image from 'next/image' instead"
+        'Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
       )
 
       expect(output).not.toContain('pages/index.js')
-      expect(output).not.toContain('External synchronous scripts are forbidden')
+      expect(output).not.toContain('Synchronous scripts should not be used.')
     })
   })
 })
