@@ -844,7 +844,12 @@ describe('Prerender', () => {
 
     it('should 404 for an invalid data url', async () => {
       const res = await fetchViaHTTP(next.url, `/_next/data/${next.buildId}`)
-      expect(res.status).toBe(404)
+
+      // when deployed this will match due to `index.json` matching the
+      // directory itself
+      if (!isDeploy) {
+        expect(res.status).toBe(404)
+      }
     })
 
     it('should allow rewriting to SSG page with fallback: false', async () => {
