@@ -240,7 +240,7 @@ pub async fn resolve_options(context: FileSystemPathVc) -> Result<ResolveOptions
     if parent != context {
         return Ok(resolve_options(parent));
     }
-    let context_value = context.get().await?;
+    let context_value = context.await?;
     let root = FileSystemPathVc::new(context_value.fs, "");
     let mut direct_mappings = PrefixTree::new();
     for req in [
@@ -420,7 +420,7 @@ pub async fn find_context_file(
     context: FileSystemPathVc,
     name: &str,
 ) -> Result<FindContextFileResultVc> {
-    let context_value = context.get().await?;
+    let context_value = context.await?;
     if let Some(new_path) = join_path(&context_value.path, name) {
         let fs_path = FileSystemPathVc::new_normalized(context_value.fs, new_path);
         if exists(fs_path).await? {
@@ -451,8 +451,8 @@ async fn find_package(
         match resolve_modules {
             ResolveModules::Nested(root, names) => {
                 let mut context = context;
-                let mut context_value = context.get().await?;
-                while context_value.is_inside(&*root.get().await?) {
+                let mut context_value = context.await?;
+                while context_value.is_inside(&*root.await?) {
                     for name in names.iter() {
                         if let Some(nested_path) = join_path(&context_value.path, &name) {
                             if let Some(new_path) = join_path(&nested_path, &package_name) {
@@ -471,7 +471,7 @@ async fn find_package(
                         }
                     }
                     context = context.parent();
-                    let new_context_value = context.get().await?;
+                    let new_context_value = context.await?;
                     if *new_context_value == *context_value {
                         break;
                     }
@@ -508,7 +508,7 @@ pub async fn resolve_raw(
         ResolveResult::Single(SourceAssetVc::new(path).into(), Vec::new()).into()
     }
     let mut results = Vec::new();
-    let pat = path.get().await?;
+    let pat = path.await?;
     if let Some(pat) = pat.filter_could_match("/ROOT/") {
         if let Some(pat) = pat.filter_could_not_match("/ROOT/fsd8nz8og54z") {
             let path = PatternVc::new(pat);
@@ -641,7 +641,7 @@ pub async fn resolve(
         package_json: Option<(FileJsonContentVc, FileSystemPathVc)>,
         options: ResolveOptionsVc,
     ) -> Result<ResolveResultVc> {
-        let options_value = options.get().await?;
+        let options_value = options.await?;
         for resolve_into_package in options_value.into_package.iter() {
             match resolve_into_package {
                 ResolveIntoPackage::Default(req) => {
@@ -657,8 +657,7 @@ pub async fn resolve(
                 }
                 ResolveIntoPackage::MainField(name) => {
                     if let Some((package_json, package_json_path)) = package_json {
-                        if let FileJsonContent::Content(package_json) = &*package_json.get().await?
-                        {
+                        if let FileJsonContent::Content(package_json) = &*package_json.await? {
                             if let Some(field_value) = package_json[name].as_str() {
                                 let request = RequestVc::parse(Value::new(
                                     normalize_request(&field_value).into(),
@@ -705,7 +704,7 @@ pub async fn resolve(
         Ok(ResolveResult::unresolveable().into())
     }
 
-    let options_value = options.get().await?;
+    let options_value = options.await?;
 
     // Apply import mappings if provided
     if let Some(import_map) = &options_value.import_map {
@@ -715,7 +714,7 @@ pub async fn resolve(
         }
     }
 
-    let request_value = request.get().await?;
+    let request_value = request.await?;
     Ok(match &*request_value {
         Request::Dynamic => ResolveResult::unresolveable().into(),
         Request::Alternatives { requests } => {
@@ -736,7 +735,6 @@ pub async fn resolve(
                 *force_in_context,
                 PatternVc::new(path.clone()),
             )
-            .get()
             .await?;
             for m in matches.iter() {
                 match m {
@@ -744,7 +742,7 @@ pub async fn resolve(
                         results.push(resolved(*path, options_value.resolved_map, options).await?);
                     }
                     PatternMatch::Directory(_, path) => {
-                        let path_value = path.get().await?;
+                        let path_value = path.await?;
                         let package_json = {
                             if let Some(new_path) = join_path(&path_value.path, "package.json") {
                                 let fs_path =
@@ -783,7 +781,7 @@ pub async fn resolve(
             let package = find_package(context, module.clone(), resolve_modules_options(options));
             match *package.await? {
                 FindPackageResult::Package(package_path) => {
-                    let package_path_value = package_path.get().await?;
+                    let package_path_value = package_path.await?;
                     let package_json = {
                         if let Some(new_path) = join_path(&package_path_value.path, "package.json")
                         {
@@ -813,7 +811,7 @@ pub async fn resolve(
                                 } => {
                                     if let Some((package_json, package_json_path)) = package_json {
                                         if let ExportsFieldResult::Some(exports_field) =
-                                            &*exports_field(package_json, field).await?
+                                            &*exports_field(package_json, &field).await?
                                         {
                                             if let Some(path) = path.clone().into_string() {
                                                 results.push(handle_exports_field(
@@ -822,8 +820,8 @@ pub async fn resolve(
                                                     options,
                                                     &exports_field,
                                                     &format!(".{path}"),
-                                                    conditions,
-                                                    unspecified_conditions,
+                                                    &conditions,
+                                                    &unspecified_conditions,
                                                 )?);
                                             } else {
                                                 todo!(

@@ -287,7 +287,6 @@ impl FileSystem for DiskFileSystem {
     async fn read(&self, fs_path: FileSystemPathVc) -> Result<FileContentVc> {
         let full_path = Path::new(&self.root).join(
             &fs_path
-                .get()
                 .await?
                 .path
                 .replace("/", &MAIN_SEPARATOR.to_string()),
@@ -369,7 +368,6 @@ impl FileSystem for DiskFileSystem {
     ) -> Result<CompletionVc> {
         let full_path = Path::new(&self.root).join(
             &fs_path
-                .get()
                 .await?
                 .path
                 .replace("/", &MAIN_SEPARATOR.to_string()),
@@ -411,7 +409,7 @@ impl FileSystem for DiskFileSystem {
         Ok(CompletionVc::new())
     }
     async fn parent_path(&self, fs_path: FileSystemPathVc) -> Result<FileSystemPathVc> {
-        let fs_path_value = fs_path.get().await?;
+        let fs_path_value = fs_path.await?;
         if fs_path_value.path.is_empty() {
             return Ok(fs_path);
         }
@@ -591,32 +589,32 @@ pub async fn rebase(
 #[turbo_tasks::value_impl]
 impl FileSystemPathVc {
     pub async fn read(self) -> Result<FileContentVc> {
-        let this = self.get().await?;
+        let this = self.await?;
         Ok(this.fs.read(self))
     }
 
     pub async fn read_json(self) -> Result<FileJsonContentVc> {
-        let this = self.get().await?;
+        let this = self.await?;
         Ok(this.fs.read(self).parse_json())
     }
 
     pub async fn read_dir(self) -> Result<DirectoryContentVc> {
-        let this = self.get().await?;
+        let this = self.await?;
         Ok(this.fs.read_dir(self))
     }
 
     pub async fn write(self, content: FileContentVc) -> Result<CompletionVc> {
-        let this = self.get().await?;
+        let this = self.await?;
         Ok(this.fs.write(self, content))
     }
 
     pub async fn parent(self) -> Result<FileSystemPathVc> {
-        let this = self.get().await?;
+        let this = self.await?;
         Ok(this.fs.parent_path(self))
     }
 
     pub async fn get_type(self) -> Result<Vc<FileSystemEntryType>> {
-        let this = self.get().await?;
+        let this = self.await?;
         if this.is_root() {
             return Ok(Vc::slot(FileSystemEntryType::Directory));
         }

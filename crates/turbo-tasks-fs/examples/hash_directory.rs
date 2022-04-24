@@ -22,7 +22,7 @@ fn main() {
             Box::pin(async {
                 let root = current_dir().unwrap().to_str().unwrap().to_string();
                 let disk_fs = DiskFileSystemVc::new("project".to_string(), root);
-                disk_fs.get().await?.start_watching()?;
+                disk_fs.await?.start_watching()?;
 
                 // Smart Pointer cast
                 let fs: FileSystemVc = disk_fs.into();
@@ -64,7 +64,7 @@ async fn filename(path: FileSystemPathVc) -> Result<String> {
 
 #[turbo_tasks::function]
 async fn hash_directory(directory: FileSystemPathVc) -> Result<Vc<String>> {
-    let dir_path = &directory.get().await?.path;
+    let dir_path = &directory.await?.path;
     let content = directory.read_dir();
     let mut hashes = BTreeMap::new();
     match &*content.await? {

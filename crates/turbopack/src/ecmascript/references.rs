@@ -83,7 +83,7 @@ pub async fn module_references(
         };
     }
 
-    special_cases(&path.get().await?.path, &mut references);
+    special_cases(&path.await?.path, &mut references);
 
     let parsed = parse(source, ty).await?;
     match &*parsed {
@@ -165,7 +165,7 @@ pub async fn module_references(
             if let Some((request, span)) = webpack_runtime {
                 let request = RequestVc::parse(Value::new(request.into()));
                 let runtime = resolve_as_webpack_runtime(source.path().parent(), request);
-                match &*runtime.get().await? {
+                match &*runtime.await? {
                     WebpackRuntime::Webpack5 { .. } => {
                         ignore_effect_span = Some(span);
                         references.push(

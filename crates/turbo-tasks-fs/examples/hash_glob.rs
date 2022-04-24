@@ -23,7 +23,7 @@ fn main() {
             Box::pin(async {
                 let root = current_dir().unwrap().to_str().unwrap().to_string();
                 let disk_fs = DiskFileSystemVc::new("project".to_string(), root);
-                disk_fs.get().await?.start_watching()?;
+                disk_fs.await?.start_watching()?;
 
                 // Smart Pointer cast
                 let fs: FileSystemVc = disk_fs.into();

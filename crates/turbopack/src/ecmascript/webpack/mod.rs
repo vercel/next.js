@@ -58,7 +58,7 @@ pub struct WebpackChunkAssetReference {
 #[turbo_tasks::value_impl]
 impl AssetReference for WebpackChunkAssetReference {
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
-        let runtime = self.runtime.get().await?;
+        let runtime = self.runtime.await?;
         Ok(match &*runtime {
             WebpackRuntime::Webpack5 {
                 chunk_request_expr: _,

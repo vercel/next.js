@@ -38,7 +38,7 @@ async fn read_glob_internal(
 ) -> Result<ReadGlobResultVc> {
     let dir = directory.read_dir().await?;
     let mut result = ReadGlobResult::default();
-    let glob_value = glob.get().await?;
+    let glob_value = glob.await?;
     match &*dir {
         DirectoryContent::Entries(entries) => {
             for item in entries.iter() {

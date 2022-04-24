@@ -16,20 +16,6 @@ pub struct Vc<T: Any + TraceRawVcs + Send + Sync> {
 }
 
 impl<T: Any + TraceRawVcs + Send + Sync> Vc<T> {
-    /// Reads the value of the reference.
-    ///
-    /// This is async and will rethrow any fatal error that happened during task
-    /// execution.
-    ///
-    /// Reading the value will make the current task depend on the slot and the
-    /// task outputs. This will lead to invalidation of the current task
-    /// when one of these changes.
-    pub async fn get(&self) -> Result<RawVcReadResult<T>> {
-        self.node
-            .into_read::<T>(TurboTasks::current().unwrap())
-            .await
-    }
-
     /// Resolve the reference until it points to a slot directly.
     ///
     /// This is async and will rethrow any fatal error that happened during task

@@ -128,7 +128,7 @@ struct AggregationCost(usize);
 
 #[turbo_tasks::function]
 async fn aggregate_more(node: AggregatedGraphVc) -> Result<AggregatedGraphVc> {
-    let node_data = node.get().await?;
+    let node_data = node.await?;
     let depth = node_data.depth();
     let mut in_progress = HashSet::new();
     let mut content = HashSet::new();

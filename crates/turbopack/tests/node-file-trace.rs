@@ -216,7 +216,7 @@ impl Display for CommandOutput {
 async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandOutputVc> {
     let mut cmd = Command::new("node");
 
-    let p = path.get().await?;
+    let p = path.await?;
     let f = Path::new(&directory).join(&p.path);
     let dir = f.parent().unwrap();
     let label = path.to_string().await?;

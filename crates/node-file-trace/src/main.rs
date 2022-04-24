@@ -86,7 +86,7 @@ impl Args {
 async fn create_fs(name: &str, context: &str, watch: bool) -> Result<FileSystemVc> {
     let fs = DiskFileSystemVc::new(name.to_string(), context.to_string());
     if watch {
-        fs.get().await?.start_watching()?;
+        fs.await?.start_watching()?;
     }
     Ok(fs.into())
 }

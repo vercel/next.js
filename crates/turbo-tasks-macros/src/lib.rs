@@ -394,16 +394,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         impl #ref_ident {
             #slot
 
-            /// Reads the value of the reference.
-            ///
-            /// This is async and will rethrow any fatal error that happened during task execution.
-            ///
-            /// Reading the value will make the current task depend on the slot and the task outputs.
-            /// This will lead to invalidation of the current task when one of these changes.
-            pub async fn get(&self) -> turbo_tasks::Result<turbo_tasks::RawVcReadResult<#ident>> {
-                self.node.clone().into_read::<#ident>(turbo_tasks::TurboTasks::current().unwrap()).await
-            }
-
             /// Resolve the reference until it points to a slot directly.
             ///
             /// This is async and will rethrow any fatal error that happened during task execution.

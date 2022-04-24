@@ -41,7 +41,7 @@ pub async fn module(source: AssetVc) -> Result<AssetVc> {
     let path = source.path();
     let options = module_options(path.parent());
     let options = options.await?;
-    let path_value = path.get().await?;
+    let path_value = path.await?;
 
     let mut effects = HashMap::new();
     for rule in options.rules.iter() {
@@ -175,7 +175,7 @@ async fn emit_assets_recursive_avoid_cycle(
     let assets_set = all_referenced_assets(asset).await?;
     emit_asset(asset);
     if !assets_set.assets.is_empty() {
-        let cycle_detection_value = cycle_detection.get().await?;
+        let cycle_detection_value = cycle_detection.await?;
         let new_cycle_detection = cycle_detection.concat(asset);
         for ref_asset in assets_set.assets.iter() {
             let ref_asset = ref_asset.resolve().await?;
@@ -244,7 +244,7 @@ async fn compute_back_references(aggregated: AggregatedGraphVc) -> Result<Refere
 
 #[turbo_tasks::function]
 async fn top_references(list: ReferencesListVc) -> Result<ReferencesListVc> {
-    let list = list.get().await?;
+    let list = list.await?;
     const N: usize = 5;
     let mut top = Vec::<(&AssetVc, &HashSet<AssetVc>)>::new();
     for tuple in list.referenced_by.iter() {
@@ -269,7 +269,7 @@ async fn top_references(list: ReferencesListVc) -> Result<ReferencesListVc> {
 
 #[turbo_tasks::function]
 async fn print_references(list: ReferencesListVc) -> Result<()> {
-    let list = list.get().await?;
+    let list = list.await?;
     println!("TOP REFERENCES:");
     for (asset, references) in list.referenced_by.iter() {
         println!(

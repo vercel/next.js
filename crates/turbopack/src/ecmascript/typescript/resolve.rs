@@ -53,7 +53,7 @@ pub async fn read_tsconfigs(
 ) -> Result<Vec<(FileJsonContentVc, AssetVc)>> {
     let mut configs = Vec::new();
     loop {
-        match &*data.get().await? {
+        match &*data.await? {
             FileJsonContent::Unparseable => {
                 // TODO report to stream
                 println!("ERR {} is invalid JSON", tsconfig.path().to_string().await?);
@@ -138,7 +138,7 @@ async fn apply_tsconfig(
     }
     let mut all_paths = HashMap::new();
     for (content, source) in configs.iter().rev() {
-        if let FileJsonContent::Content(json) = &*content.get().await? {
+        if let FileJsonContent::Content(json) = &*content.await? {
             if let JsonValue::Object(paths) = &json["compilerOptions"]["paths"] {
                 let mut context = source.path().parent();
                 if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str() {
@@ -179,7 +179,7 @@ pub async fn type_resolve(
     context: FileSystemPathVc,
     options: ResolveOptionsVc,
 ) -> Result<ResolveResultVc> {
-    let types_request = if let Request::Module { module: m, path: p } = &*request.get().await? {
+    let types_request = if let Request::Module { module: m, path: p } = &*request.await? {
         let m = if m.starts_with("@") {
             m[1..].replace('/', "__")
         } else {
