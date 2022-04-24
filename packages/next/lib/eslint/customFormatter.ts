@@ -100,6 +100,7 @@ export function formatResults(
   format: (r: LintResult[]) => string
 ): {
   output: string
+  outputWithMessages: string
   totalNextPluginErrorCount: number
   totalNextPluginWarningCount: number
 } {
@@ -124,7 +125,8 @@ export function formatResults(
         .join('\n')
 
   return {
-    output:
+    output: output,
+    outputWithMessages:
       resultsWithMessages.length > 0
         ? output +
           `\n\n${chalk.cyan(

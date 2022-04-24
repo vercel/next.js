@@ -1,4 +1,4 @@
-import { promises as fs } from 'fs'
+import { promises as fs, promises, statSync } from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import path from 'path'
 
@@ -9,6 +9,7 @@ import * as CommentJson from 'next/dist/compiled/comment-json'
 import { LintResult, formatResults } from './customFormatter'
 import { writeDefaultConfig } from './writeDefaultConfig'
 import { hasEslintConfiguration } from './hasEslintConfiguration'
+import { writeOutputFile } from './writeOutputFile'
 
 import { ESLINT_PROMPT_VALUES } from '../constants'
 import { existsSync, findPagesDir } from '../find-pages-dir'
@@ -86,7 +87,8 @@ async function lint(
   eslintOptions: any = null,
   reportErrorsOnly: boolean = false,
   maxWarnings: number = -1,
-  formatter: string | null = null
+  formatter: string | null = null,
+  outputFile: string | null = null
 ): Promise<
   | string
   | null
@@ -221,8 +223,10 @@ async function lint(
       0
     )
 
+    if (outputFile) await writeOutputFile(outputFile, formattedResult.output)
+
     return {
-      output: formattedResult.output,
+      output: formattedResult.outputWithMessages,
       isError:
         ESLint.getErrorResults(results)?.length > 0 ||
         (maxWarnings >= 0 && totalWarnings > maxWarnings),
@@ -266,6 +270,7 @@ export async function runLintCheck(
   reportErrorsOnly: boolean = false,
   maxWarnings: number = -1,
   formatter: string | null = null,
+  outputFile: string | null = null,
   strict: boolean = false
 ): ReturnType<typeof lint> {
   try {
@@ -309,7 +314,8 @@ export async function runLintCheck(
         eslintOptions,
         reportErrorsOnly,
         maxWarnings,
-        formatter
+        formatter,
+        outputFile
       )
     } else {
       // Display warning if no ESLint configuration is present during "next build"
