@@ -1,6 +1,5 @@
 use next_swc::{
     amp_attributes::amp_attributes,
-    emotion::{self, EmotionOptions},
     next_dynamic::next_dynamic,
     next_ssg::next_ssg,
     page_config::page_config_test,
@@ -8,30 +7,19 @@ use next_swc::{
     relay::{relay, Config as RelayConfig, RelayLanguageConfig},
     remove_console::remove_console,
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
-    styled_jsx::styled_jsx,
 };
 use std::path::PathBuf;
-use swc_common::{chain, comments::SingleThreadedComments, FileName, Mark, Span, DUMMY_SP};
+use swc_common::{chain, comments::SingleThreadedComments, FileName, Mark};
 use swc_ecma_transforms_testing::{test, test_fixture};
 use swc_ecmascript::{
-    parser::{EsConfig, Syntax, TsConfig},
-    transforms::{
-        react::{jsx, Runtime},
-        resolver,
-    },
+    parser::{EsConfig, Syntax},
+    transforms::react::jsx,
 };
 use testing::fixture;
 
 fn syntax() -> Syntax {
     Syntax::Es(EsConfig {
         jsx: true,
-        ..Default::default()
-    })
-}
-
-fn ts_syntax() -> Syntax {
-    Syntax::Typescript(TsConfig {
-        tsx: true,
         ..Default::default()
     })
 }
@@ -112,61 +100,11 @@ fn next_ssg_fixture(input: PathBuf) {
                 },
                 top_level_mark,
             );
-            chain!(next_ssg(), jsx)
+            chain!(next_ssg(Default::default()), jsx)
         },
         &input,
         &output,
     );
-}
-
-#[fixture("tests/fixture/styled-jsx/**/input.js")]
-fn styled_jsx_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|t| {
-            chain!(
-                resolver(),
-                styled_jsx(
-                    t.cm.clone(),
-                    FileName::Real(PathBuf::from("/some-project/src/some-file.js"))
-                )
-            )
-        },
-        &input,
-        &output,
-    );
-
-    test_fixture(
-        syntax(),
-        &|t| {
-            // `resolver` uses `Mark` which is stored in a thread-local storage (namely
-            // swc_common::GLOBALS), and this loop will make `Mark` to be different from the
-            // invocation above.
-            //
-            // 1000 is used because in future I (kdy1) may optimize logic of resolver.
-            for _ in 0..1000 {
-                let _mark = Mark::fresh(Mark::root());
-            }
-
-            chain!(
-                resolver(),
-                styled_jsx(
-                    t.cm.clone(),
-                    FileName::Real(PathBuf::from("/some-project/src/some-file.js"))
-                )
-            )
-        },
-        &input,
-        &output,
-    );
-}
-
-pub struct DropSpan;
-impl swc_ecmascript::visit::VisitMut for DropSpan {
-    fn visit_mut_span(&mut self, span: &mut Span) {
-        *span = DUMMY_SP
-    }
 }
 
 #[fixture("tests/fixture/page-config/**/input.js")]
@@ -266,47 +204,6 @@ fn shake_exports_fixture_default(input: PathBuf) {
             shake_exports(ShakeExportsConfig {
                 ignore: vec![String::from("default").into()],
             })
-        },
-        &input,
-        &output,
-    );
-}
-
-#[fixture("tests/fixture/emotion/*/input.tsx")]
-fn next_emotion_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.ts");
-    test_fixture(
-        ts_syntax(),
-        &|tr| {
-            let top_level_mark = Mark::fresh(Mark::root());
-            let jsx = jsx::<SingleThreadedComments>(
-                tr.cm.clone(),
-                Some(tr.comments.as_ref().clone()),
-                swc_ecmascript::transforms::react::Options {
-                    next: false,
-                    runtime: Some(Runtime::Automatic),
-                    throw_if_namespace: false,
-                    development: false,
-                    use_builtins: true,
-                    use_spread: true,
-                    ..Default::default()
-                },
-                top_level_mark,
-            );
-            chain!(
-                emotion::emotion(
-                    EmotionOptions {
-                        enabled: Some(true),
-                        sourcemap: Some(true),
-                        auto_label: Some(true),
-                        ..Default::default()
-                    },
-                    &PathBuf::from("input.ts"),
-                    tr.cm.clone(),
-                    tr.comments.as_ref().clone(),
-                ),
-                jsx
-            )
         },
         &input,
         &output,

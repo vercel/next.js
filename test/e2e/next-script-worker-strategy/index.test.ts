@@ -12,7 +12,7 @@ describe('experimental.nextScriptWorkers: false with no Partytown dependency', (
       files: {
         'pages/index.js': `
           import Script from 'next/script'
-        
+
           export default function Page() {
             return (
               <>
@@ -25,7 +25,11 @@ describe('experimental.nextScriptWorkers: false with no Partytown dependency', (
           }
         `,
       },
-      dependencies: {},
+      // TODO: @housseindjirdeh: verify React 18 functionality
+      dependencies: {
+        react: '17.0.2',
+        'react-dom': '17.0.2',
+      },
     })
   })
   afterAll(() => next.destroy())
@@ -34,7 +38,7 @@ describe('experimental.nextScriptWorkers: false with no Partytown dependency', (
     let browser: BrowserInterface
 
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
 
       const snippetScript = await browser.eval(
         `document.querySelector('script[data-partytown]')`
@@ -56,11 +60,15 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
         experimental: {
           nextScriptWorkers: true,
         },
+        dependencies: {
+          react: '17',
+          'react-dom': '17',
+        },
       },
       files: {
         'pages/index.js': `
           import Script from 'next/script'
-        
+
           export default function Page() {
             return (
               <>
@@ -84,7 +92,7 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
     let browser: BrowserInterface
 
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
 
       const snippetScript = await browser.eval(
         `document.querySelector('script[data-partytown]').innerHTML`
@@ -109,13 +117,13 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
     let browser: BrowserInterface
 
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
 
       const predefinedWorkerScripts = await browser.eval(
         `document.querySelectorAll('script[type="text/partytown"]').length`
       )
 
-      expect(predefinedWorkerScripts).toEqual(1)
+      expect(predefinedWorkerScripts).toBeGreaterThan(0)
 
       await waitFor(1000)
 
@@ -124,7 +132,7 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
         `document.querySelectorAll('script[type="text/partytown-x"]').length`
       )
 
-      expect(processedWorkerScripts).toEqual(1)
+      expect(processedWorkerScripts).toBeGreaterThan(0)
     } finally {
       if (browser) await browser.close()
     }
@@ -175,7 +183,7 @@ describe('experimental.nextScriptWorkers: true with config override', () => {
         `,
         'pages/index.js': `
           import Script from 'next/script'
-        
+
           export default function Page() {
             return (
               <>
@@ -190,6 +198,8 @@ describe('experimental.nextScriptWorkers: true with config override', () => {
       },
       dependencies: {
         '@builder.io/partytown': '0.4.2',
+        react: '17',
+        'react-dom': '17',
       },
     })
   })
@@ -199,7 +209,7 @@ describe('experimental.nextScriptWorkers: true with config override', () => {
     let browser: BrowserInterface
 
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
 
       const configScript = await browser.eval(
         `document.querySelector('script[data-partytown-config]').innerHTML`

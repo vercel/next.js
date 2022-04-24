@@ -11,7 +11,7 @@ describe('react 18 streaming SSR in minimal mode', () => {
     next = await createNext({
       files: {
         'pages/index.server.js': `
-          export default function Page() { 
+          export default function Page() {
             return <p>static streaming</p>
           }
         `,
@@ -24,8 +24,8 @@ describe('react 18 streaming SSR in minimal mode', () => {
         },
       },
       dependencies: {
-        react: '18.0.0-rc.2',
-        'react-dom': '18.0.0-rc.2',
+        react: '18.0.0',
+        'react-dom': '18.0.0',
       },
     })
   })
@@ -37,6 +37,14 @@ describe('react 18 streaming SSR in minimal mode', () => {
   it('should generate html response by streaming correctly', async () => {
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('static streaming')
+  })
+
+  it('should have generated a static 404 page', async () => {
+    expect(await next.readFile('.next/server/pages/404.html')).toBeTruthy()
+
+    const res = await fetchViaHTTP(next.url, '/non-existent')
+    expect(res.status).toBe(404)
+    expect(await res.text()).toContain('This page could not be found')
   })
 })
 
@@ -57,8 +65,24 @@ describe('react 18 streaming SSR with custom next configs', () => {
           }
         `,
         'pages/hello.js': `
+          import Link from 'next/link'
+
           export default function Page() {
-            return <p>hello nextjs</p>
+            return (
+              <div>
+                <p>hello nextjs</p>
+                <Link href='/'><a>home></a></Link>
+              </div>
+            )
+          }
+        `,
+        'pages/multi-byte.js': `
+          export default function Page() {
+            return (
+              <div>
+                <p>{"マルチバイト".repeat(28)}</p>
+              </div>
+            );
           }
         `,
       },
@@ -70,8 +94,8 @@ describe('react 18 streaming SSR with custom next configs', () => {
         },
       },
       dependencies: {
-        react: '18.0.0-rc.2',
-        'react-dom': '18.0.0-rc.2',
+        react: '18.0.0',
+        'react-dom': '18.0.0',
       },
       installCommand: 'npm install',
     })
@@ -97,5 +121,11 @@ describe('react 18 streaming SSR with custom next configs', () => {
     expect(redirectRes.status).toBe(308)
     expect(res.status).toBe(200)
     expect(html).toContain('hello nextjs')
+    expect(html).toContain('home')
+  })
+
+  it('should render multi-byte characters correctly in streaming', async () => {
+    const html = await renderViaHTTP(next.url, '/multi-byte')
+    expect(html).toContain('マルチバイト'.repeat(28))
   })
 })

@@ -71,6 +71,8 @@ describe('Telemetry CLI', () => {
   })
 
   it('detects isSrcDir dir correctly for `next build`', async () => {
+    // must clear cache for GSSP imports to be detected correctly
+    await fs.remove(path.join(appDir, '.next'))
     const { stderr } = await runNextCommand(['build', appDir], {
       stderr: true,
       env: {
@@ -79,6 +81,10 @@ describe('Telemetry CLI', () => {
     })
 
     expect(stderr).toMatch(/isSrcDir.*?false/)
+    expect(stderr).toMatch(/package.*?"fs"/)
+    expect(stderr).toMatch(/package.*?"path"/)
+    expect(stderr).toMatch(/package.*?"http"/)
+    expect(stderr).toMatch(/NEXT_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS/)
 
     await fs.move(path.join(appDir, 'pages'), path.join(appDir, 'src/pages'))
     const { stderr: stderr2 } = await runNextCommand(['build', appDir], {
@@ -329,10 +335,10 @@ describe('Telemetry CLI', () => {
 
     const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/.exec(stderr).pop()
     expect(event1).toMatch(/"staticPropsPageCount": 2/)
-    expect(event1).toMatch(/"serverPropsPageCount": 1/)
+    expect(event1).toMatch(/"serverPropsPageCount": 2/)
     expect(event1).toMatch(/"ssrPageCount": 1/)
     expect(event1).toMatch(/"staticPageCount": 4/)
-    expect(event1).toMatch(/"totalPageCount": 8/)
+    expect(event1).toMatch(/"totalPageCount": 9/)
   })
 
   it('detects isSrcDir dir correctly for `next dev`', async () => {
@@ -479,6 +485,7 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/"localeDetectionEnabled": true/)
     expect(event1).toMatch(/"imageDomainsCount": 1/)
     expect(event1).toMatch(/"imageSizes": "64,128,256,512,1024"/)
+    expect(event1).toMatch(/"imageFormats": "image\/avif,image\/webp"/)
     expect(event1).toMatch(/"trailingSlashEnabled": false/)
     expect(event1).toMatch(/"reactStrictMode": false/)
 
@@ -632,6 +639,19 @@ describe('Telemetry CLI', () => {
     regex.exec(stderr).pop() // swcRemoveConsole
     regex.exec(stderr).pop() // swcImportSource
     regex.exec(stderr).pop() // swcEmotion
+    regex.exec(stderr).pop() // swc/targets/*
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
+    regex.exec(stderr).pop()
     const image = regex.exec(stderr).pop()
     expect(image).toContain(`"featureName": "next/image"`)
     expect(image).toContain(`"invocationCount": 1`)

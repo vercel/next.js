@@ -41,7 +41,8 @@ import {
 } from '../../shared/lib/router/utils'
 import Server, { WrappedBuildError } from '../next-server'
 import { normalizePagePath } from '../normalize-page-path'
-import Router, { hasBasePath, replaceBasePath, route } from '../router'
+import Router, { route } from '../router'
+import { hasBasePath, replaceBasePath } from '../router-utils'
 import { eventCliSession } from '../../telemetry/events'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
@@ -284,7 +285,7 @@ export default class DevServer extends Server {
           invalidatePageRuntimeCache(fileName, safeTime)
           const pageRuntimeConfig = await getPageRuntime(
             fileName,
-            this.nextConfig.experimental.runtime
+            this.nextConfig
           )
           const isEdgeRuntime = pageRuntimeConfig === 'edge'
 
@@ -937,9 +938,11 @@ export default class DevServer extends Server {
     try {
       await this.hotReloader!.ensurePage(pathname)
 
+      const serverComponents = this.nextConfig.experimental.serverComponents
+
       // When the new page is compiled, we need to reload the server component
       // manifest.
-      if (this.nextConfig.experimental.serverComponents) {
+      if (serverComponents) {
         this.serverComponentManifest = super.getServerComponentManifest()
       }
 

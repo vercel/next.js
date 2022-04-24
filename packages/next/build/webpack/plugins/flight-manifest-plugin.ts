@@ -7,6 +7,7 @@
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { MIDDLEWARE_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
+import { createClientComponentFilter } from '../loaders/utils'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -17,20 +18,21 @@ import { MIDDLEWARE_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 
 type Options = {
   dev: boolean
-  clientComponentsRegex: RegExp
+  pageExtensions: string[]
 }
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
 
+const isClientComponent = createClientComponentFilter()
 export class FlightManifestPlugin {
   dev: boolean = false
-  clientComponentsRegex: RegExp
+  pageExtensions: string[]
 
   constructor(options: Options) {
     if (typeof options.dev === 'boolean') {
       this.dev = options.dev
     }
-    this.clientComponentsRegex = options.clientComponentsRegex
+    this.pageExtensions = options.pageExtensions
   }
 
   apply(compiler: any) {
@@ -63,19 +65,16 @@ export class FlightManifestPlugin {
 
   createAsset(assets: any, compilation: any) {
     const manifest: any = {}
-    const { clientComponentsRegex } = this
     compilation.chunkGroups.forEach((chunkGroup: any) => {
       function recordModule(id: string, _chunk: any, mod: any) {
-        const resource = mod.resource?.replace(/\?__sc_client__$/, '')
+        const resource = mod.resource
 
         // TODO: Hook into deps instead of the target module.
         // That way we know by the type of dep whether to include.
         // It also resolves conflicts when the same module is in multiple chunks.
-        const isNextClientComponent = /next[\\/](link|image)/.test(resource)
-        if (!clientComponentsRegex.test(resource) && !isNextClientComponent) {
+        if (!resource || !isClientComponent(resource)) {
           return
         }
-
         const moduleExports: any = manifest[resource] || {}
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)

@@ -21,3 +21,7 @@ export default function Page() {
     </Suspense>
   )
 }
+
+export const config = {
+  runtime: 'edge',
+}

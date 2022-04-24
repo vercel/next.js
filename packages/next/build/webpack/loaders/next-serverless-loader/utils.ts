@@ -91,6 +91,8 @@ export function getUtils({
     req: BaseNextRequest | IncomingMessage,
     parsedUrl: UrlWithParsedQuery
   ) {
+    const rewriteParams = {}
+
     for (const rewrite of rewrites) {
       const matcher = getCustomRouteMatcher(rewrite.source)
       let params = matcher(parsedUrl.pathname)
@@ -106,13 +108,14 @@ export function getUtils({
       }
 
       if (params) {
-        const { parsedDestination } = prepareDestination({
+        const { parsedDestination, destQuery } = prepareDestination({
           appendParamsToQuery: true,
           destination: rewrite.destination,
           params: params,
           query: parsedUrl.query,
         })
 
+        Object.assign(rewriteParams, destQuery, params)
         Object.assign(parsedUrl.query, parsedDestination.query)
         delete (parsedDestination as any).query
 
@@ -152,7 +155,7 @@ export function getUtils({
       }
     }
 
-    return parsedUrl
+    return rewriteParams
   }
 
   function handleBasePath(
@@ -274,9 +277,9 @@ export function getUtils({
         }
 
         pathname =
-          pathname.substr(0, paramIdx) +
+          pathname.slice(0, paramIdx) +
           (paramValue || '') +
-          pathname.substr(paramIdx + builtParam.length)
+          pathname.slice(paramIdx + builtParam.length)
       }
     }
 
@@ -285,7 +288,8 @@ export function getUtils({
 
   function normalizeVercelUrl(
     req: BaseNextRequest | IncomingMessage,
-    trustQuery: boolean
+    trustQuery: boolean,
+    paramKeys?: string[]
   ) {
     // make sure to normalize req.url on Vercel to strip dynamic params
     // from the query which are added during routing
@@ -293,7 +297,7 @@ export function getUtils({
       const _parsedUrl = parseUrl(req.url!, true)
       delete (_parsedUrl as any).search
 
-      for (const param of Object.keys(defaultRouteRegex.groups)) {
+      for (const param of paramKeys || Object.keys(defaultRouteRegex.groups)) {
         delete _parsedUrl.query[param]
       }
       req.url = formatUrl(_parsedUrl)

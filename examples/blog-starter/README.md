@@ -47,6 +47,8 @@ or
 
 ```
 yarn create next-app --example blog-starter blog-starter-app
+# or
+pnpm create next-app -- --example blog-starter blog-starter-app
 
 ```
 
