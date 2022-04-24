@@ -223,6 +223,22 @@ export function collectAssets(
               if (
                 !options.dev &&
                 buildInfo &&
+                buildInfo.nextUsedNodejsRuntime?.size
+              ) {
+                for (const property of buildInfo.nextUsedNodejsRuntime) {
+                  const error = new wp.WebpackError(
+                    [
+                      `You're using a Node.js API (${property}) which is not supported in the Edge Runtime that Middleware uses (used in ${name}).`,
+                      `Learn more: nextjs.org/docs/api-reference/edge-runtime`,
+                    ].join('\n')
+                  )
+                  error.module = module
+                  compilation.errors.push(error)
+                }
+              }
+              if (
+                !options.dev &&
+                buildInfo &&
                 isUsedByExports({
                   module,
                   moduleGraph,
@@ -361,6 +377,13 @@ export function collectAssets(
 
             buildInfo.nextUsedEnvVars.add(envName)
             if (isMiddlewareModule()) return true
+          } else if (members[0] !== 'env' && isMiddlewareModule()) {
+            const { buildInfo } = parser.state.module
+            if (buildInfo.nextUsedNodejsRuntime === undefined) {
+              buildInfo.nextUsedNodejsRuntime = new Set()
+            }
+
+            buildInfo.nextUsedNodejsRuntime.add(`process.${members[0]}`)
           }
         }
 

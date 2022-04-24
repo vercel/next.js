@@ -47,19 +47,21 @@ const caches = new Map<
   }
 >()
 
+interface ModuleContextOptions {
+  module: string
+  onWarning: (warn: Error) => void
+  useCache: boolean
+  env: string[]
+  wasm: WasmBinding[]
+}
+
 /**
  * For a given module name this function will create a context for the
  * runtime. It returns a function where we can provide a module path and
  * run in within the context. It may or may not use a cache depending on
  * the parameters.
  */
-export async function getModuleContext(options: {
-  module: string
-  onWarning: (warn: Error) => void
-  useCache: boolean
-  env: string[]
-  wasm: WasmBinding[]
-}) {
+export async function getModuleContext(options: ModuleContextOptions) {
   let moduleCache = options.useCache
     ? caches.get(options.module)
     : await createModuleContext(options)
@@ -97,12 +99,9 @@ export async function getModuleContext(options: {
  * 2. Dependencies that require runtime globals such as Blob.
  * 3. Dependencies that are scoped for the provided parameters.
  */
-async function createModuleContext(options: {
-  onWarning: (warn: Error) => void
-  module: string
-  env: string[]
-  wasm: WasmBinding[]
-}) {
+async function createModuleContext(
+  options: Pick<ModuleContextOptions, 'onWarning' | 'module' | 'wasm' | 'env'>
+) {
   const requireCache = new Map([
     [require.resolve('next/dist/compiled/cookie'), { exports: cookie }],
   ])
@@ -181,10 +180,9 @@ async function createModuleContext(options: {
  * Create a base context with all required globals for the runtime that
  * won't depend on any externally provided dependency.
  */
-function createContext(options: {
-  /** Environment variables to be provided to the context */
-  env: string[]
-}) {
+function createContext(
+  options: Pick<ModuleContextOptions, 'env' | 'onWarning'>
+) {
   const context: { [key: string]: unknown } = {
     _ENTRIES: {},
     atob: polyfills.atob,
@@ -209,9 +207,7 @@ function createContext(options: {
     crypto: new polyfills.Crypto(),
     File,
     FormData,
-    process: {
-      env: buildEnvironmentVariablesFrom(options.env),
-    },
+    process: createProcessPolyfill(options),
     ReadableStream,
     setInterval,
     setTimeout,
@@ -283,4 +279,42 @@ async function loadWasm(
   )
 
   return modules
+}
+
+function createProcessPolyfill(
+  options: Pick<ModuleContextOptions, 'env' | 'onWarning'>
+) {
+  const env = buildEnvironmentVariablesFrom(options.env)
+
+  const processPolyfill = { env }
+
+  for (const key of Object.keys(process)) {
+    if (key === 'env') continue
+    const override: { value?: any } = {}
+    Object.defineProperty(processPolyfill, key, {
+      get() {
+        if ('value' in override) {
+          return override.value
+        }
+        const warning = new Error(
+          [
+            `You're using a Node.js API (process.${key}) which is not supported in the Edge Runtime that Middleware uses.`,
+            `Learn more: nextjs.org/docs/api-reference/edge-runtime`,
+          ].join('\n')
+        )
+        warning.name = 'NodejsRuntimeApiInMiddlewareWarning'
+        options.onWarning(warning)
+        console.warn(warning.message)
+        override.value = undefined
+
+        return undefined
+      },
+      set(value) {
+        override.value = value
+      },
+      enumerable: false,
+    })
+  }
+
+  return processPolyfill
 }
