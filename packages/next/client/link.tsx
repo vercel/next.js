@@ -29,6 +29,9 @@ export type LinkProps = {
   passHref?: boolean
   prefetch?: boolean
   locale?: string | false
+  oldBehavior?: boolean
+  onMouseEnter?: (e: React.MouseEvent) => void
+  onClick?: (e: React.MouseEvent) => void
 }
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<LinkProps>
@@ -154,6 +157,9 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       passHref: true,
       prefetch: true,
       locale: true,
+      onClick: true,
+      onMouseEnter: true,
+      oldBehavior: true,
     } as const
     const optionalProps: LinkPropsOptional[] = Object.keys(
       optionalPropsGuard
@@ -177,12 +183,21 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
             actual: valType,
           })
         }
+      } else if (key === 'onClick' || key === 'onMouseEnter') {
+        if (props[key] && valType !== 'function') {
+          throw createPropError({
+            key,
+            expected: '`function`',
+            actual: valType,
+          })
+        }
       } else if (
         key === 'replace' ||
         key === 'scroll' ||
         key === 'shallow' ||
         key === 'passHref' ||
-        key === 'prefetch'
+        key === 'prefetch' ||
+        key === 'oldBehavior'
       ) {
         if (props[key] != null && valType !== 'boolean') {
           throw createPropError({
@@ -201,13 +216,14 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const hasWarned = React.useRef(false)
-    if (props.prefetch && !hasWarned.current) {
+    if (props.oldBehavior && props.prefetch && !hasWarned.current) {
       hasWarned.current = true
       console.warn(
         'Next.js auto-prefetches automatically based on viewport. The prefetch attribute is no longer needed. More: https://nextjs.org/docs/messages/prefetch-true-deprecated'
       )
     }
   }
+
   const p = props.prefetch !== false
   const router = useRouter()
 
@@ -222,34 +238,50 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   const previousHref = React.useRef<string>(href)
   const previousAs = React.useRef<string>(as)
 
-  let { children, replace, shallow, scroll, locale } = props
+  let { children } = props
 
-  if (typeof children === 'string') {
+  const {
+    replace,
+    shallow,
+    scroll,
+    locale,
+    // TODO: change default in next major release
+    // Default to existing behavior
+    oldBehavior = true,
+    onClick,
+    onMouseEnter,
+  } = props
+
+  if (oldBehavior && typeof children === 'string') {
     children = <a>{children}</a>
   }
 
   // This will return the first child, if multiple are provided it will throw an error
   let child: any
-  if (process.env.NODE_ENV === 'development') {
-    try {
-      child = React.Children.only(children)
-    } catch (err) {
-      if (!children) {
+  if (oldBehavior) {
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        child = React.Children.only(children)
+      } catch (err) {
+        if (!children) {
+          throw new Error(
+            `No children were passed to <Link> with \`href\` of \`${props.href}\` but one child is required https://nextjs.org/docs/messages/link-no-children`
+          )
+        }
         throw new Error(
-          `No children were passed to <Link> with \`href\` of \`${props.href}\` but one child is required https://nextjs.org/docs/messages/link-no-children`
+          `Multiple children were passed to <Link> with \`href\` of \`${props.href}\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children` +
+            (typeof window !== 'undefined'
+              ? " \nOpen your browser's console to view the Component stack trace."
+              : '')
         )
       }
-      throw new Error(
-        `Multiple children were passed to <Link> with \`href\` of \`${props.href}\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children` +
-          (typeof window !== 'undefined'
-            ? " \nOpen your browser's console to view the Component stack trace."
-            : '')
-      )
+    } else {
+      child = React.Children.only(children)
     }
-  } else {
-    child = React.Children.only(children)
   }
-  const childRef: any = child && typeof child === 'object' && child.ref
+
+  const childRef: any =
+    oldBehavior && child && typeof child === 'object' && child.ref
 
   const [setIntersectionRef, isVisible, resetVisible] = useIntersection({
     rootMargin: '200px',
@@ -265,14 +297,14 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       }
 
       setIntersectionRef(el)
-      if (childRef) {
+      if (oldBehavior && childRef) {
         if (typeof childRef === 'function') childRef(el)
         else if (typeof childRef === 'object') {
           childRef.current = el
         }
       }
     },
-    [as, childRef, href, resetVisible, setIntersectionRef]
+    [as, childRef, href, resetVisible, setIntersectionRef, oldBehavior]
   )
   React.useEffect(() => {
     const shouldPrefetch = isVisible && p && isLocalURL(href)
@@ -302,7 +334,14 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
           )
         }
       }
-      if (child.props && typeof child.props.onClick === 'function') {
+      if (!oldBehavior && typeof onClick === 'function') {
+        onClick(e)
+      }
+      if (
+        oldBehavior &&
+        child.props &&
+        typeof child.props.onClick === 'function'
+      ) {
         child.props.onClick(e)
       }
       if (!e.defaultPrevented) {
@@ -312,7 +351,14 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   }
 
   childProps.onMouseEnter = (e: React.MouseEvent) => {
-    if (child.props && typeof child.props.onMouseEnter === 'function') {
+    if (!oldBehavior && typeof onMouseEnter === 'function') {
+      onMouseEnter(e)
+    }
+    if (
+      oldBehavior &&
+      child.props &&
+      typeof child.props.onMouseEnter === 'function'
+    ) {
       child.props.onMouseEnter(e)
     }
     if (isLocalURL(href)) {
@@ -343,7 +389,11 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       addBasePath(addLocale(as, curLocale, router && router.defaultLocale))
   }
 
-  return React.cloneElement(child, childProps)
+  return oldBehavior ? (
+    React.cloneElement(child, childProps)
+  ) : (
+    <a {...childProps}>{children}</a>
+  )
 }
 
 export default Link
