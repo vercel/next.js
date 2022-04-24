@@ -28,9 +28,9 @@ fn main() {
 
                 // Smart Pointer cast
                 let fs: FileSystemVc = disk_fs.into();
-                let input = FileSystemPathVc::new(fs.clone(), "demo");
-                let output = FileSystemPathVc::new(fs.clone(), "out");
-                let entry = FileSystemPathVc::new(fs.clone(), "demo/index.js");
+                let input = FileSystemPathVc::new(fs, "demo");
+                let output = FileSystemPathVc::new(fs, "out");
+                let entry = FileSystemPathVc::new(fs, "demo/index.js");
 
                 let source = SourceAssetVc::new(entry);
                 let module = turbopack::module(source.into());

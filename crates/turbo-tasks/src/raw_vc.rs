@@ -72,7 +72,7 @@ impl RawVc {
                 RawVc::TaskOutput(task) => SlotReadResult::Link(
                     Task::with_done_output(task, &tt, |_, output| {
                         Task::with_current(|reader, reader_id| {
-                            reader.add_dependency(current.clone());
+                            reader.add_dependency(current);
                             output.read(reader_id)
                         })
                     })
@@ -80,7 +80,7 @@ impl RawVc {
                 ),
                 RawVc::TaskCreated(task, index) => tt.with_task_and_tt(task, |task| {
                     Task::with_current(|reader, reader_id| {
-                        reader.add_dependency(current.clone());
+                        reader.add_dependency(current);
                         task.with_created_slot_mut(index, |slot| slot.read(reader_id))
                     })
                 })?,
@@ -129,13 +129,13 @@ impl RawVc {
                     }
                     Task::with_done_output(task, &tt, |_, output| {
                         Task::with_current(|reader, reader_id| {
-                            reader.add_dependency(current.clone());
+                            reader.add_dependency(current);
                             output.read(reader_id)
                         })
                     })
                     .await?
                 }
-                RawVc::TaskCreated(_, _) => return Ok(current.clone()),
+                RawVc::TaskCreated(_, _) => return Ok(current),
             }
         }
     }

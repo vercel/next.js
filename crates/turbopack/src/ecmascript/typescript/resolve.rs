@@ -21,11 +21,11 @@ use turbo_tasks_fs::{FileJsonContent, FileJsonContentVc, FileSystemPathVc};
 
 #[turbo_tasks::function]
 pub async fn typescript_resolve_options(context: FileSystemPathVc) -> Result<ResolveOptionsVc> {
-    let tsconfig = find_context_file(context.clone(), "tsconfig.json").await?;
+    let tsconfig = find_context_file(context, "tsconfig.json").await?;
     let mut resolve_options = apply_typescript_options(resolve_options(context));
-    match &*tsconfig {
+    match *tsconfig {
         FindContextFileResult::Found(path) => {
-            resolve_options = apply_tsconfig(resolve_options, path.clone());
+            resolve_options = apply_tsconfig(resolve_options, path);
         }
         FindContextFileResult::NotFound => {}
     }
@@ -65,19 +65,19 @@ pub async fn read_tsconfigs(
                 break;
             }
             FileJsonContent::Content(json) => {
-                configs.push((data, tsconfig.clone()));
+                configs.push((data, tsconfig));
                 if let Some(extends) = json["extends"].as_str() {
                     let context = tsconfig.path().parent();
-                    let options = resolve_options(context.clone());
+                    let options = resolve_options(context);
                     let result = cjs_resolve(
                         RequestVc::parse(Value::new(extends.to_string().into())),
                         context,
                         options,
                     )
                     .await?;
-                    if let ResolveResult::Single(asset, _) = &*result {
+                    if let ResolveResult::Single(asset, _) = *result {
                         data = asset.content().parse_json_with_comments();
-                        tsconfig = asset.clone();
+                        tsconfig = asset;
                     } else {
                         // TODO report to stream
                         println!(
@@ -97,11 +97,11 @@ pub async fn read_tsconfigs(
 
 pub async fn read_from_tsconfigs<T>(
     configs: &Vec<(FileJsonContentVc, AssetVc)>,
-    accessor: impl Fn(&JsonValue, &AssetVc) -> Option<T>,
+    accessor: impl Fn(&JsonValue, AssetVc) -> Option<T>,
 ) -> Result<Option<T>> {
-    for (config, source) in configs {
-        if let FileJsonContent::Content(json) = &*config.get().await? {
-            if let Some(result) = accessor(json, source) {
+    for (config, source) in configs.iter() {
+        if let FileJsonContent::Content(json) = &*config.await? {
+            if let Some(result) = accessor(json, *source) {
                 return Ok(Some(result));
             }
         }
@@ -115,7 +115,7 @@ async fn apply_tsconfig(
     tsconfig: FileSystemPathVc,
 ) -> Result<ResolveOptionsVc> {
     let configs = read_tsconfigs(
-        tsconfig.clone().read().parse_json_with_comments(),
+        tsconfig.read().parse_json_with_comments(),
         SourceAssetVc::new(tsconfig).into(),
     )
     .await?;
@@ -130,10 +130,10 @@ async fn apply_tsconfig(
     })
     .await?
     {
-        if let Some(base_url) = &*base_url.await? {
+        if let Some(base_url) = *base_url.await? {
             resolve_options
                 .modules
-                .insert(0, ResolveModules::Path(base_url.clone()));
+                .insert(0, ResolveModules::Path(base_url));
         }
     }
     let mut all_paths = HashMap::new();
@@ -142,8 +142,8 @@ async fn apply_tsconfig(
             if let JsonValue::Object(paths) = &json["compilerOptions"]["paths"] {
                 let mut context = source.path().parent();
                 if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str() {
-                    if let Some(new_context) = &*context.clone().try_join(base_url).await? {
-                        context = new_context.clone();
+                    if let Some(new_context) = *context.try_join(base_url).await? {
+                        context = new_context;
                     }
                 };
                 for (key, value) in paths.iter() {
@@ -153,7 +153,7 @@ async fn apply_tsconfig(
                         .collect();
                     all_paths.insert(
                         key.to_string(),
-                        ImportMapping::aliases(entries, Some(context.clone())),
+                        ImportMapping::aliases(entries, Some(context)),
                     );
                 }
             }
@@ -161,7 +161,7 @@ async fn apply_tsconfig(
     }
     if !all_paths.is_empty() {
         let mut import_map = if let Some(import_map) = resolve_options.import_map {
-            import_map.get().await?.clone()
+            import_map.await?.clone()
         } else {
             ImportMap::default()
         };
@@ -193,23 +193,17 @@ pub async fn type_resolve(
         None
     };
     let result = if let Some(types_request) = types_request {
-        let result1 = resolve(context.clone(), request.clone(), options.clone());
-        if !*result1.clone().is_unresolveable().await? {
+        let result1 = resolve(context, request, options);
+        if !*result1.is_unresolveable().await? {
             return Ok(result1);
         }
-        resolve(context.clone(), types_request, options)
+        resolve(context, types_request, options)
     } else {
-        resolve(context.clone(), request.clone(), options)
+        resolve(context, request, options)
     };
     let result = result.await?;
     let result = result
-        .map(
-            |a| module(a.clone()).resolve(),
-            |i| {
-                let i = i.clone();
-                async { Ok(i) }
-            },
-        )
+        .map(|a| module(a).resolve(), |i| async move { Ok(i) })
         .await?;
     if result.is_unresolveable() {
         // TODO report this to stream
@@ -233,8 +227,8 @@ pub struct TypescriptTypesAssetReference {
 #[turbo_tasks::value_impl]
 impl AssetReference for TypescriptTypesAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
-        let options = apply_typescript_types_options(self.options.clone());
-        type_resolve(self.request.clone(), self.context.clone(), options)
+        let options = apply_typescript_types_options(self.options);
+        type_resolve(self.request, self.context, options)
     }
 }
 

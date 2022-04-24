@@ -26,7 +26,6 @@ impl<T: Any + TraceRawVcs + Send + Sync> Vc<T> {
     /// when one of these changes.
     pub async fn get(&self) -> Result<RawVcReadResult<T>> {
         self.node
-            .clone()
             .into_read::<T>(TurboTasks::current().unwrap())
             .await
     }
@@ -135,7 +134,7 @@ impl<T: Any + TraceRawVcs + Send + Sync> From<Vc<T>> for RawVc {
 
 impl<T: Any + TraceRawVcs + Send + Sync> From<&Vc<T>> for RawVc {
     fn from(node_ref: &Vc<T>) -> Self {
-        node_ref.node.clone()
+        node_ref.node
     }
 }
 
@@ -147,7 +146,7 @@ impl<T: Any + TraceRawVcs + Send + Sync> From<Vc<T>> for TaskInput {
 
 impl<T: Any + TraceRawVcs + Send + Sync> From<&Vc<T>> for TaskInput {
     fn from(node_ref: &Vc<T>) -> Self {
-        node_ref.node.clone().into()
+        node_ref.node.into()
     }
 }
 
@@ -176,10 +175,18 @@ impl<T: Any + TraceRawVcs + Send + Sync> IntoFuture for Vc<T> {
     >;
 
     fn into_future(self) -> Self::IntoFuture {
-        Box::pin(
-            self.node
-                .clone()
-                .into_read::<T>(TurboTasks::current().unwrap()),
-        )
+        Box::pin(self.node.into_read::<T>(TurboTasks::current().unwrap()))
+    }
+}
+
+impl<T: Any + TraceRawVcs + Send + Sync> IntoFuture for &Vc<T> {
+    type Output = Result<RawVcReadResult<T>>;
+
+    type IntoFuture = Pin<
+        Box<dyn std::future::Future<Output = Result<RawVcReadResult<T>>> + Send + Sync + 'static>,
+    >;
+
+    fn into_future(self) -> Self::IntoFuture {
+        Box::pin(self.node.into_read::<T>(TurboTasks::current().unwrap()))
     }
 }

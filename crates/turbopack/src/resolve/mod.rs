@@ -100,7 +100,7 @@ impl ResolveResult {
                 *self = ResolveResult::Unresolveable(list)
             }
             ResolveResult::Single(asset, list) => {
-                *self = ResolveResult::Alternatives(HashSet::from([asset.clone()]), take(list))
+                *self = ResolveResult::Alternatives(HashSet::from([*asset]), take(list))
             }
             ResolveResult::Keyed(_, list) | ResolveResult::Special(_, list) => {
                 *self = ResolveResult::Unresolveable(take(list));
@@ -118,7 +118,7 @@ impl ResolveResult {
             }
             ResolveResult::Alternatives(assets, list) => match other {
                 ResolveResult::Single(asset, list2) => {
-                    assets.insert(asset.clone());
+                    assets.insert(*asset);
                     list.extend(list2.iter().cloned());
                 }
                 ResolveResult::Alternatives(assets2, list2) => {
@@ -135,10 +135,7 @@ impl ResolveResult {
             ResolveResult::Unresolveable(list) => match other {
                 ResolveResult::Single(asset, list2) => {
                     list.extend(list2.iter().cloned());
-                    *self = ResolveResult::Alternatives(
-                        [asset.clone()].into_iter().collect(),
-                        take(list),
-                    );
+                    *self = ResolveResult::Alternatives([*asset].into_iter().collect(), take(list));
                 }
                 ResolveResult::Alternatives(assets, list2) => {
                     list.extend(list2.iter().cloned());
@@ -162,45 +159,45 @@ impl ResolveResult {
         }
     }
 
-    pub async fn map<A, AF, R, RF>(&self, mut asset_fn: A, reference_fn: R) -> Result<Self>
+    pub async fn map<A, AF, R, RF>(&self, mut asset_fn: A, mut reference_fn: R) -> Result<Self>
     where
-        A: FnMut(&AssetVc) -> AF,
+        A: FnMut(AssetVc) -> AF,
         AF: Future<Output = Result<AssetVc>>,
-        R: FnMut(&AssetReferenceVc) -> RF,
+        R: FnMut(AssetReferenceVc) -> RF,
         RF: Future<Output = Result<AssetReferenceVc>>,
     {
         Ok(match self {
             ResolveResult::Nested(refs) => {
-                let refs = try_join_all(refs.iter().map(reference_fn)).await?;
+                let refs = try_join_all(refs.iter().map(|r| reference_fn(*r))).await?;
                 ResolveResult::Nested(refs)
             }
             ResolveResult::Single(asset, refs) => {
-                let asset = asset_fn(asset).await?;
-                let refs = try_join_all(refs.iter().map(reference_fn)).await?;
+                let asset = asset_fn(*asset).await?;
+                let refs = try_join_all(refs.iter().map(|r| reference_fn(*r))).await?;
                 ResolveResult::Single(asset, refs)
             }
             ResolveResult::Keyed(map, refs) => {
                 let mut new_map = HashMap::new();
                 for (key, value) in map.iter() {
-                    new_map.insert(key.clone(), asset_fn(value).await?);
+                    new_map.insert(key.clone(), asset_fn(*value).await?);
                 }
-                let refs = try_join_all(refs.iter().map(reference_fn)).await?;
+                let refs = try_join_all(refs.iter().map(|r| reference_fn(*r))).await?;
                 ResolveResult::Keyed(new_map, refs)
             }
             ResolveResult::Alternatives(assets, refs) => {
                 let mut new_assets = HashSet::new();
                 for asset in assets.iter() {
-                    new_assets.insert(asset_fn(asset).await?);
+                    new_assets.insert(asset_fn(*asset).await?);
                 }
-                let refs = try_join_all(refs.iter().map(reference_fn)).await?;
+                let refs = try_join_all(refs.iter().map(|r| reference_fn(*r))).await?;
                 ResolveResult::Alternatives(new_assets, refs)
             }
             ResolveResult::Special(ty, refs) => {
-                let refs = try_join_all(refs.iter().map(reference_fn)).await?;
+                let refs = try_join_all(refs.iter().map(|r| reference_fn(*r))).await?;
                 ResolveResult::Special(ty.clone(), refs)
             }
             ResolveResult::Unresolveable(refs) => {
-                let refs = try_join_all(refs.iter().map(reference_fn)).await?;
+                let refs = try_join_all(refs.iter().map(|r| reference_fn(*r))).await?;
                 ResolveResult::Unresolveable(refs)
             }
         })
@@ -232,19 +229,19 @@ impl ResolveResultVc {
     }
 
     pub async fn is_unresolveable(self) -> Result<Vc<bool>> {
-        let this = self.await?.clone();
+        let this = self.await?;
         Ok(Vc::slot(this.is_unresolveable()))
     }
 }
 
 #[turbo_tasks::function]
 pub async fn resolve_options(context: FileSystemPathVc) -> Result<ResolveOptionsVc> {
-    let parent = context.clone().parent().resolve().await?;
+    let parent = context.parent().resolve().await?;
     if parent != context {
         return Ok(resolve_options(parent));
     }
     let context_value = context.get().await?;
-    let root = FileSystemPathVc::new(context_value.fs.clone(), "");
+    let root = FileSystemPathVc::new(context_value.fs, "");
     let mut direct_mappings = PrefixTree::new();
     for req in [
         "assert",
@@ -304,13 +301,13 @@ pub async fn resolve_options(context: FileSystemPathVc) -> Result<ResolveOptions
     }
     let glob_mappings = vec![
         (
-            context.clone(),
-            GlobVc::new("**/*/next/dist/server/next.js").await?.clone(),
+            context,
+            GlobVc::new("**/*/next/dist/server/next.js"),
             ImportMapping::Ignore,
         ),
         (
-            context.clone(),
-            GlobVc::new("**/*/next/dist/bin/next").await?.clone(),
+            context,
+            GlobVc::new("**/*/next/dist/bin/next"),
             ImportMapping::Ignore,
         ),
     ];
@@ -425,8 +422,8 @@ pub async fn find_context_file(
 ) -> Result<FindContextFileResultVc> {
     let context_value = context.get().await?;
     if let Some(new_path) = join_path(&context_value.path, name) {
-        let fs_path = FileSystemPathVc::new_normalized(context_value.fs.clone(), new_path);
-        if exists(fs_path.clone()).await? {
+        let fs_path = FileSystemPathVc::new_normalized(context_value.fs, new_path);
+        if exists(fs_path).await? {
             return Ok(FindContextFileResult::Found(fs_path).into());
         }
     }
@@ -453,22 +450,20 @@ async fn find_package(
     for resolve_modules in &options.modules {
         match resolve_modules {
             ResolveModules::Nested(root, names) => {
-                let mut context = context.clone();
+                let mut context = context;
                 let mut context_value = context.get().await?;
                 while context_value.is_inside(&*root.get().await?) {
                     for name in names.iter() {
                         if let Some(nested_path) = join_path(&context_value.path, &name) {
                             if let Some(new_path) = join_path(&nested_path, &package_name) {
-                                let fs_path = FileSystemPathVc::new_normalized(
-                                    context_value.fs.clone(),
-                                    nested_path,
-                                );
+                                let fs_path =
+                                    FileSystemPathVc::new_normalized(context_value.fs, nested_path);
                                 if dir_exists(fs_path).await? {
                                     let fs_path = FileSystemPathVc::new_normalized(
-                                        context_value.fs.clone(),
+                                        context_value.fs,
                                         new_path,
                                     );
-                                    if dir_exists(fs_path.clone()).await? {
+                                    if dir_exists(fs_path).await? {
                                         return Ok(FindPackageResult::Package(fs_path).into());
                                     }
                                 }
@@ -484,8 +479,8 @@ async fn find_package(
                 }
             }
             ResolveModules::Path(context) => {
-                let package_dir = context.clone().join(&package_name);
-                if dir_exists(package_dir.clone()).await? {
+                let package_dir = context.join(&package_name);
+                if dir_exists(package_dir).await? {
                     return Ok(FindPackageResult::Package(package_dir.resolve().await?).into());
                 }
             }
@@ -509,50 +504,44 @@ pub async fn resolve_raw(
     path: PatternVc,
     force_in_context: bool,
 ) -> Result<ResolveResultVc> {
-    fn to_result(path: &FileSystemPathVc) -> ResolveResultVc {
-        ResolveResult::Single(SourceAssetVc::new(path.clone()).into(), Vec::new()).into()
+    fn to_result(path: FileSystemPathVc) -> ResolveResultVc {
+        ResolveResult::Single(SourceAssetVc::new(path).into(), Vec::new()).into()
     }
     let mut results = Vec::new();
     let pat = path.get().await?;
     if let Some(pat) = pat.filter_could_match("/ROOT/") {
         if let Some(pat) = pat.filter_could_not_match("/ROOT/fsd8nz8og54z") {
             let path = PatternVc::new(pat);
-            let matches = read_matches(
-                context.clone().root(),
-                "/ROOT/".to_string(),
-                true,
-                path.clone(),
-            )
-            .await?;
+            let matches = read_matches(context.root(), "/ROOT/".to_string(), true, path).await?;
             if matches.len() > 10000 {
                 println!(
                     "WARN: resolving abs pattern {} in {} leads to {} results",
                     path.to_string().await?,
-                    context.clone().to_string().await?,
+                    context.to_string().await?,
                     matches.len()
                 );
             } else {
                 for m in matches.iter() {
                     if let PatternMatch::File(_, path) = m {
-                        results.push(to_result(&path));
+                        results.push(to_result(*path));
                     }
                 }
             }
         }
     }
     {
-        let matches = read_matches(context.clone(), "".to_string(), force_in_context, path).await?;
+        let matches = read_matches(context, "".to_string(), force_in_context, path).await?;
         if matches.len() > 10000 {
             println!(
                 "WARN: resolving pattern {} in {} leads to {} results",
                 pat.to_string(),
-                context.clone().to_string().await?,
+                context.to_string().await?,
                 matches.len()
             );
         }
         for m in matches.iter() {
             if let PatternMatch::File(_, path) = m {
-                results.push(to_result(&path));
+                results.push(to_result(*path));
             }
         }
     }
@@ -567,19 +556,15 @@ pub async fn resolve(
 ) -> Result<ResolveResultVc> {
     fn resolve_import_map_result(
         result: &ImportMapResult,
-        context: &FileSystemPathVc,
-        options: &ResolveOptionsVc,
+        context: FileSystemPathVc,
+        options: ResolveOptionsVc,
     ) -> ResolveResultVc {
         match result {
             ImportMapResult::Result(result) => {
-                return result.clone();
+                return *result;
             }
             ImportMapResult::Alias(request, alias_context) => {
-                return resolve(
-                    alias_context.as_ref().unwrap_or(&context).clone(),
-                    request.clone(),
-                    options.clone(),
-                );
+                return resolve(alias_context.unwrap_or(context), *request, options);
             }
             ImportMapResult::Alternatives(list) => {
                 return ResolveResultVc::alternatives(
@@ -593,15 +578,15 @@ pub async fn resolve(
     }
     async fn resolved(
         fs_path: FileSystemPathVc,
-        resolved_map: &Option<ResolvedMapVc>,
-        options: &ResolveOptionsVc,
+        resolved_map: Option<ResolvedMapVc>,
+        options: ResolveOptionsVc,
     ) -> Result<ResolveResultVc> {
         if let Some(resolved_map) = resolved_map {
-            let result = resolved_map.clone().lookup(fs_path.clone()).await?;
+            let result = resolved_map.lookup(fs_path).await?;
             if !matches!(&*result, ImportMapResult::NoEntry) {
                 return Ok(resolve_import_map_result(
                     &*result,
-                    &fs_path.clone().parent(),
+                    fs_path.parent(),
                     options,
                 ));
             }
@@ -610,9 +595,9 @@ pub async fn resolve(
     }
 
     fn handle_exports_field(
-        package_path: &FileSystemPathVc,
-        package_json: &FileSystemPathVc,
-        options: &ResolveOptionsVc,
+        package_path: FileSystemPathVc,
+        package_json: FileSystemPathVc,
+        options: ResolveOptionsVc,
         exports_field: &ExportsField,
         path: &str,
         conditions: &BTreeMap<String, ConditionValue>,
@@ -641,20 +626,20 @@ pub async fn resolve(
         for path in results {
             if let Some(path) = normalize_path(path) {
                 let request = RequestVc::parse(Value::new(format!("./{}", path).into()));
-                resolved_results.push(resolve(package_path.clone(), request, options.clone()));
+                resolved_results.push(resolve(package_path, request, options));
             }
         }
         // other options do not apply anymore when an exports field exist
         let resolved = merge_results(resolved_results);
-        let resolved = resolved
-            .add_reference(AffectingResolvingAssetReferenceVc::new(package_json.clone()).into());
+        let resolved =
+            resolved.add_reference(AffectingResolvingAssetReferenceVc::new(package_json).into());
         return Ok(resolved);
     }
 
     async fn resolve_into_folder(
-        package_path: &FileSystemPathVc,
-        package_json: &Option<(FileJsonContentVc, FileSystemPathVc)>,
-        options: &ResolveOptionsVc,
+        package_path: FileSystemPathVc,
+        package_json: Option<(FileJsonContentVc, FileSystemPathVc)>,
+        options: ResolveOptionsVc,
     ) -> Result<ResolveResultVc> {
         let options_value = options.get().await?;
         for resolve_into_package in options_value.into_package.iter() {
@@ -668,27 +653,24 @@ pub async fn resolve(
                             )
                         })?;
                     let request = RequestVc::parse(Value::new(str.into()));
-                    return Ok(resolve(package_path.clone(), request, options.clone()));
+                    return Ok(resolve(package_path, request, options));
                 }
                 ResolveIntoPackage::MainField(name) => {
-                    if let Some((ref package_json, ref package_json_path)) = package_json {
+                    if let Some((package_json, package_json_path)) = package_json {
                         if let FileJsonContent::Content(package_json) = &*package_json.get().await?
                         {
                             if let Some(field_value) = package_json[name].as_str() {
                                 let request = RequestVc::parse(Value::new(
                                     normalize_request(&field_value).into(),
                                 ));
-                                let result =
-                                    resolve(package_path.clone(), request, options.clone()).await?;
+                                let result = resolve(package_path, request, options).await?;
                                 // we are not that strict when a main field fails to resolve
                                 // we continue to try other alternatives
                                 if !result.is_unresolveable() {
                                     let mut result = result.clone();
                                     result.add_reference(
-                                        AffectingResolvingAssetReferenceVc::new(
-                                            package_json_path.clone(),
-                                        )
-                                        .into(),
+                                        AffectingResolvingAssetReferenceVc::new(package_json_path)
+                                            .into(),
                                     );
                                     return Ok(result.into());
                                 }
@@ -701,15 +683,15 @@ pub async fn resolve(
                     conditions,
                     unspecified_conditions,
                 } => {
-                    if let Some((ref package_json, ref package_json_path)) = package_json {
+                    if let Some((package_json, package_json_path)) = package_json {
                         if let ExportsFieldResult::Some(exports_field) =
-                            &*exports_field(package_json.clone(), field).await?
+                            &*exports_field(package_json, field).await?
                         {
                             // other options do not apply anymore when an exports field exist
                             return handle_exports_field(
                                 package_path,
-                                &package_json_path,
-                                &options,
+                                package_json_path,
+                                options,
                                 exports_field,
                                 ".",
                                 conditions,
@@ -727,9 +709,9 @@ pub async fn resolve(
 
     // Apply import mappings if provided
     if let Some(import_map) = &options_value.import_map {
-        let result = import_map.clone().lookup(request.clone()).await?;
+        let result = import_map.lookup(request).await?;
         if !matches!(&*result, ImportMapResult::NoEntry) {
-            return Ok(resolve_import_map_result(&*result, &context, &options));
+            return Ok(resolve_import_map_result(&*result, context, options));
         }
     }
 
@@ -739,7 +721,7 @@ pub async fn resolve(
         Request::Alternatives { requests } => {
             let results = requests
                 .iter()
-                .map(|req| resolve(context.clone(), req.clone(), options.clone()))
+                .map(|req| resolve(context, *req, options))
                 .collect();
             merge_results(results)
         }
@@ -759,24 +741,20 @@ pub async fn resolve(
             for m in matches.iter() {
                 match m {
                     PatternMatch::File(_, path) => {
-                        results.push(
-                            resolved(path.clone(), &options_value.resolved_map, &options).await?,
-                        );
+                        results.push(resolved(*path, options_value.resolved_map, options).await?);
                     }
                     PatternMatch::Directory(_, path) => {
                         let path_value = path.get().await?;
                         let package_json = {
                             if let Some(new_path) = join_path(&path_value.path, "package.json") {
-                                let fs_path = FileSystemPathVc::new_normalized(
-                                    path_value.fs.clone(),
-                                    new_path,
-                                );
-                                Some((fs_path.clone().read_json(), fs_path))
+                                let fs_path =
+                                    FileSystemPathVc::new_normalized(path_value.fs, new_path);
+                                Some((fs_path.read_json(), fs_path))
                             } else {
                                 None
                             }
                         };
-                        results.push(resolve_into_folder(&path, &package_json, &options).await?);
+                        results.push(resolve_into_folder(*path, package_json, options).await?);
                     }
                 }
             }
@@ -802,31 +780,24 @@ pub async fn resolve(
             )
         }
         Request::Module { module, path } => {
-            let package = find_package(
-                context,
-                module.clone(),
-                resolve_modules_options(options.clone()),
-            );
-            match &*package.await? {
+            let package = find_package(context, module.clone(), resolve_modules_options(options));
+            match *package.await? {
                 FindPackageResult::Package(package_path) => {
                     let package_path_value = package_path.get().await?;
                     let package_json = {
                         if let Some(new_path) = join_path(&package_path_value.path, "package.json")
                         {
-                            let fs_path = FileSystemPathVc::new_normalized(
-                                package_path_value.fs.clone(),
-                                new_path,
-                            );
-                            Some((fs_path.clone().read_json(), fs_path))
+                            let fs_path =
+                                FileSystemPathVc::new_normalized(package_path_value.fs, new_path);
+                            Some((fs_path.read_json(), fs_path))
                         } else {
                             None
                         }
                     };
                     let mut results = Vec::new();
                     if path.is_match("") {
-                        results.push(
-                            resolve_into_folder(&package_path, &package_json, &options).await?,
-                        );
+                        results
+                            .push(resolve_into_folder(package_path, package_json, options).await?);
                     }
                     if path.could_match_others("") {
                         for resolve_into_package in options_value.into_package.iter() {
@@ -840,18 +811,16 @@ pub async fn resolve(
                                     conditions,
                                     unspecified_conditions,
                                 } => {
-                                    if let Some((ref package_json, ref package_json_path)) =
-                                        package_json
-                                    {
+                                    if let Some((package_json, package_json_path)) = package_json {
                                         if let ExportsFieldResult::Some(exports_field) =
-                                            &*exports_field(package_json.clone(), field).await?
+                                            &*exports_field(package_json, field).await?
                                         {
                                             if let Some(path) = path.clone().into_string() {
                                                 results.push(handle_exports_field(
                                                     package_path,
-                                                    &package_json_path,
-                                                    &options,
-                                                    exports_field,
+                                                    package_json_path,
+                                                    options,
+                                                    &exports_field,
                                                     &format!(".{path}"),
                                                     conditions,
                                                     unspecified_conditions,
@@ -873,7 +842,7 @@ pub async fn resolve(
                         let mut new_pat = path.clone();
                         new_pat.push_front(".".to_string().into());
                         let relative = RequestVc::relative(Value::new(new_pat), true);
-                        results.push(resolve(package_path.clone(), relative, options.clone()));
+                        results.push(resolve(package_path, relative, options));
                     }
                     merge_results(results)
                 }
@@ -884,7 +853,7 @@ pub async fn resolve(
             let mut new_pat = path.clone();
             new_pat.push_front(".".to_string().into());
             let relative = RequestVc::relative(Value::new(new_pat), true);
-            resolve(context.root(), relative, options.clone())
+            resolve(context.root(), relative, options)
         }
         Request::Windows { path: _ } => ResolveResult::unresolveable().into(),
         Request::Empty => ResolveResult::unresolveable().into(),
@@ -912,6 +881,6 @@ impl AffectingResolvingAssetReferenceVc {
 #[turbo_tasks::value_impl]
 impl AssetReference for AffectingResolvingAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::Single(SourceAssetVc::new(self.file.clone()).into(), Vec::new()).into()
+        ResolveResult::Single(SourceAssetVc::new(self.file).into(), Vec::new()).into()
     }
 }

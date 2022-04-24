@@ -14,19 +14,17 @@ pub struct ModuleAsset {
 #[turbo_tasks::value_impl]
 impl ModuleAssetVc {
     pub fn new(source: AssetVc) -> Self {
-        Self::slot(ModuleAsset {
-            source: source.clone(),
-        })
+        Self::slot(ModuleAsset { source })
     }
 }
 
 #[turbo_tasks::value_impl]
 impl Asset for ModuleAsset {
     fn path(&self) -> FileSystemPathVc {
-        self.source.clone().path()
+        self.source.path()
     }
     fn content(&self) -> FileContentVc {
-        self.source.clone().content()
+        self.source.content()
     }
     fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
         Vc::default()

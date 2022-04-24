@@ -62,9 +62,9 @@ pub async fn module_references(
     let mut references = Vec::new();
     let path = source.path();
 
-    match &*find_context_file(path.clone().parent(), "package.json").await? {
+    match &*find_context_file(path.parent(), "package.json").await? {
         FindContextFileResult::Found(package_json) => {
-            references.push(PackageJsonReferenceVc::new(package_json.clone()).into());
+            references.push(PackageJsonReferenceVc::new(*package_json).into());
         }
         FindContextFileResult::NotFound => {}
     };
@@ -75,9 +75,9 @@ pub async fn module_references(
     };
 
     if is_typescript {
-        match &*find_context_file(path.clone().parent(), "tsconfig.json").await? {
+        match &*find_context_file(path.parent(), "tsconfig.json").await? {
             FindContextFileResult::Found(tsconfig) => {
-                references.push(TsConfigReferenceVc::new(tsconfig.clone()).into());
+                references.push(TsConfigReferenceVc::new(*tsconfig).into());
             }
             FindContextFileResult::NotFound => {}
         };
@@ -85,7 +85,7 @@ pub async fn module_references(
 
     special_cases(&path.get().await?.path, &mut references);
 
-    let parsed = parse(source.clone(), ty).await?;
+    let parsed = parse(source, ty).await?;
     match &*parsed {
         ParseResult::Ok {
             program,
@@ -116,7 +116,7 @@ pub async fn module_references(
                                     let path = &m[1];
                                     references.push(
                                         TsReferencePathAssetReferenceVc::new(
-                                            source.clone(),
+                                            source,
                                             path.to_string(),
                                         )
                                         .into(),
@@ -125,7 +125,7 @@ pub async fn module_references(
                                     let types = &m[1];
                                     references.push(
                                         TsReferenceTypeAssetReferenceVc::new(
-                                            source.clone(),
+                                            source,
                                             types.to_string(),
                                         )
                                         .into(),
@@ -163,24 +163,24 @@ pub async fn module_references(
             let mut ignore_effect_span = None;
             // Check if it was a webpack entry
             if let Some((request, span)) = webpack_runtime {
-                let request = RequestVc::parse(Value::new(request.clone().into()));
-                let runtime = resolve_as_webpack_runtime(source.path().parent(), request.clone());
+                let request = RequestVc::parse(Value::new(request.into()));
+                let runtime = resolve_as_webpack_runtime(source.path().parent(), request);
                 match &*runtime.get().await? {
                     WebpackRuntime::Webpack5 { .. } => {
                         ignore_effect_span = Some(span);
                         references.push(
                             WebpackRuntimeAssetReference {
-                                source: source.clone(),
+                                source: source,
                                 request: request,
-                                runtime: runtime.clone(),
+                                runtime: runtime,
                             }
                             .into(),
                         );
                         if webpack_entry {
                             references.push(
                                 WebpackEntryAssetReference {
-                                    source: source.clone(),
-                                    runtime: runtime.clone(),
+                                    source: source,
+                                    runtime: runtime,
                                 }
                                 .into(),
                             );
@@ -189,7 +189,7 @@ pub async fn module_references(
                             references.push(
                                 WebpackChunkAssetReference {
                                     chunk_id: chunk,
-                                    runtime: runtime.clone(),
+                                    runtime: runtime,
                                 }
                                 .into(),
                             );
@@ -279,7 +279,7 @@ pub async fn module_references(
                             }
                             references.push(
                                 EsmAssetReferenceVc::new(
-                                    source.clone(),
+                                    *source,
                                     RequestVc::parse(Value::new(pat)),
                                     is_typescript,
                                 )
@@ -312,7 +312,7 @@ pub async fn module_references(
                             }
                             references.push(
                                 CjsAssetReferenceVc::new(
-                                    source.clone(),
+                                    *source,
                                     RequestVc::parse(Value::new(pat)),
                                     is_typescript,
                                 )
@@ -346,7 +346,7 @@ pub async fn module_references(
                             }
                             references.push(
                                 CjsAssetReferenceVc::new(
-                                    source.clone(),
+                                    *source,
                                     RequestVc::parse(Value::new(pat)),
                                     is_typescript,
                                 )
@@ -380,9 +380,8 @@ pub async fn module_references(
                                     ),
                                 )
                             }
-                            references.push(
-                                SourceAssetReferenceVc::new(source.clone(), pat.into()).into(),
-                            );
+                            references
+                                .push(SourceAssetReferenceVc::new(*source, pat.into()).into());
                             return Ok(());
                         }
                         let (args, hints) = explain_args(&args);
@@ -411,8 +410,7 @@ pub async fn module_references(
                                 ),
                             )
                         }
-                        references
-                            .push(SourceAssetReferenceVc::new(source.clone(), pat.into()).into());
+                        references.push(SourceAssetReferenceVc::new(*source, pat.into()).into());
                         return Ok(());
                     }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawnMethod(
@@ -432,7 +430,7 @@ pub async fn module_references(
                                 }
                                 references.push(
                                     CjsAssetReferenceVc::new(
-                                        source.clone(),
+                                        *source,
                                         RequestVc::parse(Value::new(pat)),
                                         is_typescript,
                                     )
@@ -450,9 +448,8 @@ pub async fn module_references(
                                     ),
                                 );
                             }
-                            references.push(
-                                SourceAssetReferenceVc::new(source.clone(), pat.into()).into(),
-                            );
+                            references
+                                .push(SourceAssetReferenceVc::new(*source, pat.into()).into());
                             return Ok(());
                         }
                         let (args, hints) = explain_args(&args);
@@ -485,7 +482,7 @@ pub async fn module_references(
                             }
                             references.push(
                                 CjsAssetReferenceVc::new(
-                                    source.clone(),
+                                    *source,
                                     RequestVc::parse(Value::new(pat)),
                                     is_typescript,
                                 )
@@ -605,7 +602,7 @@ async fn value_visitor_inner(source: &AssetVc, v: JsValue) -> Result<(JsValue, b
                     let pat = js_value_to_pattern(&args[0]);
                     let request = RequestVc::parse(Value::new(pat.clone()));
                     let context = source.path().parent();
-                    let resolve_options = resolve_options(context.clone());
+                    let resolve_options = resolve_options(context);
                     let resolved = cjs_resolve(request, context, resolve_options).await?;
                     match &*resolved {
                         ResolveResult::Single(asset, _) => as_abs_path(asset.path()).await?,
@@ -759,8 +756,8 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
         let src = export.src.value.to_string();
         self.references.push(
             EsmAssetReferenceVc::new(
-                self.source.clone(),
-                RequestVc::parse(Value::new(src.clone().into())),
+                *self.source,
+                RequestVc::parse(Value::new(src.into())),
                 self.is_typescript,
             )
             .into(),
@@ -772,8 +769,8 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
             let src = src.value.to_string();
             self.references.push(
                 EsmAssetReferenceVc::new(
-                    self.source.clone(),
-                    RequestVc::parse(Value::new(src.clone().into())),
+                    *self.source,
+                    RequestVc::parse(Value::new(src.into())),
                     self.is_typescript,
                 )
                 .into(),
@@ -785,7 +782,7 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
         let src = import.src.value.to_string();
         self.references.push(
             EsmAssetReferenceVc::new(
-                self.source.clone(),
+                *self.source,
                 RequestVc::parse(Value::new(src.clone().into())),
                 self.is_typescript,
             )
@@ -838,10 +835,8 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
                                     if let [ExprOrSpread { spread: None, expr }] = &call.args[..] {
                                         if let Some(lit) = expr.as_lit() {
                                             if let Lit::Str(str) = lit {
-                                                self.webpack_runtime = Some((
-                                                    str.value.to_string(),
-                                                    call.span.clone(),
-                                                ));
+                                                self.webpack_runtime =
+                                                    Some((str.value.to_string(), call.span));
                                                 return;
                                             }
                                         }
@@ -899,14 +894,14 @@ async fn resolve_as_webpack_runtime(
     context: FileSystemPathVc,
     request: RequestVc,
 ) -> Result<WebpackRuntimeVc> {
-    let options = resolve_options(context.clone());
+    let options = resolve_options(context);
 
     let options = apply_cjs_specific_options(options);
 
-    let resolved = resolve(context.clone(), request.clone(), options);
+    let resolved = resolve(context, request, options);
 
     if let ResolveResult::Single(source, _) = &*resolved.await? {
-        Ok(is_webpack_runtime(source.clone()))
+        Ok(is_webpack_runtime(*source))
     } else {
         Ok(WebpackRuntime::None.into())
     }
@@ -928,11 +923,7 @@ impl PackageJsonReferenceVc {
 #[turbo_tasks::value_impl]
 impl AssetReference for PackageJsonReference {
     fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::Single(
-            SourceAssetVc::new(self.package_json.clone()).into(),
-            Vec::new(),
-        )
-        .into()
+        ResolveResult::Single(SourceAssetVc::new(self.package_json).into(), Vec::new()).into()
     }
 }
 
@@ -953,7 +944,7 @@ impl TsConfigReferenceVc {
 impl AssetReference for TsConfigReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(
-            TsConfigModuleAssetVc::new(SourceAssetVc::new(self.tsconfig.clone()).into()).into(),
+            TsConfigModuleAssetVc::new(SourceAssetVc::new(self.tsconfig).into()).into(),
             Vec::new(),
         )
         .into()
@@ -985,11 +976,11 @@ impl AssetReference for EsmAssetReference {
         let context = self.source.path().parent();
 
         let options = if self.from_typescript {
-            typescript_resolve_options(context.clone())
+            typescript_resolve_options(context)
         } else {
-            resolve_options(context.clone())
+            resolve_options(context)
         };
-        esm_resolve(self.request.clone(), context, options)
+        esm_resolve(self.request, context, options)
     }
 }
 
@@ -1018,11 +1009,11 @@ impl AssetReference for CjsAssetReference {
         let context = self.source.path().parent();
 
         let options = if self.from_typescript {
-            typescript_resolve_options(context.clone())
+            typescript_resolve_options(context)
         } else {
-            resolve_options(context.clone())
+            resolve_options(context)
         };
-        cjs_resolve(self.request.clone(), context, options)
+        cjs_resolve(self.request, context, options)
     }
 }
 
@@ -1045,11 +1036,8 @@ impl AssetReference for TsReferencePathAssetReference {
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
         let context = self.source.path().parent();
         Ok(if let Some(path) = &*context.try_join(&self.path).await? {
-            ResolveResult::Single(
-                crate::module(SourceAssetVc::new(path.clone()).into()),
-                Vec::new(),
-            )
-            .into()
+            ResolveResult::Single(crate::module(SourceAssetVc::new(*path).into()), Vec::new())
+                .into()
         } else {
             ResolveResult::unresolveable().into()
         })
@@ -1074,7 +1062,7 @@ impl TsReferenceTypeAssetReferenceVc {
 impl AssetReference for TsReferenceTypeAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         let context = self.source.path().parent();
-        let options = typescript_types_resolve_options(context.clone());
+        let options = typescript_types_resolve_options(context);
         type_resolve(
             RequestVc::module(self.module.clone(), Value::new("".to_string().into())),
             context,
@@ -1102,6 +1090,6 @@ impl AssetReference for SourceAssetReference {
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
         let context = self.source.path().parent();
 
-        Ok(resolve_raw(context, self.path.clone(), false))
+        Ok(resolve_raw(context, self.path, false))
     }
 }

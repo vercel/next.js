@@ -43,12 +43,12 @@ impl ModuleAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for ModuleAsset {
     fn path(&self) -> FileSystemPathVc {
-        self.source.clone().path()
+        self.source.path()
     }
     fn content(&self) -> FileContentVc {
-        self.source.clone().content()
+        self.source.content()
     }
     fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
-        module_references(self.source.clone(), Value::new(self.ty))
+        module_references(self.source, Value::new(self.ty))
     }
 }

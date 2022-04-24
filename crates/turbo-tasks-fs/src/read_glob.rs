@@ -49,24 +49,19 @@ async fn read_glob_internal(
                         if glob_value.execute(&full_path) {
                             result
                                 .results
-                                .insert(full_path.clone(), DirectoryEntry::Directory(path.clone()));
+                                .insert(full_path.clone(), DirectoryEntry::Directory(*path));
                         }
                         if glob_value.execute(&full_path_prefix) {
                             result.inner.insert(
                                 full_path,
-                                read_glob_inner(
-                                    full_path_prefix,
-                                    path.clone(),
-                                    glob.clone(),
-                                    include_dot_files,
-                                ),
+                                read_glob_inner(full_path_prefix, *path, glob, include_dot_files),
                             );
                         }
                     }
                     (segment, entry) => {
                         let full_path = format!("{prefix}{segment}");
                         if glob_value.execute(&full_path) {
-                            result.results.insert(full_path, entry.clone());
+                            result.results.insert(full_path, *entry);
                         }
                     }
                 }

@@ -15,7 +15,7 @@ use swc_ecmascript::ast::{EsVersion, Program};
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, Parser, Syntax, TsConfig};
 use swc_ecmascript::visit::VisitMutWith;
-use turbo_tasks::Value;
+use turbo_tasks::{Value, ValueToString};
 use turbo_tasks_fs::FileContent;
 
 use crate::analyzer::graph::EvalContext;
@@ -114,7 +114,7 @@ impl Write for Buffer {
 #[turbo_tasks::function]
 pub async fn parse(source: AssetVc, ty: Value<ModuleAssetType>) -> Result<ParseResultVc> {
     let content = source.content();
-    let fs_path = source.path().await?;
+    let fs_path = source.path().to_string().await?.clone();
     let ty = ty.into_value();
     Ok(match &*content.await? {
         FileContent::NotFound => ParseResult::NotFound.into(),
@@ -127,7 +127,7 @@ pub async fn parse(source: AssetVc, ty: Value<ModuleAssetType>) -> Result<ParseR
                     let handler =
                         Handler::with_emitter_writer(Box::new(buf.clone()), Some(cm.clone()));
 
-                    let fm = cm.new_source_file(FileName::Custom(fs_path.path.clone()), string);
+                    let fm = cm.new_source_file(FileName::Custom(fs_path), string);
 
                     let comments = SingleThreadedComments::default();
                     let lexer = Lexer::new(

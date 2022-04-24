@@ -2,7 +2,10 @@ use std::collections::BTreeMap;
 
 use anyhow::Result;
 use turbo_tasks::{trace::TraceRawVcs, Value, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPathVc};
+use turbo_tasks_fs::{
+    glob::{Glob, GlobVc},
+    FileSystemPathVc,
+};
 
 use crate::resolve::parse::RequestVc;
 
@@ -145,7 +148,7 @@ pub struct ImportMap {
 #[turbo_tasks::value(shared)]
 #[derive(PartialEq, Eq, Clone, Debug, Default)]
 pub struct ResolvedMap {
-    pub by_glob: Vec<(FileSystemPathVc, Glob, ImportMapping)>,
+    pub by_glob: Vec<(FileSystemPathVc, GlobVc, ImportMapping)>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -216,9 +219,9 @@ impl ResolvedMapVc {
         let this = self.await?;
         let resolved = resolved.await?;
         for (root, glob, mapping) in this.by_glob.iter() {
-            let root = root.get().await?;
+            let root = root.await?;
             if let Some(path) = root.get_path_to(&resolved) {
-                if glob.execute(path) {
+                if glob.await?.execute(path) {
                     return Ok(import_mapping_to_result(&mapping).into());
                 }
             }

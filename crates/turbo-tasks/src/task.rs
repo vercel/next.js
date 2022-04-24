@@ -330,12 +330,10 @@ impl Task {
 
     #[cfg(not(feature = "report_expensive"))]
     fn clear_dependencies(&self, turbo_tasks: &TurboTasks) {
+        use std::mem::take;
+
         let mut execution_data = self.execution_data.lock().unwrap();
-        let dependencies = execution_data
-            .dependencies
-            .drain()
-            .map(|d| d.clone())
-            .collect::<Vec<_>>();
+        let dependencies = take(&mut execution_data.dependencies);
         drop(execution_data);
 
         for dep in dependencies.into_iter() {
@@ -347,11 +345,7 @@ impl Task {
     fn clear_dependencies(&self) {
         let start = Instant::now();
         let mut execution_data = self.execution_data.lock().unwrap();
-        let dependencies = execution_data
-            .dependencies
-            .drain()
-            .map(|d| d.clone())
-            .collect::<Vec<_>>();
+        let dependencies = take(&mut execution_data.dependencies);
         drop(execution_data);
 
         let count = dependencies.len();
@@ -759,7 +753,7 @@ impl Task {
         {
             let state = self.state.read().unwrap();
             for child in state.children.iter() {
-                refs.push((stats::ReferenceType::Child, child.clone()));
+                refs.push((stats::ReferenceType::Child, *child));
             }
         }
         {

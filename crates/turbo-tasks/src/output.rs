@@ -46,7 +46,7 @@ impl Output {
         match &self.content {
             OutputContent::Empty => Err(anyhow!("Output it empty")),
             OutputContent::Error(err) => Err(err.clone().into()),
-            OutputContent::Link(raw_vc) => Ok(raw_vc.clone()),
+            OutputContent::Link(raw_vc) => Ok(*raw_vc),
         }
     }
 

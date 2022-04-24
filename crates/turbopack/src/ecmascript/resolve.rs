@@ -68,22 +68,16 @@ async fn specific_resolve(
     context: FileSystemPathVc,
     options: ResolveOptionsVc,
 ) -> Result<ResolveResultVc> {
-    let result = resolve(context.clone(), request.clone(), options.clone());
+    let result = resolve(context, request, options);
 
     Ok(match result.await {
         Ok(result) => {
             let mut result = result
-                .map(
-                    |a| module(a.clone()).resolve(),
-                    |i| {
-                        let i = i.clone();
-                        async { Ok(i) }
-                    },
-                )
+                .map(|a| module(a).resolve(), |i| async move { Ok(i) })
                 .await?;
-            if *options.clone().resolve_typescript_types().await? {
+            if *options.resolve_typescript_types().await? {
                 let types_reference =
-                    TypescriptTypesAssetReferenceVc::new(request.clone(), context.clone(), options);
+                    TypescriptTypesAssetReferenceVc::new(request, context, options);
                 result.add_reference(types_reference.into());
             }
             match &result {

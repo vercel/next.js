@@ -37,13 +37,13 @@ impl ModuleAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for ModuleAsset {
     fn path(&self) -> FileSystemPathVc {
-        self.source.clone().path()
+        self.source.path()
     }
     fn content(&self) -> FileContentVc {
-        self.source.clone().content()
+        self.source.content()
     }
     async fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
-        module_references(self.source.clone(), self.runtime.clone())
+        module_references(self.source, self.runtime)
     }
 }
 
@@ -71,13 +71,10 @@ impl AssetReference for WebpackChunkAssetReference {
                     _ => todo!(),
                 };
                 let filename = format!("./chunks/{}.js", chunk_id);
-                let source = SourceAssetVc::new(context_path.clone().join(&filename)).into();
+                let source = SourceAssetVc::new(context_path.join(&filename)).into();
 
-                ResolveResult::Single(
-                    ModuleAssetVc::new(source, self.runtime.clone()).into(),
-                    Vec::new(),
-                )
-                .into()
+                ResolveResult::Single(ModuleAssetVc::new(source, self.runtime).into(), Vec::new())
+                    .into()
             }
             WebpackRuntime::None => ResolveResult::unresolveable().into(),
         })
@@ -95,7 +92,7 @@ pub struct WebpackEntryAssetReference {
 impl AssetReference for WebpackEntryAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(
-            ModuleAssetVc::new(self.source.clone(), self.runtime.clone()).into(),
+            ModuleAssetVc::new(self.source, self.runtime).into(),
             Vec::new(),
         )
         .into()
@@ -115,15 +112,15 @@ impl AssetReference for WebpackRuntimeAssetReference {
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
         let context = self.source.path().parent();
 
-        let options = resolve_options(context.clone());
+        let options = resolve_options(context);
 
         let options = apply_cjs_specific_options(options);
 
-        let resolved = resolve(context.clone(), self.request.clone(), options);
+        let resolved = resolve(context, self.request, options);
 
-        if let ResolveResult::Single(source, refs) = &*resolved.await? {
+        if let ResolveResult::Single(source, ref refs) = *resolved.await? {
             return Ok(ResolveResult::Single(
-                ModuleAssetVc::new(source.clone(), self.runtime.clone()).into(),
+                ModuleAssetVc::new(source, self.runtime).into(),
                 refs.clone(),
             )
             .into());

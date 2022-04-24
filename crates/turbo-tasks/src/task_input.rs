@@ -403,8 +403,8 @@ impl TryFrom<&TaskInput> for RawVc {
 
     fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
         match value {
-            TaskInput::TaskOutput(task) => Ok(RawVc::TaskOutput(task.clone())),
-            TaskInput::TaskCreated(task, index) => Ok(RawVc::TaskCreated(task.clone(), *index)),
+            TaskInput::TaskOutput(task) => Ok(RawVc::TaskOutput(*task)),
+            TaskInput::TaskCreated(task, index) => Ok(RawVc::TaskCreated(*task, *index)),
             _ => Err(anyhow!("invalid task input type, expected slot ref")),
         }
     }

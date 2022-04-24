@@ -39,7 +39,7 @@ mod utils;
 #[turbo_tasks::function]
 pub async fn module(source: AssetVc) -> Result<AssetVc> {
     let path = source.path();
-    let options = module_options(path.clone().parent());
+    let options = module_options(path.parent());
     let options = options.await?;
     let path_value = path.get().await?;
 
@@ -78,21 +78,21 @@ pub async fn module(source: AssetVc) -> Result<AssetVc> {
             .unwrap_or_else(|| &ModuleType::Raw)
         {
             ModuleType::Ecmascript => ecmascript::ModuleAssetVc::new(
-                source.clone(),
+                source,
                 Value::new(ecmascript::ModuleAssetType::Ecmascript),
             )
             .into(),
             ModuleType::Typescript => ecmascript::ModuleAssetVc::new(
-                source.clone(),
+                source,
                 Value::new(ecmascript::ModuleAssetType::Typescript),
             )
             .into(),
             ModuleType::TypescriptDeclaration => ecmascript::ModuleAssetVc::new(
-                source.clone(),
+                source,
                 Value::new(ecmascript::ModuleAssetType::TypescriptDeclaration),
             )
             .into(),
-            ModuleType::Json => json::ModuleAssetVc::new(source.clone()).into(),
+            ModuleType::Json => json::ModuleAssetVc::new(source).into(),
             ModuleType::Raw => source,
             ModuleType::Css => todo!(),
             ModuleType::Custom(_) => todo!(),
@@ -120,10 +120,10 @@ async fn emit_assets_aggregated(asset: AssetVc) -> CompletionVc {
 #[turbo_tasks::function]
 async fn emit_aggregated_assets(aggregated: AggregatedGraphVc) -> Result<CompletionVc> {
     Ok(match &*aggregated.content().await? {
-        AggregatedGraphNodeContent::Asset(asset) => emit_asset(asset.clone()),
+        AggregatedGraphNodeContent::Asset(asset) => emit_asset(*asset),
         AggregatedGraphNodeContent::Children(children) => {
             for aggregated in children {
-                emit_aggregated_assets(aggregated.clone()).await?;
+                emit_aggregated_assets(*aggregated).await?;
             }
             CompletionVc::new()
         }
@@ -132,10 +132,10 @@ async fn emit_aggregated_assets(aggregated: AggregatedGraphVc) -> Result<Complet
 
 #[turbo_tasks::function(cycle)]
 async fn emit_assets_recursive(asset: AssetVc) -> Result<()> {
-    let assets_set = all_referenced_assets(asset.clone()).await?;
+    let assets_set = all_referenced_assets(asset).await?;
     emit_asset(asset);
     for asset in assets_set.assets.iter() {
-        emit_assets_recursive(asset.clone());
+        emit_assets_recursive(*asset);
     }
     Ok(())
 }
@@ -172,20 +172,20 @@ async fn emit_assets_recursive_avoid_cycle(
     asset: AssetVc,
     cycle_detection: CycleDetectionVc,
 ) -> Result<()> {
-    let assets_set = all_referenced_assets(asset.clone()).await?;
-    emit_asset(asset.clone());
+    let assets_set = all_referenced_assets(asset).await?;
+    emit_asset(asset);
     if !assets_set.assets.is_empty() {
         let cycle_detection_value = cycle_detection.get().await?;
-        let new_cycle_detection = cycle_detection.concat(asset.clone());
+        let new_cycle_detection = cycle_detection.concat(asset);
         for ref_asset in assets_set.assets.iter() {
-            let ref_asset = ref_asset.clone().resolve().await?;
+            let ref_asset = ref_asset.resolve().await?;
             if ref_asset == asset {
                 continue;
             }
             if cycle_detection_value.has(&ref_asset) {
                 continue;
             }
-            emit_assets_recursive_avoid_cycle(ref_asset, new_cycle_detection.clone());
+            emit_assets_recursive_avoid_cycle(ref_asset, new_cycle_detection);
         }
     }
     Ok(())
@@ -215,8 +215,8 @@ async fn compute_back_references(aggregated: AggregatedGraphVc) -> Result<Refere
     Ok(match &*aggregated.content().await? {
         AggregatedGraphNodeContent::Asset(asset) => {
             let mut referenced_by = HashMap::new();
-            for reference in all_referenced_assets(asset.clone()).await?.assets.iter() {
-                referenced_by.insert(reference.clone(), [asset.clone()].into_iter().collect());
+            for reference in all_referenced_assets(*asset).await?.assets.iter() {
+                referenced_by.insert(*reference, [*asset].into_iter().collect());
             }
             ReferencesList { referenced_by }.into()
         }
@@ -224,16 +224,16 @@ async fn compute_back_references(aggregated: AggregatedGraphVc) -> Result<Refere
             let mut referenced_by = HashMap::<AssetVc, HashSet<AssetVc>>::new();
             let lists = children
                 .iter()
-                .map(|child| compute_back_references(child.clone()))
+                .map(|child| compute_back_references(*child))
                 .collect::<Vec<_>>();
             for list in lists {
                 for (key, values) in list.await?.referenced_by.iter() {
                     if let Some(set) = referenced_by.get_mut(key) {
                         for value in values {
-                            set.insert(value.clone());
+                            set.insert(*value);
                         }
                     } else {
-                        referenced_by.insert(key.clone(), values.clone());
+                        referenced_by.insert(*key, values.clone());
                     }
                 }
             }
@@ -261,7 +261,7 @@ async fn top_references(list: ReferencesListVc) -> Result<ReferencesListVc> {
     Ok(ReferencesList {
         referenced_by: top
             .into_iter()
-            .map(|(asset, set)| (asset.clone(), set.clone()))
+            .map(|(asset, set)| (*asset, set.clone()))
             .collect(),
     }
     .into())
@@ -274,7 +274,7 @@ async fn print_references(list: ReferencesListVc) -> Result<()> {
     for (asset, references) in list.referenced_by.iter() {
         println!(
             "{} -> {} times referenced",
-            asset.clone().path().await?.path,
+            asset.path().await?.path,
             references.len()
         );
     }
@@ -284,13 +284,13 @@ async fn print_references(list: ReferencesListVc) -> Result<()> {
 #[turbo_tasks::function]
 pub async fn all_assets(asset: AssetVc) -> Result<AssetsSetVc> {
     let mut queue = VecDeque::new();
-    queue.push_back(all_referenced_assets(asset.clone()));
+    queue.push_back(all_referenced_assets(asset));
     let mut assets = HashSet::new();
     assets.insert(asset);
     while let Some(references) = queue.pop_front() {
         for asset in references.await?.assets.iter() {
-            if assets.insert(asset.clone()) {
-                queue.push_back(all_referenced_assets(asset.clone()));
+            if assets.insert(*asset) {
+                queue.push_back(all_referenced_assets(*asset));
             }
         }
     }

@@ -33,31 +33,31 @@ impl TsConfigModuleAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for TsConfigModuleAsset {
     fn path(&self) -> FileSystemPathVc {
-        self.source.clone().path()
+        self.source.path()
     }
     fn content(&self) -> FileContentVc {
-        self.source.clone().content()
+        self.source.content()
     }
     async fn references(&self) -> Result<Vc<Vec<AssetReferenceVc>>> {
         let mut references = Vec::new();
         let configs = read_tsconfigs(
             self.source.content().parse_json_with_comments(),
-            self.source.clone(),
+            self.source,
         )
         .await?;
         for (_, config_asset) in configs[1..].iter() {
-            references.push(TsExtendsReferenceVc::new(config_asset.clone()).into());
+            references.push(TsExtendsReferenceVc::new(*config_asset).into());
         }
         // ts-node options
         {
             let compiler = read_from_tsconfigs(&configs, |json, source| {
                 json["ts-node"]["compiler"]
                     .as_str()
-                    .map(|s| (source.clone(), s.to_string()))
+                    .map(|s| (source, s.to_string()))
             })
             .await?;
             let (source, compiler) =
-                compiler.unwrap_or_else(|| (self.source.clone(), "typescript".to_string()));
+                compiler.unwrap_or_else(|| (self.source, "typescript".to_string()));
             references.push(
                 CompilerReferenceVc::new(
                     source,
@@ -70,9 +70,7 @@ impl Asset for TsConfigModuleAsset {
                     Some(
                         array
                             .iter()
-                            .filter_map(|name| {
-                                name.as_str().map(|s| (source.clone(), s.to_string()))
-                            })
+                            .filter_map(|name| name.as_str().map(|s| (source, s.to_string())))
                             .collect::<Vec<_>>(),
                     )
                 } else {
@@ -99,9 +97,7 @@ impl Asset for TsConfigModuleAsset {
                     Some(
                         array
                             .iter()
-                            .filter_map(|name| {
-                                name.as_str().map(|s| (source.clone(), s.to_string()))
-                            })
+                            .filter_map(|name| name.as_str().map(|s| (source, s.to_string())))
                             .collect::<Vec<_>>(),
                     )
                 } else {
@@ -109,11 +105,11 @@ impl Asset for TsConfigModuleAsset {
                 }
             })
             .await?;
-            let types = types.unwrap_or_else(|| vec![(self.source.clone(), "node".to_string())]);
+            let types = types.unwrap_or_else(|| vec![(self.source, "node".to_string())]);
             for (source, name) in types {
                 references.push(
                     TsConfigTypesReferenceVc::new(
-                        source.clone(),
+                        source,
                         RequestVc::module(name, Value::new("".to_string().into())),
                     )
                     .into(),
@@ -143,8 +139,8 @@ impl AssetReference for CompilerReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         let context = self.source.path().parent();
 
-        let options = resolve_options(context.clone());
-        cjs_resolve(self.request.clone(), context, options)
+        let options = resolve_options(context);
+        cjs_resolve(self.request, context, options)
     }
 }
 
@@ -164,7 +160,7 @@ impl TsExtendsReferenceVc {
 #[turbo_tasks::value_impl]
 impl AssetReference for TsExtendsReference {
     fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::Single(self.config.clone(), Vec::new()).into()
+        ResolveResult::Single(self.config, Vec::new()).into()
     }
 }
 
@@ -187,8 +183,8 @@ impl AssetReference for TsNodeRequireReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         let context = self.source.path().parent();
 
-        let options = resolve_options(context.clone());
-        cjs_resolve(self.request.clone(), context, options)
+        let options = resolve_options(context);
+        cjs_resolve(self.request, context, options)
     }
 }
 
@@ -211,7 +207,7 @@ impl AssetReference for TsConfigTypesReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         let context = self.source.path().parent();
 
-        let options = typescript_types_resolve_options(context.clone());
-        type_resolve(self.request.clone(), context, options)
+        let options = typescript_types_resolve_options(context);
+        type_resolve(self.request, context, options)
     }
 }

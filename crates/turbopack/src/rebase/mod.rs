@@ -32,11 +32,7 @@ impl RebasedAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for RebasedAsset {
     async fn path(&self) -> FileSystemPathVc {
-        FileSystemPathVc::rebase(
-            self.source.path(),
-            self.input_dir.clone(),
-            self.output_dir.clone(),
-        )
+        FileSystemPathVc::rebase(self.source.path(), self.input_dir, self.output_dir)
     }
 
     async fn content(&self) -> FileContentVc {
@@ -49,9 +45,9 @@ impl Asset for RebasedAsset {
         for reference in input_references.iter() {
             references.push(
                 RebasedAssetReference {
-                    reference: reference.clone().resolve().await?,
-                    input_dir: self.input_dir.clone(),
-                    output_dir: self.output_dir.clone(),
+                    reference: reference.resolve().await?,
+                    input_dir: self.input_dir,
+                    output_dir: self.output_dir,
                 }
                 .into(),
             );
@@ -75,22 +71,17 @@ impl AssetReference for RebasedAssetReference {
         Ok(result
             .map(
                 |asset| {
-                    let asset = RebasedAssetVc::new(
-                        asset.clone(),
-                        self.input_dir.clone(),
-                        self.output_dir.clone(),
-                    )
-                    .into();
-                    async { Ok(asset) }
+                    let asset = RebasedAssetVc::new(asset, self.input_dir, self.output_dir).into();
+                    async move { Ok(asset) }
                 },
                 |reference| {
                     let reference = RebasedAssetReference {
-                        reference: reference.clone(),
-                        input_dir: self.input_dir.clone(),
-                        output_dir: self.output_dir.clone(),
+                        reference: reference,
+                        input_dir: self.input_dir,
+                        output_dir: self.output_dir,
                     }
                     .into();
-                    async { Ok(reference) }
+                    async move { Ok(reference) }
                 },
             )
             .await?

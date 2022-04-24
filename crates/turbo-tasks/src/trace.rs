@@ -153,7 +153,7 @@ impl<T: TraceRawVcs + ?Sized> TraceRawVcs for Arc<T> {
 
 impl TraceRawVcs for RawVc {
     fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
-        context.list.push(self.clone());
+        context.list.push(*self);
     }
 }
 

@@ -26,7 +26,7 @@ impl Asset for NftJsonAsset {
     async fn path(&self) -> Result<FileSystemPathVc> {
         let path = self.entry.path().await?;
         Ok(FileSystemPathVc::new(
-            path.fs.clone(),
+            path.fs,
             &format!("{}.nft.json", path.path),
         ))
     }
@@ -35,7 +35,7 @@ impl Asset for NftJsonAsset {
         let context = self.entry.path().parent().await?;
         let self_path = context.get_relative_path_to(&*self.entry.path().await?);
         let mut result = Vec::new();
-        let set = all_assets(self.entry.clone());
+        let set = all_assets(self.entry);
         for asset in set.await?.assets.iter() {
             let path = asset.path().await?;
             let rel_path = context.get_relative_path_to(&path);

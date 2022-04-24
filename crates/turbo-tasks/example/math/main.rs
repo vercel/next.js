@@ -96,17 +96,17 @@ fn main() {
 fn make_math() {
     let r1 = random(RandomIdVc::new(Duration::from_secs(5), 4));
     let r2 = random(RandomIdVc::new(Duration::from_secs(7), 3));
-    let max = max_new(r1.clone(), r2);
+    let max = max_new(r1, r2);
     let a = add(I32ValueVc::new(42), I32ValueVc::new(1));
     let b = add(I32ValueVc::new(2), I32ValueVc::new(3));
     log(
-        a.clone(),
+        a,
         LoggingOptions {
             name: "value of a".to_string(),
         }
         .into(),
     );
-    let c = add(max.clone(), a);
+    let c = add(max, a);
     let d = add(max, b);
     let e = add(c, d);
     let r = add(r1, e);

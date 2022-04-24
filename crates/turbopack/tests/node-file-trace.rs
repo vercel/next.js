@@ -140,8 +140,8 @@ fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
         tt.run_once(async move {
             let input_fs: FileSystemVc =
                 DiskFileSystemVc::new("tests".to_string(), tests_root.clone()).into();
-            let input = FileSystemPathVc::new(input_fs.clone(), &input);
-            let input_dir = FileSystemPathVc::new(input_fs.clone(), "node-file-trace");
+            let input = FileSystemPathVc::new(input_fs, &input);
+            let input_dir = FileSystemPathVc::new(input_fs, "node-file-trace");
 
             let original_output = exec_node(tests_root.clone(), input.clone());
 

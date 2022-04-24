@@ -417,7 +417,15 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             type Output = turbo_tasks::Result<turbo_tasks::macro_helpers::RawVcReadResult<#ident>>;
             type IntoFuture = std::pin::Pin<std::boxed::Box<dyn std::future::Future<Output = turbo_tasks::Result<turbo_tasks::macro_helpers::RawVcReadResult<#ident>>> + Send + Sync + 'static>>;
             fn into_future(self) -> Self::IntoFuture {
-                Box::pin(self.node.clone().into_read::<#ident>(turbo_tasks::TurboTasks::current().unwrap()))
+                Box::pin(self.node.into_read::<#ident>(turbo_tasks::TurboTasks::current().unwrap()))
+            }
+        }
+
+        impl std::future::IntoFuture for &#ref_ident {
+            type Output = turbo_tasks::Result<turbo_tasks::macro_helpers::RawVcReadResult<#ident>>;
+            type IntoFuture = std::pin::Pin<std::boxed::Box<dyn std::future::Future<Output = turbo_tasks::Result<turbo_tasks::macro_helpers::RawVcReadResult<#ident>>> + Send + Sync + 'static>>;
+            fn into_future(self) -> Self::IntoFuture {
+                Box::pin(self.node.into_read::<#ident>(turbo_tasks::TurboTasks::current().unwrap()))
             }
         }
 
