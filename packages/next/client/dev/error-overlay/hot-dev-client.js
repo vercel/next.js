@@ -34,7 +34,7 @@ import {
   onFullRefreshNeeded,
 } from 'next/dist/compiled/@next/react-dev-overlay/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { addMessageListener } from './websocket'
+import { addMessageListener, sendMessage } from './websocket'
 import formatWebpackMessages from './format-webpack-messages'
 
 // This alternative WebpackDevServer combines the functionality of:
@@ -45,6 +45,8 @@ import formatWebpackMessages from './format-webpack-messages'
 // It makes some opinionated choices on top, like adding a syntax error overlay
 // that looks similar to our console output. The error overlay is inspired by:
 // https://github.com/glenjamin/webpack-hot-middleware
+
+window.__nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 
 let hadRuntimeError = false
 let customHmrEventHandler
@@ -188,8 +190,17 @@ function onFastRefresh(hasUpdates) {
   }
 
   if (startLatency) {
-    const latency = Date.now() - startLatency
+    const endLatency = Date.now()
+    const latency = endLatency - startLatency
     console.log(`[Fast Refresh] done in ${latency}ms`)
+    sendMessage(
+      JSON.stringify({
+        event: 'client-hmr-latency',
+        id: window.__nextDevClientId,
+        startTime: startLatency,
+        endTime: endLatency,
+      })
+    )
     if (self.__NEXT_HMR_LATENCY_CB) {
       self.__NEXT_HMR_LATENCY_CB(latency)
     }
@@ -220,14 +231,34 @@ function processMessage(e) {
       const { errors, warnings } = obj
       const hasErrors = Boolean(errors && errors.length)
       if (hasErrors) {
+        sendMessage(
+          JSON.stringify({
+            event: 'client-error',
+            errorCount: errors.length,
+            clientId: window.__nextDevClientId,
+          })
+        )
         return handleErrors(errors)
       }
 
       const hasWarnings = Boolean(warnings && warnings.length)
       if (hasWarnings) {
+        sendMessage(
+          JSON.stringify({
+            event: 'client-warning',
+            warningCount: warnings.length,
+            clientId: window.__nextDevClientId,
+          })
+        )
         return handleWarnings(warnings)
       }
 
+      sendMessage(
+        JSON.stringify({
+          event: 'client-success',
+          clientId: window.__nextDevClientId,
+        })
+      )
       return handleSuccess()
     }
     default: {

@@ -563,6 +563,10 @@
           "path": "/errors/no-script-in-document-page.md"
         },
         {
+          "title": "before-interactive-script-outside-document",
+          "path": "/errors/no-before-interactive-script-outside-document.md"
+        },
+        {
           "title": "script-component-in-head-component",
           "path": "/errors/no-script-component-in-head-component.md"
         },
