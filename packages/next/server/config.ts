@@ -189,7 +189,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   }
 
   const hasReactRoot = shouldUseReactRoot()
-  if (hasReactRoot) {
+  if (hasReactRoot && userConfig.experimental?.reactRoot !== false) {
     // users might not have the `experimental` key in their config
     result.experimental = result.experimental || {}
     result.experimental.reactRoot = true

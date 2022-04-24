@@ -111,7 +111,6 @@ import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { recursiveCopy } from '../lib/recursive-copy'
-import { shouldUseReactRoot } from '../server/config'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -160,8 +159,8 @@ export default async function build(
     setGlobal('distDir', distDir)
 
     // We enable concurrent features (Fizz-related rendering architecture) when
-    // using React 18 or experimental.
-    const hasReactRoot = shouldUseReactRoot()
+    // using React 18 or experimental and the developer hasn't opted out
+    const hasReactRoot = !!config.experimental.reactRoot
     const hasConcurrentFeatures = hasReactRoot
     const hasServerComponents =
       hasReactRoot && !!config.experimental.serverComponents
