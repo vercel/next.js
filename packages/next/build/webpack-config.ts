@@ -629,7 +629,7 @@ export default async function getBaseWebpackConfig(
     ...(isEdgeRuntime
       ? {
           fallback: {
-            process: false,
+            process: require.resolve('./polyfills/process'),
           },
         }
       : undefined),
@@ -1258,7 +1258,7 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: 'middleware',
                     resolve: {
                       fallback: {
-                        process: false,
+                        process: require.resolve('./polyfills/process'),
                       },
                     },
                   },
