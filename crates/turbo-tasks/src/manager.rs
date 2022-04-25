@@ -216,7 +216,7 @@ impl TurboTasks {
             .spawn(async move {
                 let execution = self.with_task_and_tt(task_id, |task| {
                     if task.execution_started(&self) {
-                        self.with_task_and_tt(task_id, |task| Task::set_current(task, task_id));
+                        Task::set_current(task, task_id);
                         let tt = self.clone();
                         TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(tt));
                         Some(task.execute(self.clone()))
@@ -231,9 +231,7 @@ impl TurboTasks {
                             println!("Task {} errored  {}", task, err);
                         }
                         task.execution_result(result);
-                    });
-                    self.notify_scheduled_tasks();
-                    self.with_task_and_tt(task_id, |task| {
+                        self.notify_scheduled_tasks();
                         task.execution_completed(self.clone());
                     });
                 }
@@ -303,10 +301,10 @@ impl TurboTasks {
     /// `schedule_notify_tasks()`
     pub(crate) fn notify_scheduled_tasks(self: &Arc<TurboTasks>) {
         TASKS_TO_NOTIFY.with(|tasks| {
+            let memory_tasks = self.memory_tasks.pin();
             for task in tasks.take().into_iter() {
-                self.with_task_and_tt(task, |task| {
-                    task.dependent_slot_updated(self);
-                });
+                let task = memory_tasks.get(&task).unwrap();
+                task.dependent_slot_updated(self);
             }
         });
     }
@@ -325,7 +323,7 @@ impl TurboTasks {
     pub(crate) fn schedule_deactivate_tasks(self: &Arc<Self>, tasks: Vec<TaskId>) {
         let tt = self.clone();
         self.clone().schedule_background_job(async move {
-            Task::deactivate_tasks(tasks, tt);
+            Task::deactivate_tasks(tasks, &tt);
         });
     }
 
@@ -334,7 +332,11 @@ impl TurboTasks {
     pub(crate) fn schedule_remove_tasks(self: &Arc<Self>, tasks: HashSet<TaskId>) {
         let tt = self.clone();
         self.clone().schedule_background_job(async move {
-            Task::remove_tasks(tasks, tt);
+            let memory_tasks = tt.memory_tasks.pin();
+            for id in tasks {
+                let task = memory_tasks.get(&id).unwrap();
+                task.remove(&tt);
+            }
         });
     }
 

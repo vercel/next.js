@@ -71,18 +71,14 @@ impl RawVc {
             match match current {
                 RawVc::TaskOutput(task) => SlotReadResult::Link(
                     Task::with_done_output(task, &tt, |_, output| {
-                        Task::with_current(|reader, reader_id| {
-                            reader.add_dependency(current);
-                            output.read(reader_id)
-                        })
+                        Task::add_dependency_to_current(current);
+                        output.read(Task::current().unwrap())
                     })
                     .await?,
                 ),
                 RawVc::TaskCreated(task, index) => tt.with_task_and_tt(task, |task| {
-                    Task::with_current(|reader, reader_id| {
-                        reader.add_dependency(current);
-                        task.with_created_slot_mut(index, |slot| slot.read(reader_id))
-                    })
+                    Task::add_dependency_to_current(current);
+                    task.with_created_slot_mut(index, |slot| slot.read(Task::current().unwrap()))
                 })?,
             } {
                 SlotReadResult::Final(result) => {
@@ -128,10 +124,8 @@ impl RawVc {
                         notified = true;
                     }
                     Task::with_done_output(task, &tt, |_, output| {
-                        Task::with_current(|reader, reader_id| {
-                            reader.add_dependency(current);
-                            output.read(reader_id)
-                        })
+                        Task::add_dependency_to_current(current);
+                        output.read(Task::current().unwrap())
                     })
                     .await?
                 }

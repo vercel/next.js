@@ -10,12 +10,12 @@ use event_listener::{Event, EventListener};
 use std::time::Instant;
 use std::{
     any::{Any, TypeId},
-    cell::Cell,
+    cell::{Cell, RefCell},
     collections::{HashMap, HashSet},
     fmt::{self, Debug, Display, Formatter},
     future::Future,
     hash::Hash,
-    mem::swap,
+    mem::{swap, take},
     pin::Pin,
     sync::{
         atomic::{AtomicU32, Ordering},
@@ -33,8 +33,12 @@ struct PreviousSlotsMap {
 }
 
 task_local! {
-  static CURRENT_TASK_ID: Cell<Option<TaskId>> = Cell::new(None);
-  static PREVIOUS_SLOTS: Cell<PreviousSlotsMap> = Cell::new(Default::default());
+    static CURRENT_TASK_ID: Cell<Option<TaskId>> = Cell::new(None);
+    static PREVIOUS_SLOTS: Cell<PreviousSlotsMap> = Cell::new(Default::default());
+
+    /// Vc that are read during task execution
+    /// These will be stored as dependencies when the execution has finished
+    static DEPENDENCIES_TO_TRACK: RefCell<HashSet<RawVc>> = Default::default();
 }
 
 /// Different Task types
@@ -283,26 +287,21 @@ impl Task {
         }
     }
 
-    pub(crate) fn remove_tasks(tasks: HashSet<TaskId>, turbo_tasks: Arc<TurboTasks>) {
-        let tt = TurboTasks::current().unwrap();
-        for task in tasks.into_iter() {
-            tt.with_task_and_tt(task, |task| {
-                if task.active_parents.fetch_sub(1, Ordering::AcqRel) == 1 {
-                    task.deactivate(1, &turbo_tasks);
-                }
-            })
+    pub(crate) fn remove(&self, turbo_tasks: &Arc<TurboTasks>) {
+        if self.active_parents.fetch_sub(1, Ordering::AcqRel) == 1 {
+            self.deactivate(1, &turbo_tasks);
         }
     }
 
     #[cfg(not(feature = "report_expensive"))]
-    pub(crate) fn deactivate_tasks(tasks: Vec<TaskId>, turbo_tasks: Arc<TurboTasks>) {
+    pub(crate) fn deactivate_tasks(tasks: Vec<TaskId>, turbo_tasks: &Arc<TurboTasks>) {
         for child in tasks.into_iter() {
             turbo_tasks.with_task_and_tt(child, |child| child.deactivate(1, &turbo_tasks));
         }
     }
 
     #[cfg(feature = "report_expensive")]
-    pub(crate) fn deactivate_tasks(tasks: Vec<TaskId>, turbo_tasks: Arc<TurboTasks>) {
+    pub(crate) fn deactivate_tasks(tasks: Vec<TaskId>, turbo_tasks: &Arc<TurboTasks>) {
         let start = Instant::now();
         let mut count = 0;
         let mut len = 0;
@@ -330,8 +329,6 @@ impl Task {
 
     #[cfg(not(feature = "report_expensive"))]
     fn clear_dependencies(&self, turbo_tasks: &TurboTasks) {
-        use std::mem::take;
-
         let mut execution_data = self.execution_data.lock().unwrap();
         let dependencies = take(&mut execution_data.dependencies);
         drop(execution_data);
@@ -424,11 +421,15 @@ impl Task {
     }
 
     pub(crate) fn execution_completed(&self, turbo_tasks: Arc<TurboTasks>) {
-        PREVIOUS_SLOTS.with(|cell| {
-            let mut execution_data = self.execution_data.lock().unwrap();
-            Cell::from_mut(&mut execution_data.previous_nodes).swap(cell);
+        DEPENDENCIES_TO_TRACK.with(|deps| {
+            PREVIOUS_SLOTS.with(|cell| {
+                let mut execution_data = self.execution_data.lock().unwrap();
+                execution_data.previous_nodes = cell.take();
+                execution_data.dependencies = deps.take();
+            });
         });
         let mut schedule_task = false;
+        let mut clear_dependencies = false;
         {
             let mut state = self.state.write().unwrap();
             match state.state_type {
@@ -437,6 +438,7 @@ impl Task {
                     state.event.notify(usize::MAX);
                 }
                 InProgressDirty => {
+                    clear_dependencies = true;
                     if state.active {
                         state.state_type = Scheduled;
                         schedule_task = true;
@@ -451,6 +453,9 @@ impl Task {
                     )
                 }
             };
+        }
+        if clear_dependencies {
+            self.clear_dependencies(&turbo_tasks)
         }
         if schedule_task {
             turbo_tasks.schedule(self.id);
@@ -596,14 +601,11 @@ impl Task {
         })
     }
 
-    pub(crate) fn add_dependency(&self, node: RawVc) {
-        // TODO it's possible to schedule that work instead
-        // maybe into a task_local dependencies list that
-        // is stored that the end of the execution
-        // but that won't capute changes during execution
-        // which would require extra steps
-        let mut execution_data = self.execution_data.lock().unwrap();
-        execution_data.dependencies.insert(node);
+    pub(crate) fn add_dependency_to_current(dep: RawVc) {
+        DEPENDENCIES_TO_TRACK.with(|list| {
+            let mut list = list.borrow_mut();
+            list.insert(dep);
+        })
     }
 
     pub(crate) fn execute(&self, tt: Arc<TurboTasks>) -> NativeTaskFuture {

@@ -73,23 +73,19 @@ impl TaskInput {
             current = match current {
                 TaskInput::TaskOutput(task_id) => {
                     Task::with_done_output(task_id, &tt, |_, output| {
-                        Task::with_current(|reader, reader_id| {
-                            reader.add_dependency(RawVc::TaskOutput(task_id));
-                            output.read(reader_id)
-                        })
+                        Task::add_dependency_to_current(RawVc::TaskOutput(task_id));
+                        output.read(Task::current().unwrap())
                     })
                     .await?
                     .into()
                 }
                 TaskInput::TaskCreated(task_id, index) => tt.with_task_and_tt(task_id, |task| {
-                    Task::with_current(|reader, reader_id| {
-                        reader.add_dependency(RawVc::TaskCreated(task_id, index));
-                        task.with_created_slot_mut(index, |slot| {
-                            slot.resolve(reader_id).map_or_else(
-                                || TaskInput::Nothing,
-                                |(ty, reference)| TaskInput::SharedReference(ty, reference),
-                            )
-                        })
+                    Task::add_dependency_to_current(RawVc::TaskCreated(task_id, index));
+                    task.with_created_slot_mut(index, |slot| {
+                        slot.resolve(Task::current().unwrap()).map_or_else(
+                            || TaskInput::Nothing,
+                            |(ty, reference)| TaskInput::SharedReference(ty, reference),
+                        )
                     })
                 }),
                 _ => return Ok(current),
@@ -104,10 +100,8 @@ impl TaskInput {
             current = match current {
                 TaskInput::TaskOutput(task_id) => {
                     Task::with_done_output(task_id, &tt, |_, output| {
-                        Task::with_current(|reader, reader_id| {
-                            reader.add_dependency(RawVc::TaskOutput(task_id));
-                            output.read(reader_id)
-                        })
+                        Task::add_dependency_to_current(RawVc::TaskOutput(task_id));
+                        output.read(Task::current().unwrap())
                     })
                     .await?
                     .into()
