@@ -19,7 +19,7 @@ use std::{
     pin::Pin,
     sync::{
         atomic::{AtomicU32, Ordering},
-        Arc, Mutex, RwLock,
+        Arc, Mutex, RwLock, Weak,
     },
 };
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
@@ -697,11 +697,7 @@ impl Task {
                     anyhow!("Task::get_invalidator() can only be used in the context of a Task")
                 })
                 .unwrap(),
-            turbo_tasks: TurboTasks::current()
-                .ok_or_else(|| {
-                    anyhow!("Task::get_invalidator() can only be used in the context of TurboTasks")
-                })
-                .unwrap(),
+            turbo_tasks: TurboTasks::with_current(|tt| Arc::downgrade(tt)),
         }
     }
 
@@ -900,13 +896,15 @@ impl Eq for Task {}
 
 pub struct Invalidator {
     task: TaskId,
-    turbo_tasks: Arc<TurboTasks>,
+    turbo_tasks: Weak<TurboTasks>,
 }
 
 impl Invalidator {
     pub fn invalidate(self) {
         let Invalidator { task, turbo_tasks } = self;
-        turbo_tasks.with_task_and_tt(task, |task| task.invaldate(&turbo_tasks));
+        if let Some(turbo_tasks) = turbo_tasks.upgrade() {
+            turbo_tasks.with_task_and_tt(task, |task| task.invaldate(&turbo_tasks));
+        }
     }
 }
 
