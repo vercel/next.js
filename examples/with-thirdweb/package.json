@@ -12,7 +12,7 @@
     "@thirdweb-dev/react": "^2",
     "@thirdweb-dev/sdk": "^2",
     "ethers": "^5.6.1",
-    "next": "12.1.0",
+    "next": "latest",
     "react": "17.0.2",
     "react-dom": "17.0.2"
   },
