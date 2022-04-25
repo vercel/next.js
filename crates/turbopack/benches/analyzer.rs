@@ -2,24 +2,18 @@ use std::{
     fs,
     path::PathBuf,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
 use async_std::task::block_on;
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 use swc_common::{FilePathMapping, Mark, SourceMap, GLOBALS};
 use swc_ecma_transforms_base::resolver::resolver_with_mark;
-use swc_ecmascript::{
-    ast::EsVersion,
-    parser::{parse_file_as_module, parse_file_as_program},
-    visit::VisitMutWith,
-};
-use turbopack::{
-    __internals::test_utils,
-    analyzer::{
-        graph::{create_graph, EvalContext},
-        linker::{link, LinkCache},
-        test_utils::visitor,
-    },
+use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_program, visit::VisitMutWith};
+use turbopack::analyzer::{
+    graph::{create_graph, EvalContext},
+    linker::{link, LinkCache},
+    test_utils::visitor,
 };
 
 pub fn benchmark(c: &mut Criterion) {
@@ -55,7 +49,9 @@ pub fn benchmark(c: &mut Criterion) {
 
                 let var_graph = create_graph(&m, &eval_context);
 
-                let mut group = c.benchmark_group(name.as_ref());
+                let mut group = c.benchmark_group(&format!("analyzer/{name}"));
+                group.warm_up_time(Duration::from_secs(1));
+                group.measurement_time(Duration::from_secs(3));
                 group.bench_function("create_graph", move |b| {
                     b.iter(|| create_graph(&m, &eval_context));
                 });

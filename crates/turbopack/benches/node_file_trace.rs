@@ -1,7 +1,8 @@
 use std::{fs, path::PathBuf};
 
-use async_std::task::block_on;
-use criterion::{async_executor::AsyncStdExecutor, Criterion, SamplingMode};
+use criterion::{async_executor::AsyncStdExecutor, Criterion};
+use lazy_static::lazy_static;
+use regex::Regex;
 use turbo_tasks::{NothingVc, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, NullFileSystem, NullFileSystemVc};
 use turbopack::{
@@ -21,11 +22,18 @@ pub fn benchmark(c: &mut Criterion) {
         if result.file_type().unwrap().is_file() {
             let name = result.file_name();
             let name = name.to_string_lossy();
+            lazy_static! {
+                static ref BENCH_FILTER: Regex =
+                    Regex::new(r"(empty|simple|dynamic-in-package|react|whatwg-url|axios|azure-cosmos|cowsay|env-var|fast-glob)\.js$").unwrap();
+            }
+            if !BENCH_FILTER.is_match(name.as_ref()) {
+                continue;
+            }
             let input = format!("node-file-trace/integration/{name}");
             let tests_root = tests_root.to_string_lossy().to_string();
 
-            let mut group = c.benchmark_group(name.as_ref());
-            group.sampling_mode(SamplingMode::Flat);
+            let mut group = c.benchmark_group(&input);
+            group.sample_size(10);
             {
                 let tests_root = tests_root.clone();
                 let input = input.clone();
