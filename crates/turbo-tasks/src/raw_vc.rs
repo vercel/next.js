@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::Result;
 
-use crate::{slot::SlotReadResult, Task, TurboTasks};
+use crate::{slot::SlotReadResult, Task, TaskId, TurboTasks};
 
 /// The result of reading a ValueVc.
 /// Can be dereferenced to the concrete type.
@@ -22,18 +22,12 @@ pub struct RawVcReadResult<T: Any + Send + Sync> {
 
 pub enum RawVcReadResultInner<T: Any + Send + Sync> {
     SharedReference(Arc<T>),
-    ClonedData(Box<T>),
 }
 
 impl<T: Any + Send + Sync> RawVcReadResult<T> {
     pub(crate) fn shared_reference(shared_ref: Arc<T>) -> Self {
         Self {
             inner: RawVcReadResultInner::SharedReference(shared_ref),
-        }
-    }
-    pub(crate) fn cloned_data(data: Box<T>) -> Self {
-        Self {
-            inner: RawVcReadResultInner::ClonedData(data),
         }
     }
 }
@@ -44,7 +38,6 @@ impl<T: Any + Send + Sync> std::ops::Deref for RawVcReadResult<T> {
     fn deref(&self) -> &Self::Target {
         match &self.inner {
             RawVcReadResultInner::SharedReference(a) => a,
-            RawVcReadResultInner::ClonedData(a) => a,
         }
     }
 }
@@ -61,30 +54,57 @@ impl<T: Debug + Any + Send + Sync> Debug for RawVcReadResult<T> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RawVc {
-    TaskOutput(Arc<Task>),
-    TaskCreated(Arc<Task>, usize),
+    TaskOutput(TaskId),
+    TaskCreated(TaskId, usize),
 }
 
 impl RawVc {
-    pub async fn into_read<T: Any + Send + Sync>(self) -> Result<RawVcReadResult<T>> {
-        TurboTasks::notify_scheduled_tasks();
+    pub async fn into_read<T: Any + Send + Sync>(
+        self,
+        tt: Arc<TurboTasks>,
+    ) -> Result<RawVcReadResult<T>> {
+        tt.notify_scheduled_tasks();
         let mut current = self;
         loop {
             match match current {
-                RawVc::TaskOutput(ref task) => SlotReadResult::Link(
-                    task.with_done_output(|output| {
-                        Task::with_current(|reader| {
-                            reader.add_dependency(current.clone());
-                            output.read(reader.clone())
-                        })
+                RawVc::TaskOutput(task) => SlotReadResult::Link(
+                    Task::with_done_output(task, &tt, |_, output| {
+                        Task::add_dependency_to_current(current);
+                        output.read(Task::current().unwrap())
                     })
                     .await?,
                 ),
-                RawVc::TaskCreated(ref task, index) => Task::with_current(|reader| {
-                    reader.add_dependency(current.clone());
-                    task.with_created_slot_mut(index, |slot| slot.read(reader.clone()))
+                RawVc::TaskCreated(task, index) => tt.with_task_and_tt(task, |task| {
+                    Task::add_dependency_to_current(current);
+                    task.with_created_slot_mut(index, |slot| slot.read(Task::current().unwrap()))
+                })?,
+            } {
+                SlotReadResult::Final(result) => {
+                    return Ok(result);
+                }
+                SlotReadResult::Link(raw_vc) => current = raw_vc,
+            }
+        }
+    }
+
+    pub async unsafe fn into_read_untracked<T: Any + Send + Sync>(
+        self,
+        tt: Arc<TurboTasks>,
+    ) -> Result<RawVcReadResult<T>> {
+        tt.notify_scheduled_tasks();
+        let mut current = self;
+        loop {
+            match match current {
+                RawVc::TaskOutput(task) => SlotReadResult::Link(
+                    Task::with_done_output(task, &tt, |_, output| unsafe {
+                        output.read_untracked()
+                    })
+                    .await?,
+                ),
+                RawVc::TaskCreated(task, index) => tt.with_task_and_tt(task, |task| {
+                    task.with_created_slot_mut(index, |slot| unsafe { slot.read_untracked() })
                 })?,
             } {
                 SlotReadResult::Final(result) => {
@@ -96,38 +116,41 @@ impl RawVc {
     }
 
     pub async fn resolve(self) -> Result<RawVc> {
+        let tt = TurboTasks::current().unwrap();
         let mut current = self;
         let mut notified = false;
         loop {
             current = match current {
-                RawVc::TaskOutput(ref task) => {
+                RawVc::TaskOutput(task) => {
                     if !notified {
-                        TurboTasks::notify_scheduled_tasks();
+                        tt.notify_scheduled_tasks();
                         notified = true;
                     }
-                    task.with_done_output(|output| {
-                        Task::with_current(|reader| {
-                            reader.add_dependency(current.clone());
-                            output.read(reader.clone())
-                        })
+                    Task::with_done_output(task, &tt, |_, output| {
+                        Task::add_dependency_to_current(current);
+                        output.read(Task::current().unwrap())
                     })
                     .await?
                 }
-                RawVc::TaskCreated(_, _) => return Ok(current.clone()),
+                RawVc::TaskCreated(_, _) => return Ok(current),
             }
         }
     }
 
-    pub(crate) fn remove_dependent_task(&self, reader: &Arc<Task>) {
+    pub(crate) fn remove_dependent_task(&self, reader: TaskId, turbo_tasks: &TurboTasks) {
         match self {
             RawVc::TaskOutput(task) => {
-                task.with_output_mut(|slot| {
-                    slot.dependent_tasks.remove(reader);
+                turbo_tasks.with_task_and_tt(*task, |task| {
+                    task.with_output_mut(|slot| {
+                        slot.dependent_tasks.remove(&reader);
+                    });
                 });
             }
             RawVc::TaskCreated(task, index) => {
-                task.with_created_slot_mut(*index, |slot| {
-                    slot.dependent_tasks.remove(reader);
+                turbo_tasks.with_task_and_tt(*task, |task| {
+                    task.with_created_slot_mut(*index, |slot| {
+                        slot.dependent_tasks.remove(&reader);
+                    });
                 });
             }
         }
@@ -140,63 +163,21 @@ impl RawVc {
         }
     }
 
-    pub(crate) fn get_task(&self) -> Arc<Task> {
+    pub(crate) fn get_task_id(&self) -> TaskId {
         match self {
-            RawVc::TaskOutput(t) | RawVc::TaskCreated(t, _) => t.clone(),
+            RawVc::TaskOutput(t) | RawVc::TaskCreated(t, _) => *t,
         }
     }
 }
-
-impl PartialEq<RawVc> for RawVc {
-    fn eq(&self, other: &RawVc) -> bool {
-        match (self, other) {
-            (Self::TaskOutput(a), Self::TaskOutput(b)) => Arc::ptr_eq(a, b),
-            (Self::TaskCreated(a, ai), Self::TaskCreated(b, bi)) => Arc::ptr_eq(a, b) && ai == bi,
-            _ => false,
-        }
-    }
-}
-
-impl Eq for RawVc {}
 
 impl Display for RawVc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RawVc::TaskOutput(task) => {
-                write!(f, "task output {}", task)
+                write!(f, "output of {}", task)
             }
             RawVc::TaskCreated(task, index) => {
-                write!(f, "task created {} {}", task, index)
-            }
-        }
-    }
-}
-
-impl Debug for RawVc {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RawVc::TaskOutput(task) => f
-                .debug_struct("RawVc::TaskOutput")
-                .field("task", task)
-                .finish(),
-            RawVc::TaskCreated(task, index) => f
-                .debug_struct("RawVc::TaskCreated")
-                .field("task", task)
-                .field("index", index)
-                .finish(),
-        }
-    }
-}
-
-impl Hash for RawVc {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        match self {
-            RawVc::TaskOutput(task) => {
-                Hash::hash(&Arc::as_ptr(task), state);
-            }
-            RawVc::TaskCreated(task, index) => {
-                Hash::hash(&Arc::as_ptr(task), state);
-                Hash::hash(&index, state);
+                write!(f, "value {} of {}", index, task)
             }
         }
     }

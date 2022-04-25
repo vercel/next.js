@@ -114,6 +114,7 @@ use turbopack::{
 #[case::ts_package_base("integration/ts-package/index.ts", true)]
 #[case::ts_package_extends("integration/ts-package-extends/index.ts", true)]
 #[case::ts_package_from_js("integration/ts-package-from-js/index.js", true)]
+#[serial_test::serial]
 fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let mut tests_root = package_root.clone();
@@ -140,8 +141,8 @@ fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
         tt.run_once(async move {
             let input_fs: FileSystemVc =
                 DiskFileSystemVc::new("tests".to_string(), tests_root.clone()).into();
-            let input = FileSystemPathVc::new(input_fs.clone(), &input);
-            let input_dir = FileSystemPathVc::new(input_fs.clone(), "node-file-trace");
+            let input = FileSystemPathVc::new(input_fs, &input);
+            let input_dir = FileSystemPathVc::new(input_fs, "node-file-trace");
 
             let original_output = exec_node(tests_root.clone(), input.clone());
 
@@ -177,13 +178,14 @@ fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
         }
         Err(err) => {
             let mut pending_tasks = 0_usize;
-            for task in tt.cached_tasks_iter() {
+            let guard = tt.guard();
+            for task in tt.cached_tasks_iter(&guard) {
                 if task.is_pending() {
                     println!("PENDING: {task}");
                     pending_tasks += 1;
                 }
             }
-            panic!("Execution is hanging (for > 120s, {pending_tasks} pending tasks)");
+            panic!("Execution is hanging (for > 120s, {pending_tasks} pending tasks): {err}");
         }
     }
 }
@@ -215,7 +217,7 @@ impl Display for CommandOutput {
 async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandOutputVc> {
     let mut cmd = Command::new("node");
 
-    let p = path.get().await?;
+    let p = path.await?;
     let f = Path::new(&directory).join(&p.path);
     let dir = f.parent().unwrap();
     let label = path.to_string().await?;

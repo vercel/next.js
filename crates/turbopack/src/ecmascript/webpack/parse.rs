@@ -182,7 +182,7 @@ fn get_require_prefix(stmts: &Vec<Stmt>) -> Option<Lit> {
 
 #[turbo_tasks::function]
 pub async fn is_webpack_runtime(asset: AssetVc) -> Result<WebpackRuntimeVc> {
-    let parsed = parse(asset.clone(), Value::new(ModuleAssetType::Ecmascript)).await?;
+    let parsed = parse(asset, Value::new(ModuleAssetType::Ecmascript)).await?;
     match &*parsed {
         ParseResult::Ok {
             program,

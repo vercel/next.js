@@ -7,7 +7,7 @@ use turbo_tasks::{trace::TraceRawVcs, Value, ValueToString, ValueToStringVc, Vc}
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 
 #[turbo_tasks::value(shared, ValueToString)]
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Debug)]
 pub enum Pattern {
     Constant(String),
     Dynamic,
@@ -631,7 +631,7 @@ pub async fn read_matches(
     pattern: PatternVc,
 ) -> Result<Vc<Vec<PatternMatch>>> {
     let mut prefix = prefix;
-    let pat = pattern.get().await?;
+    let pat = pattern.await?;
     let mut results = Vec::new();
     let mut nested = Vec::new();
     let slow_path = if let Some(constants) = pat.next_constants(&prefix) {
@@ -651,9 +651,7 @@ pub async fn read_matches(
                         } else {
                             context.clone().try_join(str).await?
                         } {
-                            if !force_in_context
-                                || fs_path.get().await?.is_inside(&*context.get().await?)
-                            {
+                            if !force_in_context || fs_path.await?.is_inside(&*context.await?) {
                                 let len = prefix.len();
                                 prefix.push_str(str);
                                 match *fs_path.clone().get_type().await? {

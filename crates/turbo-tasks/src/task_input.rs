@@ -1,6 +1,6 @@
 use std::{
     any::{type_name, Any},
-    fmt::Display,
+    fmt::{Debug, Display},
     future::Future,
     hash::Hash,
     pin::Pin,
@@ -11,8 +11,8 @@ use any_key::AnyHash;
 use anyhow::{anyhow, Result};
 
 use crate::{
-    slot::CloneableData, util::try_join_all, value::Value, NativeFunction, RawVc, SlotValueType,
-    Task, TraitType,
+    magic_any::MagicAny, util::try_join_all, value::Value, NativeFunction, RawVc, SlotValueType,
+    Task, TaskId, TraitType, TurboTasks,
 };
 
 #[derive(Clone)]
@@ -32,12 +32,28 @@ impl PartialEq for SharedReference {
     }
 }
 impl Eq for SharedReference {}
+impl PartialOrd for SharedReference {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        PartialOrd::partial_cmp(
+            &(&*self.0 as *const (dyn Any + Send + Sync)),
+            &(&*other.0 as *const (dyn Any + Send + Sync)),
+        )
+    }
+}
+impl Ord for SharedReference {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        Ord::cmp(
+            &(&*self.0 as *const (dyn Any + Send + Sync)),
+            &(&*other.0 as *const (dyn Any + Send + Sync)),
+        )
+    }
+}
 
 #[allow(clippy::derive_hash_xor_eq)]
-#[derive(Hash, Clone)]
+#[derive(Hash, Clone, PartialOrd, Ord)]
 pub enum TaskInput {
-    TaskOutput(Arc<Task>),
-    TaskCreated(Arc<Task>, usize),
+    TaskOutput(TaskId),
+    TaskCreated(TaskId, usize),
     List(Vec<TaskInput>),
     String(String),
     Bool(bool),
@@ -45,47 +61,51 @@ pub enum TaskInput {
     I32(i32),
     U32(u32),
     Nothing,
-    SharedValue(Arc<dyn AnyHash + Send + Sync>),
+    SharedValue(Arc<dyn MagicAny>),
     SharedReference(&'static SlotValueType, SharedReference),
-    CloneableData(&'static SlotValueType, Box<dyn CloneableData>),
 }
 
 impl TaskInput {
     pub async fn resolve_to_value(self) -> Result<TaskInput> {
+        let tt = TurboTasks::current().unwrap();
         let mut current = self;
         loop {
             current = match current {
-                TaskInput::TaskOutput(ref task) => task
-                    .with_done_output(|output| {
-                        Task::with_current(|reader| {
-                            reader.add_dependency(RawVc::TaskOutput(task.clone()));
-                            output.read(reader.clone())
-                        })
+                TaskInput::TaskOutput(task_id) => {
+                    Task::with_done_output(task_id, &tt, |_, output| {
+                        Task::add_dependency_to_current(RawVc::TaskOutput(task_id));
+                        output.read(Task::current().unwrap())
                     })
                     .await?
-                    .into(),
-                TaskInput::TaskCreated(ref task, index) => Task::with_current(|reader| {
-                    reader.add_dependency(RawVc::TaskCreated(task.clone(), index));
-                    task.with_created_slot_mut(index, |slot| slot.resolve(reader.clone()))
-                })?,
+                    .into()
+                }
+                TaskInput::TaskCreated(task_id, index) => tt.with_task_and_tt(task_id, |task| {
+                    Task::add_dependency_to_current(RawVc::TaskCreated(task_id, index));
+                    task.with_created_slot_mut(index, |slot| {
+                        slot.resolve(Task::current().unwrap()).map_or_else(
+                            || TaskInput::Nothing,
+                            |(ty, reference)| TaskInput::SharedReference(ty, reference),
+                        )
+                    })
+                }),
                 _ => return Ok(current),
             }
         }
     }
 
     pub async fn resolve(self) -> Result<TaskInput> {
+        let tt = TurboTasks::current().unwrap();
         let mut current = self;
         loop {
             current = match current {
-                TaskInput::TaskOutput(ref task) => task
-                    .with_done_output(|output| {
-                        Task::with_current(|reader| {
-                            reader.add_dependency(RawVc::TaskOutput(task.clone()));
-                            output.read(reader.clone())
-                        })
+                TaskInput::TaskOutput(task_id) => {
+                    Task::with_done_output(task_id, &tt, |_, output| {
+                        Task::add_dependency_to_current(RawVc::TaskOutput(task_id));
+                        output.read(Task::current().unwrap())
                     })
                     .await?
-                    .into(),
+                    .into()
+                }
                 TaskInput::List(list) => {
                     if list.iter().all(|i| i.is_resolved()) {
                         return Ok(TaskInput::List(list));
@@ -103,9 +123,9 @@ impl TaskInput {
         }
     }
 
-    pub fn get_task(&self) -> Option<Arc<Task>> {
+    pub(crate) fn get_task_id(&self) -> Option<TaskId> {
         match self {
-            TaskInput::TaskOutput(t) | TaskInput::TaskCreated(t, _) => Some(t.clone()),
+            TaskInput::TaskOutput(t) | TaskInput::TaskCreated(t, _) => Some(*t),
             _ => None,
         }
     }
@@ -119,7 +139,7 @@ impl TaskInput {
             TaskInput::TaskOutput(_) | TaskInput::TaskCreated(_, _) => {
                 panic!("get_trait_method must be called on a resolved TaskInput")
             }
-            TaskInput::SharedReference(ty, _) | TaskInput::CloneableData(ty, _) => {
+            TaskInput::SharedReference(ty, _) => {
                 ty.trait_methods.get(&(trait_type, name)).map(|r| *r)
             }
             _ => None,
@@ -131,9 +151,7 @@ impl TaskInput {
             TaskInput::TaskOutput(_) | TaskInput::TaskCreated(_, _) => {
                 panic!("has_trait() must be called on a resolved TaskInput")
             }
-            TaskInput::SharedReference(ty, _) | TaskInput::CloneableData(ty, _) => {
-                ty.traits.contains(&trait_type)
-            }
+            TaskInput::SharedReference(ty, _) => ty.traits.contains(&trait_type),
             _ => false,
         }
     }
@@ -143,9 +161,7 @@ impl TaskInput {
             TaskInput::TaskOutput(_) | TaskInput::TaskCreated(_, _) => {
                 panic!("traits() must be called on a resolved TaskInput")
             }
-            TaskInput::SharedReference(ty, _) | TaskInput::CloneableData(ty, _) => {
-                ty.traits.iter().map(|t| *t).collect()
-            }
+            TaskInput::SharedReference(ty, _) => ty.traits.iter().map(|t| *t).collect(),
             _ => Vec::new(),
         }
     }
@@ -169,10 +185,8 @@ impl TaskInput {
 impl PartialEq for TaskInput {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::TaskOutput(l0), Self::TaskOutput(r0)) => Arc::ptr_eq(l0, r0),
-            (Self::TaskCreated(l0, l1), Self::TaskCreated(r0, r1)) => {
-                Arc::ptr_eq(l0, r0) && l1 == r1
-            }
+            (Self::TaskOutput(l0), Self::TaskOutput(r0)) => l0 == r0,
+            (Self::TaskCreated(l0, l1), Self::TaskCreated(r0, r1)) => l0 == r0 && l1 == r1,
             (Self::List(l0), Self::List(r0)) => l0 == r0,
             (Self::String(l0), Self::String(r0)) => l0 == r0,
             (Self::Bool(l0), Self::Bool(r0)) => l0 == r0,
@@ -181,7 +195,6 @@ impl PartialEq for TaskInput {
             (Self::U32(l0), Self::U32(r0)) => l0 == r0,
             (Self::SharedValue(l0), Self::SharedValue(r0)) => AnyHash::eq(l0, r0),
             (Self::SharedReference(l0, l1), Self::SharedReference(r0, r1)) => l0 == r0 && l1 == r1,
-            (Self::CloneableData(l0, l1), Self::CloneableData(r0, r1)) => l0 == r0 && l1 == r1,
             (Self::Nothing, Self::Nothing) => true,
             _ => false,
         }
@@ -220,7 +233,6 @@ impl Display for TaskInput {
             TaskInput::Nothing => write!(f, "nothing"),
             TaskInput::SharedValue(_) => write!(f, "any value"),
             TaskInput::SharedReference(ty, _) => write!(f, "shared reference {}", ty.name),
-            TaskInput::CloneableData(ty, _) => write!(f, "cloneable data {}", ty.name),
         }
     }
 }
@@ -261,7 +273,9 @@ impl From<usize> for TaskInput {
     }
 }
 
-impl<T: Any + Clone + Hash + Eq + Send + Sync + 'static> From<Value<T>> for TaskInput {
+impl<T: Any + Debug + Clone + Hash + Eq + Ord + Send + Sync + 'static> From<Value<T>>
+    for TaskInput
+{
     fn from(v: Value<T>) -> Self {
         TaskInput::SharedValue(Arc::new(v))
     }
@@ -353,18 +367,19 @@ impl TryFrom<&TaskInput> for usize {
     }
 }
 
-impl<T: Any + Clone + Hash + Eq + Send + Sync + 'static> TryFrom<&TaskInput> for Value<T> {
+impl<T: Any + Debug + Clone + Hash + Eq + Ord + Send + Sync + 'static> TryFrom<&TaskInput>
+    for Value<T>
+{
     type Error = anyhow::Error;
 
     fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
         match value {
             TaskInput::SharedValue(value) => {
-                let value: Arc<dyn AnyHash> = value.clone();
-
                 let v = value.downcast_ref::<Value<T>>().ok_or_else(|| {
                     anyhow!(
-                        "invalid task input type, expected Value<{}>",
-                        type_name::<T>()
+                        "invalid task input type, expected {} got {:?}",
+                        type_name::<Value<T>>(),
+                        value,
                     )
                 })?;
                 Ok(v.clone())
@@ -382,8 +397,8 @@ impl TryFrom<&TaskInput> for RawVc {
 
     fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
         match value {
-            TaskInput::TaskOutput(task) => Ok(RawVc::TaskOutput(task.clone())),
-            TaskInput::TaskCreated(task, index) => Ok(RawVc::TaskCreated(task.clone(), *index)),
+            TaskInput::TaskOutput(task) => Ok(RawVc::TaskOutput(*task)),
+            TaskInput::TaskCreated(task, index) => Ok(RawVc::TaskCreated(*task, *index)),
             _ => Err(anyhow!("invalid task input type, expected slot ref")),
         }
     }

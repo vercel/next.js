@@ -24,13 +24,13 @@ fn main() {
             Box::pin(async {
                 let root = current_dir().unwrap().to_str().unwrap().to_string();
                 let disk_fs = DiskFileSystemVc::new("project".to_string(), root);
-                disk_fs.get().await?.start_watching()?;
+                disk_fs.await?.start_watching()?;
 
                 // Smart Pointer cast
                 let fs: FileSystemVc = disk_fs.into();
-                let input = FileSystemPathVc::new(fs.clone(), "demo");
-                let output = FileSystemPathVc::new(fs.clone(), "out");
-                let entry = FileSystemPathVc::new(fs.clone(), "demo/index.js");
+                let input = FileSystemPathVc::new(fs, "demo");
+                let output = FileSystemPathVc::new(fs, "out");
+                let entry = FileSystemPathVc::new(fs, "demo/index.js");
 
                 let source = SourceAssetVc::new(entry);
                 let module = turbopack::module(source.into());
@@ -45,10 +45,6 @@ fn main() {
             async move {
                 tt.wait_done().await;
                 println!("done in {} ms", start.elapsed().as_millis());
-
-                for task in tt.cached_tasks_iter() {
-                    task.reset_executions();
-                }
 
                 loop {
                     let (elapsed, count) = tt.wait_done().await;
@@ -68,11 +64,12 @@ fn main() {
             let mut stats = Stats::new();
 
             // graph root node
-            stats.add(&task);
+            stats.add_id(&tt, task);
 
             // graph tasks in cache
-            for task in tt.cached_tasks_iter() {
-                stats.add(&task);
+            let guard = tt.guard();
+            for task in tt.cached_tasks_iter(&guard) {
+                stats.add(&tt, &task);
             }
 
             // prettify graph

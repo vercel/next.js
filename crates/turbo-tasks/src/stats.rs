@@ -3,15 +3,14 @@ use std::{
     collections::{hash_map::Entry, HashMap, HashSet, VecDeque},
     fmt::Display,
     mem::take,
-    sync::Arc,
 };
 
-use crate::{NativeFunction, Task, TraitType};
+use crate::{NativeFunction, Task, TaskId, TraitType, TurboTasks};
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum TaskType {
-    Root(Arc<Task>),
-    Once(Arc<Task>),
+    Root(TaskId),
+    Once(TaskId),
     Native(&'static NativeFunction),
     ResolveNative(&'static NativeFunction),
     ResolveTrait(&'static TraitType, String),
@@ -51,11 +50,6 @@ pub struct Stats {
     tasks: HashMap<TaskType, TaskStats>,
 }
 
-pub struct TaskSnapshot {
-    pub ty: TaskType,
-    pub references: Vec<(ReferenceType, Arc<Task>)>,
-}
-
 impl Stats {
     pub fn new() -> Self {
         Self {
@@ -63,7 +57,7 @@ impl Stats {
         }
     }
 
-    pub fn add(&mut self, task: &Arc<Task>) {
+    pub fn add(&mut self, turbo_tasks: &TurboTasks, task: &Task) {
         let ty = task.get_stats_type();
         let stats = self.tasks.entry(ty).or_default();
         stats.count += 1;
@@ -71,14 +65,22 @@ impl Stats {
         let references = task.get_stats_references();
         let set: HashSet<_> = references.into_iter().collect();
         for (ref_type, task) in set {
-            let ty = task.get_stats_type();
-            let ref_stats = stats.references.entry((ref_type, ty)).or_default();
-            ref_stats.count += 1;
+            turbo_tasks.with_task_and_tt(task, |task| {
+                let ty = task.get_stats_type();
+                let ref_stats = stats.references.entry((ref_type, ty)).or_default();
+                ref_stats.count += 1;
+            })
         }
     }
 
+    pub fn add_id(&mut self, turbo_tasks: &TurboTasks, id: TaskId) {
+        turbo_tasks.with_task_and_tt(id, |task| {
+            self.add(turbo_tasks, task);
+        });
+    }
+
     pub fn merge_resolve(&mut self) {
-        self.merge(|ty, stats| match ty {
+        self.merge(|ty, _stats| match ty {
             TaskType::Root(_) | TaskType::Once(_) | TaskType::Native(_) => false,
             TaskType::ResolveNative(_) | TaskType::ResolveTrait(_, _) => true,
         })

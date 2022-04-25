@@ -287,7 +287,6 @@ impl FileSystem for DiskFileSystem {
     async fn read(&self, fs_path: FileSystemPathVc) -> Result<FileContentVc> {
         let full_path = Path::new(&self.root).join(
             &fs_path
-                .get()
                 .await?
                 .path
                 .replace("/", &MAIN_SEPARATOR.to_string()),
@@ -335,8 +334,7 @@ impl FileSystem for DiskFileSystem {
                                 path_to_root.to_string()
                             };
                             Some(Ok((filename, {
-                                let fs_path =
-                                    FileSystemPathVc::new(fs_path.fs.clone(), &path_to_root);
+                                let fs_path = FileSystemPathVc::new(fs_path.fs, &path_to_root);
                                 let file_type = match e.file_type() {
                                     Err(e) => {
                                         return Some(Err(e.into()));
@@ -370,7 +368,6 @@ impl FileSystem for DiskFileSystem {
     ) -> Result<CompletionVc> {
         let full_path = Path::new(&self.root).join(
             &fs_path
-                .get()
                 .await?
                 .path
                 .replace("/", &MAIN_SEPARATOR.to_string()),
@@ -412,16 +409,16 @@ impl FileSystem for DiskFileSystem {
         Ok(CompletionVc::new())
     }
     async fn parent_path(&self, fs_path: FileSystemPathVc) -> Result<FileSystemPathVc> {
-        let fs_path_value = fs_path.get().await?;
+        let fs_path_value = fs_path.await?;
         if fs_path_value.path.is_empty() {
-            return Ok(fs_path.clone());
+            return Ok(fs_path);
         }
         let mut p: String = fs_path_value.path.clone();
         match str::rfind(&p, '/') {
             Some(index) => p.replace_range(index.., ""),
             None => p.clear(),
         }
-        Ok(FileSystemPathVc::new(fs_path_value.fs.clone(), &p))
+        Ok(FileSystemPathVc::new(fs_path_value.fs, &p))
     }
     fn to_string(&self) -> Vc<String> {
         Vc::slot(self.name.clone())
@@ -505,7 +502,7 @@ impl FileSystemPathVc {
     pub async fn join(self, path: &str) -> Result<Self> {
         let this = self.await?;
         if let Some(path) = join_path(&this.path, path) {
-            Ok(Self::new_normalized(this.fs.clone(), path))
+            Ok(Self::new_normalized(this.fs, path))
         } else {
             bail!(
                 "FileSystemPathVc(\"{}\").join(\"{}\") leaves the filesystem root",
@@ -518,7 +515,7 @@ impl FileSystemPathVc {
     pub async fn try_join(self, path: &str) -> Result<Vc<Option<Self>>> {
         let this = self.await?;
         if let Some(path) = join_path(&this.path, path) {
-            Ok(Vc::slot(Some(Self::new_normalized(this.fs.clone(), path))))
+            Ok(Vc::slot(Some(Self::new_normalized(this.fs, path))))
         } else {
             Ok(Vc::slot(None))
         }
@@ -528,7 +525,7 @@ impl FileSystemPathVc {
         let this = self.await?;
         if let Some(path) = join_path(&this.path, path) {
             if path.starts_with(&this.path) {
-                return Ok(Vc::slot(Some(Self::new_normalized(this.fs.clone(), path))));
+                return Ok(Vc::slot(Some(Self::new_normalized(this.fs, path))));
             }
         }
         Ok(Vc::slot(None))
@@ -539,12 +536,12 @@ impl FileSystemPathVc {
     }
 
     pub async fn root(self) -> Result<Self> {
-        let fs = self.await?.fs.clone();
+        let fs = self.await?.fs;
         Ok(Self::new_normalized(fs, "".to_string()))
     }
 
     pub async fn fs(self) -> Result<FileSystemVc> {
-        Ok(self.await?.fs.clone())
+        Ok(self.await?.fs)
     }
 }
 
@@ -586,42 +583,42 @@ pub async fn rebase(
             new_path = [new_base.path.as_str(), &fs_path.path[old_base.path.len()..]].concat();
         }
     }
-    Ok(FileSystemPathVc::new(new_base.fs.clone(), &new_path))
+    Ok(FileSystemPathVc::new(new_base.fs, &new_path))
 }
 
 #[turbo_tasks::value_impl]
 impl FileSystemPathVc {
     pub async fn read(self) -> Result<FileContentVc> {
-        let this = self.get().await?;
+        let this = self.await?;
         Ok(this.fs.read(self))
     }
 
     pub async fn read_json(self) -> Result<FileJsonContentVc> {
-        let this = self.get().await?;
+        let this = self.await?;
         Ok(this.fs.read(self).parse_json())
     }
 
     pub async fn read_dir(self) -> Result<DirectoryContentVc> {
-        let this = self.get().await?;
+        let this = self.await?;
         Ok(this.fs.read_dir(self))
     }
 
     pub async fn write(self, content: FileContentVc) -> Result<CompletionVc> {
-        let this = self.get().await?;
+        let this = self.await?;
         Ok(this.fs.write(self, content))
     }
 
     pub async fn parent(self) -> Result<FileSystemPathVc> {
-        let this = self.get().await?;
+        let this = self.await?;
         Ok(this.fs.parent_path(self))
     }
 
     pub async fn get_type(self) -> Result<Vc<FileSystemEntryType>> {
-        let this = self.get().await?;
+        let this = self.await?;
         if this.is_root() {
             return Ok(Vc::slot(FileSystemEntryType::Directory));
         }
-        let dir_content = this.fs.read_dir(self.clone().parent()).await?;
+        let dir_content = this.fs.read_dir(self.parent()).await?;
         match &*dir_content {
             DirectoryContent::NotFound => Ok(Vc::slot(FileSystemEntryType::NotFound)),
             DirectoryContent::Entries(entries) => {
@@ -819,7 +816,7 @@ pub enum FileJsonContent {
     NotFound,
 }
 
-#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs)]
+#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs)]
 pub enum DirectoryEntry {
     File(FileSystemPathVc),
     Directory(FileSystemPathVc),
@@ -827,7 +824,7 @@ pub enum DirectoryEntry {
     Error,
 }
 
-#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs)]
+#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs)]
 pub enum FileSystemEntryType {
     NotFound,
     File,

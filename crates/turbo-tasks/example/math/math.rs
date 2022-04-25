@@ -25,8 +25,8 @@ pub async fn max_new(a: I32ValueVc, b: I32ValueVc) -> Result<I32ValueVc> {
 
 #[turbo_tasks::function]
 pub async fn max_reuse(a_ref: I32ValueVc, b_ref: I32ValueVc) -> Result<I32ValueVc> {
-    let a = a_ref.get().await?.value;
-    let b = b_ref.get().await?.value;
+    let a = a_ref.await?.value;
+    let b = b_ref.await?.value;
     println!("max({}, {}) = ...", a, b);
     async_std::task::sleep(Duration::from_millis(500)).await;
     println!("max({}, {}) = {}", a, b, a + b);

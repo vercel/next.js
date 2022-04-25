@@ -1,6 +1,6 @@
-use std::ops::Deref;
+use std::{fmt::Debug, ops::Deref};
 
-#[derive(PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct Value<T> {
     inner: T,
 }

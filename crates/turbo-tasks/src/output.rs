@@ -1,17 +1,16 @@
 use anyhow::{anyhow, Error, Result};
 use std::{
+    collections::HashSet,
     fmt::{Debug, Display},
-    sync::{Arc, Weak},
 };
-use weak_table::WeakHashSet;
 
-use crate::{error::SharedError, RawVc, Task, TurboTasks};
+use crate::{error::SharedError, RawVc, TaskId, TurboTasks};
 
 #[derive(Default, Debug)]
 pub struct Output {
     pub(crate) content: OutputContent,
     updates: u32,
-    pub(crate) dependent_tasks: WeakHashSet<Weak<Task>>,
+    pub(crate) dependent_tasks: HashSet<TaskId>,
 }
 
 #[derive(Clone, Debug)]
@@ -38,12 +37,16 @@ impl Display for OutputContent {
 }
 
 impl Output {
-    pub fn read(&mut self, reader: Arc<Task>) -> Result<RawVc> {
+    pub fn read(&mut self, reader: TaskId) -> Result<RawVc> {
         self.dependent_tasks.insert(reader);
+        unsafe { self.read_untracked() }
+    }
+
+    pub unsafe fn read_untracked(&mut self) -> Result<RawVc> {
         match &self.content {
             OutputContent::Empty => Err(anyhow!("Output it empty")),
             OutputContent::Error(err) => Err(err.clone().into()),
-            OutputContent::Link(raw_vc) => Ok(raw_vc.clone()),
+            OutputContent::Link(raw_vc) => Ok(*raw_vc),
         }
     }
 
@@ -54,12 +57,12 @@ impl Output {
             OutputContent::Link(old_target) => {
                 if match (old_target, &target) {
                     (RawVc::TaskOutput(old_task), RawVc::TaskOutput(new_task)) => {
-                        Arc::ptr_eq(old_task, new_task)
+                        old_task == new_task
                     }
                     (
                         RawVc::TaskCreated(old_task, old_index),
                         RawVc::TaskCreated(new_task, new_index),
-                    ) => Arc::ptr_eq(old_task, new_task) && *old_index == *new_index,
+                    ) => old_task == new_task && *old_index == *new_index,
                     _ => false,
                 } {
                     change = None;

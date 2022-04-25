@@ -7,7 +7,7 @@ use async_std::task::{block_on, spawn};
 use sha2::{Digest, Sha256};
 use std::time::Instant;
 use std::{collections::BTreeMap, env::current_dir};
-use turbo_tasks::{NothingVc, TurboTasks};
+use turbo_tasks::{NothingVc, TurboTasks, Vc};
 use turbo_tasks_fs::glob::GlobVc;
 
 use turbo_tasks_fs::{
@@ -23,11 +23,11 @@ fn main() {
             Box::pin(async {
                 let root = current_dir().unwrap().to_str().unwrap().to_string();
                 let disk_fs = DiskFileSystemVc::new("project".to_string(), root);
-                disk_fs.get().await?.start_watching()?;
+                disk_fs.await?.start_watching()?;
 
                 // Smart Pointer cast
                 let fs: FileSystemVc = disk_fs.into();
-                let input = FileSystemPathVc::new(fs.clone(), "crates");
+                let input = FileSystemPathVc::new(fs, "crates");
                 let glob = GlobVc::new("**/*.rs");
                 let glob_result = input.read_glob(glob, true);
                 let dir_hash = hash_glob_result(glob_result);
@@ -40,10 +40,6 @@ fn main() {
             async move {
                 tt.wait_done().await;
                 println!("done in {} ms", start.elapsed().as_millis());
-
-                for task in tt.cached_tasks_iter() {
-                    task.reset_executions();
-                }
 
                 loop {
                     let (elapsed, count) = tt.wait_done().await;
@@ -59,71 +55,58 @@ fn main() {
     });
 }
 
-#[turbo_tasks::value]
-#[derive(PartialEq, Eq)]
-struct ContentHash {
-    value: String,
-}
-
-impl ContentHashVc {
-    pub fn new(value: String) -> Self {
-        Self::slot(ContentHash { value })
-    }
-
-    pub fn empty() -> Self {
-        Self::slot(ContentHash {
-            value: "".to_string(),
-        })
-    }
+#[turbo_tasks::function]
+pub fn empty_string() -> Vc<String> {
+    Vc::slot("".to_string())
 }
 
 #[turbo_tasks::function]
-async fn print_hash(dir_hash: ContentHashVc) -> Result<()> {
-    println!("DIR HASH: {}", dir_hash.await?.value);
+async fn print_hash(dir_hash: Vc<String>) -> Result<()> {
+    println!("DIR HASH: {}", dir_hash.await?.as_str());
     Ok(())
 }
 
 #[turbo_tasks::function]
-async fn hash_glob_result(result: ReadGlobResultVc) -> Result<ContentHashVc> {
+async fn hash_glob_result(result: ReadGlobResultVc) -> Result<Vc<String>> {
     let result = result.await?;
     let mut hashes = BTreeMap::new();
     for (name, entry) in result.results.iter() {
         match entry {
             DirectoryEntry::File(path) => {
-                hashes.insert(name, hash_file(path.clone()).await?.value.clone());
+                hashes.insert(name, hash_file(*path).await?.clone());
             }
             _ => {}
         }
     }
     for (name, result) in result.inner.iter() {
-        let hash = &hash_glob_result(result.clone()).await?.value;
+        let hash = hash_glob_result(*result).await?;
         if !hash.is_empty() {
             hashes.insert(name, hash.clone());
         }
     }
     if hashes.is_empty() {
-        return Ok(ContentHashVc::empty());
+        return Ok(empty_string());
     }
     let hash = hash_content(hashes.into_values().collect::<Vec<String>>().join(","));
     Ok(hash)
 }
 
 #[turbo_tasks::function]
-async fn hash_file(file_path: FileSystemPathVc) -> Result<ContentHashVc> {
-    let content = file_path.clone().read().await?;
+async fn hash_file(file_path: FileSystemPathVc) -> Result<Vc<String>> {
+    let content = file_path.read().await?;
     Ok(match &*content {
         FileContent::Content(bytes) => hash_content(bytes),
         FileContent::NotFound => {
             // report error
-            ContentHashVc::new("".to_string())
+            Vc::slot("".to_string())
         }
     })
 }
 
-fn hash_content(content: impl AsRef<[u8]>) -> ContentHashVc {
+fn hash_content(content: impl AsRef<[u8]>) -> Vc<String> {
     let mut hasher = Sha256::new();
     hasher.update(content);
     let result = format!("{:x}", hasher.finalize());
 
-    ContentHashVc::new(result)
+    Vc::slot(result)
 }

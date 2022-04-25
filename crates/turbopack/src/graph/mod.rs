@@ -34,31 +34,31 @@ impl AggregatedGraph {
 #[turbo_tasks::value_impl]
 impl AggregatedGraphVc {
     pub async fn content(self) -> Result<AggregatedGraphNodeContentVc> {
-        Ok(match &*self.await? {
-            AggregatedGraph::Leaf(asset) => AggregatedGraphNodeContent::Asset(asset.clone()).into(),
-            AggregatedGraph::Node { content, .. } => {
+        Ok(match *self.await? {
+            AggregatedGraph::Leaf(asset) => AggregatedGraphNodeContent::Asset(asset).into(),
+            AggregatedGraph::Node { ref content, .. } => {
                 AggregatedGraphNodeContent::Children(content.clone()).into()
             }
         })
     }
 
     async fn references(self) -> Result<AggregatedGraphsSetVc> {
-        Ok(match &*self.await? {
+        Ok(match *self.await? {
             AggregatedGraph::Leaf(asset) => {
                 let mut refs = HashSet::new();
-                for reference in all_referenced_assets(asset.clone()).await?.assets.iter() {
-                    let reference = reference.clone().resolve().await?;
-                    if asset != &reference {
+                for reference in all_referenced_assets(asset).await?.assets.iter() {
+                    let reference = reference.resolve().await?;
+                    if asset != reference {
                         refs.insert(AggregatedGraphVc::leaf(reference));
                     }
                 }
                 AggregatedGraphsSet { set: refs }.into()
             }
-            AggregatedGraph::Node { references, .. } => {
+            AggregatedGraph::Node { ref references, .. } => {
                 let mut set = HashSet::new();
                 for item in references
                     .iter()
-                    .map(|reference| aggregate_more(reference.clone()))
+                    .map(|&reference| aggregate_more(reference))
                     .collect::<Vec<_>>()
                     .into_iter()
                 {
@@ -70,16 +70,18 @@ impl AggregatedGraphVc {
     }
 
     async fn cost(self) -> Result<AggregationCostVc> {
-        Ok(match &*self.await? {
+        Ok(match *self.await? {
             AggregatedGraph::Leaf(asset) => {
-                AggregationCost(all_referenced_assets(asset.clone()).await?.assets.len()).into()
+                AggregationCost(all_referenced_assets(asset).await?.assets.len()).into()
             }
-            AggregatedGraph::Node { references, .. } => AggregationCost(references.len()).into(),
+            AggregatedGraph::Node { ref references, .. } => {
+                AggregationCost(references.len()).into()
+            }
         })
     }
 
     async fn valued_references(self) -> Result<AggregatedGraphsValuedReferencesVc> {
-        let self_cost = self.clone().cost().await?.0;
+        let self_cost = self.cost().await?.0;
         let mut inner = HashSet::new();
         let mut outer = HashSet::new();
         let mut references = HashSet::new();
@@ -88,7 +90,7 @@ impl AggregatedGraphVc {
             .await?
             .set
             .iter()
-            .map(|reference| (reference.clone(), reference.clone().cost()))
+            .map(|&reference| (reference, reference.cost()))
             .collect::<Vec<_>>()
         {
             let cost = cost.await?.0;
@@ -113,7 +115,7 @@ impl AggregatedGraphVc {
 pub async fn aggregate(asset: AssetVc) -> Result<AggregatedGraphVc> {
     let mut current = AggregatedGraphVc::leaf(asset);
     loop {
-        if current.clone().references().await?.set.len() == 0 {
+        if current.references().await?.set.len() == 0 {
             return Ok(current);
         }
         current = aggregate_more(current);
@@ -126,42 +128,42 @@ struct AggregationCost(usize);
 
 #[turbo_tasks::function]
 async fn aggregate_more(node: AggregatedGraphVc) -> Result<AggregatedGraphVc> {
-    let node_data = node.get().await?;
+    let node_data = node.await?;
     let depth = node_data.depth();
     let mut in_progress = HashSet::new();
     let mut content = HashSet::new();
     let mut references = HashSet::new();
-    in_progress.insert(node.clone());
+    in_progress.insert(node);
 
     // only one kind of aggregation can't eliminate cycles with that
     // number of nodes. Alternating the aggregation will get rid of all
     // cycles
     let aggregation = if depth > 0 && depth % 2 == 0 { 3 } else { 2 };
     for _ in 0..aggregation {
-        for node in in_progress.iter() {
-            content.insert(node.clone());
+        for &node in in_progress.iter() {
+            content.insert(node);
         }
         let valued_refs = in_progress
             .drain()
-            .map(|node| node.clone().valued_references())
+            .map(|node| node.valued_references())
             .collect::<Vec<_>>();
         for valued_refs in valued_refs {
             let valued_refs = valued_refs.await?;
-            for reference in valued_refs.inner.iter() {
-                content.insert(reference.clone());
+            for &reference in valued_refs.inner.iter() {
+                content.insert(reference);
             }
-            for reference in valued_refs.references.iter() {
-                if content.contains(reference) {
+            for &reference in valued_refs.references.iter() {
+                if content.contains(&reference) {
                     continue;
                 }
-                references.insert(reference.clone());
+                references.insert(reference);
             }
-            for reference in valued_refs.outer.iter() {
-                if content.contains(reference) {
+            for &reference in valued_refs.outer.iter() {
+                if content.contains(&reference) {
                     continue;
                 }
                 references.remove(&reference);
-                in_progress.insert(reference.clone());
+                in_progress.insert(reference);
             }
         }
     }

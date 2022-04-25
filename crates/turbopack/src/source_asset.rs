@@ -21,10 +21,10 @@ impl SourceAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for SourceAsset {
     fn path(&self) -> FileSystemPathVc {
-        self.path.clone()
+        self.path
     }
     fn content(&self) -> FileContentVc {
-        self.path.clone().read()
+        self.path.read()
     }
     fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
         Vc::default()

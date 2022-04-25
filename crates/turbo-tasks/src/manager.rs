@@ -10,23 +10,25 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
 use async_std::{
     task::{Builder, JoinHandle},
     task_local,
 };
-use chashmap::CHashMap;
 use event_listener::Event;
+use flurry::{Guard, HashMap as FHashMap};
 
 use crate::{
-    output::OutputContent, raw_vc::RawVc, task::NativeTaskFuture, task_input::TaskInput,
-    NativeFunction, NothingVc, Task, TraitType,
+    no_move_vec::NoMoveVec, raw_vc::RawVc, task::NativeTaskFuture, task_input::TaskInput,
+    trace::TraceRawVcs, NativeFunction, Task, TaskId, TraitType, Vc,
 };
 
 pub struct TurboTasks {
-    resolve_task_cache: CHashMap<(&'static NativeFunction, Vec<TaskInput>), Arc<Task>>,
-    native_task_cache: CHashMap<(&'static NativeFunction, Vec<TaskInput>), Arc<Task>>,
-    trait_task_cache: CHashMap<(&'static TraitType, String, Vec<TaskInput>), Arc<Task>>,
+    next_task_id: AtomicUsize,
+    memory_tasks: NoMoveVec<Task, 13>,
+    resolve_task_cache: FHashMap<(&'static NativeFunction, Vec<TaskInput>), TaskId>,
+    native_task_cache: FHashMap<(&'static NativeFunction, Vec<TaskInput>), TaskId>,
+    trait_task_cache: FHashMap<(&'static TraitType, String, Vec<TaskInput>), TaskId>,
     currently_scheduled_tasks: AtomicUsize,
     scheduled_tasks: AtomicUsize,
     start: Mutex<Option<Instant>>,
@@ -42,7 +44,7 @@ task_local! {
     /// Affected [Task]s, that are tracked during task execution
     /// These tasks will be invalidated when the execution finishes
     /// or before reading a slot value
-    static TASKS_TO_NOTIFY: RefCell<Vec<Arc<Task>>> = Default::default();
+    static TASKS_TO_NOTIFY: RefCell<Vec<TaskId>> = Default::default();
 }
 
 impl TurboTasks {
@@ -53,9 +55,11 @@ impl TurboTasks {
     // when trying to drop turbo tasks
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
-            resolve_task_cache: CHashMap::new(),
-            native_task_cache: CHashMap::new(),
-            trait_task_cache: CHashMap::new(),
+            next_task_id: AtomicUsize::new(1),
+            memory_tasks: NoMoveVec::new(),
+            resolve_task_cache: FHashMap::new(),
+            native_task_cache: FHashMap::new(),
+            trait_task_cache: FHashMap::new(),
             currently_scheduled_tasks: AtomicUsize::new(0),
             scheduled_tasks: AtomicUsize::new(0),
             start: Default::default(),
@@ -64,14 +68,25 @@ impl TurboTasks {
         })
     }
 
+    fn get_free_task_id(&self) -> TaskId {
+        TaskId {
+            id: self.next_task_id.fetch_add(1, Ordering::Relaxed),
+        }
+    }
+
     /// Creates a new root task
     pub fn spawn_root_task(
         self: &Arc<Self>,
         functor: impl Fn() -> NativeTaskFuture + Sync + Send + 'static,
-    ) -> Arc<Task> {
-        let task = Arc::new(Task::new_root(functor));
-        self.clone().schedule(task.clone());
-        task
+    ) -> TaskId {
+        let id = self.get_free_task_id();
+        let task = Task::new_root(id, functor);
+        // SAFETY: We have a fresh task id where nobody knows about yet
+        unsafe {
+            self.memory_tasks.insert(id.id, task);
+        }
+        self.clone().schedule(id);
+        id
     }
 
     // TODO make sure that all dependencies settle before reading them
@@ -80,74 +95,80 @@ impl TurboTasks {
     pub fn spawn_once_task(
         self: &Arc<Self>,
         future: impl Future<Output = Result<RawVc>> + Send + 'static,
-    ) -> Arc<Task> {
-        let task = Arc::new(Task::new_once(future));
-        self.clone().schedule(task.clone());
-        task
+    ) -> TaskId {
+        let id = self.get_free_task_id();
+        let task = Task::new_once(id, future);
+        // SAFETY: We have a fresh task id where nobody knows about yet
+        unsafe {
+            self.memory_tasks.insert(id.id, task);
+        }
+        self.clone().schedule(id);
+        id
     }
 
-    pub async fn run_once<T: Send + 'static>(
+    pub async fn run_once<T: TraceRawVcs + Sync + Send + 'static>(
         self: &Arc<Self>,
         future: impl Future<Output = Result<T>> + Send + 'static,
     ) -> Result<T> {
-        let exchange = Arc::new(Mutex::new(None));
-        let exchange_clone = exchange.clone();
-        let task = self.spawn_once_task(async move {
-            let result = future.await;
-            *exchange_clone.lock().unwrap() = Some(result);
-            Ok(NothingVc::new().into())
+        let task_id = self.spawn_once_task(async move {
+            let result = future.await?;
+            Ok(Vc::slot_new(Mutex::new(RefCell::new(Some(result)))).into())
         });
-        task.with_done_output(move |output| match &output.content {
-            OutputContent::Empty => Err(anyhow!(
-                "execution failed for unknown reasons (output is empty)"
-            )),
-            OutputContent::Link(_) => exchange.lock().unwrap().take().unwrap_or_else(|| {
-                Err(anyhow!(
-                    "execution failed for unknown reasons (exchange is empty)"
-                ))
-            }),
-            OutputContent::Error(err) => {
-                Err(err.clone()).context(anyhow!("execution failed with error"))
-            }
-        })
-        .await
+        let raw_result =
+            Task::with_done_output(task_id, self, |_, output| output.read(task_id)).await?;
+        // SAFETY: A Once task will never invalidate, therefore we don't need to track a
+        // dependency
+        let read_result =
+            unsafe { raw_result.into_read_untracked::<Mutex<RefCell<Option<T>>>>(self.clone()) }
+                .await?;
+        let exchange = &*read_result;
+        let guard = exchange.lock().unwrap();
+        Ok(guard.take().unwrap())
     }
 
     /// Helper to get a [Task] from a HashMap or create a new one
-    fn cached_call<K: PartialEq + Hash>(
+    fn cached_call<K: Ord + PartialEq + Clone + Hash + Sync + Send + 'static>(
         self: &Arc<Self>,
-        map: &CHashMap<K, Arc<Task>>,
+        map: &FHashMap<K, TaskId>,
         key: K,
-        create_new: impl FnOnce() -> Task,
+        create_new: impl FnOnce(TaskId) -> Task,
     ) -> RawVc {
-        if let Some(cached) = map.get(&key) {
-            // fast pass without key lock (only read lock on table)
-            let task = cached.clone();
-            drop(cached);
-            Task::with_current(|parent| task.connect_parent(parent));
+        let map = map.pin();
+        let result = if let Some(task) = map.get(&key).map(|guard| *guard) {
+            // fast pass without creating a new task
+            Task::with_current(|parent, _| parent.connect_child(task, self));
             // TODO maybe force (background) scheduling to avoid inactive tasks hanging in
             // "in progress" until they become active
             RawVc::TaskOutput(task)
         } else {
             // slow pass with key lock
-            let new_task = Arc::new(create_new());
-            let mut result_task = new_task.clone();
-            map.alter(key, |old| match old {
-                Some(t) => {
-                    result_task = t.clone();
-                    Some(t)
-                }
-                None => {
+            let id = self.get_free_task_id();
+            let new_task = create_new(id);
+            // SAFETY: We have a fresh task id where nobody knows about yet
+            unsafe {
+                self.memory_tasks.insert(id.id, new_task);
+            }
+            let result_task = match map.try_insert(key, id) {
+                Ok(_) => {
                     // This is the most likely case
-                    // so we want this to be as fast as possible
-                    // avoiding locking the map too long
-                    Some(new_task)
+                    id
                 }
-            });
-            let task = result_task;
-            Task::with_current(|parent| task.connect_parent(parent));
-            RawVc::TaskOutput(task)
-        }
+                Err(r) => {
+                    // SAFETY: We have a fresh task id where nobody knows about yet
+                    unsafe {
+                        self.memory_tasks.remove(id.id);
+                    }
+                    // TODO give id back to the free list
+                    *r.current
+                }
+            };
+            Task::with_current(|parent, _| parent.connect_child(result_task, self));
+            RawVc::TaskOutput(result_task)
+        };
+        // keep the guard alive over the whole function
+        // to avoid load on GC
+        drop(map);
+        result
     }
 
     /// Call a native function with arguments.
@@ -158,8 +179,8 @@ impl TurboTasks {
         inputs: Vec<TaskInput>,
     ) -> RawVc {
         debug_assert!(inputs.iter().all(|i| i.is_resolved() && !i.is_nothing()));
-        self.cached_call(&self.native_task_cache, (func, inputs.clone()), || {
-            Task::new_native(inputs, func)
+        self.cached_call(&self.native_task_cache, (func, inputs.clone()), |id| {
+            Task::new_native(id, inputs, func)
         })
     }
 
@@ -173,8 +194,8 @@ impl TurboTasks {
         if inputs.iter().all(|i| i.is_resolved() && !i.is_nothing()) {
             self.native_call(func, inputs)
         } else {
-            self.cached_call(&self.resolve_task_cache, (func, inputs.clone()), || {
-                Task::new_resolve_native(inputs, func)
+            self.cached_call(&self.resolve_task_cache, (func, inputs.clone()), |id| {
+                Task::new_resolve_native(id, inputs, func)
             })
         }
     }
@@ -190,11 +211,11 @@ impl TurboTasks {
         self.cached_call(
             &self.trait_task_cache,
             (trait_type, trait_fn_name.clone(), inputs.clone()),
-            || Task::new_resolve_trait(trait_type, trait_fn_name, inputs),
+            |id| Task::new_resolve_trait(id, trait_type, trait_fn_name, inputs),
         )
     }
 
-    pub(crate) fn schedule(self: Arc<Self>, task: Arc<Task>) -> JoinHandle<()> {
+    pub(crate) fn schedule(self: Arc<Self>, task_id: TaskId) -> JoinHandle<()> {
         if self
             .currently_scheduled_tasks
             .fetch_add(1, Ordering::AcqRel)
@@ -207,17 +228,26 @@ impl TurboTasks {
             // that's expensive
             // .name(format!("{:?} {:?}", &*task, &*task as *const Task))
             .spawn(async move {
-                if task.execution_started(&self) {
-                    Task::set_current(task.clone());
-                    let tt = self.clone();
-                    TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(tt));
-                    let result = task.execute(self.clone()).await;
-                    if let Err(err) = &result {
-                        println!("Task {} errored  {}", task, err);
+                let execution = self.with_task_and_tt(task_id, |task| {
+                    if task.execution_started(&self) {
+                        Task::set_current(task, task_id);
+                        let tt = self.clone();
+                        TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(tt));
+                        Some(task.execute(self.clone()))
+                    } else {
+                        None
                     }
-                    task.execution_result(result);
-                    self.notify_scheduled_tasks_with_turbo_tasks();
-                    task.execution_completed(self.clone());
+                });
+                if let Some(execution) = execution {
+                    let result = execution.await;
+                    self.with_task_and_tt(task_id, |task| {
+                        if let Err(err) = &result {
+                            println!("Task {} errored  {}", task, err);
+                        }
+                        task.execution_result(result);
+                        self.notify_scheduled_tasks();
+                        task.execution_completed(self.clone());
+                    });
                 }
                 if self
                     .currently_scheduled_tasks
@@ -241,7 +271,7 @@ impl TurboTasks {
         self.last_update.lock().unwrap().unwrap()
     }
 
-    pub(crate) fn current() -> Option<Arc<Self>> {
+    pub fn current() -> Option<Arc<Self>> {
         TURBO_TASKS.with(|c| (*c.borrow()).clone())
     }
 
@@ -253,6 +283,14 @@ impl TurboTasks {
                 panic!("Outside of TurboTasks");
             }
         })
+    }
+
+    pub(crate) fn with_task<T>(id: TaskId, func: impl FnOnce(&Task) -> T) -> T {
+        Self::with_current(|tt| tt.with_task_and_tt(id, func))
+    }
+
+    pub(crate) fn with_task_and_tt<T>(&self, id: TaskId, func: impl FnOnce(&Task) -> T) -> T {
+        func(&self.memory_tasks.get(id.id).unwrap())
     }
 
     pub(crate) fn schedule_background_job(
@@ -275,33 +313,23 @@ impl TurboTasks {
 
     /// Eagerly notifies all tasks that were scheduled for notifications via
     /// `schedule_notify_tasks()`
-    pub(crate) fn notify_scheduled_tasks() {
+    pub(crate) fn notify_scheduled_tasks(self: &Arc<TurboTasks>) {
         TASKS_TO_NOTIFY.with(|tasks| {
             let tasks = tasks.take();
             if tasks.is_empty() {
                 return;
             }
-            TurboTasks::with_current(|current| {
-                for task in tasks.into_iter() {
-                    task.dependent_slot_updated(current);
-                }
-            })
-        });
-    }
-
-    /// Eagerly notifies all tasks that were scheduled for notifications via
-    /// `schedule_notify_tasks()`
-    pub(crate) fn notify_scheduled_tasks_with_turbo_tasks(self: &Arc<TurboTasks>) {
-        TASKS_TO_NOTIFY.with(|tasks| {
-            for task in tasks.take().into_iter() {
-                task.dependent_slot_updated(self);
+            for task in tasks.into_iter() {
+                self.with_task_and_tt(task, |task| {
+                    task.dependent_slot_updated(self);
+                });
             }
         });
     }
 
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `dependent_slot_updated()` on all tasks.
-    pub(crate) fn schedule_notify_tasks(tasks_iter: impl Iterator<Item = Arc<Task>>) {
+    pub(crate) fn schedule_notify_tasks<'a>(tasks_iter: impl Iterator<Item = &'a TaskId>) {
         TASKS_TO_NOTIFY.with(|tasks| {
             let mut list = tasks.borrow_mut();
             list.extend(tasks_iter);
@@ -310,35 +338,40 @@ impl TurboTasks {
 
     /// Schedules a background job that will deactive a list of tasks, when
     /// their active_parents count is still zero.
-    pub(crate) fn schedule_deactivate_tasks(self: &Arc<Self>, tasks: Vec<Arc<Task>>) {
+    pub(crate) fn schedule_deactivate_tasks(self: &Arc<Self>, tasks: Vec<TaskId>) {
         let tt = self.clone();
         self.clone().schedule_background_job(async move {
-            Task::deactivate_tasks(tasks, tt);
+            Task::deactivate_tasks(tasks, &tt);
         });
     }
 
     /// Schedules a background job that will decrease the active_parents count
     /// from each task by one and might deactive them after that.
-    pub(crate) fn schedule_remove_tasks(self: &Arc<Self>, tasks: HashSet<Arc<Task>>) {
+    pub(crate) fn schedule_remove_tasks(self: &Arc<Self>, tasks: HashSet<TaskId>) {
         let tt = self.clone();
         self.clone().schedule_background_job(async move {
-            Task::remove_tasks(tasks, tt);
+            for id in tasks {
+                tt.with_task_and_tt(id, |task| {
+                    task.remove(&tt);
+                });
+            }
         });
     }
 
+    pub fn guard(&self) -> Guard<'_> {
+        self.native_task_cache.guard()
+    }
+
     /// Get a snapshot of all cached Tasks.
-    pub fn cached_tasks_iter(&self) -> impl Iterator<Item = Arc<Task>> {
-        let mut tasks = Vec::new();
-        for (_, task) in self.resolve_task_cache.clone().into_iter() {
-            tasks.push(task);
-        }
-        for (_, task) in self.native_task_cache.clone().into_iter() {
-            tasks.push(task);
-        }
-        for (_, task) in self.trait_task_cache.clone().into_iter() {
-            tasks.push(task);
-        }
-        tasks.into_iter()
+    pub fn cached_tasks_iter<'g>(
+        &'g self,
+        guard: &'g Guard<'_>,
+    ) -> impl Iterator<Item = &'g Task> + 'g {
+        self.resolve_task_cache
+            .values(guard)
+            .chain(self.native_task_cache.values(guard))
+            .chain(self.trait_task_cache.values(guard))
+            .filter_map(|task| self.memory_tasks.get(task.id))
     }
 }
 

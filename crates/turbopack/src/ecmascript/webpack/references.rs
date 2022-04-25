@@ -65,7 +65,7 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
                             self.references.push(
                                 WebpackChunkAssetReference {
                                     chunk_id: lit.clone(),
-                                    runtime: self.runtime.clone(),
+                                    runtime: self.runtime,
                                 }
                                 .into(),
                             );

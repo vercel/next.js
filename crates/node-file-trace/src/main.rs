@@ -7,7 +7,7 @@ use std::{
     collections::BTreeSet, env::current_dir, fs, future::Future, path::PathBuf, pin::Pin,
     sync::Arc, time::Instant,
 };
-use turbo_tasks::{stats::Stats, viz, NothingVc, Task, TurboTasks};
+use turbo_tasks::{stats::Stats, viz, NothingVc, TaskId, TurboTasks};
 use turbo_tasks_fs::{
     glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemPathVc, FileSystemVc,
     ReadGlobResultVc,
@@ -86,7 +86,7 @@ impl Args {
 async fn create_fs(name: &str, context: &str, watch: bool) -> Result<FileSystemVc> {
     let fs = DiskFileSystemVc::new(name.to_string(), context.to_string());
     if watch {
-        fs.get().await?.start_watching()?;
+        fs.await?.start_watching()?;
     }
     Ok(fs.into())
 }
@@ -96,7 +96,7 @@ async fn add_glob_results(result: ReadGlobResultVc, list: &mut Vec<AssetVc>) -> 
     for entry in result.results.values() {
         match entry {
             DirectoryEntry::File(path) => {
-                let source = SourceAssetVc::new(path.clone()).into();
+                let source = SourceAssetVc::new(*path).into();
                 list.push(module(source));
             }
             _ => {}
@@ -110,20 +110,17 @@ async fn add_glob_results(result: ReadGlobResultVc, list: &mut Vec<AssetVc>) -> 
             Box::pin(add_glob_results(result, list))
         }
         // Boxing for async recursion
-        recurse(result.clone(), list).await?;
+        recurse(*result, list).await?;
     }
     Ok(())
 }
 
-async fn input_to_modules<'a>(
-    fs: &'a FileSystemVc,
-    input: &'a Vec<String>,
-) -> Result<Vec<AssetVc>> {
-    let root = FileSystemPathVc::new(fs.clone(), "");
+async fn input_to_modules<'a>(fs: FileSystemVc, input: &'a Vec<String>) -> Result<Vec<AssetVc>> {
+    let root = FileSystemPathVc::new(fs, "");
     let mut list = Vec::new();
     for input in input.iter() {
         let glob = GlobVc::new(input);
-        add_glob_results(root.clone().read_glob(glob, false), &mut list).await?;
+        add_glob_results(root.read_glob(glob, false), &mut list).await?;
     }
     Ok(list)
 }
@@ -176,7 +173,7 @@ fn main() {
     } = args.common();
 
     let start = Instant::now();
-    let finish = |tt: Arc<TurboTasks>, root_task: Arc<Task>| {
+    let finish = |tt: Arc<TurboTasks>, root_task: TaskId| {
         if watch {
             let handle = spawn({
                 let tt = tt.clone();
@@ -201,10 +198,11 @@ fn main() {
             println!("done in {} ms", start.elapsed().as_millis());
             if visualize_graph {
                 let mut stats = Stats::new();
-                for task in tt.cached_tasks_iter() {
-                    stats.add(&task);
+                let guard = tt.guard();
+                for task in tt.cached_tasks_iter(&guard) {
+                    stats.add(&tt, &task);
                 }
-                stats.add(&root_task);
+                stats.add_id(&tt, root_task);
                 stats.merge_resolve();
                 let tree = stats.treeify();
                 let graph = viz::visualize_stats_tree(tree);
@@ -229,7 +227,7 @@ fn main() {
                 Box::pin(async move {
                     let mut result = BTreeSet::new();
                     let fs = create_fs("context directory", &context, watch).await?;
-                    let modules = input_to_modules(&fs, &input).await?;
+                    let modules = input_to_modules(fs, &input).await?;
                     for module in modules {
                         let set = all_assets(module);
                         for asset in set.await?.assets.iter() {
@@ -258,7 +256,7 @@ fn main() {
                 let input = input.clone();
                 Box::pin(async move {
                     let fs = create_fs("context directory", &context, watch).await?;
-                    for module in input_to_modules(&fs, &input).await? {
+                    for module in input_to_modules(fs, &input).await? {
                         let nft_asset = NftJsonAssetVc::new(module).into();
                         emit(nft_asset)
                     }
@@ -284,12 +282,10 @@ fn main() {
                 Box::pin(async move {
                     let fs = create_fs("context directory", &context, watch).await?;
                     let out_fs = create_fs("output directory", &output, watch).await?;
-                    let input_dir = FileSystemPathVc::new(fs.clone(), "");
+                    let input_dir = FileSystemPathVc::new(fs, "");
                     let output_dir = FileSystemPathVc::new(out_fs, "");
-                    for module in input_to_modules(&fs, &input).await? {
-                        let rebased =
-                            RebasedAssetVc::new(module, input_dir.clone(), output_dir.clone())
-                                .into();
+                    for module in input_to_modules(fs, &input).await? {
+                        let rebased = RebasedAssetVc::new(module, input_dir, output_dir).into();
                         emit(rebased);
                     }
                     Ok(NothingVc::new().into())
