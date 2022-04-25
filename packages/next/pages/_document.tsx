@@ -28,6 +28,13 @@ type DocumentFiles = {
   allFiles: readonly string[]
 }
 
+type HeadHTMLProps = React.DetailedHTMLProps<
+  React.HTMLAttributes<HTMLHeadElement>,
+  HTMLHeadElement
+>
+
+type HeadProps = OriginProps & HeadHTMLProps
+
 function getDocumentFiles(
   buildManifest: BuildManifest,
   pathname: string,
@@ -348,13 +355,7 @@ function AmpStyles({
   )
 }
 
-export class Head extends Component<
-  OriginProps &
-    React.DetailedHTMLProps<
-      React.HTMLAttributes<HTMLHeadElement>,
-      HTMLHeadElement
-    >
-> {
+export class Head extends Component<HeadProps> {
   static contextType = HtmlContext
 
   context!: React.ContextType<typeof HtmlContext>
@@ -707,7 +708,7 @@ export class Head extends Component<
     )
 
     return (
-      <head {...this.props}>
+      <head {...getHeadHTMLProps(this.props)}>
         {this.context.isDevelopment && (
           <>
             <style
@@ -990,4 +991,15 @@ export class NextScript extends Component<OriginProps> {
 
 function getAmpPath(ampPath: string, asPath: string): string {
   return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
+}
+
+function getHeadHTMLProps(props: HeadProps) {
+  const { crossOrigin, nonce, ...restProps } = props
+
+  // This assignment is necessary for additional type checking to avoid unsupported attributes in <head>
+  const headProps: HeadHTMLProps & {
+    [P in Exclude<keyof HeadProps, keyof HeadHTMLProps>]?: never
+  } = restProps
+
+  return headProps
 }
