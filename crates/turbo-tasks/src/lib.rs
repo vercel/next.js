@@ -12,6 +12,7 @@ pub mod macro_helpers;
 mod magic_any;
 mod manager;
 mod native_function;
+mod no_move_vec;
 mod nothing;
 mod output;
 mod raw_vc;

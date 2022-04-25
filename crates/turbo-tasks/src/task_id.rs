@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 #[derive(Debug, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TaskId {
-    pub(crate) id: u32,
+    pub(crate) id: usize,
 }
 
 impl Display for TaskId {

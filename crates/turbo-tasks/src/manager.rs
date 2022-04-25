@@ -20,13 +20,13 @@ use event_listener::Event;
 use flurry::HashMap as FHashMap;
 
 use crate::{
-    raw_vc::RawVc, task::NativeTaskFuture, task_input::TaskInput, trace::TraceRawVcs,
-    NativeFunction, Task, TaskId, TraitType, Vc,
+    no_move_vec::NoMoveVec, raw_vc::RawVc, task::NativeTaskFuture, task_input::TaskInput,
+    trace::TraceRawVcs, NativeFunction, Task, TaskId, TraitType, Vc,
 };
 
 pub struct TurboTasks {
-    next_task_id: AtomicU32,
-    memory_tasks: FHashMap<TaskId, Task>,
+    next_task_id: AtomicUsize,
+    memory_tasks: NoMoveVec<Task>,
     resolve_task_cache: FHashMap<(&'static NativeFunction, Vec<TaskInput>), TaskId>,
     native_task_cache: FHashMap<(&'static NativeFunction, Vec<TaskInput>), TaskId>,
     trait_task_cache: FHashMap<(&'static TraitType, String, Vec<TaskInput>), TaskId>,
@@ -56,8 +56,8 @@ impl TurboTasks {
     // when trying to drop turbo tasks
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
-            next_task_id: AtomicU32::new(1),
-            memory_tasks: FHashMap::new(),
+            next_task_id: AtomicUsize::new(1),
+            memory_tasks: NoMoveVec::new(),
             resolve_task_cache: FHashMap::new(),
             native_task_cache: FHashMap::new(),
             trait_task_cache: FHashMap::new(),
@@ -82,7 +82,10 @@ impl TurboTasks {
     ) -> TaskId {
         let id = self.get_free_task_id();
         let task = Task::new_root(id, functor);
-        self.memory_tasks.pin().insert(id, task);
+        // SAFETY: We have a fresh task id where nobody knows about yet
+        unsafe {
+            self.memory_tasks.insert(id.id, task);
+        }
         self.clone().schedule(id);
         id
     }
@@ -96,7 +99,10 @@ impl TurboTasks {
     ) -> TaskId {
         let id = self.get_free_task_id();
         let task = Task::new_once(id, future);
-        self.memory_tasks.pin().insert(id, task);
+        // SAFETY: We have a fresh task id where nobody knows about yet
+        unsafe {
+            self.memory_tasks.insert(id.id, task);
+        }
         self.clone().schedule(id);
         id
     }
@@ -139,15 +145,20 @@ impl TurboTasks {
             // slow pass with key lock
             let id = self.get_free_task_id();
             let new_task = create_new(id);
-            let memory_tasks = self.memory_tasks.pin();
-            memory_tasks.insert(id, new_task);
+            // SAFETY: We have a fresh task id where nobody knows about yet
+            unsafe {
+                self.memory_tasks.insert(id.id, new_task);
+            }
             let result_task = match map.try_insert(key, id) {
                 Ok(_) => {
                     // This is the most likely case
                     id
                 }
                 Err(r) => {
-                    memory_tasks.remove(&id);
+                    // SAFETY: We have a fresh task id where nobody knows about yet
+                    unsafe {
+                        self.memory_tasks.remove(id.id);
+                    }
                     // TODO give id back to the free list
                     *r.current
                 }
@@ -280,7 +291,7 @@ impl TurboTasks {
     }
 
     pub(crate) fn with_task_and_tt<T>(&self, id: TaskId, func: impl FnOnce(&Task) -> T) -> T {
-        func(&self.memory_tasks.pin().get(&id).unwrap())
+        func(&self.memory_tasks.get(id.id).unwrap())
     }
 
     pub(crate) fn schedule_background_job(
@@ -309,10 +320,10 @@ impl TurboTasks {
             if tasks.is_empty() {
                 return;
             }
-            let memory_tasks = self.memory_tasks.pin();
             for task in tasks.into_iter() {
-                let task = memory_tasks.get(&task).unwrap();
-                task.dependent_slot_updated(self);
+                self.with_task_and_tt(task, |task| {
+                    task.dependent_slot_updated(self);
+                });
             }
         });
     }
@@ -340,16 +351,16 @@ impl TurboTasks {
     pub(crate) fn schedule_remove_tasks(self: &Arc<Self>, tasks: HashSet<TaskId>) {
         let tt = self.clone();
         self.clone().schedule_background_job(async move {
-            let memory_tasks = tt.memory_tasks.pin();
             for id in tasks {
-                let task = memory_tasks.get(&id).unwrap();
-                task.remove(&tt);
+                tt.with_task_and_tt(id, |task| {
+                    task.remove(&tt);
+                });
             }
         });
     }
 
     pub fn guard(&self) -> Guard {
-        self.memory_tasks.guard()
+        self.native_task_cache.guard()
     }
 
     /// Get a snapshot of all cached Tasks.
@@ -357,7 +368,11 @@ impl TurboTasks {
         &'g self,
         guard: &'g Guard,
     ) -> impl Iterator<Item = &'g Task> + 'g {
-        self.memory_tasks.iter(guard).map(|(_, v)| v)
+        self.resolve_task_cache
+            .values(guard)
+            .chain(self.native_task_cache.values(guard))
+            .chain(self.trait_task_cache.values(guard))
+            .filter_map(|task| self.memory_tasks.get(task.id))
     }
 }
 
