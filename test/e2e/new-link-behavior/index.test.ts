@@ -43,7 +43,7 @@ describe('New Link Behavior', () => {
 
   it('should navigate to /about', async () => {
     const browser = await webdriver(next.url, `/`)
-    await browser.elementByCss('a').click().waitForElementByCss('h1')
+    await browser.elementByCss('a').click().waitForElementByCss('#about-page')
     const text = await browser.elementByCss('h1').text()
     expect(text).toBe('About Page')
   })
