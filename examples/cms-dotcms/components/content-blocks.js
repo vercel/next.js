@@ -45,7 +45,7 @@ export const ContentBlocks = ({ content }) => {
             return <BlockQuote key={index}><ContentBlocks content={data.content} /></BlockQuote>
 
           case 'codeBlock':
-            return <CodeBlock key={index}><ContentBlocks content={data.content} /></CodeBlock>
+            return <CodeBlock language={data.attrs.language} key={index}><ContentBlocks content={data.content} /></CodeBlock>
 
           case 'hardBreak':
             return <br key={index} />
