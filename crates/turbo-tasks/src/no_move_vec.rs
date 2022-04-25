@@ -1,5 +1,6 @@
 use std::{
     ptr::null_mut,
+    slice::from_raw_parts_mut,
     sync::{
         atomic::{fence, AtomicPtr, Ordering},
         Mutex,
@@ -115,6 +116,22 @@ where
         let item = unsafe { &mut *bucket_ptr.add(index) };
         *item = None;
         fence(Ordering::Release);
+    }
+}
+
+impl<T, const INITIAL_CAPACITY_BITS: u32> Drop for NoMoveVec<T, INITIAL_CAPACITY_BITS>
+where
+    [(); buckets::<INITIAL_CAPACITY_BITS>()]:,
+{
+    fn drop(&mut self) {
+        for (bucket_index, (bucket, _)) in self.buckets.iter_mut().enumerate() {
+            let bucket_size = get_bucket_size::<INITIAL_CAPACITY_BITS>(bucket_index as u32);
+            let bucket_ptr = *bucket.get_mut();
+
+            if !bucket_ptr.is_null() {
+                drop(unsafe { Box::from_raw(from_raw_parts_mut(bucket_ptr, bucket_size)) });
+            }
+        }
     }
 }
 
