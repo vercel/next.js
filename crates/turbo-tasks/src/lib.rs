@@ -3,6 +3,7 @@
 #![feature(into_future)]
 #![feature(try_trait_v2)]
 #![feature(hash_drain_filter)]
+#![deny(unsafe_op_in_unsafe_fn)]
 
 mod completion;
 mod display;

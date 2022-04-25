@@ -98,10 +98,13 @@ impl RawVc {
         loop {
             match match current {
                 RawVc::TaskOutput(task) => SlotReadResult::Link(
-                    Task::with_done_output(task, &tt, |_, output| output.read_untracked()).await?,
+                    Task::with_done_output(task, &tt, |_, output| unsafe {
+                        output.read_untracked()
+                    })
+                    .await?,
                 ),
                 RawVc::TaskCreated(task, index) => tt.with_task_and_tt(task, |task| {
-                    task.with_created_slot_mut(index, |slot| slot.read_untracked())
+                    task.with_created_slot_mut(index, |slot| unsafe { slot.read_untracked() })
                 })?,
             } {
                 SlotReadResult::Final(result) => {
