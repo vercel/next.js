@@ -6,7 +6,6 @@ export async function middleware(request, ev) {
   return NextResponse.json({
     process: {
       env: process.env,
-      nextTick: typeof process.nextTick,
     },
   })
 }
