@@ -129,7 +129,7 @@ impl TurboTasks {
         create_new: impl FnOnce(TaskId) -> Task,
     ) -> RawVc {
         let map = map.pin();
-        if let Some(task) = map.get(&key).map(|guard| *guard) {
+        let result = if let Some(task) = map.get(&key).map(|guard| *guard) {
             // fast pass without creating a new task
             Task::with_current(|parent, _| parent.connect_child(task, self));
             // TODO maybe force (background) scheduling to avoid inactive tasks hanging in
@@ -154,7 +154,11 @@ impl TurboTasks {
             };
             Task::with_current(|parent, _| parent.connect_child(result_task, self));
             RawVc::TaskOutput(result_task)
-        }
+        };
+        // keep the guard alive over the whole function
+        // to avoid load on GC
+        drop(map);
+        result
     }
 
     /// Call a native function with arguments.
