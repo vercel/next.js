@@ -6,7 +6,9 @@ const fixtures = [
   'link-a',
   'move-props',
   'add-old-behavior',
-  'excludes-links-with-oldbehavior-prop'
+  'excludes-links-with-oldbehavior-prop',
+  'children-interpolation',
+  'spread-props'
 ]
 
 for (const fixture of fixtures) {
