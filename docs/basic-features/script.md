@@ -250,7 +250,7 @@ There are two limitations to be aware of when using the Script component for inl
 
 ### Executing Code After Loading (`onLoad`)
 
-Some third-party scripts require users to run JavaScript code after the script has finished loading in order to instantiate content or call a function. If you are loading a script with either `beforeInteractive` or `afterInteractive` as a loading strategy, you can execute code after it has loaded using the `onLoad` property:
+Some third-party scripts require users to run JavaScript code after the script has finished loading in order to instantiate content or call a function. If you are loading a script with either `afterInteractive` or `lazyOnload` as a loading strategy, you can execute code after it has loaded using the `onLoad` property:
 
 ```jsx
 import { useState } from 'react'
