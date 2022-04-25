@@ -284,7 +284,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       }
       if (onMouseEnter) {
         console.warn(
-          `"onMouseEnter" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onClick be set on the child of next/link`
+          `"onMouseEnter" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onMouseEnter be set on the child of next/link`
         )
       }
       try {
