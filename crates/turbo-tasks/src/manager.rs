@@ -301,8 +301,12 @@ impl TurboTasks {
     /// `schedule_notify_tasks()`
     pub(crate) fn notify_scheduled_tasks(self: &Arc<TurboTasks>) {
         TASKS_TO_NOTIFY.with(|tasks| {
+            let tasks = tasks.take();
+            if tasks.is_empty() {
+                return;
+            }
             let memory_tasks = self.memory_tasks.pin();
-            for task in tasks.take().into_iter() {
+            for task in tasks.into_iter() {
                 let task = memory_tasks.get(&task).unwrap();
                 task.dependent_slot_updated(self);
             }
