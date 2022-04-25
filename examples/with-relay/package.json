@@ -1,0 +1,21 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "yarn run relay && next",
+    "build": "yarn run relay && next build",
+    "start": "yarn run relay && next start",
+    "relay": "yarn run relay-compiler $@",
+    "schema": "export $(grep -v '^#' .env | xargs) && get-graphql-schema $NEXT_PUBLIC_RELAY_ENDPOINT > schema.graphql"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "relay-runtime": "^13.2.0",
+    "react-relay": "^13.2.0"
+  },
+  "devDependencies": {
+    "get-graphql-schema": "^2.1.2",
+    "relay-compiler": "^13.2.0"
+  }
+}
