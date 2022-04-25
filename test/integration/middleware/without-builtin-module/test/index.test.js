@@ -22,7 +22,7 @@ describe('Middleware importing Node.js built-in module', () => {
   }
 
   function escapeLF(s) {
-    return s.replaceAll('\n', '\\n')
+    return s.replace(/\n/g, '\\n')
   }
 
   describe('dev mode', () => {
