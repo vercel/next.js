@@ -918,6 +918,9 @@ export default class Router implements BaseRouter {
     options: TransitionOptions,
     forcedScroll?: { x: number; y: number }
   ): Promise<boolean> {
+    // Decode hash to make non-latin anchor works.
+    // A hash mark # is the optional last part of a URL
+    as = as.replace(/#.+$/, (m) => decodeURIComponent(m))
     if (!isLocalURL(url)) {
       window.location.href = url
       return false
