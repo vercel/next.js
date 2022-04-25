@@ -723,7 +723,7 @@ export default async function build(
       if (result.errors.length > 5) {
         result.errors.length = 5
       }
-      const error = result.errors.join('\n\n')
+      let error = result.errors.join('\n\n')
 
       console.error(chalk.red('Failed to compile.\n'))
 
@@ -737,6 +737,13 @@ export default async function build(
         throw new Error(
           `webpack build failed: found page without a React Component as default export in pages/${page_name}\n\nSee https://nextjs.org/docs/messages/page-without-valid-component for more info.`
         )
+      }
+
+      const breakingChangeIndex = error.indexOf(
+        '\n\nBREAKING CHANGE: webpack < 5 used to include polyfills for node.js core modules by default.'
+      )
+      if (breakingChangeIndex >= 0) {
+        error = error.slice(0, breakingChangeIndex)
       }
 
       console.error(error)
