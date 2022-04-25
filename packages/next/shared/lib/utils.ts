@@ -178,7 +178,10 @@ export type AppPropsType<
 
 export type DocumentContext = NextPageContext & {
   renderPage: RenderPage
-  defaultGetInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps>
+  defaultGetInitialProps(
+    ctx: DocumentContext,
+    options?: { nonce?: string }
+  ): Promise<DocumentInitialProps>
 }
 
 export type DocumentInitialProps = RenderPageResult & {

@@ -131,6 +131,8 @@ describe('Middleware base tests', () => {
           env: {
             MIDDLEWARE_TEST: 'asdf',
           },
+          // it's poflyfilled since there is the "process" module
+          // as a devDepencies of the next package
           nextTick: 'function',
         },
       })
