@@ -243,9 +243,7 @@ Or by using the `dangerouslySetInnerHTML` property:
 />
 ```
 
-**Note when using the Script component with inline scripts**:
-
-- An `id` attribute must be defined in order for Next.js to track and optimize the script
+The `id` property is required for **inline scripts** in order for Next.js to track and optimize the script.
 
 ### Executing Code After Loading (`onLoad`)
 
