@@ -127,7 +127,27 @@ describe('Next.js Script - Primary Strategies', () => {
     }
 
     test('scriptBeforeInteractive')
-    test('documentBeforeInteractive')
+  })
+
+  // Warning - Will be removed in the next major release
+  it('priority beforeInteractive - older version', async () => {
+    const html = await renderViaHTTP(appPort, '/page6')
+    const $ = cheerio.load(html)
+
+    function test(id) {
+      const script = $(`#${id}`)
+
+      // Renders script tag
+      expect(script.length).toBe(1)
+      expect(script.attr('data-nscript')).toBeDefined()
+
+      // Script is inserted before NextScripts
+      expect(
+        $(`#${id} ~ script[src^="/_next/static/chunks/main"]`).length
+      ).toBeGreaterThan(0)
+    }
+
+    test('scriptBeforePageRenderOld')
   })
 
   it('priority beforeInteractive on navigate', async () => {
@@ -137,7 +157,7 @@ describe('Next.js Script - Primary Strategies', () => {
 
       // beforeInteractive scripts should load once
       let documentBIScripts = await browser.elementsByCss(
-        '[src$="documentBeforeInteractive"]'
+        '[src$="scriptBeforeInteractive"]'
       )
       expect(documentBIScripts.length).toBe(1)
 
@@ -146,16 +166,11 @@ describe('Next.js Script - Primary Strategies', () => {
 
       await browser.waitForElementByCss('.container')
 
-      const script = await browser.elementById('scriptBeforeInteractive')
-
       // Ensure beforeInteractive script isn't duplicated on navigation
       documentBIScripts = await browser.elementsByCss(
-        '[src$="documentBeforeInteractive"]'
+        '[src$="scriptBeforeInteractive"]'
       )
       expect(documentBIScripts.length).toBe(1)
-
-      // Renders script tag
-      expect(script).toBeDefined()
     } finally {
       if (browser) await browser.close()
     }

@@ -42,15 +42,19 @@ describe('Type module interop', () => {
       },
       dependencies: {},
     })
-    const contents = await next.readFile('package.json')
-    const pkg = JSON.parse(contents)
-    await next.patchFile(
-      'package.json',
-      JSON.stringify({
-        ...pkg,
-        type: 'module',
-      })
-    )
+
+    // can't modify build output after deploy
+    if (!(global as any).isNextDeploy) {
+      const contents = await next.readFile('package.json')
+      const pkg = JSON.parse(contents)
+      await next.patchFile(
+        'package.json',
+        JSON.stringify({
+          ...pkg,
+          type: 'module',
+        })
+      )
+    }
   })
   afterAll(() => next.destroy())
 

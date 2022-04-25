@@ -73,4 +73,15 @@ describe('styled-components SWC transform', () => {
     expect(html).toContain('background:transparent')
     expect(html).toContain('color:white')
   })
+
+  it('should only render once on the server per request', async () => {
+    const outputs = []
+    next.on('stdout', (args) => {
+      outputs.push(args)
+    })
+    await renderViaHTTP(next.url, '/')
+    expect(
+      outputs.filter((output) => output.trim() === '__render__').length
+    ).toBe(1)
+  })
 })
