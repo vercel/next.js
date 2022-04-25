@@ -15,9 +15,8 @@ use async_std::{
     task::{Builder, JoinHandle},
     task_local,
 };
-use crossbeam_epoch::Guard;
 use event_listener::Event;
-use flurry::HashMap as FHashMap;
+use flurry::{Guard, HashMap as FHashMap};
 
 use crate::{
     no_move_vec::NoMoveVec, raw_vc::RawVc, task::NativeTaskFuture, task_input::TaskInput,
@@ -359,14 +358,14 @@ impl TurboTasks {
         });
     }
 
-    pub fn guard(&self) -> Guard {
+    pub fn guard(&self) -> Guard<'_> {
         self.native_task_cache.guard()
     }
 
     /// Get a snapshot of all cached Tasks.
     pub fn cached_tasks_iter<'g>(
         &'g self,
-        guard: &'g Guard,
+        guard: &'g Guard<'_>,
     ) -> impl Iterator<Item = &'g Task> + 'g {
         self.resolve_task_cache
             .values(guard)
