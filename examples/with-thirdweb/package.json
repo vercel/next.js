@@ -1,5 +1,5 @@
 {
-  "name": "next-javascript-starter",
+  "name": "next-typescript-starter",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -17,7 +17,10 @@
     "react-dom": "17.0.2"
   },
   "devDependencies": {
+    "@types/node": "17.0.21",
+    "@types/react": "17.0.40",
     "eslint": "8.11.0",
-    "eslint-config-next": "12.1.0"
+    "eslint-config-next": "12.1.0",
+    "typescript": "4.6.2"
   }
 }
