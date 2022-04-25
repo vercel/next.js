@@ -626,6 +626,13 @@ export default async function getBaseWebpackConfig(
 
       setimmediate: 'next/dist/compiled/setimmediate',
     },
+    ...(isEdgeRuntime
+      ? {
+          fallback: {
+            process: false,
+          },
+        }
+      : undefined),
     mainFields: targetWeb
       ? (isEdgeRuntime ? [] : ['browser']).concat(['module', 'main'])
       : ['main', 'module'],
@@ -1249,6 +1256,11 @@ export default async function getBaseWebpackConfig(
                 oneOf: [
                   {
                     issuerLayer: 'middleware',
+                    resolve: {
+                      fallback: {
+                        process: false,
+                      },
+                    },
                   },
                   {
                     resolve: {
