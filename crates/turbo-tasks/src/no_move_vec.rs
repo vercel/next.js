@@ -1,6 +1,9 @@
 use std::{
     ptr::null_mut,
-    sync::atomic::{fence, AtomicPtr, Ordering},
+    sync::{
+        atomic::{fence, AtomicPtr, Ordering},
+        Mutex,
+    },
 };
 
 pub const fn buckets<const INITIAL_CAPACITY_BITS: u32>() -> usize {
@@ -11,7 +14,7 @@ pub struct NoMoveVec<T, const INITIAL_CAPACITY_BITS: u32 = 6>
 where
     [(); buckets::<INITIAL_CAPACITY_BITS>()]:,
 {
-    buckets: [AtomicPtr<Option<T>>; buckets::<INITIAL_CAPACITY_BITS>()],
+    buckets: [(AtomicPtr<Option<T>>, Mutex<()>); buckets::<INITIAL_CAPACITY_BITS>()],
 }
 
 fn get_bucket_index<const INITIAL_CAPACITY_BITS: u32>(idx: usize) -> u32 {
@@ -46,14 +49,15 @@ where
             let raw_box = Box::into_raw(boxed_slice);
             raw_box as *mut Option<T>
         };
-        let buckets = buckets.map(AtomicPtr::new);
+        let buckets = buckets.map(|p| (AtomicPtr::new(p), Mutex::new(())));
         NoMoveVec { buckets }
     }
 
     pub fn get(&self, idx: usize) -> Option<&T> {
         let bucket_idx = get_bucket_index::<INITIAL_CAPACITY_BITS>(idx);
-        let bucket_ptr =
-            unsafe { self.buckets.get_unchecked(bucket_idx as usize) }.load(Ordering::Acquire);
+        let bucket_ptr = unsafe { self.buckets.get_unchecked(bucket_idx as usize) }
+            .0
+            .load(Ordering::Acquire);
         if bucket_ptr.is_null() {
             return None;
         }
@@ -65,25 +69,32 @@ where
     pub unsafe fn insert(&self, idx: usize, value: T) {
         let bucket_idx = get_bucket_index::<INITIAL_CAPACITY_BITS>(idx);
         let bucket = unsafe { self.buckets.get_unchecked(bucket_idx as usize) };
-        let mut bucket_ptr = bucket.load(Ordering::Acquire);
+        let mut bucket_ptr = bucket.0.load(Ordering::Acquire);
         if bucket_ptr.is_null() {
-            let new_bucket = {
-                let size = get_bucket_size::<INITIAL_CAPACITY_BITS>(bucket_idx);
-                let boxed_slice = (0..size).map(|_| None as Option<T>).collect();
-                let raw_box = Box::into_raw(boxed_slice);
-                raw_box as *mut Option<T>
-            };
-            bucket_ptr = match bucket.compare_exchange(
-                null_mut(),
-                new_bucket,
-                Ordering::AcqRel,
-                Ordering::Relaxed,
-            ) {
-                Ok(_) => new_bucket,
-                Err(current_bucket) => {
-                    drop(unsafe { Box::from_raw(new_bucket) });
-                    current_bucket
-                }
+            let lock = bucket.1.lock().unwrap();
+            let guarded_bucket_ptr = bucket.0.load(Ordering::Acquire);
+            if guarded_bucket_ptr.is_null() {
+                let new_bucket = {
+                    let size = get_bucket_size::<INITIAL_CAPACITY_BITS>(bucket_idx);
+                    let boxed_slice = (0..size).map(|_| None as Option<T>).collect();
+                    let raw_box = Box::into_raw(boxed_slice);
+                    raw_box as *mut Option<T>
+                };
+                bucket_ptr = match bucket.0.compare_exchange(
+                    null_mut(),
+                    new_bucket,
+                    Ordering::AcqRel,
+                    Ordering::Relaxed,
+                ) {
+                    Ok(_) => new_bucket,
+                    Err(current_bucket) => {
+                        drop(unsafe { Box::from_raw(new_bucket) });
+                        current_bucket
+                    }
+                };
+                drop(lock);
+            } else {
+                bucket_ptr = guarded_bucket_ptr;
             }
         }
         let index = get_index_in_bucket::<INITIAL_CAPACITY_BITS>(idx, bucket_idx);
@@ -96,7 +107,7 @@ where
     pub unsafe fn remove(&self, idx: usize) {
         let bucket_idx = get_bucket_index::<INITIAL_CAPACITY_BITS>(idx);
         let bucket = unsafe { self.buckets.get_unchecked(bucket_idx as usize) };
-        let bucket_ptr = bucket.load(Ordering::Acquire);
+        let bucket_ptr = bucket.0.load(Ordering::Acquire);
         if bucket_ptr.is_null() {
             return;
         }
