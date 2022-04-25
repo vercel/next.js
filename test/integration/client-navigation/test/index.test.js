@@ -710,7 +710,7 @@ describe('Client Navigation', () => {
             .waitForElementByCss('#hash-changes-page')
 
           const scrollPosition = await browser.eval('window.pageYOffset')
-          expect(scrollPosition).toBe(16258)
+          expect(scrollPosition).toBe(17440)
         } finally {
           if (browser) {
             await browser.close()

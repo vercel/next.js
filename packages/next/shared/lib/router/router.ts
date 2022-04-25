@@ -918,13 +918,13 @@ export default class Router implements BaseRouter {
     options: TransitionOptions,
     forcedScroll?: { x: number; y: number }
   ): Promise<boolean> {
-    // Decode hash to make non-latin anchor works.
-    // A hash mark # is the optional last part of a URL
-    as = as.replace(/#.+$/, (m) => decodeURIComponent(m))
     if (!isLocalURL(url)) {
       window.location.href = url
       return false
     }
+    // Decode hash to make non-latin anchor works.
+    // A hash mark # is the optional last part of a URL
+    as = as.replace(/#.+$/, (m) => decodeURIComponent(m))
     const shouldResolveHref =
       (options as any)._h ||
       (options as any)._shouldResolveHref ||
@@ -1391,6 +1391,9 @@ export default class Router implements BaseRouter {
         }
       }
       Router.events.emit('routeChangeComplete', as, routeProps)
+      if (shouldScroll) {
+        this.scrollToHash(as)
+      }
 
       return true
     } catch (err) {
