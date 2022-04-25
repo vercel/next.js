@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage } from 'next/dist/build/utils'
 import { join } from 'path'
 import {
