@@ -121,7 +121,7 @@ const TRANSFORMER_INQUIRER_CHOICES = [
     value: 'cra-to-next',
   },
   {
-    name: 'new-link: Ensures your <Link> usage is backwards compatible. Used in combination with experimental newLinkBehavior',
+    name: 'new-link: Ensures your <Link> usage is backwards compatible. Used in combination with experimental newNextLinkBehavior',
     value: 'new-link',
   },
 ]

@@ -29,7 +29,7 @@ type InternalLinkProps = {
   passHref?: boolean
   prefetch?: boolean
   locale?: string | false
-  oldBehavior?: boolean
+  legacyBehavior?: boolean
   onMouseEnter?: (e: React.MouseEvent) => void
   onClick?: (e: React.MouseEvent) => void
 }
@@ -112,7 +112,7 @@ function linkClicked(
 
 function Link(props: React.PropsWithChildren<LinkProps>) {
   const {
-    oldBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
+    legacyBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
   } = props
   if (process.env.NODE_ENV !== 'production') {
     function createPropError(args: {
@@ -165,7 +165,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       locale: true,
       onClick: true,
       onMouseEnter: true,
-      oldBehavior: true,
+      legacyBehavior: true,
     } as const
     const optionalProps: LinkPropsOptional[] = Object.keys(
       optionalPropsGuard
@@ -203,7 +203,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         key === 'shallow' ||
         key === 'passHref' ||
         key === 'prefetch' ||
-        key === 'oldBehavior'
+        key === 'legacyBehavior'
       ) {
         if (props[key] != null && valType !== 'boolean') {
           throw createPropError({
@@ -249,7 +249,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
 
   children = childrenProp
 
-  if (oldBehavior && typeof children === 'string') {
+  if (legacyBehavior && typeof children === 'string') {
     children = <a>{children}</a>
   }
 
@@ -269,7 +269,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
 
   // This will return the first child, if multiple are provided it will throw an error
   let child: any
-  if (oldBehavior) {
+  if (legacyBehavior) {
     if (process.env.NODE_ENV === 'development') {
       try {
         child = React.Children.only(children)
@@ -292,7 +292,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   }
 
   const childRef: any =
-    oldBehavior && child && typeof child === 'object' && child.ref
+    legacyBehavior && child && typeof child === 'object' && child.ref
 
   const [setIntersectionRef, isVisible, resetVisible] = useIntersection({
     rootMargin: '200px',
@@ -308,14 +308,14 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       }
 
       setIntersectionRef(el)
-      if (oldBehavior && childRef) {
+      if (legacyBehavior && childRef) {
         if (typeof childRef === 'function') childRef(el)
         else if (typeof childRef === 'object') {
           childRef.current = el
         }
       }
     },
-    [as, childRef, href, resetVisible, setIntersectionRef, oldBehavior]
+    [as, childRef, href, resetVisible, setIntersectionRef, legacyBehavior]
   )
   React.useEffect(() => {
     const shouldPrefetch = isVisible && p && isLocalURL(href)
@@ -346,11 +346,11 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         }
       }
 
-      if (!oldBehavior && typeof onClick === 'function') {
+      if (!legacyBehavior && typeof onClick === 'function') {
         onClick(e)
       }
       if (
-        oldBehavior &&
+        legacyBehavior &&
         child.props &&
         typeof child.props.onClick === 'function'
       ) {
@@ -361,11 +361,11 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       }
     },
     onMouseEnter: (e: React.MouseEvent) => {
-      if (!oldBehavior && typeof onMouseEnter === 'function') {
+      if (!legacyBehavior && typeof onMouseEnter === 'function') {
         onMouseEnter(e)
       }
       if (
-        oldBehavior &&
+        legacyBehavior &&
         child.props &&
         typeof child.props.onMouseEnter === 'function'
       ) {
@@ -380,7 +380,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
   // defined, we specify the current 'href', so that repetition is not needed by the user
   if (
-    !oldBehavior ||
+    !legacyBehavior ||
     passHref ||
     (child.type === 'a' && !('href' in child.props))
   ) {
@@ -404,7 +404,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       addBasePath(addLocale(as, curLocale, router && router.defaultLocale))
   }
 
-  return oldBehavior ? (
+  return legacyBehavior ? (
     React.cloneElement(child, childProps)
   ) : (
     <a {...restProps} {...childProps}>

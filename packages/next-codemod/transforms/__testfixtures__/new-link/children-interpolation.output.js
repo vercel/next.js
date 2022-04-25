@@ -8,9 +8,8 @@ const a = <Comp />
 
 export default function Page() {
     return (
-        <Link href="/about" oldBehavior>
+        <Link href="/about" legacyBehavior>
             {a}
         </Link>
     );
 }
-

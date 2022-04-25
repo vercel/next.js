@@ -1,5 +1,5 @@
 module.exports = {
   experimental: {
-    newLinkBehavior: true,
+    newNextLinkBehavior: true,
   },
 }

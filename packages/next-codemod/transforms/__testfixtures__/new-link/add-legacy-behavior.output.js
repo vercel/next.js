@@ -6,7 +6,7 @@ function Comp({children}) {
 
 export default function Page() {
     return (
-        <Link href="/" oldBehavior>
+        <Link href="/" legacyBehavior>
             <Comp>Home</Comp>
         </Link>
     );

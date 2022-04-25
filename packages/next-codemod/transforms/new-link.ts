@@ -25,10 +25,10 @@ export default function transformer(file: FileInfo, api: API) {
 
       linkElements.forEach((linkPath) => {
         const $link = j(linkPath).filter((childPath) => {
-          // Exclude links with `oldBehavior` prop from modification
+          // Exclude links with `legacybehavior` prop from modification
           return (
             j(childPath)
-              .find(j.JSXAttribute, { name: { name: 'oldBehavior' } })
+              .find(j.JSXAttribute, { name: { name: 'legacyBehavior' } })
               .size() === 0
           )
         })
@@ -49,7 +49,7 @@ export default function transformer(file: FileInfo, api: API) {
         if ($childrenWithA.size() !== 1) {
           $link
             .get('attributes')
-            .push(j.jsxAttribute(j.jsxIdentifier('oldBehavior')))
+            .push(j.jsxAttribute(j.jsxIdentifier('legacyBehavior')))
           return
         }
 
