@@ -723,7 +723,7 @@ export default async function build(
       if (result.errors.length > 5) {
         result.errors.length = 5
       }
-      const error = result.errors.join('\n\n')
+      let error = result.errors.join('\n\n')
 
       console.error(chalk.red('Failed to compile.\n'))
 
