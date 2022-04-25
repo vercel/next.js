@@ -239,9 +239,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     shallow,
     scroll,
     locale,
-    // TODO: change default in next major release
-    // Default to existing behavior
-    oldBehavior = true,
+    oldBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
     onClick,
     onMouseEnter,
     ...restProps

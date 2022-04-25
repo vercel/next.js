@@ -1324,6 +1324,9 @@ export default async function getBaseWebpackConfig(
         'process.env.NODE_ENV': JSON.stringify(
           dev ? 'development' : 'production'
         ),
+        'process.env.__NEXT_NEW_LINK_BEHAVIOR': JSON.stringify(
+          config.experimental.newLinkBehavior
+        ),
         'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(targetWeb),
         'process.env.__NEXT_TEST_MODE': JSON.stringify(
