@@ -3,59 +3,72 @@ use std::{
     sync::atomic::{fence, AtomicPtr, Ordering},
 };
 
-const FIRST_BUCKET_BITS: u32 = 3; // first bucket is len = 8
-const BUCKETS: usize = (usize::BITS + 1 - FIRST_BUCKET_BITS) as usize;
-
-pub struct NoMoveVec<T> {
-    buckets: [AtomicPtr<Option<T>>; BUCKETS],
+pub const fn buckets<const INITIAL_CAPACITY_BITS: u32>() -> usize {
+    (usize::BITS + 1 - INITIAL_CAPACITY_BITS) as usize
 }
 
-fn get_bucket_index(idx: usize) -> u32 {
-    (usize::BITS - idx.leading_zeros()).saturating_sub(FIRST_BUCKET_BITS)
+pub struct NoMoveVec<T, const INITIAL_CAPACITY_BITS: u32 = 6>
+where
+    [(); buckets::<INITIAL_CAPACITY_BITS>()]:,
+{
+    buckets: [AtomicPtr<Option<T>>; buckets::<INITIAL_CAPACITY_BITS>()],
 }
 
-fn get_bucket_size(bucket_index: u32) -> usize {
+fn get_bucket_index<const INITIAL_CAPACITY_BITS: u32>(idx: usize) -> u32 {
+    (usize::BITS - idx.leading_zeros()).saturating_sub(INITIAL_CAPACITY_BITS)
+}
+
+fn get_bucket_size<const INITIAL_CAPACITY_BITS: u32>(bucket_index: u32) -> usize {
     if bucket_index != 0 {
-        1 << (bucket_index + FIRST_BUCKET_BITS - 1)
+        1 << (bucket_index + INITIAL_CAPACITY_BITS - 1)
     } else {
-        1 << FIRST_BUCKET_BITS
+        1 << INITIAL_CAPACITY_BITS
     }
 }
 
-fn get_index_in_bucket(idx: usize, bucket_index: u32) -> usize {
+fn get_index_in_bucket<const INITIAL_CAPACITY_BITS: u32>(idx: usize, bucket_index: u32) -> usize {
     if bucket_index != 0 {
-        idx ^ (1 << (bucket_index + FIRST_BUCKET_BITS - 1))
+        idx ^ (1 << (bucket_index + INITIAL_CAPACITY_BITS - 1))
     } else {
         idx
     }
 }
 
-impl<T> NoMoveVec<T> {
+impl<T, const INITIAL_CAPACITY_BITS: u32> NoMoveVec<T, INITIAL_CAPACITY_BITS>
+where
+    [(); buckets::<INITIAL_CAPACITY_BITS>()]:,
+{
     pub fn new() -> Self {
-        NoMoveVec {
-            buckets: [null_mut(); BUCKETS].map(AtomicPtr::new),
-        }
+        let mut buckets = [null_mut(); buckets::<INITIAL_CAPACITY_BITS>()];
+        buckets[0] = {
+            let size = get_bucket_size::<INITIAL_CAPACITY_BITS>(0);
+            let boxed_slice = (0..size).map(|_| None as Option<T>).collect();
+            let raw_box = Box::into_raw(boxed_slice);
+            raw_box as *mut Option<T>
+        };
+        let buckets = buckets.map(AtomicPtr::new);
+        NoMoveVec { buckets }
     }
 
     pub fn get(&self, idx: usize) -> Option<&T> {
-        let bucket_idx = get_bucket_index(idx);
+        let bucket_idx = get_bucket_index::<INITIAL_CAPACITY_BITS>(idx);
         let bucket_ptr =
             unsafe { self.buckets.get_unchecked(bucket_idx as usize) }.load(Ordering::Acquire);
         if bucket_ptr.is_null() {
             return None;
         }
-        let index = get_index_in_bucket(idx, bucket_idx);
+        let index = get_index_in_bucket::<INITIAL_CAPACITY_BITS>(idx, bucket_idx);
         unsafe { &*bucket_ptr.add(index) }.as_ref()
     }
 
     /// SAFETY: There must not be a concurrent operation to this idx
     pub unsafe fn insert(&self, idx: usize, value: T) {
-        let bucket_idx = get_bucket_index(idx);
+        let bucket_idx = get_bucket_index::<INITIAL_CAPACITY_BITS>(idx);
         let bucket = unsafe { self.buckets.get_unchecked(bucket_idx as usize) };
         let mut bucket_ptr = bucket.load(Ordering::Acquire);
         if bucket_ptr.is_null() {
             let new_bucket = {
-                let size = get_bucket_size(bucket_idx);
+                let size = get_bucket_size::<INITIAL_CAPACITY_BITS>(bucket_idx);
                 let boxed_slice = (0..size).map(|_| None as Option<T>).collect();
                 let raw_box = Box::into_raw(boxed_slice);
                 raw_box as *mut Option<T>
@@ -73,7 +86,7 @@ impl<T> NoMoveVec<T> {
                 }
             }
         }
-        let index = get_index_in_bucket(idx, bucket_idx);
+        let index = get_index_in_bucket::<INITIAL_CAPACITY_BITS>(idx, bucket_idx);
         let item = unsafe { &mut *bucket_ptr.add(index) };
         *item = Some(value);
         fence(Ordering::Release);
@@ -81,13 +94,13 @@ impl<T> NoMoveVec<T> {
 
     /// SAFETY: There must not be a concurrent operation to this idx
     pub unsafe fn remove(&self, idx: usize) {
-        let bucket_idx = get_bucket_index(idx);
+        let bucket_idx = get_bucket_index::<INITIAL_CAPACITY_BITS>(idx);
         let bucket = unsafe { self.buckets.get_unchecked(bucket_idx as usize) };
         let bucket_ptr = bucket.load(Ordering::Acquire);
         if bucket_ptr.is_null() {
             return;
         }
-        let index = get_index_in_bucket(idx, bucket_idx);
+        let index = get_index_in_bucket::<INITIAL_CAPACITY_BITS>(idx, bucket_idx);
         let item = unsafe { &mut *bucket_ptr.add(index) };
         *item = None;
         fence(Ordering::Release);

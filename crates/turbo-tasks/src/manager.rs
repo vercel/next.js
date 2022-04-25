@@ -4,7 +4,7 @@ use std::{
     future::Future,
     hash::Hash,
     sync::{
-        atomic::{AtomicU32, AtomicUsize, Ordering},
+        atomic::{AtomicUsize, Ordering},
         Arc, Mutex,
     },
     time::{Duration, Instant},
@@ -26,7 +26,7 @@ use crate::{
 
 pub struct TurboTasks {
     next_task_id: AtomicUsize,
-    memory_tasks: NoMoveVec<Task>,
+    memory_tasks: NoMoveVec<Task, 13>,
     resolve_task_cache: FHashMap<(&'static NativeFunction, Vec<TaskInput>), TaskId>,
     native_task_cache: FHashMap<(&'static NativeFunction, Vec<TaskInput>), TaskId>,
     trait_task_cache: FHashMap<(&'static TraitType, String, Vec<TaskInput>), TaskId>,
