@@ -1,0 +1,216 @@
+type Query {
+  """Multiple status values can be provided with comma separated strings"""
+  findPetsByStatus(input: findPetsByStatus_request_Input!): [Pet]
+
+  """
+  Multiple tags can be provided with comma separated strings. Use tag1, tag2, tag3 for testing.
+  """
+  findPetsByTags(input: findPetsByTags_request_Input!): [Pet]
+
+  """Returns a single pet"""
+  getPetById(petId: Int!): Pet
+
+  """
+  For valid response try integer IDs with value >= 1 and <= 10. Other values will generated exceptions
+  """
+  getOrderById(orderId: Int!): Order
+
+  """Returns a map of status codes to quantities"""
+  getInventory: getInventory_200_response
+
+  """Get user by user name"""
+  getUserByName(username: String!): User
+
+  """Logs user into the system"""
+  loginUser(input: loginUser_request_Input!): String
+
+  """Logs out current logged in user session"""
+  logoutUser: Any
+}
+
+type Pet {
+  id: BigInt
+  category: Category
+  name: String!
+  photoUrls: [String]!
+  tags: [Tag]
+  status: mutationInput_addPet_status
+}
+
+"""
+The `BigInt` scalar type represents non-fractional signed whole numeric values.
+"""
+scalar BigInt
+
+type Category {
+  id: BigInt
+  name: String
+}
+
+type Tag {
+  id: BigInt
+  name: String
+}
+
+"""pet status in the store"""
+enum mutationInput_addPet_status {
+  available
+  pending
+  sold
+}
+
+input findPetsByStatus_request_Input {
+  """Status values that need to be considered for filter"""
+  status: [queryInput_findPetsByStatus_status_items]!
+}
+
+enum queryInput_findPetsByStatus_status_items {
+  available
+  pending
+  sold
+}
+
+input findPetsByTags_request_Input {
+  """Tags to filter by"""
+  tags: [String]!
+}
+
+type Order {
+  id: BigInt
+  petId: BigInt
+  quantity: Int
+  shipDate: DateTime
+  status: mutation_placeOrder_status
+  complete: Boolean
+}
+
+"""
+A date-time string at UTC, such as 2007-12-03T10:15:30Z, compliant with the `date-time` format outlined in section 5.6 of the RFC 3339 profile of the ISO 8601 standard for representation of dates and times using the Gregorian calendar.
+"""
+scalar DateTime
+
+"""Order Status"""
+enum mutation_placeOrder_status {
+  placed
+  approved
+  delivered
+}
+
+type getInventory_200_response {
+  additionalProperties: JSON
+}
+
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
+
+type User {
+  id: BigInt
+  username: String
+  firstName: String
+  lastName: String
+  email: String
+  password: String
+  phone: String
+
+  """User Status"""
+  userStatus: Int
+}
+
+input loginUser_request_Input {
+  """The user name for login"""
+  username: String!
+
+  """The password for login in clear text"""
+  password: String!
+}
+
+scalar Any
+
+type Mutation {
+  """uploads an image"""
+  uploadFile(petId: Int!): ApiResponse
+
+  """Add a new pet to the store"""
+  addPet(input: Pet_Input!): Any
+
+  """Update an existing pet"""
+  updatePet(input: Pet_Input!): Any
+
+  """Updates a pet in the store with form data"""
+  updatePetWithForm(petId: Int!): Any
+
+  """Deletes a pet"""
+  deletePet(api_key: String, petId: Int!): Any
+
+  """Place an order for a pet"""
+  placeOrder(input: Order_Input): Order
+
+  """
+  For valid response try integer IDs with positive integer value. Negative or non-integer values will generate API errors
+  """
+  deleteOrder(orderId: Int!): Any
+
+  """Creates list of users with given input array"""
+  createUsersWithArrayInput(input: [User_Input]): Any
+
+  """Creates list of users with given input array"""
+  createUsersWithListInput(input: [User_Input]): Any
+
+  """This can only be done by the logged in user."""
+  updateUser(input: User_Input, username: String!): Any
+
+  """This can only be done by the logged in user."""
+  deleteUser(username: String!): Any
+
+  """This can only be done by the logged in user."""
+  createUser(input: User_Input): Any
+}
+
+type ApiResponse {
+  code: Int
+  type: String
+  message: String
+}
+
+input Pet_Input {
+  id: BigInt
+  category: Category_Input
+  name: String!
+  photoUrls: [String]!
+  tags: [Tag_Input]
+  status: mutationInput_addPet_status
+}
+
+input Category_Input {
+  id: BigInt
+  name: String
+}
+
+input Tag_Input {
+  id: BigInt
+  name: String
+}
+
+input Order_Input {
+  id: BigInt
+  petId: BigInt
+  quantity: Int
+  shipDate: DateTime
+  status: mutation_placeOrder_status
+  complete: Boolean
+}
+
+input User_Input {
+  id: BigInt
+  username: String
+  firstName: String
+  lastName: String
+  email: String
+  password: String
+  phone: String
+
+  """User Status"""
+  userStatus: Int
+}
