@@ -35,6 +35,7 @@ use turbopack::{
 #[case::canvas("integration/canvas.js", true)]
 #[case::chromeless("integration/chromeless.js", true)]
 #[case::core_js("integration/core-js.js", true)]
+#[case::cosmosdb_query("integration/cosmosdb-query.js", true)]
 #[case::cowsay("integration/cowsay.js", true)]
 #[case::dogfood("integration/dogfood.js", false)] // can't find node-file-trace
 #[case::dynamic_in_package("integration/dynamic-in-package.js", true)]
@@ -161,11 +162,10 @@ fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
 
             Ok(output.await?)
         }),
-    ))
-    .unwrap();
+    ));
 
     match output {
-        Ok(output) => {
+        Ok(Ok(output)) => {
             if should_succeed {
                 assert!(
                     output.is_empty(),
@@ -174,6 +174,9 @@ fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
             } else {
                 assert!(!output.is_empty(), "test case works now! enable it");
             }
+        }
+        Ok(Err(err)) => {
+            panic!("Execution crashed {err}");
         }
         Err(err) => {
             let mut pending_tasks = 0_usize;
