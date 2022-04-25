@@ -368,7 +368,6 @@ export default function Image({
   objectFit,
   objectPosition,
   onLoadingComplete,
-  onError,
   placeholder = 'empty',
   blurDataURL,
   ...all
