@@ -66,7 +66,7 @@ ignore!(
     AtomicBool,
     AtomicUsize
 );
-ignore!(String, Duration, anyhow::Error);
+ignore!((), String, Duration, anyhow::Error);
 
 impl<A: TraceRawVcs> TraceRawVcs for (A,) {
     fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
