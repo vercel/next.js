@@ -27,6 +27,7 @@ describe('New Link Behavior', () => {
     next = await createNext({
       files: {
         pages: new FileRef(path.join(appDir, 'pages')),
+        'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
       },
       dependencies: {},
     })
@@ -80,5 +81,13 @@ describe('New Link Behavior', () => {
     const $ = cheerio.load(html)
     const $a = $('a')
     expect($a.attr('class')).toBe('home-link')
+  })
+
+  it('should render link with multiple children', async () => {
+    const html = await renderViaHTTP(next.url, '/multiple-children')
+    const $ = cheerio.load(html)
+    const $a = $('a')
+    expect($a.text()).toBe('About Additional Children')
+    expect($a.find('strong').text()).toBe('Additional Children')
   })
 })
