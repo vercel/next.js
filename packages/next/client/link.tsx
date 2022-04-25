@@ -111,6 +111,9 @@ function linkClicked(
 }
 
 function Link(props: React.PropsWithChildren<LinkProps>) {
+  const {
+    oldBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
+  } = props
   if (process.env.NODE_ENV !== 'production') {
     function createPropError(args: {
       key: string
@@ -219,7 +222,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const hasWarned = React.useRef(false)
-    if (props.oldBehavior && props.prefetch && !hasWarned.current) {
+    if (oldBehavior && props.prefetch && !hasWarned.current) {
       hasWarned.current = true
       console.warn(
         'Next.js auto-prefetches automatically based on viewport. The prefetch attribute is no longer needed. More: https://nextjs.org/docs/messages/prefetch-true-deprecated'
@@ -239,7 +242,6 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     shallow,
     scroll,
     locale,
-    oldBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
     onClick,
     onMouseEnter,
     ...restProps
