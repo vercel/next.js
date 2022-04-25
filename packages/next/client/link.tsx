@@ -30,7 +30,13 @@ type InternalLinkProps = {
   prefetch?: boolean
   locale?: string | false
   legacyBehavior?: boolean
+  /**
+   * requires experimental.newNextLinkBehavior
+   */
   onMouseEnter?: (e: React.MouseEvent) => void
+  /**
+   * requires experimental.newNextLinkBehavior
+   */
   onClick?: (e: React.MouseEvent) => void
 }
 
@@ -271,6 +277,16 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   let child: any
   if (legacyBehavior) {
     if (process.env.NODE_ENV === 'development') {
+      if (onClick) {
+        console.warn(
+          `"onClick" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onClick be set on the child of next/link`
+        )
+      }
+      if (onMouseEnter) {
+        console.warn(
+          `"onMouseEnter" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onClick be set on the child of next/link`
+        )
+      }
       try {
         child = React.Children.only(children)
       } catch (err) {
