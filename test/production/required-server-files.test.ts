@@ -55,6 +55,10 @@ describe('should set-up next', () => {
               destination: '/',
             },
             {
+              source: '/to-dynamic/post-2',
+              destination: '/dynamic/post-2?hello=world',
+            },
+            {
               source: '/to-dynamic/:path',
               destination: '/dynamic/:path',
             },
@@ -665,6 +669,44 @@ describe('should set-up next', () => {
     )
     expect(res.status).toBe(400)
     expect(await res.text()).toContain('Bad Request')
+  })
+
+  it('should have correct resolvedUrl from rewrite', async () => {
+    const res = await fetchViaHTTP(appPort, '/to-dynamic/post-1', undefined, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]',
+      },
+    })
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+    expect($('#resolved-url').text()).toBe('/dynamic/post-1')
+  })
+
+  it('should have correct resolvedUrl from rewrite with added query', async () => {
+    const res = await fetchViaHTTP(appPort, '/to-dynamic/post-2', undefined, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]',
+      },
+    })
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+    expect($('#resolved-url').text()).toBe('/dynamic/post-2')
+  })
+
+  it('should have correct resolvedUrl from dynamic route', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/dynamic/post-2.json`,
+      { slug: 'post-2' },
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.pageProps.resolvedUrl).toBe('/dynamic/post-2')
   })
 
   it('should bubble error correctly for gip page', async () => {

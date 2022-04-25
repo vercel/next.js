@@ -106,7 +106,7 @@ export default function resolveRewrites(
   for (let i = 0; i < rewrites.beforeFiles.length; i++) {
     // we don't end after match in beforeFiles to allow
     // continuing through all beforeFiles rewrites
-    finished = handleRewrite(rewrites.beforeFiles[i]) || false
+    handleRewrite(rewrites.beforeFiles[i])
   }
   matchedPage = pages.includes(fsPathname)
 
