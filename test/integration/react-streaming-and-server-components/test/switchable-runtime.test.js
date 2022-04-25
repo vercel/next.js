@@ -8,6 +8,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
+  fetchViaHTTP,
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
@@ -37,7 +38,7 @@ async function testRoute(appPort, url, { isStatic, isEdge, isRSC }) {
     // Should be re-rendered.
     expect(renderedAt1).toBeLessThan(renderedAt2)
   }
-  const customAppServerHtml = '<div class="app-server-root">'
+  const customAppServerHtml = '<div class="app-server-root"'
   if (isRSC) {
     expect(html1).toContain(customAppServerHtml)
   } else {
@@ -100,6 +101,9 @@ describe('Switchable runtime (prod)', () => {
       isEdge: false,
       isRSC: true,
     })
+
+    const html = await renderViaHTTP(context.appPort, '/node-rsc')
+    expect(html).toContain('data-title="node-rsc"')
   })
 
   it('should build /node-rsc-ssr as a dynamic page with the nodejs runtime', async () => {
@@ -249,6 +253,16 @@ describe('Switchable runtime (prod)', () => {
     expect(await browser.elementByCss('body').text()).toContain(
       'This is a static RSC page.'
     )
+  })
+
+  it('should support etag header in the web server', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/edge', '', {
+      headers: {
+        // Make sure the result is static so an etag can be generated.
+        'User-Agent': 'Googlebot',
+      },
+    })
+    expect(res.headers.get('ETag')).toBeDefined()
   })
 })
 

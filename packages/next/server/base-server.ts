@@ -1,4 +1,4 @@
-import type { __ApiPreviewProps } from './api-utils'
+import { __ApiPreviewProps } from './api-utils'
 import type { CustomRoutes } from '../lib/load-custom-routes'
 import type { DomainLocale } from './config'
 import type { DynamicRoutes, PageChecker, Params, Route } from './router'
@@ -18,7 +18,7 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
 
-import { join, resolve } from 'path'
+import pathMod from '../shared/lib/isomorphic/path'
 import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/load-custom-routes'
@@ -65,6 +65,8 @@ import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { replaceBasePath } from './router-utils'
+
+const { join, resolve } = pathMod
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -440,20 +442,25 @@ export default abstract class Server {
         typeof req.headers['x-matched-path'] === 'string'
       ) {
         const reqUrlIsDataUrl = req.url?.includes('/_next/data')
+        const parsedMatchedPath = parseUrl(req.headers['x-matched-path'] || '')
         const matchedPathIsDataUrl =
-          req.headers['x-matched-path']?.includes('/_next/data')
+          parsedMatchedPath.pathname?.includes('/_next/data')
         const isDataUrl = reqUrlIsDataUrl || matchedPathIsDataUrl
 
         let parsedPath = parseUrl(
           isDataUrl ? req.url! : (req.headers['x-matched-path'] as string),
           true
         )
-
         let matchedPathname = parsedPath.pathname!
 
         let matchedPathnameNoExt = isDataUrl
           ? matchedPathname.replace(/\.json$/, '')
           : matchedPathname
+
+        let srcPathname = isDataUrl
+          ? parsedMatchedPath.pathname?.replace(/\.json$/, '') ||
+            matchedPathnameNoExt
+          : matchedPathnameNoExt
 
         if (this.nextConfig.i18n) {
           const localePathResult = normalizeLocalePath(
@@ -469,9 +476,10 @@ export default abstract class Server {
         if (isDataUrl) {
           matchedPathname = denormalizePagePath(matchedPathname)
           matchedPathnameNoExt = denormalizePagePath(matchedPathnameNoExt)
+          srcPathname = denormalizePagePath(srcPathname)
         }
 
-        const pageIsDynamic = isDynamicRoute(matchedPathnameNoExt)
+        const pageIsDynamic = isDynamicRoute(srcPathname)
         const combinedRewrites: Rewrite[] = []
 
         combinedRewrites.push(...this.customRoutes.rewrites.beforeFiles)
@@ -480,7 +488,7 @@ export default abstract class Server {
 
         const utils = getUtils({
           pageIsDynamic,
-          page: matchedPathnameNoExt,
+          page: srcPathname,
           i18n: this.nextConfig.i18n,
           basePath: this.nextConfig.basePath,
           rewrites: combinedRewrites,
@@ -492,7 +500,15 @@ export default abstract class Server {
           if (this.nextConfig.i18n && !url.locale?.path.detectedLocale) {
             parsedUrl.pathname = `/${url.locale?.locale}${parsedUrl.pathname}`
           }
-          utils.handleRewrites(req, parsedUrl)
+          const pathnameBeforeRewrite = parsedUrl.pathname
+          const rewriteParams = utils.handleRewrites(req, parsedUrl)
+          const rewriteParamKeys = Object.keys(rewriteParams)
+          const didRewrite = pathnameBeforeRewrite !== parsedUrl.pathname
+
+          if (didRewrite) {
+            addRequestMeta(req, '_nextRewroteUrl', parsedUrl.pathname!)
+            addRequestMeta(req, '_nextDidRewrite', true)
+          }
 
           // interpolate dynamic params and normalize URL if needed
           if (pageIsDynamic) {
@@ -538,9 +554,14 @@ export default abstract class Server {
                 pathname: matchedPathname,
               })
             }
-
             Object.assign(parsedUrl.query, params)
-            utils.normalizeVercelUrl(req, true)
+          }
+
+          if (pageIsDynamic || didRewrite) {
+            utils.normalizeVercelUrl(req, true, [
+              ...rewriteParamKeys,
+              ...Object.keys(utils.defaultRouteRegex?.groups || {}),
+            ])
           }
         } catch (err) {
           if (err instanceof DecodeError) {
@@ -1228,12 +1249,11 @@ export default abstract class Server {
     }
 
     let isManualRevalidate = false
+    let revalidateOnlyGenerated = false
 
     if (isSSG) {
-      isManualRevalidate = checkIsManualRevalidate(
-        req,
-        this.renderOpts.previewProps
-      )
+      ;({ isManualRevalidate, revalidateOnlyGenerated } =
+        checkIsManualRevalidate(req, this.renderOpts.previewProps))
     }
 
     // Compute the iSSG cache key. We use the rewroteUrl since
@@ -1369,6 +1389,14 @@ export default abstract class Server {
         isRedirect = renderResult.renderOpts.isRedirect
       } else {
         const origQuery = parseUrl(req.url || '', true).query
+
+        // clear any dynamic route params so they aren't in
+        // the resolvedUrl
+        if (opts.params) {
+          Object.keys(opts.params).forEach((key) => {
+            delete origQuery[key]
+          })
+        }
         const hadTrailingSlash =
           urlPathname !== '/' && this.nextConfig.trailingSlash
 
@@ -1446,6 +1474,18 @@ export default abstract class Server {
           isBot(req.headers['user-agent'] || '')
         ) {
           fallbackMode = 'blocking'
+        }
+
+        // skip manual revalidate if cache is not present and
+        // revalidate-if-generated is set
+        if (
+          isManualRevalidate &&
+          revalidateOnlyGenerated &&
+          !hadCache &&
+          !this.minimalMode
+        ) {
+          await this.render404(req, res)
+          return null
         }
 
         // only allow manual revalidate for fallback: true/blocking
@@ -1545,7 +1585,7 @@ export default abstract class Server {
     )
 
     if (!cacheEntry) {
-      if (ssgCacheKey) {
+      if (ssgCacheKey && !(isManualRevalidate && revalidateOnlyGenerated)) {
         // A cache entry might not be generated if a response is written
         // in `getInitialProps` or `getServerSideProps`, but those shouldn't
         // have a cache key. If we do have a cache key but we don't end up
