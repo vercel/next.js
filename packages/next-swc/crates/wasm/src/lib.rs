@@ -3,7 +3,7 @@ use next_swc::{custom_before_pass, TransformOptions};
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 use swc::{config::JsMinifyOptions, config::ParseOptions, try_with_handler, Compiler};
-use swc_common::{errors::ColorConfig, FileName, FilePathMapping, SourceMap, comments::Comments};
+use swc_common::{comments::Comments, errors::ColorConfig, FileName, FilePathMapping, SourceMap};
 use swc_ecmascript::transforms::pass::noop;
 use wasm_bindgen::prelude::*;
 
