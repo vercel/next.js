@@ -39,9 +39,16 @@ fn get_trait_mod_ident(ident: &Ident) -> Ident {
     Ident::new(&(ident.to_string() + "TurboTasksMethods"), ident.span())
 }
 
-fn get_slot_value_type_ident(ident: &Ident) -> Ident {
+fn get_value_type_ident(ident: &Ident) -> Ident {
     Ident::new(
-        &(ident.to_string().to_uppercase() + "_NODE_TYPE"),
+        &(ident.to_string().to_uppercase() + "_VALUE_TYPE"),
+        ident.span(),
+    )
+}
+
+fn get_value_type_id_ident(ident: &Ident) -> Ident {
+    Ident::new(
+        &(ident.to_string().to_uppercase() + "_VALUE_TYPE_ID"),
         ident.span(),
     )
 }
@@ -49,6 +56,13 @@ fn get_slot_value_type_ident(ident: &Ident) -> Ident {
 fn get_trait_type_ident(ident: &Ident) -> Ident {
     Ident::new(
         &(ident.to_string().to_uppercase() + "_TRAIT_TYPE"),
+        ident.span(),
+    )
+}
+
+fn get_trait_type_id_ident(ident: &Ident) -> Ident {
+    Ident::new(
+        &(ident.to_string().to_uppercase() + "_TRAIT_TYPE_ID"),
         ident.span(),
     )
 }
@@ -71,12 +85,29 @@ fn get_function_ident(ident: &Ident) -> Ident {
     )
 }
 
+fn get_function_id_ident(ident: &Ident) -> Ident {
+    Ident::new(
+        &(ident.to_string().to_uppercase() + "_FUNCTION_ID"),
+        ident.span(),
+    )
+}
+
 fn get_trait_impl_function_ident(struct_ident: &Ident, ident: &Ident) -> Ident {
     Ident::new(
         &(struct_ident.to_string().to_uppercase()
             + "_IMPL_"
             + &ident.to_string().to_uppercase()
             + "_FUNCTION"),
+        ident.span(),
+    )
+}
+
+fn get_trait_impl_function_id_ident(struct_ident: &Ident, ident: &Ident) -> Ident {
+    Ident::new(
+        &(struct_ident.to_string().to_uppercase()
+            + "_IMPL_"
+            + &ident.to_string().to_uppercase()
+            + "_FUNCTION_ID"),
         ident.span(),
     )
 }
@@ -208,7 +239,8 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     let ref_ident = get_ref_ident(&ident);
-    let slot_value_type_ident = get_slot_value_type_ident(&ident);
+    let value_type_ident = get_value_type_ident(&ident);
+    let value_type_id_ident = get_value_type_id_ident(&ident);
     let trait_refs: Vec<_> = traits.iter().map(|ident| get_ref_ident(&ident)).collect();
 
     let into = match into_mode {
@@ -218,7 +250,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 fn from(content: #ident) -> Self {
                     Self { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
                         |__slot| {
-                            __slot.update_shared(&#slot_value_type_ident, content);
+                            __slot.update_shared(*#value_type_id_ident, content);
                         }
                     ) }
                 }
@@ -228,7 +260,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 fn from(content: #ident) -> Self {
                     std::convert::From::<turbo_tasks::RawVc>::from(turbo_tasks::macro_helpers::match_previous_node_by_type::<dyn #traits, _>(
                         |__slot| {
-                            __slot.update_shared(&#slot_value_type_ident, content);
+                            __slot.update_shared(*#value_type_id_ident, content);
                         }
                     ))
                 }
@@ -239,7 +271,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 fn from(content: #ident) -> Self {
                     Self { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
                         |__slot| {
-                            __slot.compare_and_update_cloneable(&#slot_value_type_ident, content);
+                            __slot.compare_and_update_cloneable(*#value_type_id_ident, content);
                         }
                     ) }
                 }
@@ -249,7 +281,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 fn from(content: #ident) -> Self {
                     std::convert::From::<turbo_tasks::RawVc>::from(turbo_tasks::macro_helpers::match_previous_node_by_type::<dyn #traits, _>(
                         |__slot| {
-                            __slot.compare_and_update_cloneable(&#slot_value_type_ident, content);
+                            __slot.compare_and_update_cloneable(*#value_type_id_ident, content);
                         }
                     ))
                 }
@@ -262,7 +294,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 fn from(content: #ident) -> Self {
                     Self { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
                         |__slot| {
-                            __slot.compare_and_update_shared(&#slot_value_type_ident, content);
+                            __slot.compare_and_update_shared(*#value_type_id_ident, content);
                         }
                     ) }
                 }
@@ -272,7 +304,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 fn from(content: #ident) -> Self {
                     std::convert::From::<turbo_tasks::RawVc>::from(turbo_tasks::macro_helpers::match_previous_node_by_type::<dyn #traits, _>(
                         |__slot| {
-                            __slot.compare_and_update_shared(&#slot_value_type_ident, content);
+                            __slot.compare_and_update_shared(*#value_type_id_ident, content);
                         }
                     ))
                 }
@@ -290,7 +322,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             fn slot(content: #ident) -> #ref_ident {
                 #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
                     |__slot| {
-                        __slot.update_shared(&#slot_value_type_ident, content);
+                        __slot.update_shared(*#value_type_id_ident, content);
                     }
                 ) }
             }
@@ -303,7 +335,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_key::<#ident, T, _>(
                     key,
                     |__slot| {
-                        __slot.update_shared(&#slot_value_type_ident, content);
+                        __slot.update_shared(*#value_type_id_ident, content);
                     }
                 ) }
             }
@@ -312,7 +344,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             fn slot(content: #ident) -> #ref_ident {
                 #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
                     |__slot| {
-                        __slot.compare_and_update_cloneable(&#slot_value_type_ident, content);
+                        __slot.compare_and_update_cloneable(*#value_type_id_ident, content);
                     }
                 ) }
             }
@@ -321,7 +353,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_key::<#ident, T, _>(
                     key,
                     |__slot| {
-                        __slot.compare_and_update_cloneable(&#slot_value_type_ident, content);
+                        __slot.compare_and_update_cloneable(*#value_type_id_ident, content);
                     }
                 ) }
             }
@@ -335,7 +367,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             fn slot(content: #ident) -> #ref_ident {
                 #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
                     |__slot| {
-                        __slot.compare_and_update_shared(&#slot_value_type_ident, content);
+                        __slot.compare_and_update_shared(*#value_type_id_ident, content);
                     }
                 ) }
             }
@@ -349,7 +381,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_key::<#ident, T, _>(
                     key,
                     |__slot| {
-                        __slot.compare_and_update_shared(&#slot_value_type_ident, content);
+                        __slot.compare_and_update_shared(*#value_type_id_ident, content);
                     }
                 ) }
             }
@@ -361,7 +393,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         .map(|trait_ident| {
             let register = get_register_trait_methods_ident(trait_ident, &ident);
             quote! {
-                #register(&mut slot_value_type);
+                #register(&mut value_type);
             }
         })
         .collect();
@@ -370,10 +402,13 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         #item
 
         turbo_tasks::lazy_static! {
-            static ref #slot_value_type_ident: turbo_tasks::SlotValueType = {
-                let mut slot_value_type = turbo_tasks::SlotValueType::new(std::any::type_name::<#ident>().to_string());
+            pub(crate) static ref #value_type_ident: turbo_tasks::ValueType = {
+                let mut value_type = turbo_tasks::ValueType::new(std::any::type_name::<#ident>().to_string());
                 #(#trait_registrations)*
-                slot_value_type
+                value_type
+            };
+            static ref #value_type_id_ident: turbo_tasks::ValueTypeId = {
+                turbo_tasks::registry::get_value_type_id(&#value_type_ident)
             };
         }
 
@@ -626,6 +661,7 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
     let ref_ident = get_ref_ident(ident);
     let mod_ident = get_trait_mod_ident(ident);
     let trait_type_ident = get_trait_type_ident(&ident);
+    let trait_type_id_ident = get_trait_type_id_ident(&ident);
     let mut trait_fns = Vec::new();
 
     for item in items.iter() {
@@ -656,7 +692,7 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
             trait_fns.push(quote! {
                 fn #method_ident(#(#method_args),*) -> #output_type {
                     // TODO use const string
-                    let result = turbo_tasks::trait_call(&#trait_type_ident, stringify!(#method_ident).to_string(), vec![self.into(), #(#args),*]);
+                    let result = turbo_tasks::trait_call(*#trait_type_id_ident, stringify!(#method_ident).to_string(), vec![self.into(), #(#args),*]);
                     #convert_result_code
                 }
             });
@@ -667,7 +703,8 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
         #item
 
         turbo_tasks::lazy_static! {
-            pub static ref #trait_type_ident: turbo_tasks::TraitType = turbo_tasks::TraitType::new(std::any::type_name::<dyn #ident>().to_string());
+            pub(crate) static ref #trait_type_ident: turbo_tasks::TraitType = turbo_tasks::TraitType::new(std::any::type_name::<dyn #ident>().to_string());
+            pub(crate) static ref #trait_type_id_ident: turbo_tasks::TraitTypeId = turbo_tasks::registry::get_trait_type_id(&#trait_type_ident);
         }
 
         #vis struct #mod_ident {
@@ -676,8 +713,8 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
 
         impl #mod_ident {
             #[inline]
-            pub fn __type(&self) -> &'static turbo_tasks::TraitType {
-                &*#trait_type_ident
+            pub fn __type(&self) -> turbo_tasks::TraitTypeId {
+                *#trait_type_id_ident
             }
         }
 
@@ -759,7 +796,7 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
 pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
     fn generate_for_self_impl(ident: &Ident, items: &[ImplItem]) -> TokenStream2 {
         let ref_ident = get_ref_ident(ident);
-        let slot_value_type_ident = get_slot_value_type_ident(ident);
+        let value_type_id_ident = get_value_type_id_ident(ident);
         let mut constructors = Vec::new();
         let mut i = 0;
         for item in items.iter() {
@@ -825,7 +862,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                             };
                             quote! {
                                 |__slot| {
-                                    __slot.conditional_update_shared::<#ident, _>(&#slot_value_type_ident, |__self| {
+                                    __slot.conditional_update_shared::<#ident, _>(*#value_type_id_ident, |__self| {
                                         if let Some(__self) = __self {
                                             if #compare {
                                                 return None;
@@ -854,7 +891,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                             };
                             quote! {
                                 |__slot| {
-                                    __slot.conditional_update_shared::<#ident, _>(&#slot_value_type_ident, |__self| {
+                                    __slot.conditional_update_shared::<#ident, _>(*#value_type_id_ident, |__self| {
                                         #compare
                                         Some(#create_new_content)
                                     })
@@ -866,7 +903,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                                 quote! {
                                     turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
                                         |__slot| {
-                                            __slot.update_shared::<#ident>(&#slot_value_type_ident, #create_new_content);
+                                            __slot.update_shared::<#ident>(*#value_type_id_ident, #create_new_content);
                                         }
                                     )
                                 }
@@ -947,6 +984,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     let output_type = get_return_type(output);
                     let inline_ident = get_internal_function_ident(ident);
                     let function_ident = get_trait_impl_function_ident(ref_ident, ident);
+                    let function_id_ident = get_trait_impl_function_id_ident(ref_ident, ident);
 
                     let mut inline_sig = sig.clone();
                     inline_sig.ident = inline_ident.clone();
@@ -959,6 +997,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                         quote! { stringify!(#ref_ident::#ident) },
                         quote! { #ref_ident::#inline_ident },
                         &function_ident,
+                        &function_id_ident,
                         sig.asyncness.is_some(),
                         &sig.inputs,
                         &output_type,
@@ -982,7 +1021,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                         impl #ref_ident {
                             #(#attrs)*
                             #vis #external_sig {
-                                let result = turbo_tasks::dynamic_call(&#function_ident, vec![#(#input_raw_vc_arguments),*]);
+                                let result = turbo_tasks::dynamic_call(*#function_id_ident, vec![#(#input_raw_vc_arguments),*]);
                                 #convert_result_code
                             }
 
@@ -1026,10 +1065,11 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     } = sig;
                     let output_type = get_return_type(output);
                     let function_ident = get_trait_impl_function_ident(struct_ident, ident);
+                    let function_id_ident = get_trait_impl_function_id_ident(struct_ident, ident);
                     let internal_function_ident =
                         get_internal_trait_impl_function_ident(trait_ident, ident);
                     trait_registers.push(quote! {
-                        slot_value_type.register_trait_method(#trait_ident.__type(), stringify!(#ident).to_string(), &*#function_ident);
+                        value_type.register_trait_method(#trait_ident.__type(), stringify!(#ident).to_string(), *#function_id_ident);
                     });
                     let name =
                         Literal::string(&(struct_ident.to_string() + "::" + &ident.to_string()));
@@ -1037,6 +1077,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                         quote! { #name },
                         quote! { #struct_ident::#internal_function_ident },
                         &function_ident,
+                        &function_id_ident,
                         asyncness.is_some(),
                         inputs,
                         &output_type,
@@ -1072,7 +1113,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     trait_functions.push(quote!{
                         #(#attrs)*
                         #external_sig {
-                            let result = turbo_tasks::dynamic_call(&#function_ident, vec![#(#input_raw_vc_arguments),*]);
+                            let result = turbo_tasks::dynamic_call(*#function_id_ident, vec![#(#input_raw_vc_arguments),*]);
                             #convert_result_code
                         }
                     });
@@ -1082,8 +1123,8 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
         }
         quote! {
             #[allow(non_snake_case)]
-            fn #register(slot_value_type: &mut turbo_tasks::SlotValueType) {
-                slot_value_type.register_trait(#trait_ident.__type());
+            fn #register(value_type: &mut turbo_tasks::ValueType) {
+                value_type.register_trait(#trait_ident.__type());
                 #(#trait_registers)*
             }
 
@@ -1174,6 +1215,7 @@ pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
     let output_type = get_return_type(&sig.output);
     let ident = &sig.ident;
     let function_ident = get_function_ident(ident);
+    let function_id_ident = get_function_id_ident(ident);
     let inline_ident = get_internal_function_ident(ident);
 
     let mut inline_sig = sig.clone();
@@ -1186,6 +1228,7 @@ pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
         quote! { stringify!(#ident) },
         quote! { #inline_ident },
         &function_ident,
+        &function_id_ident,
         sig.asyncness.is_some(),
         &sig.inputs,
         &output_type,
@@ -1208,7 +1251,7 @@ pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
     return quote! {
         #(#attrs)*
         #vis #external_sig {
-            let result = turbo_tasks::dynamic_call(&#function_ident, vec![#(#input_raw_vc_arguments),*]);
+            let result = turbo_tasks::dynamic_call(*#function_id_ident, vec![#(#input_raw_vc_arguments),*]);
             #convert_result_code
         }
 
@@ -1254,6 +1297,7 @@ fn gen_native_function_code(
     name_code: TokenStream2,
     original_function: TokenStream2,
     function_ident: &Ident,
+    function_id_ident: &Ident,
     async_function: bool,
     inputs: &Punctuated<FnArg, Token![,]>,
     output_type: &Type,
@@ -1388,7 +1432,7 @@ fn gen_native_function_code(
     (
         quote! {
             turbo_tasks::lazy_static! {
-                static ref #function_ident: turbo_tasks::NativeFunction = turbo_tasks::NativeFunction::new(#name_code.to_string(), vec![#(#task_argument_options),*], |inputs| {
+                pub(crate) static ref #function_ident: turbo_tasks::NativeFunction = turbo_tasks::NativeFunction::new(#name_code.to_string(), vec![#(#task_argument_options),*], |inputs| {
                     let mut __iter = inputs.iter();
                     #(#input_extraction)*
                     if __iter.next().is_some() {
@@ -1403,6 +1447,7 @@ fn gen_native_function_code(
                         })
                     }))
                 });
+                static ref #function_id_ident: turbo_tasks::FunctionId = turbo_tasks::registry::get_function_id(&#function_ident);
             }
         },
         input_raw_vc_arguments,

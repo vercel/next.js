@@ -304,3 +304,7 @@ pub async fn all_assets(asset: AssetVc) -> Result<AssetsSetVc> {
 pub mod __internals {
     pub use super::analyzer::test_utils;
 }
+
+pub fn register() {
+    include!(concat!(env!("OUT_DIR"), "/register.rs"));
+}

@@ -1,6 +1,6 @@
 use crate::{
-    self as turbo_tasks, error::SharedError, task::NativeTaskFn, task_input::TaskInput,
-    TaskArgumentOptions,
+    self as turbo_tasks, error::SharedError, registry::register_function, task::NativeTaskFn,
+    task_input::TaskInput, TaskArgumentOptions,
 };
 use anyhow::Result;
 use std::{
@@ -37,9 +37,7 @@ impl Debug for NativeFunction {
     }
 }
 
-#[turbo_tasks::value_impl]
 impl NativeFunction {
-    #[turbo_tasks::constructor]
     pub fn new(
         name: String,
         task_argument_options: Vec<TaskArgumentOptions>,
@@ -74,6 +72,10 @@ impl NativeFunction {
                 })
             }
         }
+    }
+
+    pub fn register(&'static self, global_name: &str) {
+        register_function(global_name, self);
     }
 }
 

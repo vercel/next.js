@@ -165,6 +165,8 @@ fn process_input(dir: &PathBuf, context: &String, input: Vec<String>) -> Result<
 }
 
 fn main() {
+    register();
+
     let args = Args::parse();
     let CommonArgs {
         input,
@@ -298,4 +300,11 @@ fn main() {
             common: _,
         } => todo!(),
     }
+}
+
+fn register() {
+    turbo_tasks::register();
+    turbo_tasks_fs::register();
+    turbopack::register();
+    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
