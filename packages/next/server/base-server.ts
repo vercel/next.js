@@ -479,6 +479,15 @@ export default abstract class Server {
           srcPathname = denormalizePagePath(srcPathname)
         }
 
+        if (!isDynamicRoute(srcPathname) && !this.hasPage(srcPathname)) {
+          for (const dynamicRoute of this.dynamicRoutes || []) {
+            if (dynamicRoute.match(srcPathname)) {
+              srcPathname = dynamicRoute.page
+              break
+            }
+          }
+        }
+
         const pageIsDynamic = isDynamicRoute(srcPathname)
         const utils = getUtils({
           pageIsDynamic,

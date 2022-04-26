@@ -108,10 +108,11 @@ export function getUtils({
 
     let fsPathname = parsedUrl.pathname
 
-    for (const rewrite of [
-      ...(rewrites.beforeFiles?.map(addRewriteType('beforeFiles')) || []),
-      ...(rewrites.afterFiles?.map(addRewriteType('afterFils')) || []),
-    ]) {
+    const matchesPage = () => {
+      return fsPathname === page || dynamicRouteMatcher?.(fsPathname)
+    }
+
+    const checkRewrite = (rewrite: Rewrite): boolean => {
       const matcher = getCustomRouteMatcher(rewrite.source)
       let params = matcher(parsedUrl.pathname)
 
@@ -156,17 +157,8 @@ export function getUtils({
             destLocalePathResult.detectedLocale || params.nextInternalLocale
         }
 
-        console.log(
-          'checking',
-          rewrite,
-          fsPathname,
-          page,
-          pageIsDynamic,
-          dynamicRouteMatcher
-        )
-
         if (fsPathname === page) {
-          break
+          return true
         }
 
         if (pageIsDynamic && dynamicRouteMatcher) {
@@ -176,12 +168,32 @@ export function getUtils({
               ...parsedUrl.query,
               ...dynamicParams,
             }
-            break
+            return true
           }
         }
       }
+      return false
     }
 
+    for (const rewrite of rewrites.beforeFiles || []) {
+      checkRewrite(rewrite)
+    }
+
+    if (!matchesPage()) {
+      let finished = false
+
+      for (const rewrite of rewrites.afterFiles || []) {
+        finished = checkRewrite(rewrite)
+        if (finished) break
+      }
+
+      if (!finished && !matchesPage()) {
+        for (const rewrite of rewrites.fallback || []) {
+          finished = checkRewrite(rewrite)
+          if (finished) break
+        }
+      }
+    }
     return rewriteParams
   }
 
