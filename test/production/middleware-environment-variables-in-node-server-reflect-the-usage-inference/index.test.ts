@@ -44,6 +44,7 @@ describe('middleware environment variables in node server reflect the usage infe
       rest: {
         CAN_BE_INFERRED: 'can-be-inferred',
         X_CUSTOM_HEADER: 'x-custom-header',
+        NEXT_RUNTIME: 'edge',
       },
     })
   })
