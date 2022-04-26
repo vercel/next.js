@@ -76,6 +76,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  newNextLinkBehavior?: boolean
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
   swcFileReading?: boolean
@@ -464,6 +465,8 @@ export const defaultConfig: NextConfig = {
   staticPageGenerationTimeout: 60,
   swcMinify: false,
   experimental: {
+    // TODO: change default in next major release (current v12.1.5)
+    newNextLinkBehavior: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||

@@ -20,7 +20,7 @@ type OptionalKeys<T> = {
   [K in keyof T]-?: {} extends Pick<T, K> ? K : never
 }[keyof T]
 
-export type LinkProps = {
+type InternalLinkProps = {
   href: Url
   as?: Url
   replace?: boolean
@@ -29,9 +29,24 @@ export type LinkProps = {
   passHref?: boolean
   prefetch?: boolean
   locale?: string | false
+  legacyBehavior?: boolean
+  // e: any because as it would otherwise overlap with existing types
+  /**
+   * requires experimental.newNextLinkBehavior
+   */
+  onMouseEnter?: (e: any) => void
+  // e: any because as it would otherwise overlap with existing types
+  /**
+   * requires experimental.newNextLinkBehavior
+   */
+  onClick?: (e: any) => void
 }
+
+// TODO: Include the full set of Anchor props
+// adding this to the publicly exported type currently breaks existing apps
+export type LinkProps = InternalLinkProps
 type LinkPropsRequired = RequiredKeys<LinkProps>
-type LinkPropsOptional = OptionalKeys<LinkProps>
+type LinkPropsOptional = OptionalKeys<InternalLinkProps>
 
 const prefetched: { [cacheKey: string]: boolean } = {}
 
@@ -104,7 +119,15 @@ function linkClicked(
   })
 }
 
-function Link(props: React.PropsWithChildren<LinkProps>) {
+function Link(
+  props: React.PropsWithChildren<
+    Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, keyof LinkProps> &
+      LinkProps
+  >
+) {
+  const {
+    legacyBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
+  } = props
   if (process.env.NODE_ENV !== 'production') {
     function createPropError(args: {
       key: string
@@ -154,6 +177,9 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       passHref: true,
       prefetch: true,
       locale: true,
+      onClick: true,
+      onMouseEnter: true,
+      legacyBehavior: true,
     } as const
     const optionalProps: LinkPropsOptional[] = Object.keys(
       optionalPropsGuard
@@ -177,12 +203,21 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
             actual: valType,
           })
         }
+      } else if (key === 'onClick' || key === 'onMouseEnter') {
+        if (props[key] && valType !== 'function') {
+          throw createPropError({
+            key,
+            expected: '`function`',
+            actual: valType,
+          })
+        }
       } else if (
         key === 'replace' ||
         key === 'scroll' ||
         key === 'shallow' ||
         key === 'passHref' ||
-        key === 'prefetch'
+        key === 'prefetch' ||
+        key === 'legacyBehavior'
       ) {
         if (props[key] != null && valType !== 'boolean') {
           throw createPropError({
@@ -208,48 +243,80 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       )
     }
   }
-  const p = props.prefetch !== false
+
+  let children: React.ReactNode
+
+  const {
+    href: hrefProp,
+    as: asProp,
+    children: childrenProp,
+    prefetch: prefetchProp,
+    passHref,
+    replace,
+    shallow,
+    scroll,
+    locale,
+    onClick,
+    onMouseEnter,
+    ...restProps
+  } = props
+
+  children = childrenProp
+
+  if (legacyBehavior && typeof children === 'string') {
+    children = <a>{children}</a>
+  }
+
+  const p = prefetchProp !== false
   const router = useRouter()
 
   const { href, as } = React.useMemo(() => {
-    const [resolvedHref, resolvedAs] = resolveHref(router, props.href, true)
+    const [resolvedHref, resolvedAs] = resolveHref(router, hrefProp, true)
     return {
       href: resolvedHref,
-      as: props.as ? resolveHref(router, props.as) : resolvedAs || resolvedHref,
+      as: asProp ? resolveHref(router, asProp) : resolvedAs || resolvedHref,
     }
-  }, [router, props.href, props.as])
+  }, [router, hrefProp, asProp])
 
   const previousHref = React.useRef<string>(href)
   const previousAs = React.useRef<string>(as)
 
-  let { children, replace, shallow, scroll, locale } = props
-
-  if (typeof children === 'string') {
-    children = <a>{children}</a>
-  }
-
   // This will return the first child, if multiple are provided it will throw an error
   let child: any
-  if (process.env.NODE_ENV === 'development') {
-    try {
-      child = React.Children.only(children)
-    } catch (err) {
-      if (!children) {
-        throw new Error(
-          `No children were passed to <Link> with \`href\` of \`${props.href}\` but one child is required https://nextjs.org/docs/messages/link-no-children`
+  if (legacyBehavior) {
+    if (process.env.NODE_ENV === 'development') {
+      if (onClick) {
+        console.warn(
+          `"onClick" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onClick be set on the child of next/link`
         )
       }
-      throw new Error(
-        `Multiple children were passed to <Link> with \`href\` of \`${props.href}\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children` +
-          (typeof window !== 'undefined'
-            ? " \nOpen your browser's console to view the Component stack trace."
-            : '')
-      )
+      if (onMouseEnter) {
+        console.warn(
+          `"onMouseEnter" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onMouseEnter be set on the child of next/link`
+        )
+      }
+      try {
+        child = React.Children.only(children)
+      } catch (err) {
+        if (!children) {
+          throw new Error(
+            `No children were passed to <Link> with \`href\` of \`${hrefProp}\` but one child is required https://nextjs.org/docs/messages/link-no-children`
+          )
+        }
+        throw new Error(
+          `Multiple children were passed to <Link> with \`href\` of \`${hrefProp}\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children` +
+            (typeof window !== 'undefined'
+              ? " \nOpen your browser's console to view the Component stack trace."
+              : '')
+        )
+      }
+    } else {
+      child = React.Children.only(children)
     }
-  } else {
-    child = React.Children.only(children)
   }
-  const childRef: any = child && typeof child === 'object' && child.ref
+
+  const childRef: any =
+    legacyBehavior && child && typeof child === 'object' && child.ref
 
   const [setIntersectionRef, isVisible, resetVisible] = useIntersection({
     rootMargin: '200px',
@@ -265,14 +332,14 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       }
 
       setIntersectionRef(el)
-      if (childRef) {
+      if (legacyBehavior && childRef) {
         if (typeof childRef === 'function') childRef(el)
         else if (typeof childRef === 'object') {
           childRef.current = el
         }
       }
     },
-    [as, childRef, href, resetVisible, setIntersectionRef]
+    [as, childRef, href, resetVisible, setIntersectionRef, legacyBehavior]
   )
   React.useEffect(() => {
     const shouldPrefetch = isVisible && p && isLocalURL(href)
@@ -288,7 +355,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   }, [as, href, isVisible, locale, p, router])
 
   const childProps: {
-    onMouseEnter?: React.MouseEventHandler
+    onMouseEnter: React.MouseEventHandler
     onClick: React.MouseEventHandler
     href?: string
     ref?: any
@@ -302,27 +369,45 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
           )
         }
       }
-      if (child.props && typeof child.props.onClick === 'function') {
+
+      if (!legacyBehavior && typeof onClick === 'function') {
+        onClick(e)
+      }
+      if (
+        legacyBehavior &&
+        child.props &&
+        typeof child.props.onClick === 'function'
+      ) {
         child.props.onClick(e)
       }
       if (!e.defaultPrevented) {
         linkClicked(e, router, href, as, replace, shallow, scroll, locale)
       }
     },
-  }
-
-  childProps.onMouseEnter = (e: React.MouseEvent) => {
-    if (child.props && typeof child.props.onMouseEnter === 'function') {
-      child.props.onMouseEnter(e)
-    }
-    if (isLocalURL(href)) {
-      prefetch(router, href, as, { priority: true })
-    }
+    onMouseEnter: (e: React.MouseEvent) => {
+      if (!legacyBehavior && typeof onMouseEnter === 'function') {
+        onMouseEnter(e)
+      }
+      if (
+        legacyBehavior &&
+        child.props &&
+        typeof child.props.onMouseEnter === 'function'
+      ) {
+        child.props.onMouseEnter(e)
+      }
+      if (isLocalURL(href)) {
+        prefetch(router, href, as, { priority: true })
+      }
+    },
   }
 
   // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
   // defined, we specify the current 'href', so that repetition is not needed by the user
-  if (props.passHref || (child.type === 'a' && !('href' in child.props))) {
+  if (
+    !legacyBehavior ||
+    passHref ||
+    (child.type === 'a' && !('href' in child.props))
+  ) {
     const curLocale =
       typeof locale !== 'undefined' ? locale : router && router.locale
 
@@ -343,7 +428,13 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       addBasePath(addLocale(as, curLocale, router && router.defaultLocale))
   }
 
-  return React.cloneElement(child, childProps)
+  return legacyBehavior ? (
+    React.cloneElement(child, childProps)
+  ) : (
+    <a {...restProps} {...childProps}>
+      {children}
+    </a>
+  )
 }
 
 export default Link
