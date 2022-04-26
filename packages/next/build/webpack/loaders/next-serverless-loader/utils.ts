@@ -96,16 +96,6 @@ export function getUtils({
     parsedUrl: UrlWithParsedQuery
   ) {
     const rewriteParams = {}
-    const addRewriteType =
-      (type: string) =>
-      (
-        _r: Rewrite
-      ): Rewrite & { type: 'beforeFiles' | 'afterFiles' | 'fallback' } => {
-        const r = _r as any
-        r.type = type
-        return r
-      }
-
     let fsPathname = parsedUrl.pathname
 
     const matchesPage = () => {

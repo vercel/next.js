@@ -8,7 +8,6 @@ import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plu
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
-import type { Rewrite } from '../lib/load-custom-routes'
 import type { RenderOpts, RenderOptsPartial } from './render'
 import type { ResponseCacheEntry, ResponseCacheValue } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
