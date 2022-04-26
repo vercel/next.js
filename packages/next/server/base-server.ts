@@ -1155,7 +1155,7 @@ export default abstract class Server {
       (isServerComponent &&
         !hasServerProps &&
         !hasGetInitialProps &&
-        !process.browser)
+        process.env.NEXT_RUNTIME !== 'edge')
 
     // Toggle whether or not this is a Data request
     const isDataReq =
@@ -1240,7 +1240,7 @@ export default abstract class Server {
 
     if (hasServerProps || isSSG) {
       // For the edge runtime, we don't support preview mode in SSG.
-      if (!process.browser) {
+      if (process.env.NEXT_RUNTIME !== 'edge') {
         const { tryGetPreviewData } =
           require('./api-utils/node') as typeof import('./api-utils/node')
         previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
@@ -1758,7 +1758,10 @@ export default abstract class Server {
       )
 
       if (!isWrappedError) {
-        if ((this.minimalMode && !process.browser) || this.renderOpts.dev) {
+        if (
+          (this.minimalMode && process.env.NEXT_RUNTIME !== 'edge') ||
+          this.renderOpts.dev
+        ) {
           if (isError(err)) err.page = page
           throw err
         }
