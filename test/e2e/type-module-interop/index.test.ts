@@ -12,10 +12,23 @@ describe('Type module interop', () => {
       files: {
         'pages/index.js': `
           import Link from 'next/link'
+          import Head from 'next/head'
+          import Script from 'next/script'
 
           export default function Page() { 
             return (
               <>
+                <Head>
+                  <title>This page has a title 🤔</title>
+                  <meta charSet="utf-8" />
+                  <meta name="viewport" content="initial-scale=1.0, width=device-width" />
+                </Head>
+                <Script
+                  strategy="afterInteractive"
+                  dangerouslySetInnerHTML={{
+                    __html: 'console.log("hello world")',
+                  }}
+                />
                 <p>hello world</p>
                 <Link href="/modules">
                   <a id="link-to-module">link to module</a>
