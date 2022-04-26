@@ -124,6 +124,11 @@ export function getUtils({
           query: parsedUrl.query,
         })
 
+        // if the rewrite destination is external break rewrite chain
+        if (parsedDestination.protocol) {
+          return true
+        }
+
         Object.assign(rewriteParams, destQuery, params)
         Object.assign(parsedUrl.query, parsedDestination.query)
         delete (parsedDestination as any).query
@@ -169,7 +174,7 @@ export function getUtils({
       checkRewrite(rewrite)
     }
 
-    if (!matchesPage()) {
+    if (fsPathname !== page) {
       let finished = false
 
       for (const rewrite of rewrites.afterFiles || []) {
