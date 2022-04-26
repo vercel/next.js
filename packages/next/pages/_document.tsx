@@ -80,7 +80,7 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
   const { assetPrefix, scriptLoader, crossOrigin, nextScriptWorkers } = context
 
   // disable `nextScriptWorkers` in edge runtime
-  if (!nextScriptWorkers || process.browser) return null
+  if (!nextScriptWorkers || process.env.NEXT_RUNTIME === 'edge') return null
 
   try {
     let {
