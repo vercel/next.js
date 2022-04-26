@@ -210,7 +210,6 @@ function createContext(options: {
     File,
     FormData,
     process: {
-      ...polyfills.process,
       env: buildEnvironmentVariablesFrom(options.env),
     },
     ReadableStream,

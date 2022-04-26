@@ -196,20 +196,19 @@ function enhanceComponents(
   }
 }
 
-function renderFlight(AppMod: any, ComponentMod: any, props: any) {
-  const isServerComponent = !!ComponentMod.__next_rsc__
-  const App = interopDefault(AppMod)
-  const Component = interopDefault(ComponentMod)
-  const AppServer = isServerComponent
-    ? (App as React.ComponentType)
-    : React.Fragment
+function renderPageTree(
+  App: any,
+  Component: any,
+  props: any,
+  isServerComponent: boolean
+) {
   const { router: _, ...rest } = props
 
   if (isServerComponent) {
     return (
-      <AppServer>
+      <App>
         <Component {...rest} />
-      </AppServer>
+      </App>
     )
   }
 
@@ -395,6 +394,7 @@ const useFlightResponse = createFlightHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
+  App: any,
   ComponentMod: any,
   {
     cachePrefix,
@@ -414,7 +414,7 @@ function createServerComponentRenderer(
   globalThis.__webpack_require__ = ComponentMod.__next_rsc__.__webpack_require__
   const Component = interopDefault(ComponentMod)
 
-  function ServerComponentWrapper({ App, router, ...props }: any) {
+  function ServerComponentWrapper({ router, ...props }: any) {
     const id = (React as any).useId()
 
     const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
@@ -489,7 +489,7 @@ export async function renderToHTML(
     reactRoot,
     runtime: globalRuntime,
     ComponentMod,
-    AppMod: AppClientMod,
+    AppMod,
     AppServerMod,
   } = renderOpts
 
@@ -503,11 +503,12 @@ export async function renderToHTML(
     !!serverComponentManifest &&
     !!ComponentMod.__next_rsc__?.server
 
+  // Component will be wrapped by ServerComponentWrapper for RSC
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
+  const OriginComponent = Component
 
-  const AppMod = isServerComponent ? AppServerMod : AppClientMod
-  const App = interopDefault(AppMod)
+  const App = interopDefault(isServerComponent ? AppServerMod : AppMod)
 
   let serverComponentsInlinedTransformStream: TransformStream<
     Uint8Array,
@@ -524,7 +525,7 @@ export async function renderToHTML(
   if (isServerComponent) {
     serverComponentsInlinedTransformStream = new TransformStream()
     const search = urlQueryToSearchParams(query).toString()
-    Component = createServerComponentRenderer(ComponentMod, {
+    Component = createServerComponentRenderer(App, ComponentMod, {
       cachePrefix: pathname + (search ? `?${search}` : ''),
       inlinedTransformStream: serverComponentsInlinedTransformStream,
       staticTransformStream: serverComponentsPageDataTransformStream,
@@ -749,7 +750,12 @@ export async function renderToHTML(
     AppTree: (props: any) => {
       return (
         <AppContainerWithIsomorphicFiberStructure>
-          {renderFlight(AppMod, ComponentMod, { ...props, router })}
+          {renderPageTree(
+            App,
+            OriginComponent,
+            { ...props, router },
+            isServerComponent
+          )}
         </AppContainerWithIsomorphicFiberStructure>
       )
     },
@@ -1242,10 +1248,15 @@ export async function renderToHTML(
   if (renderServerComponentData) {
     return new RenderResult(
       renderToReadableStream(
-        renderFlight(AppMod, ComponentMod, {
-          ...props.pageProps,
-          ...serverComponentProps,
-        }),
+        renderPageTree(
+          App,
+          OriginComponent,
+          {
+            ...props.pageProps,
+            ...serverComponentProps,
+          },
+          isServerComponent
+        ),
         serverComponentManifest
       ).pipeThrough(createBufferedTransformStream())
     )
@@ -1333,13 +1344,10 @@ export async function renderToHTML(
     }
 
     async function documentInitialProps(
-      renderShell?: ({
-        EnhancedApp,
-        EnhancedComponent,
-      }: {
-        EnhancedApp?: AppType
-        EnhancedComponent?: NextComponentType
-      }) => Promise<void>
+      renderShell?: (
+        _App: AppType,
+        _Component: NextComponentType
+      ) => Promise<void>
     ) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
@@ -1347,7 +1355,7 @@ export async function renderToHTML(
         if (ctx.err && ErrorDebug) {
           // Always start rendering the shell even if there's an error.
           if (renderShell) {
-            renderShell({})
+            renderShell(App, Component)
           }
 
           const html = ReactDOMServer.renderToString(
@@ -1368,7 +1376,7 @@ export async function renderToHTML(
           enhanceComponents(options, App, Component)
 
         if (renderShell) {
-          return renderShell({ EnhancedApp, EnhancedComponent }).then(() => {
+          return renderShell(EnhancedApp, EnhancedComponent).then(() => {
             // When using concurrent features, we don't have or need the full
             // html so it's fine to return nothing here.
             return { html: '', head }
@@ -1378,11 +1386,12 @@ export async function renderToHTML(
         const html = ReactDOMServer.renderToString(
           <Body>
             <AppContainerWithIsomorphicFiberStructure>
-              <EnhancedApp
-                Component={EnhancedComponent}
-                router={router}
-                {...props}
-              />
+              {renderPageTree(
+                EnhancedApp,
+                EnhancedComponent,
+                { ...props, router },
+                false
+              )}
             </AppContainerWithIsomorphicFiberStructure>
           </Body>
         )
@@ -1406,13 +1415,10 @@ export async function renderToHTML(
       return { docProps, documentCtx }
     }
 
-    const renderContent = ({
-      EnhancedApp,
-      EnhancedComponent,
-    }: {
-      EnhancedApp?: AppType
-      EnhancedComponent?: NextComponentType
-    } = {}) => {
+    const renderContent = (_App: AppType, _Component: NextComponentType) => {
+      const EnhancedApp = _App || App
+      const EnhancedComponent = _Component || Component
+
       return ctx.err && ErrorDebug ? (
         <Body>
           <ErrorDebug error={ctx.err} />
@@ -1420,16 +1426,12 @@ export async function renderToHTML(
       ) : (
         <Body>
           <AppContainerWithIsomorphicFiberStructure>
-            {isServerComponent
-              ? React.createElement(EnhancedComponent || Component, {
-                  App: EnhancedApp || App,
-                  ...props.pageProps,
-                })
-              : React.createElement(EnhancedApp || App, {
-                  ...props,
-                  Component: EnhancedComponent || Component,
-                  router,
-                })}
+            {renderPageTree(
+              EnhancedApp,
+              EnhancedComponent,
+              { ...(isServerComponent ? props.pageProps : props), router },
+              isServerComponent
+            )}
           </AppContainerWithIsomorphicFiberStructure>
         </Body>
       )
@@ -1452,7 +1454,7 @@ export async function renderToHTML(
           styles: docProps.styles,
         }
       } else {
-        const content = renderContent()
+        const content = renderContent(App, Component)
         // for non-concurrent rendering we need to ensure App is rendered
         // before _document so that updateHead is called/collected before
         // rendering _document's head
@@ -1475,14 +1477,11 @@ export async function renderToHTML(
         allReady?: Promise<void> | undefined
       }
 
-      const renderShell = async ({
-        EnhancedApp,
-        EnhancedComponent,
-      }: {
-        EnhancedApp?: AppType
-        EnhancedComponent?: NextComponentType
-      } = {}) => {
-        const content = renderContent({ EnhancedApp, EnhancedComponent })
+      const renderShell = async (
+        EnhancedApp: AppType,
+        EnhancedComponent: NextComponentType
+      ) => {
+        const content = renderContent(EnhancedApp, EnhancedComponent)
         renderStream = await renderToInitialStream({
           ReactDOMServer,
           element: content,
@@ -1565,7 +1564,7 @@ export async function renderToHTML(
         documentInitialPropsRes = await documentInitialProps(renderShell)
         if (documentInitialPropsRes === null) return null
       } else {
-        await renderShell()
+        await renderShell(App, Component)
         documentInitialPropsRes = {}
       }
 

@@ -133,6 +133,8 @@ describe('Middleware base tests', () => {
             MIDDLEWARE_TEST: 'asdf',
             __NEXT_RUNTIME: 'edge',
           },
+          // it's poflyfilled since there is the "process" module
+          // as a devDepencies of the next package
           nextTick: 'function',
         },
       })

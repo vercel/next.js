@@ -7,13 +7,13 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
     "rebass": "^4.0.7",
     "styled-components": "^5.3.0"
   },
   "devDependencies": {
-    "babel-plugin-styled-components": "^1.1.7",
+    "babel-plugin-styled-components": "^2.0.7",
     "babel-plugin-transform-object-assign": "^6.22.0",
     "babel-plugin-transform-object-set-prototype-of-to-assign": "^6.22.0"
   }
