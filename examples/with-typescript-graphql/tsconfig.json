@@ -2,9 +2,9 @@
   "compilerOptions": {
     "target": "es5",
     "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": false,
-    "skipLibCheck": false,
-    "strict": true,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": false,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "esModuleInterop": true,
@@ -19,7 +19,7 @@
         "node_modules/@types/graphql-let/__generated__/__types__"
       ]
     },
-    "incremental": false
+    "incremental": true
   },
   "include": ["next-env.d.ts", "graphql.d.ts", "**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules", ".cache"]
