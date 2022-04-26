@@ -116,7 +116,8 @@ pub fn parse_sync(s: &str, opts: JsValue) -> Result<JsValue, JsValue> {
                     )
                     .context("failed to parse code")?;
 
-                JsValue::from_serde(&program).context("failed to serialize json")
+                let s = serde_json::to_string(&program).unwrap();
+                Ok(JsValue::from_str(&s))
             })
         },
     )

@@ -74,7 +74,8 @@ async function loadWasm() {
           return Promise.resolve(bindings.minifySync(src.toString(), options))
         },
         parse(src, options) {
-          return Promise.resolve(bindings.parseSync(src.toString(), options))
+          const astStr = bindings.parseSync(src.toString(), options)
+          return Promise.resolve(astStr)
         },
         getTargetTriple() {
           return undefined
@@ -233,7 +234,7 @@ export async function bundle(options) {
   return bindings.bundle(toBuffer(options))
 }
 
-export async function parse(src, options = {}) {
+export async function parse(src, options) {
   let bindings = await loadBindings()
   let parserOptions = getParserOptions(options)
   return bindings.parse(src, parserOptions).then((astStr) => JSON.parse(astStr))
