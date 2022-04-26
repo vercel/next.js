@@ -626,40 +626,10 @@ export default async function getBaseWebpackConfig(
 
       setimmediate: 'next/dist/compiled/setimmediate',
     },
-    ...(targetWeb
+    ...(isEdgeRuntime
       ? {
-          // Full list of old polyfills is accessible here:
-          // https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42
           fallback: {
-            assert: require.resolve('next/dist/compiled/assert'),
-            buffer: require.resolve('next/dist/compiled/buffer/'),
-            constants: require.resolve(
-              'next/dist/compiled/constants-browserify'
-            ),
-            crypto: require.resolve('next/dist/compiled/crypto-browserify'),
-            domain: require.resolve('next/dist/compiled/domain-browser'),
-            http: require.resolve('next/dist/compiled/stream-http'),
-            https: require.resolve('next/dist/compiled/https-browserify'),
-            os: require.resolve('next/dist/compiled/os-browserify'),
-            path: require.resolve('next/dist/compiled/path-browserify'),
-            punycode: require.resolve('next/dist/compiled/punycode'),
             process: require.resolve('./polyfills/process'),
-            // Handled in separate alias
-            querystring: require.resolve('next/dist/compiled/querystring-es3'),
-            stream: require.resolve('next/dist/compiled/stream-browserify'),
-            string_decoder: require.resolve(
-              'next/dist/compiled/string_decoder'
-            ),
-            sys: require.resolve('next/dist/compiled/util/'),
-            timers: require.resolve('next/dist/compiled/timers-browserify'),
-            tty: require.resolve('next/dist/compiled/tty-browserify'),
-            // Handled in separate alias
-            // url: require.resolve('url/'),
-            util: require.resolve('next/dist/compiled/util/'),
-            vm: require.resolve('next/dist/compiled/vm-browserify'),
-            zlib: require.resolve('next/dist/compiled/browserify-zlib'),
-            events: require.resolve('next/dist/compiled/events/'),
-            setImmediate: require.resolve('next/dist/compiled/setimmediate'),
           },
         }
       : undefined),
@@ -1211,9 +1181,6 @@ export default async function getBaseWebpackConfig(
                   ...rscCodeCondition,
                   use: {
                     loader: 'next-flight-server-loader',
-                    options: {
-                      extensions: rawPageExtensions,
-                    },
                   },
                 },
               ]
@@ -1225,7 +1192,6 @@ export default async function getBaseWebpackConfig(
                     loader: 'next-flight-server-loader',
                     options: {
                       client: 1,
-                      extensions: rawPageExtensions,
                     },
                   },
                 },
@@ -1284,6 +1250,81 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
+        ...(!isServer && !isEdgeRuntime
+          ? [
+              {
+                oneOf: [
+                  {
+                    issuerLayer: 'middleware',
+                    resolve: {
+                      fallback: {
+                        process: require.resolve('./polyfills/process'),
+                      },
+                    },
+                  },
+                  {
+                    resolve: {
+                      // Full list of old polyfills is accessible here:
+                      // https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42
+                      fallback: {
+                        assert: require.resolve('next/dist/compiled/assert'),
+                        buffer: require.resolve('next/dist/compiled/buffer/'),
+                        constants: require.resolve(
+                          'next/dist/compiled/constants-browserify'
+                        ),
+                        crypto: require.resolve(
+                          'next/dist/compiled/crypto-browserify'
+                        ),
+                        domain: require.resolve(
+                          'next/dist/compiled/domain-browser'
+                        ),
+                        http: require.resolve('next/dist/compiled/stream-http'),
+                        https: require.resolve(
+                          'next/dist/compiled/https-browserify'
+                        ),
+                        os: require.resolve('next/dist/compiled/os-browserify'),
+                        path: require.resolve(
+                          'next/dist/compiled/path-browserify'
+                        ),
+                        punycode: require.resolve(
+                          'next/dist/compiled/punycode'
+                        ),
+                        process: require.resolve('./polyfills/process'),
+                        // Handled in separate alias
+                        querystring: require.resolve(
+                          'next/dist/compiled/querystring-es3'
+                        ),
+                        stream: require.resolve(
+                          'next/dist/compiled/stream-browserify'
+                        ),
+                        string_decoder: require.resolve(
+                          'next/dist/compiled/string_decoder'
+                        ),
+                        sys: require.resolve('next/dist/compiled/util/'),
+                        timers: require.resolve(
+                          'next/dist/compiled/timers-browserify'
+                        ),
+                        tty: require.resolve(
+                          'next/dist/compiled/tty-browserify'
+                        ),
+                        // Handled in separate alias
+                        // url: require.resolve('url/'),
+                        util: require.resolve('next/dist/compiled/util/'),
+                        vm: require.resolve('next/dist/compiled/vm-browserify'),
+                        zlib: require.resolve(
+                          'next/dist/compiled/browserify-zlib'
+                        ),
+                        events: require.resolve('next/dist/compiled/events/'),
+                        setImmediate: require.resolve(
+                          'next/dist/compiled/setimmediate'
+                        ),
+                      },
+                    },
+                  },
+                ],
+              },
+            ]
+          : []),
       ].filter(Boolean),
     },
     plugins: [
@@ -1327,6 +1368,9 @@ export default async function getBaseWebpackConfig(
         // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
         'process.env.NODE_ENV': JSON.stringify(
           dev ? 'development' : 'production'
+        ),
+        'process.env.__NEXT_NEW_LINK_BEHAVIOR': JSON.stringify(
+          config.experimental.newNextLinkBehavior
         ),
         'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(targetWeb),

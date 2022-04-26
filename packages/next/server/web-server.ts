@@ -5,8 +5,9 @@ import type { NextParsedUrlQuery } from './request-meta'
 import type { Params } from './router'
 import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
+import type { Options } from './base-server'
 
-import BaseServer, { Options } from './base-server'
+import BaseServer from './base-server'
 import { renderToHTML } from './render'
 import { byteLength, generateETag } from './api-utils/web'
 
@@ -20,9 +21,11 @@ export default class NextWebServer extends BaseServer {
 
   constructor(options: Options & { webServerConfig: WebServerConfig }) {
     super(options)
+
     this.webServerConfig = options.webServerConfig
     Object.assign(this.renderOpts, options.webServerConfig.extendRenderOpts)
   }
+
   protected generateRewrites() {
     // @TODO: assuming minimal mode right now
     return {
@@ -169,8 +172,7 @@ export default class NextWebServer extends BaseServer {
     if (options.result.isDynamic()) {
       const writer = res.transformStream.writable.getWriter()
       options.result.pipe({
-        write: (chunk: Uint8Array) =>
-          writer.write(new TextDecoder().decode(chunk)),
+        write: (chunk: Uint8Array) => writer.write(chunk),
         end: () => writer.close(),
         destroy: (err: Error) => writer.abort(err),
         cork: () => {},
