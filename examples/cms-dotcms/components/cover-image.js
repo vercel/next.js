@@ -1,27 +1,22 @@
 import DotCmsImage from './dotcms-image'
 import Link from 'next/link'
-import cn from 'classnames'
+import cn from "classnames";
 
-export default function CoverImage({ title, url, slug, height = 1000 }) {
+export default function CoverImage(props) {
   const image = (
     <DotCmsImage
-      width={2000}
-      height={height}
-      alt={`Cover Image for ${title}`}
+      {...props}
+      alt={`Cover Image for ${props.title}`}
       className={cn('shadow-small', {
-        'hover:shadow-medium transition-shadow duration-200': slug,
-      })}
-      src={url}
-      quality={35}
-      objectFit="cover"
-    />
+        'hover:shadow-medium transition-shadow duration-200': props.slug,
+      })}/>
   )
 
   return (
-    <div className="sm:mx-0">
-      {slug ? (
-        <Link href={`/posts/${slug}`}>
-          <a aria-label={title}>{image}</a>
+    <div className="-mx-5 sm:mx-0">
+      {props.slug ? (
+        <Link href={`/posts/${props.slug}`}>
+          <a aria-label={props.title}>{image}</a>
         </Link>
       ) : (
         image

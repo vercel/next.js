@@ -30,10 +30,6 @@ module.exports = {
         medium: '0 8px 30px rgba(0, 0, 0, 0.12)',
       },
     },
-    screens: {
-      ...defaultTheme.screens,
-      '2xl': '1280px',
-    }
   },
   variants: {
     extend: {},

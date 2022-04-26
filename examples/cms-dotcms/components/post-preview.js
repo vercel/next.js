@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Avatar from '../components/avatar'
 import DateComponent from '../components/date'
 import CoverImage from './cover-image'
+import cn from "classnames";
 
 export default function PostPreview({
   title,
@@ -14,7 +15,15 @@ export default function PostPreview({
   return (
     <div>
       <div className="mb-5">
-        <CoverImage title={title} slug={slug} url={coverImage.idPath} height={!coverImage.idPath ? 214 : 1000} />
+        <CoverImage
+          width={1200}
+          height={600}
+          title={title}
+          slug={slug}
+          src={coverImage.idPath}
+          objectFit="cover"
+          layout={'intrinsic'}
+        />
       </div>
       <h3 className="mb-3 text-3xl leading-snug">
         <Link href={`/posts/${slug}`}>

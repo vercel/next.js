@@ -2,8 +2,9 @@ import Avatar from '../components/avatar'
 import DateComponent from '../components/date'
 import CoverImage from '../components/cover-image'
 import PostTitle from '../components/post-title'
+import cn from "classnames";
 
-export default function PostHeader({ title, coverImage, date, author }) {
+export default function PostHeader({ title, coverImage, author, slug }) {
   return (
     <>
       <PostTitle>{title}</PostTitle>
@@ -11,7 +12,14 @@ export default function PostHeader({ title, coverImage, date, author }) {
         {author.length ? <Avatar name={`${author[0].firstName} ${author[0].lastName}`} picture={author[0].profilePhoto} /> : null}
       </div>
       <div className='mb-8 md:mb-16 sm:mx-0'>
-        <CoverImage title={title} url={coverImage.idPath} height={!coverImage.idPath ? 492 : 1000} />
+        <CoverImage
+          title={title}
+          width={2000}
+          height={1000}
+          src={coverImage.idPath}
+          objectFit="cover"
+          layout={'intrinsic'}
+         />
       </div>
     </>
   )

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Avatar from '../components/avatar'
 import DateComponent from '../components/date'
 import CoverImage from '../components/cover-image'
+import cn from "classnames";
 
 export default function HeroPost({
   title,
@@ -14,7 +15,19 @@ export default function HeroPost({
   return (
     <section>
       <div className="mb-8 md:mb-16">
-        <CoverImage title={title} slug={slug} url={coverImage.idPath} />
+        <CoverImage
+          width={2000}
+          height={1000}
+          title={title}
+          slug={slug}
+          objectFit="cover"
+          layout={'intrinsic'}
+          src={coverImage.idPath}
+          alt={`Cover Image for ${title}`}
+          className={cn('shadow-small', {
+            'hover:shadow-medium transition-shadow duration-200': slug,
+          })}
+        />
       </div>
       <div className="md:grid md:grid-cols-2 md:col-gap-16 lg:col-gap-8  mb-20 md:mb-28 gap-x-6">
         <div>
