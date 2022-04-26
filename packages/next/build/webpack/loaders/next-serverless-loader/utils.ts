@@ -51,7 +51,11 @@ export type ServerlessHandlerCtx = {
   buildManifest?: BuildManifest
   reactLoadableManifest?: any
   basePath: string
-  rewrites: Rewrite[]
+  rewrites: {
+    fallback?: Rewrite[]
+    afterFiles?: Rewrite[]
+    beforeFiles?: Rewrite[]
+  }
   pageIsDynamic: boolean
   generateEtags: boolean
   distDir: string
@@ -92,8 +96,22 @@ export function getUtils({
     parsedUrl: UrlWithParsedQuery
   ) {
     const rewriteParams = {}
+    const addRewriteType =
+      (type: string) =>
+      (
+        _r: Rewrite
+      ): Rewrite & { type: 'beforeFiles' | 'afterFiles' | 'fallback' } => {
+        const r = _r as any
+        r.type = type
+        return r
+      }
 
-    for (const rewrite of rewrites) {
+    let fsPathname = parsedUrl.pathname
+
+    for (const rewrite of [
+      ...(rewrites.beforeFiles?.map(addRewriteType('beforeFiles')) || []),
+      ...(rewrites.afterFiles?.map(addRewriteType('afterFils')) || []),
+    ]) {
       const matcher = getCustomRouteMatcher(rewrite.source)
       let params = matcher(parsedUrl.pathname)
 
@@ -121,7 +139,7 @@ export function getUtils({
 
         Object.assign(parsedUrl, parsedDestination)
 
-        let fsPathname = parsedUrl.pathname
+        fsPathname = parsedUrl.pathname
 
         if (basePath) {
           fsPathname =
@@ -137,6 +155,15 @@ export function getUtils({
           parsedUrl.query.nextInternalLocale =
             destLocalePathResult.detectedLocale || params.nextInternalLocale
         }
+
+        console.log(
+          'checking',
+          rewrite,
+          fsPathname,
+          page,
+          pageIsDynamic,
+          dynamicRouteMatcher
+        )
 
         if (fsPathname === page) {
           break

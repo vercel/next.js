@@ -480,18 +480,12 @@ export default abstract class Server {
         }
 
         const pageIsDynamic = isDynamicRoute(srcPathname)
-        const combinedRewrites: Rewrite[] = []
-
-        combinedRewrites.push(...this.customRoutes.rewrites.beforeFiles)
-        combinedRewrites.push(...this.customRoutes.rewrites.afterFiles)
-        combinedRewrites.push(...this.customRoutes.rewrites.fallback)
-
         const utils = getUtils({
           pageIsDynamic,
           page: srcPathname,
           i18n: this.nextConfig.i18n,
           basePath: this.nextConfig.basePath,
-          rewrites: combinedRewrites,
+          rewrites: this.customRoutes.rewrites,
         })
 
         try {
