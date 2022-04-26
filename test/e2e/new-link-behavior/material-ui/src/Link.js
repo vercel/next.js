@@ -12,7 +12,7 @@ export const NextLinkComposed = React.forwardRef(function NextLinkComposed(
 ) {
   const { children, ...rest } = props
   return (
-    <Anchor href="/" ref={ref} {...rest} oldBehavior={false}>
+    <Anchor href="/" ref={ref} {...rest}>
       {children}
     </Anchor>
   )
