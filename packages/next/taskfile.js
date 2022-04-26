@@ -1923,7 +1923,7 @@ export default async function (task) {
 export async function shared(task, opts) {
   await task
     .source(opts.src || 'shared/**/*.+(js|ts|tsx)')
-    .swc('server', { dev: opts.dev })
+    .swc('server', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/shared')
   notify('Compiled shared files')
 }
