@@ -1820,6 +1820,11 @@ export default async function getBaseWebpackConfig(
       defaultLoaders,
       totalPages,
       webpack,
+      ...(isServer
+        ? {
+            nextRuntime: isEdgeRuntime ? 'edge' : 'nodejs',
+          }
+        : {}),
     })
 
     if (!webpackConfig) {
