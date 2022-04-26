@@ -12,7 +12,9 @@ function createFlightServerRequest(
   request: string,
   options?: { client: 1 | undefined }
 ) {
-  return `next-flight-server-loader?${JSON.stringify(options)}!${request}`
+  return `next-flight-server-loader${
+    options ? '?' + JSON.stringify(options) : ''
+  }!${request}`
 }
 
 function hasFlightLoader(request: string, type: 'client' | 'server') {
@@ -45,6 +47,7 @@ async function parseModuleInfo({
     isModule: 'unknown',
   })
   const { type, body } = ast
+  const beginPos = ast.span.start
   let transformedSource = ''
   let lastIndex = 0
   let imports = []
@@ -105,7 +108,7 @@ async function parseModuleInfo({
 
           const importDeclarations = source.substring(
             lastIndex,
-            node.source.span.start
+            node.source.span.start - beginPos
           )
 
           if (isClientComponent(importSource)) {
@@ -135,7 +138,7 @@ async function parseModuleInfo({
           addClientImport(importSource)
         }
 
-        lastIndex = node.source.span.end
+        lastIndex = node.source.span.end - beginPos
         break
       case 'ExportDeclaration':
         if (isClientCompilation) {
