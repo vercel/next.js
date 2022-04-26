@@ -41,8 +41,8 @@ describe('react 18 streaming SSR in minimal mode', () => {
         },
       },
       dependencies: {
-        react: '18.0.0',
-        'react-dom': '18.0.0',
+        react: '18.1.0',
+        'react-dom': '18.1.0',
       },
     })
   })
@@ -116,8 +116,8 @@ describe('react 18 streaming SSR with custom next configs', () => {
         },
       },
       dependencies: {
-        react: '18.0.0',
-        'react-dom': '18.0.0',
+        react: '18.1.0',
+        'react-dom': '18.1.0',
       },
       installCommand: 'npm install',
     })
