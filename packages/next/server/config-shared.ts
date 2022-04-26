@@ -65,6 +65,8 @@ export interface WebpackConfigContext {
   totalPages: number
   /** The webpack configuration */
   webpack: any
+  /** The current server runtime */
+  nextRuntime?: 'nodejs' | 'edge'
 }
 
 export interface NextJsWebpackConfig {
