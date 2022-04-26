@@ -6,10 +6,13 @@ use regex::Regex;
 use turbo_tasks::{NothingVc, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, NullFileSystem, NullFileSystemVc};
 use turbopack::{
-    emit, emit_with_completion, module, rebase::RebasedAssetVc, source_asset::SourceAssetVc,
+    emit, emit_with_completion, module, rebase::RebasedAssetVc, register,
+    source_asset::SourceAssetVc,
 };
 
 pub fn benchmark(c: &mut Criterion) {
+    register();
+
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let mut tests_root = package_root.clone();
     tests_root.push("tests");
