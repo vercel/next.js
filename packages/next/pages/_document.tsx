@@ -139,23 +139,28 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
           if (src) {
             // Use external src if provided
             srcProps.src = src
-          } else {
+          } else if (
+            dangerouslySetInnerHTML &&
+            dangerouslySetInnerHTML.__html
+          ) {
             // Embed inline script if provided with dangerouslySetInnerHTML
-            if (dangerouslySetInnerHTML && dangerouslySetInnerHTML.__html) {
-              srcProps.dangerouslySetInnerHTML = {
-                __html: dangerouslySetInnerHTML.__html,
-              }
-            } else if (scriptChildren) {
-              // Embed inline script if provided with children
-              srcProps.dangerouslySetInnerHTML = {
-                __html:
-                  typeof scriptChildren === 'string'
-                    ? scriptChildren
-                    : Array.isArray(scriptChildren)
-                    ? scriptChildren.join('')
-                    : '',
-              }
+            srcProps.dangerouslySetInnerHTML = {
+              __html: dangerouslySetInnerHTML.__html,
             }
+          } else if (scriptChildren) {
+            // Embed inline script if provided with children
+            srcProps.dangerouslySetInnerHTML = {
+              __html:
+                typeof scriptChildren === 'string'
+                  ? scriptChildren
+                  : Array.isArray(scriptChildren)
+                  ? scriptChildren.join('')
+                  : '',
+            }
+          } else {
+            throw new Error(
+              'Invalid usage of next/script. Did you forget to include a src attribute or an inline script? https://nextjs.org/docs/messages/invalid-script'
+            )
           }
 
           return (
@@ -174,9 +179,7 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
     )
   } catch (err) {
     if (isError(err) && err.code !== 'MODULE_NOT_FOUND') {
-      console.warn(
-        `Warning: Partytown could not be instantiated in your application due to an error. ${err.message}`
-      )
+      console.warn(`Warning: ${err.message}`)
     }
     return null
   }

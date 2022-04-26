@@ -657,6 +657,10 @@
         {
           "title": "no-assign-module-variable",
           "path": "/errors/no-assign-module-variable.md"
+        },
+        {
+          "title": "invalid-script",
+          "path": "/errors/invalid-script.md"
         }
       ]
     }
