@@ -11,7 +11,7 @@ use crate::{
     raw_vc::{RawVc, RawVcReadResult},
     registry,
     task_input::SharedReference,
-    TaskId, TurboTasks, ValueType,
+    TaskId, TurboTasks,
 };
 
 #[derive(Default, Debug)]

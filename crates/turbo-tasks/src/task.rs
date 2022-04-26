@@ -6,7 +6,7 @@ use crate::{
     slot::Slot,
     stats,
     task_input::TaskInput,
-    NativeFunction, TaskId, TraitType, TurboTasks,
+    TaskId, TurboTasks,
 };
 use any_key::AnyHash;
 use anyhow::{anyhow, Result};

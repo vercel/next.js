@@ -26,7 +26,7 @@ use crate::{
     task::NativeTaskFuture,
     task_input::TaskInput,
     trace::TraceRawVcs,
-    Task, TaskId, TraitType, Vc,
+    Task, TaskId, Vc,
 };
 
 pub struct TurboTasks {
@@ -157,8 +157,8 @@ impl TurboTasks {
                     // SAFETY: We have a fresh task id where nobody knows about yet
                     unsafe {
                         self.memory_tasks.remove(*id);
+                        self.task_id_factory.reuse(id);
                     }
-                    // TODO give id back to the free list
                     *r.current
                 }
             };
