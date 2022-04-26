@@ -40,6 +40,9 @@ import { getRouteRegex } from './utils/route-regex'
 import { getMiddlewareRegex } from './utils/get-middleware-regex'
 import { formatWithValidation } from './utils/format-url'
 
+type NextFetch = (url: string, options: any) => Promise<Response>;
+let nextFetch: NextFetch = fetch;
+
 declare global {
   interface Window {
     /* prod */
@@ -527,7 +530,7 @@ function fetchRetry(
   attempts: number,
   opts: { text?: boolean }
 ): Promise<any> {
-  return fetch(url, {
+  return nextFetch(url, {
     // Cookies are required to be present for Next.js' SSG "Preview Mode".
     // Cookies may also be required for `getServerSideProps`.
     //
@@ -644,6 +647,9 @@ export default class Router implements BaseRouter {
   private _idx: number = 0
 
   static events: MittEmitter<RouterEvent> = mitt()
+  static setNextFetch: void = function(customFetch: NextFetch) {
+    nextFetch = customFetch;
+  }
 
   constructor(
     pathname: string,
@@ -2035,7 +2041,7 @@ export default class Router implements BaseRouter {
       return Promise.resolve(this.sde[cacheKey])
     }
 
-    return fetch(preflightHref, {
+    return nextFetch(preflightHref, {
       method: 'HEAD',
       credentials: 'same-origin',
       headers: { 'x-middleware-preflight': '1' },
