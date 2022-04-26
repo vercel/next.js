@@ -1,5 +1,5 @@
 export default function () {
-  return process.env.__NEXT_RUNTIME === 'nodejs'
+  return process.env.NEXT_RUNTIME === 'nodejs'
     ? `Runtime: Node.js ${process.version}`
     : 'Runtime: Edge/Browser'
 }

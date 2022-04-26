@@ -266,7 +266,7 @@ function buildEnvironmentVariablesFrom(
 ): Record<string, string | undefined> {
   const pairs = keys.map((key) => [key, process.env[key]])
   const env = Object.fromEntries(pairs)
-  env.__NEXT_RUNTIME = 'edge'
+  env.NEXT_RUNTIME = 'edge'
   return env
 }
 

@@ -1,5 +1,5 @@
 const path =
-  process.env.__NEXT_RUNTIME === 'edge'
+  process.env.NEXT_RUNTIME === 'edge'
     ? require('next/dist/compiled/path-browserify')
     : require('path')
 

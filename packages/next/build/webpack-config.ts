@@ -1375,7 +1375,7 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(!isServer),
         ...(isServer && {
-          'process.env.__NEXT_RUNTIME': JSON.stringify(
+          'process.env.NEXT_RUNTIME': JSON.stringify(
             isEdgeRuntime ? 'edge' : 'nodejs'
           ),
         }),
