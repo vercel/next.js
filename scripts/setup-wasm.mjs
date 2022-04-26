@@ -4,7 +4,7 @@ import { copy, pathExists } from 'fs-extra'
 ;(async function () {
   try {
     let wasmDir = path.join(process.cwd(), 'packages/next-swc/crates/wasm')
-    let wasmTarget = process.env.WASM_TARGET || 'nodejs'
+    let wasmTarget = 'nodejs'
 
     // CI restores artifact at pkg-${wasmTarget}
     // This only runs locally
