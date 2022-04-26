@@ -23,5 +23,5 @@ swc_common = { version = "0.17.25", features = ["concurrent", "sourcemap"] }
 swc_ecmascript = { version = "0.150.0", features = ["codegen", "utils", "visit"] }
 
 [dev-dependencies]
-swc_ecma_transforms_testing = "0.81.0"
+swc_ecma_transforms_testing = "0.82.0"
 testing = "0.19.1"
