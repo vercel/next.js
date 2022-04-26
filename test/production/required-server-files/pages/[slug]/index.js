@@ -1,3 +1,5 @@
+import { useRouter } from 'next/router'
+
 export const getStaticProps = () => {
   return {
     props: {
@@ -14,5 +16,11 @@ export const getStaticPaths = () => {
 }
 
 export default function Page(props) {
-  return <p id="slug-page">[slug] page</p>
+  const router = useRouter()
+  return (
+    <>
+      <p id="slug-page">[slug] page</p>
+      <p id="router">{JSON.stringify(router)}</p>
+    </>
+  )
 }

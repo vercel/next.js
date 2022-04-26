@@ -101,7 +101,14 @@ export default class ResponseCache {
       isManualRevalidate?: boolean
     }
   ): Promise<ResponseCacheEntry | null> {
-    const pendingResponse = key ? this.pendingResponses.get(key) : null
+    // ensure manual revalidate doesn't block normal requests
+    const pendingResponseKey = key
+      ? `${key}-${context.isManualRevalidate ? '1' : '0'}`
+      : null
+
+    const pendingResponse = pendingResponseKey
+      ? this.pendingResponses.get(pendingResponseKey)
+      : null
     if (pendingResponse) {
       return pendingResponse
     }
@@ -114,15 +121,18 @@ export default class ResponseCache {
         rejecter = reject
       }
     )
-    if (key) {
-      this.pendingResponses.set(key, promise)
+    if (pendingResponseKey) {
+      this.pendingResponses.set(pendingResponseKey, promise)
     }
 
     let resolved = false
     const resolve = (cacheEntry: ResponseCacheEntry | null) => {
-      if (key) {
+      if (pendingResponseKey) {
         // Ensure all reads from the cache get the latest value.
-        this.pendingResponses.set(key, Promise.resolve(cacheEntry))
+        this.pendingResponses.set(
+          pendingResponseKey,
+          Promise.resolve(cacheEntry)
+        )
       }
       if (!resolved) {
         resolved = true
@@ -133,13 +143,13 @@ export default class ResponseCache {
     // we keep the previous cache entry around to leverage
     // when the incremental cache is disabled in minimal mode
     if (
-      key &&
+      pendingResponseKey &&
       this.minimalMode &&
-      this.previousCacheItem?.key === key &&
+      this.previousCacheItem?.key === pendingResponseKey &&
       this.previousCacheItem.expiresAt > Date.now()
     ) {
       resolve(this.previousCacheItem.entry)
-      this.pendingResponses.delete(key)
+      this.pendingResponses.delete(pendingResponseKey)
       return promise
     }
 
@@ -173,19 +183,23 @@ export default class ResponseCache {
         }
 
         const cacheEntry = await responseGenerator(resolved, !!cachedResponse)
-        resolve(
+        const resolveValue =
           cacheEntry === null
             ? null
             : {
                 ...cacheEntry,
                 isMiss: !cachedResponse,
               }
-        )
+
+        // for manual revalidate wait to resolve until cache is set
+        if (!context.isManualRevalidate) {
+          resolve(resolveValue)
+        }
 
         if (key && cacheEntry && typeof cacheEntry.revalidate !== 'undefined') {
           if (this.minimalMode) {
             this.previousCacheItem = {
-              key,
+              key: pendingResponseKey || key,
               entry: cacheEntry,
               expiresAt: Date.now() + 1000,
             }
@@ -205,6 +219,10 @@ export default class ResponseCache {
         } else {
           this.previousCacheItem = undefined
         }
+
+        if (context.isManualRevalidate) {
+          resolve(resolveValue)
+        }
       } catch (err) {
         // when a getStaticProps path is erroring we automatically re-set the
         // existing cache under a new expiration to prevent non-stop retrying
@@ -223,8 +241,8 @@ export default class ResponseCache {
           rejecter(err as Error)
         }
       } finally {
-        if (key) {
-          this.pendingResponses.delete(key)
+        if (pendingResponseKey) {
+          this.pendingResponses.delete(pendingResponseKey)
         }
       }
     })()
