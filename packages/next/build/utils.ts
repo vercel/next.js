@@ -1284,6 +1284,7 @@ export function isEdgeRuntimeCompiled(
   module: any
 ) {
   let isEdgeRuntime = false
+  if (!module) return isEdgeRuntimeCompiled
 
   for (const chunk of compilation.chunkGraph.getModuleChunksIterable(module)) {
     let runtimes: string[]
