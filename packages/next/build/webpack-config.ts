@@ -1354,11 +1354,7 @@ export default async function getBaseWebpackConfig(
           {}
         ),
         ...Object.keys(config.env).reduce((acc, key) => {
-          if (/^(?:NODE_.+)|^(?:__.+)$/i.test(key)) {
-            throw new Error(
-              `The key "${key}" under "env" in ${config.configFileName} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
-            )
-          }
+          errorIfEnvConflicted(config, key, isServer)
 
           return {
             ...acc,
@@ -1369,16 +1365,16 @@ export default async function getBaseWebpackConfig(
         'process.env.NODE_ENV': JSON.stringify(
           dev ? 'development' : 'production'
         ),
-        'process.env.__NEXT_NEW_LINK_BEHAVIOR': JSON.stringify(
-          config.experimental.newNextLinkBehavior
-        ),
-        'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(crossOrigin),
-        'process.browser': JSON.stringify(!isServer),
         ...(isServer && {
           'process.env.NEXT_RUNTIME': JSON.stringify(
             isEdgeRuntime ? 'edge' : 'nodejs'
           ),
         }),
+        'process.env.__NEXT_NEW_LINK_BEHAVIOR': JSON.stringify(
+          config.experimental.newNextLinkBehavior
+        ),
+        'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(crossOrigin),
+        'process.browser': JSON.stringify(!isServer),
         'process.env.__NEXT_TEST_MODE': JSON.stringify(
           process.env.__NEXT_TEST_MODE
         ),
@@ -2186,4 +2182,19 @@ export default async function getBaseWebpackConfig(
   }
 
   return webpackConfig
+}
+
+function errorIfEnvConflicted(
+  config: NextConfigComplete,
+  key: string,
+  isServer: boolean
+) {
+  const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
+  const hasNextRuntimeKey = isServer && key === 'NEXT_RUNTIME'
+
+  if (isPrivateKey || hasNextRuntimeKey) {
+    throw new Error(
+      `The key "${key}" under "env" in ${config.configFileName} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
+    )
+  }
 }
