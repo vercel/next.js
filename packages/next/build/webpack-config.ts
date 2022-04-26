@@ -1354,7 +1354,7 @@ export default async function getBaseWebpackConfig(
           {}
         ),
         ...Object.keys(config.env).reduce((acc, key) => {
-          errorIfEnvConflicted(config, key, isServer)
+          errorIfEnvConflicted(config, key)
 
           return {
             ...acc,
@@ -2184,13 +2184,9 @@ export default async function getBaseWebpackConfig(
   return webpackConfig
 }
 
-function errorIfEnvConflicted(
-  config: NextConfigComplete,
-  key: string,
-  isServer: boolean
-) {
+function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
   const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
-  const hasNextRuntimeKey = isServer && key === 'NEXT_RUNTIME'
+  const hasNextRuntimeKey = key === 'NEXT_RUNTIME'
 
   if (isPrivateKey || hasNextRuntimeKey) {
     throw new Error(

@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-Next.js configures internal variables for replacement itself. These start with `__` or `NODE_` and conflicted with existing `NEXT_RUNTIME` env variable, for this reason they are not allowed as values for `env` in `next.config.js`
+Next.js configures internal variables for replacement itself. `NEXT_RUNTIME` along with variables starting with `__` or `NODE_` are currently internal, for this reason they are not allowed as values for `env` in `next.config.js`
 
 #### Possible Ways to Fix It
 
