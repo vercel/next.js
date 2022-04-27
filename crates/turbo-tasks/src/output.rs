@@ -4,7 +4,7 @@ use std::{
     fmt::{Debug, Display},
 };
 
-use crate::{error::SharedError, RawVc, TaskId, TurboTasks};
+use crate::{error::SharedError, manager::schedule_notify_tasks, RawVc, TaskId};
 
 #[derive(Default, Debug)]
 pub struct Output {
@@ -60,8 +60,8 @@ impl Output {
                         old_task == new_task
                     }
                     (
-                        RawVc::TaskCreated(old_task, old_index),
-                        RawVc::TaskCreated(new_task, new_index),
+                        RawVc::TaskSlot(old_task, old_index),
+                        RawVc::TaskSlot(new_task, new_index),
                     ) => old_task == new_task && *old_index == *new_index,
                     _ => false,
                 } {
@@ -83,13 +83,13 @@ impl Output {
         self.content = OutputContent::Error(SharedError::new(error));
         self.updates += 1;
         // notify
-        TurboTasks::schedule_notify_tasks(self.dependent_tasks.iter());
+        schedule_notify_tasks(self.dependent_tasks.iter());
     }
 
     pub fn assign(&mut self, content: OutputContent) {
         self.content = content;
         self.updates += 1;
         // notify
-        TurboTasks::schedule_notify_tasks(self.dependent_tasks.iter());
+        schedule_notify_tasks(self.dependent_tasks.iter());
     }
 }

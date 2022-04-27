@@ -517,6 +517,7 @@ impl PatternVc {
 
 #[turbo_tasks::value_impl]
 impl PatternVc {
+    #[turbo_tasks::function]
     fn new_internal(pattern: Value<Pattern>) -> Self {
         Self::slot(pattern.into_value())
     }

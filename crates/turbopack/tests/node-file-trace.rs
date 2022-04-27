@@ -11,7 +11,7 @@ use anyhow::{anyhow, Context, Result};
 use async_std::{future::timeout, process::Command, task::block_on};
 use difference::{Changeset, Difference};
 use rstest::*;
-use turbo_tasks::{TurboTasks, ValueToString};
+use turbo_tasks::{MemoryBackend, TurboTasks, ValueToString};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 use turbopack::{
     asset::Asset, emit_with_completion, module, rebase::RebasedAssetVc, register,
@@ -141,7 +141,7 @@ fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
         })
         .unwrap();
 
-    let tt = TurboTasks::new();
+    let tt = TurboTasks::new(MemoryBackend::new());
     let output = block_on(timeout(
         Duration::from_secs(120),
         tt.run_once(async move {
@@ -186,13 +186,12 @@ fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
         }
         Err(err) => {
             let mut pending_tasks = 0_usize;
-            let guard = tt.guard();
-            for task in tt.cached_tasks_iter(&guard) {
+            tt.with_all_cached_tasks(|task| {
                 if task.is_pending() {
                     println!("PENDING: {task}");
                     pending_tasks += 1;
                 }
-            }
+            });
             panic!("Execution is hanging (for > 120s, {pending_tasks} pending tasks): {err}");
         }
     }

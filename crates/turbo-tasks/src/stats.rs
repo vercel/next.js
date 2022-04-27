@@ -6,6 +6,7 @@ use std::{
 };
 
 use crate::{
+    backend::Backend,
     id::{FunctionId, TraitTypeId},
     registry, Task, TaskId, TurboTasks,
 };
@@ -64,7 +65,7 @@ impl Stats {
         }
     }
 
-    pub fn add(&mut self, turbo_tasks: &TurboTasks, task: &Task) {
+    pub fn add<B: Backend>(&mut self, turbo_tasks: &TurboTasks<B>, task: &Task) {
         let ty = task.get_stats_type();
         let stats = self.tasks.entry(ty).or_default();
         stats.count += 1;
@@ -72,7 +73,7 @@ impl Stats {
         let references = task.get_stats_references();
         let set: HashSet<_> = references.into_iter().collect();
         for (ref_type, task) in set {
-            turbo_tasks.with_task_and_tt(task, |task| {
+            turbo_tasks.with_task(task, |task| {
                 let ty = task.get_stats_type();
                 let ref_stats = stats.references.entry((ref_type, ty)).or_default();
                 ref_stats.count += 1;
@@ -80,8 +81,8 @@ impl Stats {
         }
     }
 
-    pub fn add_id(&mut self, turbo_tasks: &TurboTasks, id: TaskId) {
-        turbo_tasks.with_task_and_tt(id, |task| {
+    pub fn add_id<B: Backend>(&mut self, turbo_tasks: &TurboTasks<B>, id: TaskId) {
+        turbo_tasks.with_task(id, |task| {
             self.add(turbo_tasks, task);
         });
     }

@@ -17,6 +17,7 @@ pub enum AggregatedGraph {
 
 #[turbo_tasks::value_impl]
 impl AggregatedGraphVc {
+    #[turbo_tasks::function]
     fn leaf(asset: AssetVc) -> Self {
         Self::slot(AggregatedGraph::Leaf(asset))
     }
@@ -33,6 +34,7 @@ impl AggregatedGraph {
 
 #[turbo_tasks::value_impl]
 impl AggregatedGraphVc {
+    #[turbo_tasks::function]
     pub async fn content(self) -> Result<AggregatedGraphNodeContentVc> {
         Ok(match *self.await? {
             AggregatedGraph::Leaf(asset) => AggregatedGraphNodeContent::Asset(asset).into(),
@@ -42,6 +44,7 @@ impl AggregatedGraphVc {
         })
     }
 
+    #[turbo_tasks::function]
     async fn references(self) -> Result<AggregatedGraphsSetVc> {
         Ok(match *self.await? {
             AggregatedGraph::Leaf(asset) => {
@@ -69,6 +72,7 @@ impl AggregatedGraphVc {
         })
     }
 
+    #[turbo_tasks::function]
     async fn cost(self) -> Result<AggregationCostVc> {
         Ok(match *self.await? {
             AggregatedGraph::Leaf(asset) => {
@@ -80,6 +84,7 @@ impl AggregatedGraphVc {
         })
     }
 
+    #[turbo_tasks::function]
     async fn valued_references(self) -> Result<AggregatedGraphsValuedReferencesVc> {
         let self_cost = self.cost().await?.0;
         let mut inner = HashSet::new();

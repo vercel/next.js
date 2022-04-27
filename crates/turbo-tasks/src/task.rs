@@ -1,21 +1,22 @@
 use crate::{
+    backend::Backend,
     id::{FunctionId, TraitTypeId},
+    magic_any::MagicAny,
+    manager::{get_invalidator, with_turbo_tasks},
     output::Output,
     raw_vc::RawVc,
     registry,
-    slot::Slot,
+    slot::{Slot, SlotContent},
     stats,
     task_input::TaskInput,
-    TaskId, TurboTasks,
+    turbo_tasks, Invalidator, TaskId, TurboTasks, ValueTypeId,
 };
-use any_key::AnyHash;
 use anyhow::{anyhow, Result};
 use async_std::task_local;
 use event_listener::{Event, EventListener};
 #[cfg(feature = "report_expensive")]
 use std::time::Instant;
 use std::{
-    any::{Any, TypeId},
     cell::{Cell, RefCell},
     collections::{HashMap, HashSet},
     fmt::{self, Debug, Display, Formatter},
@@ -25,7 +26,7 @@ use std::{
     pin::Pin,
     sync::{
         atomic::{AtomicU32, Ordering},
-        Arc, Mutex, RwLock, Weak,
+        Arc, Mutex, RwLock,
     },
 };
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
@@ -34,13 +35,13 @@ pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 /// Stores previous slot locations for keys or types.
 #[derive(Default)]
 struct PreviousSlotsMap {
-    by_key: HashMap<Box<dyn AnyHash + Sync + Send>, usize>,
-    by_type: HashMap<TypeId, (usize, Vec<usize>)>,
+    by_key: HashMap<(ValueTypeId, Box<dyn MagicAny>), usize>,
+    by_type: HashMap<ValueTypeId, (usize, Vec<usize>)>,
 }
 
 task_local! {
     static CURRENT_TASK_ID: Cell<Option<TaskId>> = Cell::new(None);
-    static PREVIOUS_SLOTS: Cell<PreviousSlotsMap> = Cell::new(Default::default());
+    static PREVIOUS_SLOTS: Cell<PreviousSlotsMap> = Default::default();
 
     /// Vc that are read during task execution
     /// These will be stored as dependencies when the execution has finished
@@ -292,26 +293,26 @@ impl Task {
         }
     }
 
-    pub(crate) fn remove(&self, turbo_tasks: &Arc<TurboTasks>) {
+    pub(crate) fn remove<B: Backend>(&self, turbo_tasks: &Arc<TurboTasks<B>>) {
         if self.active_parents.fetch_sub(1, Ordering::AcqRel) == 1 {
             self.deactivate(1, &turbo_tasks);
         }
     }
 
     #[cfg(not(feature = "report_expensive"))]
-    pub(crate) fn deactivate_tasks(tasks: Vec<TaskId>, turbo_tasks: &Arc<TurboTasks>) {
+    pub(crate) fn deactivate_tasks<B: Backend>(tasks: Vec<TaskId>, turbo_tasks: &TurboTasks<B>) {
         for child in tasks.into_iter() {
-            turbo_tasks.with_task_and_tt(child, |child| child.deactivate(1, &turbo_tasks));
+            turbo_tasks.with_task(child, |child| child.deactivate(1, &turbo_tasks));
         }
     }
 
     #[cfg(feature = "report_expensive")]
-    pub(crate) fn deactivate_tasks(tasks: Vec<TaskId>, turbo_tasks: &Arc<TurboTasks>) {
+    pub(crate) fn deactivate_tasks<B: Backend>(tasks: Vec<TaskId>, turbo_tasks: &TurboTasks<B>) {
         let start = Instant::now();
         let mut count = 0;
         let mut len = 0;
         for child in tasks.into_iter() {
-            count += turbo_tasks.with_task_and_tt(child, |child| child.deactivate(1, &turbo_tasks));
+            count += turbo_tasks.with_task(child, |child| child.deactivate(1, &turbo_tasks));
             len += 1;
         }
         let elapsed = start.elapsed();
@@ -333,7 +334,7 @@ impl Task {
     }
 
     #[cfg(not(feature = "report_expensive"))]
-    fn clear_dependencies(&self, turbo_tasks: &TurboTasks) {
+    fn clear_dependencies<B: Backend>(&self, turbo_tasks: &TurboTasks<B>) {
         let mut execution_data = self.execution_data.lock().unwrap();
         let dependencies = take(&mut execution_data.dependencies);
         drop(execution_data);
@@ -373,7 +374,10 @@ impl Task {
         }
     }
 
-    pub(crate) fn execution_started(self: &Task, turbo_tasks: &Arc<TurboTasks>) -> bool {
+    pub(crate) fn execution_started<B: Backend>(
+        self: &Task,
+        turbo_tasks: &Arc<TurboTasks<B>>,
+    ) -> bool {
         let mut state = self.state.write().unwrap();
         if !state.active {
             return false;
@@ -425,7 +429,7 @@ impl Task {
         };
     }
 
-    pub(crate) fn execution_completed(&self, turbo_tasks: Arc<TurboTasks>) {
+    pub(crate) fn execution_completed<B: Backend>(&self, turbo_tasks: Arc<TurboTasks<B>>) {
         DEPENDENCIES_TO_TRACK.with(|deps| {
             PREVIOUS_SLOTS.with(|cell| {
                 let mut execution_data = self.execution_data.lock().unwrap();
@@ -468,7 +472,7 @@ impl Task {
     }
 
     /// This method should be called after adding the first parent
-    fn activate(&self, turbo_tasks: &TurboTasks) -> usize {
+    fn activate<B: Backend>(&self, turbo_tasks: &TurboTasks<B>) -> usize {
         let mut state = self.state.write().unwrap();
 
         if self.active_parents.load(Ordering::Acquire) == 0 {
@@ -486,7 +490,7 @@ impl Task {
         // This locks the whole tree, but avoids cloning children
 
         for child in state.children.iter() {
-            turbo_tasks.with_task_and_tt(*child, |child| {
+            turbo_tasks.with_task(*child, |child| {
                 if child.active_parents.fetch_add(1, Ordering::AcqRel) == 0 {
                     count += child.activate(turbo_tasks);
                 }
@@ -496,7 +500,7 @@ impl Task {
             Dirty => {
                 state.state_type = Scheduled;
                 drop(state);
-                TurboTasks::current().unwrap().schedule(self.id);
+                turbo_tasks.schedule(self.id);
             }
             Done | Scheduled | InProgress | InProgressDirty => {
                 drop(state);
@@ -506,7 +510,7 @@ impl Task {
     }
 
     /// This method should be called after removing the last parent
-    fn deactivate(&self, depth: u8, turbo_tasks: &Arc<TurboTasks>) -> usize {
+    fn deactivate<B: Backend>(&self, depth: u8, turbo_tasks: &TurboTasks<B>) -> usize {
         let mut state = self.state.write().unwrap();
 
         if self.active_parents.load(Ordering::Acquire) != 0 {
@@ -525,7 +529,7 @@ impl Task {
             // This locks the whole tree, but avoids cloning children
 
             for child in state.children.iter() {
-                turbo_tasks.with_task_and_tt(*child, |child| {
+                turbo_tasks.with_task(*child, |child| {
                     if child.active_parents.fetch_sub(1, Ordering::AcqRel) == 1 {
                         count += child.deactivate(depth + 1, turbo_tasks);
                     }
@@ -536,7 +540,7 @@ impl Task {
         } else {
             let mut scheduled = Vec::new();
             for child_id in state.children.iter() {
-                turbo_tasks.with_task_and_tt(*child_id, |child| {
+                turbo_tasks.with_task(*child_id, |child| {
                     if child.active_parents.fetch_sub(1, Ordering::AcqRel) == 1 {
                         scheduled.push(*child_id);
                     }
@@ -548,11 +552,11 @@ impl Task {
         }
     }
 
-    pub(crate) fn dependent_slot_updated(&self, turbo_tasks: &Arc<TurboTasks>) {
+    pub(crate) fn dependent_slot_updated<B: Backend>(&self, turbo_tasks: &TurboTasks<B>) {
         self.make_dirty(turbo_tasks);
     }
 
-    fn make_dirty(&self, turbo_tasks: &Arc<TurboTasks>) {
+    fn make_dirty<B: Backend>(&self, turbo_tasks: &TurboTasks<B>) {
         if let TaskType::Once(_) = self.ty {
             // once task won't become dirty
             return;
@@ -568,7 +572,7 @@ impl Task {
                 if state.active {
                     state.state_type = Scheduled;
                     drop(state);
-                    turbo_tasks.clone().schedule(self.id);
+                    turbo_tasks.schedule(self.id);
                 } else {
                     state.state_type = Dirty;
                     drop(state);
@@ -596,16 +600,6 @@ impl Task {
         CURRENT_TASK_ID.with(|c| c.get())
     }
 
-    pub(crate) fn with_current<T>(func: impl FnOnce(&Task, TaskId) -> T) -> T {
-        CURRENT_TASK_ID.with(|c| {
-            if let Some(id) = c.get() {
-                TurboTasks::with_task(id, |task| func(task, id))
-            } else {
-                panic!("Outside of a Task");
-            }
-        })
-    }
-
     pub(crate) fn add_dependency_to_current(dep: RawVc) {
         DEPENDENCIES_TO_TRACK.with(|list| {
             let mut list = list.borrow_mut();
@@ -613,7 +607,7 @@ impl Task {
         })
     }
 
-    pub(crate) fn execute(&self, tt: Arc<TurboTasks>) -> NativeTaskFuture {
+    pub(crate) fn execute<B: Backend>(&self, tt: &TurboTasks<B>) -> NativeTaskFuture {
         match &self.ty {
             TaskType::Root(bound_fn) => bound_fn(),
             TaskType::Once(mutex) => {
@@ -636,6 +630,7 @@ impl Task {
             TaskType::ResolveNative(ref native_fn) => {
                 let native_fn = *native_fn;
                 let inputs = self.inputs.clone();
+                let tt = tt.pin();
                 Box::pin(async move {
                     let mut resolved_inputs = Vec::new();
                     for input in inputs.into_iter() {
@@ -648,6 +643,7 @@ impl Task {
                 let trait_type = *trait_type;
                 let name = name.clone();
                 let inputs = self.inputs.clone();
+                let tt = tt.pin();
                 Box::pin(async move {
                     let mut resolved_inputs = Vec::new();
                     let mut iter = inputs.into_iter();
@@ -696,19 +692,12 @@ impl Task {
     /// Get an [Invalidator] that can be used to invalidate the current [Task]
     /// based on external events.
     pub fn get_invalidator() -> Invalidator {
-        Invalidator {
-            task: Task::current()
-                .ok_or_else(|| {
-                    anyhow!("Task::get_invalidator() can only be used in the context of a Task")
-                })
-                .unwrap(),
-            turbo_tasks: TurboTasks::with_current(|tt| Arc::downgrade(tt)),
-        }
+        get_invalidator()
     }
 
     /// Called by the [Invalidator]. Invalidate the [Task]. When the task is
     /// active it will be scheduled for execution.
-    fn invaldate(&self, turbo_tasks: &Arc<TurboTasks>) {
+    pub(crate) fn invaldate<B: Backend>(&self, turbo_tasks: &Arc<TurboTasks<B>>) {
         self.make_dirty(turbo_tasks)
     }
 
@@ -719,13 +708,15 @@ impl Task {
     }
 
     /// Access to a slot.
-    pub(crate) fn with_created_slot_mut<T>(
-        &self,
-        index: usize,
-        func: impl FnOnce(&mut Slot) -> T,
-    ) -> T {
+    pub(crate) fn with_slot_mut<T>(&self, index: usize, func: impl FnOnce(&mut Slot) -> T) -> T {
         let mut state = self.state.write().unwrap();
         func(&mut state.created_slots[index])
+    }
+
+    /// Access to a slot.
+    pub(crate) fn with_slot<T>(&self, index: usize, func: impl FnOnce(&Slot) -> T) -> T {
+        let state = self.state.read().unwrap();
+        func(&state.created_slots[index])
     }
 
     /// For testing purposes
@@ -786,14 +777,14 @@ impl Task {
         state_str + if state.active { "" } else { " (inactive)" }
     }
 
-    pub(crate) fn connect_child(&self, child_id: TaskId, turbo_tasks: &TurboTasks) {
+    pub(crate) fn connect_child<B: Backend>(&self, child_id: TaskId, turbo_tasks: &TurboTasks<B>) {
         let mut state = self.state.write().unwrap();
         if state.children.insert(child_id) {
             let active = state.active;
             drop(state);
 
             if active {
-                turbo_tasks.with_task_and_tt(child_id, |child| {
+                turbo_tasks.with_task(child_id, |child| {
                     if child.active_parents.fetch_add(1, Ordering::AcqRel) == 0 {
                         #[cfg(not(feature = "report_expensive"))]
                         child.activate(turbo_tasks);
@@ -824,44 +815,31 @@ impl Task {
         }
     }
 
-    pub(crate) async fn with_done_output<T>(
-        id: TaskId,
-        turbo_tasks: &TurboTasks,
-        mut func: impl FnOnce(&Task, &mut Output) -> T,
-    ) -> T {
-        fn get_or_wait<T, F: FnOnce(&Task, &mut Output) -> T>(
-            id: TaskId,
-            turbo_tasks: &TurboTasks,
-            func: F,
-        ) -> Result<T, (F, EventListener)> {
-            {
-                turbo_tasks.with_task_and_tt(id, |task| {
-                    let mut state = task.state.write().unwrap();
-                    match state.state_type {
-                        Done => {
-                            let result = func(task, &mut state.output);
-                            drop(state);
+    pub(crate) fn get_or_wait_output<T, F: FnOnce(&mut Output) -> T>(
+        &self,
+        func: F,
+    ) -> Result<T, EventListener> {
+        let mut state = self.state.write().unwrap();
+        match state.state_type {
+            Done => {
+                let result = func(&mut state.output);
+                drop(state);
 
-                            Ok(result)
-                        }
-                        Dirty | Scheduled | InProgress | InProgressDirty => {
-                            let listener = state.event.listen();
-                            drop(state);
-                            Err((func, listener))
-                        }
-                    }
-                })
+                Ok(result)
+            }
+            Dirty | Scheduled | InProgress | InProgressDirty => {
+                let listener = state.event.listen();
+                drop(state);
+                Err(listener)
             }
         }
-        loop {
-            match get_or_wait(id, turbo_tasks, func) {
-                Ok(result) => return result,
-                Err((func_back, listener)) => {
-                    func = func_back;
-                    listener.await;
-                }
-            }
-        }
+    }
+
+    pub(crate) fn get_fresh_slot(&self) -> usize {
+        let mut state = self.state.write().unwrap();
+        let index = state.created_slots.len();
+        state.created_slots.push(Slot::new());
+        index
     }
 }
 
@@ -904,80 +882,96 @@ impl PartialEq for Task {
 
 impl Eq for Task {}
 
-pub struct Invalidator {
-    task: TaskId,
-    turbo_tasks: Weak<TurboTasks>,
+pub struct CurrentSlotRef {
+    current_task: TaskId,
+    index: usize,
+    type_id: ValueTypeId,
 }
 
-impl Invalidator {
-    pub fn invalidate(self) {
-        let Invalidator { task, turbo_tasks } = self;
-        if let Some(turbo_tasks) = turbo_tasks.upgrade() {
-            turbo_tasks.with_task_and_tt(task, |task| task.invaldate(&turbo_tasks));
+impl CurrentSlotRef {
+    pub fn conditional_update_shared<
+        T: Send + Sync + 'static,
+        F: FnOnce(Option<&T>) -> Option<T>,
+    >(
+        &self,
+        functor: F,
+    ) {
+        let tt = turbo_tasks();
+        let content = tt.read_current_task_slot(self.index).try_cast::<T>();
+        let update = functor(content.as_ref().map(|read| &**read));
+        if let Some(update) = update {
+            tt.update_current_task_slot(
+                self.index,
+                SlotContent::SharedReference(self.type_id, Arc::new(update)),
+            )
         }
+    }
+
+    pub fn compare_and_update_shared<T: PartialEq + Send + Sync + 'static>(&self, new_content: T) {
+        self.conditional_update_shared(|old_content| {
+            if let Some(old_content) = old_content {
+                if PartialEq::eq(&new_content, old_content) {
+                    return None;
+                }
+            }
+            Some(new_content)
+        });
+    }
+
+    pub fn update_shared<T: Send + Sync + 'static>(&self, new_content: T) {
+        let tt = turbo_tasks();
+        tt.update_current_task_slot(
+            self.index,
+            SlotContent::SharedReference(self.type_id, Arc::new(new_content)),
+        )
     }
 }
 
-pub(crate) fn match_previous_node_by_key<
-    T: Any + ?Sized,
-    K: Hash + PartialEq + Eq + Send + Sync + 'static,
-    F: FnOnce(&mut Slot),
->(
+impl From<CurrentSlotRef> for RawVc {
+    fn from(slot: CurrentSlotRef) -> Self {
+        RawVc::TaskSlot(slot.current_task, slot.index)
+    }
+}
+
+pub fn find_slot_by_key<K: Debug + Eq + Ord + Hash + Send + Sync + 'static>(
+    type_id: ValueTypeId,
     key: K,
-    functor: F,
-) -> RawVc {
-    Task::with_current(|task, id| {
-        PREVIOUS_SLOTS.with(|cell| {
-            let mut map = PreviousSlotsMap::default();
-            cell.swap(Cell::from_mut(&mut map));
-            let entry =
-                map.by_key
-                    .entry(Box::new((TypeId::of::<T>(), key))
-                        as Box<dyn AnyHash + Sync + Send + 'static>);
-            let mut state = task.state.write().unwrap();
-            let index = entry.or_insert_with(|| {
-                let index = state.created_slots.len();
-                state.created_slots.push(Slot::new());
-                index
-            });
-            functor(&mut state.created_slots[*index]);
-            drop(state);
-            let result = RawVc::TaskCreated(id, *index);
-            cell.swap(Cell::from_mut(&mut map));
-            result
-        })
+) -> CurrentSlotRef {
+    PREVIOUS_SLOTS.with(|cell| {
+        let current_task = Task::current().unwrap();
+        let mut map = cell.take();
+        let index = *map
+            .by_key
+            .entry((type_id, Box::new(key)))
+            .or_insert_with(|| with_turbo_tasks(|tt| tt.get_fresh_slot(current_task)));
+        cell.set(map);
+        CurrentSlotRef {
+            current_task,
+            index,
+            type_id,
+        }
     })
 }
 
-pub(crate) fn match_previous_node_by_type<T: Any + ?Sized, F: FnOnce(&mut Slot)>(
-    functor: F,
-) -> RawVc {
-    Task::with_current(|task, id| {
-        PREVIOUS_SLOTS.with(|cell| {
-            let mut map = PreviousSlotsMap::default();
-            cell.swap(Cell::from_mut(&mut map));
-            let list = map
-                .by_type
-                .entry(TypeId::of::<T>())
-                .or_insert_with(Default::default);
-            let (ref mut index, ref mut list) = list;
-            let mut state = task.state.write().unwrap();
-            let slot_index = match list.get_mut(*index) {
-                Some(slot_index) => *slot_index,
-                None => {
-                    let index = state.created_slots.len();
-                    state.created_slots.push(Slot::new());
-                    list.push(index);
-                    index
-                }
-            };
-            functor(&mut state.created_slots[slot_index]);
-            drop(state);
-            *index += 1;
-            let result = RawVc::TaskCreated(id, slot_index);
-            cell.swap(Cell::from_mut(&mut map));
-            result
-        })
+pub fn find_slot_by_type(type_id: ValueTypeId) -> CurrentSlotRef {
+    PREVIOUS_SLOTS.with(|cell| {
+        let current_task = Task::current().unwrap();
+        let mut map = cell.take();
+        let (ref mut current_index, ref mut list) = map.by_type.entry(type_id).or_default();
+        let index = if let Some(i) = list.get(*current_index) {
+            *i
+        } else {
+            let index = turbo_tasks().get_fresh_slot(current_task);
+            list.push(index);
+            index
+        };
+        *current_index += 1;
+        cell.set(map);
+        CurrentSlotRef {
+            current_task,
+            index,
+            type_id,
+        }
     })
 }
 

@@ -915,6 +915,7 @@ pub struct PackageJsonReference {
 
 #[turbo_tasks::value_impl]
 impl PackageJsonReferenceVc {
+    #[turbo_tasks::function]
     pub fn new(package_json: FileSystemPathVc) -> Self {
         Self::slot(PackageJsonReference { package_json })
     }
@@ -935,6 +936,7 @@ pub struct TsConfigReference {
 
 #[turbo_tasks::value_impl]
 impl TsConfigReferenceVc {
+    #[turbo_tasks::function]
     pub fn new(tsconfig: FileSystemPathVc) -> Self {
         Self::slot(TsConfigReference { tsconfig })
     }
@@ -961,6 +963,7 @@ pub struct EsmAssetReference {
 
 #[turbo_tasks::value_impl]
 impl EsmAssetReferenceVc {
+    #[turbo_tasks::function]
     pub fn new(source: AssetVc, request: RequestVc, from_typescript: bool) -> Self {
         Self::slot(EsmAssetReference {
             source,
@@ -994,6 +997,7 @@ pub struct CjsAssetReference {
 
 #[turbo_tasks::value_impl]
 impl CjsAssetReferenceVc {
+    #[turbo_tasks::function]
     pub fn new(source: AssetVc, request: RequestVc, from_typescript: bool) -> Self {
         Self::slot(CjsAssetReference {
             source,
@@ -1026,6 +1030,7 @@ pub struct TsReferencePathAssetReference {
 
 #[turbo_tasks::value_impl]
 impl TsReferencePathAssetReferenceVc {
+    #[turbo_tasks::function]
     pub fn new(source: AssetVc, path: String) -> Self {
         Self::slot(TsReferencePathAssetReference { source, path })
     }
@@ -1053,6 +1058,7 @@ pub struct TsReferenceTypeAssetReference {
 
 #[turbo_tasks::value_impl]
 impl TsReferenceTypeAssetReferenceVc {
+    #[turbo_tasks::function]
     pub fn new(source: AssetVc, module: String) -> Self {
         Self::slot(TsReferenceTypeAssetReference { source, module })
     }
@@ -1080,6 +1086,7 @@ pub struct SourceAssetReference {
 
 #[turbo_tasks::value_impl]
 impl SourceAssetReferenceVc {
+    #[turbo_tasks::function]
     pub fn new(source: AssetVc, path: PatternVc) -> Self {
         Self::slot(SourceAssetReference { source, path })
     }

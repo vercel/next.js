@@ -3,7 +3,7 @@ use std::{fs, path::PathBuf};
 use criterion::{async_executor::AsyncStdExecutor, Criterion};
 use lazy_static::lazy_static;
 use regex::Regex;
-use turbo_tasks::{NothingVc, TurboTasks};
+use turbo_tasks::{MemoryBackend, NothingVc, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, NullFileSystem, NullFileSystemVc};
 use turbopack::{
     emit, emit_with_completion, module, rebase::RebasedAssetVc, register,
@@ -44,7 +44,7 @@ pub fn benchmark(c: &mut Criterion) {
                     let tests_root = tests_root.clone();
                     let input = input.clone();
                     b.to_async(AsyncStdExecutor).iter(move || {
-                        let tt = TurboTasks::new();
+                        let tt = TurboTasks::new(MemoryBackend::new());
                         let tests_root = tests_root.clone();
                         let input = input.clone();
                         async move {
@@ -75,7 +75,7 @@ pub fn benchmark(c: &mut Criterion) {
                 let tests_root = tests_root.clone();
                 let input = input.clone();
                 b.to_async(AsyncStdExecutor).iter(move || {
-                    let tt = TurboTasks::new();
+                    let tt = TurboTasks::new(MemoryBackend::new());
                     let tests_root = tests_root.clone();
                     let input = input.clone();
                     async move {

@@ -191,6 +191,7 @@ fn import_mapping_to_result(mapping: &ImportMapping) -> ImportMapResult {
 
 #[turbo_tasks::value_impl]
 impl ImportMapVc {
+    #[turbo_tasks::function]
     pub async fn lookup(self, request: RequestVc) -> Result<ImportMapResultVc> {
         let this = self.await?;
         // TODO lookup pattern
@@ -215,6 +216,7 @@ impl ImportMapVc {
 
 #[turbo_tasks::value_impl]
 impl ResolvedMapVc {
+    #[turbo_tasks::function]
     pub async fn lookup(self, resolved: FileSystemPathVc) -> Result<ImportMapResultVc> {
         let this = self.await?;
         let resolved = resolved.await?;
@@ -243,6 +245,7 @@ pub struct ResolveOptions {
 
 #[turbo_tasks::value_impl]
 impl ResolveOptionsVc {
+    #[turbo_tasks::function]
     pub async fn modules(self) -> Result<ResolveModulesOptionsVc> {
         Ok(ResolveModulesOptions {
             modules: self.await?.modules.clone(),
@@ -250,6 +253,7 @@ impl ResolveOptionsVc {
         .into())
     }
 
+    #[turbo_tasks::function]
     pub async fn resolve_typescript_types(self) -> Result<Vc<bool>> {
         Ok(Vc::slot(self.await?.resolve_typescript_types))
     }

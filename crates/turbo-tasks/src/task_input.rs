@@ -13,7 +13,10 @@ use anyhow::{anyhow, Result};
 use crate::{
     id::{FunctionId, TraitTypeId},
     magic_any::MagicAny,
+    manager::read_task_output,
     registry,
+    slot::SlotContent,
+    turbo_tasks,
     util::try_join_all,
     value::Value,
     RawVc, Task, TaskId, TraitType, TurboTasks, ValueTypeId,
@@ -57,7 +60,7 @@ impl Ord for SharedReference {
 #[derive(Hash, Clone, PartialOrd, Ord)]
 pub enum TaskInput {
     TaskOutput(TaskId),
-    TaskCreated(TaskId, usize),
+    TaskSlot(TaskId, usize),
     List(Vec<TaskInput>),
     String(String),
     Bool(bool),
@@ -71,45 +74,23 @@ pub enum TaskInput {
 
 impl TaskInput {
     pub async fn resolve_to_value(self) -> Result<TaskInput> {
-        let tt = TurboTasks::current().unwrap();
+        let tt = turbo_tasks();
         let mut current = self;
         loop {
             current = match current {
-                TaskInput::TaskOutput(task_id) => {
-                    Task::with_done_output(task_id, &tt, |_, output| {
-                        Task::add_dependency_to_current(RawVc::TaskOutput(task_id));
-                        output.read(Task::current().unwrap())
-                    })
-                    .await?
-                    .into()
-                }
-                TaskInput::TaskCreated(task_id, index) => tt.with_task_and_tt(task_id, |task| {
-                    Task::add_dependency_to_current(RawVc::TaskCreated(task_id, index));
-                    task.with_created_slot_mut(index, |slot| {
-                        slot.resolve(Task::current().unwrap()).map_or_else(
-                            || TaskInput::Nothing,
-                            |(ty, reference)| TaskInput::SharedReference(ty, reference),
-                        )
-                    })
-                }),
+                TaskInput::TaskOutput(task_id) => read_task_output(&*tt, task_id).await?.into(),
+                TaskInput::TaskSlot(task_id, index) => tt.read_task_slot(task_id, index).into(),
                 _ => return Ok(current),
             }
         }
     }
 
     pub async fn resolve(self) -> Result<TaskInput> {
-        let tt = TurboTasks::current().unwrap();
+        let tt = turbo_tasks();
         let mut current = self;
         loop {
             current = match current {
-                TaskInput::TaskOutput(task_id) => {
-                    Task::with_done_output(task_id, &tt, |_, output| {
-                        Task::add_dependency_to_current(RawVc::TaskOutput(task_id));
-                        output.read(Task::current().unwrap())
-                    })
-                    .await?
-                    .into()
-                }
+                TaskInput::TaskOutput(task_id) => read_task_output(&*tt, task_id).await?.into(),
                 TaskInput::List(list) => {
                     if list.iter().all(|i| i.is_resolved()) {
                         return Ok(TaskInput::List(list));
@@ -129,14 +110,14 @@ impl TaskInput {
 
     pub(crate) fn get_task_id(&self) -> Option<TaskId> {
         match self {
-            TaskInput::TaskOutput(t) | TaskInput::TaskCreated(t, _) => Some(*t),
+            TaskInput::TaskOutput(t) | TaskInput::TaskSlot(t, _) => Some(*t),
             _ => None,
         }
     }
 
     pub fn get_trait_method(&self, trait_type: TraitTypeId, name: String) -> Option<FunctionId> {
         match self {
-            TaskInput::TaskOutput(_) | TaskInput::TaskCreated(_, _) => {
+            TaskInput::TaskOutput(_) | TaskInput::TaskSlot(_, _) => {
                 panic!("get_trait_method must be called on a resolved TaskInput")
             }
             TaskInput::SharedReference(ty, _) => registry::get_value(*ty)
@@ -149,7 +130,7 @@ impl TaskInput {
 
     pub fn has_trait(&self, trait_type: TraitTypeId) -> bool {
         match self {
-            TaskInput::TaskOutput(_) | TaskInput::TaskCreated(_, _) => {
+            TaskInput::TaskOutput(_) | TaskInput::TaskSlot(_, _) => {
                 panic!("has_trait() must be called on a resolved TaskInput")
             }
             TaskInput::SharedReference(ty, _) => {
@@ -161,7 +142,7 @@ impl TaskInput {
 
     pub fn traits(&self) -> Vec<&'static TraitType> {
         match self {
-            TaskInput::TaskOutput(_) | TaskInput::TaskCreated(_, _) => {
+            TaskInput::TaskOutput(_) | TaskInput::TaskSlot(_, _) => {
                 panic!("traits() must be called on a resolved TaskInput")
             }
             TaskInput::SharedReference(ty, _) => registry::get_value(*ty)
@@ -193,7 +174,7 @@ impl PartialEq for TaskInput {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::TaskOutput(l0), Self::TaskOutput(r0)) => l0 == r0,
-            (Self::TaskCreated(l0, l1), Self::TaskCreated(r0, r1)) => l0 == r0 && l1 == r1,
+            (Self::TaskSlot(l0, l1), Self::TaskSlot(r0, r1)) => l0 == r0 && l1 == r1,
             (Self::List(l0), Self::List(r0)) => l0 == r0,
             (Self::String(l0), Self::String(r0)) => l0 == r0,
             (Self::Bool(l0), Self::Bool(r0)) => l0 == r0,
@@ -214,7 +195,18 @@ impl From<RawVc> for TaskInput {
     fn from(raw_vc: RawVc) -> Self {
         match raw_vc {
             RawVc::TaskOutput(task) => TaskInput::TaskOutput(task),
-            RawVc::TaskCreated(task, i) => TaskInput::TaskCreated(task, i),
+            RawVc::TaskSlot(task, i) => TaskInput::TaskSlot(task, i),
+        }
+    }
+}
+
+impl From<SlotContent> for TaskInput {
+    fn from(content: SlotContent) -> Self {
+        match content {
+            SlotContent::Empty => TaskInput::Nothing,
+            SlotContent::SharedReference(ty, data) => {
+                TaskInput::SharedReference(ty, SharedReference(data))
+            }
         }
     }
 }
@@ -223,7 +215,7 @@ impl Display for TaskInput {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TaskInput::TaskOutput(task) => write!(f, "task output {}", task),
-            TaskInput::TaskCreated(task, index) => write!(f, "slot {} in {}", index, task),
+            TaskInput::TaskSlot(task, index) => write!(f, "slot {} in {}", index, task),
             TaskInput::List(list) => write!(
                 f,
                 "list {}",
@@ -407,7 +399,7 @@ impl TryFrom<&TaskInput> for RawVc {
     fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
         match value {
             TaskInput::TaskOutput(task) => Ok(RawVc::TaskOutput(*task)),
-            TaskInput::TaskCreated(task, index) => Ok(RawVc::TaskCreated(*task, *index)),
+            TaskInput::TaskSlot(task, index) => Ok(RawVc::TaskSlot(*task, *index)),
             _ => Err(anyhow!("invalid task input type, expected slot ref")),
         }
     }

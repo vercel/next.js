@@ -20,6 +20,7 @@ pub struct RebasedAsset {
 
 #[turbo_tasks::value_impl]
 impl RebasedAssetVc {
+    #[turbo_tasks::function]
     pub fn new(source: AssetVc, input_dir: FileSystemPathVc, output_dir: FileSystemPathVc) -> Self {
         Self::slot(RebasedAsset {
             source: source,

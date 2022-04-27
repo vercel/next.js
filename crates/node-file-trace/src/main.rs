@@ -7,7 +7,7 @@ use std::{
     collections::BTreeSet, env::current_dir, fs, future::Future, path::PathBuf, pin::Pin,
     sync::Arc, time::Instant,
 };
-use turbo_tasks::{stats::Stats, viz, NothingVc, TaskId, TurboTasks};
+use turbo_tasks::{stats::Stats, viz, MemoryBackend, NothingVc, TaskId, TurboTasks};
 use turbo_tasks_fs::{
     glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemPathVc, FileSystemVc,
     ReadGlobResultVc,
@@ -175,7 +175,7 @@ fn main() {
     } = args.common();
 
     let start = Instant::now();
-    let finish = |tt: Arc<TurboTasks>, root_task: TaskId| {
+    let finish = |tt: Arc<TurboTasks<MemoryBackend>>, root_task: TaskId| {
         if watch {
             let handle = spawn({
                 let tt = tt.clone();
@@ -200,10 +200,9 @@ fn main() {
             println!("done in {} ms", start.elapsed().as_millis());
             if visualize_graph {
                 let mut stats = Stats::new();
-                let guard = tt.guard();
-                for task in tt.cached_tasks_iter(&guard) {
+                tt.with_all_cached_tasks(|task| {
                     stats.add(&tt, &task);
-                }
+                });
                 stats.add_id(&tt, root_task);
                 stats.merge_resolve();
                 let tree = stats.treeify();
@@ -222,7 +221,7 @@ fn main() {
             let dir = current_dir().unwrap();
             let context = process_context(&dir, context_directory).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
-            let tt = TurboTasks::new();
+            let tt = TurboTasks::new(MemoryBackend::new());
             let task = tt.spawn_root_task(move || {
                 let context = context.clone();
                 let input = input.clone();
@@ -252,7 +251,7 @@ fn main() {
             let dir = current_dir().unwrap();
             let context = process_context(&dir, context_directory).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
-            let tt = TurboTasks::new();
+            let tt = TurboTasks::new(MemoryBackend::new());
             let task = tt.spawn_root_task(move || {
                 let context = context.clone();
                 let input = input.clone();
@@ -276,7 +275,7 @@ fn main() {
             let context = process_context(&dir, context_directory).unwrap();
             let output = process_context(&dir, Some(output_directory)).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
-            let tt = TurboTasks::new();
+            let tt = TurboTasks::new(MemoryBackend::new());
             let task = tt.spawn_root_task(move || {
                 let context = context.clone();
                 let input = input.clone();

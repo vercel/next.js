@@ -254,6 +254,7 @@ impl TryFrom<&str> for Glob {
 
 #[turbo_tasks::value_impl]
 impl GlobVc {
+    #[turbo_tasks::function]
     pub fn new(glob: &str) -> Result<Self> {
         Ok(Self::slot(Glob::try_from(glob)?))
     }
