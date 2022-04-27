@@ -51,7 +51,11 @@ export type ServerlessHandlerCtx = {
   buildManifest?: BuildManifest
   reactLoadableManifest?: any
   basePath: string
-  rewrites: Rewrite[]
+  rewrites: {
+    fallback?: Rewrite[]
+    afterFiles?: Rewrite[]
+    beforeFiles?: Rewrite[]
+  }
   pageIsDynamic: boolean
   generateEtags: boolean
   distDir: string
@@ -92,8 +96,13 @@ export function getUtils({
     parsedUrl: UrlWithParsedQuery
   ) {
     const rewriteParams = {}
+    let fsPathname = parsedUrl.pathname
 
-    for (const rewrite of rewrites) {
+    const matchesPage = () => {
+      return fsPathname === page || dynamicRouteMatcher?.(fsPathname)
+    }
+
+    const checkRewrite = (rewrite: Rewrite): boolean => {
       const matcher = getCustomRouteMatcher(rewrite.source)
       let params = matcher(parsedUrl.pathname)
 
@@ -115,13 +124,18 @@ export function getUtils({
           query: parsedUrl.query,
         })
 
+        // if the rewrite destination is external break rewrite chain
+        if (parsedDestination.protocol) {
+          return true
+        }
+
         Object.assign(rewriteParams, destQuery, params)
         Object.assign(parsedUrl.query, parsedDestination.query)
         delete (parsedDestination as any).query
 
         Object.assign(parsedUrl, parsedDestination)
 
-        let fsPathname = parsedUrl.pathname
+        fsPathname = parsedUrl.pathname
 
         if (basePath) {
           fsPathname =
@@ -139,7 +153,7 @@ export function getUtils({
         }
 
         if (fsPathname === page) {
-          break
+          return true
         }
 
         if (pageIsDynamic && dynamicRouteMatcher) {
@@ -149,12 +163,32 @@ export function getUtils({
               ...parsedUrl.query,
               ...dynamicParams,
             }
-            break
+            return true
           }
         }
       }
+      return false
     }
 
+    for (const rewrite of rewrites.beforeFiles || []) {
+      checkRewrite(rewrite)
+    }
+
+    if (fsPathname !== page) {
+      let finished = false
+
+      for (const rewrite of rewrites.afterFiles || []) {
+        finished = checkRewrite(rewrite)
+        if (finished) break
+      }
+
+      if (!finished && !matchesPage()) {
+        for (const rewrite of rewrites.fallback || []) {
+          finished = checkRewrite(rewrite)
+          if (finished) break
+        }
+      }
+    }
     return rewriteParams
   }
 

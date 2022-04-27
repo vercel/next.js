@@ -8,7 +8,6 @@ import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plu
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
-import type { Rewrite } from '../lib/load-custom-routes'
 import type { RenderOpts, RenderOptsPartial } from './render'
 import type { ResponseCacheEntry, ResponseCacheValue } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
@@ -18,7 +17,7 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
 
-import { join, resolve } from 'path'
+import pathMod from '../shared/lib/isomorphic/path'
 import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/load-custom-routes'
@@ -65,6 +64,8 @@ import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { replaceBasePath } from './router-utils'
+
+const { join, resolve } = pathMod
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -477,19 +478,22 @@ export default abstract class Server {
           srcPathname = denormalizePagePath(srcPathname)
         }
 
+        if (!isDynamicRoute(srcPathname) && !this.hasPage(srcPathname)) {
+          for (const dynamicRoute of this.dynamicRoutes || []) {
+            if (dynamicRoute.match(srcPathname)) {
+              srcPathname = dynamicRoute.page
+              break
+            }
+          }
+        }
+
         const pageIsDynamic = isDynamicRoute(srcPathname)
-        const combinedRewrites: Rewrite[] = []
-
-        combinedRewrites.push(...this.customRoutes.rewrites.beforeFiles)
-        combinedRewrites.push(...this.customRoutes.rewrites.afterFiles)
-        combinedRewrites.push(...this.customRoutes.rewrites.fallback)
-
         const utils = getUtils({
           pageIsDynamic,
           page: srcPathname,
           i18n: this.nextConfig.i18n,
           basePath: this.nextConfig.basePath,
-          rewrites: combinedRewrites,
+          rewrites: this.customRoutes.rewrites,
         })
 
         try {
@@ -1153,7 +1157,7 @@ export default abstract class Server {
       (isServerComponent &&
         !hasServerProps &&
         !hasGetInitialProps &&
-        !process.browser)
+        process.env.NEXT_RUNTIME !== 'edge')
 
     // Toggle whether or not this is a Data request
     const isDataReq =
@@ -1238,7 +1242,7 @@ export default abstract class Server {
 
     if (hasServerProps || isSSG) {
       // For the edge runtime, we don't support preview mode in SSG.
-      if (!process.browser) {
+      if (process.env.NEXT_RUNTIME !== 'edge') {
         const { tryGetPreviewData } =
           require('./api-utils/node') as typeof import('./api-utils/node')
         previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
@@ -1756,7 +1760,10 @@ export default abstract class Server {
       )
 
       if (!isWrappedError) {
-        if ((this.minimalMode && !process.browser) || this.renderOpts.dev) {
+        if (
+          (this.minimalMode && process.env.NEXT_RUNTIME !== 'edge') ||
+          this.renderOpts.dev
+        ) {
           if (isError(err)) err.page = page
           throw err
         }

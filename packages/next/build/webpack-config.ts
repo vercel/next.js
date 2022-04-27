@@ -626,40 +626,10 @@ export default async function getBaseWebpackConfig(
 
       setimmediate: 'next/dist/compiled/setimmediate',
     },
-    ...(targetWeb
+    ...(isEdgeRuntime
       ? {
-          // Full list of old polyfills is accessible here:
-          // https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42
           fallback: {
-            assert: require.resolve('next/dist/compiled/assert'),
-            buffer: require.resolve('next/dist/compiled/buffer/'),
-            constants: require.resolve(
-              'next/dist/compiled/constants-browserify'
-            ),
-            crypto: require.resolve('next/dist/compiled/crypto-browserify'),
-            domain: require.resolve('next/dist/compiled/domain-browser'),
-            http: require.resolve('next/dist/compiled/stream-http'),
-            https: require.resolve('next/dist/compiled/https-browserify'),
-            os: require.resolve('next/dist/compiled/os-browserify'),
-            path: require.resolve('next/dist/compiled/path-browserify'),
-            punycode: require.resolve('next/dist/compiled/punycode'),
             process: require.resolve('./polyfills/process'),
-            // Handled in separate alias
-            querystring: require.resolve('next/dist/compiled/querystring-es3'),
-            stream: require.resolve('next/dist/compiled/stream-browserify'),
-            string_decoder: require.resolve(
-              'next/dist/compiled/string_decoder'
-            ),
-            sys: require.resolve('next/dist/compiled/util/'),
-            timers: require.resolve('next/dist/compiled/timers-browserify'),
-            tty: require.resolve('next/dist/compiled/tty-browserify'),
-            // Handled in separate alias
-            // url: require.resolve('url/'),
-            util: require.resolve('next/dist/compiled/util/'),
-            vm: require.resolve('next/dist/compiled/vm-browserify'),
-            zlib: require.resolve('next/dist/compiled/browserify-zlib'),
-            events: require.resolve('next/dist/compiled/events/'),
-            setImmediate: require.resolve('next/dist/compiled/setimmediate'),
           },
         }
       : undefined),
@@ -1280,6 +1250,81 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
+        ...(!isServer && !isEdgeRuntime
+          ? [
+              {
+                oneOf: [
+                  {
+                    issuerLayer: 'middleware',
+                    resolve: {
+                      fallback: {
+                        process: require.resolve('./polyfills/process'),
+                      },
+                    },
+                  },
+                  {
+                    resolve: {
+                      // Full list of old polyfills is accessible here:
+                      // https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42
+                      fallback: {
+                        assert: require.resolve('next/dist/compiled/assert'),
+                        buffer: require.resolve('next/dist/compiled/buffer/'),
+                        constants: require.resolve(
+                          'next/dist/compiled/constants-browserify'
+                        ),
+                        crypto: require.resolve(
+                          'next/dist/compiled/crypto-browserify'
+                        ),
+                        domain: require.resolve(
+                          'next/dist/compiled/domain-browser'
+                        ),
+                        http: require.resolve('next/dist/compiled/stream-http'),
+                        https: require.resolve(
+                          'next/dist/compiled/https-browserify'
+                        ),
+                        os: require.resolve('next/dist/compiled/os-browserify'),
+                        path: require.resolve(
+                          'next/dist/compiled/path-browserify'
+                        ),
+                        punycode: require.resolve(
+                          'next/dist/compiled/punycode'
+                        ),
+                        process: require.resolve('./polyfills/process'),
+                        // Handled in separate alias
+                        querystring: require.resolve(
+                          'next/dist/compiled/querystring-es3'
+                        ),
+                        stream: require.resolve(
+                          'next/dist/compiled/stream-browserify'
+                        ),
+                        string_decoder: require.resolve(
+                          'next/dist/compiled/string_decoder'
+                        ),
+                        sys: require.resolve('next/dist/compiled/util/'),
+                        timers: require.resolve(
+                          'next/dist/compiled/timers-browserify'
+                        ),
+                        tty: require.resolve(
+                          'next/dist/compiled/tty-browserify'
+                        ),
+                        // Handled in separate alias
+                        // url: require.resolve('url/'),
+                        util: require.resolve('next/dist/compiled/util/'),
+                        vm: require.resolve('next/dist/compiled/vm-browserify'),
+                        zlib: require.resolve(
+                          'next/dist/compiled/browserify-zlib'
+                        ),
+                        events: require.resolve('next/dist/compiled/events/'),
+                        setImmediate: require.resolve(
+                          'next/dist/compiled/setimmediate'
+                        ),
+                      },
+                    },
+                  },
+                ],
+              },
+            ]
+          : []),
       ].filter(Boolean),
     },
     plugins: [
@@ -1309,11 +1354,7 @@ export default async function getBaseWebpackConfig(
           {}
         ),
         ...Object.keys(config.env).reduce((acc, key) => {
-          if (/^(?:NODE_.+)|^(?:__.+)$/i.test(key)) {
-            throw new Error(
-              `The key "${key}" under "env" in ${config.configFileName} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
-            )
-          }
+          errorIfEnvConflicted(config, key)
 
           return {
             ...acc,
@@ -1324,8 +1365,16 @@ export default async function getBaseWebpackConfig(
         'process.env.NODE_ENV': JSON.stringify(
           dev ? 'development' : 'production'
         ),
+        ...(isServer && {
+          'process.env.NEXT_RUNTIME': JSON.stringify(
+            isEdgeRuntime ? 'edge' : 'nodejs'
+          ),
+        }),
+        'process.env.__NEXT_NEW_LINK_BEHAVIOR': JSON.stringify(
+          config.experimental.newNextLinkBehavior
+        ),
         'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(crossOrigin),
-        'process.browser': JSON.stringify(targetWeb),
+        'process.browser': JSON.stringify(!isServer),
         'process.env.__NEXT_TEST_MODE': JSON.stringify(
           process.env.__NEXT_TEST_MODE
         ),
@@ -1771,6 +1820,11 @@ export default async function getBaseWebpackConfig(
       defaultLoaders,
       totalPages,
       webpack,
+      ...(isServer
+        ? {
+            nextRuntime: isEdgeRuntime ? 'edge' : 'nodejs',
+          }
+        : {}),
     })
 
     if (!webpackConfig) {
@@ -2133,4 +2187,15 @@ export default async function getBaseWebpackConfig(
   }
 
   return webpackConfig
+}
+
+function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
+  const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
+  const hasNextRuntimeKey = key === 'NEXT_RUNTIME'
+
+  if (isPrivateKey || hasNextRuntimeKey) {
+    throw new Error(
+      `The key "${key}" under "env" in ${config.configFileName} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
+    )
+  }
 }

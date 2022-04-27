@@ -74,7 +74,8 @@ async function loadWasm() {
           return Promise.resolve(bindings.minifySync(src.toString(), options))
         },
         parse(src, options) {
-          return Promise.resolve(bindings.parse(src.toString(), options))
+          const astStr = bindings.parseSync(src.toString(), options)
+          return Promise.resolve(astStr)
         },
         getTargetTriple() {
           return undefined

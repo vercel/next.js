@@ -119,6 +119,7 @@ describe('Middleware base tests', () => {
       context.app = await launchApp(context.appDir, context.appPort, {
         env: {
           MIDDLEWARE_TEST: 'asdf',
+          NEXT_RUNTIME: 'edge',
         },
       })
     })
@@ -130,7 +131,10 @@ describe('Middleware base tests', () => {
         process: {
           env: {
             MIDDLEWARE_TEST: 'asdf',
+            NEXT_RUNTIME: 'edge',
           },
+          // it's poflyfilled since there is the "process" module
+          // as a devDepencies of the next package
           nextTick: 'function',
         },
       })
