@@ -94,6 +94,7 @@ export default class DevServer extends Server {
   private isCustomServer: boolean
   protected sortedRoutes?: string[]
   private addedUpgradeListener = false
+  private pagesDir: string
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -360,12 +361,7 @@ export default class DevServer extends Server {
   async prepare(): Promise<void> {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
-    await verifyTypeScriptSetup(
-      this.dir,
-      this.pagesDir!,
-      false,
-      this.nextConfig
-    )
+    await verifyTypeScriptSetup(this.dir, this.pagesDir, false, this.nextConfig)
 
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
 
@@ -383,7 +379,7 @@ export default class DevServer extends Server {
     }
 
     this.hotReloader = new HotReloader(this.dir, {
-      pagesDir: this.pagesDir!,
+      pagesDir: this.pagesDir,
       distDir: this.distDir,
       config: this.nextConfig,
       previewProps: this.getPreviewProps(),
@@ -408,7 +404,7 @@ export default class DevServer extends Server {
       eventCliSession(this.distDir, this.nextConfig, {
         webpackVersion: 5,
         cliCommand: 'dev',
-        isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
+        isSrcDir: relative(this.dir, this.pagesDir).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
         isCustomServer: this.isCustomServer,
       })
@@ -448,7 +444,7 @@ export default class DevServer extends Server {
     }
 
     const pageFile = await findPageFile(
-      this.pagesDir!,
+      this.pagesDir,
       normalizedPath,
       this.nextConfig.pageExtensions
     )

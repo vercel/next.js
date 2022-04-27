@@ -133,7 +133,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected quiet: boolean
   protected nextConfig: NextConfigComplete
   protected distDir: string
-  protected pagesDir?: string
   protected publicDir: string
   protected hasStaticDir: boolean
   protected pagesManifest?: PagesManifest
