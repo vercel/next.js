@@ -102,7 +102,6 @@ import {
   isReservedPage,
   isCustomErrorPage,
   isFlightPage,
-  isEdgeRuntimeCompiled,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'

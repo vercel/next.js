@@ -1275,8 +1275,9 @@ export function isEdgeRuntimeCompiled(
   compilation: webpack5.Compilation,
   module: any
 ) {
+  if (!module) return false
+
   let isEdgeRuntime = false
-  if (!module) return isEdgeRuntimeCompiled
 
   for (const chunk of compilation.chunkGraph.getModuleChunksIterable(module)) {
     let runtimes: string[]

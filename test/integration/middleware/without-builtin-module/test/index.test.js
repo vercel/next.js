@@ -91,11 +91,7 @@ describe('Middleware importing Node.js built-in module', () => {
     })
 
     it('should not have middleware error during build', () => {
-      expect(buildResult.stderr).toContain(getModuleNotFound('not-exist'))
       expect(buildResult.stderr).toContain(getModuleNotFound('child_process'))
-      expect(buildResult.stderr).not.toContain(
-        getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('not-exist')
-      )
       expect(buildResult.stderr).not.toContain(
         getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('child_process')
       )
