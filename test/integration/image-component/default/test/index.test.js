@@ -737,10 +737,10 @@ function runTests(mode) {
           .map((log) => log.message)
           .join('\n')
         expect(warnings).toMatch(
-          /Image with src \/wide.png has either height or width modified, but not the other./gm
+          /Image with src "\/wide.png" has either width or height modified, but not the other./gm
         )
         expect(warnings).not.toMatch(
-          /Image with src \/test.png has either height or width modified, but not the other./gm
+          /Image with src "\/test.png" has either width or height modified, but not the other./gm
         )
       }
     } finally {
