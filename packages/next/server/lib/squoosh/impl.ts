@@ -7,7 +7,7 @@ type EncoderKey = keyof typeof supportedFormats
 // Fixed in Node.js 16.5.0 and newer.
 // See https://github.com/nodejs/node/pull/39337
 // Eventually, remove this delay when engines is updated.
-// See https://git.io/JCTr0
+// See https://github.com/vercel/next.js/blob/1bcc923439f495a1717421e06af7e64c6003072c/packages/next/package.json#L249-L251
 const FIXED_VERSION = '16.5.0'
 const DELAY_MS = 1000
 let _promise: Promise<void> | undefined
