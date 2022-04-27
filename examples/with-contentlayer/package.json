@@ -6,10 +6,10 @@
     "start": "next start"
   },
   "dependencies": {
-    "contentlayer": "^0.1.1",
+    "contentlayer": "^0.2.4",
     "next": "latest",
-    "next-contentlayer": "^0.1.1",
-    "react": "17.0.2",
-    "react-dom": "17.0.2"
+    "next-contentlayer": "^0.2.4",
+    "react": "18.0.0",
+    "react-dom": "18.0.0"
   }
 }
