@@ -331,15 +331,14 @@ function handleLoading(
     if (process.env.NODE_ENV !== 'production') {
       if (layout === 'raw') {
         const heightModified =
-          img.height !== parseInt(img.getAttribute('height') || '')
-        const widthModified =
-          img.width !== parseInt(img.getAttribute('width') || '')
+          img.height.toString() !== img.getAttribute('height')
+        const widthModified = img.width.toString() !== img.getAttribute('width')
         if (
           (heightModified && !widthModified) ||
           (!heightModified && widthModified)
         ) {
           warnOnce(
-            `Image with src ${src} has either height or width modified, but not the other. If you use CSS to change the size of your image, use height="auto" or width="auto" to maintain the aspect ratio.`
+            `Image with src ${src} has either height or width modified, but not the other. If you use CSS to change the size of your image, also include the styles 'height: "auto"' or 'width: "auto"' to maintain the aspect ratio.`
           )
         }
       }

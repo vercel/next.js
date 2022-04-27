@@ -94,7 +94,7 @@ The layout behavior of the image as the viewport changes size.
   - This is usually paired with the [`objectFit`](#objectFit) property.
   - Ensure the parent element has `position: relative` in their stylesheet.
 - When `raw`[\*](#experimental-raw-layout-mode), the image will be rendered as a single image element with no wrappers, sizers or other responsive behavior.
-  - If your image styling will change the size of a `raw` image, you should include the `sizes` property for proper image serving. Otherwise your image will receive a fixed height and width.
+  - If your image styling will change the size of a `raw` image, you should include the `sizes` property for proper image serving. Otherwise your image will be requested as though it has fixed height and width.
 - [Demo background image](https://image-component.nextjs.gallery/background)
 
 ### loader
