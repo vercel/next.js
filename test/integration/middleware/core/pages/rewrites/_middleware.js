@@ -12,7 +12,9 @@ export async function middleware(request) {
   ) {
     const isExternal = url.searchParams.get('override') === 'external'
     return NextResponse.rewrite(
-      isExternal ? 'https://vercel.com' : new URL('/rewrites/a', request.url)
+      isExternal
+        ? 'https://example.vercel.sh'
+        : new URL('/rewrites/a', request.url)
     )
   }
 

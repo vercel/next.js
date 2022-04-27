@@ -222,7 +222,7 @@ module.exports = {
         },
         {
           source: '/overridden',
-          destination: 'https://vercel.com',
+          destination: 'https://example.vercel.sh',
         },
         {
           source: '/nfl/:path*',
