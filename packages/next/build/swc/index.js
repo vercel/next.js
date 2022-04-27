@@ -1,7 +1,10 @@
 import { platform, arch } from 'os'
 import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
+import { version as nextVersion, optionalDependencies } from 'next/package.json'
 import * as Log from '../output/log'
 import { getParserOptions } from './options'
+import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
+import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 
 const ArchName = arch()
 const PlatformName = platform()
@@ -18,6 +21,9 @@ async function loadBindings() {
     attempts = attempts.concat(a)
   }
 
+  // TODO: fetch wasm and fallback when loading native fails
+  // so that users aren't blocked on this, we still want to
+  // report the native load failure so we can patch though
   try {
     let bindings = await loadWasm()
     return bindings
@@ -41,13 +47,50 @@ function loadBindingsSync() {
 
 function logLoadFailure(attempts) {
   for (let attempt of attempts) {
-    Log.info(attempt)
+    Log.warn(attempt)
   }
+  let glibcVersion
+  let installedSwcPackages
 
-  Log.error(
-    `Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
-  )
-  process.exit(1)
+  try {
+    glibcVersion = process.report?.getReport().header.glibcVersionRuntime
+  } catch (_) {}
+
+  try {
+    const pkgNames = Object.keys(optionalDependencies || {}).filter((pkg) =>
+      pkg.startsWith('@next/swc')
+    )
+    const installedPkgs = []
+
+    for (const pkg of pkgNames) {
+      try {
+        const { version } = require(`${pkg}/package.json`)
+        installedPkgs.push(`${pkg}@${version}`)
+      } catch (_) {}
+    }
+
+    if (installedPkgs.length > 0) {
+      installedSwcPackages = installedPkgs.sort().join(',')
+    }
+  } catch (_) {}
+
+  patchIncorrectLockfile(process.cwd())
+    .then(() => {
+      return eventSwcLoadFailure({
+        nextVersion,
+        glibcVersion,
+        installedSwcPackages,
+        arch: process.arch,
+        platform: process.platform,
+        nodeVersion: process.versions.node,
+      })
+    })
+    .finally(() => {
+      Log.error(
+        `Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
+      )
+      process.exit(1)
+    })
 }
 
 async function loadWasm() {
@@ -62,7 +105,7 @@ async function loadWasm() {
       if (pkg === '@next/swc-wasm-web') {
         bindings = await bindings.default()
       }
-      Log.info('Using experimental wasm build of next-swc')
+      Log.warn('Using experimental wasm build of next-swc')
       wasmBindings = {
         isWasm: true,
         transform(src, options) {
@@ -108,7 +151,7 @@ function loadNative() {
   for (const triple of triples) {
     try {
       bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
-      Log.info('Using locally built binary of @next/swc')
+      Log.warn('Using locally built binary of @next/swc')
       break
     } catch (e) {}
   }
