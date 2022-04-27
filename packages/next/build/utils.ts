@@ -1283,8 +1283,6 @@ export async function isEdgeRuntimeCompiled(
 ) {
   if (!module) return false
 
-  let isEdgeRuntime = false
-
   for (const chunk of compilation.chunkGraph.getModuleChunksIterable(module)) {
     let runtimes: string[]
     if (typeof chunk.runtime === 'string') {
@@ -1296,14 +1294,13 @@ export async function isEdgeRuntimeCompiled(
     }
 
     if (runtimes.some((r) => r === EDGE_RUNTIME_WEBPACK)) {
-      isEdgeRuntime = true
-      break
+      return true
     }
   }
 
-  return (
-    isEdgeRuntime || (await getPageRuntime(module.resource, config)) === 'edge'
-  )
+  // Check the page runtime as well since we cannot detect the runtime from
+  // compilation when it's for the client part of edge function
+  return (await getPageRuntime(module.resource, config)) === 'edge'
 }
 
 export function getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(
