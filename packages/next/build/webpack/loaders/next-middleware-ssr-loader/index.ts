@@ -1,5 +1,19 @@
 import { stringifyRequest } from '../../stringify-request'
 
+export type MiddlewareSSRLoaderQuery = {
+  absolute500Path: string
+  absoluteAppPath: string
+  absoluteAppServerPath: string
+  absoluteDocumentPath: string
+  absoluteErrorPath: string
+  absolutePagePath: string
+  buildId: string
+  dev: boolean
+  isServerComponent: boolean
+  page: string
+  stringifiedConfig: string
+}
+
 export default async function middlewareSSRLoader(this: any) {
   const {
     dev,
@@ -13,7 +27,7 @@ export default async function middlewareSSRLoader(this: any) {
     absoluteErrorPath,
     isServerComponent,
     stringifiedConfig,
-  } = this.getOptions()
+  }: MiddlewareSSRLoaderQuery = this.getOptions()
 
   const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
   const stringifiedAppPath = stringifyRequest(this, absoluteAppPath)

@@ -12,7 +12,7 @@ use swc_ecmascript::{
     utils::{quote_ident, ExprFactory},
     visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
 };
-use tracing::{span, trace, Level};
+use tracing::{debug, span, trace, Level};
 
 pub fn display_name_and_id(
     file: Arc<SourceFile>,
@@ -325,6 +325,7 @@ impl VisitMut for DisplayNameAndId {
         if !is_styled {
             return;
         }
+        debug!("Found styled component");
 
         let _tracing = if cfg!(debug_assertions) {
             Some(span!(Level::ERROR, "display_name_and_id").entered())
