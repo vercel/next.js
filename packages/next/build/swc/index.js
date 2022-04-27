@@ -105,7 +105,7 @@ async function loadWasm() {
       if (pkg === '@next/swc-wasm-web') {
         bindings = await bindings.default()
       }
-      Log.warn('Using experimental wasm build of next-swc')
+      Log.info('Using experimental wasm build of next-swc')
       wasmBindings = {
         isWasm: true,
         transform(src, options) {
@@ -151,7 +151,7 @@ function loadNative() {
   for (const triple of triples) {
     try {
       bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
-      Log.warn('Using locally built binary of @next/swc')
+      Log.info('Using locally built binary of @next/swc')
       break
     } catch (e) {}
   }
