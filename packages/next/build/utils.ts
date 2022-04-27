@@ -1309,7 +1309,7 @@ export function getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(
   name: string
 ) {
   return (
-    `You're using a Node.js module (${name}) which is not supported in the Edge Runtime that Middleware uses.\n` +
+    `You're using a Node.js module (${name}) which is not supported in the Edge Runtime.\n` +
     'Learn more: https://nextjs.org/docs/api-reference/edge-runtime'
   )
 }
