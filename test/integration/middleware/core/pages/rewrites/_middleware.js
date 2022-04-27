@@ -12,7 +12,9 @@ export async function middleware(request) {
   ) {
     const isExternal = url.searchParams.get('override') === 'external'
     return NextResponse.rewrite(
-      isExternal ? 'https://vercel.com' : new URL('/rewrites/a', request.url)
+      isExternal
+        ? 'https://example.vercel.sh'
+        : new URL('/rewrites/a', request.url)
     )
   }
 
@@ -52,7 +54,7 @@ export async function middleware(request) {
   }
 
   if (url.pathname === '/rewrites/rewrite-me-to-vercel') {
-    return NextResponse.rewrite('https://vercel.com')
+    return NextResponse.rewrite('https://example.vercel.sh')
   }
 
   if (url.pathname === '/rewrites/clear-query-params') {
