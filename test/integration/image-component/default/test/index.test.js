@@ -289,6 +289,102 @@ function runTests(mode) {
     }
   })
 
+  it('should callback native onLoad in most cases', async () => {
+    let browser = await webdriver(appPort, '/on-load')
+
+    await browser.eval(
+      `document.getElementById("footer").scrollIntoView({behavior: "smooth"})`
+    )
+
+    await check(
+      () => browser.eval(`document.getElementById("img1").currentSrc`),
+      /test(.*)jpg/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img2").currentSrc`),
+      /test(.*).png/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img3").currentSrc`),
+      /test\.svg/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img4").currentSrc`),
+      /test(.*)ico/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg1").textContent`),
+      'loaded 1 img1 with native onLoad'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg2").textContent`),
+      'loaded 1 img2 with native onLoad'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg3").textContent`),
+      'loaded 1 img3 with native onLoad'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg4").textContent`),
+      'loaded 1 img4 with native onLoad'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg8").textContent`),
+      'loaded 1 img8 with native onLoad'
+    )
+    await check(
+      () =>
+        browser.eval(
+          `document.getElementById("img8").getAttribute("data-nimg")`
+        ),
+      'intrinsic'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img8").currentSrc`),
+      /wide.png/
+    )
+    await browser.eval('document.getElementById("toggle").click()')
+    // The normal `onLoad()` is triggered by lazy placeholder image
+    // so ideally this would be "2" instead of "3" count
+    await check(
+      () => browser.eval(`document.getElementById("msg8").textContent`),
+      'loaded 3 img8 with native onLoad'
+    )
+    await check(
+      () =>
+        browser.eval(
+          `document.getElementById("img8").getAttribute("data-nimg")`
+        ),
+      'fixed'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img8").currentSrc`),
+      /test-rect.jpg/
+    )
+  })
+
+  it('should callback native onError when error occured while loading image', async () => {
+    let browser = await webdriver(appPort, '/on-error')
+
+    await check(
+      () => browser.eval(`document.getElementById("img1").currentSrc`),
+      /test\.png/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img2").currentSrc`),
+      //This is an empty data url
+      /nonexistent-img\.png/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg1").textContent`),
+      'no error occured'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg2").textContent`),
+      'error occured while loading img2'
+    )
+  })
+
   it('should work with image with blob src', async () => {
     let browser
     try {

@@ -4,7 +4,6 @@ class UrlNode {
   slugName: string | null = null
   restSlugName: string | null = null
   optionalRestSlugName: string | null = null
-  isMiddleware: boolean = false
 
   insert(urlPath: string): void {
     this._insert(urlPath.split('/').filter(Boolean), [], false)
@@ -24,9 +23,6 @@ class UrlNode {
     }
     if (this.optionalRestSlugName !== null) {
       childrenPaths.splice(childrenPaths.indexOf('[[...]]'), 1)
-    }
-    if (this.isMiddleware) {
-      childrenPaths.splice(childrenPaths.indexOf('_middleware'), 1)
     }
 
     const routes = childrenPaths
@@ -48,12 +44,6 @@ class UrlNode {
       }
 
       routes.unshift(r)
-    }
-
-    if (this.isMiddleware) {
-      routes.unshift(
-        ...this.children.get('_middleware')!._smoosh(`${prefix}_middleware/`)
-      )
     }
 
     if (this.restSlugName !== null) {
@@ -192,8 +182,6 @@ class UrlNode {
         // nextSegment is overwritten to [] so that it can later be sorted specifically
         nextSegment = '[]'
       }
-    } else if (nextSegment === '_middleware' && urlPaths.length === 1) {
-      this.isMiddleware = true
     }
 
     // If this UrlNode doesn't have the nextSegment yet we create a new child UrlNode

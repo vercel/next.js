@@ -40,13 +40,25 @@ type ImageConfig = ImageConfigComplete & { allSizes: number[] }
 export type ImageLoader = (resolverProps: ImageLoaderProps) => string
 
 export type ImageLoaderProps = {
-  config: Readonly<ImageConfig>
   src: string
   width: number
   quality?: number
 }
 
-const loaders = new Map<LoaderValue, (props: ImageLoaderProps) => string>([
+// Do not export - this is an internal type only
+// because `next.config.js` is only meant for the
+// built-in loaders, not for a custom loader() prop.
+type ImageLoaderWithConfig = (
+  resolverProps: ImageLoaderPropsWithConfig
+) => string
+type ImageLoaderPropsWithConfig = ImageLoaderProps & {
+  config: Readonly<ImageConfig>
+}
+
+const loaders = new Map<
+  LoaderValue,
+  (props: ImageLoaderPropsWithConfig) => string
+>([
   ['default', defaultLoader],
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
@@ -132,7 +144,7 @@ export type ImageProps = Omit<
   onLoadingComplete?: OnLoadingComplete
 }
 
-type ImageElementProps = Omit<ImageProps, 'src'> & {
+type ImageElementProps = Omit<ImageProps, 'src' | 'loader'> & {
   srcString: string
   imgAttributes: GenImgAttrsResult
   heightInt: number | undefined
@@ -145,7 +157,7 @@ type ImageElementProps = Omit<ImageProps, 'src'> & {
   loading: LoadingValue
   config: ImageConfig
   unoptimized: boolean
-  loader: ImageLoader
+  loader: ImageLoaderWithConfig
   placeholder: PlaceholderValue
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
   setBlurComplete: (b: boolean) => void
@@ -209,7 +221,7 @@ type GenImgAttrsData = {
   src: string
   unoptimized: boolean
   layout: LayoutValue
-  loader: ImageLoader
+  loader: ImageLoaderWithConfig
   width?: number
   quality?: number
   sizes?: string
@@ -269,7 +281,7 @@ function getInt(x: unknown): number | undefined {
   return undefined
 }
 
-function defaultImageLoader(loaderProps: ImageLoaderProps) {
+function defaultImageLoader(loaderProps: ImageLoaderPropsWithConfig) {
   const loaderKey = loaderProps.config?.loader || 'default'
   const load = loaders.get(loaderKey)
   if (load) {
@@ -356,8 +368,6 @@ export default function Image({
   objectFit,
   objectPosition,
   onLoadingComplete,
-  onError,
-  loader = defaultImageLoader,
   placeholder = 'empty',
   blurDataURL,
   ...all
@@ -376,8 +386,23 @@ export default function Image({
     // Override default layout if the user specified one:
     if (rest.layout) layout = rest.layout
 
-    // Remove property so it's not spread into image:
-    delete rest['layout']
+    // Remove property so it's not spread on <img>:
+    delete rest.layout
+  }
+
+  let loader: ImageLoaderWithConfig = defaultImageLoader
+  if ('loader' in rest) {
+    if (rest.loader) {
+      const customImageLoader = rest.loader
+      loader = (obj) => {
+        const { config: _, ...opts } = obj
+        // The config object is internal only so we must
+        // not pass it to the user-defined loader()
+        return customImageLoader(opts)
+      }
+    }
+    // Remove property so it's not spread on <img>
+    delete rest.loader
   }
 
   let staticSrc = ''
@@ -858,6 +883,7 @@ const ImageElement = ({
   onLoadingCompleteRef,
   setBlurComplete,
   setIntersection,
+  onLoad,
   onError,
   isVisible,
   ...rest
@@ -907,6 +933,9 @@ const ImageElement = ({
             onLoadingCompleteRef,
             setBlurComplete
           )
+          if (onLoad) {
+            onLoad(event)
+          }
         }}
         onError={(event) => {
           if (placeholder === 'blur') {
@@ -957,7 +986,7 @@ function imgixLoader({
   src,
   width,
   quality,
-}: ImageLoaderProps): string {
+}: ImageLoaderPropsWithConfig): string {
   // Demo: https://static.imgix.net/daisy.png?auto=format&fit=max&w=300
   const url = new URL(`${config.path}${normalizeSrc(src)}`)
   const params = url.searchParams
@@ -973,7 +1002,11 @@ function imgixLoader({
   return url.href
 }
 
-function akamaiLoader({ config, src, width }: ImageLoaderProps): string {
+function akamaiLoader({
+  config,
+  src,
+  width,
+}: ImageLoaderPropsWithConfig): string {
   return `${config.path}${normalizeSrc(src)}?imwidth=${width}`
 }
 
@@ -982,7 +1015,7 @@ function cloudinaryLoader({
   src,
   width,
   quality,
-}: ImageLoaderProps): string {
+}: ImageLoaderPropsWithConfig): string {
   // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
   const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
   const paramsString = params.join(',') + '/'
@@ -1001,7 +1034,7 @@ function defaultLoader({
   src,
   width,
   quality,
-}: ImageLoaderProps): string {
+}: ImageLoaderPropsWithConfig): string {
   if (process.env.NODE_ENV !== 'production') {
     const missingValues = []
 

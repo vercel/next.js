@@ -5,9 +5,11 @@ import type { NextParsedUrlQuery } from './request-meta'
 import type { Params } from './router'
 import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
+import type { Options } from './base-server'
 
-import BaseServer, { Options } from './base-server'
+import BaseServer from './base-server'
 import { renderToHTML } from './render'
+import { byteLength, generateETag } from './api-utils/web'
 
 interface WebServerConfig {
   loadComponent: (pathname: string) => Promise<LoadComponentsReturnType | null>
@@ -19,9 +21,11 @@ export default class NextWebServer extends BaseServer {
 
   constructor(options: Options & { webServerConfig: WebServerConfig }) {
     super(options)
+
     this.webServerConfig = options.webServerConfig
     Object.assign(this.renderOpts, options.webServerConfig.extendRenderOpts)
   }
+
   protected generateRewrites() {
     // @TODO: assuming minimal mode right now
     return {
@@ -81,10 +85,7 @@ export default class NextWebServer extends BaseServer {
   protected getMiddleware() {
     return []
   }
-  protected generateCatchAllStaticMiddlewareRoute() {
-    return undefined
-  }
-  protected generateCatchAllDynamicMiddlewareRoute() {
+  protected generateCatchAllMiddlewareRoute() {
     return undefined
   }
   protected getFontManifest() {
@@ -127,7 +128,7 @@ export default class NextWebServer extends BaseServer {
   ): Promise<RenderResult | null> {
     return renderToHTML(
       {
-        url: pathname,
+        url: req.url,
         cookies: req.cookies,
         headers: req.headers,
       } as any,
@@ -152,6 +153,8 @@ export default class NextWebServer extends BaseServer {
       options?: PayloadOptions | undefined
     }
   ): Promise<void> {
+    res.setHeader('X-Edge-Runtime', '1')
+
     // Add necessary headers.
     // @TODO: Share the isomorphic logic with server/send-payload.ts.
     if (options.poweredByHeader && options.type === 'html') {
@@ -166,10 +169,8 @@ export default class NextWebServer extends BaseServer {
       )
     }
 
-    // @TODO
-    const writer = res.transformStream.writable.getWriter()
-
     if (options.result.isDynamic()) {
+      const writer = res.transformStream.writable.getWriter()
       options.result.pipe({
         write: (chunk: Uint8Array) => writer.write(chunk),
         end: () => writer.close(),
@@ -179,8 +180,11 @@ export default class NextWebServer extends BaseServer {
         // Not implemented: on/removeListener
       } as any)
     } else {
-      // TODO: generate Etag
       const payload = await options.result.toUnchunkedString()
+      res.setHeader('Content-Length', String(byteLength(payload)))
+      if (options.generateEtags) {
+        res.setHeader('ETag', await generateETag(payload))
+      }
       res.body(payload)
     }
 

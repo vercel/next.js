@@ -224,6 +224,10 @@ module.exports = {
           source: '/overridden',
           destination: 'https://vercel.com',
         },
+        {
+          source: '/nfl/:path*',
+          destination: '/_sport/nfl/:path*',
+        },
       ],
     }
   },

@@ -11,7 +11,7 @@ describe('react 18 streaming SSR in minimal mode', () => {
     next = await createNext({
       files: {
         'pages/index.server.js': `
-          export default function Page() { 
+          export default function Page() {
             return <p>static streaming</p>
           }
         `,
@@ -21,6 +21,23 @@ describe('react 18 streaming SSR in minimal mode', () => {
           reactRoot: true,
           serverComponents: true,
           runtime: 'nodejs',
+        },
+        webpack(config, { nextRuntime }) {
+          const path = require('path')
+          const fs = require('fs')
+
+          const runtimeFilePath = path.join(__dirname, 'runtimes.txt')
+          let runtimeContent = ''
+
+          try {
+            runtimeContent = fs.readFileSync(runtimeFilePath, 'utf8')
+            runtimeContent += '\n'
+          } catch (_) {}
+
+          runtimeContent += nextRuntime || 'client'
+
+          fs.writeFileSync(runtimeFilePath, runtimeContent)
+          return config
         },
       },
       dependencies: {
@@ -32,6 +49,11 @@ describe('react 18 streaming SSR in minimal mode', () => {
   afterAll(() => {
     delete process.env.NEXT_PRIVATE_MINIMAL_MODE
     next.destroy()
+  })
+
+  it('should pass correct nextRuntime values', async () => {
+    const content = await next.readFile('runtimes.txt')
+    expect(content.split('\n').sort()).toEqual(['client', 'edge', 'nodejs'])
   })
 
   it('should generate html response by streaming correctly', async () => {
@@ -65,8 +87,15 @@ describe('react 18 streaming SSR with custom next configs', () => {
           }
         `,
         'pages/hello.js': `
+          import Link from 'next/link'
+
           export default function Page() {
-            return <p>hello nextjs</p>
+            return (
+              <div>
+                <p>hello nextjs</p>
+                <Link href='/'><a>home></a></Link>
+              </div>
+            )
           }
         `,
         'pages/multi-byte.js': `
@@ -114,6 +143,7 @@ describe('react 18 streaming SSR with custom next configs', () => {
     expect(redirectRes.status).toBe(308)
     expect(res.status).toBe(200)
     expect(html).toContain('hello nextjs')
+    expect(html).toContain('home')
   })
 
   it('should render multi-byte characters correctly in streaming', async () => {

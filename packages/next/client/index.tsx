@@ -778,7 +778,7 @@ if (process.env.__NEXT_RSC) {
       if (serialized) {
         const readable = new ReadableStream({
           start(controller) {
-            controller.enqueue(new TextEncoder().encode(serialized))
+            controller.enqueue(encoder.encode(serialized))
             controller.close()
           },
         })

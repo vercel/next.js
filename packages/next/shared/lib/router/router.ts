@@ -16,6 +16,7 @@ import {
   isAssetError,
   markAssetError,
 } from '../../../client/route-loader'
+import { handleClientScriptLoad } from '../../../client/script'
 import isError, { getProperError } from '../../../lib/is-error'
 import { denormalizePagePath } from '../../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
@@ -36,8 +37,8 @@ import { searchParamsToUrlQuery } from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
+import { getMiddlewareRegex } from './utils/get-middleware-regex'
 import { formatWithValidation } from './utils/format-url'
-import { getRoutingItems } from './utils/routing-items'
 
 declare global {
   interface Window {
@@ -125,6 +126,11 @@ function addPathPrefix(path: string, prefix?: string) {
   )
 }
 
+function hasPathPrefix(path: string, prefix: string) {
+  path = pathNoQueryHash(path)
+  return path === prefix || path.startsWith(prefix + '/')
+}
+
 export function getDomainLocale(
   path: string,
   locale?: string | false,
@@ -153,16 +159,18 @@ export function addLocale(
   defaultLocale?: string
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
-    const pathname = pathNoQueryHash(path)
-    const pathLower = pathname.toLowerCase()
-    const localeLower = locale && locale.toLowerCase()
+    if (locale && locale !== defaultLocale) {
+      const pathname = pathNoQueryHash(path)
+      const pathLower = pathname.toLowerCase()
+      const localeLower = locale.toLowerCase()
 
-    return locale &&
-      locale !== defaultLocale &&
-      !pathLower.startsWith('/' + localeLower + '/') &&
-      pathLower !== '/' + localeLower
-      ? addPathPrefix(path, '/' + locale)
-      : path
+      if (
+        !hasPathPrefix(pathLower, '/' + localeLower) &&
+        !hasPathPrefix(pathLower, '/api')
+      ) {
+        return addPathPrefix(path, '/' + locale)
+      }
+    }
   }
   return path
 }
@@ -194,8 +202,7 @@ function pathNoQueryHash(path: string) {
 }
 
 export function hasBasePath(path: string): boolean {
-  path = pathNoQueryHash(path)
-  return path === basePath || path.startsWith(basePath + '/')
+  return hasPathPrefix(path, basePath)
 }
 
 export function addBasePath(path: string): string {
@@ -1269,6 +1276,15 @@ export default class Router implements BaseRouter {
       )
       let { error, props, __N_SSG, __N_SSP } = routeInfo
 
+      const component: any = routeInfo.Component
+      if (component && component.unstable_scriptLoader) {
+        const scripts = [].concat(component.unstable_scriptLoader())
+
+        scripts.forEach((script: any) => {
+          handleClientScriptLoad(script.props)
+        })
+      }
+
       // handle redirect on client-transition
       if ((__N_SSG || __N_SSP) && props) {
         if (props.pageProps && props.pageProps.__N_REDIRECT) {
@@ -1888,27 +1904,21 @@ export default class Router implements BaseRouter {
       options.locale
     )
 
-    const middlewareList = await this.pageLoader.getMiddlewareList()
-    const middleware = middlewareList.map(([page, ssr]) => ({ page, ssr }))
-    const routingItems = getRoutingItems(options.pages, middleware)
-    let requiresPreflight = false
-    for (const item of routingItems) {
-      if (item.match(cleanedAs)) {
-        if (item.isMiddleware) {
-          requiresPreflight = true
-        }
-        break
-      }
-    }
+    const fns = await this.pageLoader.getMiddlewareList()
+    const requiresPreflight = fns.some(([middleware, isSSR]) => {
+      return getRouteMatcher(getMiddlewareRegex(middleware, !isSSR))(cleanedAs)
+    })
 
     if (!requiresPreflight) {
       return { type: 'next' }
     }
 
+    const preflightHref = addLocale(options.as, options.locale)
+
     let preflight: PreflightData | undefined
     try {
       preflight = await this._getPreflightData({
-        preflightHref: options.as,
+        preflightHref,
         shouldCache: options.cache,
         isPreview: options.isPreview,
       })

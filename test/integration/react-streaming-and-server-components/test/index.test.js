@@ -3,16 +3,17 @@
 import { join } from 'path'
 import fs from 'fs-extra'
 
-import { fetchViaHTTP, findPort, killApp, renderViaHTTP } from 'next-test-utils'
+import {
+  fetchViaHTTP,
+  renderViaHTTP,
+  nextBuild,
+  runDevSuite,
+  runProdSuite,
+} from 'next-test-utils'
 
 import {
-  nextBuild,
-  nextStart,
-  nextDev,
   appDir,
   nativeModuleTestAppDir,
-  distDir,
-  documentPage,
   appPage,
   appServerPage,
   error500Page,
@@ -24,26 +25,6 @@ import rsc from './rsc'
 import streaming from './streaming'
 import basic from './basic'
 import runtime from './runtime'
-
-const documentWithGip = `
-import { Html, Head, Main, NextScript } from 'next/document'
-
-export default function Document() {
-  return (
-    <Html>
-      <Head />
-      <body>
-        <Main />
-        <NextScript />
-      </body>
-    </Html>
-  )
-}
-
-Document.getInitialProps = (ctx) => {
-  return ctx.defaultGetInitialProps(ctx)
-}
-`
 
 const rscAppPage = `
 import Container from '../components/container.server'
@@ -72,7 +53,9 @@ describe('Edge runtime - errors', () => {
   it('should warn user that native node APIs are not supported', async () => {
     const fsImportedErrorMessage =
       'Native Node.js APIs are not supported in the Edge Runtime. Found `dns` imported.'
-    const { stderr } = await nextBuild(nativeModuleTestAppDir)
+    const { stderr } = await nextBuild(nativeModuleTestAppDir, [], {
+      stderr: true,
+    })
     expect(stderr).toContain(fsImportedErrorMessage)
   })
 })
@@ -80,6 +63,7 @@ describe('Edge runtime - errors', () => {
 const edgeRuntimeBasicSuite = {
   runTests: (context, env) => {
     const options = { runtime: 'edge', env }
+    const distDir = join(appDir, '.next')
     basic(context, options)
     streaming(context, options)
     rsc(context, options)
@@ -104,8 +88,8 @@ const edgeRuntimeBasicSuite = {
       it('should generate middleware SSR manifests for edge runtime', async () => {
         const distServerDir = join(distDir, 'server')
         const files = [
+          'edge-runtime-webpack.js',
           'middleware-build-manifest.js',
-          'middleware-ssr-runtime.js',
           'middleware-flight-manifest.js',
           'middleware-flight-manifest.json',
           'middleware-manifest.json',
@@ -158,6 +142,7 @@ const edgeRuntimeBasicSuite = {
 const nodejsRuntimeBasicSuite = {
   runTests: (context, env) => {
     const options = { runtime: 'nodejs', env }
+    const distDir = join(appDir, '.next')
     basic(context, options)
     streaming(context, options)
     rsc(context, options)
@@ -217,61 +202,13 @@ const cssSuite = {
   afterAll: () => appPage.delete(),
 }
 
-const documentSuite = {
-  runTests: (context, env) => {
-    if (env === 'dev') {
-      it('should error when custom _document has getInitialProps method', async () => {
-        const res = await fetchViaHTTP(context.appPort, '/')
-        expect(res.status).toBe(500)
-      })
-    } else {
-      it('should failed building', async () => {
-        expect(context.code).toBe(1)
-      })
-    }
-  },
-  beforeAll: () => documentPage.write(documentWithGip),
-  afterAll: () => documentPage.delete(),
-}
+runDevSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite)
+runProdSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite)
+runDevSuite('Edge runtime', appDir, edgeRuntimeBasicSuite)
+runProdSuite('Edge runtime', appDir, edgeRuntimeBasicSuite)
 
-runSuite('Node.js runtime', 'dev', nodejsRuntimeBasicSuite)
-runSuite('Node.js runtime', 'prod', nodejsRuntimeBasicSuite)
-runSuite('Edge runtime', 'dev', edgeRuntimeBasicSuite)
-runSuite('Edge runtime', 'prod', edgeRuntimeBasicSuite)
+runDevSuite('Custom App', appDir, customAppPageSuite)
+runProdSuite('Custom App', appDir, customAppPageSuite)
 
-runSuite('Custom App', 'dev', customAppPageSuite)
-runSuite('Custom App', 'prod', customAppPageSuite)
-
-runSuite('CSS', 'dev', cssSuite)
-runSuite('CSS', 'prod', cssSuite)
-
-runSuite('Custom Document', 'dev', documentSuite)
-runSuite('Custom Document', 'prod', documentSuite)
-
-function runSuite(suiteName, env, options) {
-  const context = { appDir, distDir }
-  describe(`${suiteName} ${env}`, () => {
-    beforeAll(async () => {
-      options.beforeAll?.()
-      if (env === 'prod') {
-        context.appPort = await findPort()
-        const { stdout, stderr, code } = await nextBuild(context.appDir)
-        context.stdout = stdout
-        context.stderr = stderr
-        context.code = code
-        context.server = await nextStart(context.appDir, context.appPort)
-      }
-      if (env === 'dev') {
-        context.appPort = await findPort()
-        context.server = await nextDev(context.appDir, context.appPort)
-      }
-    })
-    afterAll(async () => {
-      options.afterAll?.()
-      if (context.server) {
-        await killApp(context.server)
-      }
-    })
-    options.runTests(context, env)
-  })
-}
+runDevSuite('CSS', appDir, cssSuite)
+runProdSuite('CSS', appDir, cssSuite)

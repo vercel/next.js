@@ -439,6 +439,7 @@ For example, we can add a test to check if the `<Home />` component successfully
 
 import { render, screen } from '@testing-library/react'
 import Home from '../pages/index'
+import '@testing-library/jest-dom'
 
 describe('Home', () => {
   it('renders a heading', () => {

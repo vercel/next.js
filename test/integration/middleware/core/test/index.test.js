@@ -104,7 +104,7 @@ describe('Middleware base tests', () => {
       for (const key of Object.keys(manifest.middleware)) {
         const middleware = manifest.middleware[key]
         expect(middleware.files).toContainEqual(
-          expect.stringContaining('middleware-runtime')
+          expect.stringContaining('server/edge-runtime-webpack')
         )
         expect(middleware.files).not.toContainEqual(
           expect.stringContaining('static/chunks/')
@@ -119,6 +119,7 @@ describe('Middleware base tests', () => {
       context.app = await launchApp(context.appDir, context.appPort, {
         env: {
           MIDDLEWARE_TEST: 'asdf',
+          NEXT_RUNTIME: 'edge',
         },
       })
     })
@@ -130,8 +131,8 @@ describe('Middleware base tests', () => {
         process: {
           env: {
             MIDDLEWARE_TEST: 'asdf',
+            NEXT_RUNTIME: 'edge',
           },
-          nextTick: 'function',
         },
       })
     })
@@ -578,6 +579,14 @@ function redirectTests(locale = '') {
     await expect(
       fetchViaHTTP(context.appPort, `${locale}/redirects/infinite-loop`)
     ).rejects.toThrow()
+  })
+
+  it(`${locale} should redirect to api route with locale`, async () => {
+    const browser = await webdriver(context.appPort, `${locale}/redirects`)
+    await browser.elementByCss('#link-to-api-with-locale').click()
+    await browser.waitForCondition('window.location.pathname === "/api/ok"')
+    const body = await browser.elementByCss('body').text()
+    expect(body).toBe('ok')
   })
 }
 

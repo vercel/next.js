@@ -8,21 +8,21 @@ import a from "other";
     return function(c) {
         if (Array.isArray(c)) return c;
     }(c) || function(c, b) {
-        var g, h, a = null == c ? null : "undefined" != typeof Symbol && c[Symbol.iterator] || c["@@iterator"];
+        var d, e, a = null == c ? null : "undefined" != typeof Symbol && c[Symbol.iterator] || c["@@iterator"];
         if (null != a) {
-            var d = [], e = !0, i = !1;
+            var b = [], c = !0, f = !1;
             try {
-                for(a = a.call(c); !(e = (g = a.next()).done) && (d.push(g.value), !b || d.length !== b); e = !0);
-            } catch (j) {
-                i = !0, h = j;
+                for(a = a.call(c); !(c = (d = a.next()).done) && (b.push(d.value), !b || b.length !== b); c = !0);
+            } catch (g) {
+                f = !0, e = g;
             } finally{
                 try {
-                    e || null == a.return || a.return();
+                    c || null == a.return || a.return();
                 } finally{
-                    if (i) throw h;
+                    if (f) throw e;
                 }
             }
-            return d;
+            return b;
         }
     }(c, b) || function(a, d) {
         if (a) {

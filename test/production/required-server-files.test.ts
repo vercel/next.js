@@ -49,16 +49,29 @@ describe('should set-up next', () => {
           outputStandalone: true,
         },
         async rewrites() {
-          return [
-            {
-              source: '/some-catch-all/:path*',
-              destination: '/',
-            },
-            {
-              source: '/to-dynamic/:path',
-              destination: '/dynamic/:path',
-            },
-          ]
+          return {
+            beforeFiles: [],
+            fallback: [
+              {
+                source: '/an-ssg-path',
+                destination: '/hello.txt',
+              },
+            ],
+            afterFiles: [
+              {
+                source: '/some-catch-all/:path*',
+                destination: '/',
+              },
+              {
+                source: '/to-dynamic/post-2',
+                destination: '/dynamic/post-2?hello=world',
+              },
+              {
+                source: '/to-dynamic/:path',
+                destination: '/dynamic/:path',
+              },
+            ],
+          }
         },
       },
     })
@@ -137,7 +150,7 @@ describe('should set-up next', () => {
   it('should output middleware correctly', async () => {
     expect(
       await fs.pathExists(
-        join(next.testDir, 'standalone/.next/server/middleware-runtime.js')
+        join(next.testDir, 'standalone/.next/server/edge-runtime-webpack.js')
       )
     ).toBe(true)
     expect(
@@ -209,6 +222,49 @@ describe('should set-up next', () => {
     expect(res4.status).toBe(200)
     const { pageProps: props4 } = await res4.json()
     expect(props4.gspCalls).toBe(props3.gspCalls)
+  })
+
+  it('should cap de-dupe previousCacheItem expires time', async () => {
+    const res = await fetchViaHTTP(appPort, '/gsp-long-revalidate', undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+    const props = JSON.parse($('#props').text())
+    expect(props.gspCalls).toBeDefined()
+
+    await waitFor(1000)
+
+    const res2 = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/gsp-long-revalidate.json`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res2.status).toBe(200)
+    const { pageProps: props2 } = await res2.json()
+    expect(props2.gspCalls).not.toBe(props.gspCalls)
+  })
+
+  it('should not 404 for onlyGenerated manual revalidate in minimal mode', async () => {
+    const previewProps = JSON.parse(
+      await next.readFile('standalone/.next/prerender-manifest.json')
+    ).preview
+
+    const res = await fetchViaHTTP(
+      appPort,
+      '/optional-ssg/only-generated-1',
+      undefined,
+      {
+        headers: {
+          'x-prerender-revalidate': previewProps.previewModeId,
+          'x-prerender-revalidate-if-generated': '1',
+        },
+      }
+    )
+    expect(res.status).toBe(200)
   })
 
   it('should set correct SWR headers with notFound gsp', async () => {
@@ -624,6 +680,45 @@ describe('should set-up next', () => {
     expect(await res.text()).toContain('Bad Request')
   })
 
+  it('should have correct resolvedUrl from rewrite', async () => {
+    const res = await fetchViaHTTP(appPort, '/to-dynamic/post-1', undefined, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]',
+      },
+    })
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+    expect($('#resolved-url').text()).toBe('/dynamic/post-1')
+  })
+
+  it('should have correct resolvedUrl from rewrite with added query', async () => {
+    const res = await fetchViaHTTP(appPort, '/to-dynamic/post-2', undefined, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]',
+      },
+    })
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+    expect($('#resolved-url').text()).toBe('/dynamic/post-2')
+    expect(JSON.parse($('#router').text()).asPath).toBe('/to-dynamic/post-2')
+  })
+
+  it('should have correct resolvedUrl from dynamic route', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/dynamic/post-2.json`,
+      { slug: 'post-2' },
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.pageProps.resolvedUrl).toBe('/dynamic/post-2')
+  })
+
   it('should bubble error correctly for gip page', async () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
@@ -789,6 +884,20 @@ describe('should set-up next', () => {
     const html = await res.text()
     const $ = cheerio.load(html)
     expect($('#slug-page').text()).toBe('[slug] page')
+  })
+
+  it('should have correct asPath on dynamic SSG page correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/an-ssg-path', undefined, {
+      headers: {
+        'x-matched-path': '/[slug]',
+      },
+      redirect: 'manual',
+    })
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#slug-page').text()).toBe('[slug] page')
+    expect(JSON.parse($('#router').text()).asPath).toBe('/an-ssg-path')
   })
 
   it('should copy and read .env file', async () => {
