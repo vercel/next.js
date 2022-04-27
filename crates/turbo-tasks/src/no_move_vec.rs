@@ -7,15 +7,10 @@ use std::{
     },
 };
 
-pub const fn buckets<const INITIAL_CAPACITY_BITS: u32>() -> usize {
-    (usize::BITS + 1 - INITIAL_CAPACITY_BITS) as usize
-}
+const BUCKETS: usize = (usize::BITS + 1) as usize;
 
-pub struct NoMoveVec<T, const INITIAL_CAPACITY_BITS: u32 = 6>
-where
-    [(); buckets::<INITIAL_CAPACITY_BITS>()]:,
-{
-    buckets: [(AtomicPtr<Option<T>>, Mutex<()>); buckets::<INITIAL_CAPACITY_BITS>()],
+pub struct NoMoveVec<T, const INITIAL_CAPACITY_BITS: u32 = 6> {
+    buckets: [(AtomicPtr<Option<T>>, Mutex<()>); BUCKETS],
 }
 
 fn get_bucket_index<const INITIAL_CAPACITY_BITS: u32>(idx: usize) -> u32 {
@@ -38,12 +33,9 @@ fn get_index_in_bucket<const INITIAL_CAPACITY_BITS: u32>(idx: usize, bucket_inde
     }
 }
 
-impl<T, const INITIAL_CAPACITY_BITS: u32> NoMoveVec<T, INITIAL_CAPACITY_BITS>
-where
-    [(); buckets::<INITIAL_CAPACITY_BITS>()]:,
-{
+impl<T, const INITIAL_CAPACITY_BITS: u32> NoMoveVec<T, INITIAL_CAPACITY_BITS> {
     pub fn new() -> Self {
-        let mut buckets = [null_mut(); buckets::<INITIAL_CAPACITY_BITS>()];
+        let mut buckets = [null_mut(); BUCKETS];
         buckets[0] = {
             let size = get_bucket_size::<INITIAL_CAPACITY_BITS>(0);
             let boxed_slice = (0..size).map(|_| None as Option<T>).collect();
@@ -119,17 +111,16 @@ where
     }
 }
 
-impl<T, const INITIAL_CAPACITY_BITS: u32> Drop for NoMoveVec<T, INITIAL_CAPACITY_BITS>
-where
-    [(); buckets::<INITIAL_CAPACITY_BITS>()]:,
-{
+impl<T, const INITIAL_CAPACITY_BITS: u32> Drop for NoMoveVec<T, INITIAL_CAPACITY_BITS> {
     fn drop(&mut self) {
         for (bucket_index, (bucket, _)) in self.buckets.iter_mut().enumerate() {
-            let bucket_size = get_bucket_size::<INITIAL_CAPACITY_BITS>(bucket_index as u32);
-            let bucket_ptr = *bucket.get_mut();
+            if bucket_index < (usize::BITS + 1 - INITIAL_CAPACITY_BITS) as usize {
+                let bucket_size = get_bucket_size::<INITIAL_CAPACITY_BITS>(bucket_index as u32);
+                let bucket_ptr = *bucket.get_mut();
 
-            if !bucket_ptr.is_null() {
-                drop(unsafe { Box::from_raw(from_raw_parts_mut(bucket_ptr, bucket_size)) });
+                if !bucket_ptr.is_null() {
+                    drop(unsafe { Box::from_raw(from_raw_parts_mut(bucket_ptr, bucket_size)) });
+                }
             }
         }
     }

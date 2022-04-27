@@ -21,3 +21,6 @@ json = "0.12.4"
 [dev-dependencies]
 sha2 = "0.10.2"
 rstest = "0.12.0"
+
+[build-dependencies]
+"turbo-tasks-build" = { path = "../turbo-tasks-build" }

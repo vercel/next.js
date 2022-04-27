@@ -4,15 +4,22 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 
 use crate::{
+    id::ValueTypeId,
+    registry,
     task::{match_previous_node_by_key, match_previous_node_by_type},
     trace::{TraceRawVcs, TraceRawVcsContext},
-    RawVc, RawVcReadResult, SlotValueType, TaskInput, TurboTasks,
+    RawVc, RawVcReadResult, TaskInput, TurboTasks, ValueType,
 };
 
 #[derive(PartialEq, Eq, Clone)]
 pub struct Vc<T: Any + TraceRawVcs + Send + Sync> {
     node: RawVc,
     phantom_data: PhantomData<T>,
+}
+
+lazy_static! {
+    pub(crate) static ref VALUE_TYPE: ValueType = ValueType::new("generic vc".to_string());
+    static ref VALUE_TYPE_ID: ValueTypeId = registry::get_value_type_id(&VALUE_TYPE);
 }
 
 impl<T: Any + TraceRawVcs + Send + Sync> Vc<T> {
@@ -26,15 +33,6 @@ impl<T: Any + TraceRawVcs + Send + Sync> Vc<T> {
             phantom_data: PhantomData,
         })
     }
-
-    fn value_type() -> &'static SlotValueType {
-        // TODO create unique value type per T
-        lazy_static! {
-            static ref VALUE_TYPE: SlotValueType =
-                SlotValueType::new("generic promise".to_string());
-        }
-        &*VALUE_TYPE
-    }
 }
 
 impl<T: Any + PartialEq + Eq + TraceRawVcs + Send + Sync> Vc<T> {
@@ -47,7 +45,7 @@ impl<T: Any + PartialEq + Eq + TraceRawVcs + Send + Sync> Vc<T> {
     pub fn slot(content: T) -> Self {
         Self {
             node: match_previous_node_by_type::<T, _>(|__slot| {
-                __slot.compare_and_update_shared(&Self::value_type(), content);
+                __slot.compare_and_update_shared(*VALUE_TYPE_ID, content);
             }),
             phantom_data: PhantomData,
         }
@@ -68,7 +66,7 @@ impl<
     pub fn keyed_slot(key: T, content: T) -> Self {
         Self {
             node: match_previous_node_by_key::<T, T, _>(key, |__slot| {
-                __slot.compare_and_update_shared(&Self::value_type(), content);
+                __slot.compare_and_update_shared(*VALUE_TYPE_ID, content);
             }),
             phantom_data: PhantomData,
         }
@@ -85,7 +83,7 @@ impl<T: Any + TraceRawVcs + Send + Sync> Vc<T> {
     pub fn slot_new(content: T) -> Self {
         Self {
             node: match_previous_node_by_type::<T, _>(|__slot| {
-                __slot.update_shared(&Self::value_type(), content);
+                __slot.update_shared(*VALUE_TYPE_ID, content);
             }),
             phantom_data: PhantomData,
         }
@@ -96,7 +94,7 @@ impl<T: Any + Default + PartialEq + Eq + TraceRawVcs + Send + Sync> Vc<T> {
     pub fn default() -> Self {
         Self {
             node: match_previous_node_by_type::<T, _>(|__slot| {
-                __slot.compare_and_update_shared(&Self::value_type(), T::default());
+                __slot.compare_and_update_shared(*VALUE_TYPE_ID, T::default());
             }),
             phantom_data: PhantomData,
         }

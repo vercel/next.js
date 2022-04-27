@@ -7,9 +7,11 @@ use std::{
 };
 
 use crate::{
+    id::ValueTypeId,
     raw_vc::{RawVc, RawVcReadResult},
+    registry,
     task_input::SharedReference,
-    SlotValueType, TaskId, TurboTasks,
+    TaskId, TurboTasks,
 };
 
 #[derive(Default, Debug)]
@@ -22,7 +24,7 @@ pub struct Slot {
 #[derive(Clone, Debug)]
 pub enum SlotContent {
     Empty,
-    SharedReference(&'static SlotValueType, Arc<dyn Any + Send + Sync>),
+    SharedReference(ValueTypeId, Arc<dyn Any + Send + Sync>),
 }
 
 impl Default for SlotContent {
@@ -35,7 +37,9 @@ impl Display for SlotContent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SlotContent::Empty => write!(f, "empty"),
-            SlotContent::SharedReference(ty, _) => write!(f, "shared {}", ty.name),
+            SlotContent::SharedReference(ty, _) => {
+                write!(f, "shared {}", registry::get_value(*ty).name)
+            }
         }
     }
 }
@@ -54,7 +58,7 @@ impl Slot {
         F: FnOnce(Option<&T>) -> Option<T>,
     >(
         &mut self,
-        ty: &'static SlotValueType,
+        ty: ValueTypeId,
         functor: F,
     ) {
         let change;
@@ -84,7 +88,7 @@ impl Slot {
 
     pub fn compare_and_update_shared<T: PartialEq + Send + Sync + 'static>(
         &mut self,
-        ty: &'static SlotValueType,
+        ty: ValueTypeId,
         new_content: T,
     ) {
         self.conditional_update_shared(ty, |old_content| {
@@ -97,11 +101,7 @@ impl Slot {
         });
     }
 
-    pub fn update_shared<T: Send + Sync + 'static>(
-        &mut self,
-        ty: &'static SlotValueType,
-        new_content: T,
-    ) {
+    pub fn update_shared<T: Send + Sync + 'static>(&mut self, ty: ValueTypeId, new_content: T) {
         self.assign(SlotContent::SharedReference(ty, Arc::new(new_content)))
     }
 
@@ -122,11 +122,11 @@ impl Slot {
         }
     }
 
-    pub fn resolve(&mut self, reader: TaskId) -> Option<(&'static SlotValueType, SharedReference)> {
+    pub fn resolve(&mut self, reader: TaskId) -> Option<(ValueTypeId, SharedReference)> {
         self.dependent_tasks.insert(reader);
         match &self.content {
             SlotContent::Empty => None,
-            SlotContent::SharedReference(ty, data) => Some((ty, SharedReference(data.clone()))),
+            SlotContent::SharedReference(ty, data) => Some((*ty, SharedReference(data.clone()))),
         }
     }
 

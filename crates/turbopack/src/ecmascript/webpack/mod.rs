@@ -18,7 +18,7 @@ use self::{
 use super::resolve::apply_cjs_specific_options;
 
 pub mod parse;
-mod references;
+pub(crate) mod references;
 
 #[turbo_tasks::value(Asset)]
 #[derive(PartialEq, Eq)]

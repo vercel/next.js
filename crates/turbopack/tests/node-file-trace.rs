@@ -14,7 +14,8 @@ use rstest::*;
 use turbo_tasks::{TurboTasks, ValueToString};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 use turbopack::{
-    asset::Asset, emit_with_completion, module, rebase::RebasedAssetVc, source_asset::SourceAssetVc,
+    asset::Asset, emit_with_completion, module, rebase::RebasedAssetVc, register,
+    source_asset::SourceAssetVc,
 };
 
 #[rstest]
@@ -116,6 +117,11 @@ use turbopack::{
 #[case::ts_package_extends("integration/ts-package-extends/index.ts", true)]
 #[case::ts_package_from_js("integration/ts-package-from-js/index.js", true)]
 fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
+    register();
+    COMMANDOUTPUT_VALUE_TYPE.register("test::CommandOutput");
+    EXEC_NODE_FUNCTION.register("test::exec_node");
+    ASSERT_OUTPUT_FUNCTION.register("test::assert_output");
+
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let mut tests_root = package_root.clone();
     tests_root.push("tests");
@@ -158,7 +164,7 @@ fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
 
             let output = exec_node(directory.clone(), output_path);
 
-            let output = asset_output(original_output, output);
+            let output = assert_output(original_output, output);
 
             Ok(output.await?)
         }),
@@ -305,7 +311,7 @@ fn diff(expected: &str, actual: &str) -> String {
 }
 
 #[turbo_tasks::function]
-async fn asset_output(
+async fn assert_output(
     expected: CommandOutputVc,
     actual: CommandOutputVc,
 ) -> Result<CommandOutputVc> {

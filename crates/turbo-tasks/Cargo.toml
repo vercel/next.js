@@ -20,6 +20,9 @@ lazy_static = "1.4.0"
 "weak-table" = "0.3.2"
 mopa = "0.2.0"
 
+[build-dependencies]
+"turbo-tasks-build" = { path = "../turbo-tasks-build" }
+
 [features]
 assert_task_state = []
 report_expensive = []

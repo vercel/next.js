@@ -301,7 +301,7 @@ impl FileSystem for DiskFileSystem {
             .await
         {
             Ok(content) => FileContent::new(content),
-            Err(_) => FileContent::not_found(),
+            Err(_) => FileContent::NotFound,
         }
         .into())
     }
@@ -665,9 +665,7 @@ pub enum FileContent {
     NotFound,
 }
 
-#[turbo_tasks::value_impl]
 impl FileContent {
-    #[turbo_tasks::constructor(compare_enum: Content)]
     pub fn new(buffer: Vec<u8>) -> Self {
         FileContent::Content(buffer)
     }
@@ -677,11 +675,6 @@ impl FileContent {
             FileContent::Content(buf) => buf == buffer,
             _ => false,
         }
-    }
-
-    #[turbo_tasks::constructor(compare_enum: NotFound)]
-    pub fn not_found() -> Self {
-        FileContent::NotFound
     }
 
     pub fn parse_json(&self) -> FileJsonContent {
@@ -897,4 +890,8 @@ impl FileSystem for NullFileSystem {
     fn to_string(&self) -> Vc<String> {
         Vc::slot(String::from("null"))
     }
+}
+
+pub fn register() {
+    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

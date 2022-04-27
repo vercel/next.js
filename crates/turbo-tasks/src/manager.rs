@@ -19,16 +19,22 @@ use event_listener::Event;
 use flurry::{Guard, HashMap as FHashMap};
 
 use crate::{
-    no_move_vec::NoMoveVec, raw_vc::RawVc, task::NativeTaskFuture, task_input::TaskInput,
-    trace::TraceRawVcs, NativeFunction, Task, TaskId, TraitType, Vc,
+    id::{FunctionId, TraitTypeId},
+    id_factory::IdFactory,
+    no_move_vec::NoMoveVec,
+    raw_vc::RawVc,
+    task::NativeTaskFuture,
+    task_input::TaskInput,
+    trace::TraceRawVcs,
+    Task, TaskId, Vc,
 };
 
 pub struct TurboTasks {
-    next_task_id: AtomicUsize,
+    task_id_factory: IdFactory<TaskId>,
     memory_tasks: NoMoveVec<Task, 13>,
-    resolve_task_cache: FHashMap<(&'static NativeFunction, Vec<TaskInput>), TaskId>,
-    native_task_cache: FHashMap<(&'static NativeFunction, Vec<TaskInput>), TaskId>,
-    trait_task_cache: FHashMap<(&'static TraitType, String, Vec<TaskInput>), TaskId>,
+    resolve_task_cache: FHashMap<(FunctionId, Vec<TaskInput>), TaskId>,
+    native_task_cache: FHashMap<(FunctionId, Vec<TaskInput>), TaskId>,
+    trait_task_cache: FHashMap<(TraitTypeId, String, Vec<TaskInput>), TaskId>,
     currently_scheduled_tasks: AtomicUsize,
     scheduled_tasks: AtomicUsize,
     start: Mutex<Option<Instant>>,
@@ -55,7 +61,7 @@ impl TurboTasks {
     // when trying to drop turbo tasks
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
-            next_task_id: AtomicUsize::new(1),
+            task_id_factory: IdFactory::new(),
             memory_tasks: NoMoveVec::new(),
             resolve_task_cache: FHashMap::new(),
             native_task_cache: FHashMap::new(),
@@ -68,22 +74,16 @@ impl TurboTasks {
         })
     }
 
-    fn get_free_task_id(&self) -> TaskId {
-        TaskId {
-            id: self.next_task_id.fetch_add(1, Ordering::Relaxed),
-        }
-    }
-
     /// Creates a new root task
     pub fn spawn_root_task(
         self: &Arc<Self>,
         functor: impl Fn() -> NativeTaskFuture + Sync + Send + 'static,
     ) -> TaskId {
-        let id = self.get_free_task_id();
+        let id = self.task_id_factory.get();
         let task = Task::new_root(id, functor);
         // SAFETY: We have a fresh task id where nobody knows about yet
         unsafe {
-            self.memory_tasks.insert(id.id, task);
+            self.memory_tasks.insert(*id, task);
         }
         self.clone().schedule(id);
         id
@@ -96,11 +96,11 @@ impl TurboTasks {
         self: &Arc<Self>,
         future: impl Future<Output = Result<RawVc>> + Send + 'static,
     ) -> TaskId {
-        let id = self.get_free_task_id();
+        let id = self.task_id_factory.get();
         let task = Task::new_once(id, future);
         // SAFETY: We have a fresh task id where nobody knows about yet
         unsafe {
-            self.memory_tasks.insert(id.id, task);
+            self.memory_tasks.insert(*id, task);
         }
         self.clone().schedule(id);
         id
@@ -142,11 +142,11 @@ impl TurboTasks {
             RawVc::TaskOutput(task)
         } else {
             // slow pass with key lock
-            let id = self.get_free_task_id();
+            let id = self.task_id_factory.get();
             let new_task = create_new(id);
             // SAFETY: We have a fresh task id where nobody knows about yet
             unsafe {
-                self.memory_tasks.insert(id.id, new_task);
+                self.memory_tasks.insert(*id, new_task);
             }
             let result_task = match map.try_insert(key, id) {
                 Ok(_) => {
@@ -156,9 +156,9 @@ impl TurboTasks {
                 Err(r) => {
                     // SAFETY: We have a fresh task id where nobody knows about yet
                     unsafe {
-                        self.memory_tasks.remove(id.id);
+                        self.memory_tasks.remove(*id);
+                        self.task_id_factory.reuse(id);
                     }
-                    // TODO give id back to the free list
                     *r.current
                 }
             };
@@ -173,11 +173,7 @@ impl TurboTasks {
 
     /// Call a native function with arguments.
     /// All inputs must be resolved.
-    pub(crate) fn native_call(
-        self: &Arc<Self>,
-        func: &'static NativeFunction,
-        inputs: Vec<TaskInput>,
-    ) -> RawVc {
+    pub(crate) fn native_call(self: &Arc<Self>, func: FunctionId, inputs: Vec<TaskInput>) -> RawVc {
         debug_assert!(inputs.iter().all(|i| i.is_resolved() && !i.is_nothing()));
         self.cached_call(&self.native_task_cache, (func, inputs.clone()), |id| {
             Task::new_native(id, inputs, func)
@@ -186,11 +182,7 @@ impl TurboTasks {
 
     /// Calls a native function with arguments. Resolves arguments when needed
     /// with a wrapper [Task].
-    pub fn dynamic_call(
-        self: &Arc<Self>,
-        func: &'static NativeFunction,
-        inputs: Vec<TaskInput>,
-    ) -> RawVc {
+    pub fn dynamic_call(self: &Arc<Self>, func: FunctionId, inputs: Vec<TaskInput>) -> RawVc {
         if inputs.iter().all(|i| i.is_resolved() && !i.is_nothing()) {
             self.native_call(func, inputs)
         } else {
@@ -204,7 +196,7 @@ impl TurboTasks {
     /// Uses a wrapper task to resolve
     pub fn trait_call(
         self: &Arc<Self>,
-        trait_type: &'static TraitType,
+        trait_type: TraitTypeId,
         trait_fn_name: String,
         inputs: Vec<TaskInput>,
     ) -> RawVc {
@@ -290,7 +282,7 @@ impl TurboTasks {
     }
 
     pub(crate) fn with_task_and_tt<T>(&self, id: TaskId, func: impl FnOnce(&Task) -> T) -> T {
-        func(&self.memory_tasks.get(id.id).unwrap())
+        func(&self.memory_tasks.get(*id).unwrap())
     }
 
     pub(crate) fn schedule_background_job(
@@ -371,20 +363,16 @@ impl TurboTasks {
             .values(guard)
             .chain(self.native_task_cache.values(guard))
             .chain(self.trait_task_cache.values(guard))
-            .filter_map(|task| self.memory_tasks.get(task.id))
+            .filter_map(|task| self.memory_tasks.get(**task))
     }
 }
 
 /// see [TurboTasks] `dynamic_call`
-pub fn dynamic_call(func: &'static NativeFunction, inputs: Vec<TaskInput>) -> RawVc {
+pub fn dynamic_call(func: FunctionId, inputs: Vec<TaskInput>) -> RawVc {
     TurboTasks::with_current(|tt| tt.dynamic_call(func, inputs))
 }
 
 /// see [TurboTasks] `trait_call`
-pub fn trait_call(
-    trait_type: &'static TraitType,
-    trait_fn_name: String,
-    inputs: Vec<TaskInput>,
-) -> RawVc {
+pub fn trait_call(trait_type: TraitTypeId, trait_fn_name: String, inputs: Vec<TaskInput>) -> RawVc {
     TurboTasks::with_current(|tt| tt.trait_call(trait_type, trait_fn_name, inputs))
 }

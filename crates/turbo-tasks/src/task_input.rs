@@ -11,8 +11,12 @@ use any_key::AnyHash;
 use anyhow::{anyhow, Result};
 
 use crate::{
-    magic_any::MagicAny, util::try_join_all, value::Value, NativeFunction, RawVc, SlotValueType,
-    Task, TaskId, TraitType, TurboTasks,
+    id::{FunctionId, TraitTypeId},
+    magic_any::MagicAny,
+    registry,
+    util::try_join_all,
+    value::Value,
+    RawVc, Task, TaskId, TraitType, TurboTasks, ValueTypeId,
 };
 
 #[derive(Clone)]
@@ -62,7 +66,7 @@ pub enum TaskInput {
     U32(u32),
     Nothing,
     SharedValue(Arc<dyn MagicAny>),
-    SharedReference(&'static SlotValueType, SharedReference),
+    SharedReference(ValueTypeId, SharedReference),
 }
 
 impl TaskInput {
@@ -130,28 +134,27 @@ impl TaskInput {
         }
     }
 
-    pub fn get_trait_method(
-        &self,
-        trait_type: &'static TraitType,
-        name: String,
-    ) -> Option<&'static NativeFunction> {
+    pub fn get_trait_method(&self, trait_type: TraitTypeId, name: String) -> Option<FunctionId> {
         match self {
             TaskInput::TaskOutput(_) | TaskInput::TaskCreated(_, _) => {
                 panic!("get_trait_method must be called on a resolved TaskInput")
             }
-            TaskInput::SharedReference(ty, _) => {
-                ty.trait_methods.get(&(trait_type, name)).map(|r| *r)
-            }
+            TaskInput::SharedReference(ty, _) => registry::get_value(*ty)
+                .trait_methods
+                .get(&(trait_type, name))
+                .map(|r| *r),
             _ => None,
         }
     }
 
-    pub fn has_trait(&self, trait_type: &'static TraitType) -> bool {
+    pub fn has_trait(&self, trait_type: TraitTypeId) -> bool {
         match self {
             TaskInput::TaskOutput(_) | TaskInput::TaskCreated(_, _) => {
                 panic!("has_trait() must be called on a resolved TaskInput")
             }
-            TaskInput::SharedReference(ty, _) => ty.traits.contains(&trait_type),
+            TaskInput::SharedReference(ty, _) => {
+                registry::get_value(*ty).traits.contains(&trait_type)
+            }
             _ => false,
         }
     }
@@ -161,7 +164,11 @@ impl TaskInput {
             TaskInput::TaskOutput(_) | TaskInput::TaskCreated(_, _) => {
                 panic!("traits() must be called on a resolved TaskInput")
             }
-            TaskInput::SharedReference(ty, _) => ty.traits.iter().map(|t| *t).collect(),
+            TaskInput::SharedReference(ty, _) => registry::get_value(*ty)
+                .traits
+                .iter()
+                .map(|t| registry::get_trait(*t))
+                .collect(),
             _ => Vec::new(),
         }
     }
@@ -232,7 +239,9 @@ impl Display for TaskInput {
             TaskInput::U32(v) => write!(f, "u32 {}", v),
             TaskInput::Nothing => write!(f, "nothing"),
             TaskInput::SharedValue(_) => write!(f, "any value"),
-            TaskInput::SharedReference(ty, _) => write!(f, "shared reference {}", ty.name),
+            TaskInput::SharedReference(ty, _) => {
+                write!(f, "shared reference {}", registry::get_value(*ty).name)
+            }
         }
     }
 }

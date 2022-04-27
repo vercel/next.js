@@ -1,6 +1,12 @@
 use crate::{
-    output::Output, raw_vc::RawVc, slot::Slot, stats, task_input::TaskInput, NativeFunction,
-    TaskId, TraitType, TurboTasks,
+    id::{FunctionId, TraitTypeId},
+    output::Output,
+    raw_vc::RawVc,
+    registry,
+    slot::Slot,
+    stats,
+    task_input::TaskInput,
+    TaskId, TurboTasks,
 };
 use any_key::AnyHash;
 use anyhow::{anyhow, Result};
@@ -57,17 +63,17 @@ enum TaskType {
     Once(Mutex<Option<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>>),
 
     /// A normal task execution a native (rust) function
-    Native(&'static NativeFunction, NativeTaskFn),
+    Native(FunctionId, NativeTaskFn),
 
     /// A resolve task, which resolves arguments and calls the function with
     /// resolve arguments. The inner function call will do a cache lookup.
-    ResolveNative(&'static NativeFunction),
+    ResolveNative(FunctionId),
 
     /// A trait method resolve task. It resolves the first (`self`) argument and
     /// looks up the trait method on that value. Then it calls that method.
     /// The method call will do a cache lookup and might resolve arguments
     /// before.
-    ResolveTrait(&'static TraitType, String),
+    ResolveTrait(TraitTypeId, String),
 }
 
 impl Debug for TaskType {
@@ -75,14 +81,17 @@ impl Debug for TaskType {
         match self {
             Self::Root(..) => f.debug_tuple("Root").finish(),
             Self::Once(..) => f.debug_tuple("Once").finish(),
-            Self::Native(native_fn, _) => f.debug_tuple("Native").field(&native_fn.name).finish(),
+            Self::Native(native_fn, _) => f
+                .debug_tuple("Native")
+                .field(&registry::get_function(*native_fn).name)
+                .finish(),
             Self::ResolveNative(native_fn) => f
                 .debug_tuple("ResolveNative")
-                .field(&native_fn.name)
+                .field(&registry::get_function(*native_fn).name)
                 .finish(),
             Self::ResolveTrait(trait_type, name) => f
                 .debug_tuple("ResolveTrait")
-                .field(&trait_type.name)
+                .field(&registry::get_trait(*trait_type).name)
                 .field(name)
                 .finish(),
         }
@@ -204,12 +213,8 @@ impl Default for TaskStateType {
 use TaskStateType::*;
 
 impl Task {
-    pub(crate) fn new_native(
-        id: TaskId,
-        inputs: Vec<TaskInput>,
-        native_fn: &'static NativeFunction,
-    ) -> Self {
-        let bound_fn = native_fn.bind(&inputs);
+    pub(crate) fn new_native(id: TaskId, inputs: Vec<TaskInput>, native_fn: FunctionId) -> Self {
+        let bound_fn = registry::get_function(native_fn).bind(&inputs);
         Self {
             id,
             inputs,
@@ -223,7 +228,7 @@ impl Task {
     pub(crate) fn new_resolve_native(
         id: TaskId,
         inputs: Vec<TaskInput>,
-        native_fn: &'static NativeFunction,
+        native_fn: FunctionId,
     ) -> Self {
         Self {
             id,
@@ -237,7 +242,7 @@ impl Task {
 
     pub(crate) fn new_resolve_trait(
         id: TaskId,
-        trait_type: &'static TraitType,
+        trait_type: TraitTypeId,
         trait_fn_name: String,
         inputs: Vec<TaskInput>,
     ) -> Self {
@@ -740,9 +745,9 @@ impl Task {
         match &self.ty {
             TaskType::Root(_) => stats::TaskType::Root(self.id),
             TaskType::Once(_) => stats::TaskType::Once(self.id),
-            TaskType::Native(f, _) => stats::TaskType::Native(f),
-            TaskType::ResolveNative(f) => stats::TaskType::ResolveNative(f),
-            TaskType::ResolveTrait(t, n) => stats::TaskType::ResolveTrait(t, n.to_string()),
+            TaskType::Native(f, _) => stats::TaskType::Native(*f),
+            TaskType::ResolveNative(f) => stats::TaskType::ResolveNative(*f),
+            TaskType::ResolveTrait(t, n) => stats::TaskType::ResolveTrait(*t, n.to_string()),
         }
     }
 
@@ -869,10 +874,15 @@ impl Display for Task {
             match &self.ty {
                 TaskType::Root(..) => "root".to_string(),
                 TaskType::Once(..) => "once".to_string(),
-                TaskType::Native(native_fn, _) => native_fn.name.clone(),
-                TaskType::ResolveNative(native_fn) => format!("[resolve] {}", native_fn.name),
+                TaskType::Native(native_fn, _) => registry::get_function(*native_fn).name.clone(),
+                TaskType::ResolveNative(native_fn) =>
+                    format!("[resolve] {}", registry::get_function(*native_fn).name),
                 TaskType::ResolveTrait(trait_type, fn_name) => {
-                    format!("[resolve trait] {} in trait {}", fn_name, trait_type.name)
+                    format!(
+                        "[resolve trait] {} in trait {}",
+                        fn_name,
+                        registry::get_trait(*trait_type).name
+                    )
                 }
             },
             Task::state_string(&state)

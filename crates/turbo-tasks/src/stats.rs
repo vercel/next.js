@@ -5,15 +5,18 @@ use std::{
     mem::take,
 };
 
-use crate::{NativeFunction, Task, TaskId, TraitType, TurboTasks};
+use crate::{
+    id::{FunctionId, TraitTypeId},
+    registry, Task, TaskId, TurboTasks,
+};
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum TaskType {
     Root(TaskId),
     Once(TaskId),
-    Native(&'static NativeFunction),
-    ResolveNative(&'static NativeFunction),
-    ResolveTrait(&'static TraitType, String),
+    Native(FunctionId),
+    ResolveNative(FunctionId),
+    ResolveTrait(TraitTypeId, String),
 }
 
 impl Display for TaskType {
@@ -21,9 +24,13 @@ impl Display for TaskType {
         match self {
             TaskType::Root(_) => write!(f, "root"),
             TaskType::Once(_) => write!(f, "once"),
-            TaskType::Native(nf) => write!(f, "{}", nf.name),
-            TaskType::ResolveNative(nf) => write!(f, "resolve {}", nf.name),
-            TaskType::ResolveTrait(t, n) => write!(f, "resolve trait {} :: {}", t.name, n),
+            TaskType::Native(nf) => write!(f, "{}", registry::get_function(*nf).name),
+            TaskType::ResolveNative(nf) => {
+                write!(f, "resolve {}", registry::get_function(*nf).name)
+            }
+            TaskType::ResolveTrait(t, n) => {
+                write!(f, "resolve trait {} :: {}", registry::get_trait(*t).name, n)
+            }
         }
     }
 }
