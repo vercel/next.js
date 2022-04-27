@@ -180,7 +180,7 @@ Allows [passing CSS styles](https://reactjs.org/docs/dom-elements.html#style) to
 
 Note that all `layout` modes other than `"raw"`[\*](#experimental-raw-layout-mode) apply their own styles to the image element, and these automatic styles take precedence over the `style` prop.
 
-Also keep in mind that the required `height` and `width` props can interact with your styling. If you use styling to modify an image's `width`, you must set the `height="auto"` style as well, or your image will be distorted.
+Also keep in mind that the required `width` and `height` props can interact with your styling. If you use styling to modify an image's `width`, you must set the `height="auto"` style as well, or your image will be distorted.
 
 ### objectFit
 
