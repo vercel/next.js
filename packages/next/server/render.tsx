@@ -55,8 +55,7 @@ import {
   loadGetInitialProps,
 } from '../shared/lib/utils'
 import { HtmlContext } from '../shared/lib/html-context'
-import { denormalizePagePath } from './denormalize-page-path'
-import { normalizePagePath } from './normalize-page-path'
+import { normalizePagePath, denormalizePagePath } from './page-path-utils'
 import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
 import {
   allowedStatusCodes,

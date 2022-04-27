@@ -18,7 +18,7 @@ import {
 } from '../../../client/route-loader'
 import { handleClientScriptLoad } from '../../../client/script'
 import isError, { getProperError } from '../../../lib/is-error'
-import { denormalizePagePath } from '../../../server/denormalize-page-path'
+import { denormalizePagePath } from '../../../server/page-path-utils'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt from '../mitt'
 import {

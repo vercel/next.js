@@ -7,7 +7,7 @@ import {
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
 } from '../shared/lib/constants'
-import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
+import { normalizePagePath, denormalizePagePath } from './page-path-utils'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'

@@ -25,7 +25,7 @@ import onDemandEntryHandler, {
   entries,
   BUILDING,
 } from './on-demand-entry-handler'
-import { denormalizePagePath, normalizePathSep } from '../normalize-page-path'
+import { denormalizePagePath, normalizePathSep } from '../page-path-utils'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { fileExists } from '../../lib/file-exists'
 import { ssrEntries } from '../../build/webpack/plugins/middleware-plugin'

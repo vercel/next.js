@@ -29,7 +29,7 @@ import { GetStaticPaths, PageConfig } from 'next/types'
 import {
   denormalizePagePath,
   normalizePagePath,
-} from '../server/normalize-page-path'
+} from '../server/page-path-utils'
 import { BuildManifest } from '../server/get-page-files'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { UnwrapPromise } from '../lib/coalesced-function'

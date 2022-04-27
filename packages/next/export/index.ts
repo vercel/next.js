@@ -37,7 +37,7 @@ import { Telemetry } from '../telemetry/storage'
 import {
   normalizePagePath,
   denormalizePagePath,
-} from '../server/normalize-page-path'
+} from '../server/page-path-utils'
 import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'

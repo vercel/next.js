@@ -2,7 +2,7 @@ import { join, sep as pathSeparator, normalize } from 'path'
 import chalk from '../../lib/chalk'
 import { warn } from '../../build/output/log'
 import { promises } from 'fs'
-import { denormalizePagePath } from '../normalize-page-path'
+import { denormalizePagePath } from '../page-path-utils'
 import { fileExists } from '../../lib/file-exists'
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
