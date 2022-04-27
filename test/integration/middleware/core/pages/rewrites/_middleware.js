@@ -54,7 +54,7 @@ export async function middleware(request) {
   }
 
   if (url.pathname === '/rewrites/rewrite-me-to-vercel') {
-    return NextResponse.rewrite('https://vercel.com')
+    return NextResponse.rewrite('https://example.vercel.sh')
   }
 
   if (url.pathname === '/rewrites/clear-query-params') {

@@ -474,12 +474,9 @@ function rewriteTests(log, locale = '') {
       `${locale}/rewrites/rewrite-me-to-vercel`
     )
     const html = await res.text()
-    const $ = cheerio.load(html)
     // const browser = await webdriver(context.appPort, '/rewrite-me-to-vercel')
     // TODO: running this to chech the window.location.pathname hangs for some reason;
-    expect($('head > title').text()).toBe(
-      'Develop. Preview. Ship. For the best frontend teams – Vercel'
-    )
+    expect(html).toContain('Example Domain')
   })
 
   it(`${locale} should rewrite without hard navigation`, async () => {
