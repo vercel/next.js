@@ -10,7 +10,7 @@ use swc_common::errors::{Handler, HANDLER};
 use swc_common::input::StringInput;
 use swc_common::sync::Lrc;
 use swc_common::{FileName, Globals, Mark, SourceMap, GLOBALS};
-use swc_ecma_transforms_base::resolver::resolver_with_mark;
+use swc_ecma_transforms_base::resolver;
 use swc_ecmascript::ast::{EsVersion, Program};
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, Parser, Syntax, TsConfig};
@@ -139,7 +139,6 @@ pub async fn parse(source: AssetVc, ty: Value<ModuleAssetType>) -> Result<ParseR
                                 decorators_before_export: true,
                                 export_default_from: true,
                                 import_assertions: true,
-                                static_blocks: true,
                                 private_in_object: true,
                                 allow_super_outside_method: true,
                             }),
@@ -189,13 +188,17 @@ pub async fn parse(source: AssetVc, ty: Value<ModuleAssetType>) -> Result<ParseR
                             drop(parser);
                             let globals = Globals::new();
                             let eval_context = GLOBALS.set(&globals, || {
-                                let top_level_mark = Mark::fresh(Mark::root());
+                                let unresolved_mark = Mark::new();
+                                let top_level_mark = Mark::new();
                                 HANDLER.set(&handler, || {
-                                    parsed_program
-                                        .visit_mut_with(&mut resolver_with_mark(top_level_mark));
+                                    parsed_program.visit_mut_with(&mut resolver(
+                                        unresolved_mark,
+                                        top_level_mark,
+                                        false,
+                                    ));
                                 });
 
-                                EvalContext::new(&parsed_program, top_level_mark)
+                                EvalContext::new(&parsed_program, unresolved_mark)
                             });
 
                             if !buf.is_empty() {

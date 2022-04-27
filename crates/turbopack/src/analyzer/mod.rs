@@ -1748,20 +1748,8 @@ pub enum WellKnownFunctionKind {
     ChildProcessFork,
 }
 
-/// TODO(kdy1): Remove this once resolver distinguish between top-level bindings
-/// and unresolved references https://github.com/swc-project/swc/issues/2956
-///
-/// Once the swc issue is resolved, it means we can know unresolved references
-/// just by comparing [Mark]
-fn is_unresolved(i: &Ident, bindings: &AHashSet<Id>, top_level_mark: Mark) -> bool {
-    // resolver resolved `i` to non-top-level binding
-    if i.span.ctxt.outer() != top_level_mark {
-        return false;
-    }
-
-    // Check if there's a top level binding for `i`.
-    // If it exists, `i` is reference to the binding.
-    !bindings.contains(&i.to_id())
+fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {
+    i.span.ctxt.outer() == unresolved_mark
 }
 
 #[doc(hidden)]
@@ -1813,7 +1801,7 @@ mod tests {
 
     use async_std::task::block_on;
     use swc_common::Mark;
-    use swc_ecma_transforms_base::resolver::resolver_with_mark;
+    use swc_ecma_transforms_base::resolver;
     use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_program, visit::VisitMutWith};
     use testing::NormalizedOutput;
 
@@ -1841,10 +1829,11 @@ mod tests {
             )
             .map_err(|err| err.into_diagnostic(&handler).emit())?;
 
-            let top_level_mark = Mark::fresh(Mark::root());
-            m.visit_mut_with(&mut resolver_with_mark(top_level_mark));
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+            m.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
-            let eval_context = EvalContext::new(&m, top_level_mark);
+            let eval_context = EvalContext::new(&m, unresolved_mark);
 
             let var_graph = create_graph(&m, &eval_context);
 
