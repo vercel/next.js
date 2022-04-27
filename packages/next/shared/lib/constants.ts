@@ -12,7 +12,6 @@ export const ROUTES_MANIFEST = 'routes-manifest.json'
 export const IMAGES_MANIFEST = 'images-manifest.json'
 export const SERVER_FILES_MANIFEST = 'required-server-files.json'
 export const DEV_CLIENT_PAGES_MANIFEST = '_devPagesManifest.json'
-export const FUNCTIONS_MANIFEST = 'functions-manifest.json'
 export const MIDDLEWARE_MANIFEST = 'middleware-manifest.json'
 export const DEV_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
@@ -45,9 +44,7 @@ export const CLIENT_STATIC_FILES_RUNTIME_AMP = `amp`
 export const CLIENT_STATIC_FILES_RUNTIME_WEBPACK = `webpack`
 // static/runtime/polyfills.js
 export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL = Symbol(`polyfills`)
-// server/middleware-flight-runtime.js
-export const MIDDLEWARE_SSR_RUNTIME_WEBPACK = 'middleware-ssr-runtime'
-export const MIDDLEWARE_RUNTIME_WEBPACK = 'middleware-runtime'
+export const EDGE_RUNTIME_WEBPACK = 'edge-runtime-webpack'
 export const TEMPORARY_REDIRECT_STATUS = 307
 export const PERMANENT_REDIRECT_STATUS = 308
 export const STATIC_PROPS_ID = '__N_SSG'

@@ -150,7 +150,7 @@ describe('should set-up next', () => {
   it('should output middleware correctly', async () => {
     expect(
       await fs.pathExists(
-        join(next.testDir, 'standalone/.next/server/middleware-runtime.js')
+        join(next.testDir, 'standalone/.next/server/edge-runtime-webpack.js')
       )
     ).toBe(true)
     expect(
