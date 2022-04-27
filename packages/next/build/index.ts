@@ -739,13 +739,6 @@ export default async function build(
         )
       }
 
-      const breakingChangeIndex = error.indexOf(
-        '\n\nBREAKING CHANGE: webpack < 5 used to include polyfills for node.js core modules by default.'
-      )
-      if (breakingChangeIndex >= 0) {
-        error = error.slice(0, breakingChangeIndex)
-      }
-
       console.error(error)
       console.error()
 

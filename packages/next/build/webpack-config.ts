@@ -1354,11 +1354,7 @@ export default async function getBaseWebpackConfig(
           {}
         ),
         ...Object.keys(config.env).reduce((acc, key) => {
-          if (/^(?:NODE_.+)|^(?:__.+)$/i.test(key)) {
-            throw new Error(
-              `The key "${key}" under "env" in ${config.configFileName} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
-            )
-          }
+          errorIfEnvConflicted(config, key)
 
           return {
             ...acc,
@@ -1369,8 +1365,16 @@ export default async function getBaseWebpackConfig(
         'process.env.NODE_ENV': JSON.stringify(
           dev ? 'development' : 'production'
         ),
+        ...(isServer && {
+          'process.env.NEXT_RUNTIME': JSON.stringify(
+            isEdgeRuntime ? 'edge' : 'nodejs'
+          ),
+        }),
+        'process.env.__NEXT_NEW_LINK_BEHAVIOR': JSON.stringify(
+          config.experimental.newNextLinkBehavior
+        ),
         'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(crossOrigin),
-        'process.browser': JSON.stringify(targetWeb),
+        'process.browser': JSON.stringify(!isServer),
         'process.env.__NEXT_TEST_MODE': JSON.stringify(
           process.env.__NEXT_TEST_MODE
         ),
@@ -1816,6 +1820,11 @@ export default async function getBaseWebpackConfig(
       defaultLoaders,
       totalPages,
       webpack,
+      ...(isServer
+        ? {
+            nextRuntime: isEdgeRuntime ? 'edge' : 'nodejs',
+          }
+        : {}),
     })
 
     if (!webpackConfig) {
@@ -2178,4 +2187,15 @@ export default async function getBaseWebpackConfig(
   }
 
   return webpackConfig
+}
+
+function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
+  const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
+  const hasNextRuntimeKey = key === 'NEXT_RUNTIME'
+
+  if (isPrivateKey || hasNextRuntimeKey) {
+    throw new Error(
+      `The key "${key}" under "env" in ${config.configFileName} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
+    )
+  }
 }

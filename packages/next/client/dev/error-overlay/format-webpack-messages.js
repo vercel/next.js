@@ -27,6 +27,9 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 
 const friendlySyntaxErrorLabel = 'Syntax error:'
 
+const WEBPACK_BREAKING_CHANGE_POLYFILLS =
+  '\n\nBREAKING CHANGE: webpack < 5 used to include polyfills for node.js core modules by default.'
+
 function isLikelyASyntaxError(message) {
   return stripAnsi(message).indexOf(friendlySyntaxErrorLabel) !== -1
 }
@@ -43,10 +46,17 @@ function formatMessage(message, verbose) {
             trace.originName
           )
       )
+
+    let body = message.message
+    const breakingChangeIndex = body.indexOf(WEBPACK_BREAKING_CHANGE_POLYFILLS)
+    if (breakingChangeIndex >= 0) {
+      body = body.slice(0, breakingChangeIndex)
+    }
+
     message =
       (message.moduleName ? stripAnsi(message.moduleName) + '\n' : '') +
       (message.file ? stripAnsi(message.file) + '\n' : '') +
-      message.message +
+      body +
       (message.details && verbose ? '\n' + message.details : '') +
       (filteredModuleTrace && filteredModuleTrace.length && verbose
         ? '\n\nImport trace for requested module:' +
