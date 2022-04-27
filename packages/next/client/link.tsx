@@ -30,18 +30,21 @@ type InternalLinkProps = {
   prefetch?: boolean
   locale?: string | false
   legacyBehavior?: boolean
+  // e: any because as it would otherwise overlap with existing types
   /**
    * requires experimental.newNextLinkBehavior
    */
-  onMouseEnter?: (e: React.MouseEvent) => void
+  onMouseEnter?: (e: any) => void
+  // e: any because as it would otherwise overlap with existing types
   /**
    * requires experimental.newNextLinkBehavior
    */
-  onClick?: (e: React.MouseEvent) => void
+  onClick?: (e: any) => void
 }
 
-export type LinkProps = InternalLinkProps &
-  React.AnchorHTMLAttributes<HTMLAnchorElement>
+// TODO: Include the full set of Anchor props
+// adding this to the publicly exported type currently breaks existing apps
+export type LinkProps = InternalLinkProps
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<InternalLinkProps>
 
@@ -116,7 +119,12 @@ function linkClicked(
   })
 }
 
-function Link(props: React.PropsWithChildren<LinkProps>) {
+function Link(
+  props: React.PropsWithChildren<
+    Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, keyof LinkProps> &
+      LinkProps
+  >
+) {
   const {
     legacyBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
   } = props
