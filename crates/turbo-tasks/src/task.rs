@@ -1,15 +1,15 @@
 use crate::{
-    backend::Backend,
+    backend::{Backend, SlotMappings},
     id::{FunctionId, TraitTypeId},
-    magic_any::MagicAny,
-    manager::{get_invalidator, with_turbo_tasks},
+    manager::{get_invalidator, TurboTasksApi},
+    memory_backend::BackgroundJob,
     output::Output,
     raw_vc::RawVc,
     registry,
-    slot::{Slot, SlotContent},
+    slot::Slot,
     stats,
     task_input::TaskInput,
-    turbo_tasks, Invalidator, TaskId, TurboTasks, ValueTypeId,
+    Invalidator, MemoryBackend, TaskId,
 };
 use anyhow::{anyhow, Result};
 use async_std::task_local;
@@ -17,8 +17,8 @@ use event_listener::{Event, EventListener};
 #[cfg(feature = "report_expensive")]
 use std::time::Instant;
 use std::{
-    cell::{Cell, RefCell},
-    collections::{HashMap, HashSet},
+    cell::RefCell,
+    collections::HashSet,
     fmt::{self, Debug, Display, Formatter},
     future::Future,
     hash::Hash,
@@ -26,23 +26,13 @@ use std::{
     pin::Pin,
     sync::{
         atomic::{AtomicU32, Ordering},
-        Arc, Mutex, RwLock,
+        Mutex, RwLock,
     },
 };
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
 pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 
-/// Stores previous slot locations for keys or types.
-#[derive(Default)]
-struct PreviousSlotsMap {
-    by_key: HashMap<(ValueTypeId, Box<dyn MagicAny>), usize>,
-    by_type: HashMap<ValueTypeId, (usize, Vec<usize>)>,
-}
-
 task_local! {
-    static CURRENT_TASK_ID: Cell<Option<TaskId>> = Cell::new(None);
-    static PREVIOUS_SLOTS: Cell<PreviousSlotsMap> = Default::default();
-
     /// Vc that are read during task execution
     /// These will be stored as dependencies when the execution has finished
     static DEPENDENCIES_TO_TRACK: RefCell<HashSet<RawVc>> = Default::default();
@@ -137,7 +127,7 @@ struct TaskExecutionData {
 
     /// Mappings from key or data type to slot index, to store the data in the
     /// same slot again.
-    previous_nodes: PreviousSlotsMap,
+    slot_mappings: SlotMappings,
 }
 
 impl Debug for Task {
@@ -293,26 +283,34 @@ impl Task {
         }
     }
 
-    pub(crate) fn remove<B: Backend>(&self, turbo_tasks: &Arc<TurboTasks<B>>) {
+    pub(crate) fn remove(&self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksApi) {
         if self.active_parents.fetch_sub(1, Ordering::AcqRel) == 1 {
-            self.deactivate(1, &turbo_tasks);
+            self.deactivate(1, backend, turbo_tasks);
         }
     }
 
     #[cfg(not(feature = "report_expensive"))]
-    pub(crate) fn deactivate_tasks<B: Backend>(tasks: Vec<TaskId>, turbo_tasks: &TurboTasks<B>) {
+    pub(crate) fn deactivate_tasks(
+        tasks: Vec<TaskId>,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksApi,
+    ) {
         for child in tasks.into_iter() {
-            turbo_tasks.with_task(child, |child| child.deactivate(1, &turbo_tasks));
+            backend.with_task(child, |child| child.deactivate(1, backend, turbo_tasks));
         }
     }
 
     #[cfg(feature = "report_expensive")]
-    pub(crate) fn deactivate_tasks<B: Backend>(tasks: Vec<TaskId>, turbo_tasks: &TurboTasks<B>) {
+    pub(crate) fn deactivate_tasks(
+        tasks: Vec<TaskId>,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksApi,
+    ) {
         let start = Instant::now();
         let mut count = 0;
         let mut len = 0;
         for child in tasks.into_iter() {
-            count += turbo_tasks.with_task(child, |child| child.deactivate(1, &turbo_tasks));
+            count += backend.with_task(child, |child| child.deactivate(1, turbo_tasks));
             len += 1;
         }
         let elapsed = start.elapsed();
@@ -334,18 +332,18 @@ impl Task {
     }
 
     #[cfg(not(feature = "report_expensive"))]
-    fn clear_dependencies<B: Backend>(&self, turbo_tasks: &TurboTasks<B>) {
+    fn clear_dependencies(&self, backend: &MemoryBackend) {
         let mut execution_data = self.execution_data.lock().unwrap();
         let dependencies = take(&mut execution_data.dependencies);
         drop(execution_data);
 
         for dep in dependencies.into_iter() {
-            dep.remove_dependent_task(self.id, turbo_tasks);
+            dep.remove_dependent_task(self.id, backend);
         }
     }
 
     #[cfg(feature = "report_expensive")]
-    fn clear_dependencies(&self) {
+    fn clear_dependencies(&self, backend: &MemoryBackend) {
         let start = Instant::now();
         let mut execution_data = self.execution_data.lock().unwrap();
         let dependencies = take(&mut execution_data.dependencies);
@@ -354,7 +352,7 @@ impl Task {
         let count = dependencies.len();
 
         for dep in dependencies.into_iter() {
-            dep.remove_dependent_task(self);
+            dep.remove_dependent_task(self, backend);
         }
         let elapsed = start.elapsed();
         if elapsed.as_millis() >= 100 {
@@ -374,9 +372,10 @@ impl Task {
         }
     }
 
-    pub(crate) fn execution_started<B: Backend>(
+    pub(crate) fn execution_started(
         self: &Task,
-        turbo_tasks: &Arc<TurboTasks<B>>,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksApi,
     ) -> bool {
         let mut state = self.state.write().unwrap();
         if !state.active {
@@ -393,7 +392,9 @@ impl Task {
                 if !state.children.is_empty() {
                     let mut set = HashSet::new();
                     swap(&mut set, &mut state.children);
-                    turbo_tasks.schedule_remove_tasks(set);
+                    turbo_tasks.schedule_backend_background_job(
+                        backend.create_background_job(BackgroundJob::RemoveTasks(set)),
+                    );
                 }
             }
             Dirty => {
@@ -429,13 +430,18 @@ impl Task {
         };
     }
 
-    pub(crate) fn execution_completed<B: Backend>(&self, turbo_tasks: Arc<TurboTasks<B>>) {
+    #[must_use]
+    pub(crate) fn execution_completed(
+        &self,
+        slot_mappings: Option<SlotMappings>,
+        backend: &MemoryBackend,
+    ) -> bool {
         DEPENDENCIES_TO_TRACK.with(|deps| {
-            PREVIOUS_SLOTS.with(|cell| {
-                let mut execution_data = self.execution_data.lock().unwrap();
-                execution_data.previous_nodes = cell.take();
-                execution_data.dependencies = deps.take();
-            });
+            let mut execution_data = self.execution_data.lock().unwrap();
+            if let Some(slot_mappings) = slot_mappings {
+                execution_data.slot_mappings = slot_mappings;
+            }
+            execution_data.dependencies = deps.take();
         });
         let mut schedule_task = false;
         let mut clear_dependencies = false;
@@ -464,15 +470,13 @@ impl Task {
             };
         }
         if clear_dependencies {
-            self.clear_dependencies(&turbo_tasks)
+            self.clear_dependencies(backend)
         }
-        if schedule_task {
-            turbo_tasks.schedule(self.id);
-        }
+        schedule_task
     }
 
     /// This method should be called after adding the first parent
-    fn activate<B: Backend>(&self, turbo_tasks: &TurboTasks<B>) -> usize {
+    fn activate(&self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksApi) -> usize {
         let mut state = self.state.write().unwrap();
 
         if self.active_parents.load(Ordering::Acquire) == 0 {
@@ -490,9 +494,9 @@ impl Task {
         // This locks the whole tree, but avoids cloning children
 
         for child in state.children.iter() {
-            turbo_tasks.with_task(*child, |child| {
+            backend.with_task(*child, |child| {
                 if child.active_parents.fetch_add(1, Ordering::AcqRel) == 0 {
-                    count += child.activate(turbo_tasks);
+                    count += child.activate(backend, turbo_tasks);
                 }
             })
         }
@@ -510,7 +514,12 @@ impl Task {
     }
 
     /// This method should be called after removing the last parent
-    fn deactivate<B: Backend>(&self, depth: u8, turbo_tasks: &TurboTasks<B>) -> usize {
+    fn deactivate(
+        &self,
+        depth: u8,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksApi,
+    ) -> usize {
         let mut state = self.state.write().unwrap();
 
         if self.active_parents.load(Ordering::Acquire) != 0 {
@@ -529,9 +538,9 @@ impl Task {
             // This locks the whole tree, but avoids cloning children
 
             for child in state.children.iter() {
-                turbo_tasks.with_task(*child, |child| {
+                backend.with_task(*child, |child| {
                     if child.active_parents.fetch_sub(1, Ordering::AcqRel) == 1 {
-                        count += child.deactivate(depth + 1, turbo_tasks);
+                        count += child.deactivate(depth + 1, backend, turbo_tasks);
                     }
                 })
             }
@@ -540,28 +549,34 @@ impl Task {
         } else {
             let mut scheduled = Vec::new();
             for child_id in state.children.iter() {
-                turbo_tasks.with_task(*child_id, |child| {
+                backend.with_task(*child_id, |child| {
                     if child.active_parents.fetch_sub(1, Ordering::AcqRel) == 1 {
                         scheduled.push(*child_id);
                     }
                 })
             }
             drop(state);
-            turbo_tasks.schedule_deactivate_tasks(scheduled);
+            turbo_tasks.schedule_backend_background_job(
+                backend.create_background_job(BackgroundJob::DeactivateTasks(scheduled)),
+            );
             count
         }
     }
 
-    pub(crate) fn dependent_slot_updated<B: Backend>(&self, turbo_tasks: &TurboTasks<B>) {
-        self.make_dirty(turbo_tasks);
+    pub(crate) fn dependent_slot_updated(
+        &self,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksApi,
+    ) {
+        self.make_dirty(backend, turbo_tasks);
     }
 
-    fn make_dirty<B: Backend>(&self, turbo_tasks: &TurboTasks<B>) {
+    fn make_dirty(&self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksApi) {
         if let TaskType::Once(_) = self.ty {
             // once task won't become dirty
             return;
         }
-        self.clear_dependencies(turbo_tasks);
+        self.clear_dependencies(backend);
 
         let mut state = self.state.write().unwrap();
         match state.state_type {
@@ -584,20 +599,13 @@ impl Task {
         }
     }
 
-    pub(crate) fn set_current(task: &Task, id: TaskId) {
-        PREVIOUS_SLOTS.with(|cell| {
-            let mut execution_data = task.execution_data.lock().unwrap();
-            let previous_nodes = &mut execution_data.previous_nodes;
-            for list in previous_nodes.by_type.values_mut() {
-                list.0 = 0;
-            }
-            Cell::from_mut(previous_nodes).swap(cell);
-        });
-        CURRENT_TASK_ID.with(|c| c.set(Some(id)));
-    }
-
-    pub(crate) fn current() -> Option<TaskId> {
-        CURRENT_TASK_ID.with(|c| c.get())
+    pub(crate) fn take_slot_mappings(&self) -> SlotMappings {
+        let mut execution_data = self.execution_data.lock().unwrap();
+        let mut slot_mappings = take(&mut execution_data.slot_mappings);
+        for list in slot_mappings.by_type.values_mut() {
+            list.0 = 0;
+        }
+        slot_mappings
     }
 
     pub(crate) fn add_dependency_to_current(dep: RawVc) {
@@ -607,7 +615,7 @@ impl Task {
         })
     }
 
-    pub(crate) fn execute<B: Backend>(&self, tt: &TurboTasks<B>) -> NativeTaskFuture {
+    pub(crate) fn execute(&self, tt: &dyn TurboTasksApi) -> NativeTaskFuture {
         match &self.ty {
             TaskType::Root(bound_fn) => bound_fn(),
             TaskType::Once(mutex) => {
@@ -697,8 +705,8 @@ impl Task {
 
     /// Called by the [Invalidator]. Invalidate the [Task]. When the task is
     /// active it will be scheduled for execution.
-    pub(crate) fn invaldate<B: Backend>(&self, turbo_tasks: &Arc<TurboTasks<B>>) {
-        self.make_dirty(turbo_tasks)
+    pub(crate) fn invalidate(&self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksApi) {
+        self.make_dirty(backend, turbo_tasks)
     }
 
     /// Access to the output slot.
@@ -777,17 +785,22 @@ impl Task {
         state_str + if state.active { "" } else { " (inactive)" }
     }
 
-    pub(crate) fn connect_child<B: Backend>(&self, child_id: TaskId, turbo_tasks: &TurboTasks<B>) {
+    pub(crate) fn connect_child(
+        &self,
+        child_id: TaskId,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksApi,
+    ) {
         let mut state = self.state.write().unwrap();
         if state.children.insert(child_id) {
             let active = state.active;
             drop(state);
 
             if active {
-                turbo_tasks.with_task(child_id, |child| {
+                backend.with_task(child_id, |child| {
                     if child.active_parents.fetch_add(1, Ordering::AcqRel) == 0 {
                         #[cfg(not(feature = "report_expensive"))]
-                        child.activate(turbo_tasks);
+                        child.activate(backend, turbo_tasks);
                         #[cfg(feature = "report_expensive")]
                         {
                             let start = Instant::now();
@@ -881,99 +894,6 @@ impl PartialEq for Task {
 }
 
 impl Eq for Task {}
-
-pub struct CurrentSlotRef {
-    current_task: TaskId,
-    index: usize,
-    type_id: ValueTypeId,
-}
-
-impl CurrentSlotRef {
-    pub fn conditional_update_shared<
-        T: Send + Sync + 'static,
-        F: FnOnce(Option<&T>) -> Option<T>,
-    >(
-        &self,
-        functor: F,
-    ) {
-        let tt = turbo_tasks();
-        let content = tt.read_current_task_slot(self.index).try_cast::<T>();
-        let update = functor(content.as_ref().map(|read| &**read));
-        if let Some(update) = update {
-            tt.update_current_task_slot(
-                self.index,
-                SlotContent::SharedReference(self.type_id, Arc::new(update)),
-            )
-        }
-    }
-
-    pub fn compare_and_update_shared<T: PartialEq + Send + Sync + 'static>(&self, new_content: T) {
-        self.conditional_update_shared(|old_content| {
-            if let Some(old_content) = old_content {
-                if PartialEq::eq(&new_content, old_content) {
-                    return None;
-                }
-            }
-            Some(new_content)
-        });
-    }
-
-    pub fn update_shared<T: Send + Sync + 'static>(&self, new_content: T) {
-        let tt = turbo_tasks();
-        tt.update_current_task_slot(
-            self.index,
-            SlotContent::SharedReference(self.type_id, Arc::new(new_content)),
-        )
-    }
-}
-
-impl From<CurrentSlotRef> for RawVc {
-    fn from(slot: CurrentSlotRef) -> Self {
-        RawVc::TaskSlot(slot.current_task, slot.index)
-    }
-}
-
-pub fn find_slot_by_key<K: Debug + Eq + Ord + Hash + Send + Sync + 'static>(
-    type_id: ValueTypeId,
-    key: K,
-) -> CurrentSlotRef {
-    PREVIOUS_SLOTS.with(|cell| {
-        let current_task = Task::current().unwrap();
-        let mut map = cell.take();
-        let index = *map
-            .by_key
-            .entry((type_id, Box::new(key)))
-            .or_insert_with(|| with_turbo_tasks(|tt| tt.get_fresh_slot(current_task)));
-        cell.set(map);
-        CurrentSlotRef {
-            current_task,
-            index,
-            type_id,
-        }
-    })
-}
-
-pub fn find_slot_by_type(type_id: ValueTypeId) -> CurrentSlotRef {
-    PREVIOUS_SLOTS.with(|cell| {
-        let current_task = Task::current().unwrap();
-        let mut map = cell.take();
-        let (ref mut current_index, ref mut list) = map.by_type.entry(type_id).or_default();
-        let index = if let Some(i) = list.get(*current_index) {
-            *i
-        } else {
-            let index = turbo_tasks().get_fresh_slot(current_task);
-            list.push(index);
-            index
-        };
-        *current_index += 1;
-        cell.set(map);
-        CurrentSlotRef {
-            current_task,
-            index,
-            type_id,
-        }
-    })
-}
 
 pub enum TaskArgumentOptions {
     Unresolved,

@@ -19,6 +19,7 @@ lazy_static = "1.4.0"
 "turbo-tasks-macros" = { path = "../turbo-tasks-macros" }
 "weak-table" = "0.3.2"
 mopa = "0.2.0"
+serde = "1.0.136"
 
 [build-dependencies]
 "turbo-tasks-build" = { path = "../turbo-tasks-build" }

@@ -33,7 +33,7 @@ use invalidator_map::InvalidatorMap;
 use json::{parse, JsonValue};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use threadpool::ThreadPool;
-use turbo_tasks::{trace::TraceRawVcs, CompletionVc, Invalidator, Task, ValueToString, Vc};
+use turbo_tasks::{trace::TraceRawVcs, CompletionVc, Invalidator, ValueToString, Vc};
 use util::{join_path, normalize_path};
 
 #[turbo_tasks::value_trait]
