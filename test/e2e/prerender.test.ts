@@ -1,3 +1,4 @@
+import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import { join, sep } from 'path'
 import escapeRegex from 'escape-string-regexp'
@@ -48,6 +49,39 @@ describe('Prerender', () => {
     })
   })
   afterAll(() => next.destroy())
+
+  async function waitForCacheWrite(
+    prerenderPath = '',
+    timeBeforeRevalidateMilliseconds,
+    retries = 30
+  ) {
+    for (let i = 0; i < retries; i++) {
+      const lastRetry = i === retries - 1
+      const jsonPath = join(
+        next.testDir,
+        '.next',
+        'server',
+        'pages',
+        `${prerenderPath}.html`
+      )
+      try {
+        const jsonStats = await fs.stat(jsonPath)
+        const jsonLastModified = jsonStats.mtime.getTime()
+
+        if (timeBeforeRevalidateMilliseconds <= jsonLastModified) {
+          break
+        }
+        throw new Error(
+          `revalidate cache not past ${timeBeforeRevalidateMilliseconds} received time ${jsonLastModified}`
+        )
+      } catch (err) {
+        if (lastRetry) {
+          throw err
+        }
+      }
+      await waitFor(500)
+    }
+  }
 
   function isCachingHeader(cacheControl) {
     return !cacheControl || !/no-store/.test(cacheControl)
@@ -2014,30 +2048,30 @@ describe('Prerender', () => {
       })
 
       it('should handle manual revalidate for fallback: blocking', async () => {
+        const beforeRevalidate = Date.now()
         const res = await fetchViaHTTP(
           next.url,
           '/blocking-fallback/test-manual-1'
         )
+        await waitForCacheWrite(
+          '/blocking-fallback/test-manual-1',
+          beforeRevalidate
+        )
         const html = await res.text()
         const $ = cheerio.load(html)
         const initialTime = $('#time').text()
-        expect(res.headers.get('x-nextjs-cache')).toMatch(/MISS/)
 
+        expect(res.headers.get('x-nextjs-cache')).toMatch(/MISS/)
         expect($('p').text()).toMatch(/Post:.*?test-manual-1/)
 
-        let $2
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/blocking-fallback/test-manual-1'
+        )
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
 
-        await check(async () => {
-          const res2 = await fetchViaHTTP(
-            next.url,
-            '/blocking-fallback/test-manual-1'
-          )
-          const html2 = await res2.text()
-          $2 = cheerio.load(html2)
-
-          return res2.headers.get('x-nextjs-cache')
-        }, /(HIT|STALE)/)
-
+        expect(res2.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
         expect(initialTime).toBe($2('#time').text())
 
         const res3 = await fetchViaHTTP(
@@ -2091,15 +2125,19 @@ describe('Prerender', () => {
       })
 
       it('should manual revalidate for fallback: blocking with onlyGenerated if generated', async () => {
+        const beforeRevalidate = Date.now()
         const res = await fetchViaHTTP(
           next.url,
           '/blocking-fallback/test-if-generated-2'
+        )
+        await waitForCacheWrite(
+          '/blocking-fallback/test-if-generated-2',
+          beforeRevalidate
         )
         const html = await res.text()
         const $ = cheerio.load(html)
         const initialTime = $('#time').text()
         expect(res.headers.get('x-nextjs-cache')).toMatch(/MISS/)
-
         expect($('p').text()).toMatch(/Post:.*?test-if-generated-2/)
 
         const res2 = await fetchViaHTTP(
