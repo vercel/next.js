@@ -36,6 +36,19 @@ export default function transformer(file: FileInfo, api: API) {
         if ($link.size() === 0) {
           return
         }
+
+        const linkChildrenNodes = $link.get('children')
+
+        // Text-only link children are already correct with the new behavior
+        // `next/link` would previously auto-wrap typeof 'string' children already
+        if (
+          linkChildrenNodes.value &&
+          linkChildrenNodes.value.length === 1 &&
+          linkChildrenNodes.value[0].type === 'JSXText'
+        ) {
+          return
+        }
+
         // Direct child elements referenced
         const $childrenElements = $link.childElements()
         const $childrenWithA = $childrenElements.filter((childPath) => {
