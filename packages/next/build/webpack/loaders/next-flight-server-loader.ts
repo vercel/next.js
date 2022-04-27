@@ -194,6 +194,31 @@ export default async function transformSource(
   const { client: isClientCompilation } = this.getOptions()
   const { resourcePath, resolve: resolveFn, context } = this
 
+  if (isClientCompilation) {
+    return 'export default function () {}'
+  }
+
+  const ast = await parse(source, {
+    filename: resourcePath,
+    isModule: 'unknown',
+  })
+  const isModule = ast.type === 'Module'
+
+  return (
+    source +
+    (isModule
+      ? `
+      export const __next_rsc__ = {
+        server: true
+      }
+    `
+      : `
+      exports.__next_rsc__ = {
+        server: true
+      }
+    `)
+  )
+
   const resolver = (req: string): Promise<string> => {
     return new Promise((resolve, reject) => {
       resolveFn(context, req, (err: any, result: string) => {

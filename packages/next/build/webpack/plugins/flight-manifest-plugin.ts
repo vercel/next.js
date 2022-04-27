@@ -5,9 +5,13 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+import { stringify } from 'querystring'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { MIDDLEWARE_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
-import { createClientComponentFilter } from '../loaders/utils'
+import {
+  createClientComponentFilter,
+  createServerComponentFilter,
+} from '../loaders/utils'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -36,6 +40,8 @@ export class FlightManifestPlugin {
   }
 
   apply(compiler: any) {
+    const context = (this as any).context
+
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
       (compilation: any, { normalModuleFactory }: any) => {
@@ -51,6 +57,80 @@ export class FlightManifestPlugin {
     )
 
     // Only for webpack 5
+    compiler.hooks.finishMake.tapAsync(
+      PLUGIN_NAME,
+      (compilation: any, callback: any) => {
+        const promises: any = []
+
+        // For each SC server compilation entry, we need to create its corresponding
+        // client component entry.
+        const isServerComponent = createServerComponentFilter()
+        for (const [name, entry] of compilation.entries.entries()) {
+          if (name === 'pages/_app.server') continue
+
+          // Check if the page entry is a server component or not.
+          const entryDependency = entry.dependencies?.[0]
+          const request = entryDependency?.request
+          if (request && isServerComponent(request)) {
+            const visited = new Set()
+            const clientComponentImports: string[] = []
+
+            function filterClientComponents(dependency: any) {
+              const module =
+                compilation.moduleGraph.getResolvedModule(dependency)
+              if (!module) return
+
+              if (visited.has(module.userRequest)) return
+              visited.add(module.userRequest)
+
+              if (isClientComponent(module.userRequest)) {
+                clientComponentImports.push(module.userRequest)
+              }
+
+              compilation.moduleGraph
+                .getOutgoingConnections(module)
+                .forEach((connection: any) => {
+                  filterClientComponents(connection.dependency)
+                })
+            }
+
+            // Traverse the module graph to find all client components.
+            filterClientComponents(entryDependency)
+
+            const clientComponentEntryDep = (
+              webpack as any
+            ).EntryPlugin.createDependency(
+              `!next-flight-client-entry-loader!${request}?${stringify({
+                modules: JSON.stringify(clientComponentImports),
+              })}`,
+              name + '.__sc_client__'
+            )
+
+            promises.push(
+              new Promise<void>((res, rej) => {
+                compilation.addEntry(
+                  context,
+                  clientComponentEntryDep,
+                  name + '.__sc_client__',
+                  (err: any) => {
+                    if (err) {
+                      rej(err)
+                    } else {
+                      res()
+                    }
+                  }
+                )
+              })
+            )
+          }
+        }
+
+        Promise.all(promises)
+          .then(() => callback())
+          .catch(callback)
+      }
+    )
+
     compiler.hooks.make.tap(PLUGIN_NAME, (compilation: any) => {
       compilation.hooks.processAssets.tap(
         {
@@ -124,7 +204,7 @@ export class FlightManifestPlugin {
 
     // With switchable runtime, we need to emit the manifest files for both
     // runtimes.
-    const file = `server/${MIDDLEWARE_FLIGHT_MANIFEST}`
+    const file = MIDDLEWARE_FLIGHT_MANIFEST
     const json = JSON.stringify(manifest)
 
     assets[file + '.js'] = new sources.RawSource('self.__RSC_MANIFEST=' + json)

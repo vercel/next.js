@@ -411,7 +411,9 @@ function createServerComponentRenderer(
   // We need to expose the `__webpack_require__` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
   // @ts-ignore
-  globalThis.__webpack_require__ = ComponentMod.__next_rsc__.__webpack_require__
+  globalThis.__webpack_require__ =
+    ComponentMod.__next_rsc__.__next_rsc_client_entry__.__webpack_require__
+
   const Component = interopDefault(ComponentMod)
 
   function ServerComponentWrapper({ router, ...props }: any) {

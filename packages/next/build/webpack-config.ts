@@ -474,8 +474,13 @@ export default async function getBaseWebpackConfig(
     ? getRawPageExtensions(config.pageExtensions)
     : config.pageExtensions
 
+  // @TODO: Server/client components should match any importable extensions,
+  // not just the ones specified in the page extensions.
   const serverComponentsRegex = new RegExp(
     `\\.server\\.(${rawPageExtensions.join('|')})$`
+  )
+  const clientComponentsRegex = new RegExp(
+    `\\.client\\.(${rawPageExtensions.join('|')})$`
   )
 
   const babelIncludeRegexes: RegExp[] = [
@@ -951,7 +956,6 @@ export default async function getBaseWebpackConfig(
   }
 
   const rscCodeCondition = {
-    test: serverComponentsRegex,
     // only apply to the pages as the begin process of rsc loaders
     include: [dir, /next[\\/]dist[\\/]pages/],
   }
@@ -1143,6 +1147,7 @@ export default async function getBaseWebpackConfig(
         'next-style-loader',
         'next-flight-client-loader',
         'next-flight-server-loader',
+        'next-flight-client-entry-loader',
         'noop-loader',
         'next-middleware-loader',
         'next-middleware-ssr-loader',
@@ -1176,25 +1181,34 @@ export default async function getBaseWebpackConfig(
         ...(hasServerComponents
           ? isServer
             ? [
-                // RSC server compilation loaders
+                // RSC build, server components
                 {
                   ...rscCodeCondition,
+                  test: serverComponentsRegex,
                   use: {
                     loader: 'next-flight-server-loader',
+                  },
+                },
+                // RSC build, client component module references
+                {
+                  ...rscCodeCondition,
+                  test: clientComponentsRegex,
+                  use: {
+                    loader: 'next-flight-client-loader',
                   },
                 },
               ]
             : [
                 // RSC client compilation loaders
-                {
-                  ...rscCodeCondition,
-                  use: {
-                    loader: 'next-flight-server-loader',
-                    options: {
-                      client: 1,
-                    },
-                  },
-                },
+                // {
+                //   ...rscCodeCondition,
+                //   use: {
+                //     loader: 'next-flight-server-loader',
+                //     options: {
+                //       client: 1,
+                //     },
+                //   },
+                // },
               ]
           : []),
         {
@@ -1554,7 +1568,9 @@ export default async function getBaseWebpackConfig(
           },
         }),
       hasServerComponents &&
-        !isServer &&
+        // @TODO: Include this plugin in both node and edge servers.
+        isServer &&
+        !isEdgeRuntime &&
         new FlightManifestPlugin({ dev, pageExtensions: rawPageExtensions }),
       !dev &&
         !isServer &&

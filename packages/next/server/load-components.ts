@@ -102,12 +102,23 @@ export async function loadComponents(
     } as LoadComponentsReturnType
   }
 
-  const [DocumentMod, AppMod, ComponentMod, AppServerMod] = await Promise.all([
-    requirePage('/_document', distDir, serverless),
-    requirePage('/_app', distDir, serverless),
-    requirePage(pathname, distDir, serverless),
-    serverComponents ? requirePage('/_app.server', distDir, serverless) : null,
-  ])
+  const [DocumentMod, AppMod, ComponentMod, AppServerMod, ClientEntryMod] =
+    await Promise.all([
+      requirePage('/_document', distDir, serverless),
+      requirePage('/_app', distDir, serverless),
+      requirePage(pathname, distDir, serverless),
+      serverComponents
+        ? requirePage('/_app.server', distDir, serverless)
+        : null,
+      serverComponents
+        ? requirePage(pathname + '.__sc_client__', distDir, serverless)
+        : null,
+    ])
+
+  if (serverComponents) {
+    ComponentMod.__next_rsc__.__next_rsc_client_entry__ =
+      ClientEntryMod.__next_rsc_client_entry__
+  }
 
   const [buildManifest, reactLoadableManifest, serverComponentManifest] =
     await Promise.all([
