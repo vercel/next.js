@@ -12,11 +12,31 @@ describe('Type module interop', () => {
       files: {
         'pages/index.js': `
           import Link from 'next/link'
+          import Head from 'next/head'
+          import Script from 'next/script'
+          import dynamic from 'next/dynamic'
+          import { useAmp } from 'next/amp'
 
-          export default function Page() { 
+          const Dynamic = dynamic(() => import('../components/example'))
+
+          export default function Page() {
+            const isAmp = useAmp()
             return (
               <>
+                <Head>
+                  <title>This page has a title 🤔</title>
+                  <meta charSet="utf-8" />
+                  <meta name="viewport" content="initial-scale=1.0, width=device-width" />
+                </Head>
+                <Script
+                  strategy="afterInteractive"
+                  dangerouslySetInnerHTML={{
+                    __html: 'console.log("hello world")',
+                  }}
+                />
                 <p>hello world</p>
+                <Dynamic />
+                <p id="isAmp">isAmp: {isAmp ? 'yes' : 'false'}</p>
                 <Link href="/modules">
                   <a id="link-to-module">link to module</a>
                 </Link>
@@ -37,6 +57,11 @@ describe('Type module interop', () => {
                 <Image src="/static/image.png" width="100" height="100" />
               </>
             )
+          }
+        `,
+        'components/example.jsx': `
+          export default function Example() {
+            return <p>An example components load via next/dynamic</p>
           }
         `,
       },
@@ -61,6 +86,11 @@ describe('Type module interop', () => {
   it('should render server-side', async () => {
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('hello world')
+    // component load via next/dynamic should rendered on the server side
+    expect(html).toContain('An example components load via next/dynamic')
+    // imported next/amp should work on the server side
+    const $ = cheerio.load(html)
+    expect($('#isAmp').text()).toContain('false')
   })
 
   it('should render client-side', async () => {
