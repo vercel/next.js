@@ -30,7 +30,7 @@ version = "0.17.5"
 features = ["concurrent"]
 
 [dependencies.swc_ecmascript]
-version = "0.133.0"
+version = "0.150.0"
 features = ["parser", "utils", "visit"]
 
 [dependencies.num-bigint]
