@@ -678,13 +678,7 @@ export default function Image({
     }
   }
 
-  const imgStyle = Object.assign(
-    {},
-    style,
-    layout === 'raw'
-      ? { aspectRatio: `${widthInt} / ${heightInt}` }
-      : layoutStyle
-  )
+  const imgStyle = Object.assign({}, style, layout === 'raw' ? {} : layoutStyle)
   const blurStyle =
     placeholder === 'blur' && !blurComplete
       ? {
