@@ -532,7 +532,7 @@ export default abstract class Server {
                 parsedUrl.query.__nextLocale = opts.locale
               }
             } else {
-              params = utils.dynamicRouteMatcher!(matchedPathnameNoExt)
+              params = utils.dynamicRouteMatcher!(matchedPathnameNoExt) || {}
             }
 
             if (params) {
