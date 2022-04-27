@@ -50,9 +50,9 @@ When using an external URL, you must add it to
 
 The `width` property can represent either the _rendered_ width or _original_ width in pixels, depending on the [`layout`](#layout) and [`sizes`](#sizes) properties.
 
-When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"` without `sizes`, the `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
+When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"`, the `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
 
-When using `layout="responsive"`, `layout="fill"`, or `layout="raw"` with `sizes`, the `width` property represents the _original_ width in pixels, so it will only affect the aspect ratio.
+When using `layout="responsive"`, `layout="fill"`, the `width` property represents the _original_ width in pixels, so it will only affect the aspect ratio.
 
 The `width` property is required, except for [statically imported images](#local-images), or those with `layout="fill"`.
 
@@ -60,9 +60,9 @@ The `width` property is required, except for [statically imported images](#local
 
 The `height` property can represent either the _rendered_ height or _original_ height in pixels, depending on the [`layout`](#layout) and [`sizes`](#sizes) properties.
 
-When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"` without `sizes`, the `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
+When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"`, the `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
 
-When using `layout="responsive"`, `layout="fill"`, or `layout="raw"` with `sizes`, the `height` property represents the _original_ height in pixels, so it will only affect the aspect ratio.
+When using `layout="responsive"`, `layout="fill"`, the `height` property represents the _original_ height in pixels, so it will only affect the aspect ratio.
 
 The `height` property is required, except for [statically imported images](#local-images), or those with `layout="fill"`.
 
@@ -94,8 +94,7 @@ The layout behavior of the image as the viewport changes size.
   - This is usually paired with the [`objectFit`](#objectFit) property.
   - Ensure the parent element has `position: relative` in their stylesheet.
 - When `raw`[\*](#experimental-raw-layout-mode), the image will be rendered as a single image element with no wrappers, sizers or other responsive behavior.
-  - If your image styling will change the size of a `raw` image, you should include the `sizes` property for proper image serving. Otherwise your image will receive a fixed height and width.
-  - The other layout modes are optimized for performance and should cover nearly all use cases. It is recommended to try to use those modes before using `raw`.
+  - If your image styling will change the size of a `raw` image, you should include the `sizes` property for proper image serving. Otherwise your image will be requested as though it has fixed width and height.
 - [Demo background image](https://image-component.nextjs.gallery/background)
 
 ### loader
@@ -180,6 +179,8 @@ In some cases, you may need more advanced usage. The `<Image />` component optio
 Allows [passing CSS styles](https://reactjs.org/docs/dom-elements.html#style) to the underlying image element.
 
 Note that all `layout` modes other than `"raw"`[\*](#experimental-raw-layout-mode) apply their own styles to the image element, and these automatic styles take precedence over the `style` prop.
+
+Also keep in mind that the required `width` and `height` props can interact with your styling. If you use styling to modify an image's `width`, you must set the `height="auto"` style as well, or your image will be distorted.
 
 ### objectFit
 
@@ -492,10 +493,6 @@ module.exports = {
   },
 }
 ```
-
-> Note on CLS with `layout="raw"`:
-> It is possible to cause [layout shift](https://web.dev/cls/) with the image component in `raw` mode. If you include a `sizes` property, the image component will not pass `height` and `width` attributes to the image, to allow you to apply your own responsive sizing.
-> An [aspect-ratio](https://developer.mozilla.org/en-US/docs/Web/CSS/aspect-ratio) style property is automatically applied to prevent layout shift, but this won't apply on [older browsers](https://caniuse.com/mdn-css_properties_aspect-ratio).
 
 ### Animated Images
 
