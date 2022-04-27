@@ -24,7 +24,6 @@ import { addRequestMeta, getRequestMeta } from './request-meta'
 import {
   PAGES_MANIFEST,
   BUILD_ID_FILE,
-  SERVER_DIRECTORY,
   MIDDLEWARE_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
@@ -32,13 +31,12 @@ import {
   ROUTES_MANIFEST,
   MIDDLEWARE_FLIGHT_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
-  SERVERLESS_DIRECTORY,
 } from '../shared/lib/constants'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
 import compression from 'next/dist/compiled/compression'
 import HttpProxy from 'next/dist/compiled/http-proxy'
-import { route } from './router'
+import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { run } from './web/sandbox'
 
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
@@ -156,12 +154,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
-    const serverBuildDir = join(
-      this.distDir,
-      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-    )
-    const pagesManifestPath = join(serverBuildDir, PAGES_MANIFEST)
-    return require(pagesManifestPath)
+    return require(join(this.serverDistDir, PAGES_MANIFEST))
   }
 
   protected getBuildId(): string {
@@ -182,7 +175,7 @@ export default class NextNodeServer extends BaseServer {
   protected generateImageRoutes(): Route[] {
     return [
       {
-        match: route('/_next/image'),
+        match: getPathMatch('/_next/image'),
         type: 'route',
         name: '_next/image catchall',
         fn: async (req, res, _params, parsedUrl) => {
@@ -287,7 +280,7 @@ export default class NextNodeServer extends BaseServer {
             // (but it should support as many params as needed, separated by '/')
             // Otherwise this will lead to a pretty simple DOS attack.
             // See more: https://github.com/vercel/next.js/issues/2617
-            match: route('/static/:path*'),
+            match: getPathMatch('/static/:path*'),
             name: 'static catchall',
             fn: async (req, res, params, parsedUrl) => {
               const p = join(this.dir, 'static', ...params.path)
@@ -308,7 +301,7 @@ export default class NextNodeServer extends BaseServer {
   protected generateFsStaticRoutes(): Route[] {
     return [
       {
-        match: route('/_next/static/:path*'),
+        match: getPathMatch('/_next/static/:path*'),
         type: 'route',
         name: '_next/static catchall',
         fn: async (req, res, params, parsedUrl) => {
@@ -357,7 +350,7 @@ export default class NextNodeServer extends BaseServer {
 
     return [
       {
-        match: route('/:path*'),
+        match: getPathMatch('/:path*'),
         name: 'public folder catchall',
         fn: async (req, res, params, parsedUrl) => {
           const pathParts: string[] = params.path || []
@@ -875,7 +868,7 @@ export default class NextNodeServer extends BaseServer {
             // (but it should support as many params as needed, separated by '/')
             // Otherwise this will lead to a pretty simple DOS attack.
             // See more: https://github.com/vercel/next.js/issues/2617
-            match: route('/static/:path*'),
+            match: getPathMatch('/static/:path*'),
             name: 'static catchall',
             fn: async (req, res, params, parsedUrl) => {
               const p = join(this.dir, 'static', ...params.path)
@@ -939,14 +932,9 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getMiddlewareManifest(): MiddlewareManifest | undefined {
-    if (!this.minimalMode) {
-      const middlewareManifestPath = join(
-        join(this.distDir, SERVER_DIRECTORY),
-        MIDDLEWARE_MANIFEST
-      )
-      return require(middlewareManifestPath)
-    }
-    return undefined
+    return !this.minimalMode
+      ? require(join(this.serverDistDir, MIDDLEWARE_MANIFEST))
+      : undefined
   }
 
   protected generateRewrites({
@@ -1026,7 +1014,7 @@ export default class NextNodeServer extends BaseServer {
     if (this.minimalMode) return undefined
 
     return {
-      match: route('/:path*'),
+      match: getPathMatch('/:path*'),
       type: 'route',
       name: 'middleware catchall',
       fn: async (req, res, _params, parsed) => {
