@@ -9,4 +9,4 @@ const path =
     ? require('next/dist/compiled/path-browserify')
     : require('path')
 
-export default path
+module.exports = path
