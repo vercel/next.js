@@ -8,7 +8,7 @@ use std::time::Instant;
 use std::{env::current_dir, time::Duration};
 use turbo_tasks::stats::Stats;
 use turbo_tasks::viz::{visualize_stats_tree, wrap_html};
-use turbo_tasks::{NothingVc, TurboTasks};
+use turbo_tasks::{MemoryBackend, NothingVc, TurboTasks};
 use turbopack::emit;
 use turbopack::rebase::RebasedAssetVc;
 use turbopack::source_asset::SourceAssetVc;
@@ -16,7 +16,7 @@ use turbopack::source_asset::SourceAssetVc;
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 
 fn main() {
-    let tt = TurboTasks::new();
+    let tt = TurboTasks::new(MemoryBackend::new());
     block_on(async {
         let start = Instant::now();
 
@@ -67,10 +67,9 @@ fn main() {
             stats.add_id(&tt, task);
 
             // graph tasks in cache
-            let guard = tt.guard();
-            for task in tt.cached_tasks_iter(&guard) {
+            tt.with_all_cached_tasks(|task| {
                 stats.add(&tt, &task);
-            }
+            });
 
             // prettify graph
             stats.merge_resolve();

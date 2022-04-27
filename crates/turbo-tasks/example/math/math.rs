@@ -34,19 +34,14 @@ pub async fn max_reuse(a_ref: I32ValueVc, b_ref: I32ValueVc) -> Result<I32ValueV
 }
 
 #[turbo_tasks::value]
+#[derive(PartialEq, Eq)]
 pub struct I32Value {
     pub value: i32,
 }
 
 #[turbo_tasks::value_impl]
 impl I32Value {
-    #[turbo_tasks::constructor(compare: is)]
     pub fn new(value: i32) -> Self {
         Self { value }
-    }
-
-    pub fn is(&self, value: &i32) -> bool {
-        println!("compared I32Value {} == {}", self.value, *value);
-        self.value == *value
     }
 }

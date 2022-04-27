@@ -29,6 +29,7 @@ pub struct ModuleAsset {
 
 #[turbo_tasks::value_impl]
 impl ModuleAssetVc {
+    #[turbo_tasks::function]
     pub fn new(source: AssetVc, runtime: WebpackRuntimeVc) -> Self {
         Self::slot(ModuleAsset { source, runtime })
     }

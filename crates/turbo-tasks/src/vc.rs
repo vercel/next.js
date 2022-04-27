@@ -1,4 +1,4 @@
-use std::{any::Any, future::IntoFuture, marker::PhantomData, pin::Pin};
+use std::{any::Any, fmt::Debug, future::IntoFuture, hash::Hash, marker::PhantomData};
 
 use anyhow::Result;
 use lazy_static::lazy_static;
@@ -6,14 +6,14 @@ use lazy_static::lazy_static;
 use crate::{
     id::ValueTypeId,
     registry,
-    task::{match_previous_node_by_key, match_previous_node_by_type},
+    task::{find_slot_by_key, find_slot_by_type},
     trace::{TraceRawVcs, TraceRawVcsContext},
-    RawVc, RawVcReadResult, TaskInput, TurboTasks, ValueType,
+    RawVc, RawVcReadResult, ReadRawVcFuture, TaskInput, ValueType,
 };
 
 #[derive(PartialEq, Eq, Clone)]
 pub struct Vc<T: Any + TraceRawVcs + Send + Sync> {
-    node: RawVc,
+    raw: RawVc,
     phantom_data: PhantomData<T>,
 }
 
@@ -29,7 +29,7 @@ impl<T: Any + TraceRawVcs + Send + Sync> Vc<T> {
     /// execution.
     pub async fn resolve(self) -> Result<Self> {
         Ok(Self {
-            node: self.node.resolve().await?,
+            raw: self.raw.resolve().await?,
             phantom_data: PhantomData,
         })
     }
@@ -43,19 +43,16 @@ impl<T: Any + PartialEq + Eq + TraceRawVcs + Send + Sync> Vc<T> {
     ///
     /// Slot is selected based on the value type and call order of `slot`.
     pub fn slot(content: T) -> Self {
+        let slot = find_slot_by_type(*VALUE_TYPE_ID);
+        slot.compare_and_update_shared(content);
         Self {
-            node: match_previous_node_by_type::<T, _>(|__slot| {
-                __slot.compare_and_update_shared(*VALUE_TYPE_ID, content);
-            }),
+            raw: slot.into(),
             phantom_data: PhantomData,
         }
     }
 }
 
-impl<
-        T: std::hash::Hash + std::cmp::PartialEq + std::cmp::Eq + TraceRawVcs + Send + Sync + 'static,
-    > Vc<T>
-{
+impl<T: Hash + PartialEq + Eq + TraceRawVcs + Send + Sync + 'static> Vc<T> {
     /// Places a value in a slot of the current task.
     /// If there is already a value in the slot it only overrides the value when
     /// it's not equal to the provided value. (Requires `Eq` trait to be
@@ -63,11 +60,14 @@ impl<
     ///
     /// Slot is selected by the provided `key`. `key` must not be used twice
     /// during the current task.
-    pub fn keyed_slot(key: T, content: T) -> Self {
+    pub fn keyed_slot<K: Debug + Eq + Ord + Hash + Send + Sync + 'static>(
+        key: K,
+        content: T,
+    ) -> Self {
+        let slot = find_slot_by_key(*VALUE_TYPE_ID, key);
+        slot.compare_and_update_shared(content);
         Self {
-            node: match_previous_node_by_key::<T, T, _>(key, |__slot| {
-                __slot.compare_and_update_shared(*VALUE_TYPE_ID, content);
-            }),
+            raw: slot.into(),
             phantom_data: PhantomData,
         }
     }
@@ -81,10 +81,10 @@ impl<T: Any + TraceRawVcs + Send + Sync> Vc<T> {
     ///
     /// Slot is selected based on the value type and call order of `slot`.
     pub fn slot_new(content: T) -> Self {
+        let slot = find_slot_by_type(*VALUE_TYPE_ID);
+        slot.update_shared(content);
         Self {
-            node: match_previous_node_by_type::<T, _>(|__slot| {
-                __slot.update_shared(*VALUE_TYPE_ID, content);
-            }),
+            raw: slot.into(),
             phantom_data: PhantomData,
         }
     }
@@ -92,10 +92,10 @@ impl<T: Any + TraceRawVcs + Send + Sync> Vc<T> {
 
 impl<T: Any + Default + PartialEq + Eq + TraceRawVcs + Send + Sync> Vc<T> {
     pub fn default() -> Self {
+        let slot = find_slot_by_type(*VALUE_TYPE_ID);
+        slot.compare_and_update_shared(T::default());
         Self {
-            node: match_previous_node_by_type::<T, _>(|__slot| {
-                __slot.compare_and_update_shared(*VALUE_TYPE_ID, T::default());
-            }),
+            raw: slot.into(),
             phantom_data: PhantomData,
         }
     }
@@ -104,33 +104,33 @@ impl<T: Any + Default + PartialEq + Eq + TraceRawVcs + Send + Sync> Vc<T> {
 impl<T: Any + TraceRawVcs + Send + Sync> From<RawVc> for Vc<T> {
     fn from(node: RawVc) -> Self {
         Self {
-            node,
+            raw: node,
             phantom_data: PhantomData,
         }
     }
 }
 
 impl<T: Any + TraceRawVcs + Send + Sync> From<Vc<T>> for RawVc {
-    fn from(node_ref: Vc<T>) -> Self {
-        node_ref.node
+    fn from(vc: Vc<T>) -> Self {
+        vc.raw
     }
 }
 
 impl<T: Any + TraceRawVcs + Send + Sync> From<&Vc<T>> for RawVc {
-    fn from(node_ref: &Vc<T>) -> Self {
-        node_ref.node
+    fn from(vc: &Vc<T>) -> Self {
+        vc.raw
     }
 }
 
 impl<T: Any + TraceRawVcs + Send + Sync> From<Vc<T>> for TaskInput {
-    fn from(node_ref: Vc<T>) -> Self {
-        node_ref.node.into()
+    fn from(vc: Vc<T>) -> Self {
+        vc.raw.into()
     }
 }
 
 impl<T: Any + TraceRawVcs + Send + Sync> From<&Vc<T>> for TaskInput {
-    fn from(node_ref: &Vc<T>) -> Self {
-        node_ref.node.into()
+    fn from(vc: &Vc<T>) -> Self {
+        vc.raw.into()
     }
 }
 
@@ -139,38 +139,34 @@ impl<T: Any + TraceRawVcs + Send + Sync> TryFrom<&TaskInput> for Vc<T> {
 
     fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
         Ok(Self {
-            node: value.try_into()?,
+            raw: value.try_into()?,
             phantom_data: PhantomData,
         })
     }
 }
 
 impl<T: Any + TraceRawVcs + Send + Sync> TraceRawVcs for Vc<T> {
-    fn trace_node_refs(&self, context: &mut TraceRawVcsContext) {
-        TraceRawVcs::trace_node_refs(&self.node, context);
+    fn trace_raw_vcs(&self, context: &mut TraceRawVcsContext) {
+        TraceRawVcs::trace_raw_vcs(&self.raw, context);
     }
 }
 
 impl<T: Any + TraceRawVcs + Send + Sync> IntoFuture for Vc<T> {
     type Output = Result<RawVcReadResult<T>>;
 
-    type IntoFuture = Pin<
-        Box<dyn std::future::Future<Output = Result<RawVcReadResult<T>>> + Send + Sync + 'static>,
-    >;
+    type IntoFuture = ReadRawVcFuture<T>;
 
     fn into_future(self) -> Self::IntoFuture {
-        Box::pin(self.node.into_read::<T>(TurboTasks::current().unwrap()))
+        self.raw.into_read::<T>()
     }
 }
 
 impl<T: Any + TraceRawVcs + Send + Sync> IntoFuture for &Vc<T> {
     type Output = Result<RawVcReadResult<T>>;
 
-    type IntoFuture = Pin<
-        Box<dyn std::future::Future<Output = Result<RawVcReadResult<T>>> + Send + Sync + 'static>,
-    >;
+    type IntoFuture = ReadRawVcFuture<T>;
 
     fn into_future(self) -> Self::IntoFuture {
-        Box::pin(self.node.into_read::<T>(TurboTasks::current().unwrap()))
+        self.raw.into_read::<T>()
     }
 }

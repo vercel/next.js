@@ -9,6 +9,7 @@ pub struct Nothing;
 
 #[turbo_tasks::value_impl]
 impl NothingVc {
+    #[turbo_tasks::function]
     pub fn new() -> Self {
         NothingVc::slot(Nothing)
     }

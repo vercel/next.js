@@ -32,6 +32,7 @@ pub struct ModuleAsset {
 
 #[turbo_tasks::value_impl]
 impl ModuleAssetVc {
+    #[turbo_tasks::function]
     pub fn new(source: AssetVc, ty: Value<ModuleAssetType>) -> Self {
         Self::slot(ModuleAsset {
             source,

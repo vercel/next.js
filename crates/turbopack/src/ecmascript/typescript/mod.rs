@@ -25,6 +25,7 @@ pub struct TsConfigModuleAsset {
 
 #[turbo_tasks::value_impl]
 impl TsConfigModuleAssetVc {
+    #[turbo_tasks::function]
     pub fn new(source: AssetVc) -> Self {
         Self::slot(TsConfigModuleAsset { source })
     }
@@ -129,6 +130,7 @@ pub struct CompilerReference {
 
 #[turbo_tasks::value_impl]
 impl CompilerReferenceVc {
+    #[turbo_tasks::function]
     pub fn new(source: AssetVc, request: RequestVc) -> Self {
         Self::slot(CompilerReference { source, request })
     }
@@ -152,6 +154,7 @@ pub struct TsExtendsReference {
 
 #[turbo_tasks::value_impl]
 impl TsExtendsReferenceVc {
+    #[turbo_tasks::function]
     pub fn new(config: AssetVc) -> Self {
         Self::slot(TsExtendsReference { config })
     }
@@ -173,6 +176,7 @@ pub struct TsNodeRequireReference {
 
 #[turbo_tasks::value_impl]
 impl TsNodeRequireReferenceVc {
+    #[turbo_tasks::function]
     pub fn new(source: AssetVc, request: RequestVc) -> Self {
         Self::slot(TsNodeRequireReference { source, request })
     }
@@ -197,6 +201,7 @@ pub struct TsConfigTypesReference {
 
 #[turbo_tasks::value_impl]
 impl TsConfigTypesReferenceVc {
+    #[turbo_tasks::function]
     pub fn new(source: AssetVc, request: RequestVc) -> Self {
         Self::slot(TsConfigTypesReference { source, request })
     }

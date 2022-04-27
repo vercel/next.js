@@ -9,15 +9,15 @@ use quote::quote;
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
-    parse_macro_input, parse_quote,
+    parse_macro_input,
     punctuated::Punctuated,
     spanned::Spanned,
     token::Paren,
     AngleBracketedGenericArguments, Attribute, Error, Expr, Field, Fields, FieldsNamed,
     FieldsUnnamed, FnArg, GenericArgument, ImplItem, ImplItemMethod, Item, ItemEnum, ItemFn,
-    ItemImpl, ItemStruct, ItemTrait, Pat, PatIdent, PatType, Path, PathArguments, PathSegment,
-    Receiver, Result, ReturnType, Signature, Token, TraitBound, TraitItem, TraitItemMethod, Type,
-    TypeParamBound, TypePath, TypeReference, TypeTuple,
+    ItemImpl, ItemStruct, ItemTrait, PatType, Path, PathArguments, PathSegment, Receiver, Result,
+    ReturnType, Signature, Token, TraitBound, TraitItem, TraitItemMethod, Type, TypeParamBound,
+    TypePath, TypeReference, TypeTuple,
 };
 
 fn get_ref_ident(ident: &Ident) -> Ident {
@@ -116,9 +116,6 @@ enum IntoMode {
     None,
     New,
     Shared,
-
-    // TODO remove that
-    Value,
 }
 
 impl Parse for IntoMode {
@@ -128,12 +125,11 @@ impl Parse for IntoMode {
             "none" => Ok(IntoMode::None),
             "new" => Ok(IntoMode::New),
             "shared" => Ok(IntoMode::Shared),
-            "value" => Ok(IntoMode::Value),
             _ => {
                 return Err(Error::new_spanned(
                     &ident,
                     format!(
-                        "unexpected {}, expected \"none\", \"new\", \"shared\" or \"value\"",
+                        "unexpected {}, expected \"none\", \"new\", \"shared\"",
                         ident.to_string()
                     ),
                 ))
@@ -161,10 +157,6 @@ impl Parse for ValueArguments {
         loop {
             let ident = input.parse::<Ident>()?;
             match ident.to_string().as_str() {
-                "value" => {
-                    result.into_mode = IntoMode::Value;
-                    result.slot_mode = IntoMode::Value;
-                }
                 "shared" => {
                     result.into_mode = IntoMode::Shared;
                     result.slot_mode = IntoMode::Shared;
@@ -248,42 +240,17 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         IntoMode::New => quote! {
             impl From<#ident> for #ref_ident {
                 fn from(content: #ident) -> Self {
-                    Self { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
-                        |__slot| {
-                            __slot.update_shared(*#value_type_id_ident, content);
-                        }
-                    ) }
+                    let slot = turbo_tasks::macro_helpers::find_slot_by_type(*#value_type_id_ident);
+                    slot.update_shared(content);
+                    Self { node: slot.into() }
                 }
             }
 
             #(impl From<#ident> for #trait_refs {
                 fn from(content: #ident) -> Self {
-                    std::convert::From::<turbo_tasks::RawVc>::from(turbo_tasks::macro_helpers::match_previous_node_by_type::<dyn #traits, _>(
-                        |__slot| {
-                            __slot.update_shared(*#value_type_id_ident, content);
-                        }
-                    ))
-                }
-            })*
-        },
-        IntoMode::Value => quote! {
-            impl From<#ident> for #ref_ident {
-                fn from(content: #ident) -> Self {
-                    Self { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
-                        |__slot| {
-                            __slot.compare_and_update_cloneable(*#value_type_id_ident, content);
-                        }
-                    ) }
-                }
-            }
-
-            #(impl From<#ident> for #trait_refs {
-                fn from(content: #ident) -> Self {
-                    std::convert::From::<turbo_tasks::RawVc>::from(turbo_tasks::macro_helpers::match_previous_node_by_type::<dyn #traits, _>(
-                        |__slot| {
-                            __slot.compare_and_update_cloneable(*#value_type_id_ident, content);
-                        }
-                    ))
+                    let slot = turbo_tasks::macro_helpers::find_slot_by_type(*#value_type_id_ident);
+                    slot.update_shared(content);
+                    std::convert::From::<turbo_tasks::RawVc>::from(slot.into())
                 }
             })*
         },
@@ -292,21 +259,17 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
             impl From<#ident> for #ref_ident {
                 fn from(content: #ident) -> Self {
-                    Self { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
-                        |__slot| {
-                            __slot.compare_and_update_shared(*#value_type_id_ident, content);
-                        }
-                    ) }
+                    let slot = turbo_tasks::macro_helpers::find_slot_by_type(*#value_type_id_ident);
+                    slot.compare_and_update_shared(content);
+                    Self { node: slot.into() }
                 }
             }
 
             #(impl From<#ident> for #trait_refs {
                 fn from(content: #ident) -> Self {
-                    std::convert::From::<turbo_tasks::RawVc>::from(turbo_tasks::macro_helpers::match_previous_node_by_type::<dyn #traits, _>(
-                        |__slot| {
-                            __slot.compare_and_update_shared(*#value_type_id_ident, content);
-                        }
-                    ))
+                    let slot = turbo_tasks::macro_helpers::find_slot_by_type(*#value_type_id_ident);
+                    slot.compare_and_update_shared(content);
+                    std::convert::From::<turbo_tasks::RawVc>::from(slot.into())
                 }
             })*
         },
@@ -320,42 +283,21 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             ///
             /// Slot is selected based on the value type and call order of `slot`.
             fn slot(content: #ident) -> #ref_ident {
-                #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
-                    |__slot| {
-                        __slot.update_shared(*#value_type_id_ident, content);
-                    }
-                ) }
+                let slot = turbo_tasks::macro_helpers::find_slot_by_type(*#value_type_id_ident);
+                slot.update_shared(content);
+               #ref_ident { node: slot.into() }
             }
 
             /// Places a value in a slot of the current task.
             /// Overrides the current value. Doesn't check of equallity.
             ///
             /// Slot is selected by the provided `key`. `key` must not be used twice during the current task.
-            fn keyed_slot<T: std::hash::Hash + std::cmp::PartialEq + std::cmp::Eq + Send + Sync + 'static>(key: T, content: #ident) -> #ref_ident {
-                #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_key::<#ident, T, _>(
-                    key,
-                    |__slot| {
-                        __slot.update_shared(*#value_type_id_ident, content);
-                    }
-                ) }
-            }
-        },
-        IntoMode::Value => quote! {
-            fn slot(content: #ident) -> #ref_ident {
-                #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
-                    |__slot| {
-                        __slot.compare_and_update_cloneable(*#value_type_id_ident, content);
-                    }
-                ) }
-            }
-
-            fn keyed_slot<T: std::hash::Hash + std::cmp::PartialEq + std::cmp::Eq + Send + Sync + 'static>(key: T, content: #ident) -> #ref_ident {
-                #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_key::<#ident, T, _>(
-                    key,
-                    |__slot| {
-                        __slot.compare_and_update_cloneable(*#value_type_id_ident, content);
-                    }
-                ) }
+            fn keyed_slot<
+                K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + Send + Sync + 'static,
+            >(key: K, content: #ident) -> #ref_ident {
+                let slot = turbo_tasks::macro_helpers::find_slot_by_key(*#value_type_id_ident, key);
+                slot.update_shared(content);
+                #ref_ident { node: slot.into() }
             }
         },
         IntoMode::Shared => quote! {
@@ -365,11 +307,9 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             ///
             /// Slot is selected based on the value type and call order of `slot`.
             fn slot(content: #ident) -> #ref_ident {
-                #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
-                    |__slot| {
-                        __slot.compare_and_update_shared(*#value_type_id_ident, content);
-                    }
-                ) }
+                let slot = turbo_tasks::macro_helpers::find_slot_by_type(*#value_type_id_ident);
+                slot.compare_and_update_shared(content);
+                #ref_ident { node: slot.into() }
             }
 
             /// Places a value in a slot of the current task.
@@ -377,13 +317,12 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             /// it's not equal to the provided value. (Requires `Eq` trait to be implemented on the type.)
             ///
             /// Slot is selected by the provided `key`. `key` must not be used twice during the current task.
-            fn keyed_slot<T: std::hash::Hash + std::cmp::PartialEq + std::cmp::Eq + Send + Sync + 'static>(key: T, content: #ident) -> #ref_ident {
-                #ref_ident { node: turbo_tasks::macro_helpers::match_previous_node_by_key::<#ident, T, _>(
-                    key,
-                    |__slot| {
-                        __slot.compare_and_update_shared(*#value_type_id_ident, content);
-                    }
-                ) }
+            fn keyed_slot<
+                K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + Send + Sync + 'static,
+            >(key: K, content: #ident) -> #ref_ident {
+                let slot = turbo_tasks::macro_helpers::find_slot_by_key(*#value_type_id_ident, key);
+                slot.compare_and_update_shared(content);
+                #ref_ident { node: slot.into() }
             }
         },
     };
@@ -439,18 +378,18 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
         // #[cfg(feature = "into_future")]
         impl std::future::IntoFuture for #ref_ident {
-            type Output = turbo_tasks::Result<turbo_tasks::macro_helpers::RawVcReadResult<#ident>>;
-            type IntoFuture = std::pin::Pin<std::boxed::Box<dyn std::future::Future<Output = turbo_tasks::Result<turbo_tasks::macro_helpers::RawVcReadResult<#ident>>> + Send + Sync + 'static>>;
+            type Output = turbo_tasks::Result<turbo_tasks::RawVcReadResult<#ident>>;
+            type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident>;
             fn into_future(self) -> Self::IntoFuture {
-                Box::pin(self.node.into_read::<#ident>(turbo_tasks::TurboTasks::current().unwrap()))
+                self.node.into_read::<#ident>()
             }
         }
 
         impl std::future::IntoFuture for &#ref_ident {
-            type Output = turbo_tasks::Result<turbo_tasks::macro_helpers::RawVcReadResult<#ident>>;
-            type IntoFuture = std::pin::Pin<std::boxed::Box<dyn std::future::Future<Output = turbo_tasks::Result<turbo_tasks::macro_helpers::RawVcReadResult<#ident>>> + Send + Sync + 'static>>;
+            type Output = turbo_tasks::Result<turbo_tasks::RawVcReadResult<#ident>>;
+            type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident>;
             fn into_future(self) -> Self::IntoFuture {
-                Box::pin(self.node.into_read::<#ident>(turbo_tasks::TurboTasks::current().unwrap()))
+                self.node.into_read::<#ident>()
             }
         }
 
@@ -501,8 +440,8 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         #into
 
         impl turbo_tasks::trace::TraceRawVcs for #ref_ident {
-            fn trace_node_refs(&self, context: &mut turbo_tasks::trace::TraceRawVcsContext) {
-                turbo_tasks::trace::TraceRawVcs::trace_node_refs(&self.node, context);
+            fn trace_raw_vcs(&self, context: &mut turbo_tasks::trace::TraceRawVcsContext) {
+                turbo_tasks::trace::TraceRawVcs::trace_raw_vcs(&self.node, context);
             }
         }
     };
@@ -605,10 +544,6 @@ impl Parse for Constructor {
             }
         }
     }
-}
-
-fn is_constructor(attr: &Attribute) -> bool {
-    is_attribute(attr, "constructor")
 }
 
 fn is_attribute(attr: &Attribute, name: &str) -> bool {
@@ -783,8 +718,8 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
         }
 
         impl turbo_tasks::trace::TraceRawVcs for #ref_ident {
-            fn trace_node_refs(&self, context: &mut turbo_tasks::trace::TraceRawVcsContext) {
-                turbo_tasks::trace::TraceRawVcs::trace_node_refs(&self.node, context);
+            fn trace_raw_vcs(&self, context: &mut turbo_tasks::trace::TraceRawVcsContext) {
+                turbo_tasks::trace::TraceRawVcs::trace_raw_vcs(&self.node, context);
             }
         }
 
@@ -794,180 +729,7 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
-    fn generate_for_self_impl(ident: &Ident, items: &[ImplItem]) -> TokenStream2 {
-        let ref_ident = get_ref_ident(ident);
-        let value_type_id_ident = get_value_type_id_ident(ident);
-        let mut constructors = Vec::new();
-        let mut i = 0;
-        for item in items.iter() {
-            match item {
-                ImplItem::Method(ImplItemMethod {
-                    attrs,
-                    vis,
-                    defaultness,
-                    sig,
-                    block: _,
-                }) => {
-                    if let Some(Attribute { tokens, .. }) =
-                        attrs.iter().find(|attr| is_constructor(attr))
-                    {
-                        let constructor: Constructor = parse_quote! { #tokens };
-                        let fn_name = &sig.ident;
-                        let inputs = &sig.inputs;
-                        let mut input_names = Vec::new();
-                        let mut old_input_names = Vec::new();
-                        let mut input_names_ref = Vec::new();
-                        let index_literal = Literal::i32_unsuffixed(i);
-                        let mut inputs_for_intern_key = vec![quote! { #index_literal }];
-                        for arg in inputs.iter() {
-                            if let FnArg::Typed(PatType { pat, ty, .. }) = arg {
-                                if let Pat::Ident(PatIdent { ident, .. }) = &**pat {
-                                    input_names.push(ident.clone());
-                                    old_input_names.push(Ident::new(
-                                        &(ident.to_string() + "_old"),
-                                        ident.span(),
-                                    ));
-                                    if let Type::Reference(_) = &**ty {
-                                        inputs_for_intern_key
-                                            .push(quote! { std::clone::Clone::clone(#ident) });
-                                        input_names_ref.push(quote! { #ident });
-                                    } else {
-                                        inputs_for_intern_key
-                                            .push(quote! { std::clone::Clone::clone(&#ident) });
-                                        input_names_ref.push(quote! { &#ident });
-                                    }
-                                } else {
-                                    item.span()
-                                        .unwrap()
-                                        .error(format!(
-                                            "unsupported pattern syntax in {}: {}",
-                                            &ident.to_string(),
-                                            quote! { #pat }
-                                        ))
-                                        .emit();
-                                }
-                            }
-                        }
-                        let create_new_content = quote! {
-                            #ident::#fn_name(#(#input_names),*)
-                        };
-                        let gen_conditional_update_functor = |compare_name| {
-                            let compare = match compare_name {
-                                Some(name) => quote! {
-                                    __self.#name(#(#input_names_ref),*)
-                                },
-                                None => quote! {
-                                    true #(&& (#input_names_ref == &__self.#input_names))*
-                                },
-                            };
-                            quote! {
-                                |__slot| {
-                                    __slot.conditional_update_shared::<#ident, _>(*#value_type_id_ident, |__self| {
-                                        if let Some(__self) = __self {
-                                            if #compare {
-                                                return None;
-                                            }
-                                        }
-                                        Some(#create_new_content)
-                                    })
-                                }
-                            }
-                        };
-                        let gen_compare_enum_functor = |name| {
-                            let compare = if old_input_names.is_empty() {
-                                quote! {
-                                    if __self == Some(&#ident::#name) {
-                                        return None
-                                    }
-                                }
-                            } else {
-                                quote! {
-                                    if let Some(&#ident::#name(ref #(#old_input_names),*)) = __self {
-                                        if true #(&& (#input_names == *#old_input_names))* {
-                                            return None
-                                        }
-                                    }
-                                }
-                            };
-                            quote! {
-                                |__slot| {
-                                    __slot.conditional_update_shared::<#ident, _>(*#value_type_id_ident, |__self| {
-                                        #compare
-                                        Some(#create_new_content)
-                                    })
-                                }
-                            }
-                        };
-                        let get_node = match constructor {
-                            Constructor::Default => {
-                                quote! {
-                                    turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
-                                        |__slot| {
-                                            __slot.update_shared::<#ident>(*#value_type_id_ident, #create_new_content);
-                                        }
-                                    )
-                                }
-                            }
-                            Constructor::Compare(compare_name) => {
-                                let functor = gen_conditional_update_functor(compare_name);
-                                quote! {
-                                    turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
-                                        #functor
-                                    )
-                                }
-                            }
-                            Constructor::KeyAndCompare(key_expr, compare_name) => {
-                                let functor = gen_conditional_update_functor(compare_name);
-                                quote! {
-                                    turbo_tasks::macro_helpers::match_previous_node_by_key::<#ident, _, _>(
-                                        #key_expr,
-                                        #functor
-                                    )
-                                }
-                            }
-                            Constructor::CompareEnum(compare_name) => {
-                                let functor = gen_compare_enum_functor(compare_name);
-                                quote! {
-                                    turbo_tasks::macro_helpers::match_previous_node_by_type::<#ident, _>(
-                                        #functor
-                                    )
-                                }
-                            }
-                            Constructor::KeyAndCompareEnum(key_expr, compare_name) => {
-                                let functor = gen_compare_enum_functor(compare_name);
-                                quote! {
-                                    turbo_tasks::macro_helpers::match_previous_node_by_key::<#ident, _, _>(
-                                        #key_expr,
-                                        #functor
-                                    )
-                                }
-                            }
-                            Constructor::Key(_) => todo!(),
-                        };
-                        constructors.push(quote! {
-                            #(#attrs)*
-                            #vis #defaultness #sig {
-                                let node = #get_node;
-                                Self {
-                                    node
-                                }
-                            }
-                        });
-                        i += 1;
-                    }
-                }
-                _ => {}
-            };
-        }
-
-        return quote! {
-            impl #ref_ident {
-                #(#constructors)*
-            }
-        };
-    }
-
-    fn generate_for_self_ref_impl(ref_ident: &Ident, items: &[ImplItem]) -> TokenStream2 {
+    fn generate_for_vc_impl(vc_ident: &Ident, items: &[ImplItem]) -> TokenStream2 {
         let mut functions = Vec::new();
 
         for item in items.iter() {
@@ -979,12 +741,26 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     sig,
                     block,
                 }) => {
+                    let function_attr = attrs.iter().find(|attr| is_attribute(attr, "function"));
+                    let attrs = if function_attr.is_none() {
+                        item.span()
+                            .unwrap()
+                            .error("#[turbo_tasks::function] attribute missing")
+                            .emit();
+                        attrs.clone()
+                    } else {
+                        attrs
+                            .iter()
+                            .filter(|attr| !is_attribute(attr, "function"))
+                            .cloned()
+                            .collect()
+                    };
                     let Signature { ident, output, .. } = sig;
 
                     let output_type = get_return_type(output);
                     let inline_ident = get_internal_function_ident(ident);
-                    let function_ident = get_trait_impl_function_ident(ref_ident, ident);
-                    let function_id_ident = get_trait_impl_function_id_ident(ref_ident, ident);
+                    let function_ident = get_trait_impl_function_ident(vc_ident, ident);
+                    let function_id_ident = get_trait_impl_function_id_ident(vc_ident, ident);
 
                     let mut inline_sig = sig.clone();
                     inline_sig.ident = inline_ident.clone();
@@ -994,14 +770,14 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
 
                     let (native_function_code, input_raw_vc_arguments) = gen_native_function_code(
                         // use const string
-                        quote! { stringify!(#ref_ident::#ident) },
-                        quote! { #ref_ident::#inline_ident },
+                        quote! { stringify!(#vc_ident::#ident) },
+                        quote! { #vc_ident::#inline_ident },
                         &function_ident,
                         &function_id_ident,
                         sig.asyncness.is_some(),
                         &sig.inputs,
                         &output_type,
-                        Some(ref_ident),
+                        Some(vc_ident),
                         true,
                     );
 
@@ -1018,7 +794,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     };
 
                     functions.push(quote! {
-                        impl #ref_ident {
+                        impl #vc_ident {
                             #(#attrs)*
                             #vis #external_sig {
                                 let result = turbo_tasks::dynamic_call(*#function_id_ident, vec![#(#input_raw_vc_arguments),*]);
@@ -1151,21 +927,11 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
             {
                 match &item.trait_ {
                     None => {
-                        if ident.to_string().ends_with("Vc") {
-                            let code = generate_for_self_ref_impl(ident, &item.items);
-                            return quote! {
-                                #code
-                            }
-                            .into();
-                        } else {
-                            let code = generate_for_self_impl(ident, &item.items);
-                            return quote! {
-                                #item
-
-                                #code
-                            }
-                            .into();
+                        let code = generate_for_vc_impl(ident, &item.items);
+                        return quote! {
+                            #code
                         }
+                        .into();
                     }
                     Some((_, Path { segments, .. }, _)) => {
                         if segments.len() == 1 {
@@ -1460,7 +1226,7 @@ pub fn constructor(_args: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_derive(TraceRawVcs, attributes(trace_ignore))]
-pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
+pub fn derive_trace_raw_vcs_attr(input: TokenStream) -> TokenStream {
     fn ignore_field(field: &Field) -> bool {
         field
             .attrs
@@ -1498,7 +1264,7 @@ pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
                         quote! {
                             #ident::#variant_ident{ #(#ident_pats),* } => {
                                 #(
-                                    turbo_tasks::trace::TraceRawVcs::trace_node_refs(#idents, context);
+                                    turbo_tasks::trace::TraceRawVcs::trace_raw_vcs(#idents, context);
                                 )*
                             }
                         }
@@ -1518,7 +1284,7 @@ pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
                         quote! {
                             #ident::#variant_ident( #(#idents),* ) => {
                                 #(
-                                    turbo_tasks::trace::TraceRawVcs::trace_node_refs(#active_idents, context);
+                                    turbo_tasks::trace::TraceRawVcs::trace_raw_vcs(#active_idents, context);
                                 )*
                             }
                         }
@@ -1551,7 +1317,7 @@ pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
                         .collect();
                     quote! {
                         #(
-                            turbo_tasks::trace::TraceRawVcs::trace_node_refs(&self.#idents, context);
+                            turbo_tasks::trace::TraceRawVcs::trace_raw_vcs(&self.#idents, context);
                         )*
                     }
                 }
@@ -1564,7 +1330,7 @@ pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
                         .collect();
                     quote! {
                         #(
-                            turbo_tasks::trace::TraceRawVcs::trace_node_refs(&self.#indicies, context);
+                            turbo_tasks::trace::TraceRawVcs::trace_raw_vcs(&self.#indicies, context);
                         )*
                     }
                 }
@@ -1580,7 +1346,7 @@ pub fn derive_trace_node_refs_attr(input: TokenStream) -> TokenStream {
     let generics_params = &generics.params.iter().collect::<Vec<_>>();
     quote! {
         impl #generics turbo_tasks::trace::TraceRawVcs for #ident #generics #(where #generics_params: turbo_tasks::trace::TraceRawVcs)* {
-            fn trace_node_refs(&self, context: &mut turbo_tasks::trace::TraceRawVcsContext) {
+            fn trace_raw_vcs(&self, context: &mut turbo_tasks::trace::TraceRawVcsContext) {
                 #trace_items
             }
         }

@@ -13,6 +13,7 @@ pub struct SourceAsset {
 
 #[turbo_tasks::value_impl]
 impl SourceAssetVc {
+    #[turbo_tasks::function]
     pub fn new(path: FileSystemPathVc) -> Self {
         Self::slot(SourceAsset { path })
     }

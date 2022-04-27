@@ -11,6 +11,7 @@ pub struct AssetsSet {
 
 #[turbo_tasks::value_impl]
 impl AssetsSetVc {
+    #[turbo_tasks::function]
     pub fn empty() -> Self {
         AssetsSet { assets: Vec::new() }.into()
     }

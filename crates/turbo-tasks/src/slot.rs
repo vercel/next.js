@@ -8,10 +8,11 @@ use std::{
 
 use crate::{
     id::ValueTypeId,
+    manager::schedule_notify_tasks,
     raw_vc::{RawVc, RawVcReadResult},
     registry,
     task_input::SharedReference,
-    TaskId, TurboTasks,
+    TaskId,
 };
 
 #[derive(Default, Debug)]
@@ -24,6 +25,7 @@ pub struct Slot {
 #[derive(Clone, Debug)]
 pub enum SlotContent {
     Empty,
+    // TODO wrap in SharedReference
     SharedReference(ValueTypeId, Arc<dyn Any + Send + Sync>),
 }
 
@@ -44,6 +46,28 @@ impl Display for SlotContent {
     }
 }
 
+impl SlotContent {
+    pub fn cast<T: Any + Send + Sync>(self) -> Result<RawVcReadResult<T>> {
+        match self {
+            SlotContent::Empty => Err(anyhow!("Slot it empty")),
+            SlotContent::SharedReference(_, data) => match Arc::downcast(data.clone()) {
+                Ok(data) => Ok(RawVcReadResult::shared_reference(data)),
+                Err(_) => Err(anyhow!("Unexpected type in slot")),
+            },
+        }
+    }
+
+    pub fn try_cast<T: Any + Send + Sync>(self) -> Option<RawVcReadResult<T>> {
+        match self {
+            SlotContent::Empty => None,
+            SlotContent::SharedReference(_, data) => match Arc::downcast(data.clone()) {
+                Ok(data) => Some(RawVcReadResult::shared_reference(data)),
+                Err(_) => None,
+            },
+        }
+    }
+}
+
 impl Slot {
     pub fn new() -> Self {
         Self {
@@ -53,92 +77,19 @@ impl Slot {
         }
     }
 
-    pub fn conditional_update_shared<
-        T: Send + Sync + 'static,
-        F: FnOnce(Option<&T>) -> Option<T>,
-    >(
-        &mut self,
-        ty: ValueTypeId,
-        functor: F,
-    ) {
-        let change;
-        let mut _type_change = false;
-        match &self.content {
-            SlotContent::Empty => {
-                _type_change = true;
-                change = functor(None);
-            }
-            SlotContent::SharedReference(old_ty, old_content) => {
-                if *old_ty != ty {
-                    _type_change = true;
-                    change = functor(None);
-                } else {
-                    if let Some(old_content) = old_content.downcast_ref::<T>() {
-                        change = functor(Some(old_content));
-                    } else {
-                        panic!("This can't happen as the type is compared");
-                    }
-                }
-            }
-        };
-        if let Some(new_content) = change {
-            self.assign(SlotContent::SharedReference(ty, Arc::new(new_content)))
-        }
-    }
-
-    pub fn compare_and_update_shared<T: PartialEq + Send + Sync + 'static>(
-        &mut self,
-        ty: ValueTypeId,
-        new_content: T,
-    ) {
-        self.conditional_update_shared(ty, |old_content| {
-            if let Some(old_content) = old_content {
-                if PartialEq::eq(&new_content, old_content) {
-                    return None;
-                }
-            }
-            Some(new_content)
-        });
-    }
-
-    pub fn update_shared<T: Send + Sync + 'static>(&mut self, ty: ValueTypeId, new_content: T) {
-        self.assign(SlotContent::SharedReference(ty, Arc::new(new_content)))
-    }
-
-    pub fn read<T: Any + Send + Sync>(&mut self, reader: TaskId) -> Result<SlotReadResult<T>> {
+    pub fn read_content(&mut self, reader: TaskId) -> SlotContent {
         self.dependent_tasks.insert(reader);
-        unsafe { self.read_untracked() }
+        unsafe { self.read_content_untracked() }
     }
 
-    pub unsafe fn read_untracked<T: Any + Send + Sync>(&mut self) -> Result<SlotReadResult<T>> {
-        match &self.content {
-            SlotContent::Empty => Err(anyhow!("Slot it empty")),
-            SlotContent::SharedReference(_, data) => match Arc::downcast(data.clone()) {
-                Ok(data) => Ok(SlotReadResult::Final(RawVcReadResult::shared_reference(
-                    data,
-                ))),
-                Err(_) => Err(anyhow!("Unexpected type in slot")),
-            },
-        }
-    }
-
-    pub fn resolve(&mut self, reader: TaskId) -> Option<(ValueTypeId, SharedReference)> {
-        self.dependent_tasks.insert(reader);
-        match &self.content {
-            SlotContent::Empty => None,
-            SlotContent::SharedReference(ty, data) => Some((*ty, SharedReference(data.clone()))),
-        }
+    pub unsafe fn read_content_untracked(&self) -> SlotContent {
+        self.content.clone()
     }
 
     pub fn assign(&mut self, content: SlotContent) {
         self.content = content;
         self.updates += 1;
         // notify
-        TurboTasks::schedule_notify_tasks(self.dependent_tasks.iter());
+        schedule_notify_tasks(self.dependent_tasks.iter());
     }
-}
-
-pub enum SlotReadResult<T: Any + Send + Sync> {
-    Final(RawVcReadResult<T>),
-    Link(RawVc),
 }

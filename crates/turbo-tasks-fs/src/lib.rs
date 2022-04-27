@@ -219,6 +219,7 @@ fn path_to_key(path: &Path) -> String {
 
 #[turbo_tasks::value_impl]
 impl DiskFileSystemVc {
+    #[turbo_tasks::function]
     pub fn new(name: String, root: String) -> Result<Self> {
         let pool = Mutex::new(ThreadPool::new(30));
         // create the directory for the filesystem on disk, if it doesn't exist
@@ -292,7 +293,7 @@ impl FileSystem for DiskFileSystem {
                 .replace("/", &MAIN_SEPARATOR.to_string()),
         );
         {
-            let invalidator = Task::get_invalidator();
+            let invalidator = turbo_tasks::get_invalidator();
             self.invalidators
                 .insert(path_to_key(full_path.as_path()), invalidator);
         }
@@ -310,7 +311,7 @@ impl FileSystem for DiskFileSystem {
         let full_path =
             Path::new(&self.root).join(&fs_path.path.replace("/", &MAIN_SEPARATOR.to_string()));
         {
-            let invalidator = Task::get_invalidator();
+            let invalidator = turbo_tasks::get_invalidator();
             self.dir_invalidators
                 .insert(path_to_key(full_path.as_path()), invalidator);
         }
@@ -484,6 +485,7 @@ impl FileSystemPath {
 
 #[turbo_tasks::value_impl]
 impl FileSystemPathVc {
+    #[turbo_tasks::function]
     pub fn new(fs: FileSystemVc, path: &str) -> Result<Self> {
         if let Some(path) = normalize_path(path) {
             Ok(FileSystemPathVc::new_normalized(fs, path))
@@ -495,10 +497,12 @@ impl FileSystemPathVc {
         }
     }
 
+    #[turbo_tasks::function]
     pub fn new_normalized(fs: FileSystemVc, path: String) -> Self {
         Self::slot(FileSystemPath { fs, path })
     }
 
+    #[turbo_tasks::function]
     pub async fn join(self, path: &str) -> Result<Self> {
         let this = self.await?;
         if let Some(path) = join_path(&this.path, path) {
@@ -512,6 +516,7 @@ impl FileSystemPathVc {
         }
     }
 
+    #[turbo_tasks::function]
     pub async fn try_join(self, path: &str) -> Result<Vc<Option<Self>>> {
         let this = self.await?;
         if let Some(path) = join_path(&this.path, path) {
@@ -521,6 +526,7 @@ impl FileSystemPathVc {
         }
     }
 
+    #[turbo_tasks::function]
     pub async fn try_join_inside(self, path: &str) -> Result<Vc<Option<Self>>> {
         let this = self.await?;
         if let Some(path) = join_path(&this.path, path) {
@@ -531,15 +537,18 @@ impl FileSystemPathVc {
         Ok(Vc::slot(None))
     }
 
+    #[turbo_tasks::function]
     pub async fn read_glob(self, glob: GlobVc, include_dot_files: bool) -> ReadGlobResultVc {
         read_glob(self, glob, include_dot_files)
     }
 
+    #[turbo_tasks::function]
     pub async fn root(self) -> Result<Self> {
         let fs = self.await?.fs;
         Ok(Self::new_normalized(fs, "".to_string()))
     }
 
+    #[turbo_tasks::function]
     pub async fn fs(self) -> Result<FileSystemVc> {
         Ok(self.await?.fs)
     }
@@ -588,31 +597,37 @@ pub async fn rebase(
 
 #[turbo_tasks::value_impl]
 impl FileSystemPathVc {
+    #[turbo_tasks::function]
     pub async fn read(self) -> Result<FileContentVc> {
         let this = self.await?;
         Ok(this.fs.read(self))
     }
 
+    #[turbo_tasks::function]
     pub async fn read_json(self) -> Result<FileJsonContentVc> {
         let this = self.await?;
         Ok(this.fs.read(self).parse_json())
     }
 
+    #[turbo_tasks::function]
     pub async fn read_dir(self) -> Result<DirectoryContentVc> {
         let this = self.await?;
         Ok(this.fs.read_dir(self))
     }
 
+    #[turbo_tasks::function]
     pub async fn write(self, content: FileContentVc) -> Result<CompletionVc> {
         let this = self.await?;
         Ok(this.fs.write(self, content))
     }
 
+    #[turbo_tasks::function]
     pub async fn parent(self) -> Result<FileSystemPathVc> {
         let this = self.await?;
         Ok(this.fs.parent_path(self))
     }
 
+    #[turbo_tasks::function]
     pub async fn get_type(self) -> Result<Vc<FileSystemEntryType>> {
         let this = self.await?;
         if this.is_root() {
@@ -791,10 +806,12 @@ fn skip_json_comments(input: &str) -> String {
 
 #[turbo_tasks::value_impl]
 impl FileContentVc {
+    #[turbo_tasks::function]
     pub async fn parse_json(self) -> Result<FileJsonContentVc> {
         let this = self.await?;
         Ok(this.parse_json().into())
     }
+    #[turbo_tasks::function]
     pub async fn parse_json_with_comments(self) -> Result<FileJsonContentVc> {
         let this = self.await?;
         Ok(this.parse_json_with_comments().into())

@@ -206,12 +206,14 @@ impl ResolveResult {
 
 #[turbo_tasks::value_impl]
 impl ResolveResultVc {
+    #[turbo_tasks::function]
     pub async fn add_reference(self, reference: AssetReferenceVc) -> Result<Self> {
         let mut this = self.await?.clone();
         this.add_reference(reference);
         Ok(this.into())
     }
 
+    #[turbo_tasks::function]
     pub async fn alternatives(results: Vec<ResolveResultVc>) -> Result<Self> {
         if results.len() == 1 {
             return Ok(results.into_iter().next().unwrap());
@@ -228,6 +230,7 @@ impl ResolveResultVc {
         }
     }
 
+    #[turbo_tasks::function]
     pub async fn is_unresolveable(self) -> Result<Vc<bool>> {
         let this = self.await?;
         Ok(Vc::slot(this.is_unresolveable()))

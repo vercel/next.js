@@ -1,13 +1,21 @@
 use std::{
     any::Any,
     fmt::{Debug, Display},
+    future::Future,
     hash::Hash,
+    marker::PhantomData,
+    pin::Pin,
     sync::Arc,
 };
 
 use anyhow::Result;
+use event_listener::EventListener;
 
-use crate::{slot::SlotReadResult, Task, TaskId, TurboTasks};
+use crate::{
+    backend::Backend,
+    manager::{read_task_output, read_task_output_untracked, TurboTasksApi},
+    turbo_tasks, TaskId, TurboTasks,
+};
 
 /// The result of reading a ValueVc.
 /// Can be dereferenced to the concrete type.
@@ -57,98 +65,70 @@ impl<T: Debug + Any + Send + Sync> Debug for RawVcReadResult<T> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RawVc {
     TaskOutput(TaskId),
-    TaskCreated(TaskId, usize),
+    TaskSlot(TaskId, usize),
 }
 
 impl RawVc {
-    pub async fn into_read<T: Any + Send + Sync>(
-        self,
-        tt: Arc<TurboTasks>,
-    ) -> Result<RawVcReadResult<T>> {
-        tt.notify_scheduled_tasks();
-        let mut current = self;
-        loop {
-            match match current {
-                RawVc::TaskOutput(task) => SlotReadResult::Link(
-                    Task::with_done_output(task, &tt, |_, output| {
-                        Task::add_dependency_to_current(current);
-                        output.read(Task::current().unwrap())
-                    })
-                    .await?,
-                ),
-                RawVc::TaskCreated(task, index) => tt.with_task_and_tt(task, |task| {
-                    Task::add_dependency_to_current(current);
-                    task.with_created_slot_mut(index, |slot| slot.read(Task::current().unwrap()))
-                })?,
-            } {
-                SlotReadResult::Final(result) => {
-                    return Ok(result);
-                }
-                SlotReadResult::Link(raw_vc) => current = raw_vc,
-            }
-        }
+    pub fn into_read<T: Any + Send + Sync>(self) -> ReadRawVcFuture<T> {
+        // returns a custom future to have something concrete and sized
+        // this avoids boxing in IntoFuture
+        ReadRawVcFuture::new(self)
     }
 
     pub async unsafe fn into_read_untracked<T: Any + Send + Sync>(
         self,
-        tt: Arc<TurboTasks>,
+        turbo_tasks: &dyn TurboTasksApi,
     ) -> Result<RawVcReadResult<T>> {
-        tt.notify_scheduled_tasks();
+        turbo_tasks.notify_scheduled_tasks();
         let mut current = self;
         loop {
-            match match current {
-                RawVc::TaskOutput(task) => SlotReadResult::Link(
-                    Task::with_done_output(task, &tt, |_, output| unsafe {
-                        output.read_untracked()
-                    })
-                    .await?,
-                ),
-                RawVc::TaskCreated(task, index) => tt.with_task_and_tt(task, |task| {
-                    task.with_created_slot_mut(index, |slot| unsafe { slot.read_untracked() })
-                })?,
-            } {
-                SlotReadResult::Final(result) => {
-                    return Ok(result);
+            match current {
+                RawVc::TaskOutput(task) => {
+                    current = unsafe { read_task_output_untracked(turbo_tasks, task) }.await?
                 }
-                SlotReadResult::Link(raw_vc) => current = raw_vc,
+                RawVc::TaskSlot(task, index) => {
+                    return Ok(
+                        unsafe { turbo_tasks.read_task_slot_untracked(task, index) }.cast::<T>()?
+                    );
+                }
             }
         }
     }
 
     pub async fn resolve(self) -> Result<RawVc> {
-        let tt = TurboTasks::current().unwrap();
+        let tt = turbo_tasks();
         let mut current = self;
         let mut notified = false;
         loop {
-            current = match current {
+            match current {
                 RawVc::TaskOutput(task) => {
                     if !notified {
                         tt.notify_scheduled_tasks();
                         notified = true;
                     }
-                    Task::with_done_output(task, &tt, |_, output| {
-                        Task::add_dependency_to_current(current);
-                        output.read(Task::current().unwrap())
-                    })
-                    .await?
+                    current = read_task_output(&*tt, task).await?;
                 }
-                RawVc::TaskCreated(_, _) => return Ok(current),
+                RawVc::TaskSlot(_, _) => return Ok(current),
             }
         }
     }
 
-    pub(crate) fn remove_dependent_task(&self, reader: TaskId, turbo_tasks: &TurboTasks) {
+    pub(crate) fn remove_dependent_task<B: Backend>(
+        &self,
+        reader: TaskId,
+        turbo_tasks: &TurboTasks<B>,
+    ) {
         match self {
             RawVc::TaskOutput(task) => {
-                turbo_tasks.with_task_and_tt(*task, |task| {
+                turbo_tasks.with_task(*task, |task| {
                     task.with_output_mut(|slot| {
                         slot.dependent_tasks.remove(&reader);
                     });
                 });
             }
-            RawVc::TaskCreated(task, index) => {
-                turbo_tasks.with_task_and_tt(*task, |task| {
-                    task.with_created_slot_mut(*index, |slot| {
+            RawVc::TaskSlot(task, index) => {
+                turbo_tasks.with_task(*task, |task| {
+                    task.with_slot_mut(*index, |slot| {
                         slot.dependent_tasks.remove(&reader);
                     });
                 });
@@ -159,13 +139,13 @@ impl RawVc {
     pub fn is_resolved(&self) -> bool {
         match self {
             RawVc::TaskOutput(_) => false,
-            RawVc::TaskCreated(_, _) => true,
+            RawVc::TaskSlot(_, _) => true,
         }
     }
 
     pub(crate) fn get_task_id(&self) -> TaskId {
         match self {
-            RawVc::TaskOutput(t) | RawVc::TaskCreated(t, _) => *t,
+            RawVc::TaskOutput(t) | RawVc::TaskSlot(t, _) => *t,
         }
     }
 }
@@ -176,8 +156,72 @@ impl Display for RawVc {
             RawVc::TaskOutput(task) => {
                 write!(f, "output of {}", task)
             }
-            RawVc::TaskCreated(task, index) => {
+            RawVc::TaskSlot(task, index) => {
                 write!(f, "value {} of {}", index, task)
+            }
+        }
+    }
+}
+
+pub struct ReadRawVcFuture<T: Any + Send + Sync> {
+    turbo_tasks: Arc<dyn TurboTasksApi>,
+    current: RawVc,
+    listener: Option<EventListener>,
+    phantom_data: PhantomData<Pin<Box<T>>>,
+}
+
+impl<T: Any + Send + Sync> ReadRawVcFuture<T> {
+    fn new(vc: RawVc) -> Self {
+        let tt = turbo_tasks();
+        tt.notify_scheduled_tasks();
+        ReadRawVcFuture {
+            turbo_tasks: tt,
+            current: vc,
+            listener: None,
+            phantom_data: PhantomData,
+        }
+    }
+}
+
+impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
+    type Output = Result<RawVcReadResult<T>>;
+
+    fn poll(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        self.turbo_tasks.notify_scheduled_tasks();
+        let this = self.get_mut();
+        loop {
+            if let Some(listener) = &mut this.listener {
+                let listener = unsafe { Pin::new_unchecked(listener) };
+                if let std::task::Poll::Pending = listener.poll(cx) {
+                    return std::task::Poll::Pending;
+                }
+                this.listener = None;
+            }
+            match this.current {
+                RawVc::TaskOutput(task) => loop {
+                    match this.turbo_tasks.try_read_task_output(task) {
+                        Ok(Ok(vc)) => {
+                            this.current = vc;
+                            break;
+                        }
+                        Ok(Err(err)) => return std::task::Poll::Ready(Err(err)),
+                        Err(mut listener) => match Pin::new(&mut listener).poll(cx) {
+                            std::task::Poll::Ready(_) => continue,
+                            std::task::Poll::Pending => {
+                                this.listener = Some(listener);
+                                return std::task::Poll::Pending;
+                            }
+                        },
+                    }
+                },
+                RawVc::TaskSlot(task, index) => {
+                    return std::task::Poll::Ready(
+                        this.turbo_tasks.read_task_slot(task, index).cast::<T>(),
+                    );
+                }
             }
         }
     }

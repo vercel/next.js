@@ -179,14 +179,17 @@ impl Request {
 
 #[turbo_tasks::value_impl]
 impl RequestVc {
+    #[turbo_tasks::function]
     pub fn parse(request: Value<Pattern>) -> Self {
         Self::slot(Request::parse(request.into_value()))
     }
 
+    #[turbo_tasks::function]
     pub fn parse_string(request: String) -> Self {
         Self::slot(Request::parse(request.into()))
     }
 
+    #[turbo_tasks::function]
     pub fn raw(request: Value<Pattern>, force_in_context: bool) -> Self {
         Self::slot(Request::Raw {
             path: request.into_value(),
@@ -194,6 +197,7 @@ impl RequestVc {
         })
     }
 
+    #[turbo_tasks::function]
     pub fn relative(request: Value<Pattern>, force_in_context: bool) -> Self {
         Self::slot(Request::Relative {
             path: request.into_value(),
@@ -201,6 +205,7 @@ impl RequestVc {
         })
     }
 
+    #[turbo_tasks::function]
     pub fn module(module: String, path: Value<Pattern>) -> Self {
         Self::slot(Request::Module {
             module,

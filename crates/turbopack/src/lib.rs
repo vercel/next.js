@@ -154,12 +154,14 @@ impl CycleDetection {
 
 #[turbo_tasks::value_impl]
 impl CycleDetectionVc {
+    #[turbo_tasks::function]
     fn new() -> Self {
         Self::slot(CycleDetection {
             visited: HashSet::new(),
         })
     }
 
+    #[turbo_tasks::function]
     async fn concat(self, asset: AssetVc) -> Result<Self> {
         let mut visited = self.await?.visited.clone();
         visited.insert(asset);
