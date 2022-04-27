@@ -21,10 +21,7 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   MIDDLEWARE_ROUTE,
 } from '../lib/constants'
-import {
-  MIDDLEWARE_RUNTIME_WEBPACK,
-  MIDDLEWARE_SSR_RUNTIME_WEBPACK,
-} from '../shared/lib/constants'
+import { EDGE_RUNTIME_WEBPACK } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { getRouteMatcher, getRouteRegex } from '../shared/lib/router/utils'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
@@ -56,11 +53,6 @@ const fsStatGzip = (file: string) => {
   if (cached) return cached
   return (fileGzipStats[file] = getGzipSize.file(file))
 }
-
-const WEBPACK_EDGE_RUNTIMES = new Set([
-  MIDDLEWARE_RUNTIME_WEBPACK,
-  MIDDLEWARE_SSR_RUNTIME_WEBPACK,
-])
 
 const fileSize = async (file: string) => (await fs.stat(file)).size
 
@@ -1296,7 +1288,7 @@ export function isEdgeRuntimeCompiled(
       runtimes = []
     }
 
-    if (runtimes.some((r) => WEBPACK_EDGE_RUNTIMES.has(r))) {
+    if (runtimes.some((r) => r === EDGE_RUNTIME_WEBPACK)) {
       isEdgeRuntime = true
       break
     }
