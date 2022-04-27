@@ -1,6 +1,4 @@
-import path from '../shared/lib/isomorphic/path'
-
-const { join } = path
+import { join } from '../shared/lib/isomorphic/path'
 
 export const NEXT_PROJECT_ROOT = join(__dirname, '..', '..')
 export const NEXT_PROJECT_ROOT_DIST = join(NEXT_PROJECT_ROOT, 'dist')
