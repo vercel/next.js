@@ -104,7 +104,7 @@ describe('Middleware base tests', () => {
       for (const key of Object.keys(manifest.middleware)) {
         const middleware = manifest.middleware[key]
         expect(middleware.files).toContainEqual(
-          expect.stringContaining('middleware-runtime')
+          expect.stringContaining('server/edge-runtime-webpack')
         )
         expect(middleware.files).not.toContainEqual(
           expect.stringContaining('static/chunks/')
@@ -133,9 +133,6 @@ describe('Middleware base tests', () => {
             MIDDLEWARE_TEST: 'asdf',
             NEXT_RUNTIME: 'edge',
           },
-          // it's poflyfilled since there is the "process" module
-          // as a devDepencies of the next package
-          nextTick: 'function',
         },
       })
     })
