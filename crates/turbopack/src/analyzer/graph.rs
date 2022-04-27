@@ -1,10 +1,10 @@
 use std::{collections::HashMap, iter, mem::replace, sync::Arc};
 
 use swc_atoms::js_word;
-use swc_common::{collections::AHashSet, Mark, Span, Spanned, SyntaxContext};
+use swc_common::{Mark, Span, Spanned, SyntaxContext};
 use swc_ecmascript::{
     ast::*,
-    utils::{collect_decls, ident::IdentLike},
+    utils::ident::IdentLike,
     visit::{Visit, VisitWith},
 };
 
