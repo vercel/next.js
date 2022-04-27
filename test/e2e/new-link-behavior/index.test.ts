@@ -18,7 +18,7 @@ async function matchLogs(browser, includes: string) {
   return found
 }
 
-const appDir = path.join(__dirname, './app')
+const appDir = path.join(__dirname, 'app')
 
 describe('New Link Behavior', () => {
   let next: NextInstance
