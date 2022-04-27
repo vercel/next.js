@@ -9,7 +9,7 @@ interface Options {
    */
   regexModifier?: (regex: string) => string
   /**
-   * When passed to true the function will remove all unnamed parameters
+   * When true the function will remove all unnamed parameters
    * from the matched parameters.
    */
   removeUnnamedParams?: boolean
@@ -22,7 +22,7 @@ interface Options {
 
 /**
  * Generates a path matcher function for a given path and options based on
- * path-to-regexp. By default the match will case insesitive, non strict
+ * path-to-regexp. By default the match will be case insesitive, non strict
  * and delimited by `/`.
  */
 export function getPathMatch(path: string, options?: Options) {
@@ -56,7 +56,7 @@ export function getPathMatch(path: string, options?: Options) {
     }
 
     /**
-     * If unnamed params are not allowed to allowed they must be removed from
+     * If unnamed params are not allowed they must be removed from
      * the matched parameters. path-to-regexp uses "string" for named and
      * "number" for unnamed parameters.
      */
