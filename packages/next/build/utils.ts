@@ -1,4 +1,8 @@
-import type { NextConfigComplete, PageRuntime } from '../server/config-shared'
+import type {
+  NextConfig,
+  NextConfigComplete,
+  PageRuntime,
+} from '../server/config-shared'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 import '../server/node-polyfill-fetch'
@@ -44,6 +48,7 @@ import isError from '../lib/is-error'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+import { getPageRuntime } from './entries'
 
 const { builtinModules } = require('module')
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
@@ -1271,9 +1276,10 @@ export function isCustomErrorPage(page: string) {
 
 // FIX ME: it does not work for non-middleware edge functions
 //  since chunks don't contain runtime specified somehow
-export function isEdgeRuntimeCompiled(
+export async function isEdgeRuntimeCompiled(
   compilation: webpack5.Compilation,
-  module: any
+  module: any,
+  config: NextConfig
 ) {
   if (!module) return false
 
@@ -1295,7 +1301,9 @@ export function isEdgeRuntimeCompiled(
     }
   }
 
-  return isEdgeRuntime
+  return (
+    isEdgeRuntime || (await getPageRuntime(module.resource, config)) === 'edge'
+  )
 }
 
 export function getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(

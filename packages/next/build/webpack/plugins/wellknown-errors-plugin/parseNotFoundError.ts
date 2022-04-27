@@ -7,6 +7,7 @@ import {
   getUnresolvedModuleFromError,
   isEdgeRuntimeCompiled,
 } from '../../../utils'
+import { NextConfig } from '../../../../server/config-shared'
 
 const chalk = new Chalk.constructor({ enabled: true })
 
@@ -53,7 +54,8 @@ function getModuleTrace(input: any, compilation: any) {
 export async function getNotFoundError(
   compilation: webpack5.Compilation,
   input: any,
-  fileName: string
+  fileName: string,
+  config: NextConfig
 ) {
   if (input.name !== 'ModuleNotFoundError') {
     return false
@@ -112,7 +114,7 @@ export async function getNotFoundError(
       importTrace() +
       '\nhttps://nextjs.org/docs/messages/module-not-found'
 
-    if (isEdgeRuntimeCompiled(compilation, input.module)) {
+    if (await isEdgeRuntimeCompiled(compilation, input.module, config)) {
       const moduleName = getUnresolvedModuleFromError(input.message)
       if (moduleName) {
         message +=
