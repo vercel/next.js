@@ -17,7 +17,7 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
 
-import pathMod from '../shared/lib/isomorphic/path'
+import { join, resolve } from '../shared/lib/isomorphic/path'
 import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/load-custom-routes'
@@ -41,7 +41,8 @@ import {
 import * as envConfig from '../shared/lib/runtime-config'
 import { DecodeError, normalizeRepeatedSlashes } from '../shared/lib/utils'
 import { isTargetLikeServerless } from './utils'
-import Router, { route } from './router'
+import Router from './router'
+import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
@@ -64,8 +65,6 @@ import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { replaceBasePath } from './router-utils'
-
-const { join, resolve } = pathMod
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -355,11 +354,7 @@ export default abstract class Server {
       fs: this.getCacheFilesystem(),
       dev,
       distDir: this.distDir,
-      pagesDir: join(
-        this.distDir,
-        this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-        'pages'
-      ),
+      pagesDir: join(this.serverDistDir, 'pages'),
       locales: this.nextConfig.i18n?.locales,
       max: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk: !minimalMode && this.nextConfig.experimental.isrFlushToDisk,
@@ -535,7 +530,7 @@ export default abstract class Server {
                 parsedUrl.query.__nextLocale = opts.locale
               }
             } else {
-              params = utils.dynamicRouteMatcher!(matchedPathnameNoExt)
+              params = utils.dynamicRouteMatcher!(matchedPathnameNoExt) || {}
             }
 
             if (params) {
@@ -692,7 +687,7 @@ export default abstract class Server {
     const fsRoutes: Route[] = [
       ...this.generateFsStaticRoutes(),
       {
-        match: route('/_next/data/:path*'),
+        match: getPathMatch('/_next/data/:path*'),
         type: 'route',
         name: '_next/data catchall',
         fn: async (req, res, params, _parsedUrl) => {
@@ -768,7 +763,7 @@ export default abstract class Server {
       },
       ...imageRoutes,
       {
-        match: route('/_next/:path*'),
+        match: getPathMatch('/_next/:path*'),
         type: 'route',
         name: '_next catchall',
         // This path is needed because `render()` does a check for `/_next` and the calls the routing again
@@ -804,7 +799,7 @@ export default abstract class Server {
     const catchAllMiddleware = this.generateCatchAllMiddlewareRoute()
 
     const catchAllRoute: Route = {
-      match: route('/:path*'),
+      match: getPathMatch('/:path*'),
       type: 'route',
       name: 'Catchall render',
       fn: async (req, res, _params, parsedUrl) => {
@@ -1965,6 +1960,13 @@ export default abstract class Server {
 
   protected get _isLikeServerless(): boolean {
     return isTargetLikeServerless(this.nextConfig.target)
+  }
+
+  protected get serverDistDir() {
+    return join(
+      this.distDir,
+      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+    )
   }
 }
 

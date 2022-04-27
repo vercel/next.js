@@ -1,13 +1,11 @@
 import { ParsedUrlQuery } from 'querystring'
-import pathMatch from './path-match'
+import { getPathMatch } from './path-match'
 import { matchHas, prepareDestination } from './prepare-destination'
 import { Rewrite } from '../../../../lib/load-custom-routes'
 import { removePathTrailingSlash } from '../../../../client/normalize-trailing-slash'
 import { normalizeLocalePath } from '../../i18n/normalize-locale-path'
 import { parseRelativeUrl } from './parse-relative-url'
 import { delBasePath } from '../router'
-
-const customRouteMatcher = pathMatch(true)
 
 export default function resolveRewrites(
   asPath: string,
@@ -36,7 +34,11 @@ export default function resolveRewrites(
   let resolvedHref
 
   const handleRewrite = (rewrite: Rewrite) => {
-    const matcher = customRouteMatcher(rewrite.source)
+    const matcher = getPathMatch(rewrite.source, {
+      removeUnnamedParams: true,
+      strict: true,
+    })
+
     let params = matcher(parsedAs.pathname)
 
     if (rewrite.has && params) {
