@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { normalizePagePath } from 'next/dist/server/normalize-page-path'
+import { normalizePagePath } from 'next/dist/server/page-path-utils'
 import { SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from 'next/constants'
 import {
   requirePage,

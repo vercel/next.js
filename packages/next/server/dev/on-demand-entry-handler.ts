@@ -6,6 +6,7 @@ import { findPageFile } from '../lib/find-page-file'
 import { getPageRuntime, runDependingOnPageType } from '../../build/entries'
 import { join, posix } from 'path'
 import { normalizePagePath, normalizePathSep } from '../page-path-utils'
+import { ensureLeadingSlash, removePagePathTail } from '../page-path-utils'
 import { pageNotFoundError } from '../require'
 import { reportTrigger } from '../../build/output'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
@@ -348,15 +349,13 @@ async function getPageInfo(opts: {
     }
   }
 
-  let pageUrl = pagePath.replace(/\\/g, '/')
-  pageUrl = `${pageUrl[0] !== '/' ? '/' : ''}${pageUrl
-    .replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '')
-    .replace(/\/index$/, '')}`
-  pageUrl = pageUrl === '' ? '/' : pageUrl
+  const pageUrl = ensureLeadingSlash(
+    removePagePathTail(normalizePathSep(pagePath), pageExtensions)
+  )
 
   return {
     bundlePath: posix.join('pages', normalizePagePath(pageUrl)),
     absolutePagePath: join(pagesDir, pagePath),
-    page: normalizePathSep(posix.normalize(pageUrl)),
+    page: posix.normalize(pageUrl),
   }
 }
