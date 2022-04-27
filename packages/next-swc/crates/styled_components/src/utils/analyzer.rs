@@ -69,26 +69,22 @@ impl Visit for Analyzer<'_> {
                 ..
             })) = v.init.as_deref()
             {
-                match &**callee {
-                    Expr::Ident(callee) => {
-                        if &*callee.sym == "require" && args.len() == 1 && args[0].spread.is_none()
-                        {
-                            if let Expr::Lit(Lit::Str(v)) = &*args[0].expr {
-                                let is_styled = if self.config.top_level_import_paths.is_empty() {
-                                    &*v.value == "styled-components"
-                                        || v.value.starts_with("styled-components/")
-                                } else {
-                                    self.config.top_level_import_paths.contains(&v.value)
-                                };
+                if let Expr::Ident(callee) = &**callee {
+                    if &*callee.sym == "require" && args.len() == 1 && args[0].spread.is_none() {
+                        if let Expr::Lit(Lit::Str(v)) = &*args[0].expr {
+                            let is_styled = if self.config.top_level_import_paths.is_empty() {
+                                &*v.value == "styled-components"
+                                    || v.value.starts_with("styled-components/")
+                            } else {
+                                self.config.top_level_import_paths.contains(&v.value)
+                            };
 
-                                if is_styled {
-                                    self.state.styled_required = Some(name.id.to_id());
-                                    self.state.unresolved_ctxt = Some(callee.span.ctxt);
-                                }
+                            if is_styled {
+                                self.state.styled_required = Some(name.id.to_id());
+                                self.state.unresolved_ctxt = Some(callee.span.ctxt);
                             }
                         }
                     }
-                    _ => {}
                 }
             }
         }
