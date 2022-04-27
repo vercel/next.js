@@ -770,7 +770,7 @@ function runTests(mode) {
         await browser
           .elementById('with-overlapping-styles-raw')
           .getAttribute('style')
-      ).toBe('width:10px;border-radius:10px;margin:15px;')
+      ).toBe('width:10px;border-radius:10px;margin:15px')
       expect(
         await browser
           .elementById('without-styles-responsive')
