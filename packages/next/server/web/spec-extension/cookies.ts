@@ -19,6 +19,23 @@ const normalizeCookieOptions = (options: CookieSerializeOptions) => {
 const serializeValue = (value: unknown) =>
   typeof value === 'object' ? `j:${JSON.stringify(value)}` : String(value)
 
+const serializeExpiredCookie = (
+  key: string,
+  options: CookieSerializeOptions = {}
+) =>
+  cookie.serialize(key, '', {
+    expires: new Date(0),
+    path: '/',
+    ...options,
+  })
+
+const deserializeCookie = (input: Request | Response): string[] => {
+  const value = input.headers.get('set-cookie')
+  return value !== undefined && value !== null ? value.split(', ') : []
+}
+
+const serializeCookie = (input: string[]) => input.join(', ')
+
 export class Cookies extends Map<string, any> {
   constructor(input?: string | null) {
     const parsedInput = typeof input === 'string' ? cookie.parse(input) : {}
@@ -35,13 +52,6 @@ export class Cookies extends Map<string, any> {
     )
   }
 }
-
-const deserializeCookie = (input: Request | Response): string[] => {
-  const value = input.headers.get('set-cookie')
-  return value !== undefined && value !== null ? value.split(', ') : []
-}
-
-const serializeCookie = (input: string[]) => input.join(', ')
 
 export class NextCookies extends Cookies {
   response: Request | Response
@@ -64,7 +74,7 @@ export class NextCookies extends Cookies {
       if (setCookie) {
         this.response.headers.set(
           'set-cookie',
-          `${store.get(args[0])}, ${setCookie}`
+          [store.get(args[0]), setCookie].join(', ')
         )
       } else {
         this.response.headers.set('set-cookie', store.get(args[0]))
@@ -75,7 +85,7 @@ export class NextCookies extends Cookies {
 
     return store
   }
-  delete(key: any) {
+  delete(key: any, options: CookieSerializeOptions = {}) {
     const isDeleted = super.delete(key)
 
     if (isDeleted) {
@@ -84,18 +94,21 @@ export class NextCookies extends Cookies {
           (value) => !value.startsWith(`${key}=`)
         )
       )
-
-      if (setCookie) {
-        this.response.headers.set('set-cookie', setCookie)
-      } else {
-        this.response.headers.delete('set-cookie')
-      }
+      const expiredCookie = serializeExpiredCookie(key, options)
+      this.response.headers.set(
+        'set-cookie',
+        [expiredCookie, setCookie].join(', ')
+      )
     }
 
     return isDeleted
   }
-  clear() {
-    this.response.headers.delete('set-cookie')
+  clear(options: CookieSerializeOptions = {}) {
+    const expiredCookies = Array.from(super.keys())
+      .map((key) => serializeExpiredCookie(key, options))
+      .join(', ')
+
+    if (expiredCookies) this.response.headers.set('set-cookie', expiredCookies)
     return super.clear()
   }
 }

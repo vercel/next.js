@@ -79,17 +79,17 @@ it('reflect .delete into `set-cookie`', async () => {
   const firstDelete = response.cookies.delete('foo')
   expect(firstDelete).toBe(true)
   expect(Object.fromEntries(response.headers.entries())['set-cookie']).toBe(
-    'fooz=barz; Path=/'
+    'foo=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT, fooz=barz; Path=/'
   )
+
   expect(response.cookies.get('foo')).toBe(undefined)
 
   const secondDelete = response.cookies.delete('fooz')
   expect(secondDelete).toBe(true)
   expect(Object.fromEntries(response.headers.entries())['set-cookie']).toBe(
-    undefined
+    'fooz=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT, foo=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
   )
   expect(response.cookies.get('fooz')).toBe(undefined)
-
   expect(response.cookies.size).toBe(0)
 })
 
@@ -99,6 +99,11 @@ it('reflect .clear into `set-cookie`', async () => {
   )
 
   const response = new NextResponse()
+
+  response.cookies.clear()
+  expect(Object.fromEntries(response.headers.entries())['set-cookie']).toBe(
+    undefined
+  )
 
   response.cookies.set('foo', 'bar')
   expect(Object.fromEntries(response.headers.entries())['set-cookie']).toBe(
@@ -113,7 +118,7 @@ it('reflect .clear into `set-cookie`', async () => {
 
   response.cookies.clear()
   expect(Object.fromEntries(response.headers.entries())['set-cookie']).toBe(
-    undefined
+    'foo=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT, fooz=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
   )
 })
 
