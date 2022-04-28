@@ -89,19 +89,23 @@ function logLoadFailure(attempts) {
     }
   } catch (_) {}
 
-  eventSwcLoadFailure({
-    nextVersion,
-    glibcVersion,
-    installedSwcPackages,
-    arch: process.arch,
-    platform: process.platform,
-    nodeVersion: process.versions.node,
-  }).finally(() => {
-    Log.error(
-      `Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
+  ;(lockfilePatchPromise.cur || Promise.resolve())
+    .then(() =>
+      eventSwcLoadFailure({
+        nextVersion,
+        glibcVersion,
+        installedSwcPackages,
+        arch: process.arch,
+        platform: process.platform,
+        nodeVersion: process.versions.node,
+      })
     )
-    process.exit(1)
-  })
+    .finally(() => {
+      Log.error(
+        `Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
+      )
+      process.exit(1)
+    })
 }
 
 async function loadWasm() {
