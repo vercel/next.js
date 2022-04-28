@@ -703,9 +703,7 @@ function runTests(mode) {
       )
       expect(childElementType).toBe('IMG')
 
-      expect(await browser.elementById('raw1').getAttribute('style')).toBe(
-        `aspect-ratio:1200 / 700`
-      )
+      expect(await browser.elementById('raw1').getAttribute('style')).toBeNull()
       expect(await browser.elementById('raw1').getAttribute('height')).toBe(
         '700'
       )
@@ -717,22 +715,34 @@ function runTests(mode) {
       )
 
       expect(await browser.elementById('raw2').getAttribute('style')).toBe(
-        'padding-left:4rem;width:100%;object-position:30% 30%;aspect-ratio:1200 / 700'
+        'padding-left:4rem;width:100%;object-position:30% 30%'
       )
-      expect(
-        await browser.elementById('raw2').getAttribute('height')
-      ).toBeNull()
-      expect(await browser.elementById('raw2').getAttribute('width')).toBeNull()
+      expect(await browser.elementById('raw2').getAttribute('height')).toBe(
+        '700'
+      )
+      expect(await browser.elementById('raw2').getAttribute('width')).toBe(
+        '1200'
+      )
       expect(await browser.elementById('raw2').getAttribute('srcset')).toBe(
         `/_next/image?url=%2Fwide.png&w=16&q=75 16w, /_next/image?url=%2Fwide.png&w=32&q=75 32w, /_next/image?url=%2Fwide.png&w=48&q=75 48w, /_next/image?url=%2Fwide.png&w=64&q=75 64w, /_next/image?url=%2Fwide.png&w=96&q=75 96w, /_next/image?url=%2Fwide.png&w=128&q=75 128w, /_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w`
       )
 
-      expect(await browser.elementById('raw3').getAttribute('style')).toBe(
-        'aspect-ratio:400 / 400'
-      )
+      expect(await browser.elementById('raw3').getAttribute('style')).toBeNull()
       expect(await browser.elementById('raw3').getAttribute('srcset')).toBe(
         `/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x`
       )
+      if (mode === 'dev') {
+        await waitFor(1000)
+        const warnings = (await browser.log('browser'))
+          .map((log) => log.message)
+          .join('\n')
+        expect(warnings).toMatch(
+          /Image with src "\/wide.png" has either width or height modified, but not the other./gm
+        )
+        expect(warnings).not.toMatch(
+          /Image with src "\/test.png" has either width or height modified, but not the other./gm
+        )
+      }
     } finally {
       if (browser) {
         await browser.close()
@@ -760,7 +770,7 @@ function runTests(mode) {
         await browser
           .elementById('with-overlapping-styles-raw')
           .getAttribute('style')
-      ).toBe('width:10px;border-radius:10px;margin:15px;aspect-ratio:400 / 400')
+      ).toBe('width:10px;border-radius:10px;margin:15px')
       expect(
         await browser
           .elementById('without-styles-responsive')
@@ -770,7 +780,7 @@ function runTests(mode) {
       )
       expect(
         await browser.elementById('without-styles-raw').getAttribute('style')
-      ).toBe('aspect-ratio:400 / 400')
+      ).toBeNull()
 
       if (mode === 'dev') {
         await waitFor(1000)
