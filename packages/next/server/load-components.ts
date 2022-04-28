@@ -18,6 +18,7 @@ import {
   GetServerSideProps,
   GetStaticProps,
 } from 'next/types'
+import { normalizePagePath } from './normalize-page-path'
 
 export type ManifestItem = {
   id: number | string
@@ -67,7 +68,7 @@ export async function loadComponents(
   distDir: string,
   pathname: string,
   serverless: boolean,
-  serverComponents?: boolean
+  hasServerComponents?: boolean
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const ComponentMod = await requirePage(pathname, distDir, serverless)
@@ -102,29 +103,35 @@ export async function loadComponents(
     } as LoadComponentsReturnType
   }
 
-  const [DocumentMod, AppMod, ComponentMod, AppServerMod, ClientEntryMod] =
-    await Promise.all([
-      requirePage('/_document', distDir, serverless),
-      requirePage('/_app', distDir, serverless),
-      requirePage(pathname, distDir, serverless),
-      serverComponents
-        ? requirePage('/_app.server', distDir, serverless)
-        : null,
-      serverComponents
-        ? requirePage(pathname + '.__sc_client__', distDir, serverless)
-        : null,
-    ])
+  const [DocumentMod, AppMod, ComponentMod, AppServerMod] = await Promise.all([
+    requirePage('/_document', distDir, serverless),
+    requirePage('/_app', distDir, serverless),
+    requirePage(pathname, distDir, serverless),
+    hasServerComponents
+      ? requirePage('/_app.server', distDir, serverless)
+      : null,
+  ])
 
-  if (serverComponents) {
-    ComponentMod.__next_rsc__.__next_rsc_client_entry__ =
-      ClientEntryMod.__next_rsc_client_entry__
+  if (hasServerComponents) {
+    try {
+      const ClientEntryMod = await requirePage(
+        normalizePagePath(pathname) + '.__sc_client__',
+        distDir,
+        serverless
+      )
+      ComponentMod.__next_rsc__.__next_rsc_client_entry__ =
+        ClientEntryMod.__next_rsc_client_entry__
+    } catch (_) {
+      // This page isn't a server component page, so there is no __sc_client__
+      // bundle to load.
+    }
   }
 
   const [buildManifest, reactLoadableManifest, serverComponentManifest] =
     await Promise.all([
       require(join(distDir, BUILD_MANIFEST)),
       require(join(distDir, REACT_LOADABLE_MANIFEST)),
-      serverComponents
+      hasServerComponents
         ? require(join(distDir, 'server', MIDDLEWARE_FLIGHT_MANIFEST + '.json'))
         : null,
     ])

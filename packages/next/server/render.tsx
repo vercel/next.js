@@ -408,11 +408,15 @@ function createServerComponentRenderer(
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
   }
 ) {
-  // We need to expose the `__webpack_require__` API globally for
-  // react-server-dom-webpack. This is a hack until we find a better way.
-  // @ts-ignore
-  globalThis.__webpack_require__ =
-    ComponentMod.__next_rsc__.__next_rsc_client_entry__.__webpack_require__
+  try {
+    // We need to expose the `__webpack_require__` API globally for
+    // react-server-dom-webpack. This is a hack until we find a better way.
+    // @ts-ignore
+    globalThis.__webpack_require__ =
+      ComponentMod.__next_rsc__.__next_rsc_client_entry__.__webpack_require__
+  } catch (err) {
+    throw new Error('Failed to build the Server Component bundle.')
+  }
 
   const Component = interopDefault(ComponentMod)
 

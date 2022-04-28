@@ -8,12 +8,12 @@ export default async function transformSource(this: any): Promise<string> {
 
   return (
     modules
-      .map((request: string) => {
-        return `import(/* webpackMode: "eager" */ '!${request}?__sc_client__')`
-      })
+      .map(
+        (request: string) => `import(/* webpackMode: "eager" */ '${request}')`
+      )
       .join(';') +
     `;export const __next_rsc_client_entry__ = {
-      __webpack_require__: path => __webpack_require__(path + '?__sc_client__')
+      __webpack_require__
     }`
   )
 }

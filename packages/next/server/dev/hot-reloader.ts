@@ -661,7 +661,10 @@ export default class HotReloader {
 
               entrypoints[bundlePath] = finalizeEntrypoint({
                 name: bundlePath,
-                value: request,
+                value: {
+                  import: request,
+                  layer: isServerComponent ? 'sc_server' : undefined,
+                },
                 isServer: true,
               })
             }
