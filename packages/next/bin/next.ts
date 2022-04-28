@@ -2,6 +2,7 @@
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
+import { shouldUseReactRoot } from '../lib/react'
 ;['react', 'react-dom'].forEach((dependency) => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
@@ -105,7 +106,7 @@ if (process.env.NODE_ENV) {
 
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
 ;(process.env as any).NEXT_RUNTIME = 'nodejs'
-;(process.env as any).__NEXT_REACT_ROOT = !!require('react').useId
+;(process.env as any).__NEXT_REACT_ROOT = shouldUseReactRoot
 
 // x-ref: https://github.com/vercel/next.js/pull/34688#issuecomment-1047994505
 if (process.versions.pnp === '3') {

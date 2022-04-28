@@ -111,7 +111,7 @@ import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { recursiveCopy } from '../lib/recursive-copy'
-import { shouldUseReactRoot } from '../server/config'
+import { shouldUseReactRoot } from '../lib/react'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { lockfilePatchPromise } from './swc'
 

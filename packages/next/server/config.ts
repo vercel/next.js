@@ -2,7 +2,6 @@ import { basename, extname, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
-import semver from 'next/dist/compiled/semver'
 import findUp from 'next/dist/compiled/find-up'
 import chalk from '../lib/chalk'
 import * as Log from '../build/output/log'
@@ -21,6 +20,7 @@ import {
 } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { hasNextSupport } from '../telemetry/ci-info'
+import { shouldUseReactRoot } from '../lib/react'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -188,7 +188,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   }
 
-  const hasReactRoot = shouldUseReactRoot()
+  const hasReactRoot = shouldUseReactRoot
   if (hasReactRoot) {
     // users might not have the `experimental` key in their config
     result.experimental = result.experimental || {}
@@ -752,19 +752,6 @@ export default async function loadConfig(
   setHttpAgentOptions(completeConfig.httpAgentOptions)
   return completeConfig
 }
-
-export const shouldUseReactRoot = execOnce(() => {
-  const reactDomVersion = require('react-dom').version
-  const isReactExperimental = Boolean(
-    reactDomVersion && /0\.0\.0-experimental/.test(reactDomVersion)
-  )
-  const hasReact18: boolean =
-    Boolean(reactDomVersion) &&
-    (semver.gte(reactDomVersion!, '18.0.0') ||
-      semver.coerce(reactDomVersion)?.version === '18.0.0')
-
-  return hasReact18 || isReactExperimental
-})
 
 export function setHttpAgentOptions(
   options: NextConfigComplete['httpAgentOptions']
