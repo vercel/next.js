@@ -114,9 +114,9 @@ export async function getNotFoundError(
       importTrace() +
       '\nhttps://nextjs.org/docs/messages/module-not-found'
 
-    if (await isEdgeRuntimeCompiled(compilation, input.module, config)) {
-      const moduleName = getUnresolvedModuleFromError(input.message)
-      if (moduleName) {
+    const moduleName = getUnresolvedModuleFromError(input.message)
+    if (moduleName) {
+      if (await isEdgeRuntimeCompiled(compilation, input.module, config)) {
         message +=
           '\n\n' +
           getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(moduleName)
