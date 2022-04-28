@@ -119,6 +119,7 @@ export async function createNext(opts: {
   buildCommand?: string
   packageJson?: PackageJson
   startCommand?: string
+  packageLockPath?: string
 }): Promise<NextInstance> {
   try {
     if (nextInstance) {
@@ -149,7 +150,7 @@ export async function createNext(opts: {
   } catch (err) {
     require('console').error('Failed to create next instance', err)
     try {
-      await nextInstance.destroy()
+      nextInstance.destroy()
     } catch (_) {}
     process.exit(1)
   }
