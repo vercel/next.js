@@ -40,7 +40,7 @@ impl Display for SlotContent {
         match self {
             SlotContent::Empty => write!(f, "empty"),
             SlotContent::SharedReference(ty, _) => {
-                write!(f, "shared {}", registry::get_value(*ty).name)
+                write!(f, "shared {}", registry::get_value_type(*ty).name)
             }
         }
     }

@@ -82,8 +82,16 @@ pub fn get_function_id(func: &'static NativeFunction) -> FunctionId {
     get_thing_id(func, &FUNCTIONS_BY_VALUE)
 }
 
+pub fn get_function_id_by_global_name(global_name: &str) -> Option<FunctionId> {
+    FUNCTIONS_BY_NAME.pin().get(global_name).cloned()
+}
+
 pub fn get_function(id: FunctionId) -> &'static NativeFunction {
     FUNCTIONS.get(*id).unwrap().0
+}
+
+pub fn get_function_global_name(id: FunctionId) -> &'static str {
+    &FUNCTIONS.get(*id).unwrap().1
 }
 
 pub fn register_value_type(global_name: &str, ty: &'static ValueType) {
@@ -101,8 +109,16 @@ pub fn get_value_type_id(func: &'static ValueType) -> ValueTypeId {
     get_thing_id(func, &VALUE_TYPES_BY_VALUE)
 }
 
-pub fn get_value(id: ValueTypeId) -> &'static ValueType {
+pub fn get_value_type_id_by_global_name(global_name: &str) -> Option<ValueTypeId> {
+    VALUE_TYPES_BY_NAME.pin().get(global_name).cloned()
+}
+
+pub fn get_value_type(id: ValueTypeId) -> &'static ValueType {
     VALUE_TYPES.get(*id).unwrap().0
+}
+
+pub fn get_value_type_global_name(id: ValueTypeId) -> &'static str {
+    &VALUE_TYPES.get(*id).unwrap().1
 }
 
 pub fn register_trait_type(global_name: &str, ty: &'static TraitType) {
@@ -120,6 +136,14 @@ pub fn get_trait_type_id(func: &'static TraitType) -> TraitTypeId {
     get_thing_id(func, &TRAIT_TYPES_BY_VALUE)
 }
 
+pub fn get_trait_type_id_by_global_name(global_name: &str) -> Option<TraitTypeId> {
+    TRAIT_TYPES_BY_NAME.pin().get(global_name).cloned()
+}
+
 pub fn get_trait(id: TraitTypeId) -> &'static TraitType {
     TRAIT_TYPES.get(*id).unwrap().0
+}
+
+pub fn get_trait_type_global_name(id: TraitTypeId) -> &'static str {
+    &TRAIT_TYPES.get(*id).unwrap().1
 }

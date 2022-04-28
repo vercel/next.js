@@ -5,8 +5,8 @@ use lazy_static::lazy_static;
 
 use crate::{
     id::ValueTypeId,
+    manager::{find_slot_by_key, find_slot_by_type},
     registry,
-    task::{find_slot_by_key, find_slot_by_type},
     trace::{TraceRawVcs, TraceRawVcsContext},
     RawVc, RawVcReadResult, ReadRawVcFuture, TaskInput, ValueType,
 };

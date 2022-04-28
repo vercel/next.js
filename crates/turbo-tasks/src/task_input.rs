@@ -9,6 +9,7 @@ use std::{
 
 use any_key::AnyHash;
 use anyhow::{anyhow, Result};
+use serde::Serialize;
 
 use crate::{
     id::{FunctionId, TraitTypeId},
@@ -120,7 +121,7 @@ impl TaskInput {
             TaskInput::TaskOutput(_) | TaskInput::TaskSlot(_, _) => {
                 panic!("get_trait_method must be called on a resolved TaskInput")
             }
-            TaskInput::SharedReference(ty, _) => registry::get_value(*ty)
+            TaskInput::SharedReference(ty, _) => registry::get_value_type(*ty)
                 .trait_methods
                 .get(&(trait_type, name))
                 .map(|r| *r),
@@ -134,7 +135,7 @@ impl TaskInput {
                 panic!("has_trait() must be called on a resolved TaskInput")
             }
             TaskInput::SharedReference(ty, _) => {
-                registry::get_value(*ty).traits.contains(&trait_type)
+                registry::get_value_type(*ty).traits.contains(&trait_type)
             }
             _ => false,
         }
@@ -145,7 +146,7 @@ impl TaskInput {
             TaskInput::TaskOutput(_) | TaskInput::TaskSlot(_, _) => {
                 panic!("traits() must be called on a resolved TaskInput")
             }
-            TaskInput::SharedReference(ty, _) => registry::get_value(*ty)
+            TaskInput::SharedReference(ty, _) => registry::get_value_type(*ty)
                 .traits
                 .iter()
                 .map(|t| registry::get_trait(*t))
@@ -232,7 +233,7 @@ impl Display for TaskInput {
             TaskInput::Nothing => write!(f, "nothing"),
             TaskInput::SharedValue(_) => write!(f, "any value"),
             TaskInput::SharedReference(ty, _) => {
-                write!(f, "shared reference {}", registry::get_value(*ty).name)
+                write!(f, "shared reference {}", registry::get_value_type(*ty).name)
             }
         }
     }
