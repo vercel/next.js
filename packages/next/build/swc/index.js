@@ -12,14 +12,15 @@ const triples = platformArchTriples[PlatformName][ArchName] || []
 
 let nativeBindings
 let wasmBindings
-let attemptedLockFilePatch = false
+export const lockfilePatchPromise = {}
 
 async function loadBindings() {
-  if (!attemptedLockFilePatch) {
-    attemptedLockFilePatch = true
+  if (!lockfilePatchPromise.cur) {
     // always run lockfile check once so that it gets patched
     // even if it doesn't fail to load locally
-    patchIncorrectLockfile(process.cwd()).catch(console.error)
+    lockfilePatchPromise.cur = patchIncorrectLockfile(process.cwd()).catch(
+      console.error
+    )
   }
 
   let attempts = []

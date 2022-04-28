@@ -113,6 +113,7 @@ import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { shouldUseReactRoot } from '../server/config'
 import { recursiveReadDir } from '../lib/recursive-readdir'
+import { lockfilePatchPromise } from './swc'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -2134,6 +2135,9 @@ export default async function build(
 
   // Ensure all traces are flushed before finishing the command
   await flushAllTraces()
+
+  // Ensure we wait for lockfile patching if present
+  await lockfilePatchPromise.cur
 
   return buildResult
 }
