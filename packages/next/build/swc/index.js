@@ -12,8 +12,16 @@ const triples = platformArchTriples[PlatformName][ArchName] || []
 
 let nativeBindings
 let wasmBindings
+let attemptedLockFilePatch = false
 
 async function loadBindings() {
+  if (!attemptedLockFilePatch) {
+    attemptedLockFilePatch = true
+    // always run lockfile check once so that it gets patched
+    // even if it doesn't fail to load locally
+    patchIncorrectLockfile(process.cwd()).catch(console.error)
+  }
+
   let attempts = []
   try {
     return loadNative()
@@ -45,7 +53,13 @@ function loadBindingsSync() {
   logLoadFailure(attempts)
 }
 
+let loggingLoadFailure = false
+
 function logLoadFailure(attempts) {
+  // make sure we only emit the event and log the failure once
+  if (loggingLoadFailure) return
+  loggingLoadFailure = true
+
   for (let attempt of attempts) {
     Log.warn(attempt)
   }
@@ -74,23 +88,19 @@ function logLoadFailure(attempts) {
     }
   } catch (_) {}
 
-  patchIncorrectLockfile(process.cwd())
-    .then(() => {
-      return eventSwcLoadFailure({
-        nextVersion,
-        glibcVersion,
-        installedSwcPackages,
-        arch: process.arch,
-        platform: process.platform,
-        nodeVersion: process.versions.node,
-      })
-    })
-    .finally(() => {
-      Log.error(
-        `Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
-      )
-      process.exit(1)
-    })
+  eventSwcLoadFailure({
+    nextVersion,
+    glibcVersion,
+    installedSwcPackages,
+    arch: process.arch,
+    platform: process.platform,
+    nodeVersion: process.versions.node,
+  }).finally(() => {
+    Log.error(
+      `Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
+    )
+    process.exit(1)
+  })
 }
 
 async function loadWasm() {
